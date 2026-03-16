@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integration Architecture – Cap Map → EA 2.0</title>
+<script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f1f5f9; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const steps = [
+  { id:1, from:"AI Capability Mapping V2", to:"Export Layer", label:"CSV Export", detail:"Capability, Domain, Strategic Weight, Maturity, Evolution, Visibility, Color/Category", bg:"#f3e8ff", border:"#a855f7", badge:"#9333ea", icon:"📊", outcome:"Standardiserad datastruktur – noll manuell rensning" },
+  { id:2, from:"Export Layer", to:"EA 2.0 Platform", label:"Import / JSON Mapping", detail:"Capability → Name | Strategic Weight → Category | Maturity → Score | Domain → Domain | Evolution/Visibility → Metadata", bg:"#dbeafe", border:"#3b82f6", badge:"#2563eb", icon:"🔄", outcome:"Direkt körbar i Dependency Graph & Impact Simulator" },
+  { id:3, from:"EA 2.0 Platform", to:"Heatmap + Impact Sim", label:"Auto-generering", detail:"Strategic + låg mognad → Highest Priority | Riskexponering | Teknisk skuld | KPI-påverkan", bg:"#ffedd5", border:"#f97316", badge:"#ea580c", icon:"🔥", outcome:"Objektiv prioritering – eliminerar 'loudest voice wins'" },
+  { id:4, from:"Capabilities", to:"System → Data → AI Agent", label:"Capability Mapping", detail:"One-click: Capability → System | Gap-identifiering | Spårbarhet för compliance", bg:"#dcfce7", border:"#22c55e", badge:"#16a34a", icon:"🔗", outcome:"Regulatorisk spårbarhet & teknisk styrning" },
+  { id:5, from:"Target Architecture", to:"Integrationer + LLM-agenter", label:"To-Be Modellering", detail:"Dataflöden | Automationspotential | LLM-agenter | API-kopplingar", bg:"#ccfbf1", border:"#14b8a6", badge:"#0d9488", icon:"🏗️", outcome:"Kortare time-to-execution – direkt konkurrensfördel" },
+  { id:6, from:"EA 2.0 CFO View", to:"ROI per Capability", label:"Finansiell analys", detail:"Årlig besparing (FTE + system) | Payback-tid | AI Readiness Index | CO2-reduktion", bg:"#fef9c3", border:"#eab308", badge:"#ca8a04", icon:"💰", outcome:"Datadrivet investeringsunderlag – bättre kapitalallokering" },
+  { id:7, from:"EA 2.0 Platform", to:"Styrelse & Ledning", label:"Board Report PDF", detail:"Capability Heatmap | Wardley Map | Impact Simulations | ROI | Prioriterad Roadmap", bg:"#fee2e2", border:"#ef4444", badge:"#dc2626", icon:"📋", outcome:"Snabbare beslut – högre governance-kvalitet" },
+];
+
+const jsonSchema = `{
+  "capabilities": [
+    {
+      "id": "CAP-001",
+      "name": "Predictive Maintenance",
+      "domain": "Operations",
+      "strategic_weight": "Strategic",
+      "maturity": 2,
+      "wardley": {
+        "evolution": 0.35,
+        "visibility": 0.72
+      },
+      "category": "Build",
+      "color": "#ef4444",
+      "investment_priority": "Critical"
+    }
+  ]
+}`;
+
+const kpis = [
+  { label:"Kostnadsbesparing", value:"Eliminerar dubbelarbete", icon:"💰", bg:"#f0fdf4", border:"#bbf7d0" },
+  { label:"Riskreduktion", value:"Datadrivna prioriteringar", icon:"🛡️", bg:"#eff6ff", border:"#bfdbfe" },
+  { label:"Konkurrensfördel", value:"Snabbare strategi→execution", icon:"⚡", bg:"#fefce8", border:"#fef08a" },
+  { label:"Compliance", value:"Capability→System spårbarhet", icon:"✅", bg:"#faf5ff", border:"#e9d5ff" },
+];
+
+function App() {
+  const [activeStep, setActiveStep] = useState(null);
+  const [showSchema, setShowSchema] = useState(false);
+
+  return (
+    <div style={{minHeight:"100vh", background:"#f1f5f9", fontFamily:"-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"}}>
+
+      {/* Header */}
+      <div style={{background:"linear-gradient(135deg, #1e293b, #1e1b4b)", color:"#fff", padding:"28px 32px"}}>
+        <div style={{maxWidth:900, margin:"0 auto"}}>
+          <div style={{display:"flex", alignItems:"center", gap:12, marginBottom:6}}>
+            <span style={{fontSize:26}}>🏗️</span>
+            <h1 style={{margin:0, fontSize:22, fontWeight:800, letterSpacing:"-0.5px"}}>Integration Architecture</h1>
+            <span style={{background:"#6366f1", color:"#fff", fontSize:10, fontWeight:700, padding:"2px 10px", borderRadius:20}}>EA 2.0</span>
+          </div>
+          <p style={{color:"#94a3b8", fontSize:13, margin:"0 0 12px"}}>AI Capability Mapping V2 → EA 2.0 Platform (final 2)</p>
+          <div style={{display:"flex", gap:20, fontSize:12, color:"#64748b"}}>
+            <span>🎯 End-to-end pipeline</span>
+            <span>⚡ Strategi → Execution</span>
+            <span>📈 ROI-driven</span>
+          </div>
+        </div>
+      </div>
+
+      <div style={{maxWidth:900, margin:"0 auto", padding:"32px"}}>
+
+        {/* Pipeline Steps */}
+        <div style={{display:"flex", flexDirection:"column", gap:8, marginBottom:28}}>
+          {steps.map((s, idx) => (
+            <div key={s.id}>
+              <div
+                onClick={() => setActiveStep(activeStep === s.id ? null : s.id)}
+                style={{background:s.bg, border:`2px solid ${activeStep===s.id ? s.border : "#e2e8f0"}`, borderRadius:14, padding:"14px 18px", cursor:"pointer", transition:"all 0.2s", boxShadow: activeStep===s.id ? "0 4px 20px rgba(0,0,0,0.12)" : "0 1px 3px rgba(0,0,0,0.05)"}}
+              >
+                <div style={{display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+                  <div style={{display:"flex", alignItems:"center", gap:14}}>
+                    <span style={{fontSize:24}}>{s.icon}</span>
+                    <div>
+                      <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:4}}>
+                        <span style={{fontSize:10, fontWeight:700, color:"#94a3b8", letterSpacing:1}}>STEG {s.id}</span>
+                        <span style={{background:s.badge, color:"#fff", fontSize:10, fontWeight:600, padding:"2px 10px", borderRadius:20}}>{s.label}</span>
+                      </div>
+                      <div style={{fontSize:13, fontWeight:600}}>
+                        <span style={{color:"#475569"}}>{s.from}</span>
+                        <span style={{color:"#94a3b8", margin:"0 8px"}}>→</span>
+                        <span style={{color:"#1e293b"}}>{s.to}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span style={{color:"#94a3b8", fontSize:12, display:"inline-block", transition:"transform 0.2s", transform: activeStep===s.id ? "rotate(180deg)" : "none"}}>▼</span>
+                </div>
+
+                {activeStep === s.id && (
+                  <div style={{marginTop:14, paddingTop:14, borderTop:`1px solid ${s.border}`, display:"grid", gridTemplateColumns:"1fr 1fr", gap:14}}>
+                    <div>
+                      <p style={{fontSize:11, fontWeight:700, color:"#64748b", marginBottom:6, letterSpacing:0.5}}>DATAFLÖDE / PROCESS</p>
+                      <p style={{fontSize:13, color:"#334155", lineHeight:1.6}}>{s.detail}</p>
+                    </div>
+                    <div style={{background:"rgba(255,255,255,0.7)", borderRadius:10, padding:14}}>
+                      <p style={{fontSize:11, fontWeight:700, color:"#64748b", marginBottom:6, letterSpacing:0.5}}>💼 AFFÄRSNYTTA</p>
+                      <p style={{fontSize:13, fontWeight:600, color:"#1e293b", lineHeight:1.5}}>{s.outcome}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {idx < steps.length - 1 && (
+                <div style={{display:"flex", justifyContent:"center", margin:"2px 0"}}>
+                  <div style={{width:2, height:14, background:"#cbd5e1"}}></div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* JSON Schema */}
+        <div style={{background:"#fff", border:"1px solid #e2e8f0", borderRadius:14, padding:20, marginBottom:24, boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+          <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer"}} onClick={() => setShowSchema(!showSchema)}>
+            <div>
+              <h3 style={{fontSize:14, fontWeight:700, color:"#1e293b", margin:"0 0 3px"}}>📄 JSON Import Schema</h3>
+              <p style={{fontSize:12, color:"#64748b", margin:0}}>Standardiserat format för capability-import till EA 2.0</p>
+            </div>
+            <button style={{background:"#1e293b", color:"#fff", border:"none", borderRadius:8, padding:"7px 16px", fontSize:12, fontWeight:600, cursor:"pointer"}}>
+              {showSchema ? "Dölj" : "Visa schema"}
+            </button>
+          </div>
+          {showSchema && (
+            <pre style={{marginTop:14, background:"#0f172a", color:"#4ade80", fontSize:12, padding:18, borderRadius:10, overflowX:"auto", lineHeight:1.6}}>
+              {jsonSchema}
+            </pre>
+          )}
+        </div>
+
+        {/* KPI Grid */}
+        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:24}}>
+          {kpis.map((k, i) => (
+            <div key={i} style={{background:k.bg, border:`1px solid ${k.border}`, borderRadius:14, padding:18}}>
+              <div style={{fontSize:26, marginBottom:8}}>{k.icon}</div>
+              <div style={{fontSize:11, fontWeight:700, color:"#64748b", marginBottom:4, letterSpacing:0.5}}>{k.label}</div>
+              <div style={{fontSize:14, fontWeight:700, color:"#1e293b"}}>{k.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer Banner */}
+        <div style={{background:"#1e293b", color:"#fff", borderRadius:14, padding:"18px 24px", textAlign:"center"}}>
+          <p style={{fontSize:14, fontWeight:700, margin:"0 0 4px"}}>End-to-End Pipeline</p>
+          <p style={{fontSize:12, color:"#94a3b8", margin:0}}>Strategisk prioritering → Teknisk realisering → Finansiell analys → Styrelserapport</p>
+        </div>
+      </div>
+
+      <footer style={{textAlign:"center", color:"#94a3b8", fontSize:11, padding:"16px", borderTop:"1px solid #e2e8f0"}}>
+        EA 2.0 Suite · Integration Architecture · AI Capability Mapping V2 → EA 2.0 Platform · PropTech & Real Estate
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.render(React.createElement(App), document.getElementById("root"));
+</script>
+</body>
+</html>

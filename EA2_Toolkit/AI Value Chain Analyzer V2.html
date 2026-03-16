@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Value Chain Analyzer V2 + AI Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="../js/EA_Config.js"></script>
+<script src="../js/EA_DataManager.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; }
+        .primary-activity { background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); color: white; }
+        .support-activity { background: linear-gradient(135deg, #374151 0%, #4b5563 100%); color: white; }
+        .value-cell {
+            border-radius: 8px; padding: 14px; display: flex;
+            flex-direction: column; min-height: 320px;
+            position: relative; transition: box-shadow 0.2s;
+        }
+        .value-cell:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+        .value-cell h3 {
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.05em; margin-bottom: 8px; opacity: 0.9;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .value-cell textarea {
+            flex-grow: 1; background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 6px;
+            color: white; font-size: 0.82rem; padding: 8px; resize: none; outline: none; line-height: 1.5;
+        }
+        .value-cell textarea::placeholder { color: rgba(255,255,255,0.45); }
+        .value-cell textarea:focus { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.5); }
+        .support-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
+        .primary-row { display: flex; align-items: stretch; gap: 0; }
+        .primary-cell-wrap { flex: 1; display: flex; align-items: stretch; }
+        .primary-cell-wrap .value-cell { width: 100%; }
+        .arrow-right { display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #94a3b8; padding: 0 4px; }
+        .margin-box {
+            background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white;
+            border-radius: 8px; padding: 14px; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; min-width: 110px; text-align: center; margin-left: 10px;
+        }
+        .margin-box h3 { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+        .margin-box textarea {
+            background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 6px; color: white; font-size: 0.78rem; padding: 6px;
+            resize: none; outline: none; width: 100%; text-align: center; flex-grow: 1;
+        }
+        .margin-box textarea::placeholder { color: rgba(255,255,255,0.4); }
+        .section-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 4px; }
+        #result-panel { background: white; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); overflow: hidden; }
+        .result-header { background: linear-gradient(135deg, #1e3a5f, #2563eb); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        #api-modal, #import-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; }
+        .hidden { display: none !important; }
+        .modal-box { background: white; border-radius: 12px; padding: 32px; max-width: 480px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        #result-content h3 { font-size: 1rem; font-weight: 700; color: #1e3a5f; margin-top: 1.5rem; margin-bottom: 0.75rem; padding-bottom: 0.25rem; border-bottom: 1px solid #e5e7eb; }
+        #result-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+        #result-content li { margin-bottom: 0.4rem; list-style-type: disc; }
+        #result-content strong { color: #1e3a5f; }
+        #result-content p { margin-bottom: 0.75rem; }
+        #result-content ol { margin: 0.5rem 0 1rem 1.5rem; }
+        #result-content ol li { list-style-type: decimal; }
+        .drop-zone { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 40px 20px; text-align: center; transition: all 0.2s; cursor: pointer; }
+        .drop-zone:hover, .drop-zone.active { border-color: #2563eb; background: #eff6ff; }
+
+        /* === VC ASSISTANT STYLES === */
+        #vc-fab {
+            position: fixed; bottom: 28px; right: 28px; z-index: 9999;
+            width: 58px; height: 58px; border-radius: 50%;
+            background: linear-gradient(135deg, #1e3a5f, #2563eb);
+            color: white; border: none; cursor: pointer;
+            box-shadow: 0 4px 20px rgba(37,99,235,0.45);
+            font-size: 1.4rem; display: flex; align-items: center; justify-content: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        #vc-fab:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(37,99,235,0.55); }
+        #vc-fab .vc-badge {
+            position: absolute; top: -4px; right: -4px;
+            background: #ef4444; color: white; border-radius: 50%;
+            width: 18px; height: 18px; font-size: 0.6rem;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; border: 2px solid white;
+        }
+
+        #vc-chat-panel {
+            position: fixed; bottom: 100px; right: 28px; z-index: 9998;
+            width: 760px; max-width: calc(100vw - 56px);
+            background: white; border-radius: 16px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+            display: flex; flex-direction: column;
+            overflow: hidden; transition: all 0.3s ease;
+            max-height: 80vh;
+        }
+        #vc-chat-panel.vc-hidden { opacity: 0; pointer-events: none; transform: translateY(16px) scale(0.97); }
+
+        #vc-chat-header {
+            background: linear-gradient(135deg, #1e3a5f, #2563eb);
+            padding: 14px 18px; display: flex; align-items: center; gap: 10px;
+            flex-shrink: 0;
+        }
+        #vc-chat-header .vc-avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; color: white; flex-shrink: 0;
+        }
+        #vc-chat-header .vc-title { color: white; font-weight: 700; font-size: 0.88rem; }
+        #vc-chat-header .vc-subtitle { color: rgba(255,255,255,0.7); font-size: 0.72rem; }
+        #vc-chat-header .vc-close {
+            margin-left: auto; color: rgba(255,255,255,0.7);
+            background: none; border: none; cursor: pointer;
+            font-size: 1.1rem; padding: 4px; border-radius: 4px;
+            transition: color 0.2s;
+        }
+        #vc-chat-header .vc-close:hover { color: white; }
+
+        #vc-context-bar {
+            background: #f0f9ff; border-bottom: 1px solid #bae6fd;
+            padding: 8px 14px; display: flex; align-items: center; gap-8px;
+            font-size: 0.72rem; color: #0369a1; flex-shrink: 0;
+        }
+        #vc-context-bar label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        #vc-context-bar input[type=checkbox] { accent-color: #2563eb; }
+
+        #vc-quick-btns {
+            padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 6px;
+            border-bottom: 1px solid #f1f5f9; flex-shrink: 0;
+            background: #fafafa;
+        }
+        .vc-qbtn {
+            background: white; border: 1px solid #e2e8f0;
+            border-radius: 20px; padding: 5px 12px;
+            font-size: 0.72rem; color: #374151; cursor: pointer;
+            transition: all 0.15s; white-space: nowrap;
+        }
+        .vc-qbtn:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+
+        #vc-messages {
+            flex: 1; overflow-y: auto; padding: 16px;
+            display: flex; flex-direction: column; gap: 12px;
+            min-height: 200px;
+        }
+        .vc-msg { display: flex; gap: 8px; align-items: flex-start; }
+        .vc-msg.vc-user { flex-direction: row-reverse; }
+        .vc-msg .vc-bubble {
+            max-width: 80%; padding: 10px 14px; border-radius: 14px;
+            font-size: 0.82rem; line-height: 1.55;
+        }
+        .vc-msg.vc-bot .vc-bubble {
+            background: #f1f5f9; color: #1e293b;
+            border-bottom-left-radius: 4px;
+        }
+        .vc-msg.vc-user .vc-bubble {
+            background: linear-gradient(135deg, #1e3a5f, #2563eb);
+            color: white; border-bottom-right-radius: 4px;
+        }
+        .vc-msg .vc-icon {
+            width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem;
+        }
+        .vc-msg.vc-bot .vc-icon { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; }
+        .vc-msg.vc-user .vc-icon { background: #e2e8f0; color: #64748b; }
+
+        #vc-input-area {
+            padding: 12px 14px; border-top: 1px solid #f1f5f9;
+            display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0;
+        }
+        #vc-input {
+            flex: 1; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 9px 13px; font-size: 0.82rem; outline: none;
+            resize: none; max-height: 100px; line-height: 1.4;
+            font-family: inherit; transition: border-color 0.2s;
+        }
+        #vc-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        #vc-send {
+            background: linear-gradient(135deg, #1e3a5f, #2563eb);
+            color: white; border: none; border-radius: 10px;
+            width: 38px; height: 38px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem; transition: opacity 0.2s; flex-shrink: 0;
+        }
+        #vc-send:hover { opacity: 0.88; }
+        #vc-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .vc-typing { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+        .vc-typing span {
+            width: 7px; height: 7px; background: #94a3b8;
+            border-radius: 50%; animation: vc-bounce 1.2s infinite;
+        }
+        .vc-typing span:nth-child(2) { animation-delay: 0.2s; }
+        .vc-typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes vc-bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-6px); }
+        }
+
+        .vc-bubble ul { margin: 6px 0 6px 16px; }
+        .vc-bubble li { margin-bottom: 3px; list-style-type: disc; }
+        .vc-bubble strong { font-weight: 700; }
+        .vc-bubble p { margin-bottom: 6px; }
+        .vc-bubble h4 { font-weight: 700; margin: 8px 0 4px; color: #1e3a5f; }
+    </style>
+</head>
+<body class="p-0">
+
+<!-- WORKFLOW NAVIGATION BAR -->
+<div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 text-xs">
+  <div class="flex items-center justify-between max-w-7xl mx-auto">
+    <a href="../Integration_Workflow_Hub.html" class="flex items-center gap-2 hover:underline">
+      <i class="fas fa-arrow-left"></i> Tillbaka till Workflow Hub
+    </a>
+    <div class="flex items-center gap-4">
+      <span class="opacity-50">Phase 1</span>
+      <span class="opacity-75">→</span>
+      <span class="font-bold">PHASE 2 av 4</span>
+      <span class="opacity-75">→</span>
+      <span>Value Chain Analysis</span>
+      <span class="opacity-75">→</span>
+      <span class="opacity-50">Capabilities</span>
+      <span class="opacity-75">→</span>
+      <span class="opacity-50">Strategy</span>
+    </div>
+    <div class="text-xs opacity-75">Exportera när klar</div>
+  </div>
+</div>
+
+<!-- EA PLATFORM HEADER -->
+<header class="bg-gradient-to-r from-slate-900 to-blue-900 text-white px-5 py-3 flex items-center justify-between shadow-lg">
+  <div class="flex items-center gap-3">
+    <a href="../EA Plattform/EA 20 Platform_V3_Integrated.html" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
+      <i class="fas fa-arrow-left"></i> Tillbaka till EA Platform
+    </a>
+    <div class="h-6 w-px bg-slate-600"></div>
+    <div class="flex items-center gap-2">
+      <div class="bg-blue-500 rounded-lg w-8 h-8 flex items-center justify-center font-bold text-sm"><i class="fas fa-link"></i></div>
+      <div>
+        <div class="font-bold text-sm leading-tight">AI Value Chain Analyzer</div>
+        <div class="text-blue-300 text-xs">Workshop Tool · Step 2</div>
+      </div>
+    </div>
+  </div>
+    <div class="text-xs text-slate-300">
+        <div id="vc-sync-status"><i class="fas fa-sync-alt"></i> Data synkas automatiskt med EA Platform</div>
+        <div id="vc-context-badge" class="mt-1 text-[11px] text-blue-200 hidden"></div>
+    </div>
+</header>
+
+<div class="p-6">
+
+<!-- API Key Modal -->
+<div id="api-modal" class="hidden">
+    <div class="modal-box">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-key text-blue-600"></i>
+            </div>
+            <div>
+                <h2 class="font-bold text-gray-900">OpenAI API-nyckel</h2>
+                <p class="text-xs text-gray-500">Sparas lokalt i din webbläsare</p>
+            </div>
+        </div>
+        <p class="text-sm text-gray-600 mb-4">
+            Ange din OpenAI API-nyckel för att aktivera AI-analysen. Nyckeln sparas i <code class="bg-gray-100 px-1 rounded">localStorage</code> och lämnar aldrig din webbläsare.
+        </p>
+        <input id="api-key-input" type="password" placeholder="sk-proj-..."
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 mb-3 font-mono"/>
+        <div class="flex items-center gap-2 mb-4">
+            <input type="checkbox" id="show-key" onchange="toggleKeyVisibility()" class="rounded">
+            <label for="show-key" class="text-xs text-gray-500">Visa nyckel</label>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="saveApiKey()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+                <i class="fas fa-check mr-2"></i>Spara & Aktivera
+            </button>
+            <button onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">Avbryt</button>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div id="import-modal" class="hidden">
+    <div class="modal-box">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-file-import text-blue-600"></i>
+            </div>
+            <div>
+                <h2 class="font-bold text-gray-900">Importera från BMC</h2>
+                <p class="text-xs text-gray-500">Ladda upp din Business Model Canvas CSV</p>
+            </div>
+        </div>
+        <div id="drop-zone" class="drop-zone mb-4">
+            <i class="fas fa-cloud-upload-alt text-3xl text-gray-300 mb-2"></i>
+            <p class="text-sm text-gray-600">Dra och släpp din CSV-fil här eller klicka för att välja</p>
+            <input type="file" id="file-input" class="hidden" accept=".csv">
+        </div>
+        <div class="flex justify-end">
+            <button onclick="closeImportModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">Stäng</button>
+        </div>
+    </div>
+</div>
+
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">AI Value Chain Analyzer <span class="text-blue-600">V2</span></h1>
+            <p class="text-gray-500 text-sm mt-1">Porter's Value Chain · Strategisk analys av var värde skapas och förstörs</p>
+        </div>
+        <div class="flex gap-3 flex-wrap items-center">
+            <button onclick="openModal()" id="api-status-btn" class="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition">
+                <i id="api-status-icon" class="fas fa-circle text-xs"></i>
+                <span id="api-status-text">Konfigurera API-nyckel</span>
+            </button>
+            <button onclick="openImportModal()" class="flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-100 text-sm transition font-semibold">
+                <i class="fas fa-file-import"></i> Importera (BMC)
+            </button>
+            <button onclick="loadExample()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm transition">
+                <i class="fas fa-lightbulb"></i> Proptech-exempel
+            </button>
+            <button onclick="clearAll()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm transition">
+                <i class="fas fa-trash-alt"></i> Rensa
+            </button>
+            <button onclick="saveData()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm transition">
+                <i class="fas fa-save"></i> Spara
+            </button>
+            <button onclick="exportToExcel()" class="flex items-center gap-2 bg-white border border-green-400 text-green-700 px-4 py-2 rounded-lg hover:bg-green-50 text-sm transition font-semibold">
+                <i class="fas fa-file-excel"></i> Exportera (Excel)
+            </button>
+            <button onclick="exportToIntegrationCache()" class="flex items-center gap-2 bg-purple-50 border border-purple-400 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-100 text-sm transition font-semibold" title="Exportera till EA Platform integration">
+                <i class="fas fa-project-diagram"></i> Exportera (EA)
+            </button>
+            <button onclick="runAnalysis()" class="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 shadow text-sm font-semibold transition">
+                <i class="fas fa-robot"></i> AI Analysera
+            </button>
+        </div>
+    </div>
+
+    <!-- Support Activities -->
+    <div class="mb-2">
+        <div class="section-label">Stödaktiviteter (Support Activities)</div>
+        <div class="support-row">
+            <div class="value-cell support-activity">
+                <h3><i class="fas fa-building"></i> Företagsinfrastruktur</h3>
+                <textarea id="infrastructure" placeholder="Ledning, finans, juridik, compliance, portföljstyrning..."></textarea>
+            </div>
+            <div class="value-cell support-activity">
+                <h3><i class="fas fa-users-cog"></i> HR & Kompetens</h3>
+                <textarea id="hr" placeholder="Rekrytering, utbildning, certifiering, digital kompetens..."></textarea>
+            </div>
+            <div class="value-cell support-activity">
+                <h3><i class="fas fa-microchip"></i> Teknikutveckling</h3>
+                <textarea id="tech" placeholder="Plattformsutveckling, AI/ML, IoT, BIM, integrationer..."></textarea>
+            </div>
+            <div class="value-cell support-activity">
+                <h3><i class="fas fa-truck-loading"></i> Inköp & Upphandling</h3>
+                <textarea id="procurement" placeholder="Leverantörsval, ramavtal, hållbarhetskrav, SLA..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Primary Activities -->
+    <div class="mb-2">
+        <div class="section-label">Primära aktiviteter (Primary Activities)</div>
+        <div class="primary-row">
+            <div class="primary-cell-wrap">
+                <div class="value-cell primary-activity">
+                    <h3><i class="fas fa-arrow-circle-down"></i> Inbound Logistics</h3>
+                    <textarea id="inbound" placeholder="Datainsamling, leveranser, IoT-sensorer, fastighetsinformation..."></textarea>
+                </div>
+            </div>
+            <div class="arrow-right"><i class="fas fa-chevron-right"></i></div>
+            <div class="primary-cell-wrap">
+                <div class="value-cell primary-activity">
+                    <h3><i class="fas fa-cogs"></i> Operations</h3>
+                    <textarea id="operations" placeholder="Fastighetsförvaltning, drift, underhåll, hyresgästhantering..."></textarea>
+                </div>
+            </div>
+            <div class="arrow-right"><i class="fas fa-chevron-right"></i></div>
+            <div class="primary-cell-wrap">
+                <div class="value-cell primary-activity">
+                    <h3><i class="fas fa-arrow-circle-up"></i> Outbound Logistics</h3>
+                    <textarea id="outbound" placeholder="Leverans av tjänster, rapportering till ägare, portalsystem..."></textarea>
+                </div>
+            </div>
+            <div class="arrow-right"><i class="fas fa-chevron-right"></i></div>
+            <div class="primary-cell-wrap">
+                <div class="value-cell primary-activity">
+                    <h3><i class="fas fa-bullhorn"></i> Sälj & Marknadsföring</h3>
+                    <textarea id="marketing" placeholder="Uthyrning, varumärke, digitala kanaler, prissättning..."></textarea>
+                </div>
+            </div>
+            <div class="arrow-right"><i class="fas fa-chevron-right"></i></div>
+            <div class="primary-cell-wrap">
+                <div class="value-cell primary-activity">
+                    <h3><i class="fas fa-headset"></i> Service & Eftermarknad</h3>
+                    <textarea id="service" placeholder="Hyresgästsupport, felanmälan, NPS, retention, ESG..."></textarea>
+                </div>
+            </div>
+            <div class="margin-box" style="min-height:320px;">
+                <h3><i class="fas fa-chart-line mb-2 block text-xl"></i>Marginal</h3>
+                <textarea id="margin" placeholder="Var skapas mest värde? Var är marginalerna starkast?"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Result Panel -->
+    <div id="result-panel" class="hidden mt-10">
+        <div class="result-header">
+            <h2 class="text-white font-semibold flex items-center gap-2 text-sm">
+                <i class="fas fa-chart-bar"></i> Value Chain — Strategisk AI-analys
+            </h2>
+            <div class="flex items-center gap-3">
+                <span id="model-badge" class="text-xs bg-white/20 text-white px-3 py-1 rounded-full"></span>
+                <button onclick="closeResult()" class="text-white/70 hover:text-white text-xl leading-none">×</button>
+            </div>
+        </div>
+        <div id="result-content" class="p-8 text-gray-700 text-sm leading-relaxed"></div>
+    </div>
+</div>
+
+<!-- === VC AI ASSISTANT HTML === -->
+<button id="vc-fab" onclick="vcToggleChat()" title="AI Värdekedje-assistent">
+    <i class="fas fa-robot"></i>
+    <span class="vc-badge" id="vc-badge" style="display:none">1</span>
+</button>
+
+<div id="vc-chat-panel" class="vc-hidden">
+    <div id="vc-chat-header">
+        <div class="vc-avatar"><i class="fas fa-robot"></i></div>
+        <div>
+            <div class="vc-title">VC AI-assistent</div>
+            <div class="vc-subtitle">Value Chain · Proptech & Fastighet</div>
+        </div>
+        <button class="vc-close" onclick="vcToggleChat()"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div id="vc-context-bar">
+        <label>
+            <input type="checkbox" id="vc-use-context" checked>
+            <span>Läs av canvas-innehåll automatiskt</span>
+        </label>
+        <span id="vc-context-status" style="margin-left:12px; color:#0369a1; font-size:0.7rem;"></span>
+    </div>
+
+    <div id="vc-quick-btns">
+        <button class="vc-qbtn" onclick="vcQuick('Identifiera de svagaste länkarna i värdekedjan')">🔍 Svagheter</button>
+        <button class="vc-qbtn" onclick="vcQuick('Var skapas mest värde och hur kan vi förstärka det?')">💎 Värdeskapande</button>
+        <button class="vc-qbtn" onclick="vcQuick('Vilka aktiviteter har störst digitaliseringspotential?')">⚡ Digitalisering</button>
+        <button class="vc-qbtn" title="Största möjligheter till kostnadsoptimering" onclick="vcQuick('Var finns de största möjligheterna till kostnadsoptimering?')">💰 Kostnader</button>
+        <button class="vc-qbtn" title="Analysera ESG-potential och hållbarhetsrisker" onclick="vcQuick('Analysera ESG-potential och hållbarhetsrisker i värdekedjan')">🌱 ESG</button>
+        <button class="vc-qbtn" onclick="vcQuick('Hur kan stödaktiviteterna bättre stödja de primära aktiviteterna?')">🏗️ Stödaktiviteter</button>
+        <button class="vc-qbtn" onclick="vcQuick('Vilka åtgärder förbättrar tenant retention och NPS mest?')">🏠 Tenant Retention</button>
+        <button class="vc-qbtn" onclick="vcQuick('Ge mig en konkret 90-dagarsplan för att stärka värdekedjan')">📅 90-dagarsplan</button>
+        <button class="vc-qbtn" onclick="vcQuick('Vilka aktiviteter ger störst konkurrensfördel gentemot marknaden?')">🏆 Konkurrensfördel</button>
+        <button class="vc-qbtn" onclick="vcQuick('Analysera Operations-aktiviteten och föreslå förbättringar')">⚙️ Operations</button>
+        <button class="vc-qbtn" title="Förbered nästa workshop: Capability Mapping" onclick="vcQuick('Baserat på min värdekedja: vilka capabilities (förmågor) är kritiska att kartlägga i nästa steg? Ge mig en lista med capability-namn och domäner inför Capability Mapping-workshopen.')">➡️ Förbered CapMap</button>
+        <button class="vc-qbtn" title="Öppna nästa verktyg: AI Capability Mapping" onclick="vcOpenNextTool()">🚀 Öppna Capability</button>
+    </div>
+
+    <div id="vc-messages"></div>
+
+    <div id="vc-input-area">
+        <textarea id="vc-input" rows="1" placeholder="Ställ en fråga om din värdekedja..." onkeydown="vcHandleKey(event)" oninput="vcAutoResize(this)"></textarea>
+        <button id="vc-send" onclick="vcSend()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+</div>
+<!-- === VC AI ASSISTANT HTML END === -->
+
+<script>
+    const fields = ['infrastructure','hr','tech','procurement','inbound','operations','outbound','marketing','service','margin'];
+    const fieldLabels = {
+        infrastructure: 'Företagsinfrastruktur',
+        hr: 'HR & Kompetens',
+        tech: 'Teknikutveckling',
+        procurement: 'Inköp & Upphandling',
+        inbound: 'Inbound Logistics',
+        operations: 'Operations',
+        outbound: 'Outbound Logistics',
+        marketing: 'Sälj & Marknadsföring',
+        service: 'Service & Eftermarknad',
+        margin: 'Marginal / Värdeskapande'
+    };
+
+    // ── Initialize unified data manager ────
+    let dataManager = null;
+    if (typeof EA_DataManager !== 'undefined') {
+        dataManager = new EA_DataManager();
+        console.log('✅ Value Chain: DataManager initialized - unified API key active');
+    }
+
+    // ── Initialize on page load ────
+    window.addEventListener('load', () => {
+        updateApiStatus();
+        checkIntegrationStatus();
+        
+        // Load saved data
+        const saved = localStorage.getItem('valuechain_v2');
+        if (saved) {
+            try {
+                const d = JSON.parse(saved);
+                fields.forEach(f => { if (d[f]) document.getElementById(f).value = d[f]; });
+                console.log('✅ Loaded saved Value Chain data');
+            } catch(e) {
+                console.warn('Could not load saved data:', e);
+            }
+        }
+    });
+
+    // ── API Key ────
+    function getApiKey() { 
+        if (dataManager) return dataManager.getApiKey() || '';
+        return localStorage.getItem('vc_openai_key') || localStorage.getItem('ea20_openai_key') || ''; 
+    }
+    function saveApiKey() {
+        const key = document.getElementById('api-key-input').value.trim();
+        if (!key.startsWith('sk-')) { alert('Nyckeln verkar inte vara giltig. Den ska börja med "sk-".'); return; }
+        
+        if (dataManager) {
+            dataManager.setApiKey(key);
+            console.log('✅ API key saved via unified DataManager');
+        } else {
+            localStorage.setItem('vc_openai_key', key);
+            localStorage.setItem('ea20_openai_key', key);
+        }
+        
+        updateApiStatus();
+        closeModal();
+        showToast('API-nyckel sparad ✓ (delas med EA Platform)');
+    }
+    function updateApiStatus() {
+        const key = getApiKey();
+        const btn = document.getElementById('api-status-btn');
+        const icon = document.getElementById('api-status-icon');
+        const text = document.getElementById('api-status-text');
+        if (key) {
+            btn.className = 'flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-green-300 bg-green-50 text-green-700 transition';
+            icon.className = 'fas fa-circle text-xs text-green-500';
+            text.textContent = 'API aktiv · ' + key.substring(0,8) + '...';
+        } else {
+            btn.className = 'flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-orange-300 bg-orange-50 text-orange-700 transition';
+            icon.className = 'fas fa-circle text-xs text-orange-400';
+            text.textContent = 'Konfigurera API-nyckel';
+        }
+    }
+    function openModal() {
+        const key = getApiKey();
+        if (key) document.getElementById('api-key-input').value = key;
+        document.getElementById('api-modal').classList.remove('hidden');
+    }
+    function closeModal() { document.getElementById('api-modal').classList.add('hidden'); }
+    function toggleKeyVisibility() {
+        const input = document.getElementById('api-key-input');
+        input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    // ── Import Logic ────
+    function openImportModal() { document.getElementById('import-modal').classList.remove('hidden'); }
+    function closeImportModal() { document.getElementById('import-modal').classList.add('hidden'); }
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    dropZone.onclick = () => fileInput.click();
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('active'); };
+    dropZone.ondragleave = () => dropZone.classList.remove('active');
+    dropZone.ondrop = (e) => {
+        e.preventDefault(); dropZone.classList.remove('active');
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+    };
+    fileInput.onchange = (e) => { const file = e.target.files[0]; if (file) handleFile(file); };
+    function handleFile(file) {
+        if (!file.name.endsWith('.csv')) { alert('Vänligen ladda upp en CSV-fil.'); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => { processBMCData(e.target.result); closeImportModal(); };
+        reader.readAsText(file);
+    }
+    function processBMCData(csvText) {
+        const lines = csvText.split(/\r?\n/);
+        const data = {};
+        lines.forEach(line => {
+            const parts = line.split(';');
+            if (parts.length >= 2) {
+                const key = parts[0].replace(/"/g, '').trim();
+                const val = parts[1].replace(/"/g, '').trim();
+                data[key] = val;
+            }
+        });
+        const mapping = {
+            'Nyckelaktiviteter': 'operations', 'Nyckelpartners': 'procurement',
+            'Nyckelresurser': 'tech', 'Värdeerbjudande': 'margin',
+            'Kundrelationer': 'service', 'Kanaler': 'marketing',
+            'Kostnadsstruktur': 'infrastructure', 'Kundsegment': 'outbound',
+            'Intäktsströmmar': 'inbound'
+        };
+        if (data['Nyckelresurser']) document.getElementById('hr').value = "Från BMC Nyckelresurser:\n" + data['Nyckelresurser'];
+        let count = 0;
+        for (const [bmcKey, vcId] of Object.entries(mapping)) {
+            if (data[bmcKey]) { document.getElementById(vcId).value = data[bmcKey]; count++; }
+        }
+        if (count > 0) { showToast(`✓ Importerade ${count} fält från BMC-filen`); saveData(); }
+        else alert('Kunde inte tolka filen. Kontrollera att det är en CSV-export från AI BMC-verktyget.');
+    }
+
+    function importFromBmcIntegration(onlyIfEmpty = true) {
+        if (!dataManager || !dataManager.hasRecentIntegrationData('bmc_latest', 1440)) return false;
+
+        const bmc = dataManager.getIntegrationData('bmc_latest');
+        if (!bmc) return false;
+
+        const mapping = {
+            infrastructure: bmc.cost_structure,
+            hr: bmc.key_resources,
+            tech: bmc.key_resources,
+            procurement: bmc.key_partners,
+            inbound: bmc.revenue_streams,
+            operations: bmc.key_activities,
+            outbound: bmc.customer_segments,
+            marketing: bmc.channels,
+            service: bmc.customer_relationships,
+            margin: [bmc.value_proposition, bmc.strategic_goal].filter(Boolean).join('\n')
+        };
+
+        let updated = 0;
+        Object.keys(mapping).forEach(field => {
+            const el = document.getElementById(field);
+            const next = (mapping[field] || '').trim();
+            if (!el || !next) return;
+            if (onlyIfEmpty && el.value.trim()) return;
+            el.value = next;
+            updated++;
+        });
+
+        if (updated > 0) {
+            saveData();
+            showToast(`✓ Importerade ${updated} fält från BMC integration`);
+            return true;
+        }
+
+        return false;
+    }
+
+    // ── Canvas Data ────
+    function saveData() {
+        const d = {};
+        fields.forEach(f => d[f] = document.getElementById(f).value);
+        localStorage.setItem('valuechain_v2', JSON.stringify(d));
+        
+        // Auto-export to integration cache
+        exportToIntegrationCache();
+        
+        showToast('Canvas sparad ✓');
+    }
+    function clearAll() {
+        if (!confirm('Rensa alla fält?')) return;
+        fields.forEach(f => document.getElementById(f).value = '');
+        document.getElementById('result-panel').classList.add('hidden');
+    }
+    function loadExample() {
+        const ex = {
+            infrastructure: "Portföljstyrning via ERP\nCSRD & EU Taxonomy compliance\nStyrelserapportering kvartalsvis",
+            hr: "Certifierade förvaltare (FM)\nDigital kompetenslyft pågår\nBrist på IoT/data-kompetens internt",
+            tech: "Fastighetssystem: Vitec\nIoT-sensorer i 30% av bestånd\nAI-pilot för prediktivt underhåll",
+            procurement: "Ramavtal med 12 leverantörer\nHållbarhetskrav i upphandling\nLång ledtid på tekniska tjänster",
+            inbound: "Energidata via mätare (manuell)\nHyresgästdata i separata system\nBIM-modeller saknas för äldre bestånd",
+            operations: "Arbetsorder via e-post/telefon\nReaktivt underhåll dominerar\nHög andel manuell administration",
+            outbound: "Hyresgästportal (begränsad)\nRapporter till ägare via Excel\nIngen realtidsdata till kunder",
+            marketing: "Uthyrning via mäklare\nDigital närvaro låg\nPrissättning baserad på marknad, ej data",
+            service: "Felanmälan via telefon\nNPS mäts ej systematiskt\nESG-rapport produceras manuellt",
+            margin: "Starkast: Uthyrning (låg vakans)\nSvagast: Drift & underhåll (reaktivt)\nOutnyttjad potential: Data & AI"
+        };
+        fields.forEach(f => { if (ex[f]) document.getElementById(f).value = ex[f]; });
+        showToast('Proptech-exempel laddat ✓');
+        
+        // Auto-export example data
+        setTimeout(() => exportToIntegrationCache(), 500);
+    }
+    function exportToExcel() {
+        const rows = [['Kategori', 'Typ', 'Innehåll']];
+        ['infrastructure','hr','tech','procurement'].forEach(f => rows.push([fieldLabels[f], 'Stödaktivitet', document.getElementById(f).value || '']));
+        ['inbound','operations','outbound','marketing','service'].forEach(f => rows.push([fieldLabels[f], 'Primär aktivitet', document.getElementById(f).value || '']));
+        rows.push([fieldLabels['margin'], 'Marginal', document.getElementById('margin').value || '']);
+        const csvContent = "\uFEFF" + rows.map(row => row.map(cell => '"' + String(cell).replace(/"/g, '""') + '"').join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'EA2_ValueChain.csv';
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+        showToast('✓ Exporterad: EA2_ValueChain.csv');
+    }
+    async function runAnalysis() {
+        const apiKey = getApiKey();
+        if (!apiKey) { openModal(); showToast('⚠️ Lägg till din API-nyckel först'); return; }
+        const btn = document.querySelector('button[onclick="runAnalysis()"]');
+        btn.innerHTML = '<i class="fas fa-spinner spinner"></i> Analyserar...';
+        btn.disabled = true;
+        const panel = document.getElementById('result-panel');
+        const content = document.getElementById('result-content');
+        panel.classList.remove('hidden');
+        content.innerHTML = '<div class="flex items-center gap-3 text-blue-600 py-6"><i class="fas fa-spinner spinner text-xl"></i><span>AI analyserar värdekedjan utifrån business outcomes...</span></div>';
+        panel.scrollIntoView({ behavior: 'smooth' });
+        const prompt = fields.map(f => `${fieldLabels[f]}:\n${document.getElementById(f).value || '(ej ifyllt)'}`).join('\n\n');
+        const systemPrompt = `Du är en senior strategisk rådgivare specialiserad på fastighet, proptech och digital transformation. Analysera värdekedjan och svara på svenska med rubrikerna: ## Värdeskapande aktiviteter, ## Värdeförstörande aktiviteter, ## Digitaliseringsmöjligheter, ## Strategiska rekommendationer, ## Sammanfattning.`;
+        try {
+            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+                body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }], temperature: 0.7 })
+            });
+            const json = await res.json();
+            if (json.error) throw new Error(json.error.message);
+            document.getElementById('model-badge').textContent = 'gpt-4o';
+            content.innerHTML = formatMarkdown(json.choices[0].message.content);
+            
+            // Auto-export after successful analysis
+            exportToIntegrationCache();
+        } catch(e) {
+            content.innerHTML = `<div class="p-5 bg-red-50 border border-red-200 rounded-lg text-red-700"><p class="font-bold">Fel vid API-anrop</p><p class="text-sm">${e.message}</p></div>`;
+        }
+        btn.innerHTML = '<i class="fas fa-robot"></i> AI Analysera';
+        btn.disabled = false;
+    }
+    function formatMarkdown(text) {
+        return text
+            .replace(/^## (.*$)/gim, '<h3>$1</h3>')
+            .replace(/^\* (.*$)/gim, '<li>$1</li>')
+            .replace(/^- (.*$)/gim, '<li>$1</li>')
+            .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+            .replace(/\n{2,}/g, '</p><p>')
+            .replace(/\n/g, ' ');
+    }
+    function closeResult() { document.getElementById('result-panel').classList.add('hidden'); }
+    function showToast(msg) {
+        const t = document.createElement('div');
+        t.className = 'fixed bottom-6 right-6 bg-gray-900 text-white px-5 py-3 rounded-lg shadow-xl text-sm z-50';
+        t.innerHTML = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2800);
+    }
+
+    // ── Integration Export Functions ────
+    /**
+     * Export Value Chain data to integration cache for EA Platform
+     * Converts text fields to structured activities format
+     */
+    function exportToIntegrationCache() {
+        if (!dataManager) {
+            showToast('⚠️ DataManager not available - export skipped');
+            return false;
+        }
+
+        // Collect all field data
+        const fieldData = {};
+        let filledCount = 0;
+        fields.forEach(f => {
+            const value = document.getElementById(f)?.value.trim() || '';
+            fieldData[f] = value;
+            if (value) filledCount++;
+        });
+
+        // Create structured format for integration
+        const valueChainData = {
+            // Raw field data
+            rawData: fieldData,
+            
+            // Structured activities
+            activities: convertFieldsToActivities(fieldData),
+            
+            // Metadata
+            metadata: {
+                source: 'AI_Value_Chain_Analyzer_V2',
+                exportedAt: new Date().toISOString(),
+                version: 'EA_2.0',
+                filledFields: filledCount,
+                totalFields: fields.length,
+                completeness: Math.round((filledCount / fields.length) * 100)
+            }
+        };
+
+        // Save to integration cache
+        try {
+            dataManager.saveIntegrationData('valuechain_latest', valueChainData);
+            
+            // Update export status indicator
+            updateExportStatus(true);
+            
+            console.log('✅ Value Chain exported to integration cache:', valueChainData);
+            showToast(`✓ Exporterad till EA Platform (${filledCount}/${fields.length} fält)`);
+            return true;
+        } catch (error) {
+            console.error('❌ Export failed:', error);
+            showToast('⚠️ Export misslyckades');
+            return false;
+        }
+    }
+
+    /**
+     * Convert text fields to structured activities array
+     */
+    function convertFieldsToActivities(fieldData) {
+        const activities = [];
+        const supportActivities = ['infrastructure', 'hr', 'tech', 'procurement'];
+        const primaryActivities = ['inbound', 'operations', 'outbound', 'marketing', 'service'];
+
+        // Process support activities
+        supportActivities.forEach((field, index) => {
+            if (fieldData[field]) {
+                activities.push({
+                    id: `activity_support_${index}`,
+                    name: fieldLabels[field],
+                    type: 'support',
+                    description: fieldData[field],
+                    notes: fieldData[field],
+                    // Basic scoring (can be enhanced with AI analysis later)
+                    value_score: estimateValue(fieldData[field]),
+                    cost_score: estimateCost(fieldData[field], 'support'),
+                    digitalization_potential: estimateDigitalizationPotential(fieldData[field]),
+                    order: index
+                });
+            }
+        });
+
+        // Process primary activities
+        primaryActivities.forEach((field, index) => {
+            if (fieldData[field]) {
+                activities.push({
+                    id: `activity_primary_${index}`,
+                    name: fieldLabels[field],
+                    type: 'primary',
+                    description: fieldData[field],
+                    notes: fieldData[field],
+                    value_score: estimateValue(fieldData[field]),
+                    cost_score: estimateCost(fieldData[field], 'primary'),
+                    digitalization_potential: estimateDigitalizationPotential(fieldData[field]),
+                    order: index
+                });
+            }
+        });
+
+        // Add margin analysis as special activity
+        if (fieldData.margin) {
+            activities.push({
+                id: 'activity_margin',
+                name: 'Marginalanalys',
+                type: 'analysis',
+                description: fieldData.margin,
+                notes: fieldData.margin,
+                value_score: 10, // Margin analysis is highly valuable
+                cost_score: 0,
+                digitalization_potential: 5,
+                order: 999
+            });
+        }
+
+        return activities;
+    }
+
+    /**
+     * Estimate value score from text content (1-10 scale)
+     */
+    function estimateValue(text) {
+        if (!text) return 0;
+        const valueKeywords = ['värde', 'kritisk', 'strategisk', 'differentier', 'konkurrensförden', 'marginal', 'intäkt', 'kund', 'kvalitet'];
+        let score = 5; // baseline
+        valueKeywords.forEach(keyword => {
+            if (text.toLowerCase().includes(keyword)) score += 0.5;
+        });
+        return Math.min(Math.round(score), 10);
+    }
+
+    /**
+     * Estimate cost score from text content (1-10 scale)
+     */
+    function estimateCost(text, type) {
+        if (!text) return 0;
+        const costKeywords = ['kostnad', 'dyr', 'ineffektiv', 'manuell', 'tidskräv', 'resurs', 'problem', 'brist'];
+        let score = type === 'support' ? 6 : 5; // support activities typically higher cost
+        costKeywords.forEach(keyword => {
+            if (text.toLowerCase().includes(keyword)) score += 0.5;
+        });
+        return Math.min(Math.round(score), 10);
+    }
+
+    /**
+     * Estimate digitalization potential (1-10 scale)
+     */
+    function estimateDigitalizationPotential(text) {
+        if (!text) return 0;
+        const digitalKeywords = ['digital', 'ai', 'automat', 'iot', 'data', 'ml', 'plattform', 'system', 'integration', 'sensor'];
+        const manualKeywords = ['manuell', 'papper', 'excel', 'telefon', 'e-post', 'ej digitaliserad'];
+        let score = 5; // baseline
+        digitalKeywords.forEach(keyword => {
+            if (text.toLowerCase().includes(keyword)) score += 0.4;
+        });
+        manualKeywords.forEach(keyword => {
+            if (text.toLowerCase().includes(keyword)) score += 0.8; // high potential if manual
+        });
+        return Math.min(Math.round(score), 10);
+    }
+
+    /**
+     * Update export status indicator in UI
+     */
+    function updateExportStatus(exported) {
+        const header = document.getElementById('vc-sync-status');
+        if (header && exported) {
+            header.innerHTML = '<i class="fas fa-check-circle text-green-400"></i> <span class="text-green-300">Exporterad till EA Platform ✓</span>';
+            setTimeout(() => {
+                header.innerHTML = '<i class="fas fa-sync-alt"></i> Data synkas automatiskt med EA Platform';
+                renderVcContextBadge();
+            }, 4000);
+        }
+    }
+
+    function renderVcContextBadge() {
+        const badge = document.getElementById('vc-context-badge');
+        if (!badge || !dataManager) return;
+        if (!dataManager.hasRecentIntegrationData('bmc_latest', 1440)) {
+            badge.classList.add('hidden');
+            return;
+        }
+        const data = dataManager.getIntegrationPackage('bmc_latest');
+        const age = Math.max(0, Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60));
+        badge.innerHTML = '<i class="fas fa-link mr-1"></i> Kontext från BMC · uppdaterad ' + age + ' min sedan';
+        badge.classList.remove('hidden');
+    }
+
+    function vcOpenNextTool() {
+        exportToIntegrationCache();
+        window.location.href = './AI Capability Mapping V2.html';
+    }
+
+    /**
+     * Check integration status and show indicator
+     */
+    function checkIntegrationStatus() {
+        if (!dataManager) return;
+        
+        const hasData = dataManager.hasRecentIntegrationData('valuechain_latest', 1440); // 24 hours
+        if (hasData) {
+            const data = dataManager.getIntegrationPackage('valuechain_latest');
+            const age = Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60);
+            console.log(`ℹ️ Last export: ${age} minutes ago`);
+        }
+    }
+
+    // === VC AI ASSISTANT JS ===
+    let vcHistory = [];
+    let vcOpen = false;
+    let vcHasGreeted = false;
+
+    function vcToggleChat() {
+        vcOpen = !vcOpen;
+        const panel = document.getElementById('vc-chat-panel');
+        if (vcOpen) {
+            panel.classList.remove('vc-hidden');
+            document.getElementById('vc-badge').style.display = 'none';
+            if (!vcHasGreeted) { vcGreet(); vcHasGreeted = true; }
+            setTimeout(() => document.getElementById('vc-input').focus(), 200);
+        } else {
+            panel.classList.add('vc-hidden');
+        }
+    }
+
+    function vcGreet() {
+        const filled = fields.filter(f => document.getElementById(f) && document.getElementById(f).value.trim()).length;
+        let msg = `👋 Hej! Jag är din AI-assistent för Value Chain Analyzer.\n\nJag hjälper dig att analysera och optimera din värdekedja ur ett **fastighets- och proptechperspektiv** – med fokus på konkreta affärsutfall: kostnadsreduktion, ökad marginal, ESG-compliance och tenant retention.`;
+        if (filled > 0) msg += `\n\n✅ Jag ser att du har fyllt i **${filled} av 10 fält**. Aktivera "Läs av canvas" så kan jag ge dig kontextbaserade insikter direkt.`;
+        else msg += `\n\n💡 Börja med att fylla i dina aktiviteter, eller klicka **Proptech-exempel** för att ladda ett exempelscenario.`;
+        vcAddMsg('bot', msg);
+    }
+
+    function vcGetContext() {
+        if (!document.getElementById('vc-use-context').checked) return '';
+        const parts = [];
+        fields.forEach(f => {
+            const el = document.getElementById(f);
+            if (el && el.value.trim()) parts.push(`**${fieldLabels[f]}:** ${el.value.trim()}`);
+        });
+        if (parts.length === 0) return '';
+        document.getElementById('vc-context-status').textContent = `${parts.length}/10 fält inlästa`;
+        return `\n\n--- AKTUELL VÄRDEKEDJA ---\n${parts.join('\n\n')}`;
+    }
+
+    function vcQuick(text) {
+        document.getElementById('vc-input').value = text;
+        vcSend();
+    }
+
+    function vcHandleKey(e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); vcSend(); }
+    }
+
+    function vcAutoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+    }
+
+    async function vcSend() {
+        const input = document.getElementById('vc-input');
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        input.style.height = 'auto';
+        vcAddMsg('user', text);
+        const context = vcGetContext();
+        vcHistory.push({ role: 'user', content: text + context });
+        const typingId = vcAddTyping();
+        const apiKey = getApiKey();
+        if (!apiKey) {
+            vcRemoveTyping(typingId);
+            vcAddMsg('bot', vcDemoResponse(text));
+            return;
+        }
+        const systemPrompt = `Du är en senior strategisk rådgivare och expert inom fastighet, proptech, digital transformation och hållbarhet. Du hjälper användaren att analysera och optimera sin värdekedja enligt Porter's Value Chain-modell. Svara alltid på svenska. Fokusera på konkreta affärsutfall: kostnadsreduktion, ökad marginal, ESG-compliance, tenant retention och konkurrensfördel. Var koncis, faktabaserad och handlingsorienterad. Använd bullet points och rubriker för tydlighet.`;
+        try {
+            const messages = [{ role: 'system', content: systemPrompt }, ...vcHistory.slice(-10)];
+            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+                body: JSON.stringify({ model: 'gpt-4o', messages, temperature: 0.7, max_tokens: 1000 })
+            });
+            const json = await res.json();
+            if (json.error) throw new Error(json.error.message);
+            const reply = json.choices[0].message.content;
+            vcHistory.push({ role: 'assistant', content: reply });
+            vcRemoveTyping(typingId);
+            vcAddMsg('bot', reply);
+        } catch(e) {
+            vcRemoveTyping(typingId);
+            vcAddMsg('bot', `⚠️ **API-fel:** ${e.message}\n\nKontrollera din API-nyckel och försök igen.`);
+        }
+    }
+
+    function vcDemoResponse(text) {
+        const t = text.toLowerCase();
+        if (t.includes('svag') || t.includes('länk') || t.includes('risk')) {
+            return `**🔍 Svagheter i värdekedjan – typiska mönster i fastighetsbranschen:**\n\n**Kritiska svagheter:**\n- **Operations:** Reaktivt underhåll driver 30-40% högre kostnader vs. prediktivt\n- **Inbound Logistics:** Manuell datainsamling skapar informationsluckor och fördröjningar\n- **HR & Kompetens:** Digital kompetensbrist bromsar digitaliseringsinitiativ\n\n**Affärskonsekvens:** Dessa tre aktiviteter är typiskt ansvariga för 60-70% av onödiga driftskostnader.\n\n💡 Fyll i dina fält och aktivera kontextläsning för en analys av just din värdekedja.`;
+        }
+        if (t.includes('digital') || t.includes('ai') || t.includes('teknik')) {
+            return `**⚡ Digitaliseringspotential i fastighetsvärdekedjan:**\n\n**Högst ROI:**\n1. **IoT + Prediktivt underhåll** → 20-35% lägre underhållskostnader\n2. **Automatiserad hyresgästkommunikation** → +15-25% NPS, lägre churn\n3. **AI-driven energioptimering** → 15-30% energibesparing (ESG + kostnad)\n4. **Digital arbetsorderhantering** → 40% kortare handläggningstid\n\n**Rekommendation:** Börja med Operations och Service – snabbast payback och direkt impact på tenant retention.`;
+        }
+        if (t.includes('esg') || t.includes('hållbar') || t.includes('klimat')) {
+            return `**🌱 ESG & Hållbarhet i värdekedjan:**\n\n**Regulatoriska krav 2024-2026:**\n- CSRD: Obligatorisk hållbarhetsrapportering för medelstora fastighetsbolag\n- EU Taxonomy: Klassificering av hållbara tillgångar påverkar finansieringskostnad\n- EPBD: Energiprestandadirektivet kräver renovering av sämsta beståndet\n\n**Värdekedjeaktiviteter med störst ESG-impact:**\n- **Inköp & Upphandling:** Hållbarhetskrav i leverantörsavtal\n- **Operations:** Energieffektivisering och avfallshantering\n- **Teknikutveckling:** IoT för realtidsövervakning av energi och miljö\n\n**Business case:** Gröna certifieringar (BREEAM/LEED) ger 5-15% hyrespremium.`;
+        }
+        if (t.includes('90') || t.includes('plan') || t.includes('åtgärd')) {
+            return `**📅 90-dagarsplan – Stärk värdekedjan:**\n\n**Dag 1-30: Kartlägg & Prioritera**\n- Genomför gap-analys av alla 10 aktiviteter\n- Identifiera top 3 värdeförstörande aktiviteter\n- Sätt KPI:er per aktivitet\n\n**Dag 31-60: Snabbvinster**\n- Digitalisera arbetsorderhantering (Operations)\n- Implementera automatiserade hyresgästpåminnelser (Service)\n- Starta energiövervakning via befintliga mätare (Inbound)\n\n**Dag 61-90: Strategiska initiativ**\n- Upphandla IoT-plattform för prediktivt underhåll\n- Lansera hyresgästportal med självservice\n- Presentera ROI-rapport för styrelsen\n\n**Förväntad effekt:** 10-20% kostnadsreduktion inom 12 månader.`;
+        }
+        return `**💡 Value Chain AI-assistent – Demo-läge**\n\nJag är redo att analysera din värdekedja! För att ge dig personaliserade insikter behöver du:\n\n1. **Lägg till din OpenAI API-nyckel** (klicka på API-knappen i headern)\n2. **Fyll i dina aktiviteter** i canvasen\n3. **Aktivera kontextläsning** i assistenten\n\nI demo-läge kan jag svara på generella frågor om:\n- 🔍 Svagheter och risker i värdekedjan\n- ⚡ Digitaliseringsmöjligheter\n- 🌱 ESG och hållbarhet\n- 📅 Handlingsplaner och prioriteringar\n- 💰 Kostnadsoptimering\n\nVad vill du veta mer om?`;
+    }
+
+    function vcAddMsg(type, text) {
+        const msgs = document.getElementById('vc-messages');
+        const div = document.createElement('div');
+        div.className = `vc-msg vc-${type}`;
+        const icon = document.createElement('div');
+        icon.className = 'vc-icon';
+        icon.innerHTML = type === 'bot' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
+        const bubble = document.createElement('div');
+        bubble.className = 'vc-bubble';
+        bubble.innerHTML = vcFormatText(text);
+        div.appendChild(icon);
+        div.appendChild(bubble);
+        msgs.appendChild(div);
+        msgs.scrollTop = msgs.scrollHeight;
+        return div;
+    }
+
+    function vcAddTyping() {
+        const msgs = document.getElementById('vc-messages');
+        const div = document.createElement('div');
+        div.className = 'vc-msg vc-bot';
+        div.id = 'vc-typing-' + Date.now();
+        const icon = document.createElement('div');
+        icon.className = 'vc-icon';
+        icon.innerHTML = '<i class="fas fa-robot"></i>';
+        const bubble = document.createElement('div');
+        bubble.className = 'vc-bubble';
+        bubble.innerHTML = '<div class="vc-typing"><span></span><span></span><span></span></div>';
+        div.appendChild(icon);
+        div.appendChild(bubble);
+        msgs.appendChild(div);
+        msgs.scrollTop = msgs.scrollHeight;
+        return div.id;
+    }
+
+    function vcRemoveTyping(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+    }
+
+    function vcFormatText(text) {
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^### (.*$)/gim, '<h4>$1</h4>')
+            .replace(/^## (.*$)/gim, '<h4>$1</h4>')
+            .replace(/^- (.*$)/gim, '<li>$1</li>')
+            .replace(/^\* (.*$)/gim, '<li>$1</li>')
+            .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+            .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
+            .replace(/\n{2,}/g, '</p><p>')
+            .replace(/\n/g, '<br>');
+    }
+    // === VC AI ASSISTANT JS END ===
+
+    window.onload = () => {
+        updateApiStatus();
+        checkIntegrationStatus();
+        renderVcContextBadge();
+        const saved = localStorage.getItem('valuechain_v2');
+        if (saved) {
+            try {
+                const d = JSON.parse(saved);
+                fields.forEach(f => { if (d[f]) document.getElementById(f).value = d[f]; });
+            } catch(e) {}
+        }
+        importFromBmcIntegration(true);
+        // Show badge after 3s to invite user
+        setTimeout(() => {
+            if (!vcOpen) {
+                document.getElementById('vc-badge').style.display = 'flex';
+            }
+        }, 3000);
+    };
+</script>
+</div><!-- Close wrapper div -->
+</body>
+</html>

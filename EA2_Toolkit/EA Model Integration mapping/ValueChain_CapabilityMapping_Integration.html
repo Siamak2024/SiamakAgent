@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Value Chain ↔ Capability Mapping Integration</title>
+<script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f8fafc; }
+pre { white-space: pre-wrap; word-break: break-word; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const vcFields = [
+  { id: "infrastructure", label: "Företagsinfrastruktur", type: "support", icon: "🏢", mapTo: ["finance", "technology"] },
+  { id: "hr", label: "HR & Kompetens", type: "support", icon: "👥", mapTo: ["technology", "operations"] },
+  { id: "tech", label: "Teknikutveckling", type: "support", icon: "⚙️", mapTo: ["technology", "product"] },
+  { id: "procurement", label: "Inköp & Upphandling", type: "support", icon: "📦", mapTo: ["operations", "finance"] },
+  { id: "inbound", label: "Inbound Logistics", type: "primary", icon: "📥", mapTo: ["technology", "operations"] },
+  { id: "operations", label: "Operations", type: "primary", icon: "🔧", mapTo: ["operations", "product"] },
+  { id: "outbound", label: "Outbound Logistics", type: "primary", icon: "📤", mapTo: ["customer", "product"] },
+  { id: "marketing", label: "Sälj & Marknadsföring", type: "primary", icon: "📣", mapTo: ["customer"] },
+  { id: "service", label: "Service & Eftermarknad", type: "primary", icon: "🎧", mapTo: ["customer", "operations"] },
+  { id: "margin", label: "Marginal / Värde", type: "margin", icon: "📈", mapTo: ["finance", "product"] },
+];
+
+const capDomains = [
+  { id: "customer", label: "Customer", icon: "👤", bg: "#dbeafe", border: "#3b82f6", text: "#1e40af" },
+  { id: "operations", label: "Operations", icon: "⚙️", bg: "#ffedd5", border: "#f97316", text: "#9a3412" },
+  { id: "product", label: "Product", icon: "📦", bg: "#f3e8ff", border: "#a855f7", text: "#6b21a8" },
+  { id: "finance", label: "Finance", icon: "💰", bg: "#dcfce7", border: "#22c55e", text: "#14532d" },
+  { id: "technology", label: "Technology", icon: "🔬", bg: "#f1f5f9", border: "#64748b", text: "#1e293b" },
+];
+
+const domainMapping = {
+  infrastructure: ["finance", "technology"],
+  hr: ["technology", "operations"],
+  tech: ["technology", "product"],
+  procurement: ["operations", "finance"],
+  inbound: ["technology", "operations"],
+  operations: ["operations", "product"],
+  outbound: ["customer", "product"],
+  marketing: ["customer"],
+  service: ["customer", "operations"],
+  margin: ["finance", "product"],
+};
+
+const integrationSteps = [
+  {
+    id: 1, icon: "🔍",
+    title: "Identifiera värdeskapande aktiviteter",
+    from: "Value Chain Analyzer V2", to: "Capability Mapping V2",
+    fromBg: "#1e3a8a", toBg: "#7e22ce",
+    detail: "AI-analysen i Value Chain identifierar vilka aktiviteter som skapar vs förstör värde. Dessa mappar direkt till capability-domäner.",
+    mapping: [
+      { vc: "Operations", cap: "Operations + Product", reason: "Kärnprocesser → capabilities att bygga/förbättra" },
+      { vc: "Teknikutveckling", cap: "Technology + Product", reason: "Tech-stack → strategiska capabilities" },
+      { vc: "Service & Eftermarknad", cap: "Customer", reason: "Kundupplevelse → customer capabilities" },
+      { vc: "Inköp & Upphandling", cap: "Operations + Finance", reason: "Leverantörskedja → commodity candidates" },
+    ],
+    outcome: "Capability-kartan fylls med rätt domäner baserat på var värde skapas i kedjan",
+    outcomeIcon: "💡"
+  },
+  {
+    id: 2, icon: "📊",
+    title: "Exportera Value Chain → CSV",
+    from: "Value Chain Analyzer V2", to: "Capability Mapping V2",
+    fromBg: "#1e3a8a", toBg: "#7e22ce",
+    detail: "Exportera EA2_ValueChain.csv från Value Chain. Varje aktivitet med innehåll mappar till en capability-domän.",
+    mapping: [
+      { vc: "CSV: Kategori", cap: "Domain", reason: "Direkt mappning" },
+      { vc: "CSV: Typ (Primär/Stöd)", cap: "Priority (Strategic/Important/Commodity)", reason: "Primär → Strategic/Important | Stöd → Commodity" },
+      { vc: "CSV: Innehåll", cap: "Capability Description", reason: "Fritext → capability-namn och beskrivning" },
+    ],
+    outcome: "Strukturerad import eliminerar dubbelarbete och säkerställer konsistens",
+    outcomeIcon: "⚡"
+  },
+  {
+    id: 3, icon: "🎯",
+    title: "Sätt strategisk prioritet per capability",
+    from: "Value Chain (Marginal-analys)", to: "Capability Mapping V2",
+    fromBg: "#3730a3", toBg: "#7e22ce",
+    detail: "Marginal-fältet i Value Chain visar var marginalerna är starkast/svagast. Detta styr direkt vilka capabilities som är Strategic vs Commodity.",
+    mapping: [
+      { vc: "Hög marginal + primär aktivitet", cap: "Strategic (🔴)", reason: "Differentierar på marknaden" },
+      { vc: "Nödvändig men låg marginal", cap: "Important (🟡)", reason: "Nödvändig men ej unik" },
+      { vc: "Stödaktivitet / standardprocess", cap: "Commodity (🟢)", reason: "Standardisera / outsourca" },
+    ],
+    outcome: "Datadrivet prioriteringsunderlag – eliminerar subjektiva beslut",
+    outcomeIcon: "🛡️"
+  },
+  {
+    id: 4, icon: "📉",
+    title: "Identifiera capability gaps från värdeförstörare",
+    from: "Value Chain AI-analys", to: "Capability Mapping V2",
+    fromBg: "#991b1b", toBg: "#7e22ce",
+    detail: "Value Chain AI-analysen identifierar 'Värdeförstörande aktiviteter'. Dessa är direkt capability gaps med låg mognad (1-2) i Capability Map.",
+    mapping: [
+      { vc: "Reaktivt underhåll", cap: "Predictive Maintenance → Maturity 1", reason: "Gap → kritisk investering" },
+      { vc: "Manuell rapportering", cap: "Financial Reporting → Maturity 2", reason: "Gap → automatisering" },
+      { vc: "Ingen realtidsdata", cap: "Data Platform → Maturity 1", reason: "Gap → strategisk capability" },
+    ],
+    outcome: "Capability gaps kopplas direkt till affärsrisk och investeringsbehov",
+    outcomeIcon: "🔥"
+  },
+  {
+    id: 5, icon: "🗺️",
+    title: "Wardley Map-export från Capability → Value Chain context",
+    from: "Capability Mapping V2", to: "Value Chain Analyzer V2",
+    fromBg: "#7e22ce", toBg: "#1e3a8a",
+    detail: "Capability Map exporterar EA2_Capabilities.csv med Wardley-koordinater. Dessa kan återimporteras i Value Chain för att visualisera var i kedjan capabilities befinner sig evolutionsmässigt.",
+    mapping: [
+      { vc: "Evolution: Genesis/Custom", cap: "Strategic + låg mognad", reason: "Bygg internt – differentierar" },
+      { vc: "Evolution: Product/Commodity", cap: "Commodity + hög mognad", reason: "Köp/outsourca – standardisera" },
+      { vc: "Visibility: High", cap: "Customer-domän", reason: "Synlig för hyresgäst/kund" },
+    ],
+    outcome: "Komplett make/buy/partner-beslut per capability kopplat till värdekedjan",
+    outcomeIcon: "🏆"
+  },
+  {
+    id: 6, icon: "🤖",
+    title: "Kombinerad AI-analys: Dubbel insikt",
+    from: "Value Chain AI + Capability AI", to: "Strategisk Roadmap",
+    fromBg: "#0f766e", toBg: "#1e293b",
+    detail: "Kör AI-analys i båda verktygen och kombinera insikterna. Value Chain ger 'var i kedjan' och Capability Map ger 'vad som saknas och hur moget det är'.",
+    mapping: [
+      { vc: "VC: Digitaliseringsmöjligheter", cap: "Cap: Investeringsprioriteringar", reason: "Kombinerat → konkret roadmap" },
+      { vc: "VC: Strategiska rekommendationer", cap: "Cap: Capability Gaps", reason: "Kombinerat → gap-to-action plan" },
+      { vc: "VC: Värdeskapande aktiviteter", cap: "Cap: Strategiska Capabilities", reason: "Kombinerat → build vs buy" },
+    ],
+    outcome: "En sammanhängande strategisk berättelse från värdekedja till capability till investering",
+    outcomeIcon: "🎯"
+  },
+];
+
+const vcExportCSV = `"Kategori","Typ","Innehåll"
+"Operations","Primär aktivitet","Fastighetsförvaltning, drift, underhåll..."
+"Teknikutveckling","Stödaktivitet","Plattformsutveckling, AI/ML, IoT..."
+"Service & Eftermarknad","Primär aktivitet","Hyresgästsupport, felanmälan..."
+
+→ Mappas till Capability Map:
+  Typ: "Primär aktivitet" → Priority: Strategic/Important
+  Typ: "Stödaktivitet"   → Priority: Important/Commodity
+  Kategori              → Domain (se mappningsmatris)`;
+
+const capExportCSV = `"Domain","Capability","Priority_EN","Maturity_1_5","Wardley_Evolution","Wardley_Visibility"
+"Operations","Predictive Maintenance","strategic",2,"Genesis/Custom","Medium"
+"Customer","Tenant Self-Service Portal","strategic",2,"Custom","High"
+"Technology","Data Platform & Integration","strategic",2,"Genesis/Custom","Low"
+
+→ Används i Value Chain för:
+  Evolution: Genesis/Custom → Bygg internt (differentierar)
+  Evolution: Product/Commodity → Köp/outsourca
+  Visibility: High → Synlig för hyresgäst → Customer-aktiviteter`;
+
+const apiKeyNote = `// Value Chain Analyzer V2 sparar:
+localStorage.setItem('vc_openai_key', key);
+localStorage.setItem('ea20_openai_key', key);  // Delad med EA 2.0
+
+// Capability Mapping V2 läser:
+localStorage.getItem('ea_openai_key');
+
+// ⚠️ Notera: Olika nycklar! Synkronisera till samma:
+// Rekommendation: Använd 'ea_suite_key' i alla verktyg`;
+
+function App() {
+  const [activeStep, setActiveStep] = useState(null);
+  const [activeVC, setActiveVC] = useState(null);
+  const [view, setView] = useState("flow");
+
+  const highlighted = activeVC ? (domainMapping[activeVC] || []) : [];
+
+  const tabs = [
+    { id: "flow", label: "🔄 Integrationsflöde", sub: "6 steg" },
+    { id: "matrix", label: "🗂️ Mappningsmatris", sub: "VC → Cap" },
+    { id: "schema", label: "📄 Data Schema", sub: "CSV/JSON" },
+  ];
+
+  return (
+    <div style={{minHeight:"100vh", background:"#f8fafc", fontFamily:"-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"}}>
+
+      {/* Header */}
+      <div style={{background:"linear-gradient(135deg, #1e3a8a, #4338ca, #7e22ce)", color:"#fff", padding:"26px 32px"}}>
+        <div style={{maxWidth:960, margin:"0 auto"}}>
+          <div style={{display:"flex", alignItems:"center", gap:12, marginBottom:6}}>
+            <span style={{fontSize:26}}>🔗</span>
+            <h1 style={{margin:0, fontSize:22, fontWeight:800, letterSpacing:"-0.5px"}}>Integration Architecture</h1>
+            <span style={{background:"rgba(255,255,255,0.2)", color:"#fff", fontSize:10, fontWeight:700, padding:"2px 10px", borderRadius:20}}>EA 2.0</span>
+          </div>
+          <p style={{color:"#bfdbfe", fontSize:13, margin:"0 0 12px"}}>AI Value Chain Analyzer V2 ↔ AI Capability Mapping V2</p>
+          <div style={{display:"flex", gap:20, fontSize:12, color:"#93c5fd", flexWrap:"wrap"}}>
+            <span>🔵 Value Chain → Porter's 9 aktiviteter</span>
+            <span>🟣 Capability Map → 5 domäner × prioritet × mognad</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{background:"#fff", borderBottom:"1px solid #e2e8f0", padding:"0 32px"}}>
+        <div style={{maxWidth:960, margin:"0 auto", display:"flex", gap:4}}>
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => setView(tab.id)}
+              style={{padding:"12px 18px", fontSize:13, fontWeight:600, border:"none", background:"transparent", cursor:"pointer", borderBottom: view===tab.id ? "2px solid #4338ca" : "2px solid transparent", color: view===tab.id ? "#4338ca" : "#64748b", transition:"all 0.2s"}}>
+              {tab.label} <span style={{fontSize:11, opacity:0.6, marginLeft:4}}>{tab.sub}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{maxWidth:960, margin:"0 auto", padding:"28px 32px"}}>
+
+        {/* FLOW VIEW */}
+        {view === "flow" && (
+          <div style={{display:"flex", flexDirection:"column", gap:8}}>
+            {integrationSteps.map((step, idx) => (
+              <div key={step.id}>
+                <div
+                  onClick={() => setActiveStep(activeStep === step.id ? null : step.id)}
+                  style={{background:"#fff", border: activeStep===step.id ? "2px solid #4338ca" : "2px solid #e2e8f0", borderRadius:14, padding:"14px 18px", cursor:"pointer", transition:"all 0.2s", boxShadow: activeStep===step.id ? "0 4px 20px rgba(67,56,202,0.15)" : "0 1px 3px rgba(0,0,0,0.05)"}}>
+                  <div style={{display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+                    <div style={{display:"flex", alignItems:"center", gap:14}}>
+                      <div style={{width:40, height:40, background:"#eef2ff", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0}}>{step.icon}</div>
+                      <div>
+                        <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:4, flexWrap:"wrap"}}>
+                          <span style={{fontSize:10, fontWeight:700, color:"#94a3b8", letterSpacing:1}}>STEG {step.id}</span>
+                          <span style={{background:step.fromBg, color:"#fff", fontSize:10, fontWeight:600, padding:"2px 10px", borderRadius:20}}>{step.from}</span>
+                          <span style={{color:"#94a3b8", fontSize:11}}>→</span>
+                          <span style={{background:step.toBg, color:"#fff", fontSize:10, fontWeight:600, padding:"2px 10px", borderRadius:20}}>{step.to}</span>
+                        </div>
+                        <p style={{fontSize:13, fontWeight:600, color:"#1e293b", margin:0}}>{step.title}</p>
+                      </div>
+                    </div>
+                    <span style={{color:"#94a3b8", fontSize:12, display:"inline-block", transition:"transform 0.2s", transform: activeStep===step.id ? "rotate(180deg)" : "none", flexShrink:0, marginLeft:8}}>▼</span>
+                  </div>
+
+                  {activeStep === step.id && (
+                    <div style={{marginTop:14, paddingTop:14, borderTop:"1px solid #e0e7ff"}}>
+                      <p style={{fontSize:13, color:"#475569", marginBottom:12, lineHeight:1.6}}>{step.detail}</p>
+                      <div style={{display:"flex", flexDirection:"column", gap:6, marginBottom:12}}>
+                        {step.mapping.map((m, i) => (
+                          <div key={i} style={{display:"flex", alignItems:"center", gap:8, background:"#f8fafc", borderRadius:8, padding:"8px 12px", flexWrap:"wrap"}}>
+                            <span style={{background:"#dbeafe", color:"#1e40af", fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:6}}>{m.vc}</span>
+                            <span style={{color:"#94a3b8", fontSize:11}}>→</span>
+                            <span style={{background:"#f3e8ff", color:"#6b21a8", fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:6}}>{m.cap}</span>
+                            <span style={{fontSize:11, color:"#64748b", marginLeft:"auto"}}>{m.reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{background:"#eef2ff", border:"1px solid #c7d2fe", borderRadius:10, padding:"10px 14px", display:"flex", alignItems:"center", gap:10}}>
+                        <span style={{fontSize:18}}>{step.outcomeIcon}</span>
+                        <p style={{fontSize:13, fontWeight:600, color:"#3730a3", margin:0}}>{step.outcome}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {idx < integrationSteps.length - 1 && (
+                  <div style={{display:"flex", justifyContent:"center", margin:"2px 0"}}>
+                    <div style={{width:2, height:12, background:"#cbd5e1"}}></div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* MATRIX VIEW */}
+        {view === "matrix" && (
+          <div>
+            <p style={{fontSize:13, color:"#64748b", marginBottom:20}}>Klicka på en Value Chain-aktivitet för att se vilka Capability-domäner den mappar till.</p>
+            <div style={{display:"grid", gridTemplateColumns:"1fr 120px 1fr", gap:16, alignItems:"start"}}>
+
+              {/* VC Column */}
+              <div>
+                <div style={{background:"#1e3a8a", color:"#fff", fontSize:11, fontWeight:700, textTransform:"uppercase", padding:"8px 14px", borderRadius:"10px 10px 0 0", textAlign:"center", letterSpacing:1}}>Value Chain</div>
+                <div style={{border:"1px solid #bfdbfe", borderTop:"none", borderRadius:"0 0 10px 10px", overflow:"hidden"}}>
+                  {vcFields.map(f => {
+                    const borderColor = f.type === "support" ? "#94a3b8" : f.type === "margin" ? "#a855f7" : "#3b82f6";
+                    return (
+                      <div key={f.id} onClick={() => setActiveVC(activeVC === f.id ? null : f.id)}
+                        style={{padding:"9px 12px", cursor:"pointer", borderBottom:"1px solid #f1f5f9", display:"flex", alignItems:"center", gap:8, fontSize:12, borderLeft:`4px solid ${borderColor}`, background: activeVC===f.id ? "#dbeafe" : "#fff", fontWeight: activeVC===f.id ? 700 : 400, color: activeVC===f.id ? "#1e40af" : "#475569", transition:"all 0.15s"}}>
+                        <span>{f.icon}</span>
+                        <span>{f.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Arrow + Labels */}
+              <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", paddingTop:40, gap:8}}>
+                <div style={{fontSize:28, color:"#cbd5e1"}}>→</div>
+                {activeVC && (
+                  <div style={{textAlign:"center"}}>
+                    <p style={{fontSize:10, color:"#94a3b8", marginBottom:6}}>Mappar till</p>
+                    {domainMapping[activeVC].map(d => {
+                      const domain = capDomains.find(c => c.id === d);
+                      return (
+                        <div key={d} style={{background:domain.bg, border:`1px solid ${domain.border}`, color:domain.text, fontSize:10, fontWeight:700, padding:"4px 10px", borderRadius:20, marginBottom:4, textAlign:"center"}}>
+                          {domain.icon} {domain.label}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {!activeVC && <p style={{fontSize:11, color:"#94a3b8", textAlign:"center"}}>Välj en aktivitet</p>}
+              </div>
+
+              {/* Cap Column */}
+              <div>
+                <div style={{background:"#7e22ce", color:"#fff", fontSize:11, fontWeight:700, textTransform:"uppercase", padding:"8px 14px", borderRadius:"10px 10px 0 0", textAlign:"center", letterSpacing:1}}>Capability Domains</div>
+                <div style={{border:"1px solid #e9d5ff", borderTop:"none", borderRadius:"0 0 10px 10px", overflow:"hidden"}}>
+                  {capDomains.map(d => (
+                    <div key={d.id}
+                      style={{padding:"9px 12px", borderBottom:"1px solid #f1f5f9", display:"flex", alignItems:"center", gap:8, fontSize:12, background: highlighted.includes(d.id) ? d.bg : "#fff", fontWeight: highlighted.includes(d.id) ? 700 : 400, color: highlighted.includes(d.id) ? d.text : "#94a3b8", outline: highlighted.includes(d.id) ? `2px solid ${d.border}` : "none", transition:"all 0.2s"}}>
+                      <span>{d.icon}</span>
+                      <span>{d.label}</span>
+                      {highlighted.includes(d.id) && <span style={{marginLeft:"auto", fontSize:12}}>✓</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div style={{marginTop:16, display:"flex", gap:16, fontSize:11, color:"#64748b", flexWrap:"wrap"}}>
+              <div style={{display:"flex", alignItems:"center", gap:6}}><div style={{width:12, height:12, background:"#3b82f6", borderRadius:3}}></div> Primär aktivitet</div>
+              <div style={{display:"flex", alignItems:"center", gap:6}}><div style={{width:12, height:12, background:"#94a3b8", borderRadius:3}}></div> Stödaktivitet</div>
+              <div style={{display:"flex", alignItems:"center", gap:6}}><div style={{width:12, height:12, background:"#a855f7", borderRadius:3}}></div> Marginal</div>
+            </div>
+          </div>
+        )}
+
+        {/* SCHEMA VIEW */}
+        {view === "schema" && (
+          <div style={{display:"flex", flexDirection:"column", gap:16}}>
+            <div style={{background:"#fff", border:"1px solid #e2e8f0", borderRadius:14, padding:20, boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
+              <h3 style={{fontSize:13, fontWeight:700, color:"#1e293b", marginBottom:12, display:"flex", alignItems:"center", gap:8}}>
+                <span style={{background:"#1e3a8a", color:"#fff", fontSize:10, padding:"2px 10px", borderRadius:6}}>EXPORT</span>
+                EA2_ValueChain.csv → Capability Mapping
+              </h3>
+              <pre style={{background:"#0f172a", color:"#4ade80", fontSize:12, padding:16, borderRadius:10, overflowX:"auto", lineHeight:1.7}}>{vcExportCSV}</pre>
+            </div>
+
+            <div style={{background:"#fff", border:"1px solid #e2e8f0", borderRadius:14, padding:20, boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
+              <h3 style={{fontSize:13, fontWeight:700, color:"#1e293b", marginBottom:12, display:"flex", alignItems:"center", gap:8}}>
+                <span style={{background:"#7e22ce", color:"#fff", fontSize:10, padding:"2px 10px", borderRadius:6}}>EXPORT</span>
+                EA2_Capabilities.csv → Value Chain / Wardley
+              </h3>
+              <pre style={{background:"#0f172a", color:"#4ade80", fontSize:12, padding:16, borderRadius:10, overflowX:"auto", lineHeight:1.7}}>{capExportCSV}</pre>
+            </div>
+
+            <div style={{background:"#fff", border:"1px solid #e2e8f0", borderRadius:14, padding:20, boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
+              <h3 style={{fontSize:13, fontWeight:700, color:"#1e293b", marginBottom:12}}>🔑 Delad localStorage-nyckel (API)</h3>
+              <pre style={{background:"#0f172a", color:"#fde68a", fontSize:12, padding:16, borderRadius:10, overflowX:"auto", lineHeight:1.7}}>{apiKeyNote}</pre>
+            </div>
+          </div>
+        )}
+
+        {/* Footer Pipeline */}
+        <div style={{marginTop:24, background:"linear-gradient(135deg, #1e3a8a, #7e22ce)", color:"#fff", borderRadius:14, padding:"16px 24px"}}>
+          <p style={{fontSize:13, fontWeight:700, margin:"0 0 10px"}}>End-to-End Pipeline</p>
+          <div style={{display:"flex", alignItems:"center", gap:8, fontSize:11, flexWrap:"wrap"}}>
+            {["Value Chain → Identifiera värde", "Capability Map → Prioritera & mognad", "Wardley → Make/Buy/Partner", "EA 2.0 → ROI & Roadmap"].map((s, i, arr) => (
+              <React.Fragment key={i}>
+                <span style={{background:"rgba(255,255,255,0.15)", padding:"4px 10px", borderRadius:6}}>{s}</span>
+                {i < arr.length - 1 && <span style={{color:"rgba(255,255,255,0.5)"}}>→</span>}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <footer style={{textAlign:"center", color:"#94a3b8", fontSize:11, padding:"16px", borderTop:"1px solid #e2e8f0"}}>
+        EA 2.0 Suite · Value Chain ↔ Capability Mapping Integration · PropTech & Real Estate
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.render(React.createElement(App), document.getElementById("root"));
+</script>
+</body>
+</html>

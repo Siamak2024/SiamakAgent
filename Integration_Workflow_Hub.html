@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EA 2.0 Integration Workflow</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="js/EA_Config.js"></script>
+<script src="js/EA_DataManager.js"></script>
+<style>
+    body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+    
+    .workflow-card {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        transition: all 0.3s;
+        border: 3px solid transparent;
+    }
+    
+    .workflow-card.active {
+        border-color: #3b82f6;
+        box-shadow: 0 15px 50px rgba(59,130,246,0.4);
+        transform: scale(1.02);
+    }
+    
+    .workflow-card.completed {
+        border-color: #10b981;
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    }
+    
+    .workflow-card.locked {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .phase-number {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+    }
+    
+    .phase-number.completed {
+        background: linear-gradient(135deg, #10b981, #059669);
+    }
+    
+    .phase-number.active {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.7); }
+        50% { box-shadow: 0 0 0 15px rgba(59,130,246,0); }
+    }
+    
+    .workflow-arrow {
+        font-size: 2rem;
+        color: rgba(255,255,255,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 20px;
+    }
+    
+    .stats-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        color: #1e40af;
+        font-weight: 600;
+    }
+    
+    .stats-badge.completed {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        padding: 12px 28px;
+        border-radius: 10px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(59,130,246,0.3);
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(59,130,246,0.4);
+    }
+    
+    .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .btn-secondary {
+        background: white;
+        color: #374151;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        border: 2px solid #e5e7eb;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+    
+    .btn-secondary:hover {
+        border-color: #9ca3af;
+        background: #f9fafb;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: rgba(255,255,255,0.3);
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 16px;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #10b981, #059669);
+        border-radius: 10px;
+        transition: width 0.5s ease;
+    }
+    
+    .info-box {
+        background: #eff6ff;
+        border-left: 4px solid #3b82f6;
+        padding: 16px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+    
+    .info-box.success {
+        background: #f0fdf4;
+        border-left-color: #10b981;
+    }
+    
+    .info-box.warning {
+        background: #fffbeb;
+        border-left-color: #f59e0b;
+    }
+    
+    .phase-description {
+        color: #6b7280;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        margin-bottom: 16px;
+    }
+    
+    .data-preview {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 0.85rem;
+        margin-top: 12px;
+        max-height: 150px;
+        overflow-y: auto;
+    }
+    
+    .timeline {
+        position: relative;
+        padding-left: 40px;
+        margin-top: 20px;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: linear-gradient(180deg, #10b981 0%, #3b82f6 50%, #e5e7eb 100%);
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-bottom: 24px;
+    }
+    
+    .timeline-dot {
+        position: absolute;
+        left: -29px;
+        top: 4px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid #e5e7eb;
+    }
+    
+    .timeline-dot.completed {
+        border-color: #10b981;
+        background: #10b981;
+    }
+    
+    .timeline-dot.active {
+        border-color: #3b82f6;
+        background: #3b82f6;
+        animation: pulse-dot 2s infinite;
+    }
+    
+    @keyframes pulse-dot {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.7); }
+        50% { box-shadow: 0 0 0 8px rgba(59,130,246,0); }
+    }
+</style>
+</head>
+<body class="p-8">
+
+<div class="max-w-7xl mx-auto">
+    
+    <!-- Header -->
+    <div class="text-center mb-12">
+        <div class="inline-flex items-center gap-3 bg-white/20 backdrop-blur-sm px-6 py-3 rounded-full mb-6">
+            <i class="fas fa-project-diagram text-white text-2xl"></i>
+            <h1 class="text-white text-3xl font-bold">EA 2.0 Integration Workflow</h1>
+        </div>
+        <p class="text-white/90 text-lg max-w-3xl mx-auto">
+            Följ den strukturerade arbetsprocessen från Business Model Canvas till färdig Enterprise Architecture-modell
+        </p>
+        
+        <!-- Overall Progress -->
+        <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mt-8 max-w-2xl mx-auto">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-white font-semibold">Totalt framsteg</span>
+                <span class="text-white font-bold text-lg" id="overall-progress-text">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="overall-progress-bar" style="width: 0%"></div>
+            </div>
+            <p class="text-white/70 text-sm" id="workflow-status-text">Redo att börja • 0 av 4 faser slutförda</p>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="flex justify-center gap-4 mb-8">
+        <button onclick="resetWorkflow()" class="btn-secondary">
+            <i class="fas fa-redo"></i> Börja om från början
+        </button>
+        <button onclick="openEAPlatform()" class="btn-secondary">
+            <i class="fas fa-th-large"></i> Gå till EA Platform
+        </button>
+        <button onclick="showHelpModal()" class="btn-secondary">
+            <i class="fas fa-question-circle"></i> Hjälp & Guide
+        </button>
+    </div>
+
+    <!-- Workflow Phases -->
+    <div class="grid grid-cols-1 gap-8 mb-12">
+        
+        <!-- Phase 1: Business Model Canvas -->
+        <div class="workflow-card" id="phase-1-card">
+            <div class="flex items-start gap-6">
+                <div class="phase-number" id="phase-1-number">1</div>
+                <div class="flex-1">
+                    <div class="flex items-start justify-between mb-3">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">Business Model Canvas</h2>
+                            <div class="stats-badge" id="phase-1-status">
+                                <i class="fas fa-circle text-xs text-gray-400"></i>
+                                Ej påbörjad
+                            </div>
+                        </div>
+                        <i class="fas fa-layer-group text-4xl text-blue-200"></i>
+                    </div>
+                    
+                    <p class="phase-description">
+                        Definiera er affärsmodell: värdeerbjudande, kundsegment, intäktsströmmar och kostnadsstruktur. Detta utgör grunden för hela analysen.
+                    </p>
+                    
+                    <div id="phase-1-data" class="data-preview hidden">
+                        <strong class="text-gray-700">Exporterad data:</strong>
+                        <div id="phase-1-data-content" class="mt-2 text-gray-600"></div>
+                    </div>
+                    
+                    <div class="flex gap-3 mt-4">
+                        <button onclick="startPhase(1)" class="btn-primary" id="phase-1-start-btn">
+                            <i class="fas fa-play"></i> Starta Business Model Canvas
+                        </button>
+                        <button onclick="viewPhaseResults(1)" class="btn-secondary hidden" id="phase-1-results-btn">
+                            <i class="fas fa-eye"></i> Visa resultat
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="workflow-arrow">
+            <i class="fas fa-arrow-down"></i>
+        </div>
+
+        <!-- Phase 2: Value Chain Analysis -->
+        <div class="workflow-card locked" id="phase-2-card">
+            <div class="flex items-start gap-6">
+                <div class="phase-number" id="phase-2-number">2</div>
+                <div class="flex-1">
+                    <div class="flex items-start justify-between mb-3">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">Value Chain Analysis</h2>
+                            <div class="stats-badge" id="phase-2-status">
+                                <i class="fas fa-lock text-xs"></i>
+                                Låst • Slutför Phase 1 först
+                            </div>
+                        </div>
+                        <i class="fas fa-link text-4xl text-gray-300"></i>
+                    </div>
+                    
+                    <p class="phase-description">
+                        Analysera er värdekedja enligt Porter: primära och stödaktiviteter, marginaler, digitaliseringspotential och AI-möjligheter.
+                    </p>
+                    
+                    <div id="phase-2-data" class="data-preview hidden">
+                        <strong class="text-gray-700">Exporterad data:</strong>
+                        <div id="phase-2-data-content" class="mt-2 text-gray-600"></div>
+                    </div>
+                    
+                    <div class="flex gap-3 mt-4">
+                        <button onclick="startPhase(2)" class="btn-primary" id="phase-2-start-btn" disabled>
+                            <i class="fas fa-play"></i> Starta Value Chain Analysis
+                        </button>
+                        <button onclick="viewPhaseResults(2)" class="btn-secondary hidden" id="phase-2-results-btn">
+                            <i class="fas fa-eye"></i> Visa resultat
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="workflow-arrow">
+            <i class="fas fa-arrow-down"></i>
+        </div>
+
+        <!-- Phase 3: Capability Mapping -->
+        <div class="workflow-card locked" id="phase-3-card">
+            <div class="flex items-start gap-6">
+                <div class="phase-number" id="phase-3-number">3</div>
+                <div class="flex-1">
+                    <div class="flex items-start justify-between mb-3">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">Capability Mapping</h2>
+                            <div class="stats-badge" id="phase-3-status">
+                                <i class="fas fa-lock text-xs"></i>
+                                Låst • Slutför Phase 2 först
+                            </div>
+                        </div>
+                        <i class="fas fa-cubes text-4xl text-gray-300"></i>
+                    </div>
+                    
+                    <p class="phase-description">
+                        Kartlägg capabilities per domän (Customer, Operations, Product, Finance, Technology), prioritera (Strategic/Important/Commodity) och sätt mognadsgrad.
+                    </p>
+                    
+                    <div id="phase-3-data" class="data-preview hidden">
+                        <strong class="text-gray-700">Exporterad data:</strong>
+                        <div id="phase-3-data-content" class="mt-2 text-gray-600"></div>
+                    </div>
+                    
+                    <div class="flex gap-3 mt-4">
+                        <button onclick="startPhase(3)" class="btn-primary" id="phase-3-start-btn" disabled>
+                            <i class="fas fa-play"></i> Starta Capability Mapping
+                        </button>
+                        <button onclick="viewPhaseResults(3)" class="btn-secondary hidden" id="phase-3-results-btn">
+                            <i class="fas fa-eye"></i> Visa resultat
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="workflow-arrow">
+            <i class="fas fa-arrow-down"></i>
+        </div>
+
+        <!-- Phase 4: Strategy Workbench (Wardley Mapping) -->
+        <div class="workflow-card locked" id="phase-4-card">
+            <div class="flex items-start gap-6">
+                <div class="phase-number" id="phase-4-number">4</div>
+                <div class="flex-1">
+                    <div class="flex items-start justify-between mb-3">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">Strategy Workbench (Wardley Map)</h2>
+                            <div class="stats-badge" id="phase-4-status">
+                                <i class="fas fa-lock text-xs"></i>
+                                Låst • Slutför Phase 3 först
+                            </div>
+                        </div>
+                        <i class="fas fa-chess text-4xl text-gray-300"></i>
+                    </div>
+                    
+                    <p class="phase-description">
+                        Skapa Wardley Map för strategisk positionering: evolution (Genesis→Commodity), synlighet, Build/Buy/Partner-beslut och konkurrensanalys.
+                    </p>
+                    
+                    <div id="phase-4-data" class="data-preview hidden">
+                        <strong class="text-gray-700">Exporterad data:</strong>
+                        <div id="phase-4-data-content" class="mt-2 text-gray-600"></div>
+                    </div>
+                    
+                    <div class="flex gap-3 mt-4">
+                        <button onclick="startPhase(4)" class="btn-primary" id="phase-4-start-btn" disabled>
+                            <i class="fas fa-play"></i> Starta Strategy Workbench
+                        </button>
+                        <button onclick="viewPhaseResults(4)" class="btn-secondary hidden" id="phase-4-results-btn">
+                            <i class="fas fa-eye"></i> Visa resultat
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Final Arrow to EA Platform -->
+        <div class="workflow-arrow">
+            <i class="fas fa-arrow-down"></i>
+        </div>
+
+        <!-- Final: EA Platform Integration -->
+        <div class="workflow-card locked" id="phase-5-card" style="border: 3px dashed #9ca3af;">
+            <div class="flex items-start gap-6">
+                <div class="phase-number" style="background: linear-gradient(135deg, #10b981, #059669);" id="phase-5-number">
+                    <i class="fas fa-flag-checkered"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-start justify-between mb-3">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">EA Platform - Sammanställd Modell</h2>
+                            <div class="stats-badge" id="phase-5-status">
+                                <i class="fas fa-lock text-xs"></i>
+                                Låst • Slutför alla 4 faser först
+                            </div>
+                        </div>
+                        <i class="fas fa-th-large text-4xl text-gray-300"></i>
+                    </div>
+                    
+                    <p class="phase-description">
+                        Importera och sammanställ all data i EA Platform: capabilities, systems, AI agents, initiatives, value streams och strategisk roadmap.
+                    </p>
+                    
+                    <div class="info-box hidden" id="final-info">
+                        <h3 class="font-bold text-blue-900 mb-2 flex items-center gap-2">
+                            <i class="fas fa-info-circle"></i>
+                            Redo att slutföra!
+                        </h3>
+                        <p class="text-blue-800 text-sm">
+                            Alla 4 faser är slutförda. Gå till EA Platform för att importera datan och slutföra din Enterprise Architecture-modell.
+                        </p>
+                    </div>
+                    
+                    <div class="flex gap-3 mt-4">
+                        <button onclick="openEAPlatform()" class="btn-primary" id="phase-5-start-btn" disabled>
+                            <i class="fas fa-th-large"></i> Öppna EA Platform & Importera
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline Summary -->
+    <div class="bg-white rounded-2xl p-8 shadow-xl">
+        <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+            <i class="fas fa-history text-blue-600"></i>
+            Arbetsflöde & Status
+        </h3>
+        
+        <div class="timeline" id="timeline">
+            <!-- Timeline items populated by JS -->
+        </div>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div id="help-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-8">
+    <div class="bg-white rounded-2xl max-w-3xl max-h-[90vh] overflow-y-auto p-8 shadow-2xl">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                <i class="fas fa-question-circle text-blue-600"></i>
+                Hur fungerar Integration Workflow?
+            </h2>
+            <button onclick="closeHelpModal()" class="text-gray-400 hover:text-gray-600 text-2xl">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="space-y-6 text-gray-700">
+            <div>
+                <h3 class="font-bold text-lg mb-2">📋 Översikt</h3>
+                <p>EA 2.0 Integration Workflow guidar dig genom en strukturerad process för att bygga en komplett Enterprise Architecture-modell, från affärsstrategi till teknisk implementation.</p>
+            </div>
+            
+            <div>
+                <h3 class="font-bold text-lg mb-2">🔄 Arbetsflödet (4 faser)</h3>
+                <ol class="list-decimal ml-6 space-y-2">
+                    <li><strong>Business Model Canvas:</strong> Definiera affärsmodellen</li>
+                    <li><strong>Value Chain Analysis:</Strong> Analysera värdekedjan och identifiera AI-möjligheter</li>
+                    <li><strong>Capability Mapping:</strong> Kartlägg capabilities per domän</li>
+                    <li><strong>Strategy Workbench:</strong> Skapa Wardley Map för strategisk positionering</li>
+                </ol>
+            </div>
+            
+            <div>
+                <h3 class="font-bold text-lg mb-2">✅ Så fungerar det</h3>
+                <ul class="list-disc ml-6 space-y-2">
+                    <li>Varje fas <strong>måste slutföras</strong> innan nästa låses upp</li>
+                    <li>Efter varje fas, klicka <strong>"Exportera (EA)"</strong> i verktyget</li>
+                    <li>Datan exporteras automatiskt till integration cache</li>
+                    <li>Nästa fas låses upp när export är klar</li>
+                    <li>Efter alla 4 faser → Importera i EA Platform</li>
+                </ul>
+            </div>
+            
+            <div>
+                <h3 class="font-bold text-lg mb-2">💡 Tips</h3>
+                <ul class="list-disc ml-6 space-y-2">
+                    <li>Använd <strong>"Ladda exempel"</strong>-knappen för snabb demo</li>
+                    <li>Klicka <strong>"Spara"</strong> eller <strong>"AI Analysera"</strong> för auto-export</li>
+                    <li>Grön bock = Fas slutförd</li>
+                    <li>Blå pulsering = Aktuell fas</li>
+                    <li>Lås = Fas ännu ej tillgänglig</li>
+                </ul>
+            </div>
+            
+            <div>
+                <h3 class="font-bold text-lg mb-2">🎯 Vad händer i EA Platform?</h3>
+                <p>När alla faser är slutförda kan du importera datan till EA Platform:</p>
+                <ul class="list-disc ml-6 space-y-2 mt-2">
+                    <li><strong>Capabilities</strong> från Value Chain + Capability Map</li>
+                    <li><strong>Systems</strong> från Value Chain digitalisering</li>
+                    <li><strong>AI Agents</strong> från Value Chain AI-opportunities</li>
+                    <li><strong>Wardley-positionering</strong> från Strategy Workbench</li>
+                    <li><strong>Build/Buy/Partner</strong> rekommendationer</li>
+                </ul>
+            </div>
+        </div>
+        
+        <button onclick="closeHelpModal()" class="btn-primary mt-6 w-full justify-center">
+            Förstått!
+        </button>
+    </div>
+</div>
+
+<script>
+let dataManager = null;
+if (typeof EA_DataManager !== 'undefined') {
+    try {
+        dataManager = new EA_DataManager();
+    } catch (e) {
+        console.warn('DataManager init failed in Workflow Hub, using localStorage fallback:', e);
+        dataManager = null;
+    }
+}
+
+const phaseConfig = {
+    1: {
+        key: 'bmc_latest',
+        url: 'EA2_Toolkit/AI Business Model Canvas.html',
+        name: 'Business Model Canvas',
+        icon: 'layer-group'
+    },
+    2: {
+        key: 'valuechain_latest',
+        url: 'EA2_Toolkit/AI Value Chain Analyzer V2.html',
+        name: 'Value Chain Analysis',
+        icon: 'link'
+    },
+    3: {
+        key: 'capability_latest',
+        url: 'EA2_Toolkit/AI Capability Mapping V2.html',
+        name: 'Capability Mapping',
+        icon: 'cubes'
+    },
+    4: {
+        key: 'strategy_latest',
+        url: 'EA2_Toolkit/AI Strategy Workbench V2.html',
+        name: 'Strategy Workbench',
+        icon: 'chess'
+    }
+};
+
+// Check workflow status
+function checkWorkflowStatus() {
+    if (!dataManager) return;
+    
+    let completedCount = 0;
+    
+    for (let phase = 1; phase <= 4; phase++) {
+        const config = phaseConfig[phase];
+        const hasData = dataManager.hasRecentIntegrationData(config.key, 1440); // 24 hours
+        
+        const card = document.getElementById(`phase-${phase}-card`);
+        const number = document.getElementById(`phase-${phase}-number`);
+        const status = document.getElementById(`phase-${phase}-status`);
+        const startBtn = document.getElementById(`phase-${phase}-start-btn`);
+        const resultsBtn = document.getElementById(`phase-${phase}-results-btn`);
+        const dataPreview = document.getElementById(`phase-${phase}-data`);
+        
+        if (hasData) {
+            // Phase completed
+            card.classList.remove('locked', 'active');
+            card.classList.add('completed');
+            number.classList.add('completed');
+            number.innerHTML = '<i class="fas fa-check"></i>';
+            status.innerHTML = '<i class="fas fa-check-circle text-green-600"></i> Slutförd';
+            status.classList.add('completed');
+            startBtn.textContent = 'Öppna igen';
+            startBtn.innerHTML = `<i class="fas fa-edit"></i> Öppna igen`;
+            resultsBtn.classList.remove('hidden');
+            
+            // Show data preview
+            const data = dataManager.getIntegrationPackage(config.key);
+            if (data) {
+                dataPreview.classList.remove('hidden');
+                const content = document.getElementById(`phase-${phase}-data-content`);
+                content.innerHTML = `
+                    <div class="text-xs space-y-1">
+                        <div><strong>Exporterad:</strong> ${new Date(data.timestamp).toLocaleString('sv-SE')}</div>
+                        <div><strong>Completeness:</strong> ${data.data.metadata?.completeness || data.data.metadata?.totalCapabilities || 'N/A'}%</div>
+                    </div>
+                `;
+            }
+            
+            completedCount++;
+            
+            // Unlock next phase
+            if (phase < 4) {
+                const nextCard = document.getElementById(`phase-${phase + 1}-card`);
+                const nextBtn = document.getElementById(`phase-${phase + 1}-start-btn`);
+                const nextStatus = document.getElementById(`phase-${phase + 1}-status`);
+                const nextNumber = document.getElementById(`phase-${phase + 1}-number`);
+                
+                nextCard.classList.remove('locked');
+                nextCard.classList.add('active');
+                nextBtn.disabled = false;
+                nextStatus.innerHTML = '<i class="fas fa-circle text-blue-600 animate-pulse"></i> Redo att starta';
+                nextNumber.classList.add('active');
+            }
+        } else if (phase === 1 || (phase > 1 && dataManager.hasRecentIntegrationData(phaseConfig[phase - 1].key, 1440))) {
+            // Phase unlocked but not completed
+            card.classList.remove('locked', 'completed');
+            card.classList.add('active');
+            number.classList.add('active');
+            startBtn.disabled = false;
+            status.innerHTML = '<i class="fas fa-circle text-blue-600 animate-pulse"></i> Redo att starta';
+        }
+    }
+    
+    // Update overall progress
+    const progress = (completedCount / 4) * 100;
+    document.getElementById('overall-progress-bar').style.width = `${progress}%`;
+    document.getElementById('overall-progress-text').textContent = `${Math.round(progress)}%`;
+    document.getElementById('workflow-status-text').textContent = 
+        completedCount === 4 ? '✅ Alla faser slutförda! Redo att importera i EA Platform' :
+        completedCount > 0 ? `I arbete • ${completedCount} av 4 faser slutförda` :
+        'Redo att börja • 0 av 4 faser slutförda';
+    
+    // Unlock final phase if all 4 completed
+    if (completedCount === 4) {
+        const finalCard = document.getElementById('phase-5-card');
+        const finalBtn = document.getElementById('phase-5-start-btn');
+        const finalStatus = document.getElementById('phase-5-status');
+        const finalInfo = document.getElementById('final-info');
+        
+        finalCard.classList.remove('locked');
+        finalCard.style.borderColor = '#10b981';
+        finalCard.style.borderStyle = 'solid';
+        finalBtn.disabled = false;
+        finalStatus.innerHTML = '<i class="fas fa-check-circle text-green-600"></i> Redo att slutföra!';
+        finalStatus.classList.add('completed');
+        finalInfo.classList.remove('hidden');
+        finalInfo.classList.add('success');
+    }
+    
+    // Update timeline
+    updateTimeline(completedCount);
+}
+
+function updateTimeline(completedCount) {
+    const timeline = document.getElementById('timeline');
+    const timelineHTML = [];
+    
+    for (let phase = 1; phase <= 4; phase++) {
+        const config = phaseConfig[phase];
+        const hasData = dataManager?.hasRecentIntegrationData(config.key, 1440);
+        const isActive = phase === completedCount + 1;
+        
+        timelineHTML.push(`
+            <div class="timeline-item">
+                <div class="timeline-dot ${hasData ? 'completed' : isActive ? 'active' : ''}"></div>
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-${config.icon} ${hasData ? 'text-green-600' : isActive ? 'text-blue-600' : 'text-gray-400'}"></i>
+                    <div>
+                        <div class="font-semibold ${hasData ? 'text-green-700' : isActive ? 'text-blue-700' : 'text-gray-500'}">
+                            Phase ${phase}: ${config.name}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            ${hasData ? '✓ Slutförd' : isActive ? '→ Aktuell fas' : '○ Inte påbörjad'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+    
+    timelineHTML.push(`
+        <div class="timeline-item">
+            <div class="timeline-dot ${completedCount === 4 ? 'completed' : ''}"></div>
+            <div class="flex items-center gap-3">
+                <i class="fas fa-th-large ${completedCount === 4 ? 'text-green-600' : 'text-gray-400'}"></i>
+                <div>
+                    <div class="font-semibold ${completedCount === 4 ? 'text-green-700' : 'text-gray-500'}">
+                        EA Platform Import
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        ${completedCount === 4 ? '✓ Redo att slutföra' : '○ Låst'}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+    
+    timeline.innerHTML = timelineHTML.join('');
+}
+
+function startPhase(phase) {
+    const config = phaseConfig[phase];
+    if (config) {
+        // Store return URL
+        localStorage.setItem('workflow_return_url', window.location.href);
+        localStorage.setItem('workflow_active_phase', phase);
+        
+        window.location.href = config.url;
+    }
+}
+
+function viewPhaseResults(phase) {
+    const config = phaseConfig[phase];
+    if (!config || !dataManager) return;
+    
+    const data = dataManager.getIntegrationData(config.key);
+    if (data) {
+        alert(`Phase ${phase} Results:\n\n${JSON.stringify(data, null, 2)}`);
+        // TODO: Better modal display
+    }
+}
+
+function openEAPlatform() {
+    localStorage.setItem('workflow_return_url', window.location.href);
+    window.location.href = 'EA Plattform/EA 20 Platform_V3_Integrated.html';
+}
+
+function resetWorkflow() {
+    if (!confirm('Är du säker på att du vill börja om från början? All exporterad data kommer att raderas.')) return;
+    
+    if (dataManager) {
+        for (let phase = 1; phase <= 4; phase++) {
+            dataManager.clearIntegrationData(phaseConfig[phase].key);
+        }
+    }
+    
+    location.reload();
+}
+
+function showHelpModal() {
+    document.getElementById('help-modal').classList.remove('hidden');
+}
+
+function closeHelpModal() {
+    document.getElementById('help-modal').classList.add('hidden');
+}
+
+// Initialize
+window.onload = () => {
+    checkWorkflowStatus();
+    
+    // Check if returning from toolkit
+    const activePhase = localStorage.getItem('workflow_active_phase');
+    if (activePhase) {
+        localStorage.removeItem('workflow_active_phase');
+        // Scroll to active phase
+        setTimeout(() => {
+            document.getElementById(`phase-${activePhase}-card`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 500);
+    }
+};
+</script>
+
+</body>
+</html>
