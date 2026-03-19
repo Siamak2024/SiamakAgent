@@ -2629,6 +2629,18 @@ function setActiveBusinessAreasFromUI() {
   autoSaveCurrentModel();
 }
 
+function ensureAIConfigFields() {
+  if (!model.aiConfig || typeof model.aiConfig !== 'object') {
+    model.aiConfig = {};
+  }
+  model.aiConfig = {
+    model: 'gpt-4o',
+    architectureMode: ['draft', 'standard', 'deep'].includes(String(model.aiConfig.architectureMode || '').toLowerCase())
+      ? String(model.aiConfig.architectureMode || '').toLowerCase()
+      : 'standard'
+  };
+}
+
 function setMasterDataField(field, value) {
   ensureMasterDataFields();
   if (!(field in model.masterData)) return;
