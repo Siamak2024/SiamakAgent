@@ -1,0 +1,1650 @@
+﻿<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Capability Mapping V2</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><script src="../js/EA_Config.js"></script>
+<script src="../js/EA_DataManager.js"></script><script src="../js/EA_ToolkitKPI.js"></script><style>
+  body { font-family: 'Segoe UI', sans-serif; background: #f3f4f6; }
+  .cap-card {
+    background: white; border-radius: 8px; padding: 10px 14px;
+    margin: 6px 0; cursor: pointer; border-left: 4px solid #d1d5db;
+    transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .cap-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.12); transform: translateX(2px); }
+  .cap-card.strategic  { border-left-color: #ef4444; background: #fff5f5; }
+  .cap-card.important  { border-left-color: #f59e0b; background: #fffbeb; }
+  .cap-card.commodity  { border-left-color: #10b981; background: #f0fdf4; }
+  .domain-col { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .domain-header { font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; display: flex; align-items: center; }
+  .badge { font-size: 0.65rem; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
+  .badge-strategic { background: #fee2e2; color: #b91c1c; }
+  .badge-important { background: #fef3c7; color: #92400e; }
+  .badge-commodity { background: #d1fae5; color: #065f46; }
+  .spinner { animation: spin 1s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  #result h3 { font-size: 1rem; font-weight: 700; color: #1e3a5f; margin: 1.2rem 0 0.5rem; padding-bottom: 0.25rem; border-bottom: 1px solid #e5e7eb; }
+  #result ul { margin: 0.3rem 0 0.8rem 1.4rem; }
+  #result li { margin-bottom: 0.3rem; list-style: disc; }
+  #result strong { color: #1e3a5f; }
+  #api-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; }
+  #api-modal.hidden { display: none; }
+  .modal-box { background: white; border-radius: 12px; padding: 32px; max-width: 460px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  #cap-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99; display: flex; align-items: center; justify-content: center; }
+  #cap-modal.hidden { display: none; }
+  .maturity-btn { padding: 6px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; }
+  .maturity-btn.active-strategic { background: #ef4444; color: white; border-color: #ef4444; }
+  .maturity-btn.active-important { background: #f59e0b; color: white; border-color: #f59e0b; }
+  .maturity-btn.active-commodity { background: #10b981; color: white; border-color: #10b981; }
+  .maturity-btn:not([class*="active"]) { background: #f3f4f6; color: #6b7280; }
+  .export-btn { background: linear-gradient(135deg, #16a34a, #15803d); color: white; border: none; }
+  .export-btn:hover { background: linear-gradient(135deg, #15803d, #166534); }
+  /* === CAP AI ASSISTANT === */
+#cap-ai-widget { position: fixed; bottom: 30px; right: 30px; z-index: 1000; font-family: 'Segoe UI', sans-serif; }
+#cap-ai-button {
+    width: 65px; height: 65px; border-radius: 50%;
+    background: linear-gradient(135deg, #1e3a5f 0%, #3498db 100%);
+    box-shadow: 0 10px 25px rgba(52,152,219,0.4);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.3s; border: none; position: relative;
+}
+#cap-ai-button:hover { transform: scale(1.1) rotate(5deg); }
+#cap-ai-button i { color: white; font-size: 26px; }
+.cap-notification-badge {
+    position: absolute; top: -2px; right: -2px;
+    background: #ef4444; color: white; border-radius: 50%;
+    width: 20px; height: 20px; font-size: 11px;
+    display: none; align-items: center; justify-content: center;
+    border: 2px solid white; animation: cap-pulse 2s infinite;
+}
+@keyframes cap-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); }
+    70% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+    100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+}
+#cap-chat-panel {
+    position: absolute; bottom: 80px; right: 0;
+    width: 760px; height: 640px; background: white;
+    border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    display: none; flex-direction: column; overflow: hidden;
+    border: 1px solid #e5e7eb;
+}
+.cap-chat-header {
+    background: linear-gradient(135deg, #1e3a5f, #2563eb);
+    color: white; padding: 18px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.cap-chat-messages {
+    flex: 1; padding: 16px; overflow-y: auto;
+    background: #f9fafb; display: flex; flex-direction: column; gap: 12px;
+}
+.cap-msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; }
+.cap-msg.ai { align-self: flex-start; background: white; border: 1px solid #e5e7eb; color: #1f2937; border-bottom-left-radius: 2px; }
+.cap-msg.user { align-self: flex-end; background: #2563eb; color: white; border-bottom-right-radius: 2px; }
+.cap-quick-actions { padding: 12px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; background: white; border-top: 1px solid #f3f4f6; }
+.cap-btn-q {
+    background: #f3f4f6; border: 1px solid #e5e7eb;
+    padding: 7px 10px; border-radius: 8px; font-size: 11.5px;
+    text-align: left; cursor: pointer; transition: all 0.2s;
+    color: #374151; display: flex; align-items: center; gap: 6px;
+}
+.cap-btn-q:hover { background: #e5e7eb; color: #111827; }
+.cap-chat-input { padding: 12px; background: white; border-top: 1px solid #e5e7eb; display: flex; gap: 8px; }
+.cap-chat-input input { flex: 1; border: 1px solid #d1d5db; padding: 9px 14px; border-radius: 8px; outline: none; font-size: 13px; }
+.cap-chat-input input:focus { border-color: #2563eb; }
+.cap-chat-input button { background: #2563eb; color: white; border: none; width: 38px; height: 38px; border-radius: 8px; cursor: pointer; }
+</style>
+<link rel="stylesheet" href="../css/ea-design-engine.css" />
+<script src="../../AzureOpenAIProxy.js"></script>
+</head>
+<body class="p-0 ea-toolkit-app">
+
+<!-- WORKFLOW NAVIGATION BAR -->
+<div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 text-xs font-semibold shadow-md flex items-center justify-between">
+  <div class="flex items-center gap-4">
+    <a href="../Integration_Workflow_Hub.html" class="flex items-center gap-2 hover:underline">
+      <i class="fas fa-arrow-left"></i> Tillbaka till Workflow Hub
+    </a>
+    <div class="h-4 w-px bg-white/30"></div>
+    <div class="flex items-center gap-2">
+      <a href="./AI Business Model Canvas.html" class="opacity-90 hover:opacity-100 hover:underline">PHASE 1</a>
+      <i class="fas fa-chevron-right opacity-50 text-xs"></i>
+      <a href="./AI Value Chain Analyzer V2.html" class="opacity-90 hover:opacity-100 hover:underline">PHASE 2</a>
+      <i class="fas fa-chevron-right opacity-50 text-xs"></i>
+      <span class="bg-white text-purple-600 px-2 py-1 rounded font-bold">PHASE 3 av 4</span>
+      <i class="fas fa-chevron-right opacity-50 text-xs"></i>
+      <a href="./AI Strategy Workbench V2.html" class="opacity-90 hover:opacity-100 hover:underline">PHASE 4</a>
+    </div>
+  </div>
+  <div class="text-xs opacity-90">
+    <i class="fas fa-info-circle mr-1"></i> Exportera nÃ¤r klar fÃ¶r att lÃ¥sa upp nÃ¤sta fas
+  </div>
+</div>
+
+<!-- EA PLATFORM HEADER -->
+<header class="bg-gradient-to-r from-slate-900 to-blue-900 text-white px-5 py-3 flex items-center justify-between shadow-lg">
+  <div class="flex items-center gap-3">
+    <a href="../NexGenEA/NexGen_EA_V4.html" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
+      <i class="fas fa-arrow-left"></i> Tillbaka till EA Platform
+    </a>
+    <div class="h-6 w-px bg-slate-600"></div>
+    <div class="flex items-center gap-2">
+      <div class="bg-purple-500 rounded-lg w-8 h-8 flex items-center justify-center font-bold text-sm"><i class="fas fa-sitemap"></i></div>
+      <div>
+        <div class="font-bold text-sm leading-tight">AI Capability Mapping</div>
+        <div class="text-blue-300 text-xs">Workshop Tool Â· Step 3</div>
+      </div>
+    </div>
+  </div>
+  <div class="text-xs text-slate-300">
+    <div id="cap-sync-status"><i class="fas fa-sync-alt"></i> Data synkas automatiskt med EA Platform</div>
+    <div id="cap-context-badge" class="mt-1 text-[11px] text-blue-200 hidden"></div>
+  </div>
+</header>
+
+<section class="ea-kpi-strip">
+  <div class="ea-kpi-grid">
+    <div class="ea-kpi-card">
+      <span class="ea-kpi-icon"><i class="fas fa-list-check"></i></span>
+      <div><span class="ea-kpi-label">Tool Step</span><span class="ea-kpi-value">3 / 5</span></div>
+    </div>
+    <div class="ea-kpi-card is-accent">
+      <span class="ea-kpi-icon"><i class="fas fa-link"></i></span>
+      <div><span class="ea-kpi-label">Sync</span><span class="ea-kpi-value" data-kpi="sync">EA Platform Active</span></div>
+    </div>
+    <div class="ea-kpi-card">
+      <span class="ea-kpi-icon"><i class="fas fa-sitemap"></i></span>
+      <div><span class="ea-kpi-label">Focus</span><span class="ea-kpi-value">Capability Maturity</span></div>
+    </div>
+    <button class="ea-kpi-card" type="button" onclick="capOpenNextTool()" title="GÃ¥ till nÃ¤sta verktyg: AI Strategy Workbench" style="text-align:left; cursor:pointer; width:100%;">
+      <span class="ea-kpi-icon"><i class="fas fa-arrow-right"></i></span>
+      <div><span class="ea-kpi-label">Next Tool</span><span class="ea-kpi-value">Strategy Workbench</span></div>
+    </button>
+  </div>
+</section>
+
+<div class="p-6">
+<!-- AI ASSISTANT WIDGET -->
+<div id="cap-ai-widget">
+    <div id="cap-chat-panel">
+        <div class="cap-chat-header">
+            <div style="display:flex;align-items:center;gap:10px">
+                <i class="fas fa-robot"></i>
+                <div>
+                    <div style="font-weight:700;font-size:14px">Capability Advisor AI</div>
+                    <div style="font-size:11px;opacity:0.8">Enterprise Architecture Â· domain-specific</div>
+                </div>
+            </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button onclick="startNewCapChat()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);color:white;font-size:11px;font-weight:700;padding:6px 8px;border-radius:8px;cursor:pointer">Ny chat</button>
+            <button onclick="clearCapChatHistory()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);color:white;font-size:11px;font-weight:700;padding:6px 8px;border-radius:8px;cursor:pointer">Rensa</button>
+            <button onclick="toggleCapChat()" style="background:none;border:none;color:white;font-size:18px;cursor:pointer">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+        <div class="cap-chat-messages" id="cap-chat-messages"></div>
+        <div class="cap-quick-actions">
+            <button class="cap-btn-q" onclick="askCapAI('Vilka Ã¤r vÃ¥ra mest kritiska capability gaps?')"><i class="fas fa-exclamation-triangle text-red-500"></i> Kritiska Gaps</button>
+            <button class="cap-btn-q" onclick="askCapAI('Vilka fÃ¶rmÃ¥gor bÃ¶r vi outsourca vs bygga sjÃ¤lva?')"><i class="fas fa-handshake text-blue-500"></i> Outsourcing vs Build</button>
+            <button class="cap-btn-q" onclick="askCapAI('Skapa en 12-mÃ¥naders roadmap fÃ¶r mognadshÃ¶jning.')"><i class="fas fa-calendar-alt text-purple-500"></i> Roadmap 12 mÃ¥n</button>
+            <button class="cap-btn-q" onclick="askCapAI('Vilken capability ger stÃ¶rst konkurrensfÃ¶rdel?')"><i class="fas fa-trophy text-yellow-500"></i> KonkurrensfÃ¶rdel</button>
+            <button class="cap-btn-q" onclick="askCapAI('Analysera Technology-domÃ¤nen i detalj.')"><i class="fas fa-microchip text-gray-500"></i> Tech-domÃ¤n</button>
+            <button class="cap-btn-q" onclick="askCapAI('Hur pÃ¥verkar ESG och CSRD vÃ¥r capability mapping?')"><i class="fas fa-leaf text-green-500"></i> ESG & CSRD</button>
+            <button class="cap-btn-q" title="Benchmark mot branschstandard" onclick="askCapAI('Benchmarka oss mot branschstandard fÃ¶r domain-specific.')"><i class="fas fa-chart-line text-blue-500"></i> Benchmark</button>
+            <button class="cap-btn-q" onclick="askCapAI('Vilka risker ser du i Customer-domÃ¤nen?')"><i class="fas fa-user-shield text-orange-500"></i> Customer Risks</button>
+            <button class="cap-btn-q" onclick="askCapAI('Ge fÃ¶rslag pÃ¥ KPI:er fÃ¶r att mÃ¤ta mognadsresan.')"><i class="fas fa-bullseye text-red-500"></i> KPI FÃ¶rslag</button>
+            <button class="cap-btn-q" onclick="askCapAI('Sammanfatta hela nulÃ¤get i en SWOT-analys.')"><i class="fas fa-list-ul text-purple-500"></i> SWOT Analys</button>
+            <button class="cap-btn-q" title="FÃ¶rbered nÃ¤sta workshop: Wardley Mapping" onclick="askCapAI('Baserat pÃ¥ vÃ¥r capability map: vilka capabilities ska placeras i Genesis, Custom Build, Product respektive Commodity pÃ¥ en Wardley Map? FÃ¶rbered mig fÃ¶r nÃ¤sta workshop med positioneringsfÃ¶rslag per capability.')"><i class="fas fa-arrow-right text-indigo-500"></i> FÃ¶rbered Wardley</button>
+            <button class="cap-btn-q" title="Ã–ppna nÃ¤sta verktyg: AI Strategy Workbench" onclick="capOpenNextTool()"><i class="fas fa-rocket text-indigo-600"></i> Ã–ppna Wardley</button>
+        </div>
+        <div class="cap-chat-input">
+          <input type="text" id="cap-user-input" placeholder="Ställ en fråga om din capability map..." onkeypress="if(event.key==='Enter') sendCapMessage()">
+            <button onclick="sendCapMessage()"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+    <button id="cap-ai-button" onclick="toggleCapChat()">
+        <i class="fas fa-robot"></i>
+        <div class="cap-notification-badge" id="cap-badge">1</div>
+    </button>
+</div>
+<!-- API Modal -->
+<div id="api-modal" class="hidden">
+  <div class="modal-box">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+        <i class="fas fa-key text-blue-600"></i>
+      </div>
+      <div>
+        <h2 class="font-bold text-gray-900">OpenAI API-nyckel</h2>
+        <p class="text-xs text-gray-500">Delas med alla verktyg i EA Strategy Suite</p>
+      </div>
+    </div>
+    <p class="text-sm text-gray-600 mb-4">Nyckeln sparas i <code class="bg-gray-100 px-1 rounded text-xs">localStorage</code> under nyckeln <code class="bg-gray-100 px-1 rounded text-xs">ea_openai_key</code> och anvÃ¤nds av BMC, Capability Map och Wardley Map.</p>
+    <input id="api-key-input" type="password" placeholder="sk-proj-..."
+      class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-500 mb-3 font-mono"/>
+    <div class="flex items-center gap-2 mb-5">
+      <input type="checkbox" id="show-key" onchange="document.getElementById('api-key-input').type = this.checked ? 'text' : 'password'">
+      <label for="show-key" class="text-xs text-gray-500 cursor-pointer">Visa nyckel</label>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="saveApiKey()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+        <i class="fas fa-check mr-2"></i>Spara & Aktivera
+      </button>
+      <button onclick="document.getElementById('api-modal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Avbryt</button>
+    </div>
+    <p class="text-xs text-gray-400 mt-4 text-center"><i class="fas fa-shield-alt mr-1"></i>Skickas endast till OpenAI. Aldrig till annan server.</p>
+  </div>
+</div>
+
+<!-- Capability Edit Modal -->
+<div id="cap-modal" class="hidden">
+  <div class="modal-box" style="max-width:500px">
+    <h2 class="font-bold text-gray-900 mb-4 flex items-center gap-2"><i class="fas fa-edit text-blue-600"></i> Redigera Capability</h2>
+    <input id="cap-name-input" type="text" placeholder="Capability-namn" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-3 outline-none focus:border-blue-500"/>
+    <textarea id="cap-desc-input" placeholder="Beskrivning (valfritt)" rows="2" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-3 outline-none focus:border-blue-500 resize-none"></textarea>
+    <div class="mb-3">
+      <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Strategisk Prioritet</p>
+      <div class="flex gap-2">
+        <button class="maturity-btn" onclick="setMaturity('strategic')" id="btn-strategic">ðŸ”´ Strategisk</button>
+        <button class="maturity-btn" onclick="setMaturity('important')" id="btn-important">ðŸŸ¡ Viktig</button>
+        <button class="maturity-btn" onclick="setMaturity('commodity')" id="btn-commodity">ðŸŸ¢ Commodity</button>
+      </div>
+    </div>
+    <div class="mb-4">
+      <p class="text-xs font-semibold text-gray-500 uppercase mb-2">MognadsnivÃ¥ (1â€“5)</p>
+      <input id="cap-maturity" type="range" min="1" max="5" value="3" class="w-full" oninput="document.getElementById('maturity-val').textContent = this.value"/>
+      <div class="flex justify-between text-xs text-gray-400 mt-1">
+        <span>1 â€“ Initial</span><span id="maturity-val" class="font-bold text-gray-700">3</span><span>5 â€“ Optimerad</span>
+      </div>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="saveCapability()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700">Spara</button>
+      <button onclick="deleteCapability()" class="px-4 py-2 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-100">Ta bort</button>
+      <button onclick="document.getElementById('cap-modal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Avbryt</button>
+    </div>
+  </div>
+</div>
+
+<div class="max-w-7xl mx-auto">
+
+  <!-- Header -->
+  <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">AI Capability Mapping <span class="text-blue-600">V2</span></h1>
+      <p class="text-gray-500 text-sm">Enterprise Architecture Â· domain-specific & Industry-specific</p>
+    </div>
+    <div class="flex flex-wrap gap-3">
+      <button onclick="document.getElementById('api-modal').classList.remove('hidden')" id="api-status-btn"
+        class="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition">
+        <i id="api-icon" class="fas fa-circle text-xs text-orange-400"></i>
+        <span id="api-text">Konfigurera API-nyckel</span>
+      </button>
+      <button onclick="loadExample()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm">
+        <i class="fas fa-lightbulb"></i> Ladda exempel
+      </button>
+      <button onclick="clearAll()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm">
+        <i class="fas fa-trash-alt"></i> Rensa
+      </button>
+      <button onclick="saveAll()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm">
+        <i class="fas fa-save"></i> Spara
+      </button>
+      <button onclick="exportCapabilitiesToCSV()" class="flex items-center gap-2 export-btn px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
+        <i class="fas fa-file-excel"></i> Exportera (Excel)
+      </button>
+      <button onclick="exportToIntegrationCache()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background: linear-gradient(135deg, #9333ea, #7e22ce); color: white;" title="Exportera till EA Platform integration">
+        <i class="fas fa-project-diagram"></i> Exportera (EA)
+      </button>
+      <button onclick="runAnalysis()" class="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 shadow text-sm font-semibold">
+        <i class="fas fa-robot"></i> AI Analys
+      </button>
+      <button onclick="generateCapToBeFromLatestAnalysis()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#ecfdf5;color:#166534;border:1px solid #4ade80;" title="Skapa TO-BE-forslag baserat pa analysen">
+        <i class="fas fa-lightbulb"></i> Skapa TO-BE
+      </button>
+      <button onclick="toggleCapToBePanel(true)" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#eef2ff;color:#3730a3;border:1px solid #a5b4fc;" title="Visa AS-IS och TO-BE sida vid sida">
+        <i class="fas fa-columns"></i> Granska AS-IS/TO-BE
+      </button>
+      <button onclick="consolidateCapToBe()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#ecfeff;color:#0e7490;border:1px solid #67e8f9;" title="Konsolidera slutlig TO-BE for synk">
+        <i class="fas fa-check-double"></i> Konsolidera TO-BE
+      </button>
+      <button id="cap-restore-asis-btn" onclick="restoreCapAsIsState()" class="hidden flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#f8fafc;color:#334155;border:1px solid #cbd5e1;" title="Återställ AS-IS">
+        <i class="fas fa-rotate-left"></i> Återställ AS-IS
+      </button>
+      <button onclick="generateEAToolReport()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#f0fdfa;color:#0f766e;border:1px solid #2dd4bf;" title="Skapa EA Tool-rapport (AS IS, analys, TO BE)">
+        <i class="fas fa-file-lines"></i> Generera EA Tool-rapport
+      </button>
+    </div>
+  </header>
+
+  <div id="cap-mode-banner" class="hidden mb-5 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-[12px] text-green-900"></div>
+
+  <div id="cap-tobe-panel" class="hidden bg-white rounded-xl shadow p-6 mb-8 border border-indigo-100">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-columns text-indigo-600"></i> AS-IS vs TO-BE konsolidering</h2>
+      <button onclick="toggleCapToBePanel(false)" class="text-xs px-3 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-50">Stang</button>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <div class="text-xs font-bold text-slate-500 uppercase mb-2">AS-IS Snapshot</div>
+        <textarea id="cap-asis-json" class="w-full h-64 text-[11px] border rounded p-2 font-mono bg-slate-50" readonly></textarea>
+      </div>
+      <div>
+        <div class="text-xs font-bold text-slate-500 uppercase mb-2">TO-BE Draft (redigerbar)</div>
+        <textarea id="cap-tobe-json" class="w-full h-64 text-[11px] border rounded p-2 font-mono"></textarea>
+      </div>
+    </div>
+    <div class="mt-3 text-[11px] text-slate-500">Tips: Justera TO-BE-JSON vid behov och klicka sedan <strong>Konsolidera TO-BE</strong>.</div>
+  </div>
+
+  <!-- Legend -->
+  <div class="flex flex-wrap gap-4 mb-6 text-xs">
+    <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm border">
+      <span class="w-3 h-3 rounded-full bg-red-400 inline-block"></span> Strategisk â€“ Differentierar er pÃ¥ marknaden
+    </div>
+    <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm border">
+      <span class="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span> Viktig â€“ NÃ¶dvÃ¤ndig men ej unik
+    </div>
+    <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm border">
+      <span class="w-3 h-3 rounded-full bg-green-400 inline-block"></span> Commodity â€“ Standardisera / outsourca
+    </div>
+    <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm border">
+      <i class="fas fa-file-excel text-green-600"></i> Exportera â†’ importera i Wardley Map
+    </div>
+  </div>
+
+  <!-- Capability Map Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8" id="cap-grid"></div>
+
+  <!-- Investment Matrix -->
+  <div class="bg-white rounded-xl shadow p-6 mb-8 border border-gray-100">
+    <h2 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-chart-bar text-blue-600"></i> Investeringsmatris</h2>
+    <div id="investment-matrix" class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 text-gray-500 text-xs uppercase">
+            <th class="text-left px-4 py-3 rounded-l">Capability</th>
+            <th class="px-4 py-3">DomÃ¤n</th>
+            <th class="px-4 py-3">Prioritet</th>
+            <th class="px-4 py-3">Mognad</th>
+            <th class="px-4 py-3 rounded-r">Investeringsbehov</th>
+          </tr>
+        </thead>
+        <tbody id="matrix-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Export info box -->
+  <div class="bg-green-50 border border-green-200 rounded-xl p-5 mb-8 flex items-start gap-4">
+    <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+      <i class="fas fa-file-excel text-green-600 text-lg"></i>
+    </div>
+    <div>
+      <h3 class="font-bold text-green-800 text-sm mb-1">Export till Wardley Map</h3>
+      <p class="text-green-700 text-xs leading-relaxed">
+        Klicka pÃ¥ <strong>Exportera (Excel)</strong> fÃ¶r att ladda ner <code class="bg-green-100 px-1 rounded">EA2_Capabilities.csv</code>.
+        Filen innehÃ¥ller alla capabilities med fÃ¶reslagna <strong>Evolution</strong>- och <strong>Synlighet</strong>-vÃ¤rden
+        som kan anvÃ¤ndas som underlag nÃ¤r du placerar komponenter i <strong>AI Strategy Workbench (Wardley Map)</strong>.
+        Ã–ppna filen i Excel eller importera direkt i Wardley-verktyget via <em>Importera CSV</em>.
+      </p>
+    </div>
+  </div>
+
+  <!-- AI Result -->
+  <div id="ai-container" class="hidden">
+    <div class="bg-white rounded-xl shadow-xl overflow-hidden border border-blue-100">
+      <div class="bg-gradient-to-r from-blue-900 to-blue-600 px-6 py-4 flex justify-between items-center">
+        <h2 class="text-white font-semibold flex items-center gap-2"><i class="fas fa-lightbulb"></i> EA Strategisk Analys</h2>
+        <div class="flex items-center gap-3">
+          <span id="model-badge" class="text-xs bg-white/20 text-white px-3 py-1 rounded-full"></span>
+          <button onclick="document.getElementById('ai-container').classList.add('hidden')" class="text-white/80 hover:text-white text-xl">Ã—</button>
+        </div>
+      </div>
+      <div id="result" class="p-8 text-gray-700 text-sm leading-relaxed"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const DOMAINS = [
+  { id: 'customer',    label: 'Customer',    icon: 'fa-users',        color: 'text-blue-600',  bg: 'bg-blue-50' },
+  { id: 'operations',  label: 'Operations',  icon: 'fa-cogs',         color: 'text-orange-600',bg: 'bg-orange-50' },
+  { id: 'product',     label: 'Product',     icon: 'fa-box-open',     color: 'text-purple-600',bg: 'bg-purple-50' },
+  { id: 'finance',     label: 'Finance',     icon: 'fa-chart-line',   color: 'text-green-600', bg: 'bg-green-50' },
+  { id: 'technology',  label: 'Technology',  icon: 'fa-microchip',    color: 'text-gray-700',  bg: 'bg-gray-50' }
+];
+
+let capabilities = {};
+let editingDomain = null;
+let editingIndex  = null;
+let currentMaturity = 'important';
+
+DOMAINS.forEach(d => capabilities[d.id] = []);
+
+// â”€â”€ Render â”€â”€â”€â”€
+function render() {
+  const grid = document.getElementById('cap-grid');
+  grid.innerHTML = '';
+  DOMAINS.forEach(d => {
+    const caps = capabilities[d.id];
+    const col = document.createElement('div');
+    col.className = 'domain-col';
+    col.innerHTML = `
+      <div class="domain-header ${d.color}">
+        <i class="fas ${d.icon} mr-2"></i>${d.label}
+        <span class="ml-auto text-gray-400 font-normal text-xs">${caps.length} caps</span>
+      </div>
+      <div id="caps-${d.id}"></div>
+      <button onclick="openAddModal('${d.id}')"
+        class="mt-3 w-full text-xs text-blue-500 hover:text-blue-700 border border-dashed border-blue-200 hover:border-blue-400 rounded-lg py-2 transition flex items-center justify-center gap-1">
+        <i class="fas fa-plus"></i> LÃ¤gg till capability
+      </button>`;
+    grid.appendChild(col);
+    const container = col.querySelector(`#caps-${d.id}`);
+    caps.forEach((c, i) => {
+      const card = document.createElement('div');
+      card.className = `cap-card ${c.priority}`;
+      card.innerHTML = `
+        <div>
+          <div class="font-semibold text-sm text-gray-800">${c.name}</div>
+          ${c.desc ? `<div class="text-xs text-gray-400 mt-0.5">${c.desc}</div>` : ''}
+        </div>
+        <div class="flex items-center gap-2 ml-3 shrink-0">
+          <div class="text-xs text-gray-400">M:${c.maturity}</div>
+          <span class="badge badge-${c.priority}">${priorityLabel(c.priority)}</span>
+        </div>`;
+      card.onclick = () => openEditModal(d.id, i);
+      container.appendChild(card);
+    });
+  });
+  renderMatrix();
+}
+
+function priorityLabel(p) {
+  return p === 'strategic' ? 'Strategisk' : p === 'important' ? 'Viktig' : 'Commodity';
+}
+
+function renderMatrix() {
+  const body = document.getElementById('matrix-body');
+  body.innerHTML = '';
+  let all = [];
+  DOMAINS.forEach(d => capabilities[d.id].forEach(c => all.push({...c, domain: d.label})));
+  all.sort((a,b) => {
+    const order = {strategic:0, important:1, commodity:2};
+    return order[a.priority] - order[b.priority];
+  });
+  if (!all.length) {
+    body.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6 text-sm">Inga capabilities tillagda ännu</td></tr>';
+    return;
+  }
+  all.forEach(c => {
+    const inv = investmentNeed(c.priority, c.maturity);
+    body.innerHTML += `
+      <tr class="border-t border-gray-100 hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium text-gray-800">${c.name}</td>
+        <td class="px-4 py-3 text-center text-gray-500">${c.domain}</td>
+        <td class="px-4 py-3 text-center"><span class="badge badge-${c.priority}">${priorityLabel(c.priority)}</span></td>
+        <td class="px-4 py-3 text-center">
+          <div class="flex items-center justify-center gap-1">
+            ${[1,2,3,4,5].map(n => `<div class="w-3 h-3 rounded-full ${n <= c.maturity ? maturityColor(c.maturity) : 'bg-gray-200'}"></div>`).join('')}
+            <span class="text-xs text-gray-500 ml-1">${c.maturity}/5</span>
+          </div>
+        </td>
+        <td class="px-4 py-3 text-center"><span class="text-xs font-semibold ${inv.cls}">${inv.label}</span></td>
+      </tr>`;
+  });
+}
+
+function maturityColor(m) {
+  if (m <= 2) return 'bg-red-400';
+  if (m <= 3) return 'bg-yellow-400';
+  return 'bg-green-400';
+}
+
+function investmentNeed(priority, maturity) {
+  if (priority === 'strategic' && maturity <= 2) return { label: 'ðŸ”´ Kritisk investering', cls: 'text-red-600' };
+  if (priority === 'strategic' && maturity <= 3) return { label: 'ðŸŸ  HÃ¶g prioritet', cls: 'text-orange-600' };
+  if (priority === 'strategic') return { label: 'ðŸŸ¡ UnderhÃ¥ll', cls: 'text-yellow-600' };
+  if (priority === 'important' && maturity <= 2) return { label: 'ðŸŸ  Investera', cls: 'text-orange-600' };
+  if (priority === 'important') return { label: 'ðŸŸ¡ Bevaka', cls: 'text-yellow-600' };
+  return { label: 'ðŸŸ¢ Optimera/Outsourca', cls: 'text-green-600' };
+}
+
+// â”€â”€ Modals â”€â”€â”€â”€
+function openAddModal(domainId) {
+  editingDomain = domainId;
+  editingIndex  = null;
+  document.getElementById('cap-name-input').value = '';
+  document.getElementById('cap-desc-input').value = '';
+  document.getElementById('cap-maturity').value = 3;
+  document.getElementById('maturity-val').textContent = '3';
+  setMaturity('important');
+  document.getElementById('cap-modal').classList.remove('hidden');
+}
+
+function openEditModal(domainId, index) {
+  editingDomain = domainId;
+  editingIndex  = index;
+  const c = capabilities[domainId][index];
+  document.getElementById('cap-name-input').value = c.name;
+  document.getElementById('cap-desc-input').value = c.desc || '';
+  document.getElementById('cap-maturity').value = c.maturity;
+  document.getElementById('maturity-val').textContent = c.maturity;
+  setMaturity(c.priority);
+  document.getElementById('cap-modal').classList.remove('hidden');
+}
+
+function setMaturity(val) {
+  currentMaturity = val;
+  ['strategic','important','commodity'].forEach(m => {
+    const btn = document.getElementById('btn-'+m);
+    btn.className = 'maturity-btn' + (m === val ? ' active-'+m : '');
+  });
+}
+
+function saveCapability() {
+  const name = document.getElementById('cap-name-input').value.trim();
+  if (!name) { alert('Ange ett namn'); return; }
+  const cap = {
+    name, desc: document.getElementById('cap-desc-input').value.trim(),
+    priority: currentMaturity,
+    maturity: parseInt(document.getElementById('cap-maturity').value)
+  };
+  if (editingIndex !== null) {
+    capabilities[editingDomain][editingIndex] = cap;
+  } else {
+    capabilities[editingDomain].push(cap);
+  }
+  document.getElementById('cap-modal').classList.add('hidden');
+  render();
+}
+
+function deleteCapability() {
+  if (editingIndex === null) return;
+  capabilities[editingDomain].splice(editingIndex, 1);
+  document.getElementById('cap-modal').classList.add('hidden');
+  render();
+}
+
+// â”€â”€ Initialize unified data manager â”€â”€â”€â”€
+let dataManager = null;
+let lastCapAnalysis = null;
+let capAsIsSnapshotBeforeToBe = null;
+let capToBeDraft = null;
+let capFinalToBe = null;
+let capToBeUsersUpdated = false;
+let capMode = 'as-is';
+if (typeof EA_DataManager !== 'undefined') {
+    dataManager = new EA_DataManager();
+    console.log('âœ… Capability Mapping: DataManager initialized - unified API key active');
+}
+
+// â”€â”€ API Key â”€â”€â”€â”€
+function getApiKey() { 
+    if (dataManager) return dataManager.getApiKey() || '';
+    return localStorage.getItem('ea_openai_key') || ''; 
+}
+
+function showCapModeBanner(msg = '') {
+  const el = document.getElementById('cap-mode-banner');
+  if (!el) return;
+  if (!msg) {
+    el.classList.add('hidden');
+    el.textContent = '';
+    return;
+  }
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function cloneCapabilities(src = capabilities) {
+  return JSON.parse(JSON.stringify(src));
+}
+
+function normalizeCapabilityPayload(payload) {
+  const out = { customer: [], operations: [], product: [], finance: [], technology: [] };
+  Object.keys(out).forEach((domainId) => {
+    const list = Array.isArray(payload?.[domainId]) ? payload[domainId] : [];
+    out[domainId] = list.map((item) => ({
+      name: String(item?.name || '').trim(),
+      desc: String(item?.desc || item?.description || '').trim(),
+      priority: ['strategic', 'important', 'commodity'].includes(item?.priority) ? item.priority : 'important',
+      maturity: Math.max(1, Math.min(5, Number(item?.maturity) || 2))
+    })).filter((c) => c.name);
+  });
+  return out;
+}
+
+function toggleCapToBePanel(show) {
+  const panel = document.getElementById('cap-tobe-panel');
+  if (!panel) return;
+  panel.classList.toggle('hidden', !show);
+}
+
+function renderCapToBePanel() {
+  const asIsEl = document.getElementById('cap-asis-json');
+  const toBeEl = document.getElementById('cap-tobe-json');
+  if (!asIsEl || !toBeEl) return;
+  asIsEl.value = JSON.stringify(capAsIsSnapshotBeforeToBe || cloneCapabilities(), null, 2);
+  toBeEl.value = JSON.stringify(capToBeDraft?.toBeData || capFinalToBe || cloneCapabilities(), null, 2);
+}
+
+async function buildCapToBeProposal(apiKey, analysisText) {
+  const asIs = cloneCapabilities();
+  const prompt = `Ta fram en TO BE Capability Map utifran AS IS och AI-analysen.\n\nAS IS:\n${JSON.stringify(asIs, null, 2)}\n\nAI-analys:\n${analysisText}\n\nReturnera ENDAST giltig JSON med exakt nycklar: customer, operations, product, finance, technology.\nVarje doman innehaller array av objekt med: name, desc, priority (strategic|important|commodity), maturity (1-5).\nPrioritera capabilities som är mest relevanta för affärsmodell, processautomation, AI-agenter, styrning, kompetens, samverkan, kundvärde och regulatoriska krav i den aktuella industrin. Skapa inte teknikcentrerade capabilities som standard om underlaget inte tydligt motiverar det.`;
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + apiKey
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      temperature: 0.35,
+      messages: [
+        { role: 'system', content: 'Du ar senior enterprise architect. Prioritera verksamhetskapabiliteter och industrispecifika förbättringar före generell teknikexpansion. Returnera endast JSON.' },
+        { role: 'user', content: prompt }
+      ]
+    })
+  });
+
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message);
+  let raw = String(json?.choices?.[0]?.message?.content || '').trim();
+  raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+  const parsed = JSON.parse(raw);
+  return normalizeCapabilityPayload(parsed);
+}
+
+async function generateCapToBeFromLatestAnalysis() {
+  const apiKey = getApiKey();
+  if (!apiKey) { showToast('Lagg till API-nyckel for TO-BE-forslag'); return false; }
+  const analysisText = (lastCapAnalysis?.text || document.getElementById('result')?.innerText || '').trim();
+  if (!analysisText) { showToast('Kor AI Analys forst for TO-BE-forslag'); return false; }
+
+  try {
+    capAsIsSnapshotBeforeToBe = capAsIsSnapshotBeforeToBe || cloneCapabilities();
+    const toBeData = await buildCapToBeProposal(apiKey, analysisText);
+    capToBeDraft = {
+      generatedAt: new Date().toISOString(),
+      asIsData: cloneCapabilities(capAsIsSnapshotBeforeToBe),
+      toBeData,
+      analysisText
+    };
+    capToBeUsersUpdated = false;
+    capMode = 'to-be';
+    document.getElementById('cap-restore-asis-btn')?.classList.remove('hidden');
+    renderCapToBePanel();
+    toggleCapToBePanel(true);
+    showCapModeBanner('TO-BE-forslag genererat. Granska AS-IS vs TO-BE och konsolidera nar du ar klar.');
+    saveAll();
+    showToast('✓ TO-BE-forslag skapade');
+    return true;
+  } catch (e) {
+    console.error('Capability TO-BE generation failed:', e);
+    showToast('⚠️ Kunde inte skapa TO-BE-forslag');
+    return false;
+  }
+}
+
+function consolidateCapToBe() {
+  const toBeEl = document.getElementById('cap-tobe-json');
+  if (!toBeEl) {
+    showToast('TO-BE-panelen ar inte tillganglig');
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(toBeEl.value || '{}');
+    const normalized = normalizeCapabilityPayload(parsed);
+    const usersUpdated = !!capToBeDraft?.toBeData
+      && JSON.stringify(normalizeCapabilityPayload(capToBeDraft.toBeData)) !== JSON.stringify(normalized);
+    capabilities = normalized;
+    capFinalToBe = cloneCapabilities(normalized);
+    capToBeUsersUpdated = usersUpdated;
+    capMode = 'to-be';
+    render();
+    saveAll();
+    exportToIntegrationCache();
+    showCapModeBanner(`TO-BE konsoliderad ${new Date().toLocaleString()} och aktiv for synk till nasta verktyg.`);
+    showToast('✓ TO-BE konsoliderad och synkad');
+  } catch (e) {
+    showToast('⚠️ Ogiltig TO-BE JSON. Korrigera innan konsolidering.');
+  }
+}
+
+function restoreCapAsIsState() {
+  if (!capAsIsSnapshotBeforeToBe) {
+    showToast('Ingen AS-IS-snapshot att återställa');
+    return;
+  }
+  capabilities = cloneCapabilities(capAsIsSnapshotBeforeToBe);
+  capMode = 'as-is';
+  capAsIsSnapshotBeforeToBe = null;
+  capToBeDraft = null;
+  capFinalToBe = null;
+  capToBeUsersUpdated = false;
+  render();
+  saveAll();
+  toggleCapToBePanel(false);
+  showCapModeBanner('');
+  document.getElementById('cap-restore-asis-btn')?.classList.add('hidden');
+  showToast('✓ AS-IS återställd');
+}
+
+function saveApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key.startsWith('sk-')) { alert('Nyckeln ska bÃ¶rja med "sk-"'); return; }
+  
+  if (dataManager) {
+      dataManager.setApiKey(key);
+      console.log('âœ… API key saved via unified DataManager');
+  } else {
+      localStorage.setItem('ea_openai_key', key);
+  }
+  
+  updateApiStatus();
+  document.getElementById('api-modal').classList.add('hidden');
+  showToast('API-nyckel sparad âœ“ (delas med EA Platform)');
+}
+
+function updateApiStatus() {
+  const key = getApiKey();
+  const btn = document.getElementById('api-status-btn');
+  const icon = document.getElementById('api-icon');
+  const text = document.getElementById('api-text');
+  if (key) {
+    btn.className = 'flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-green-300 bg-green-50 text-green-700 transition';
+    icon.className = 'fas fa-circle text-xs text-green-500';
+    text.textContent = 'API aktiv Â· ' + key.substring(0,10) + '...';
+  } else {
+    btn.className = 'flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-orange-300 bg-orange-50 text-orange-700 transition';
+    icon.className = 'fas fa-circle text-xs text-orange-400';
+    text.textContent = 'Konfigurera API-nyckel';
+  }
+}
+
+// â”€â”€ AI Analysis â”€â”€â”€â”€
+async function runAnalysis() {
+  const apiKey = getApiKey();
+  if (!apiKey) { document.getElementById('api-modal').classList.remove('hidden'); showToast('âš ï¸ LÃ¤gg till API-nyckel'); return; }
+
+  let all = [];
+  DOMAINS.forEach(d => capabilities[d.id].forEach(c => all.push({domain: d.label, ...c})));
+  if (!all.length) { showToast('âš ï¸ LÃ¤gg till capabilities fÃ¶rst'); return; }
+
+  const btn = document.querySelector('button[onclick="runAnalysis()"]');
+  btn.innerHTML = '<i class="fas fa-spinner spinner"></i> Analyserar...';
+  btn.disabled = true;
+
+  const container = document.getElementById('ai-container');
+  const resultDiv = document.getElementById('result');
+  container.classList.remove('hidden');
+  resultDiv.innerHTML = '<div class="flex items-center gap-3 text-blue-600 py-6"><i class="fas fa-spinner spinner text-xl"></i><span>AI analyserar capability map utifrån strategisk prioritet och mognad...</span></div>';
+  container.scrollIntoView({ behavior: 'smooth' });
+
+  const capText = all.map(c =>
+    `[${c.domain}] ${c.name} | Prioritet: ${priorityLabel(c.priority)} | Mognad: ${c.maturity}/5${c.desc ? ' | ' + c.desc : ''}`
+  ).join('\n');
+
+  const systemPrompt = `Du är en senior Enterprise Architect specialiserad på Verksamhet, domain-specific och operativ transformation.
+
+Analysera capability map och leverera en strukturerad analys på svenska med dessa exakta rubriker:
+
+## Strategiska Capabilities
+Identifiera de 2â€“3 capabilities som skapar stÃ¶rst konkurrensfÃ¶rdelar. FÃ¶rklara varfÃ¶r.
+
+## Capability Gaps
+Identifiera saknade eller underutvecklade capabilities som utgÃ¶r strategisk risk.
+
+## Investeringsprioriteringar
+Rangordna top 4 investeringar baserat pÃ¥ strategisk vikt och lÃ¥g mognad. Ange fÃ¶rvÃ¤ntad affÃ¤rsnytta (kostnad, risk, intÃ¤kt, compliance).
+
+## Outsourcing-kandidater
+Vilka commodity capabilities bÃ¶r standardiseras eller outsourcas? VarfÃ¶r?
+
+## Rekommenderat Roadmap
+3 konkreta steg de närmaste 12 månaderna med tydliga ägarskap och KPI:er.
+
+## Sammanfattning
+Ett stycke: övergripande bedömning och den enskilt viktigaste åtgärden.
+
+Var specifik, faktabaserad och fokusera på affärsnytta.
+Prioritera de capabilities som bäst stöder processautomation, AI-agenter, arbetssätt, styrning, kompetens, partnerstyrning och andra industrispecifika behov. Föreslå teknikexpansion endast när underlaget tydligt motiverar det.`;
+
+  const model = 'gpt-4o';
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({
+        model, temperature: 0.7,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: 'Capability Map:\n\n' + capText }
+        ]
+      })
+    });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+    const raw = json.choices[0].message.content;
+    lastCapAnalysis = {
+      model,
+      generatedAt: new Date().toISOString(),
+      text: raw
+    };
+    document.getElementById('model-badge').textContent = model;
+    resultDiv.innerHTML = formatMarkdown(raw);
+  } catch(e) {
+    resultDiv.innerHTML = `<div class="p-5 bg-red-50 border border-red-200 rounded-lg text-red-700">
+      <p class="font-bold"><i class="fas fa-exclamation-triangle mr-2"></i>Fel vid API-anrop</p>
+      <p class="text-sm mt-1">${e.message}</p>
+      <button onclick="document.getElementById('api-modal').classList.remove('hidden')" class="mt-3 text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded">Uppdatera API-nyckel</button>
+    </div>`;
+  }
+  btn.innerHTML = '<i class="fas fa-robot"></i> AI Analys';
+  btn.disabled = false;
+}
+
+function generateEAToolReport() {
+  let allCapabilities = [];
+  DOMAINS.forEach(d => {
+    capabilities[d.id].forEach(c => {
+      allCapabilities.push({
+        ...c,
+        domain: d.id,
+        domainLabel: d.label,
+        priorityLabel: priorityLabel(c.priority)
+      });
+    });
+  });
+
+  const asIs = {
+    domains: DOMAINS.map(d => ({ id: d.id, label: d.label, count: capabilities[d.id].length })),
+    capabilities: allCapabilities
+  };
+
+  const analysisText = lastCapAnalysis?.text || document.getElementById('result')?.innerText?.trim() || '';
+  const toBe = {
+    draftSource: analysisText ? 'ai-analysis' : 'manual',
+    targetStateNarrative: analysisText || 'Ingen AI-analys tillgÃ¤nglig Ã¤nnu. KÃ¶r AI Analys fÃ¶r TO BE-fÃ¶rslag.',
+    prioritizedChanges: analysisText
+      ? analysisText.split('\n').map(l => l.trim()).filter(l => /^[-*]|^\d+\./.test(l)).slice(0, 10)
+      : []
+  };
+
+  const report = {
+    toolId: 'capability',
+    toolName: 'AI Capability Mapping',
+    generatedAt: new Date().toISOString(),
+    asIs,
+    analysis: analysisText ? { ...lastCapAnalysis, text: analysisText } : null,
+    toBe,
+    meta: {
+      totalCapabilities: allCapabilities.length,
+      lowMaturityGaps: allCapabilities.filter(c => Number(c.maturity) <= 2).length
+    }
+  };
+
+  if (dataManager && typeof dataManager.saveToolReport === 'function') {
+    dataManager.saveToolReport('capability', report);
+  }
+
+  const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `NextGenEA_Capability_Tool_Report_${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast('âœ“ EA Tool-rapport genererad (Capability)');
+}
+
+function formatMarkdown(text) {
+  return text
+    .replace(/^## (.*$)/gim, '<h3>$1</h3>')
+    .replace(/^\* (.*$)/gim, '<li>$1</li>')
+    .replace(/^- (.*$)/gim, '<li>$1</li>')
+    .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
+    .replace(/\n{2,}/g, '</p><p>')
+    .replace(/\n/g, ' ');
+}
+
+// â”€â”€ Example â”€â”€â”€â”€
+function loadExample() {
+  capabilities = {
+    customer: [
+      { name: 'Customer Acquisition', desc: 'Digital annonsering & lead management', priority: 'strategic', maturity: 3 },
+      { name: 'Customer Onboarding', desc: 'Digitalt kontrakt & vÃ¤lkomstflÃ¶de', priority: 'important', maturity: 2 },
+      { name: 'Customer Self-Service Portal', desc: 'FelanmÃ¤lan, betalning, kommunikation', priority: 'strategic', maturity: 2 },
+      { name: 'Customer Insights & Analytics', desc: 'NPS, churn-prediktion, segmentering', priority: 'strategic', maturity: 1 }
+    ],
+    operations: [
+      { name: 'Predictive Maintenance', desc: 'IoT-sensorer + AI fÃ¶r underhÃ¥llsprognos', priority: 'strategic', maturity: 1 },
+      { name: 'Work Order Management', desc: 'Digitala arbetsorder & uppfÃ¶ljning', priority: 'important', maturity: 3 },
+      { name: 'Energy Management', desc: 'RealtidsÃ¶vervakning & optimering', priority: 'strategic', maturity: 2 },
+      { name: 'Supplier Management', desc: 'Upphandling & leverantÃ¶rsbedÃ¶mning', priority: 'commodity', maturity: 3 }
+    ],
+    product: [
+      { name: 'Portfolio Management', desc: 'VerksamhetsportfÃ¶lj & vÃ¤rdeanalys', priority: 'strategic', maturity: 3 },
+      { name: 'ESG & CSRD Reporting', desc: 'Automatiserad hÃ¥llbarhetsrapportering', priority: 'strategic', maturity: 1 },
+      { name: 'Space Optimization', desc: 'BelÃ¤ggningsanalys & ytutnyttjande', priority: 'important', maturity: 2 },
+      { name: 'Asset Lifecycle Management', desc: 'Livscykelkostnad & reinvesteringsplan', priority: 'important', maturity: 2 }
+    ],
+    finance: [
+      { name: 'Financial Reporting', desc: 'Automatiserad mÃ¥nadsrapportering', priority: 'important', maturity: 4 },
+      { name: 'Rent & Invoice Management', desc: 'Automatiserade hyresavier & pÃ¥minnelser', priority: 'commodity', maturity: 4 },
+      { name: 'Investment Analysis', desc: 'ROI, IRR, kassaflÃ¶desmodeller', priority: 'strategic', maturity: 3 },
+      { name: 'Budget & Forecasting', desc: 'Rullande prognoser & scenarioanalys', priority: 'important', maturity: 2 }
+    ],
+    technology: [
+      { name: 'Data Platform & Integration', desc: 'Centralt datalager, API-lager mot Vitec/Momentum', priority: 'strategic', maturity: 2 },
+      { name: 'AI & Analytics Platform', desc: 'ML-modeller, dashboards, prediktiv analys', priority: 'strategic', maturity: 1 },
+      { name: 'Cybersecurity & Compliance', desc: 'ISO 27001, GDPR, Ã¥tkomstkontroll', priority: 'important', maturity: 3 },
+      { name: 'Cloud Infrastructure', desc: 'AWS/Azure, skalbarhet, DR', priority: 'commodity', maturity: 4 }
+    ]
+  };
+  render();
+  showToast('domain-specific-exempelscenario laddat âœ“');
+  
+  // Auto-export example data
+  setTimeout(() => exportToIntegrationCache(), 500);
+}
+
+// â”€â”€ Persist â”€â”€â”€â”€
+function saveAll() {
+  localStorage.setItem('cap_map_v2', JSON.stringify(capabilities));
+  localStorage.setItem('cap_tobe_state_v1', JSON.stringify({
+    capAsIsSnapshotBeforeToBe,
+    capToBeDraft,
+    capFinalToBe,
+    capToBeUsersUpdated,
+    capMode
+  }));
+  
+  // Auto-export to integration cache
+  exportToIntegrationCache();
+  
+  showToast('Capability Map sparad i webbläsaren ✓');
+}
+
+function clearAll() {
+  if (!confirm('Rensa alla capabilities?')) return;
+  DOMAINS.forEach(d => capabilities[d.id] = []);
+  document.getElementById('ai-container').classList.add('hidden');
+  render();
+}
+
+function importFromValueChainIntegration(onlyIfEmpty = true, allowStale = false) {
+  if (!dataManager) return false;
+  if (!allowStale && !dataManager.hasRecentIntegrationData('valuechain_latest', 1440)) return false;
+
+  const hasExisting = DOMAINS.some(d => (capabilities[d.id] || []).length > 0);
+  if (onlyIfEmpty && hasExisting) return false;
+
+  const vc = dataManager.getIntegrationData('valuechain_latest');
+  if (!vc) return false;
+
+  const allActivities = Array.isArray(vc.activities) ? vc.activities : [];
+  if (!allActivities.length) return false;
+
+  const domainByType = {
+    primary: 'operations',
+    support: 'technology',
+    analysis: 'finance'
+  };
+
+  let added = 0;
+  allActivities.forEach(activity => {
+    const domainId = domainByType[activity.type] || 'operations';
+    const name = (activity.name || '').trim();
+    if (!name) return;
+
+    const exists = (capabilities[domainId] || []).some(c => c.name.toLowerCase() === name.toLowerCase());
+    if (exists) return;
+
+    const priority = activity.value_score >= 8 ? 'strategic' : activity.value_score >= 5 ? 'important' : 'commodity';
+    const maturity = Math.max(1, Math.min(5, Number(activity.digitalization_potential) || 3));
+
+    capabilities[domainId].push({
+      name,
+      desc: activity.description || activity.notes || 'Importerad från Value Chain',
+      priority,
+      maturity
+    });
+    added++;
+  });
+
+  if (added > 0) {
+    render();
+    saveAll();
+    showToast(`✓ Importerade ${added} capabilities från Value Chain`);
+    return true;
+  }
+
+  return false;
+}
+
+// â”€â”€ Integration Export Functions â”€â”€â”€â”€
+/**
+ * Export Capability Map to integration cache for Strategy Workbench / EA Platform
+ */
+function exportToIntegrationCache() {
+  if (!dataManager) {
+    showToast('âš ï¸ DataManager not available - export skipped');
+    return false;
+  }
+
+  // Flatten all capabilities with domain information
+  let allCapabilities = [];
+  let totalCount = 0;
+  DOMAINS.forEach(d => {
+    capabilities[d.id].forEach(c => {
+      allCapabilities.push({
+        ...c,
+        id: `cap_${d.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        domain: d.id,
+        domainLabel: d.label,
+        domainIcon: d.icon,
+        
+        // Add Wardley coordinates
+        wardley: {
+          evolution: suggestedEvolution(c.priority, c.maturity),
+          visibility: suggestedVisibility(d.id, c.priority),
+          category: suggestedCategory(d.id),
+          color: suggestedColor(c.priority, d.id),
+          x: suggestedX(c.priority, c.maturity),
+          y: suggestedY(d.id, c.priority)
+        },
+        
+        // Investment need
+        investmentNeed: investmentNeed(c.priority, c.maturity),
+        
+        // Strategic importance mapping
+        strategicImportance: c.priority // strategic, important, commodity
+      });
+      totalCount++;
+    });
+  });
+
+  if (totalCount === 0) {
+    showToast('âš ï¸ Inga capabilities att exportera');
+    return false;
+  }
+
+  // Create structured format for integration
+  const exportData = {
+    as_is_data: capAsIsSnapshotBeforeToBe || cloneCapabilities(),
+    to_be_data: capToBeDraft?.toBeData || null,
+    final_to_be_data: capFinalToBe || null,
+    has_to_be: !!(capToBeDraft || capFinalToBe),
+    model_variant: capMode === 'to-be' ? 'to-be' : 'as-is',
+    source_model_label: capMode === 'to-be'
+      ? `TO BE${capToBeUsersUpdated ? ' - Users updated' : ''}`
+      : 'AS IS',
+    ai_analysis_text: (lastCapAnalysis?.text || '').trim() || null,
+    capabilities: allCapabilities,
+    domains: DOMAINS.map(d => ({
+      id: d.id,
+      label: d.label,
+      icon: d.icon,
+      count: capabilities[d.id].length
+    })),
+    
+    // Summary statistics
+    summary: {
+      totalCapabilities: totalCount,
+      byPriority: {
+        strategic: allCapabilities.filter(c => c.priority === 'strategic').length,
+        important: allCapabilities.filter(c => c.priority === 'important').length,
+        commodity: allCapabilities.filter(c => c.priority === 'commodity').length
+      },
+      byDomain: DOMAINS.map(d => ({
+        domain: d.label,
+        count: capabilities[d.id].length
+      })),
+      gapAnalysis: allCapabilities.filter(c => c.maturity <= 2).length // low maturity gaps
+    },
+    
+    // Metadata
+    metadata: {
+      source: 'AI_Capability_Mapping_V2',
+      exportedAt: new Date().toISOString(),
+      version: 'EA_2.0',
+      completeness: Math.round((totalCount / (DOMAINS.length * 5)) * 100), // assuming ~5 caps per domain is good
+      usersUpdated: !!capToBeUsersUpdated
+    }
+  };
+
+  // Save to integration cache
+  try {
+    dataManager.saveIntegrationData('capability_latest', exportData);
+    
+    // Update export status indicator
+    updateExportStatus(true);
+    
+    console.log('âœ… Capability Map exported to integration cache:', exportData);
+    showToast(`âœ“ Exporterad till EA Platform (${totalCount} capabilities)`);
+    return true;
+  } catch (error) {
+    console.error('âŒ Export failed:', error);
+    showToast('âš ï¸ Export misslyckades');
+    return false;
+  }
+}
+
+/**
+ * Update export status indicator in UI
+ */
+function updateExportStatus(exported) {
+  const header = document.getElementById('cap-sync-status');
+  if (header && exported) {
+    header.innerHTML = '<i class="fas fa-check-circle text-green-400"></i> <span class="text-green-300">Exporterad till EA Platform âœ“</span>';
+    setTimeout(() => {
+      header.innerHTML = '<i class="fas fa-sync-alt"></i> Data synkas automatiskt med EA Platform';
+      renderCapContextBadge();
+    }, 4000);
+  }
+}
+
+function renderCapContextBadge() {
+  const badge = document.getElementById('cap-context-badge');
+  if (!badge || !dataManager) return;
+  if (!dataManager.hasRecentIntegrationData('valuechain_latest', 1440)) {
+    badge.classList.add('hidden');
+    return;
+  }
+  const data = dataManager.getIntegrationPackage('valuechain_latest');
+  const age = Math.max(0, Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60));
+  badge.innerHTML = '<i class="fas fa-link mr-1"></i> Kontext från Value Chain · uppdaterad ' + age + ' min sedan';
+  badge.classList.remove('hidden');
+}
+/**
+ * AI auto-fill for Capability Mapping from upstream Value Chain + BMC context.
+ * Called automatically when arriving from Value Chain with ?from=vc&refresh=1.
+ */
+async function autoFillCapFromVcContext(vc) {
+  const apiKey = getApiKey();
+  if (!apiKey) { showToast('⚠️ Lägg till API-nyckel för AI auto-fyllning'); return false; }
+
+  const contextParts = [];
+  const vcLabels = { infrastructure: 'Infrastruktur', hr: 'HR', tech: 'Teknikutveckling', procurement: 'InkÃ¶p',
+    inbound: 'Inbound Logistics', operations: 'Operations', outbound: 'Outbound Logistics',
+    marketing: 'MarknadsfÃ¶ring & FÃ¶rsÃ¤ljning', service: 'EfterfÃ¶rsÃ¤ljning/Service', margin: 'MarginalbedÃ¶mning' };
+
+  const vcData = vc?.as_is_data || vc?.rawData || {};
+  const vcRows = Object.entries(vcLabels).map(([k, label]) => {
+    const val = String(vcData[k] || '').trim();
+    return val ? `- ${label}: ${val}` : null;
+  }).filter(Boolean);
+
+  const vcToBeData = vc?.to_be_data || {};
+  const vcToBeRows = Object.entries(vcLabels).map(([k, label]) => {
+    const val = String(vcToBeData[k] || '').trim();
+    return val ? `- ${label}: ${val}` : null;
+  }).filter(Boolean);
+
+  if (vcRows.length) contextParts.push('## Value Chain (Porter)\n' + vcRows.join('\n'));
+  if (vcToBeRows.length) contextParts.push('## Value Chain TO BE\n' + vcToBeRows.join('\n'));
+
+  if (dataManager && dataManager.hasRecentIntegrationData('bmc_latest', 1440)) {
+    const bmc = dataManager.getIntegrationData('bmc_latest');
+    if (bmc) {
+      const asIs = bmc.as_is_data || {};
+      const toBe = bmc.to_be_data || {};
+      const hasToBe = bmc.has_to_be || false;
+      const bmcLabels = { value_proposition: 'VÃ¤rdeerbjudande', customer_segments: 'Kundsegment',
+        key_activities: 'Nyckelaktiviteter', key_resources: 'Nyckelresurser',
+        strategic_goal: 'Strategiskt mÃ¥l', business_driver: 'AffÃ¤rsdriver' };
+      const asIsRows = Object.entries(bmcLabels).map(([k, l]) => asIs[k] ? `- ${l}: ${asIs[k]}` : null).filter(Boolean);
+      if (asIsRows.length) contextParts.push('## BMC AS IS\n' + asIsRows.join('\n'));
+      if (hasToBe) {
+        const toBeRows = Object.entries(bmcLabels).map(([k, l]) => toBe[k] ? `- ${l}: ${toBe[k]}` : null).filter(Boolean);
+        if (toBeRows.length) contextParts.push('## BMC TO BE\n' + toBeRows.join('\n'));
+      }
+      if (bmc.ai_analysis_text) contextParts.push('## BMC AI-Analys\n' + String(bmc.ai_analysis_text).slice(0, 1500));
+    }
+  }
+
+  if (!contextParts.length) { showToast('⚠️ Ingen VC-data tillgänglig för AI auto-fyllning'); return false; }
+  showToast('🤖 AI analyserar och skapar Capability Map - vänta...');
+
+  const capSystemPrompt = `Du är en senior Enterprise Architect med 20+ års erfarenhet av kapabilitetsanalys och förmågekartor (Business Capability Modeling). Specialistkunskap:
+- Business Capability Modeling (BCM) enligt TOGAF, EA 2.0, Gartner och Zachman
+- Capability maturity (CMMI, ISO, branschramverk)
+- Verksamhets/domain-specific: Customer management, facility management, processautomation, AI-agenter, ESG/CSRD, tjänsteleverans och styrning
+- Strategisk prioritering: strategic (differentierar) vs important (nÃ¶dvÃ¤ndig) vs commodity (standardiserad/outsourcas)
+- Mognadsskalan: 1=Initial/ad hoc, 2=Reaktiv/etablerad bas, 3=Definierad/standardiserad, 4=Datadriven/kvantifierad, 5=AI-optimerad/innovativ
+
+Skapa en komplett kapabilitetskarta baserat på Porters Värdekedjeanalys och BMC-data. Populera ALLA fem domäner.
+Prioritera industrispecifika verksamhetskapabiliteter och förmågor som skapar affärsvärde genom bättre processer, styrning, automation, AI-agenter, service, sourcing och compliance. Lägg bara till teknikcentrerade capabilities när underlaget visar att de är strategiskt motiverade.
+
+Returnera ENBART ett rent JSON-objekt:
+{
+  "customer": [{"name": "...", "desc": "...", "priority": "strategic|important|commodity", "maturity": 2}],
+  "operations": [...],
+  "product": [...],
+  "finance": [...],
+  "technology": [...]
+}
+
+Riktlinjer per domän (3-5 capabilities vardera):
+- customer: Kundanskaffning, kundrelationer, hyresgästupplevelse, serviceflöden, kommunikation, retention
+- operations: Verksamhetsdrift, underhåll (prediktivt/reaktivt), arbetsordrar, processautomation, resursplanering, driftoptimering
+- product: Portföljförvaltning, tjänsteutveckling, hyreskontraktshantering, ESG-rapportering, nyttjandeoptimering, erbjudandeutveckling
+- finance: Ekonomistyrning, hyresintäkter, CAPEX/OPEX-planering, investeringsanalys, finansiell rapportering, uppföljning
+- technology: IT-arkitektur, verksamhetssystem, integrationsförmåga, dataförsörjning, AI-agentstöd, cybersäkerhet`;
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({ model: 'gpt-4o', temperature: 0.4, messages: [
+        { role: 'system', content: capSystemPrompt },
+        { role: 'user', content: 'Skapa en komplett Capability Map baserat pÃ¥ fÃ¶ljande underlag:\n\n' + contextParts.join('\n\n') }
+      ]})
+    });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+    let raw = json.choices[0].message.content.trim();
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    const result = JSON.parse(raw);
+    const domainKeys = ['customer', 'operations', 'product', 'finance', 'technology'];
+    let totalAdded = 0;
+    domainKeys.forEach(key => {
+      if (!Array.isArray(result[key])) return;
+      capabilities[key] = result[key].map(item => ({
+        name: String(item.name || '').trim(),
+        desc: String(item.desc || item.description || '').trim(),
+        priority: ['strategic','important','commodity'].includes(item.priority) ? item.priority : 'important',
+        maturity: Math.max(1, Math.min(5, Number(item.maturity) || 2))
+      })).filter(c => c.name);
+      totalAdded += capabilities[key].length;
+    });
+    render(); saveAll();
+    showToast(`âœ“ AI skapat ${totalAdded} capabilities i 5 domÃ¤ner baserat pÃ¥ Value Chain + BMC`);
+    return true;
+  } catch (e) {
+    console.error('Cap auto-fill error:', e);
+    showToast('âš ï¸ AI auto-fyllning misslyckades: ' + String(e.message).slice(0, 80));
+    return false;
+  }
+}
+
+function capOpenNextTool() {
+  const ok = exportToIntegrationCache();
+  if (!ok) {
+    showToast('âš ï¸ Kunde inte synka Capability-data fÃ¶re navigering');
+  }
+  window.location.href = './AI Strategy Workbench V2.html?from=cap&refresh=1';
+}
+
+/**
+ * Check integration status on page load
+ */
+function checkIntegrationStatus() {
+  if (!dataManager) return;
+  
+  const hasData = dataManager.hasRecentIntegrationData('capability_latest', 1440); // 24 hours
+  if (hasData) {
+    const data = dataManager.getIntegrationPackage('capability_latest');
+    const age = Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60);
+    console.log(`â„¹ï¸ Last Capability Map export: ${age} minutes ago`);
+  }
+}
+
+// â”€â”€ Export to CSV (Excel) â”€â”€â”€â”€
+function exportCapabilitiesToCSV() {
+  let all = [];
+  DOMAINS.forEach(d => capabilities[d.id].forEach(c => all.push({...c, domainId: d.id, domainLabel: d.label})));
+
+  if (!all.length) {
+    showToast('âš ï¸ Inga capabilities att exportera');
+    return;
+  }
+
+  const rows = [];
+
+  // Header row
+  rows.push([
+    'Domain',
+    'Capability',
+    'Description',
+    'Priority_SE',
+    'Priority_EN',
+    'Maturity_1_5',
+    'InvestmentNeed',
+    'Wardley_SuggestedEvolution',
+    'Wardley_SuggestedVisibility',
+    'Wardley_Category',
+    'Wardley_Color',
+    'Wardley_X_percent',
+    'Wardley_Y_percent'
+  ]);
+
+  all.forEach(c => {
+    const evo     = suggestedEvolution(c.priority, c.maturity);
+    const vis     = suggestedVisibility(c.domainId, c.priority);
+    const cat     = suggestedCategory(c.domainId);
+    const color   = suggestedColor(c.priority, c.domainId);
+    const xPct    = suggestedX(c.priority, c.maturity);
+    const yPct    = suggestedY(c.domainId, c.priority);
+    const inv     = investmentNeed(c.priority, c.maturity);
+
+    rows.push([
+      c.domainLabel,
+      c.name,
+      c.desc || '',
+      priorityLabel(c.priority),
+      c.priority,
+      c.maturity,
+      inv.label.replace(/[ðŸ”´ðŸŸ ðŸŸ¡ðŸŸ¢]/g, '').trim(),
+      evo,
+      vis,
+      cat,
+      color,
+      xPct,
+      yPct
+    ]);
+  });
+
+  downloadCSV(rows, 'EA2_Capabilities.csv');
+  showToast('âœ… EA2_Capabilities.csv exporterad â€“ Ã¶ppna i Excel eller importera i Wardley Map');
+}
+
+// â”€â”€ Wardley mapping heuristics â”€â”€â”€â”€
+function suggestedEvolution(priority, maturity) {
+  if (priority === 'strategic' && maturity <= 1) return 'Genesis';
+  if (priority === 'strategic' && maturity <= 2) return 'Genesis/Custom';
+  if (priority === 'strategic' && maturity <= 3) return 'Custom';
+  if (priority === 'strategic') return 'Custom/Product';
+  if (priority === 'important' && maturity <= 2) return 'Custom';
+  if (priority === 'important' && maturity <= 3) return 'Product';
+  if (priority === 'important') return 'Product';
+  return 'Product/Commodity';
+}
+
+function suggestedVisibility(domainId, priority) {
+  if (domainId === 'customer') return 'High';
+  if (domainId === 'product') return 'Medium-High';
+  if (domainId === 'operations') return 'Medium';
+  if (domainId === 'finance') return 'Medium-Low';
+  if (domainId === 'technology') return 'Low';
+  return priority === 'strategic' ? 'Medium-High' : 'Medium';
+}
+
+function suggestedCategory(domainId) {
+  const map = {
+    customer: 'Kund',
+    operations: 'Process',
+    product: 'Plattform',
+    finance: 'Process',
+    technology: 'Data & AI'
+  };
+  return map[domainId] || 'Plattform';
+}
+
+function suggestedColor(priority, domainId) {
+  if (priority === 'strategic' && domainId === 'customer') return 'color-green';
+  if (priority === 'strategic') return 'color-red';
+  if (domainId === 'technology') return 'color-purple';
+  if (domainId === 'finance') return 'color-orange';
+  if (domainId === 'operations') return 'color-teal';
+  return 'color-blue';
+}
+
+function suggestedX(priority, maturity) {
+  // Map to 0â€“100 Wardley X axis
+  if (priority === 'strategic' && maturity <= 1) return 10;
+  if (priority === 'strategic' && maturity <= 2) return 20;
+  if (priority === 'strategic' && maturity <= 3) return 35;
+  if (priority === 'strategic') return 45;
+  if (priority === 'important' && maturity <= 2) return 38;
+  if (priority === 'important' && maturity <= 3) return 55;
+  if (priority === 'important') return 62;
+  if (maturity >= 4) return 82;
+  return 70;
+}
+
+function suggestedY(domainId, priority) {
+  // Map to 0â€“100 Wardley Y axis (0 = top = high visibility)
+  if (domainId === 'customer') return 15;
+  if (domainId === 'product') return 28;
+  if (domainId === 'operations') return 45;
+  if (domainId === 'finance') return 60;
+  if (domainId === 'technology') return 72;
+  return 50;
+}
+
+// â”€â”€ CSV download helper â”€â”€â”€â”€
+function downloadCSV(rows, filename) {
+  const BOM = '\uFEFF'; // UTF-8 BOM for Excel compatibility
+  const csv = BOM + rows.map(r =>
+    r.map(v => {
+      const s = String(v === null || v === undefined ? '' : v).replace(/"/g, '""');
+      return `"${s}"`;
+    }).join(',')
+  ).join('\r\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'fixed bottom-6 right-6 bg-gray-900 text-white px-5 py-3 rounded-lg shadow-xl text-sm z-50 flex items-center gap-2';
+  t.innerHTML = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3200);
+}
+
+// â”€â”€ Init â”€â”€â”€â”€
+window.onload = () => {
+  updateApiStatus();
+  checkIntegrationStatus();
+  renderCapContextBadge();
+
+  const capParams = new URLSearchParams(window.location.search);
+  const forceFromVc = capParams.get('from') === 'vc' && capParams.get('refresh') === '1';
+
+  const saved = localStorage.getItem('cap_map_v2');
+  if (saved) {
+    try { capabilities = JSON.parse(saved); } catch(e) {}
+  }
+
+  const savedToBeState = localStorage.getItem('cap_tobe_state_v1');
+  if (savedToBeState) {
+    try {
+      const parsed = JSON.parse(savedToBeState);
+      capAsIsSnapshotBeforeToBe = parsed.capAsIsSnapshotBeforeToBe || null;
+      capToBeDraft = parsed.capToBeDraft || null;
+      capFinalToBe = parsed.capFinalToBe || null;
+      capToBeUsersUpdated = !!parsed.capToBeUsersUpdated;
+      capMode = parsed.capMode || 'as-is';
+      if (capMode === 'to-be') {
+        document.getElementById('cap-restore-asis-btn')?.classList.remove('hidden');
+        showCapModeBanner('TO-BE-läge aktivt. Du kan granska, konsolidera eller återställa AS-IS.');
+      }
+    } catch (_) {}
+  }
+  importFromValueChainIntegration(!forceFromVc, forceFromVc);
+  if (forceFromVc && dataManager) {
+    const vc = dataManager.getIntegrationData('valuechain_latest');
+    if (vc && getApiKey()) {
+      setTimeout(() => autoFillCapFromVcContext(vc), 300);
+    } else {
+      showToast('✓ Importerade från Value Chain');
+    }
+  }
+  const key = getApiKey();
+  if (key) document.getElementById('api-key-input').value = key;
+  render();
+};
+// === CAP AI ASSISTANT ===
+let capChatOpen = false, capFirstOpen = true;
+
+setTimeout(() => {
+    if (!capChatOpen) document.getElementById('cap-badge').style.display = 'flex';
+}, 3000);
+
+function toggleCapChat() {
+    const panel = document.getElementById('cap-chat-panel');
+    capChatOpen = !capChatOpen;
+    panel.style.display = capChatOpen ? 'flex' : 'none';
+    if (capChatOpen) {
+        document.getElementById('cap-badge').style.display = 'none';
+        if (capFirstOpen) { sendCapInitialGreeting(); capFirstOpen = false; }
+    }
+}
+
+function getCapContextText() {
+    // Läser direkt från capabilities-objektet som redan finns i filen
+    let all = [];
+    DOMAINS.forEach(d => {
+        (capabilities[d.id] || []).forEach(c => {
+            all.push({ domain: d.label, ...c });
+        });
+    });
+    if (!all.length) return null;
+    let text = "Capability Map:\n";
+    DOMAINS.forEach(d => {
+        const caps = capabilities[d.id] || [];
+        if (!caps.length) return;
+        text += `\n[${d.label}]\n`;
+        caps.forEach(c => {
+            text += `- ${c.name} | Prioritet: ${priorityLabel(c.priority)} | Mognad: ${c.maturity}/5${c.desc ? ' | ' + c.desc : ''}\n`;
+        });
+    });
+    return text;
+}
+
+function sendCapInitialGreeting() {
+    let all = [];
+    DOMAINS.forEach(d => (capabilities[d.id] || []).forEach(c => all.push(c)));
+    const total = all.length;
+    const high = all.filter(c => c.priority === 'strategic').length;
+    const lowMat = all.filter(c => c.maturity <= 2).length;
+
+    if (total === 0) {
+        addCapMsg('Hej! Jag ser att din capability map är tom. Klicka på <strong>Ladda exempel</strong> för att komma igång, eller lägg till capabilities manuellt. Sedan kan jag analysera dem åt dig!', 'ai');
+        return;
+    }
+    addCapMsg(`Hej! Jag har analyserat din Capability Map.<br><br>
+        Du har <strong>${total} capabilities</strong> definierade â€” 
+        <strong>${high} st Strategiska</strong> och 
+        <strong>${lowMat} st</strong> med mognad â‰¤ 2/5.<br><br>
+        Vill du bÃ¶rja med att identifiera de mest kritiska gapen?`, 'ai');
+}
+
+function addCapMsg(text, sender) {
+    const container = document.getElementById('cap-chat-messages');
+    const div = document.createElement('div');
+    div.className = `cap-msg ${sender}`;
+    div.innerHTML = text;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function askCapAI(question) {
+    document.getElementById('cap-user-input').value = question;
+    sendCapMessage();
+}
+
+function resetCapChat(message) {
+  const container = document.getElementById('cap-chat-messages');
+  if (container) container.innerHTML = '';
+  const input = document.getElementById('cap-user-input');
+  if (input) input.value = '';
+  if (message) addCapMsg(message, 'ai');
+}
+
+function clearCapChatHistory() {
+  resetCapChat('🧹 Chatthistoriken är rensad. Ställ en ny fråga om din capability map när du vill.');
+}
+
+function startNewCapChat() {
+  resetCapChat(null);
+  capFirstOpen = false;
+  sendCapInitialGreeting();
+}
+
+async function sendCapMessage() {
+    const input = document.getElementById('cap-user-input');
+    const text = input.value.trim();
+    if (!text) return;
+    addCapMsg(text, 'user');
+    input.value = '';
+
+    const apiKey = getApiKey(); // anvÃ¤nder din befintliga funktion
+    const context = getCapContextText();
+
+    if (!apiKey) {
+        handleCapDemoResponse(text, context);
+        return;
+    }
+
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'cap-msg ai';
+    loadingDiv.innerHTML = '<i class="fas fa-spinner spinner"></i> Analyserar...';
+    document.getElementById('cap-chat-messages').appendChild(loadingDiv);
+
+    try {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({
+                model: 'gpt-4o',
+                messages: [
+                    { role: 'system', content: `Du är en senior Enterprise Architect specialiserad på Verksamhet och domain-specific. Svara alltid på svenska. Var konkret och affärsfokuserad.\n\n${context || 'Capability map är tom.'}` },
+                    { role: 'user', content: text }
+                ]
+            })
+        });
+        const data = await res.json();
+        loadingDiv.remove();
+        if (data.error) throw new Error(data.error.message);
+        addCapMsg(data.choices[0].message.content.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'), 'ai');
+    } catch(e) {
+        loadingDiv.remove();
+        addCapMsg('Fel vid API-anrop: ' + e.message, 'ai');
+    }
+}
+
+function handleCapDemoResponse(text, context) {
+    const hasData = context && context.length > 30;
+    setTimeout(() => {
+        if (text.includes('kritiska')) {
+            addCapMsg(hasData
+                ? '<strong>Kritiska Gaps (baserat pÃ¥ din map):</strong><br>Capabilities med Strategisk prioritet och mognad â‰¤ 2 krÃ¤ver omedelbar investering. LÃ¤gg till API-nyckel fÃ¶r fullstÃ¤ndig AI-analys.'
+                : 'LÃ¤gg till capabilities och en API-nyckel fÃ¶r att fÃ¥ en fullstÃ¤ndig gap-analys.', 'ai');
+        } else if (text.includes('roadmap')) {
+            addCapMsg('<strong>Roadmap-fÃ¶rslag:</strong><br>Q1-Q2: StÃ¤rk strategiska capabilities med lÃ¥g mognad.<br>Q3: Standardisera commodity-capabilities.<br>Q4: MÃ¤t och iterera med KPI:er.', 'ai');
+        } else if (text.includes('SWOT')) {
+            addCapMsg('FÃ¶r en fullstÃ¤ndig SWOT-analys baserad pÃ¥ din specifika data behÃ¶ver jag en OpenAI API-nyckel. Konfigurera den via knappen i headern.', 'ai');
+        } else {
+            addCapMsg('Konfigurera din OpenAI API-nyckel (knappen i headern) fÃ¶r att fÃ¥ fullstÃ¤ndiga AI-svar baserade pÃ¥ din capability map.', 'ai');
+        }
+    }, 600);
+}
+</script>
+</div><!-- Close wrapper div -->
+</body>
+</html>
+
