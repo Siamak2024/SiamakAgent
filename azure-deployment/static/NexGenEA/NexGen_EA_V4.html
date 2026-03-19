@@ -2629,6 +2629,23 @@ function setActiveBusinessAreasFromUI() {
   autoSaveCurrentModel();
 }
 
+function ensureMasterDataFields() {
+  if (!model.masterData || typeof model.masterData !== 'object') {
+    model.masterData = {};
+  }
+  model.masterData = {
+    businessModel: String(model.masterData.businessModel || '').trim(),
+    offerings: String(model.masterData.offerings || '').trim(),
+    customerSegments: String(model.masterData.customerSegments || '').trim(),
+    geographies: String(model.masterData.geographies || '').trim(),
+    regulations: String(model.masterData.regulations || '').trim(),
+    coreSystems: String(model.masterData.coreSystems || '').trim(),
+    dataLandscape: String(model.masterData.dataLandscape || '').trim(),
+    strategicPriorities: String(model.masterData.strategicPriorities || '').trim(),
+    constraints: String(model.masterData.constraints || '').trim()
+  };
+}
+
 function ensureAIConfigFields() {
   if (!model.aiConfig || typeof model.aiConfig !== 'object') {
     model.aiConfig = {};
@@ -2639,6 +2656,23 @@ function ensureAIConfigFields() {
       ? String(model.aiConfig.architectureMode || '').toLowerCase()
       : 'standard'
   };
+}
+
+function ensurePhase4Fields() {
+  ensureMasterDataFields();
+  ensureAIConfigFields();
+  if (!model.phase4Config || typeof model.phase4Config !== 'object') {
+    model.phase4Config = { industry: 'generic', activeBusinessAreas: ['general'] };
+  }
+
+  const industry = (model.phase4Config.industry || 'generic');
+  model.phase4Config.industry = PHASE4_INDUSTRY_PROFILES[industry] ? industry : 'generic';
+  model.phase4Config.activeBusinessAreas = normalizeBusinessAreas(model.phase4Config.activeBusinessAreas);
+
+  model.capabilities = (model.capabilities || []).map(c => ({
+    ...c,
+    businessAreas: normalizeBusinessAreas(c.businessAreas || model.phase4Config.activeBusinessAreas)
+  }));
 }
 
 function setMasterDataField(field, value) {
