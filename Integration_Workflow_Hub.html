@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EA 2.0 Integration Workflow</title>
+<title>NextGen EA Integration Workflow</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="js/EA_Config.js"></script>
@@ -235,6 +235,42 @@
         0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.7); }
         50% { box-shadow: 0 0 0 8px rgba(59,130,246,0); }
     }
+
+    .next-step-panel {
+        background: white;
+        border-radius: 16px;
+        padding: 18px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+        border: 2px solid #dbeafe;
+    }
+
+    .next-step-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .step-hint {
+        font-size: 0.83rem;
+        color: #4b5563;
+        margin-top: 10px;
+        line-height: 1.5;
+    }
+
+    .import-guide-list {
+        margin-top: 8px;
+        padding-left: 18px;
+        color: #1e3a8a;
+        font-size: 0.85rem;
+        line-height: 1.7;
+    }
 </style>
 </head>
 <body class="p-8">
@@ -245,7 +281,7 @@
     <div class="text-center mb-12">
         <div class="inline-flex items-center gap-3 bg-white/20 backdrop-blur-sm px-6 py-3 rounded-full mb-6">
             <i class="fas fa-project-diagram text-white text-2xl"></i>
-            <h1 class="text-white text-3xl font-bold">EA 2.0 Integration Workflow</h1>
+            <h1 class="text-white text-3xl font-bold">NextGen EA Integration Workflow</h1>
         </div>
         <p class="text-white/90 text-lg max-w-3xl mx-auto">
             Följ den strukturerade arbetsprocessen från Business Model Canvas till färdig Enterprise Architecture-modell
@@ -269,12 +305,31 @@
         <button onclick="resetWorkflow()" class="btn-secondary">
             <i class="fas fa-redo"></i> Börja om från början
         </button>
-        <button onclick="openEAPlatform()" class="btn-secondary">
+        <button onclick="openEAPlatform('manual')" class="btn-secondary">
             <i class="fas fa-th-large"></i> Gå till EA Platform
+        </button>
+        <button onclick="generateWorkflowReport()" class="btn-secondary">
+            <i class="fas fa-file-alt"></i> Generera workflow-rapport
         </button>
         <button onclick="showHelpModal()" class="btn-secondary">
             <i class="fas fa-question-circle"></i> Hjälp & Guide
         </button>
+    </div>
+
+    <div class="next-step-panel mb-8" id="next-step-panel">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+                <div class="next-step-chip" id="next-step-chip">
+                    <i class="fas fa-compass"></i>
+                    Nästa steg
+                </div>
+                <h2 class="text-lg font-bold text-slate-900 mt-3" id="next-step-title">Starta steg 1: Business Model Canvas</h2>
+                <p class="step-hint" id="next-step-description">Du behöver inte gå tillbaka manuellt. Använd knappen här för att hoppa direkt till nästa verktyg.</p>
+            </div>
+            <button class="btn-primary" id="next-step-btn" onclick="startPhase(1)">
+                <i class="fas fa-arrow-right"></i> Gå till nästa steg
+            </button>
+        </div>
     </div>
 
     <!-- Workflow Phases -->
@@ -311,6 +366,9 @@
                         </button>
                         <button onclick="viewPhaseResults(1)" class="btn-secondary hidden" id="phase-1-results-btn">
                             <i class="fas fa-eye"></i> Visa resultat
+                        </button>
+                        <button onclick="goToNextPhase(1)" class="btn-secondary hidden" id="phase-1-next-btn">
+                            <i class="fas fa-arrow-right"></i> Gå till steg 2
                         </button>
                     </div>
                 </div>
@@ -354,6 +412,9 @@
                         <button onclick="viewPhaseResults(2)" class="btn-secondary hidden" id="phase-2-results-btn">
                             <i class="fas fa-eye"></i> Visa resultat
                         </button>
+                        <button onclick="goToNextPhase(2)" class="btn-secondary hidden" id="phase-2-next-btn">
+                            <i class="fas fa-arrow-right"></i> Gå till steg 3
+                        </button>
                     </div>
                 </div>
             </div>
@@ -395,6 +456,9 @@
                         </button>
                         <button onclick="viewPhaseResults(3)" class="btn-secondary hidden" id="phase-3-results-btn">
                             <i class="fas fa-eye"></i> Visa resultat
+                        </button>
+                        <button onclick="goToNextPhase(3)" class="btn-secondary hidden" id="phase-3-next-btn">
+                            <i class="fas fa-arrow-right"></i> Gå till steg 4
                         </button>
                     </div>
                 </div>
@@ -438,6 +502,9 @@
                         <button onclick="viewPhaseResults(4)" class="btn-secondary hidden" id="phase-4-results-btn">
                             <i class="fas fa-eye"></i> Visa resultat
                         </button>
+                        <button onclick="goToNextPhase(4)" class="btn-secondary hidden" id="phase-4-next-btn">
+                            <i class="fas fa-arrow-right"></i> Gå till EA Platform
+                        </button>
                     </div>
                 </div>
             </div>
@@ -476,13 +543,24 @@
                             Redo att slutföra!
                         </h3>
                         <p class="text-blue-800 text-sm">
-                            Alla 4 faser är slutförda. Gå till EA Platform för att importera datan och slutföra din Enterprise Architecture-modell.
+                            Alla 4 faser är slutförda. Öppna Toolkits-vyn i EA Platform och använd Import-knapparna per verktyg (BMC, Value Chain, Capability, Strategy).
                         </p>
+                        <ol class="import-guide-list">
+                            <li>Klicka "Öppna Toolkits med Autoflöde" för att importera tillgänglig data automatiskt.</li>
+                            <li>Kontrollera importstatus på varje kort i Toolkits-sektionen.</li>
+                            <li>Behöver du full modellfil? Då använder du toppmenyn Import och väljer en exporterad .json-modell.</li>
+                        </ol>
                     </div>
                     
-                    <div class="flex gap-3 mt-4">
-                        <button onclick="openEAPlatform()" class="btn-primary" id="phase-5-start-btn" disabled>
-                            <i class="fas fa-th-large"></i> Öppna EA Platform & Importera
+                    <div class="flex gap-3 mt-4 flex-wrap">
+                        <button onclick="openEAPlatform('toolkits-auto')" class="btn-primary" id="phase-5-start-btn" disabled>
+                            <i class="fas fa-magic"></i> Öppna Toolkits med Autoflöde
+                        </button>
+                        <button onclick="openEAPlatform('toolkits')" class="btn-secondary" id="phase-5-manual-btn" disabled>
+                            <i class="fas fa-hand-pointer"></i> Öppna Toolkits (manuell import)
+                        </button>
+                        <button onclick="openEAPlatform('manual')" class="btn-secondary" id="phase-5-json-btn" disabled>
+                            <i class="fas fa-file-import"></i> Öppna EA Platform startvy
                         </button>
                     </div>
                 </div>
@@ -519,7 +597,7 @@
         <div class="space-y-6 text-gray-700">
             <div>
                 <h3 class="font-bold text-lg mb-2">📋 Översikt</h3>
-                <p>EA 2.0 Integration Workflow guidar dig genom en strukturerad process för att bygga en komplett Enterprise Architecture-modell, från affärsstrategi till teknisk implementation.</p>
+                <p>NextGen EA Integration Workflow guidar dig genom en strukturerad process för att bygga en komplett Enterprise Architecture-modell, från affärsstrategi till teknisk implementation.</p>
             </div>
             
             <div>
@@ -626,6 +704,7 @@ function checkWorkflowStatus() {
         const status = document.getElementById(`phase-${phase}-status`);
         const startBtn = document.getElementById(`phase-${phase}-start-btn`);
         const resultsBtn = document.getElementById(`phase-${phase}-results-btn`);
+        const nextBtn = document.getElementById(`phase-${phase}-next-btn`);
         const dataPreview = document.getElementById(`phase-${phase}-data`);
         
         if (hasData) {
@@ -639,6 +718,7 @@ function checkWorkflowStatus() {
             startBtn.textContent = 'Öppna igen';
             startBtn.innerHTML = `<i class="fas fa-edit"></i> Öppna igen`;
             resultsBtn.classList.remove('hidden');
+            if (nextBtn) nextBtn.classList.remove('hidden');
             
             // Show data preview
             const data = dataManager.getIntegrationPackage(config.key);
@@ -675,6 +755,7 @@ function checkWorkflowStatus() {
             number.classList.add('active');
             startBtn.disabled = false;
             status.innerHTML = '<i class="fas fa-circle text-blue-600 animate-pulse"></i> Redo att starta';
+            if (nextBtn) nextBtn.classList.add('hidden');
         }
     }
     
@@ -691,6 +772,8 @@ function checkWorkflowStatus() {
     if (completedCount === 4) {
         const finalCard = document.getElementById('phase-5-card');
         const finalBtn = document.getElementById('phase-5-start-btn');
+        const finalManualBtn = document.getElementById('phase-5-manual-btn');
+        const finalJsonBtn = document.getElementById('phase-5-json-btn');
         const finalStatus = document.getElementById('phase-5-status');
         const finalInfo = document.getElementById('final-info');
         
@@ -698,6 +781,8 @@ function checkWorkflowStatus() {
         finalCard.style.borderColor = '#10b981';
         finalCard.style.borderStyle = 'solid';
         finalBtn.disabled = false;
+        finalManualBtn.disabled = false;
+        finalJsonBtn.disabled = false;
         finalStatus.innerHTML = '<i class="fas fa-check-circle text-green-600"></i> Redo att slutföra!';
         finalStatus.classList.add('completed');
         finalInfo.classList.remove('hidden');
@@ -706,6 +791,7 @@ function checkWorkflowStatus() {
     
     // Update timeline
     updateTimeline(completedCount);
+    updateNextStepPanel(completedCount);
 }
 
 function updateTimeline(completedCount) {
@@ -766,6 +852,14 @@ function startPhase(phase) {
     }
 }
 
+function goToNextPhase(currentPhase) {
+    if (currentPhase >= 4) {
+        openEAPlatform('toolkits-auto');
+        return;
+    }
+    startPhase(currentPhase + 1);
+}
+
 function viewPhaseResults(phase) {
     const config = phaseConfig[phase];
     if (!config || !dataManager) return;
@@ -777,9 +871,122 @@ function viewPhaseResults(phase) {
     }
 }
 
-function openEAPlatform() {
+function openEAPlatform(mode = 'manual') {
     localStorage.setItem('workflow_return_url', window.location.href);
-    window.location.href = 'EA Plattform/EA 20 Platform_V3_Integrated.html';
+
+    if (mode === 'toolkits-auto') {
+        window.location.href = 'NexGenEA/NexGen_EA_V4.html?tab=toolkits&focus=integration&autoflow=1';
+        return;
+    }
+
+    if (mode === 'toolkits') {
+        window.location.href = 'NexGenEA/NexGen_EA_V4.html?tab=toolkits&focus=integration';
+        return;
+    }
+
+    window.location.href = 'NexGenEA/NexGen_EA_V4.html';
+}
+
+function updateNextStepPanel(completedCount) {
+    const title = document.getElementById('next-step-title');
+    const description = document.getElementById('next-step-description');
+    const actionBtn = document.getElementById('next-step-btn');
+
+    if (!title || !description || !actionBtn) return;
+
+    if (completedCount === 0) {
+        title.textContent = 'Starta steg 1: Business Model Canvas';
+        description.textContent = 'Fyll i BMC och exportera till integrationscache för att låsa upp nästa steg.';
+        actionBtn.innerHTML = '<i class="fas fa-play"></i> Starta steg 1';
+        actionBtn.onclick = () => startPhase(1);
+        return;
+    }
+
+    if (completedCount < 4) {
+        const nextPhase = completedCount + 1;
+        title.textContent = `Nästa steg: ${phaseConfig[nextPhase].name}`;
+        description.textContent = 'Du kan gå direkt vidare härifrån utan att först gå tillbaka till startsidan.';
+        actionBtn.innerHTML = `<i class="fas fa-arrow-right"></i> Öppna steg ${nextPhase}`;
+        actionBtn.onclick = () => startPhase(nextPhase);
+        return;
+    }
+
+    title.textContent = 'Slutsteg: Importera allt i EA Platform Toolkits';
+    description.textContent = 'Öppna Toolkits med autoflöde för att importera tillgänglig data direkt och fortsätt sedan med modellering och rapport.';
+    actionBtn.innerHTML = '<i class="fas fa-magic"></i> Öppna Toolkits med autoflöde';
+    actionBtn.onclick = () => openEAPlatform('toolkits-auto');
+}
+
+function generateWorkflowReport() {
+    if (!dataManager) {
+        alert('DataManager saknas. Kan inte skapa rapport.');
+        return;
+    }
+
+    const phaseData = [1, 2, 3, 4].map((phase) => {
+        const config = phaseConfig[phase];
+        const data = dataManager.getIntegrationData(config.key);
+        return {
+            phase,
+            name: config.name,
+            key: config.key,
+            hasData: !!data,
+            exportedAt: data?.timestamp || data?.exportedAt || null,
+            asIs: data || null,
+            analysis: data?.analysis || data?.aiAnalysis || null,
+            toBe: data?.toBe || data?.futureState || null
+        };
+    });
+
+    const completed = phaseData.filter(p => p.hasData).length;
+    const generatedAt = new Date().toISOString();
+    const report = {
+        reportType: 'ea_workflow_report',
+        generatedAt,
+        summary: {
+            completedPhases: completed,
+            totalPhases: 4,
+            readiness: completed === 4 ? 'Ready for EA platform integration' : 'In progress'
+        },
+        phases: phaseData,
+        toolReports: typeof dataManager.getAllToolReports === 'function' ? dataManager.getAllToolReports() : [],
+        recommendations: [
+            completed < 4 ? 'Slutför resterande faser och exportera (EA) i respektive verktyg.' : 'Importera i EA Platform Toolkits och validera att alla kort är importerade.',
+            'Använd AI-assistent i varje verktyg för att formulera TO BE-förändringar före slutrapport.'
+        ]
+    };
+
+    const json = JSON.stringify(report, null, 2);
+    const jsonBlob = new Blob([json], { type: 'application/json' });
+    const jsonUrl = URL.createObjectURL(jsonBlob);
+    const jsonLink = document.createElement('a');
+    jsonLink.href = jsonUrl;
+    jsonLink.download = `NextGenEA_Workflow_Report_${Date.now()}.json`;
+    jsonLink.click();
+    URL.revokeObjectURL(jsonUrl);
+
+    const rows = phaseData.map(p => `
+        <tr>
+            <td style="padding:8px;border:1px solid #e5e7eb">${p.phase}</td>
+            <td style="padding:8px;border:1px solid #e5e7eb">${p.name}</td>
+            <td style="padding:8px;border:1px solid #e5e7eb">${p.hasData ? 'Ja' : 'Nej'}</td>
+            <td style="padding:8px;border:1px solid #e5e7eb">${p.exportedAt ? new Date(p.exportedAt).toLocaleString('sv-SE') : '-'}</td>
+            <td style="padding:8px;border:1px solid #e5e7eb">${p.analysis ? 'Ja' : 'Nej'}</td>
+            <td style="padding:8px;border:1px solid #e5e7eb">${p.toBe ? 'Ja' : 'Nej'}</td>
+        </tr>
+    `).join('');
+
+    const html = `<!DOCTYPE html><html lang="sv"><head><meta charset="UTF-8"><title>NextGen EA Workflow Report</title></head><body style="font-family:Segoe UI,sans-serif;padding:24px;color:#0f172a"><h1>NextGen EA Workflow Report</h1><p>Genererad: ${new Date(generatedAt).toLocaleString('sv-SE')}</p><p>Status: ${report.summary.readiness} (${completed}/4 faser)</p><table style="border-collapse:collapse;width:100%;margin-top:16px"><thead><tr><th style="padding:8px;border:1px solid #e5e7eb;background:#f8fafc">Steg</th><th style="padding:8px;border:1px solid #e5e7eb;background:#f8fafc">Verktyg</th><th style="padding:8px;border:1px solid #e5e7eb;background:#f8fafc">AS IS</th><th style="padding:8px;border:1px solid #e5e7eb;background:#f8fafc">Exporterad</th><th style="padding:8px;border:1px solid #e5e7eb;background:#f8fafc">Analysis</th><th style="padding:8px;border:1px solid #e5e7eb;background:#f8fafc">TO BE</th></tr></thead><tbody>${rows}</tbody></table><h2 style="margin-top:24px">Rekommenderade nästa steg</h2><ul>${report.recommendations.map(r => `<li>${r}</li>`).join('')}</ul></body></html>`;
+
+    const htmlBlob = new Blob([html], { type: 'text/html' });
+    const htmlUrl = URL.createObjectURL(htmlBlob);
+    const htmlLink = document.createElement('a');
+    htmlLink.href = htmlUrl;
+    htmlLink.download = `NextGenEA_Workflow_Report_${Date.now()}.html`;
+    htmlLink.click();
+    URL.revokeObjectURL(htmlUrl);
+
+    alert('Workflow-rapport exporterad (JSON + HTML).');
 }
 
 function resetWorkflow() {

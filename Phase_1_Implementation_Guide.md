@@ -69,7 +69,7 @@ const conversationSchema = {
   conversations: [
     {
       id: 'conv_1234567890',
-      title: 'Real Estate Company EA',
+      title: 'Industry-Specific Company EA',
       startDate: 1710331200000,
       lastUpdate: 1710417600000,
       messages: [
@@ -86,7 +86,7 @@ const conversationSchema = {
         {
           id: 'msg_002',
           role: 'user',
-          content: 'We are a property management company with 50 employees...',
+          content: 'We are an operations-focused company with 50 employees...',
           timestamp: 1710331260000,
           metadata: null
         }

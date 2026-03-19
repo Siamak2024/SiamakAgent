@@ -302,7 +302,7 @@ Components:
 ### Examples
 ```
 bmc_commercial_re_2026-03-13_1430.json
-capmap_proptech_analysis_2026-03-13_1545.json
+capmap_industry_analysis_2026-03-13_1545.json
 platform_ea_architecture_export_2026-03-13_1600.json
 maturity_banking_assessment_2026-03-13_1615.csv
 ```

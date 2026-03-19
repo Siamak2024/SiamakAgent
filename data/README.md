@@ -15,7 +15,7 @@ This folder contains all user-generated and application data for the EA Platform
 **Example files:**
 - `bmc_workshop_2026-03-13.json`
 - `capability_mapping_export.csv`
-- `maturity_assessment_proptech.json`
+- `maturity_assessment_industry_specific.json`
 
 ---
 
@@ -44,7 +44,7 @@ This folder contains all user-generated and application data for the EA Platform
 
 **Example files:**
 - `Commercial_RE_Digital_Transformation_v1.json`
-- `PropTech_Architecture_Autosave_2026-03-13.json`
+- `Industry_Specific_Architecture_Autosave_2026-03-13.json`
 - `Banking_EA_Maturity_Final.json`
 
 ---
@@ -156,7 +156,7 @@ Generated reports with:
 
 Examples:
 - bmc_commercial_re_2026-03-13.json
-- capmap_proptech_analysis_20260313_1430.json
+- capmap_industry_analysis_20260313_1430.json
 - export_ea_architecture_final.pdf
 ```
 

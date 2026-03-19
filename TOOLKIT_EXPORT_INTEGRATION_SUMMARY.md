@@ -223,7 +223,7 @@ All toolkits show temporary status in header after export:
 
 ### Test 1: BMC → Value Chain Flow
 1. Open **BMC**
-2. Click "Ladda exempel" (loads proptech scenario)
+2. Click "Ladda exempel" (loads sample scenario)
 3. Click "Exportera (EA)" or "Spara"
 4. **Verify:** Header shows green "Exporterad till EA Platform ✓"
 5. Open **EA Platform**
@@ -231,7 +231,7 @@ All toolkits show temporary status in header after export:
 
 ### Test 2: Value Chain → EA Platform Import
 1. Open **Value Chain Analyzer**
-2. Click "Proptech-exempel"
+2. Click "Exempel-scenario"
 3. Click "AI Analysera" (triggers auto-export)
 4. **Verify:** Export confirmation toast appears
 5. Open **EA Platform**

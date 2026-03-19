@@ -216,7 +216,7 @@ EA Platform V4 transforms the application into a comprehensive enterprise archit
   - Support multiple assessment dimensions
 
 - **Multi-Dimensional Maturity**
-  - Branch/Industry (Real Estate, Banking, Healthcare, etc.)
+  - Branch/Industry (Industry-specific, Banking, Healthcare, etc.)
   - Subject (Technology, Process, People, Data, etc.)
   - Business Area (ESG, ITSM, GDPR, Cybersecurity, etc.)
   - Per-Capability assessment
@@ -310,7 +310,7 @@ EA Platform V4 transforms the application into a comprehensive enterprise archit
 
 ### 4.1 Features to Implement
 - **Branch/Industry Profiles**
-  - Predefined industry templates (Real Estate, Banking, Healthcare, Manufacturing, etc.)
+  - Predefined industry templates (Industry-specific, Banking, Healthcare, Manufacturing, etc.)
   - Industry-specific capability suggestions
   - Benchmarking data per industry
   - Regulatory requirements mapping
@@ -413,7 +413,7 @@ EA Platform V4 transforms the application into a comprehensive enterprise archit
 - [ ] Compliance templates (GDPR, NIST) map correctly
 
 ### 4.7 User Acceptance Criteria
-- Real estate company gets real estate-specific capabilities
+- Organization gets industry-specific capabilities
 - ESG team can filter capabilities by ESG relevance
 - GDPR officer can run GDPR compliance assessment
 - IT manager can assess ITSM maturity separately
@@ -776,8 +776,8 @@ After all phases complete, test:
   // Existing V3 fields...
   organizationInfo: {
     name: '',
-    branch: 'Real Estate', // NEW
-    industry: 'Property Management', // NEW
+    branch: 'Industry-specific', // NEW
+    industry: 'Domain Operations', // NEW
     size: '',
     context: ''
   },

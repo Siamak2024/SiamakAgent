@@ -63,7 +63,7 @@ PATH 3: INTEGRATION WORKFLOW (Hybrid)
 **Status:** 🔴 Not Started  
 **Goal:** Industry and domain-specific EA  
 **Key Feature:** ESG, ITSM, GDPR modules  
-**Test:** Generate Real Estate EA with ESG focus
+**Test:** Generate industry-specific EA with ESG focus
 
 ### Phase 5: Maturity Toolbox Integration (2-3 weeks)
 **Status:** 🔴 Not Started  

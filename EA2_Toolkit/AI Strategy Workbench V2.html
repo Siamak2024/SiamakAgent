@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
@@ -854,8 +854,8 @@
         document.getElementById('result-panel').classList.add('hidden');
     }
 
-    function importFromCapabilityIntegration(onlyIfEmpty = true) {
-        if (!dataManager || !dataManager.hasRecentIntegrationData('capability_latest', 1440)) return false;
+    function importFromCapabilityIntegration(onlyIfEmpty = true, allowStale = false) {
+        if (!dataManager || (!allowStale && !dataManager.hasRecentIntegrationData('capability_latest', 1440))) return false;
         if (onlyIfEmpty && components.length > 0) return false;
 
         const cap = dataManager.getIntegrationData('capability_latest');
@@ -1065,11 +1065,11 @@
     function renderWardContextBadge() {
         const badge = document.getElementById('ward-context-badge');
         if (!badge || !dataManager) return;
-        if (!dataManager.hasRecentIntegrationData('capability_latest', 1440)) {
+        const data = dataManager.getIntegrationPackage('capability_latest');
+        if (!data) {
             badge.classList.add('hidden');
             return;
         }
-        const data = dataManager.getIntegrationPackage('capability_latest');
         const age = Math.max(0, Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60));
         badge.innerHTML = '<i class="fas fa-link mr-1"></i> Kontext från Capability Map · uppdaterad ' + age + ' min sedan';
         badge.classList.remove('hidden');
@@ -1086,11 +1086,11 @@
     function checkIntegrationStatus() {
         if (!dataManager) return;
         
-        const hasData = dataManager.hasRecentIntegrationData('strategy_latest', 1440); // 24 hours
+        const hasData = dataManager.hasRecentIntegrationData('capability_latest', 1440); // 24 hours
         if (hasData) {
-            const data = dataManager.getIntegrationPackage('strategy_latest');
+            const data = dataManager.getIntegrationPackage('capability_latest');
             const age = Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60);
-            console.log(`ℹ️ Last Wardley Map export: ${age} minutes ago`);
+            console.log(`ℹ️ Last Capability Map export: ${age} minutes ago`);
         }
     }
 
@@ -1446,7 +1446,19 @@ Steg 1–3 med tydlig prioritering och förväntad ROI eller riskminskningseffek
         if (saved) {
             try { components = JSON.parse(saved); renderNodes(); } catch(e) {}
         }
-        importFromCapabilityIntegration(true);
+
+        const wardParams = new URLSearchParams(window.location.search);
+        const forceFromCap = wardParams.get('from') === 'cap' && wardParams.get('refresh') === '1';
+        const importedFromCap = importFromCapabilityIntegration(!forceFromCap, forceFromCap);
+
+        if (forceFromCap && importedFromCap) {
+            const cap = dataManager?.getIntegrationData('capability_latest');
+            if (cap) {
+                setTimeout(() => autoFillWardleyFromCapContext(cap), 250);
+            }
+            renderWardContextBadge();
+        }
+
         window.addEventListener('resize', renderNodes);
     };
 	// === WARDLEY AI ASSISTANT ===

@@ -742,7 +742,7 @@ Commodity  → Low visibility    (Y: 0.10-0.40)
 ```csv
 Capability,Domain,Priority_SE,Maturity_1_5,Wardley_X_percent,Wardley_Y_percent,Wardley_Color,Wardley_Category,Description
 Predictive Maintenance,Operations,Strategic,2,0.25,0.85,#ef4444,Build (Genesis),AI-driven predictive maintenance for HVAC systems
-Tenant Portal,Customer,Important,4,0.60,0.55,#f97316,Buy (Product/SaaS),Self-service portal for tenant requests
+Customer Self-Service Portal,Customer,Important,4,0.60,0.55,#f97316,Buy (Product/SaaS),Self-service portal for customer requests
 Cloud Infrastructure,Technology,Commodity,5,0.88,0.25,#22c55e,Outsource (Commodity),AWS/Azure cloud hosting
 ```
 

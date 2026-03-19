@@ -1,4 +1,4 @@
-/**
+﻿/**
  * EA Platform V3 - Unified Configuration
  * Centralized config for API keys, storage keys, and toolkit settings
  */
@@ -39,7 +39,7 @@ const EA_Config = {
     platform: {
       id: 'platform',
       name: 'EA Platform',
-      file: 'EA Plattform/EA 20 Platform_V3_Integrated.html',
+      file: 'NexGenEA/NexGen_EA_V4.html',
       color: '#1e3a8a',
       icon: '🏛️'
     },

@@ -57,14 +57,14 @@ app.post('/api/openai/chat', async (req, res) => {
     });
 
     const data = await response.json();
-    
+
     if (!response.ok) {
       return res.status(response.status).json(data);
     }
-    
+
     res.json(data);
   } catch (error) {
-    console.error('OpenAI API Error:', error);
+    console.error('OpenAI API Error:', error.message);
     res.status(500).json({ error: 'Failed to communicate with OpenAI', details: error.message });
   }
 });

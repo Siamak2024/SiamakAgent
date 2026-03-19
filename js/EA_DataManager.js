@@ -1,4 +1,4 @@
-/**
+﻿/**
  * EA Platform V3 - Data Manager
  * Handles unified localStorage structure, project management, and data persistence
  */
@@ -578,6 +578,93 @@ class EA_DataManager {
       keysToRemove.forEach(k => localStorage.removeItem(k));
       console.log(`✓ All integration data cleared (${keysToRemove.length} items)`);
     }
+  }
+
+  /**
+   * Save a structured tool report package (AS-IS, analysis, TO-BE)
+   * @param {string} toolId - Toolkit identifier (bmc, valueChain, capability, strategy, maturity)
+   * @param {object} reportData - Report payload
+   */
+  saveToolReport(toolId, reportData) {
+    if (!toolId) return false;
+
+    try {
+      const reportKey = `ea_tool_report_${toolId}`;
+      const payload = {
+        toolId,
+        savedAt: new Date().toISOString(),
+        version: this.config.version,
+        asIs: reportData?.asIs || null,
+        analysis: reportData?.analysis || null,
+        toBe: reportData?.toBe || null,
+        meta: reportData?.meta || {}
+      };
+
+      localStorage.setItem(reportKey, JSON.stringify(payload));
+      return true;
+    } catch (error) {
+      console.error('Error saving tool report:', toolId, error);
+      return false;
+    }
+  }
+
+  /**
+   * Get one tool report package
+   * @param {string} toolId - Toolkit identifier
+   * @returns {object|null}
+   */
+  getToolReport(toolId) {
+    if (!toolId) return null;
+
+    try {
+      const stored = localStorage.getItem(`ea_tool_report_${toolId}`);
+      return stored ? JSON.parse(stored) : null;
+    } catch (error) {
+      console.error('Error reading tool report:', toolId, error);
+      return null;
+    }
+  }
+
+  /**
+   * List all saved tool reports
+   * @returns {Array}
+   */
+  getAllToolReports() {
+    const reports = [];
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith('ea_tool_report_')) continue;
+
+      try {
+        const parsed = JSON.parse(localStorage.getItem(key));
+        if (parsed) reports.push(parsed);
+      } catch (error) {
+        console.warn('Skipping invalid tool report key:', key, error);
+      }
+    }
+
+    return reports.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+  }
+
+  /**
+   * Clear one tool report or all tool reports
+   * @param {string|null} toolId - Toolkit identifier or null for all
+   */
+  clearToolReport(toolId = null) {
+    if (toolId) {
+      localStorage.removeItem(`ea_tool_report_${toolId}`);
+      return;
+    }
+
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('ea_tool_report_')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
   }
   
   /**

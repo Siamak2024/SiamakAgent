@@ -1,0 +1,979 @@
+/* =============================================================================
+   EA Design System v2 — Horizon-inspired colour scheme
+   Inspired by: clean admin dashboard with deep-navy sidebar, vivid indigo
+   primary, light blue-gray canvas, white cards with subtle depth.
+
+   HOW TO ACTIVATE:
+   Replace  <link href="../css/ea-design-engine.css" …>
+   with     <link href="../css/ea-design-v2.css" …>
+   in any page, or use both (v2 loaded last to win cascade).
+   ============================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
+
+/* ─────────────────────────────────────────────
+   1. DESIGN TOKENS
+   ───────────────────────────────────────────── */
+:root {
+  /* ── Canvas ──────────────────────────────── */
+  --v2-bg-canvas:        #F4F7FE;     /* whole-page background — soft lavender-white */
+  --v2-bg-surface:       #FFFFFF;     /* card / panel face */
+  --v2-bg-surface-alt:   #F9FAFF;     /* secondary surface (table rows, input bg, …) */
+  --v2-bg-sidebar:       #111C44;     /* deep-navy sidebar shell */
+  --v2-bg-sidebar-hover: #1B2559;     /* sidebar item hover */
+  --v2-bg-header:        #FFFFFF;     /* top-bar background */
+
+  /* ── Brand / Primary (indigo-purple) ─────── */
+  --v2-primary:          #4318FF;     /* vivid indigo — main CTA */
+  --v2-primary-hover:    #3311CC;
+  --v2-primary-light:    #868CFF;     /* lighter end of gradient */
+  --v2-primary-soft:     #EFF4FF;     /* tinted background for highlights */
+  --v2-primary-grad:     linear-gradient(135deg, #4318FF 0%, #868CFF 100%);
+
+  /* ── Secondary accent (cyan-teal) ─────────── */
+  --v2-secondary:        #0080EA;
+  --v2-secondary-soft:   #E8F3FF;
+
+  /* ── Status palette ──────────────────────── */
+  --v2-success:          #01B574;
+  --v2-success-soft:     #E6FAF3;
+  --v2-warning:          #FFB547;
+  --v2-warning-soft:     #FFF8EC;
+  --v2-danger:           #EE5D50;
+  --v2-danger-soft:      #FEEFED;
+  --v2-info:             #39B8FF;
+  --v2-info-soft:        #E7F8FF;
+
+  /* ── Text ────────────────────────────────── */
+  --v2-text-heading:     #1B2559;     /* darkest — page & card titles */
+  --v2-text-body:        #2B3674;     /* standard body copy */
+  --v2-text-muted:       #A3AED0;     /* labels, helper text */
+  --v2-text-on-dark:     #FFFFFF;
+  --v2-text-on-primary:  #FFFFFF;
+
+  /* ── Borders ─────────────────────────────── */
+  --v2-border:           #E0E5F2;     /* default card/input border */
+  --v2-border-strong:    #C9D0E3;
+
+  /* ── Radii ───────────────────────────────── */
+  --v2-radius-xs:   6px;
+  --v2-radius-sm:   10px;
+  --v2-radius-md:   16px;
+  --v2-radius-lg:   20px;
+  --v2-radius-full: 9999px;
+
+  /* ── Shadows ─────────────────────────────── */
+  --v2-shadow-xs:   0 1px 3px rgba(112, 144, 176, 0.10);
+  --v2-shadow-sm:   0 2px 8px rgba(112, 144, 176, 0.14);
+  --v2-shadow-md:   0 8px 20px rgba(112, 144, 176, 0.20);
+  --v2-shadow-lg:   0 16px 40px rgba(112, 144, 176, 0.26);
+  --v2-shadow-inset:inset 0 0 0 1px rgba(255,255,255,0.08);
+
+  /* ── Type scale ──────────────────────────── */
+  --v2-text-2xs:  10px;
+  --v2-text-xs:   11px;
+  --v2-text-sm:   12px;
+  --v2-text-md:   13px;
+  --v2-text-base: 14px;
+  --v2-text-lg:   16px;
+  --v2-text-xl:   18px;
+  --v2-text-2xl:  22px;
+  --v2-text-3xl:  28px;
+
+  /* ── Spacing ─────────────────────────────── */
+  --v2-space-1: 4px;
+  --v2-space-2: 8px;
+  --v2-space-3: 12px;
+  --v2-space-4: 16px;
+  --v2-space-5: 20px;
+  --v2-space-6: 24px;
+  --v2-space-8: 32px;
+
+  /* ── Transitions ─────────────────────────── */
+  --v2-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --v2-duration-fast:  120ms;
+  --v2-duration-base:  200ms;
+  --v2-duration-slow:  320ms;
+}
+
+/* ─────────────────────────────────────────────
+   2. BASE RESET + GLOBAL
+   ───────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+html,
+body {
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif !important;
+  font-size: var(--v2-text-base);
+  line-height: 1.6;
+  color: var(--v2-text-body);
+}
+
+/* ─────────────────────────────────────────────
+   3. APP SHELL  (class="ea-app-shell" or "ea-toolkit-app")
+   ───────────────────────────────────────────── */
+body.ea-app-shell,
+body.ea-toolkit-app {
+  background: var(--v2-bg-canvas) !important;
+  min-height: 100vh;
+}
+
+/* ─────────────────────────────────────────────
+   4. SIDEBAR
+   ───────────────────────────────────────────── */
+
+/* The existing V4 left-panel / toolkit sidebar */
+.ea-sidebar,
+nav.sidebar,
+aside.sidebar,
+[class*="sidebar"],
+body.ea-app-shell > aside,
+body.ea-toolkit-app > nav:first-of-type {
+  background: var(--v2-bg-sidebar) !important;
+  color: var(--v2-text-on-dark);
+  border-right: none !important;
+  box-shadow: 4px 0 24px rgba(17, 28, 68, 0.25) !important;
+}
+
+/* Sidebar links & items */
+.ea-sidebar a,
+.ea-sidebar button,
+[class*="sidebar"] a,
+[class*="sidebar"] button {
+  color: var(--v2-text-muted);
+  border-radius: var(--v2-radius-sm) !important;
+  transition: background var(--v2-duration-base) var(--v2-ease),
+              color     var(--v2-duration-base) var(--v2-ease);
+  font-size: var(--v2-text-sm);
+  font-weight: 600;
+}
+
+.ea-sidebar a:hover,
+.ea-sidebar button:hover,
+[class*="sidebar"] a:hover,
+[class*="sidebar"] button:hover {
+  background: var(--v2-bg-sidebar-hover) !important;
+  color: #FFFFFF !important;
+}
+
+.ea-sidebar a.active,
+.ea-sidebar button.active,
+[class*="sidebar"] a.active {
+  background: var(--v2-primary-grad) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(67, 24, 255, 0.35);
+}
+
+/* Sidebar brand / logo area */
+.ea-sidebar .brand,
+.ea-sidebar .logo,
+[class*="sidebar"] > .logo {
+  color: #FFFFFF !important;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* ─────────────────────────────────────────────
+   5. TOP-BAR / HEADER
+   ───────────────────────────────────────────── */
+.ea-header,
+header.ea-header,
+body.ea-toolkit-app > header {
+  background: var(--v2-bg-header) !important;
+  border-bottom: 1px solid var(--v2-border) !important;
+  box-shadow: var(--v2-shadow-xs) !important;
+  color: var(--v2-text-heading) !important;
+}
+
+/* Dark-shell variant used by current V4 header */
+body.ea-app-shell .ea-header {
+  background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%) !important;
+  border-bottom: 1px solid rgba(148,163,184,0.15) !important;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.35) !important;
+}
+
+/* Page title inside header */
+.ea-header h1,
+.ea-header .page-title {
+  font-size: var(--v2-text-2xl);
+  font-weight: 800;
+  color: var(--v2-text-heading);
+  letter-spacing: -0.02em;
+}
+
+/* ─────────────────────────────────────────────
+   6. CARDS
+   ───────────────────────────────────────────── */
+
+/* Base card */
+.v2-card,
+.ea-card {
+  background: var(--v2-bg-surface);
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-md);
+  box-shadow: var(--v2-shadow-sm);
+  padding: var(--v2-space-5);
+  transition: box-shadow var(--v2-duration-base) var(--v2-ease),
+              transform  var(--v2-duration-base) var(--v2-ease);
+}
+
+.v2-card:hover,
+.ea-card:hover {
+  box-shadow: var(--v2-shadow-md);
+  transform: translateY(-2px);
+}
+
+/* Override existing toolkit card + bg-white panels */
+body.ea-app-shell .bg-white.rounded-xl,
+body.ea-toolkit-app .bg-white,
+body.ea-toolkit-app .domain-col,
+body.ea-toolkit-app .canvas-outer,
+body.ea-toolkit-app .panel,
+body.ea-toolkit-app .card {
+  border-radius: var(--v2-radius-md) !important;
+  box-shadow: var(--v2-shadow-sm) !important;
+  border-color: var(--v2-border) !important;
+  background: var(--v2-bg-surface) !important;
+}
+
+/* KPI metric card (the big stat cards at top of V4 / toolkits) */
+.kpi-card,
+.v2-kpi-card {
+  background: var(--v2-bg-surface);
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-md);
+  box-shadow: var(--v2-shadow-sm);
+  padding: var(--v2-space-5) var(--v2-space-6);
+  transition: transform var(--v2-duration-base) var(--v2-ease),
+              box-shadow var(--v2-duration-base) var(--v2-ease);
+}
+
+.kpi-card:hover,
+.v2-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--v2-shadow-md);
+}
+
+.v2-kpi-value {
+  font-size: var(--v2-text-3xl);
+  font-weight: 800;
+  color: var(--v2-text-heading);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.v2-kpi-label {
+  font-size: var(--v2-text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--v2-text-muted);
+  margin-top: var(--v2-space-1);
+}
+
+.v2-kpi-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--v2-radius-full);
+  font-size: var(--v2-text-xs);
+  font-weight: 700;
+}
+
+.v2-kpi-trend.up   { background: var(--v2-success-soft); color: var(--v2-success); }
+.v2-kpi-trend.down { background: var(--v2-danger-soft);  color: var(--v2-danger);  }
+
+/* Gradient accent cards (used in toolkit card-header blocks) */
+.v2-card-accent {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--v2-radius-md);
+  color: #fff;
+  padding: var(--v2-space-5);
+}
+
+.v2-card-accent::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  opacity: 0.95;
+}
+
+.v2-card-accent > * { position: relative; z-index: 1; }
+
+.v2-card-accent.indigo  { background: linear-gradient(135deg, #4318FF 0%, #868CFF 100%); }
+.v2-card-accent.navy    { background: linear-gradient(135deg, #1B2559 0%, #2B3674 100%); }
+.v2-card-accent.teal    { background: linear-gradient(135deg, #01B574 0%, #00C9A7 100%); }
+.v2-card-accent.amber   { background: linear-gradient(135deg, #FFB547 0%, #FF8728 100%); }
+.v2-card-accent.rose    { background: linear-gradient(135deg, #EE5D50 0%, #FF8066 100%); }
+
+/* ─────────────────────────────────────────────
+   7. BUTTONS
+   ───────────────────────────────────────────── */
+
+/* Primary — gradient indigo (matches "Save" button in image) */
+.v2-btn,
+button.v2-btn,
+a.v2-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--v2-space-2);
+  padding: 10px 18px;
+  border-radius: var(--v2-radius-sm);
+  font-family: inherit;
+  font-size: var(--v2-text-sm);
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: transform   var(--v2-duration-fast) var(--v2-ease),
+              box-shadow  var(--v2-duration-base) var(--v2-ease),
+              background  var(--v2-duration-base) var(--v2-ease);
+  white-space: nowrap;
+}
+
+.v2-btn:active { transform: scale(0.97); }
+
+/* Variant: primary (indigo gradient) */
+.v2-btn-primary {
+  background: var(--v2-primary-grad);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(67, 24, 255, 0.30);
+}
+
+.v2-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(67, 24, 255, 0.38);
+}
+
+/* Variant: dark (matches "Import" button in image) */
+.v2-btn-dark {
+  background: var(--v2-bg-sidebar);
+  color: #FFFFFF;
+  box-shadow: var(--v2-shadow-sm);
+}
+
+.v2-btn-dark:hover {
+  background: #0D1638;
+  transform: translateY(-1px);
+  box-shadow: var(--v2-shadow-md);
+}
+
+/* Variant: outline (matches "New" / "Load" buttons in image) */
+.v2-btn-outline {
+  background: transparent;
+  color: var(--v2-text-body);
+  border: 1.5px solid var(--v2-border-strong) !important;
+  box-shadow: none;
+}
+
+.v2-btn-outline:hover {
+  background: var(--v2-primary-soft);
+  border-color: var(--v2-primary) !important;
+  color: var(--v2-primary);
+}
+
+/* Variant: ghost (no border, subtle hover) */
+.v2-btn-ghost {
+  background: transparent;
+  color: var(--v2-text-muted);
+  border: none;
+}
+
+.v2-btn-ghost:hover {
+  background: var(--v2-bg-surface-alt);
+  color: var(--v2-text-body);
+}
+
+/* Size modifiers */
+.v2-btn-sm { padding: 7px 12px; font-size: var(--v2-text-xs); border-radius: var(--v2-radius-xs); }
+.v2-btn-lg { padding: 14px 24px; font-size: var(--v2-text-base); border-radius: var(--v2-radius-md); }
+
+/* Override existing Tailwind blue buttons */
+body.ea-app-shell .bg-blue-600,
+body.ea-toolkit-app .bg-blue-600,
+body.ea-app-shell button.bg-blue-600,
+body.ea-toolkit-app button.bg-blue-600 {
+  background: var(--v2-primary-grad) !important;
+  box-shadow: 0 4px 14px rgba(67, 24, 255, 0.28) !important;
+  border: none !important;
+}
+
+body.ea-app-shell .bg-blue-600:hover,
+body.ea-toolkit-app .bg-blue-600:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 8px 20px rgba(67, 24, 255, 0.36) !important;
+}
+
+/* ─────────────────────────────────────────────
+   8. BADGES / STATUS PILLS
+   ───────────────────────────────────────────── */
+.v2-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--v2-radius-full);
+  font-size: var(--v2-text-xs);
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.v2-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.v2-badge-success { background: var(--v2-success-soft); color: var(--v2-success); }
+.v2-badge-warning { background: var(--v2-warning-soft); color: #C07B00;           }
+.v2-badge-danger  { background: var(--v2-danger-soft);  color: var(--v2-danger);  }
+.v2-badge-info    { background: var(--v2-info-soft);    color: #0070B8;           }
+.v2-badge-primary { background: var(--v2-primary-soft); color: var(--v2-primary); }
+.v2-badge-muted   { background: #EEF0F6;               color: var(--v2-text-muted); }
+
+/* ─────────────────────────────────────────────
+   9. TAB NAVIGATION
+   ───────────────────────────────────────────── */
+.tab-btn,
+.v2-tab {
+  border-radius: var(--v2-radius-sm) !important;
+  font-size: var(--v2-text-sm) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em;
+  color: var(--v2-text-muted) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  padding: 8px 14px;
+  transition: background  var(--v2-duration-base) var(--v2-ease),
+              color       var(--v2-duration-base) var(--v2-ease),
+              box-shadow  var(--v2-duration-base) var(--v2-ease),
+              transform   var(--v2-duration-fast) var(--v2-ease);
+}
+
+.tab-btn:not(.active):hover,
+.v2-tab:not(.active):hover {
+  background: var(--v2-primary-soft) !important;
+  color:       var(--v2-primary) !important;
+  border-color: var(--v2-border) !important;
+  transform: translateY(-1px);
+}
+
+.tab-btn.active,
+.v2-tab.active {
+  background: var(--v2-primary-grad) !important;
+  color: #FFFFFF !important;
+  border-color: transparent !important;
+  box-shadow: 0 4px 14px rgba(67, 24, 255, 0.28) !important;
+}
+
+/* Tab container */
+.v2-tab-bar {
+  display: flex;
+  gap: 6px;
+  background: var(--v2-bg-surface);
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-md);
+  padding: 5px;
+  box-shadow: var(--v2-shadow-xs);
+}
+
+/* ─────────────────────────────────────────────
+   10. FORM CONTROLS
+   ───────────────────────────────────────────── */
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  background: var(--v2-bg-surface) !important;
+  border: 1.5px solid var(--v2-border) !important;
+  border-radius: var(--v2-radius-sm) !important;
+  color: var(--v2-text-body) !important;
+  font-size: var(--v2-text-sm) !important;
+  padding: 9px 12px !important;
+  transition: border-color var(--v2-duration-base) var(--v2-ease),
+              box-shadow   var(--v2-duration-base) var(--v2-ease);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none !important;
+  border-color: var(--v2-primary) !important;
+  box-shadow: 0 0 0 3px rgba(67, 24, 255, 0.14) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--v2-text-muted) !important;
+}
+
+/* ─────────────────────────────────────────────
+   11. DATA TABLE
+   ───────────────────────────────────────────── */
+.v2-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--v2-text-sm);
+}
+
+.v2-table thead th {
+  background: var(--v2-bg-surface-alt);
+  color: var(--v2-text-muted);
+  font-size: var(--v2-text-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--v2-border);
+  white-space: nowrap;
+}
+
+.v2-table tbody td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--v2-border);
+  color: var(--v2-text-body);
+  vertical-align: middle;
+}
+
+.v2-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.v2-table tbody tr:hover td {
+  background: var(--v2-primary-soft);
+}
+
+/* Table wrapped inside a card */
+.v2-table-card {
+  background: var(--v2-bg-surface);
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-md);
+  box-shadow: var(--v2-shadow-sm);
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────
+   12. TYPOGRAPHY
+   ───────────────────────────────────────────── */
+.v2-heading-1 {
+  font-size: var(--v2-text-3xl);
+  font-weight: 800;
+  color: var(--v2-text-heading);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.v2-heading-2 {
+  font-size: var(--v2-text-2xl);
+  font-weight: 800;
+  color: var(--v2-text-heading);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.v2-heading-3 {
+  font-size: var(--v2-text-xl);
+  font-weight: 700;
+  color: var(--v2-text-heading);
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.v2-heading-4 {
+  font-size: var(--v2-text-lg);
+  font-weight: 700;
+  color: var(--v2-text-heading);
+  line-height: 1.35;
+}
+
+.v2-body     { font-size: var(--v2-text-base); color: var(--v2-text-body); line-height: 1.6; }
+.v2-body-sm  { font-size: var(--v2-text-sm);   color: var(--v2-text-body); line-height: 1.5; }
+.v2-caption  { font-size: var(--v2-text-xs);   color: var(--v2-text-muted); }
+.v2-label    {
+  font-size: var(--v2-text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-weight: 800;
+  color: var(--v2-text-muted);
+}
+
+.v2-link {
+  color: var(--v2-primary);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--v2-duration-base);
+}
+
+.v2-link:hover { border-color: var(--v2-primary); }
+
+/* ─────────────────────────────────────────────
+   13. KPI STRIP (shared cross-toolkit component)
+   ───────────────────────────────────────────── */
+.ea-kpi-strip {
+  background: var(--v2-bg-surface);
+  border-bottom: 1px solid var(--v2-border);
+  padding: 14px 24px;
+  box-shadow: var(--v2-shadow-xs);
+}
+
+.ea-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.ea-kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--v2-bg-surface-alt);
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-sm);
+  padding: 10px 14px;
+  transition: box-shadow var(--v2-duration-base) var(--v2-ease),
+              transform  var(--v2-duration-base) var(--v2-ease);
+}
+
+.ea-kpi-card:hover {
+  box-shadow: var(--v2-shadow-sm);
+  transform: translateY(-1px);
+}
+
+.ea-kpi-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--v2-radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  background: var(--v2-primary-soft);
+  color: var(--v2-primary);
+}
+
+.ea-kpi-label {
+  font-size: var(--v2-text-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--v2-text-muted);
+  margin-bottom: 2px;
+}
+
+.ea-kpi-value {
+  font-size: var(--v2-text-base);
+  font-weight: 800;
+  color: var(--v2-text-heading);
+  line-height: 1.1;
+}
+
+/* ─────────────────────────────────────────────
+   14. TOOLKIT HEADER HARMONIZATION
+   ───────────────────────────────────────────── */
+
+/* Dark shell preserved in V4; toolkits use white header by default */
+body.ea-toolkit-app > header,
+body.ea-toolkit-app > .site-header {
+  background: var(--v2-bg-sidebar) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+  box-shadow: 0 4px 20px rgba(17, 28, 68, 0.35) !important;
+  color: #FFFFFF !important;
+}
+
+body.ea-toolkit-app > header h1,
+body.ea-toolkit-app > header h2,
+body.ea-toolkit-app > header .site-title,
+body.ea-toolkit-app > .site-header h1 {
+  color: #FFFFFF !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+}
+
+body.ea-toolkit-app > header p,
+body.ea-toolkit-app > .site-header p {
+  color: var(--v2-text-muted) !important;
+}
+
+/* The purple–blue gradient workflow bar above toolkit headers */
+body.ea-toolkit-app > .bg-gradient-to-r.from-purple-600.to-blue-600 {
+  background: linear-gradient(90deg, #4318FF 0%, #868CFF 100%) !important;
+}
+
+/* ─────────────────────────────────────────────
+   15. CHART / VISUALIZATION CONTAINERS
+   ───────────────────────────────────────────── */
+.v2-chart-card {
+  background: var(--v2-bg-surface);
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-md);
+  box-shadow: var(--v2-shadow-sm);
+  padding: var(--v2-space-5);
+}
+
+.v2-chart-card .chart-title {
+  font-size: var(--v2-text-lg);
+  font-weight: 700;
+  color: var(--v2-text-heading);
+  margin-bottom: var(--v2-space-1);
+}
+
+.v2-chart-card .chart-subtitle {
+  font-size: var(--v2-text-xs);
+  color: var(--v2-text-muted);
+  margin-bottom: var(--v2-space-4);
+}
+
+#network {
+  height: 480px;
+  background: var(--v2-bg-surface-alt) !important;
+  border-radius: var(--v2-radius-md) !important;
+  border: 1px solid var(--v2-border) !important;
+}
+
+/* ─────────────────────────────────────────────
+   16. AI CHAT PANEL
+   ───────────────────────────────────────────── */
+#ai-chat-panel {
+  border-radius: var(--v2-radius-lg) !important;
+  box-shadow: var(--v2-shadow-lg) !important;
+  border: 1px solid var(--v2-border) !important;
+}
+
+#chat-header {
+  background: linear-gradient(135deg, var(--v2-bg-sidebar) 0%, #2B3674 100%) !important;
+}
+
+#chat-messages {
+  background: var(--v2-bg-canvas) !important;
+}
+
+#chat-toggle {
+  background: var(--v2-primary-grad) !important;
+  box-shadow: 0 8px 26px rgba(67, 24, 255, 0.38) !important;
+}
+
+.message-text {
+  border-radius: var(--v2-radius-sm) !important;
+  border-color: var(--v2-border) !important;
+  font-size: var(--v2-text-sm) !important;
+}
+
+.user-message .message-text {
+  background: var(--v2-bg-sidebar) !important;
+  border-color: var(--v2-bg-sidebar) !important;
+}
+
+#chat-input {
+  border-color: var(--v2-border) !important;
+  border-radius: var(--v2-radius-sm) !important;
+}
+
+#chat-input:focus {
+  border-color: var(--v2-primary) !important;
+  box-shadow: 0 0 0 3px rgba(67, 24, 255, 0.14) !important;
+}
+
+#send-chat {
+  background: var(--v2-primary-grad) !important;
+  border-radius: var(--v2-radius-sm) !important;
+}
+
+/* ─────────────────────────────────────────────
+   17. SPINNER / LOADING
+   ───────────────────────────────────────────── */
+.spinner {
+  border: 2px solid var(--v2-border);
+  border-top: 2px solid var(--v2-primary);
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  animation: v2-spin 0.75s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+@keyframes v2-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Skeleton loader pulse */
+.v2-skeleton {
+  background: linear-gradient(90deg, #E8EDF6 25%, #F4F7FE 50%, #E8EDF6 75%);
+  background-size: 200% 100%;
+  animation: v2-skeleton 1.4s ease infinite;
+  border-radius: var(--v2-radius-xs);
+}
+
+@keyframes v2-skeleton {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ─────────────────────────────────────────────
+   18. DIVIDERS + SECTION STRUCTURE
+   ───────────────────────────────────────────── */
+.v2-section {
+  margin-bottom: var(--v2-space-8);
+}
+
+.v2-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--v2-space-4);
+  gap: var(--v2-space-4);
+}
+
+.v2-divider {
+  height: 1px;
+  background: var(--v2-border);
+  border: none;
+  margin: var(--v2-space-5) 0;
+}
+
+/* ─────────────────────────────────────────────
+   19. UTILITY OVERRIDES  (keep Tailwind working but apply v2 radius / shadow
+       to common patterns used throughout the EA app files)
+   ───────────────────────────────────────────── */
+body.ea-app-shell .rounded-xl,
+body.ea-toolkit-app .rounded-xl {
+  border-radius: var(--v2-radius-md) !important;
+}
+
+body.ea-app-shell .rounded-2xl,
+body.ea-toolkit-app .rounded-2xl {
+  border-radius: var(--v2-radius-lg) !important;
+}
+
+body.ea-app-shell .shadow-sm,
+body.ea-toolkit-app .shadow-sm {
+  box-shadow: var(--v2-shadow-sm) !important;
+}
+
+body.ea-app-shell .shadow,
+body.ea-toolkit-app .shadow {
+  box-shadow: var(--v2-shadow-md) !important;
+}
+
+/* Text colour harmonization */
+body.ea-app-shell .text-slate-800,
+body.ea-toolkit-app .text-slate-800,
+body.ea-app-shell .text-gray-800 {
+  color: var(--v2-text-heading) !important;
+}
+
+body.ea-app-shell .text-slate-500,
+body.ea-toolkit-app .text-slate-500,
+body.ea-app-shell .text-gray-500 {
+  color: var(--v2-text-muted) !important;
+}
+
+/* ─────────────────────────────────────────────
+   20. TOOL-CARD OVERRIDES  (EA2_Strategic_Tools hub)
+   ───────────────────────────────────────────── */
+.tool-card {
+  border-radius: var(--v2-radius-lg) !important;
+  box-shadow: var(--v2-shadow-sm) !important;
+  border: 1px solid var(--v2-border) !important;
+  transition: transform var(--v2-duration-base) var(--v2-ease),
+              box-shadow var(--v2-duration-base) var(--v2-ease);
+}
+
+.tool-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: var(--v2-shadow-lg) !important;
+}
+
+/* card-header accent gradients use v2 palette equivalents */
+.card-header.navy   { background: linear-gradient(135deg, #111C44 0%, #2B3674 100%); }
+.card-header.blue   { background: linear-gradient(135deg, #1B2559 0%, #4318FF 100%); }
+.card-header.purple { background: linear-gradient(135deg, #4318FF 0%, #868CFF 100%); }
+.card-header.gold   { background: linear-gradient(135deg, #C07B00 0%, #FFB547 100%); }
+
+/* ─────────────────────────────────────────────
+   21. SCROLLBARS  (WebKit — subtle on-brand)
+   ───────────────────────────────────────────── */
+::-webkit-scrollbar               { width: 6px; height: 6px; }
+::-webkit-scrollbar-track         { background: var(--v2-bg-canvas); }
+::-webkit-scrollbar-thumb         { background: #C9D0E3; border-radius: var(--v2-radius-full); }
+::-webkit-scrollbar-thumb:hover   { background: #A3AED0; }
+
+/* ─────────────────────────────────────────────
+   22. ANIMATIONS (page-level)
+   ───────────────────────────────────────────── */
+@keyframes v2-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.v2-animate-in {
+  animation: v2-fade-up 0.35s var(--v2-ease) both;
+}
+
+/* Staggered children */
+.v2-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.v2-stagger > *:nth-child(2) { animation-delay: 60ms; }
+.v2-stagger > *:nth-child(3) { animation-delay: 120ms; }
+.v2-stagger > *:nth-child(4) { animation-delay: 180ms; }
+.v2-stagger > *:nth-child(5) { animation-delay: 240ms; }
+
+/* ─────────────────────────────────────────────
+   23. RESPONSIVE BREAKPOINTS
+   ───────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .ea-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --v2-text-3xl: 22px;
+    --v2-text-2xl: 18px;
+  }
+
+  .ea-kpi-grid   { grid-template-columns: 1fr 1fr; }
+  .v2-table-card { overflow-x: auto; }
+
+  #ai-chat-panel {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    width: auto !important;
+    max-height: 70vh !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .ea-kpi-grid { grid-template-columns: 1fr; }
+  .v2-btn      { width: 100%; justify-content: center; }
+}
