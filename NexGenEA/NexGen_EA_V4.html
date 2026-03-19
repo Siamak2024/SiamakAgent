@@ -2563,9 +2563,11 @@ async function callAI(sys, user, options = {}) {
   }
 
   const aiRoute = { path: 'Chat API (server)', model: selectedModel, taskType };
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const backendUrl = isLocal ? '/api/openai/chat' : '/api/openai-proxy';
 
   try {
-    const response = await fetchWithTimeout('/api/openai/chat', {
+    const response = await fetchWithTimeout(backendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(chatBody)
