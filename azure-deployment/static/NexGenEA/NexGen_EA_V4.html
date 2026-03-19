@@ -2737,6 +2737,48 @@ function setActiveBusinessAreasFromUI() {
   autoSaveCurrentModel();
 }
 
+function extractJSON(text) {
+  const m = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (m) return m[1].trim();
+  const a = text.indexOf('['), b = text.indexOf('{');
+  const start = a === -1 ? b : b === -1 ? a : Math.min(a, b);
+  if (start === -1) return text;
+  return text.slice(start, Math.max(text.lastIndexOf(']'), text.lastIndexOf('}')) + 1);
+}
+
+// ── PHASE 4: INDUSTRY + BUSINESS AREA CONFIG ────
+const PHASE4_BUSINESS_AREAS = ['general', 'operations', 'erp', 'finance', 'esg', 'itsm', 'gdpr', 'cybersecurity'];
+const PHASE4_INDUSTRY_PROFILES = {
+  'generic': { branch: 'generic', benchPeer: 'Industry Peer Group A', areas: ['general', 'operations', 'erp', 'finance'] },
+  'startup': { branch: 'startup', benchPeer: 'Industry Peer Group A', areas: ['general', 'operations', 'finance', 'itsm', 'cybersecurity'] },
+  'domain-specific': { branch: 'domain-specific', benchPeer: 'Industry Peer Group A', areas: ['general', 'operations', 'erp', 'finance', 'esg', 'itsm', 'cybersecurity'] },
+  'fintech': { branch: 'fintech', benchPeer: 'Global Asset Management', areas: ['general', 'operations', 'erp', 'finance', 'gdpr', 'cybersecurity'] },
+  'industry-specific': { branch: 'industry-specific', benchPeer: 'Industry Peer Group A', areas: ['general', 'operations', 'erp', 'finance', 'esg', 'itsm', 'cybersecurity'] },
+  'banking': { branch: 'banking', benchPeer: 'Global Asset Management', areas: ['general', 'operations', 'erp', 'finance', 'gdpr', 'cybersecurity'] },
+  'healthcare': { branch: 'healthcare', benchPeer: 'Public Housing (Sweden)', areas: ['general', 'operations', 'erp', 'finance', 'gdpr', 'cybersecurity'] },
+  'public-sector': { branch: 'public-sector', benchPeer: 'Public Housing (Sweden)', areas: ['general', 'operations', 'erp', 'finance', 'esg', 'gdpr'] },
+  'retail': { branch: 'retail', benchPeer: 'Industry Peer Group A', areas: ['general', 'operations', 'erp', 'finance', 'itsm', 'gdpr'] },
+  'insurance': { branch: 'insurance', benchPeer: 'Global Asset Management', areas: ['general', 'operations', 'erp', 'finance', 'gdpr', 'cybersecurity'] }
+};
+const PHASE4_AREA_BASELINES = {
+  'generic': { general: 3.0, operations: 3.0, erp: 3.0, finance: 3.0, esg: 2.8, itsm: 3.0, gdpr: 2.9, cybersecurity: 3.0 },
+  'startup': { general: 2.8, operations: 3.1, erp: 2.7, finance: 3.0, esg: 2.5, itsm: 3.3, gdpr: 2.6, cybersecurity: 3.1 },
+  'domain-specific': { general: 3.1, operations: 3.4, erp: 3.3, finance: 3.3, esg: 3.3, itsm: 3.2, gdpr: 3.0, cybersecurity: 3.2 },
+  'fintech': { general: 3.3, operations: 3.5, erp: 3.2, finance: 3.8, esg: 2.9, itsm: 3.3, gdpr: 3.7, cybersecurity: 3.9 },
+  'industry-specific': { general: 3.1, operations: 3.3, erp: 3.4, finance: 3.3, esg: 3.4, itsm: 3.2, gdpr: 2.9, cybersecurity: 3.0 },
+  'banking': { general: 3.4, operations: 3.6, erp: 3.4, finance: 4.0, esg: 3.0, itsm: 3.3, gdpr: 3.6, cybersecurity: 3.8 },
+  'healthcare': { general: 3.0, operations: 3.4, erp: 3.2, finance: 3.3, esg: 3.0, itsm: 3.1, gdpr: 3.5, cybersecurity: 3.4 },
+  'public-sector': { general: 2.9, operations: 3.1, erp: 3.2, finance: 3.2, esg: 3.2, itsm: 3.0, gdpr: 3.3, cybersecurity: 3.1 },
+  'retail': { general: 3.0, operations: 3.5, erp: 3.3, finance: 3.4, esg: 2.9, itsm: 3.3, gdpr: 3.2, cybersecurity: 3.0 },
+  'insurance': { general: 3.3, operations: 3.4, erp: 3.3, finance: 3.8, esg: 3.0, itsm: 3.2, gdpr: 3.5, cybersecurity: 3.7 }
+};
+
+function normalizeBusinessAreas(areas) {
+  const list = Array.isArray(areas) ? areas : [];
+  const normalized = [...new Set(list.filter(a => PHASE4_BUSINESS_AREAS.includes(a)))];
+  return normalized.length ? normalized : ['general'];
+}
+
 function ensureMasterDataFields() {
   if (!model.masterData || typeof model.masterData !== 'object') {
     model.masterData = {};
