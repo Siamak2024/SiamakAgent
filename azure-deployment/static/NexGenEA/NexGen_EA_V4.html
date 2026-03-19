@@ -106,6 +106,60 @@
   </div>
 </header>
 
+<!-- WELCOME / FIRST-RUN MODAL -->
+<div id="welcomeModal" class="fixed inset-0 z-[999] flex items-center justify-center" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);" class="px-8 py-7 text-white">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+          <i class="fas fa-brain text-white text-lg"></i>
+        </div>
+        <div>
+          <div class="text-[10px] font-semibold uppercase tracking-widest opacity-70">NextGen EA Platform</div>
+          <div class="text-xl font-bold leading-tight">Welcome</div>
+        </div>
+      </div>
+      <p class="text-sm opacity-80 leading-relaxed">Enterprise Architecture powered by AI. Add your OpenAI API key to unlock all AI features.</p>
+    </div>
+    <!-- Body -->
+    <div class="px-8 py-6 space-y-5">
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1.5">Your OpenAI API Key</label>
+        <div class="relative">
+          <input id="welcomeApiKeyInput" type="password"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
+            placeholder="sk-..."
+            onkeydown="if(event.key==='Enter') saveWelcomeApiKey()">
+          <button onclick="toggleWelcomeKeyVisibility()" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" title="Show/hide key">
+            <i id="welcomeEyeIcon" class="fas fa-eye text-sm"></i>
+          </button>
+        </div>
+        <div class="text-[10px] text-slate-500 mt-1.5">
+          Stored only in your browser. Get a key at <span class="font-semibold text-blue-600">platform.openai.com/api-keys</span>
+        </div>
+        <div id="welcomeKeyError" class="hidden text-[11px] text-red-600 mt-1.5 font-medium"></div>
+      </div>
+
+      <div class="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-[11px] text-blue-800 leading-relaxed">
+        <i class="fas fa-shield-halved mr-1"></i>
+        Your key is sent securely through our Azure backend — it is never exposed in the browser network tab.
+      </div>
+
+      <div class="flex gap-3">
+        <button onclick="saveWelcomeApiKey()"
+          class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm transition-colors">
+          Get Started
+        </button>
+        <button onclick="dismissWelcomeModal()"
+          class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2.5 rounded-lg text-sm transition-colors">
+          Skip for now
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- API MODAL -->
 <div id="apiModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
   <div class="bg-white rounded-2xl p-6 w-96 shadow-2xl">
@@ -1782,6 +1836,50 @@ function onHeaderLanguageChange(nextLanguage) {
   location.reload();
 }
 
+// ── WELCOME / FIRST-RUN MODAL ────
+function showWelcomeModal() {
+  const el = document.getElementById('welcomeModal');
+  if (el) el.classList.remove('hidden');
+  const input = document.getElementById('welcomeApiKeyInput');
+  if (input) setTimeout(() => input.focus(), 100);
+}
+
+function dismissWelcomeModal() {
+  const el = document.getElementById('welcomeModal');
+  if (el) el.classList.add('hidden');
+  localStorage.setItem('ea_welcome_seen', '1');
+}
+
+function saveWelcomeApiKey() {
+  const input = document.getElementById('welcomeApiKeyInput');
+  const errEl = document.getElementById('welcomeKeyError');
+  const key = (input ? input.value.trim() : '');
+  if (!key.startsWith('sk-') || key.length < 20) {
+    if (errEl) { errEl.textContent = 'Please enter a valid OpenAI key (starts with sk-).'; errEl.classList.remove('hidden'); }
+    return;
+  }
+  if (errEl) errEl.classList.add('hidden');
+  persistApiKey(key);
+  localStorage.setItem('ea_welcome_seen', '1');
+  const settingsInput = document.getElementById('ai-api-key-input');
+  if (settingsInput) settingsInput.value = key;
+  dismissWelcomeModal();
+  toast('API key saved — AI features are ready!');
+}
+
+function toggleWelcomeKeyVisibility() {
+  const input = document.getElementById('welcomeApiKeyInput');
+  const icon = document.getElementById('welcomeEyeIcon');
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (icon) { icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); }
+  } else {
+    input.type = 'password';
+    if (icon) { icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }
+  }
+}
+
 // Initialize DataManager, SyncEngine, and FileManager on page load
 window.addEventListener('DOMContentLoaded', () => {
   console.log('ðŸš€ NextGen EA V4 initializing...');
@@ -1862,6 +1960,16 @@ window.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => integrationPanel.classList.remove('ring-4', 'ring-indigo-300', 'ring-offset-2'), 2200);
       }
     }, 220);
+  }
+
+  // Show welcome modal on first visit if no API key is stored
+  const hasSeenWelcome = localStorage.getItem('ea_welcome_seen');
+  const hasKey = !!(OPENAI_KEY || localStorage.getItem('ea_api_key'));
+  if (!hasSeenWelcome && !hasKey) {
+    setTimeout(() => showWelcomeModal(), 400);
+  } else {
+    const welcomeEl = document.getElementById('welcomeModal');
+    if (welcomeEl) welcomeEl.classList.add('hidden');
   }
 });
 
