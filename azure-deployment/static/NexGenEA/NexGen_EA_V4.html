@@ -2588,7 +2588,13 @@ async function callAI(sys, user, options = {}) {
     }
 
     aiRoute.path = 'Direct API (browser, your API key)';
-    const directResponse = await AzureOpenAIProxy.chat(messages, {model: selectedModel}));
+    const directPayload = await AzureOpenAIProxy.chat(messages, {model: selectedModel});
+    if (!directPayload?.choices?.[0]?.message?.content) {
+      throw new Error(directPayload?.error?.message || 'No content in API response');
+    }
+    console.log('âœ… AI response via ' + aiRoute.path);
+    return directPayload?.choices?.[0]?.message?.content || '';
+  }
 }
 
 function capabilityHasBusinessArea(capability, area) {
