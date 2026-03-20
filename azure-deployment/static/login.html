@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NextGen EA – Access</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    :root {
+      --nordic-dark: #1a2332;
+      --nordic-blue: #2c4a6e;
+      --nordic-mid: #3d6b9e;
+      --nordic-light: #6a9fd8;
+      --nordic-ice: #a8c8e8;
+      --nordic-frost: #e8f2fa;
+      --nordic-white: #f5f8fc;
+      --nordic-accent: #c8a84b;
+      --text-mid: #3a4a5c;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, var(--nordic-dark) 0%, var(--nordic-blue) 60%, var(--nordic-mid) 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(168,200,232,0.2);
+      border-radius: 16px;
+      padding: 3rem 2.5rem;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .logo {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--nordic-ice);
+      letter-spacing: 0.05em;
+      margin-bottom: 0.4rem;
+    }
+    .logo span { color: var(--nordic-accent); }
+
+    .subtitle {
+      font-size: 0.8rem;
+      color: rgba(168,200,232,0.55);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 2.5rem;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: white;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      font-size: 0.9rem;
+      color: rgba(168,200,232,0.75);
+      margin-bottom: 2rem;
+    }
+
+    label {
+      display: block;
+      text-align: left;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--nordic-ice);
+      margin-bottom: 0.5rem;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 0.85rem 1rem;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(168,200,232,0.3);
+      border-radius: 8px;
+      color: white;
+      font-size: 1.1rem;
+      font-family: 'Inter', sans-serif;
+      letter-spacing: 0.2em;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 1.25rem;
+    }
+    input[type="password"]::placeholder {
+      letter-spacing: 0.1em;
+      color: rgba(168,200,232,0.35);
+      font-size: 0.9rem;
+    }
+    input[type="password"]:focus {
+      border-color: var(--nordic-light);
+      background: rgba(255,255,255,0.12);
+    }
+    input[type="password"].error {
+      border-color: #e07070;
+      background: rgba(224,112,112,0.08);
+    }
+
+    .error-msg {
+      display: none;
+      font-size: 0.82rem;
+      color: #e08080;
+      margin-bottom: 1rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 0.9rem;
+      background: var(--nordic-accent);
+      color: var(--nordic-dark);
+      font-weight: 700;
+      font-size: 0.95rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 20px rgba(200,168,75,0.3);
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(200,168,75,0.45);
+    }
+    button:active { transform: translateY(0); }
+
+    .footer-link {
+      margin-top: 2rem;
+      font-size: 0.82rem;
+      color: rgba(168,200,232,0.45);
+    }
+    .footer-link a {
+      color: rgba(168,200,232,0.7);
+      text-decoration: none;
+    }
+    .footer-link a:hover { color: var(--nordic-ice); }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">NextGen<span>EA</span></div>
+  <div class="subtitle">Platform Access</div>
+
+  <h1>Ange åtkomstkod</h1>
+  <p>Denna plattform är begränsad till inbjudna användare.</p>
+
+  <form id="loginForm" onsubmit="return handleLogin(event)">
+    <label for="code">Åtkomstkod</label>
+    <input
+      type="password"
+      id="code"
+      name="code"
+      placeholder="• • • •"
+      autocomplete="off"
+      autofocus
+    />
+    <div class="error-msg" id="errorMsg">Felaktig kod. Försök igen.</div>
+    <button type="submit">Logga in →</button>
+  </form>
+
+  <div class="footer-link">
+    <a href="/manifesto.html">← NextGen EA Manifesto (public)</a>
+  </div>
+</div>
+
+<script>
+  // If already authenticated, go straight to the platform
+  if (localStorage.getItem('ea_code_auth') === 'granted') {
+    window.location.replace('/');
+  }
+
+  function handleLogin(e) {
+    e.preventDefault();
+    var input = document.getElementById('code');
+    var errorMsg = document.getElementById('errorMsg');
+
+    if (input.value === '1188') {
+      localStorage.setItem('ea_code_auth', 'granted');
+      window.location.replace('/');
+    } else {
+      input.classList.add('error');
+      errorMsg.style.display = 'block';
+      input.value = '';
+      input.focus();
+      // Reset error state after 2 seconds
+      setTimeout(function() {
+        input.classList.remove('error');
+        errorMsg.style.display = 'none';
+      }, 2000);
+    }
+    return false;
+  }
+</script>
+
+</body>
+</html>
