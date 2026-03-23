@@ -7,19 +7,16 @@ let currentModelName = 'Untitled Model';
 
 // ==================== API INTEGRATION ====================
 
-// Call OpenAI through backend proxy (keeps API key secure)
+// Call OpenAI through backend proxy using the Responses API (keeps API key secure)
 async function callAI(sys, user) {
   try {
     const response = await fetch(`${API_BASE_URL}/openai/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: sys },
-          { role: 'user', content: user }
-        ],
-        temperature: 0.3
+        model: 'gpt-4.1',
+        instructions: sys,
+        input: user
       })
     });
 
@@ -29,7 +26,7 @@ async function callAI(sys, user) {
     }
 
     const data = await response.json();
-    return data.choices[0].message.content;
+    return data.output_text;
   } catch (error) {
     console.error('AI Call Error:', error);
     toast('Failed to communicate with AI: ' + error.message, true);

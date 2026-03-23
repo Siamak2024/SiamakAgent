@@ -1,13 +1,13 @@
 /**
- * Azure Function - OpenAI API Proxy
- * Securely handles OpenAI API requests using environment variable for API key
+ * Azure Function - OpenAI Responses API Proxy
+ * Securely handles OpenAI Responses API requests using environment variable for API key
  * Prevents exposing API key to client-side code
  */
 
 const https = require('https');
 
 module.exports = async function (context, req) {
-  context.log('OpenAI proxy function triggered');
+  context.log('OpenAI Responses API proxy function triggered');
 
   // Validate API Key is configured
   const apiKey = process.env.OPENAI_API_KEY;
@@ -33,29 +33,46 @@ module.exports = async function (context, req) {
   }
 
   try {
-    const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 1000 } = req.body;
+    const {
+      input,
+      instructions,
+      model = 'gpt-4.1',
+      tools,
+      tool_choice,
+      parallel_tool_calls,
+      previous_response_id,
+      store,
+      text,
+      include
+    } = req.body;
 
-    if (!messages || !Array.isArray(messages)) {
+    if (!input) {
       context.res = {
         status: 400,
         body: {
-          error: 'messages array is required in request body'
+          error: '"input" field is required in request body'
         }
       };
       return;
     }
 
-    const requestBody = JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens
-    });
+    // Build payload — only include fields that were provided
+    const payload = { model, input };
+    if (instructions !== undefined)        payload.instructions = instructions;
+    if (tools !== undefined)               payload.tools = tools;
+    if (tool_choice !== undefined)         payload.tool_choice = tool_choice;
+    if (parallel_tool_calls !== undefined) payload.parallel_tool_calls = parallel_tool_calls;
+    if (previous_response_id !== undefined) payload.previous_response_id = previous_response_id;
+    if (store !== undefined)               payload.store = store;
+    if (text !== undefined)                payload.text = text;
+    if (include !== undefined)             payload.include = include;
+
+    const requestBody = JSON.stringify(payload);
 
     const options = {
       hostname: 'api.openai.com',
       port: 443,
-      path: '/v1/chat/completions',
+      path: '/v1/responses',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -76,7 +93,7 @@ module.exports = async function (context, req) {
     context.res = {
       status: 500,
       body: {
-        error: 'Failed to process OpenAI request',
+        error: 'Failed to process OpenAI Responses API request',
         details: error.message
       }
     };
