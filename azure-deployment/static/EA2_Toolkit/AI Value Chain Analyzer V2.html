@@ -366,8 +366,8 @@
             <button onclick="finalizeVcToBeState()" class="flex items-center gap-2 bg-emerald-50 border border-emerald-400 text-emerald-700 px-4 py-2 rounded-lg hover:bg-emerald-100 text-sm transition font-semibold" title="Konsolidera slutlig TO-BE och anvand den for synk">
                 <i class="fas fa-check-double"></i> Konsolidera TO-BE
             </button>
-                <button id="vc-restore-asis-btn" onclick="restoreVcAsIsState()" class="hidden flex items-center gap-2 bg-slate-50 border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100 text-sm transition font-semibold" title="Återställ sparad AS-IS-modell">
-                    <i class="fas fa-rotate-left"></i> Återställ AS-IS
+                <button id="vc-restore-asis-btn" onclick="restoreVcAsIsState()" class="hidden flex items-center gap-2 bg-slate-50 border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100 text-sm transition font-semibold" title="ï¿½terstï¿½ll sparad AS-IS-modell">
+                    <i class="fas fa-rotate-left"></i> ï¿½terstï¿½ll AS-IS
             </button>
             <button onclick="generateEAToolReport()" class="flex items-center gap-2 bg-teal-50 border border-teal-400 text-teal-700 px-4 py-2 rounded-lg hover:bg-teal-100 text-sm transition font-semibold" title="Skapa EA Tool-rapport (AS IS, analys, TO BE)">
                 <i class="fas fa-file-lines"></i> Generera EA Tool-rapport
@@ -489,7 +489,7 @@
     </div>
 
     <div id="vc-quick-btns">
-        <button class="vc-qbtn" onclick="vcQuick('Identifiera de svagaste länkarna i värdekedjan')">?? Svagheter</button>
+        <button class="vc-qbtn" onclick="vcQuick('Identifiera de svagaste lï¿½nkarna i vï¿½rdekedjan')">?? Svagheter</button>
         <button class="vc-qbtn" onclick="vcQuick('Var skapas mest vÃ¤rde och hur kan vi fÃ¶rstÃ¤rka det?')">ðŸ’Ž VÃ¤rdeskapande</button>
         <button class="vc-qbtn" onclick="vcQuick('Vilka aktiviteter har stÃ¶rst digitaliseringspotential?')">âš¡ Digitalisering</button>
         <button class="vc-qbtn" title="StÃ¶rsta mÃ¶jligheter till kostnadsoptimering" onclick="vcQuick('Var finns de stÃ¶rsta mÃ¶jligheterna till kostnadsoptimering?')">ðŸ’° Kostnader</button>
@@ -506,7 +506,7 @@
     <div id="vc-messages"></div>
 
     <div id="vc-input-area">
-        <textarea id="vc-input" rows="1" placeholder="Ställ en fråga om din värdekedja..." onkeydown="vcHandleKey(event)" oninput="vcAutoResize(this)"></textarea>
+        <textarea id="vc-input" rows="1" placeholder="Stï¿½ll en frï¿½ga om din vï¿½rdekedja..." onkeydown="vcHandleKey(event)" oninput="vcAutoResize(this)"></textarea>
         <button id="vc-send" onclick="vcSend()"><i class="fas fa-paper-plane"></i></button>
     </div>
 </div>
@@ -657,7 +657,7 @@
 
     async function buildVcToBeProposal(apiKey, analysisText) {
         const asIs = collectVcRawData();
-        const prompt = `Du ska ta fram TO BE-forslag for en Value Chain-analys.\n\nAS IS-data:\n${JSON.stringify(asIs, null, 2)}\n\nAI-analys:\n${analysisText}\n\nReturnera ENDAST giltig JSON med exakt nycklarna: infrastructure, hr, tech, procurement, inbound, operations, outbound, marketing, service, margin.\nKort, konkret och handlingsorienterat TO BE-innehall per falt.\nPrioritera de mest relevanta förbättringshävstängerna för den aktuella industrin och verksamheten, till exempel processautomation, AI-agenter, arbetssätt, styrning, sourcing, kompetens, kapacitetsplanering och kundservice. Föreslå inte ny teknik eller digitalisering som standard om underlaget inte motiverar det tydligt.`;
+        const prompt = `Du ska ta fram TO BE-forslag for en Value Chain-analys.\n\nAS IS-data:\n${JSON.stringify(asIs, null, 2)}\n\nAI-analys:\n${analysisText}\n\nReturnera ENDAST giltig JSON med exakt nycklarna: infrastructure, hr, tech, procurement, inbound, operations, outbound, marketing, service, margin.\nKort, konkret och handlingsorienterat TO BE-innehall per falt.\nPrioritera de mest relevanta fï¿½rbï¿½ttringshï¿½vstï¿½ngerna fï¿½r den aktuella industrin och verksamheten, till exempel processautomation, AI-agenter, arbetssï¿½tt, styrning, sourcing, kompetens, kapacitetsplanering och kundservice. Fï¿½reslï¿½ inte ny teknik eller digitalisering som standard om underlaget inte motiverar det tydligt.`;
 
         const res = await fetch('/api/openai-proxy', {
             method: 'POST',
@@ -665,10 +665,10 @@
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4.1',
                 temperature: 0.35,
-                messages: [
-                    { role: 'system', content: 'Du ar en senior EA- och verksamhetsstrateg. Prioritera verksamhetsflöden, processautomation, AI-agenter och andra industrispecifika förbättringar före generell teknikförnyelse. Returnera endast JSON.' },
+                input: [
+                    { role: 'system', content: 'Du ar en senior EA- och verksamhetsstrateg. Prioritera verksamhetsflï¿½den, processautomation, AI-agenter och andra industrispecifika fï¿½rbï¿½ttringar fï¿½re generell teknikfï¿½rnyelse. Returnera endast JSON.' },
                     { role: 'user', content: prompt }
                 ]
             })
@@ -760,7 +760,7 @@
 
     function restoreVcAsIsState() {
         if (!vcAsIsSnapshotBeforeToBe) {
-            showToast('Ingen AS-IS-snapshot att återställa');
+            showToast('Ingen AS-IS-snapshot att ï¿½terstï¿½lla');
             return;
         }
         applyVcRawData(vcAsIsSnapshotBeforeToBe);
@@ -772,7 +772,7 @@
         showVcModeBanner('');
         document.getElementById('vc-restore-asis-btn')?.classList.add('hidden');
         saveData();
-        showToast('? AS-IS återställd');
+        showToast('? AS-IS ï¿½terstï¿½lld');
     }
     function saveApiKey() {
         const key = document.getElementById('api-key-input').value.trim();
@@ -854,7 +854,7 @@
             'Kostnadsstruktur': 'infrastructure', 'Kundsegment': 'outbound',
             'IntÃ¤ktsstrÃ¶mmar': 'inbound'
         };
-        if (data['Nyckelresurser']) document.getElementById('hr').value = "Från BMC Nyckelresurser:\n" + data['Nyckelresurser'];
+        if (data['Nyckelresurser']) document.getElementById('hr').value = "Frï¿½n BMC Nyckelresurser:\n" + data['Nyckelresurser'];
         let count = 0;
         for (const [bmcKey, vcId] of Object.entries(mapping)) {
             if (data[bmcKey]) { document.getElementById(vcId).value = data[bmcKey]; count++; }
@@ -903,7 +903,7 @@
 
         if (updated > 0) {
             saveData();
-            showToast(`? Importerade ${updated} fält från BMC integration`);
+            showToast(`? Importerade ${updated} fï¿½lt frï¿½n BMC integration`);
             return true;
         }
 
@@ -911,7 +911,7 @@
     }
 
     /**
-     * AI auto-fill: Reads full BMC AS IS + TO BE context and uses GPT-4o to
+    * AI auto-fill: Reads full BMC AS IS + TO BE context and uses GPT-4.1 to
      * intelligently fill all 10 Value Chain fields. Called automatically when
      * navigating from BMC with ?from=bmc&refresh=1.
      */
@@ -962,13 +962,13 @@
         fields.forEach(f => { const el = document.getElementById(f); if (el) { el.style.opacity = '0.4'; el.disabled = true; } });
         showToast('ðŸ¤– AI analyserar BMC och fyller i Value Chain â€“ vÃ¤nta...');
 
-        const systemPrompt = `Du är en senior konsult och expert på Porters Värdekedjeanalys (Porter's Value Chain) med djup specialistkompetens inom:
+        const systemPrompt = `Du ï¿½r en senior konsult och expert pï¿½ Porters Vï¿½rdekedjeanalys (Porter's Value Chain) med djup specialistkompetens inom:
 - Porter's Value Chain: primÃ¤ra aktiviteter (Inbound Logistics, Operations, Outbound Logistics, Marketing & Sales, Service) och stÃ¶daktiviteter (Infrastructure, HR, Technology, Procurement) samt Marginal
 - Enterprise Architecture (TOGAF, EA 2.0, Zachman Framework)
-    - Verksamhets- och domain-specific-sektorn: Verksamhetsförvaltning, processautomation, AI-agenter, hyresgästrelationer, ESG/CSRD, GDPR och operativ styrning
+    - Verksamhets- och domain-specific-sektorn: Verksamhetsfï¿½rvaltning, processautomation, AI-agenter, hyresgï¿½strelationer, ESG/CSRD, GDPR och operativ styrning
 - AffÃ¤rsstrategi och vÃ¤rdeskapande: kostnadsminskning, marginalfÃ¶rbÃ¤ttring, Customer retention, regulatorisk efterlevnad
 
-    Din uppgift är att analysera ett Business Model Canvas (BMC) och översätta det till en komplett Porters Värdekedjeanalys. Analysera noggrant BOTH AS IS-utgångspunkt OCH TO BE målbild och skapa en rik, framtidsorienterad värdekedja. Prioritera de mest relevanta industrispecifika hävstängerna, till exempel processautomation, AI-agenter, styrning, serviceupplägg, partnerstruktur och selektiv teknikförnyelse när underlaget tydligt motiverar det.
+    Din uppgift ï¿½r att analysera ett Business Model Canvas (BMC) och ï¿½versï¿½tta det till en komplett Porters Vï¿½rdekedjeanalys. Analysera noggrant BOTH AS IS-utgï¿½ngspunkt OCH TO BE mï¿½lbild och skapa en rik, framtidsorienterad vï¿½rdekedja. Prioritera de mest relevanta industrispecifika hï¿½vstï¿½ngerna, till exempel processautomation, AI-agenter, styrning, serviceupplï¿½gg, partnerstruktur och selektiv teknikfï¿½rnyelse nï¿½r underlaget tydligt motiverar det.
 
 Returnera ENBART ett rent JSON-objekt (ingen markdown, inga fÃ¶rklaringar utanfÃ¶r JSON):
 {
@@ -1002,9 +1002,9 @@ Var specifik med konkreta aktiviteter, system och Ã¥tgÃ¤rder frÃ¥n BMC-kontexten
             const res = await fetch('/api/openai-proxy', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json',                body: JSON.stringify({
-                    model: 'gpt-4o',
+                    model: 'gpt-4.1',
                     temperature: 0.4,
-                    messages: [
+                    input: [
                         { role: 'system', content: systemPrompt },
                         { role: 'user', content: 'Fyll i alla 10 fÃ¤lt i Porter\'s VÃ¤rdekedjeanalys baserat pÃ¥ fÃ¶ljande BMC-underlag:\n\n' + contextParts.join('\n\n') }
                     ]
@@ -1044,7 +1044,7 @@ Var specifik med konkreta aktiviteter, system och Ã¥tgÃ¤rder frÃ¥n BMC-kontexten
         showToast('Canvas sparad âœ“');
     }
     function clearAll() {
-        if (!confirm('Rensa alla fält?')) return;
+        if (!confirm('Rensa alla fï¿½lt?')) return;
         fields.forEach(f => document.getElementById(f).value = '');
         document.getElementById('result-panel').classList.add('hidden');
     }
@@ -1093,21 +1093,21 @@ Var specifik med konkreta aktiviteter, system och Ã¥tgÃ¤rder frÃ¥n BMC-kontexten
         content.innerHTML = '<div class="flex items-center gap-3 text-blue-600 py-6"><i class="fas fa-spinner spinner text-xl"></i><span>AI analyserar vÃ¤rdekedjan utifrÃ¥n business outcomes...</span></div>';
         panel.scrollIntoView({ behavior: 'smooth' });
         const prompt = fields.map(f => `${fieldLabels[f]}:\n${document.getElementById(f).value || '(ej ifyllt)'}`).join('\n\n');
-        const systemPrompt = `Du är en senior strategisk rådgivare specialiserad på Verksamhet, domain-specific och operativ transformation. Analysera värdekedjan och svara på svenska med rubrikerna: ## Värdeskapande aktiviteter, ## Värdeförstörande aktiviteter, ## Prioriterade förbättringshävstänger, ## Strategiska rekommendationer, ## Sammanfattning. Prioritera de mest relevanta åtgärderna för industrin och nuläget, exempelvis processautomation, AI-agenter, arbetssätt, sourcing, styrning, kompetens och kundservice. Föreslå inte ny teknik eller digitalisering som standardsvar om annat är mer relevant.`;
+        const systemPrompt = `Du ï¿½r en senior strategisk rï¿½dgivare specialiserad pï¿½ Verksamhet, domain-specific och operativ transformation. Analysera vï¿½rdekedjan och svara pï¿½ svenska med rubrikerna: ## Vï¿½rdeskapande aktiviteter, ## Vï¿½rdefï¿½rstï¿½rande aktiviteter, ## Prioriterade fï¿½rbï¿½ttringshï¿½vstï¿½nger, ## Strategiska rekommendationer, ## Sammanfattning. Prioritera de mest relevanta ï¿½tgï¿½rderna fï¿½r industrin och nulï¿½get, exempelvis processautomation, AI-agenter, arbetssï¿½tt, sourcing, styrning, kompetens och kundservice. Fï¿½reslï¿½ inte ny teknik eller digitalisering som standardsvar om annat ï¿½r mer relevant.`;
         try {
             const res = await fetch('/api/openai-proxy', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json',                body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }], temperature: 0.7 })
+                headers: { 'Content-Type': 'application/json',                body: JSON.stringify({ model: 'gpt-4.1', input: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }], temperature: 0.7 })
             });
             const json = await res.json();
             if (json.error) throw new Error(json.error.message);
             const raw = json.choices[0].message.content;
             lastVcAnalysis = {
-                model: 'gpt-4o',
+                model: 'gpt-4.1',
                 generatedAt: new Date().toISOString(),
                 text: raw
             };
-            document.getElementById('model-badge').textContent = 'gpt-4o';
+            document.getElementById('model-badge').textContent = 'gpt-4.1';
             content.innerHTML = formatMarkdown(raw);
             
             // Auto-export after successful analysis
@@ -1429,9 +1429,9 @@ Var specifik med konkreta aktiviteter, system och Ã¥tgÃ¤rder frÃ¥n BMC-kontexten
 
     function vcGreet() {
         const filled = fields.filter(f => document.getElementById(f) && document.getElementById(f).value.trim()).length;
-        let msg = `?? Hej! Jag är din AI-assistent för Value Chain Analyzer.\n\nJag hjälper dig att analysera och optimera din värdekedja ur ett **Verksamhets- och domain-specificperspektiv** med fokus på konkreta affärsutfall: kostnadsreduktion, ökad marginal, ESG-compliance och Customer retention.`;
-        if (filled > 0) msg += `\n\n? Jag ser att du har fyllt i **${filled} av 10 fält**. Aktivera "Läs av canvas" så kan jag ge dig kontextbaserade insikter direkt.`;
-        else msg += `\n\n?? Börja med att fylla i dina aktiviteter, eller klicka **domain-specific-exempel** för att ladda ett exempelscenario.`;
+        let msg = `?? Hej! Jag ï¿½r din AI-assistent fï¿½r Value Chain Analyzer.\n\nJag hjï¿½lper dig att analysera och optimera din vï¿½rdekedja ur ett **Verksamhets- och domain-specificperspektiv** med fokus pï¿½ konkreta affï¿½rsutfall: kostnadsreduktion, ï¿½kad marginal, ESG-compliance och Customer retention.`;
+        if (filled > 0) msg += `\n\n? Jag ser att du har fyllt i **${filled} av 10 fï¿½lt**. Aktivera "Lï¿½s av canvas" sï¿½ kan jag ge dig kontextbaserade insikter direkt.`;
+        else msg += `\n\n?? Bï¿½rja med att fylla i dina aktiviteter, eller klicka **domain-specific-exempel** fï¿½r att ladda ett exempelscenario.`;
         vcAddMsg('bot', msg);
     }
 
@@ -1468,7 +1468,7 @@ Var specifik med konkreta aktiviteter, system och Ã¥tgÃ¤rder frÃ¥n BMC-kontexten
     }
 
     function vcClearChatHistory() {
-        vcResetChat('?? Chatthistoriken är rensad. Ställ en ny fråga om din värdekedja när du vill.', false);
+        vcResetChat('?? Chatthistoriken ï¿½r rensad. Stï¿½ll en ny frï¿½ga om din vï¿½rdekedja nï¿½r du vill.', false);
     }
 
     function vcStartNewChat() {
@@ -1501,12 +1501,12 @@ Var specifik med konkreta aktiviteter, system och Ã¥tgÃ¤rder frÃ¥n BMC-kontexten
             vcAddMsg('bot', vcDemoResponse(text));
             return;
         }
-        const systemPrompt = `Du är en senior strategisk rådgivare och expert inom Verksamhet, domain-specific, operativ transformation och hållbarhet. Du hjälper användaren att analysera och optimera sin värdekedja enligt Porter's Value Chain-modell. Svara alltid på svenska. Fokusera på konkreta affärsutfall: kostnadsreduktion, ökad marginal, ESG-compliance, Customer retention och konkurrensfördel. Prioritera de mest relevanta förbättringshävstängerna för den aktuella industrin, exempelvis processautomation, AI-agenter, arbetssätt, sourcing, styrning, kompetens, partnerstyrning och kundnära förbättringar. Föreslå ny teknik eller digitalisering endast när det tydligt stöds av användarens underlag. Var koncis, faktabaserad och handlingsorienterad. Använd bullet points och rubriker för tydlighet.`;
+        const systemPrompt = `Du ï¿½r en senior strategisk rï¿½dgivare och expert inom Verksamhet, domain-specific, operativ transformation och hï¿½llbarhet. Du hjï¿½lper anvï¿½ndaren att analysera och optimera sin vï¿½rdekedja enligt Porter's Value Chain-modell. Svara alltid pï¿½ svenska. Fokusera pï¿½ konkreta affï¿½rsutfall: kostnadsreduktion, ï¿½kad marginal, ESG-compliance, Customer retention och konkurrensfï¿½rdel. Prioritera de mest relevanta fï¿½rbï¿½ttringshï¿½vstï¿½ngerna fï¿½r den aktuella industrin, exempelvis processautomation, AI-agenter, arbetssï¿½tt, sourcing, styrning, kompetens, partnerstyrning och kundnï¿½ra fï¿½rbï¿½ttringar. Fï¿½reslï¿½ ny teknik eller digitalisering endast nï¿½r det tydligt stï¿½ds av anvï¿½ndarens underlag. Var koncis, faktabaserad och handlingsorienterad. Anvï¿½nd bullet points och rubriker fï¿½r tydlighet.`;
         try {
             const messages = [{ role: 'system', content: systemPrompt }, ...vcHistory.slice(-10)];
             const res = await fetch('/api/openai-proxy', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json',                body: JSON.stringify({ model: 'gpt-4o', messages, temperature: 0.7, max_tokens: 1000 })
+                headers: { 'Content-Type': 'application/json',                body: JSON.stringify({ model: 'gpt-4.1', input: messages, temperature: 0.7, max_tokens: 1000 })
             });
             const json = await res.json();
             if (json.error) throw new Error(json.error.message);
@@ -1615,7 +1615,7 @@ Var specifik med konkreta aktiviteter, system och Ã¥tgÃ¤rder frÃ¥n BMC-kontexten
             } else {
                 const variantParam = (params.get('variant') || '').toLowerCase();
                 const variantLabel = variantParam === 'to-be' ? 'TO BE' : variantParam === 'as-is' ? 'AS IS' : 'senaste BMC';
-                showToast(`? Synkade ${variantLabel} från BMC till Value Chain`);
+                showToast(`? Synkade ${variantLabel} frï¿½n BMC till Value Chain`);
             }
         }
 

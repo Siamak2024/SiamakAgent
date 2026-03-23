@@ -643,9 +643,9 @@ async function buildCapToBeProposal(apiKey, analysisText) {
       'Authorization': 'Bearer ' + apiKey
     },
     body: JSON.stringify({
-      model: 'gpt-4o',
+      model: 'gpt-4.1',
       temperature: 0.35,
-      messages: [
+      input: [
         { role: 'system', content: 'Du ar senior enterprise architect. Prioritera verksamhetskapabiliteter och industrispecifika förbättringar före generell teknikexpansion. Returnera endast JSON.' },
         { role: 'user', content: prompt }
       ]
@@ -816,14 +816,14 @@ Ett stycke: övergripande bedömning och den enskilt viktigaste åtgärden.
 Var specifik, faktabaserad och fokusera på affärsnytta.
 Prioritera de capabilities som bäst stöder processautomation, AI-agenter, arbetssätt, styrning, kompetens, partnerstyrning och andra industrispecifika behov. Föreslå teknikexpansion endast när underlaget tydligt motiverar det.`;
 
-  const model = 'gpt-4o';
+  const model = 'gpt-4.1';
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
       body: JSON.stringify({
         model, temperature: 0.7,
-        messages: [
+        input: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: 'Capability Map:\n\n' + capText }
         ]
@@ -1248,7 +1248,7 @@ Riktlinjer per domän (3-5 capabilities vardera):
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-      body: JSON.stringify({ model: 'gpt-4o', temperature: 0.4, messages: [
+      body: JSON.stringify({ model: 'gpt-4.1', temperature: 0.4, input: [
         { role: 'system', content: capSystemPrompt },
         { role: 'user', content: 'Skapa en komplett Capability Map baserat pÃ¥ fÃ¶ljande underlag:\n\n' + contextParts.join('\n\n') }
       ]})
@@ -1609,8 +1609,8 @@ async function sendCapMessage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
             body: JSON.stringify({
-                model: 'gpt-4o',
-                messages: [
+                model: 'gpt-4.1',
+                input: [
                     { role: 'system', content: `Du är en senior Enterprise Architect specialiserad på Verksamhet och domain-specific. Svara alltid på svenska. Var konkret och affärsfokuserad.\n\n${context || 'Capability map är tom.'}` },
                     { role: 'user', content: text }
                 ]

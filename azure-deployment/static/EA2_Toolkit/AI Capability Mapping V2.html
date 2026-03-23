@@ -202,7 +202,7 @@
             <button class="cap-btn-q" title="Ã–ppna nÃ¤sta verktyg: AI Strategy Workbench" onclick="capOpenNextTool()"><i class="fas fa-rocket text-indigo-600"></i> Ã–ppna Wardley</button>
         </div>
         <div class="cap-chat-input">
-          <input type="text" id="cap-user-input" placeholder="Ställ en fråga om din capability map..." onkeypress="if(event.key==='Enter') sendCapMessage()">
+          <input type="text" id="cap-user-input" placeholder="Stï¿½ll en frï¿½ga om din capability map..." onkeypress="if(event.key==='Enter') sendCapMessage()">
             <button onclick="sendCapMessage()"><i class="fas fa-paper-plane"></i></button>
         </div>
     </div>
@@ -310,8 +310,8 @@
       <button onclick="consolidateCapToBe()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#ecfeff;color:#0e7490;border:1px solid #67e8f9;" title="Konsolidera slutlig TO-BE for synk">
         <i class="fas fa-check-double"></i> Konsolidera TO-BE
       </button>
-      <button id="cap-restore-asis-btn" onclick="restoreCapAsIsState()" class="hidden flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#f8fafc;color:#334155;border:1px solid #cbd5e1;" title="Återställ AS-IS">
-        <i class="fas fa-rotate-left"></i> Återställ AS-IS
+      <button id="cap-restore-asis-btn" onclick="restoreCapAsIsState()" class="hidden flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#f8fafc;color:#334155;border:1px solid #cbd5e1;" title="ï¿½terstï¿½ll AS-IS">
+        <i class="fas fa-rotate-left"></i> ï¿½terstï¿½ll AS-IS
       </button>
       <button onclick="generateEAToolReport()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#f0fdfa;color:#0f766e;border:1px solid #2dd4bf;" title="Skapa EA Tool-rapport (AS IS, analys, TO BE)">
         <i class="fas fa-file-lines"></i> Generera EA Tool-rapport
@@ -478,7 +478,7 @@ function renderMatrix() {
     return order[a.priority] - order[b.priority];
   });
   if (!all.length) {
-    body.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6 text-sm">Inga capabilities tillagda ännu</td></tr>';
+    body.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6 text-sm">Inga capabilities tillagda ï¿½nnu</td></tr>';
     return;
   }
   all.forEach(c => {
@@ -635,7 +635,7 @@ function renderCapToBePanel() {
 
 async function buildCapToBeProposal(apiKey, analysisText) {
   const asIs = cloneCapabilities();
-  const prompt = `Ta fram en TO BE Capability Map utifran AS IS och AI-analysen.\n\nAS IS:\n${JSON.stringify(asIs, null, 2)}\n\nAI-analys:\n${analysisText}\n\nReturnera ENDAST giltig JSON med exakt nycklar: customer, operations, product, finance, technology.\nVarje doman innehaller array av objekt med: name, desc, priority (strategic|important|commodity), maturity (1-5).\nPrioritera capabilities som är mest relevanta för affärsmodell, processautomation, AI-agenter, styrning, kompetens, samverkan, kundvärde och regulatoriska krav i den aktuella industrin. Skapa inte teknikcentrerade capabilities som standard om underlaget inte tydligt motiverar det.`;
+  const prompt = `Ta fram en TO BE Capability Map utifran AS IS och AI-analysen.\n\nAS IS:\n${JSON.stringify(asIs, null, 2)}\n\nAI-analys:\n${analysisText}\n\nReturnera ENDAST giltig JSON med exakt nycklar: customer, operations, product, finance, technology.\nVarje doman innehaller array av objekt med: name, desc, priority (strategic|important|commodity), maturity (1-5).\nPrioritera capabilities som ï¿½r mest relevanta fï¿½r affï¿½rsmodell, processautomation, AI-agenter, styrning, kompetens, samverkan, kundvï¿½rde och regulatoriska krav i den aktuella industrin. Skapa inte teknikcentrerade capabilities som standard om underlaget inte tydligt motiverar det.`;
 
   const res = await fetch('/api/openai-proxy', {
     method: 'POST',
@@ -643,10 +643,10 @@ async function buildCapToBeProposal(apiKey, analysisText) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o',
+      model: 'gpt-4.1',
       temperature: 0.35,
-      messages: [
-        { role: 'system', content: 'Du ar senior enterprise architect. Prioritera verksamhetskapabiliteter och industrispecifika förbättringar före generell teknikexpansion. Returnera endast JSON.' },
+      input: [
+        { role: 'system', content: 'Du ar senior enterprise architect. Prioritera verksamhetskapabiliteter och industrispecifika fï¿½rbï¿½ttringar fï¿½re generell teknikexpansion. Returnera endast JSON.' },
         { role: 'user', content: prompt }
       ]
     })
@@ -719,7 +719,7 @@ function consolidateCapToBe() {
 
 function restoreCapAsIsState() {
   if (!capAsIsSnapshotBeforeToBe) {
-    showToast('Ingen AS-IS-snapshot att återställa');
+    showToast('Ingen AS-IS-snapshot att ï¿½terstï¿½lla');
     return;
   }
   capabilities = cloneCapabilities(capAsIsSnapshotBeforeToBe);
@@ -733,7 +733,7 @@ function restoreCapAsIsState() {
   toggleCapToBePanel(false);
   showCapModeBanner('');
   document.getElementById('cap-restore-asis-btn')?.classList.add('hidden');
-  showToast('? AS-IS återställd');
+  showToast('? AS-IS ï¿½terstï¿½lld');
 }
 
 function saveApiKey() {
@@ -784,16 +784,16 @@ async function runAnalysis() {
   const container = document.getElementById('ai-container');
   const resultDiv = document.getElementById('result');
   container.classList.remove('hidden');
-  resultDiv.innerHTML = '<div class="flex items-center gap-3 text-blue-600 py-6"><i class="fas fa-spinner spinner text-xl"></i><span>AI analyserar capability map utifrån strategisk prioritet och mognad...</span></div>';
+  resultDiv.innerHTML = '<div class="flex items-center gap-3 text-blue-600 py-6"><i class="fas fa-spinner spinner text-xl"></i><span>AI analyserar capability map utifrï¿½n strategisk prioritet och mognad...</span></div>';
   container.scrollIntoView({ behavior: 'smooth' });
 
   const capText = all.map(c =>
     `[${c.domain}] ${c.name} | Prioritet: ${priorityLabel(c.priority)} | Mognad: ${c.maturity}/5${c.desc ? ' | ' + c.desc : ''}`
   ).join('\n');
 
-  const systemPrompt = `Du är en senior Enterprise Architect specialiserad på Verksamhet, domain-specific och operativ transformation.
+  const systemPrompt = `Du ï¿½r en senior Enterprise Architect specialiserad pï¿½ Verksamhet, domain-specific och operativ transformation.
 
-Analysera capability map och leverera en strukturerad analys på svenska med dessa exakta rubriker:
+Analysera capability map och leverera en strukturerad analys pï¿½ svenska med dessa exakta rubriker:
 
 ## Strategiska Capabilities
 Identifiera de 2â€“3 capabilities som skapar stÃ¶rst konkurrensfÃ¶rdelar. FÃ¶rklara varfÃ¶r.
@@ -808,21 +808,21 @@ Rangordna top 4 investeringar baserat pÃ¥ strategisk vikt och lÃ¥g mognad. Ange 
 Vilka commodity capabilities bÃ¶r standardiseras eller outsourcas? VarfÃ¶r?
 
 ## Rekommenderat Roadmap
-3 konkreta steg de närmaste 12 månaderna med tydliga ägarskap och KPI:er.
+3 konkreta steg de nï¿½rmaste 12 mï¿½naderna med tydliga ï¿½garskap och KPI:er.
 
 ## Sammanfattning
-Ett stycke: övergripande bedömning och den enskilt viktigaste åtgärden.
+Ett stycke: ï¿½vergripande bedï¿½mning och den enskilt viktigaste ï¿½tgï¿½rden.
 
-Var specifik, faktabaserad och fokusera på affärsnytta.
-Prioritera de capabilities som bäst stöder processautomation, AI-agenter, arbetssätt, styrning, kompetens, partnerstyrning och andra industrispecifika behov. Föreslå teknikexpansion endast när underlaget tydligt motiverar det.`;
+Var specifik, faktabaserad och fokusera pï¿½ affï¿½rsnytta.
+Prioritera de capabilities som bï¿½st stï¿½der processautomation, AI-agenter, arbetssï¿½tt, styrning, kompetens, partnerstyrning och andra industrispecifika behov. Fï¿½reslï¿½ teknikexpansion endast nï¿½r underlaget tydligt motiverar det.`;
 
-  const model = 'gpt-4o';
+  const model = 'gpt-4.1';
   try {
     const res = await fetch('/api/openai-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json',      body: JSON.stringify({
         model, temperature: 0.7,
-        messages: [
+        input: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: 'Capability Map:\n\n' + capText }
         ]
@@ -973,7 +973,7 @@ function saveAll() {
   // Auto-export to integration cache
   exportToIntegrationCache();
   
-  showToast('Capability Map sparad i webbläsaren ?');
+  showToast('Capability Map sparad i webblï¿½saren ?');
 }
 
 function clearAll() {
@@ -1016,7 +1016,7 @@ function importFromValueChainIntegration(onlyIfEmpty = true, allowStale = false)
 
     capabilities[domainId].push({
       name,
-      desc: activity.description || activity.notes || 'Importerad från Value Chain',
+      desc: activity.description || activity.notes || 'Importerad frï¿½n Value Chain',
       priority,
       maturity
     });
@@ -1026,7 +1026,7 @@ function importFromValueChainIntegration(onlyIfEmpty = true, allowStale = false)
   if (added > 0) {
     render();
     saveAll();
-    showToast(`? Importerade ${added} capabilities från Value Chain`);
+    showToast(`? Importerade ${added} capabilities frï¿½n Value Chain`);
     return true;
   }
 
@@ -1164,7 +1164,7 @@ function renderCapContextBadge() {
   }
   const data = dataManager.getIntegrationPackage('valuechain_latest');
   const age = Math.max(0, Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60));
-  badge.innerHTML = '<i class="fas fa-link mr-1"></i> Kontext från Value Chain · uppdaterad ' + age + ' min sedan';
+  badge.innerHTML = '<i class="fas fa-link mr-1"></i> Kontext frï¿½n Value Chain ï¿½ uppdaterad ' + age + ' min sedan';
   badge.classList.remove('hidden');
 }
 /**
@@ -1173,7 +1173,7 @@ function renderCapContextBadge() {
  */
 async function autoFillCapFromVcContext(vc) {
   const apiKey = getApiKey();
-  if (!apiKey) { showToast('?? Lägg till API-nyckel för AI auto-fyllning'); return false; }
+  if (!apiKey) { showToast('?? Lï¿½gg till API-nyckel fï¿½r AI auto-fyllning'); return false; }
 
   const contextParts = [];
   const vcLabels = { infrastructure: 'Infrastruktur', hr: 'HR', tech: 'Teknikutveckling', procurement: 'InkÃ¶p',
@@ -1214,18 +1214,18 @@ async function autoFillCapFromVcContext(vc) {
     }
   }
 
-  if (!contextParts.length) { showToast('?? Ingen VC-data tillgänglig för AI auto-fyllning'); return false; }
-  showToast('?? AI analyserar och skapar Capability Map - vänta...');
+  if (!contextParts.length) { showToast('?? Ingen VC-data tillgï¿½nglig fï¿½r AI auto-fyllning'); return false; }
+  showToast('?? AI analyserar och skapar Capability Map - vï¿½nta...');
 
-  const capSystemPrompt = `Du är en senior Enterprise Architect med 20+ års erfarenhet av kapabilitetsanalys och förmågekartor (Business Capability Modeling). Specialistkunskap:
+  const capSystemPrompt = `Du ï¿½r en senior Enterprise Architect med 20+ ï¿½rs erfarenhet av kapabilitetsanalys och fï¿½rmï¿½gekartor (Business Capability Modeling). Specialistkunskap:
 - Business Capability Modeling (BCM) enligt TOGAF, EA 2.0, Gartner och Zachman
 - Capability maturity (CMMI, ISO, branschramverk)
-- Verksamhets/domain-specific: Customer management, facility management, processautomation, AI-agenter, ESG/CSRD, tjänsteleverans och styrning
+- Verksamhets/domain-specific: Customer management, facility management, processautomation, AI-agenter, ESG/CSRD, tjï¿½nsteleverans och styrning
 - Strategisk prioritering: strategic (differentierar) vs important (nÃ¶dvÃ¤ndig) vs commodity (standardiserad/outsourcas)
 - Mognadsskalan: 1=Initial/ad hoc, 2=Reaktiv/etablerad bas, 3=Definierad/standardiserad, 4=Datadriven/kvantifierad, 5=AI-optimerad/innovativ
 
-Skapa en komplett kapabilitetskarta baserat på Porters Värdekedjeanalys och BMC-data. Populera ALLA fem domäner.
-Prioritera industrispecifika verksamhetskapabiliteter och förmågor som skapar affärsvärde genom bättre processer, styrning, automation, AI-agenter, service, sourcing och compliance. Lägg bara till teknikcentrerade capabilities när underlaget visar att de är strategiskt motiverade.
+Skapa en komplett kapabilitetskarta baserat pï¿½ Porters Vï¿½rdekedjeanalys och BMC-data. Populera ALLA fem domï¿½ner.
+Prioritera industrispecifika verksamhetskapabiliteter och fï¿½rmï¿½gor som skapar affï¿½rsvï¿½rde genom bï¿½ttre processer, styrning, automation, AI-agenter, service, sourcing och compliance. Lï¿½gg bara till teknikcentrerade capabilities nï¿½r underlaget visar att de ï¿½r strategiskt motiverade.
 
 Returnera ENBART ett rent JSON-objekt:
 {
@@ -1236,17 +1236,17 @@ Returnera ENBART ett rent JSON-objekt:
   "technology": [...]
 }
 
-Riktlinjer per domän (3-5 capabilities vardera):
-- customer: Kundanskaffning, kundrelationer, hyresgästupplevelse, serviceflöden, kommunikation, retention
-- operations: Verksamhetsdrift, underhåll (prediktivt/reaktivt), arbetsordrar, processautomation, resursplanering, driftoptimering
-- product: Portföljförvaltning, tjänsteutveckling, hyreskontraktshantering, ESG-rapportering, nyttjandeoptimering, erbjudandeutveckling
-- finance: Ekonomistyrning, hyresintäkter, CAPEX/OPEX-planering, investeringsanalys, finansiell rapportering, uppföljning
-- technology: IT-arkitektur, verksamhetssystem, integrationsförmåga, dataförsörjning, AI-agentstöd, cybersäkerhet`;
+Riktlinjer per domï¿½n (3-5 capabilities vardera):
+- customer: Kundanskaffning, kundrelationer, hyresgï¿½stupplevelse, serviceflï¿½den, kommunikation, retention
+- operations: Verksamhetsdrift, underhï¿½ll (prediktivt/reaktivt), arbetsordrar, processautomation, resursplanering, driftoptimering
+- product: Portfï¿½ljfï¿½rvaltning, tjï¿½nsteutveckling, hyreskontraktshantering, ESG-rapportering, nyttjandeoptimering, erbjudandeutveckling
+- finance: Ekonomistyrning, hyresintï¿½kter, CAPEX/OPEX-planering, investeringsanalys, finansiell rapportering, uppfï¿½ljning
+- technology: IT-arkitektur, verksamhetssystem, integrationsfï¿½rmï¿½ga, datafï¿½rsï¿½rjning, AI-agentstï¿½d, cybersï¿½kerhet`;
 
   try {
     const res = await fetch('/api/openai-proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json',      body: JSON.stringify({ model: 'gpt-4o', temperature: 0.4, messages: [
+      headers: { 'Content-Type': 'application/json',      body: JSON.stringify({ model: 'gpt-4.1', temperature: 0.4, input: [
         { role: 'system', content: capSystemPrompt },
         { role: 'user', content: 'Skapa en komplett Capability Map baserat pÃ¥ fÃ¶ljande underlag:\n\n' + contextParts.join('\n\n') }
       ]})
@@ -1477,7 +1477,7 @@ window.onload = () => {
       capMode = parsed.capMode || 'as-is';
       if (capMode === 'to-be') {
         document.getElementById('cap-restore-asis-btn')?.classList.remove('hidden');
-        showCapModeBanner('TO-BE-läge aktivt. Du kan granska, konsolidera eller återställa AS-IS.');
+        showCapModeBanner('TO-BE-lï¿½ge aktivt. Du kan granska, konsolidera eller ï¿½terstï¿½lla AS-IS.');
       }
     } catch (_) {}
   }
@@ -1487,7 +1487,7 @@ window.onload = () => {
     if (vc && getApiKey()) {
       setTimeout(() => autoFillCapFromVcContext(vc), 300);
     } else {
-      showToast('? Importerade från Value Chain');
+      showToast('? Importerade frï¿½n Value Chain');
     }
   }
   const key = getApiKey();
@@ -1512,7 +1512,7 @@ function toggleCapChat() {
 }
 
 function getCapContextText() {
-    // Läser direkt från capabilities-objektet som redan finns i filen
+    // Lï¿½ser direkt frï¿½n capabilities-objektet som redan finns i filen
     let all = [];
     DOMAINS.forEach(d => {
         (capabilities[d.id] || []).forEach(c => {
@@ -1540,7 +1540,7 @@ function sendCapInitialGreeting() {
     const lowMat = all.filter(c => c.maturity <= 2).length;
 
     if (total === 0) {
-        addCapMsg('Hej! Jag ser att din capability map är tom. Klicka på <strong>Ladda exempel</strong> för att komma igång, eller lägg till capabilities manuellt. Sedan kan jag analysera dem åt dig!', 'ai');
+        addCapMsg('Hej! Jag ser att din capability map ï¿½r tom. Klicka pï¿½ <strong>Ladda exempel</strong> fï¿½r att komma igï¿½ng, eller lï¿½gg till capabilities manuellt. Sedan kan jag analysera dem ï¿½t dig!', 'ai');
         return;
     }
     addCapMsg(`Hej! Jag har analyserat din Capability Map.<br><br>
@@ -1573,7 +1573,7 @@ function resetCapChat(message) {
 }
 
 function clearCapChatHistory() {
-  resetCapChat('?? Chatthistoriken är rensad. Ställ en ny fråga om din capability map när du vill.');
+  resetCapChat('?? Chatthistoriken ï¿½r rensad. Stï¿½ll en ny frï¿½ga om din capability map nï¿½r du vill.');
 }
 
 function startNewCapChat() {
@@ -1606,9 +1606,9 @@ async function sendCapMessage() {
         const res = await fetch('/api/openai-proxy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json',            body: JSON.stringify({
-                model: 'gpt-4o',
-                messages: [
-                    { role: 'system', content: `Du är en senior Enterprise Architect specialiserad på Verksamhet och domain-specific. Svara alltid på svenska. Var konkret och affärsfokuserad.\n\n${context || 'Capability map är tom.'}` },
+                model: 'gpt-4.1',
+                input: [
+                    { role: 'system', content: `Du ï¿½r en senior Enterprise Architect specialiserad pï¿½ Verksamhet och domain-specific. Svara alltid pï¿½ svenska. Var konkret och affï¿½rsfokuserad.\n\n${context || 'Capability map ï¿½r tom.'}` },
                     { role: 'user', content: text }
                 ]
             })
