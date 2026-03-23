@@ -147,10 +147,15 @@ function makeRequest(options, body) {
       });
 
       res.on('end', () => {
-        if (res.statusCode === 200) {
-          resolve(JSON.parse(data));
-        } else {
-          reject(new Error(`OpenAI API error: ${res.statusCode} - ${data}`));
+        try {
+          const parsed = JSON.parse(data);
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(parsed);
+          } else {
+            reject(new Error(parsed.error?.message || `OpenAI API error: ${res.statusCode}`));
+          }
+        } catch (_) {
+          reject(new Error(`OpenAI API returned non-JSON (status ${res.statusCode}): ${data.slice(0, 200)}`));
         }
       });
     });

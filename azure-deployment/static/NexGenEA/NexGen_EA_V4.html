@@ -2574,7 +2574,8 @@ async function callAI(sys, user, options = {}) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(responseBody)
     }, timeoutMs);
-    const payload = await response.json();
+    let payload;
+    try { payload = await response.json(); } catch (_) { throw new Error(`Proxy returned empty/non-JSON response (HTTP ${response.status})`); }
     if (!response.ok) throw new Error(payload.error?.message || payload.error || 'API error');
     console.log('\u2705 AI response via ' + aiRoute.path);
     return payload?.output_text || payload?.output?.[0]?.content?.[0]?.text || '';
@@ -2599,7 +2600,8 @@ async function callAI(sys, user, options = {}) {
       },
       body: JSON.stringify(responseBody)
     }, timeoutMs);
-    const directPayload = await directResponse.json();
+    let directPayload;
+    try { directPayload = await directResponse.json(); } catch (_) { throw new Error(`Direct API returned empty/non-JSON response (HTTP ${directResponse.status})`); }
     if (!directResponse.ok) {
       console.error('\u274c Direct API also failed:', directPayload);
       throw new Error(directPayload.error?.message || directPayload.error || backendError.message || 'API error');
