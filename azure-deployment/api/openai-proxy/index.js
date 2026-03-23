@@ -34,6 +34,7 @@ module.exports = async function (context, req) {
 
   try {
     const {
+      // Responses API fields
       input,
       instructions,
       model = 'gpt-4.1',
@@ -43,28 +44,56 @@ module.exports = async function (context, req) {
       previous_response_id,
       store,
       text,
-      include
+      include,
+      // Legacy Chat Completions fields (auto-converted)
+      messages,
+      temperature,
+      response_format
     } = req.body;
 
-    if (!input) {
+    // Resolve input/instructions — support both native Responses API format
+    // and legacy Chat Completions messages[] format for backwards compatibility
+    let resolvedInput = input;
+    let resolvedInstructions = instructions;
+
+    if (!resolvedInput && Array.isArray(messages) && messages.length > 0) {
+      const sysMsg = messages.find(m => m.role === 'system');
+      const nonSysMsgs = messages.filter(m => m.role !== 'system');
+      resolvedInstructions = sysMsg ? sysMsg.content : resolvedInstructions;
+      // Multi-turn: join non-system messages preserving role context
+      if (nonSysMsgs.length === 1) {
+        resolvedInput = nonSysMsgs[0].content;
+      } else {
+        resolvedInput = nonSysMsgs.map(m => `[${m.role}]: ${m.content}`).join('\n\n');
+      }
+    }
+
+    if (!resolvedInput) {
       context.res = {
         status: 400,
         body: {
-          error: '"input" field is required in request body'
+          error: '"input" field (or "messages" array) is required in request body'
         }
       };
       return;
     }
 
     // Build payload — only include fields that were provided
-    const payload = { model, input };
-    if (instructions !== undefined)        payload.instructions = instructions;
+    const payload = { model, input: resolvedInput };
+    if (resolvedInstructions !== undefined) payload.instructions = resolvedInstructions;
     if (tools !== undefined)               payload.tools = tools;
     if (tool_choice !== undefined)         payload.tool_choice = tool_choice;
     if (parallel_tool_calls !== undefined) payload.parallel_tool_calls = parallel_tool_calls;
     if (previous_response_id !== undefined) payload.previous_response_id = previous_response_id;
     if (store !== undefined)               payload.store = store;
-    if (text !== undefined)                payload.text = text;
+    if (temperature !== undefined)         payload.temperature = temperature;
+
+    // Resolve text format — support both native text.format and legacy response_format
+    let resolvedText = text;
+    if (!resolvedText && response_format) {
+      resolvedText = { format: response_format };
+    }
+    if (resolvedText !== undefined)        payload.text = resolvedText;
     if (include !== undefined)             payload.include = include;
 
     const requestBody = JSON.stringify(payload);
@@ -82,7 +111,12 @@ module.exports = async function (context, req) {
     };
 
     const response = await makeRequest(options, requestBody);
-    
+
+    // Add backwards-compatible choices field so legacy callers (choices[0].message.content) continue working
+    if (response.output_text !== undefined && !response.choices) {
+      response.choices = [{ message: { content: response.output_text } }];
+    }
+
     context.res = {
       status: 200,
       body: response

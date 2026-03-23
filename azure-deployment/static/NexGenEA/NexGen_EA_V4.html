@@ -2538,18 +2538,17 @@ async function callAI(sys, user, options = {}) {
   const userWithContext = includeProjectContext
     ? `${user}\n\nAnalysis Constraints:\n- Avoid generic advice\n- Use the provided master data and business context\n- Tailor output to the selected industry and business areas`
     : `${user}`;
-  const selectedModel = 'gpt-4o';
+  const selectedModel = 'gpt-4.1';
   const timeoutMs = Number(options.timeoutMs || (taskType === 'heavy' ? 150000 : 45000));
   const requestedTemperature = options.temperature;
-  const chatBody = {
+  // Responses API format
+  const responseBody = {
     model: selectedModel,
-    messages: [
-      { role: 'system', content: sysWithContext },
-      { role: 'user', content: userWithContext }
-    ]
+    instructions: sysWithContext,
+    input: userWithContext
   };
   if (typeof requestedTemperature === 'number') {
-    chatBody.temperature = requestedTemperature;
+    responseBody.temperature = requestedTemperature;
   }
 
   async function fetchWithTimeout(url, init, ms) {
@@ -2566,20 +2565,19 @@ async function callAI(sys, user, options = {}) {
     }
   }
 
-  const aiRoute = { path: 'Chat API (server)', model: selectedModel, taskType };
-  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const backendUrl = isLocal ? '/api/openai/chat' : '/api/openai-proxy';
+  const aiRoute = { path: 'Responses API (server)', model: selectedModel, taskType };
+  const backendUrl = '/api/openai-proxy';
 
   try {
     const response = await fetchWithTimeout(backendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(chatBody)
+      body: JSON.stringify(responseBody)
     }, timeoutMs);
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error?.message || payload.error || 'Chat API error');
-    console.log('âœ… AI response via ' + aiRoute.path);
-    return payload?.choices?.[0]?.message?.content || '';
+    if (!response.ok) throw new Error(payload.error?.message || payload.error || 'API error');
+    console.log('\u2705 AI response via ' + aiRoute.path);
+    return payload?.output_text || payload?.output?.[0]?.content?.[0]?.text || '';
   } catch (backendError) {
     console.warn('âš ï¸ Backend failed (' + aiRoute.path + '), trying direct API key fallback...', backendError.message);
     if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
@@ -2592,22 +2590,22 @@ async function callAI(sys, user, options = {}) {
       throw new Error('No API key provided. Please save your OpenAI API key in Settings or Quick Entry field.');
     }
 
-    aiRoute.path = 'Direct API (browser, your API key)';
-    const directResponse = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
+    aiRoute.path = 'Direct Responses API (browser, your API key)';
+    const directResponse = await fetchWithTimeout('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + OPENAI_KEY
       },
-      body: JSON.stringify(chatBody)
+      body: JSON.stringify(responseBody)
     }, timeoutMs);
     const directPayload = await directResponse.json();
     if (!directResponse.ok) {
-      console.error('❌ Direct API also failed:', directPayload);
+      console.error('\u274c Direct API also failed:', directPayload);
       throw new Error(directPayload.error?.message || directPayload.error || backendError.message || 'API error');
     }
-    console.log('✅ AI response via ' + aiRoute.path);
-    return directPayload?.choices?.[0]?.message?.content || '';
+    console.log('\u2705 AI response via ' + aiRoute.path);
+    return directPayload?.output_text || directPayload?.output?.[0]?.content?.[0]?.text || '';
   }
 }
 
