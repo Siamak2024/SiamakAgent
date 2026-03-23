@@ -50,7 +50,9 @@
       title: options.title || '',
       'aria-label': options.title || ''
     });
-    return `<button type="button" class="ea-heat-cell ea-heat-${level} ${escapeHtml(options.className || '')}"${attrsToString(attrs)}></button>`;
+    const label = options.label ? `<span class="ea-heat-cell__label">${escapeHtml(options.label)}</span>` : '';
+    const meta = options.meta ? `<span class="ea-heat-cell__meta">${escapeHtml(options.meta)}</span>` : '';
+    return `<button type="button" class="ea-heat-cell ea-heat-${level} ${escapeHtml(options.className || '')}"${attrsToString(attrs)}>${label}${meta}</button>`;
   }
 
   function emptyState(text) {
