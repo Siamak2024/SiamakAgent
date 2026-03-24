@@ -47,7 +47,7 @@ app.post('/api/openai/chat', async (req, res) => {
 
   try {
     const fetch = (await import('node-fetch')).default;
-    const response = await fetch('https://api.openai.com/v1/responses', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -64,7 +64,7 @@ app.post('/api/openai/chat', async (req, res) => {
 
     res.json(data);
   } catch (error) {
-    console.error('OpenAI Responses API Error:', error.message);
+    console.error('OpenAI Chat API Error:', error.message);
     res.status(500).json({ error: 'Failed to communicate with OpenAI', details: error.message });
   }
 });
