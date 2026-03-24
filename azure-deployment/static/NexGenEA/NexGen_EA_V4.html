@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -6,6 +6,36 @@
 <title>NextGen EA Platform - V4</title>
 <link rel="icon" href="data:,">
 <script>
+  // Utility: Highlight a tab by name (e.g., 'exec', 'capmap')
+  // Highlight a tab and persist highlight
+  function highlightTab(tabName) {
+    const btn = document.querySelector(`.tab-btn[onclick*="showTab('${tabName}'"]`);
+    if (btn) {
+      btn.classList.add('tab-btn--highlight');
+    }
+  }
+
+  // Highlight all tab buttons (when all analyses are done)
+  function highlightAllTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.add('tab-btn--highlight'));
+  }
+
+  // Track which tabs have been highlighted (analysis done)
+  const analysisTabs = new Set();
+  function checkAllAnalysisComplete() {
+    // List of all tab names that should be highlighted when their analysis is done
+    const requiredTabs = ['exec', 'capmap', 'bench', 'survey'];
+    requiredTabs.forEach(tab => {
+      const btn = document.querySelector(`.tab-btn[onclick*="showTab('${tab}'"]`);
+      if (btn && btn.classList.contains('tab-btn--highlight')) {
+        analysisTabs.add(tab);
+      }
+    });
+    if (analysisTabs.size === requiredTabs.length) {
+      highlightAllTabs();
+    }
+  }
+
   tailwind.config = {
     theme: {
       extend: {
@@ -43,7 +73,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-<script src="../../AzureOpenAIProxy.js"></script>
 <script src="../js/EA_Config.js"></script>
 <script src="../js/EA_DataManager.js"></script>
 <script src="../js/EA_SyncEngine.js"></script>
@@ -106,14 +135,12 @@
   </div>
 </header>
 
-
-
 <!-- API MODAL -->
 <div id="apiModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
   <div class="bg-white rounded-2xl p-6 w-96 shadow-2xl">
     <h3 class="font-bold text-lg mb-1">OpenAI API Key</h3>
-    <p class="text-xs text-slate-500 mb-4">Managed securely by Azure Function. Client-side key not needed.</p>
-    <div style="padding:8px;background:#f0f9ff;border:1px solid #0ea5e9;border-radius:4px;font-size:12px;color:#0369a1;">API Key Management: Handled securely by Azure Proxy. No client-side key needed.</div>
+    <p class="text-xs text-slate-500 mb-4">Stored locally in your browser. Never sent anywhere except OpenAI.</p>
+    <input id="apiKeyInput" type="password" placeholder="sk-..." class="w-full border rounded-lg p-2.5 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400">
     <div class="flex gap-2">
       <button onclick="saveApiKey()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold text-sm">Save</button>
       <button onclick="closeApiModal()" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-lg font-bold text-sm">Cancel</button>
@@ -231,13 +258,13 @@
     
     <div class="space-y-3">
       <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div class="font-bold text-sm mb-2">📤 Export to Excel</div>
+        <div class="font-bold text-sm mb-2">ðŸ“¤ Export to Excel</div>
         <div class="text-xs text-slate-600 mb-3">Download all architecture layers as CSV file (opens in Excel)</div>
         <button onclick="exportToExcel()" class="bg-blue-600 text-white text-xs px-4 py-2 rounded-lg font-bold hover:bg-blue-700 w-full">Download Excel Template</button>
       </div>
       
       <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-        <div class="font-bold text-sm mb-2">📥 Import from Excel</div>
+        <div class="font-bold text-sm mb-2">ðŸ“¥ Import from Excel</div>
         <div class="text-xs text-slate-600 mb-3">Upload CSV file with architecture data (must match template format)</div>
         <label class="bg-green-600 text-white text-xs px-4 py-2 rounded-lg font-bold hover:bg-green-700 w-full block text-center cursor-pointer">
           Select Excel File
@@ -263,7 +290,7 @@
 <!-- NEW PROJECT MODAL -->
 <div id="newProjectModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
   <div class="bg-white rounded-2xl p-6 w-[500px] shadow-2xl">
-    <h3 class="font-bold text-lg mb-1">📄 Create New Project</h3>
+    <h3 class="font-bold text-lg mb-1">ðŸ“„ Create New Project</h3>
     <p class="text-xs text-slate-500 mb-4">Start a new NextGen EA architecture model. All unsaved changes to the current project will be lost.</p>
     
     <div class="space-y-4">
@@ -288,7 +315,7 @@
       </div>
       
       <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-slate-600">
-        <strong>💡 Tip:</strong> Your project will be automatically saved and backed up every 5 minutes. You can access it anytime from the "💾 Load" menu.
+        <strong>ðŸ’¡ Tip:</strong> Your project will be automatically saved and backed up every 5 minutes. You can access it anytime from the "ðŸ’¾ Load" menu.
       </div>
     </div>
     
@@ -313,107 +340,13 @@
           <button id="description-expand-btn" type="button" onclick="toggleDescriptionExpand()" class="text-blue-600 hover:text-blue-800 font-semibold">Expand</button>
         </div>
       </div>
-      <!-- STEP 1: Strategic Intent (non-negotiable start) -->
-      <div class="mt-2 workflow-step-section workflow-step-badge--active" id="step-1">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="workflow-step-badge workflow-step-badge--active" id="badge-1">1</span>
-          <span class="text-[10px] font-bold text-slate-700">Strategic Intent</span>
-          <span id="step1-done" class="hidden ml-auto text-green-600"><i class="fas fa-check-circle text-xs"></i></span>
-        </div>
-        <button type="button" onclick="clarifyStrategicIntent()" class="ea-btn ea-btn--primary w-full justify-center" title="Use AI to extract structured strategic intent from your description">
+      <div class="mt-2">
+        <button type="button" onclick="optimizeDescriptionPrompt()" class="ea-btn ea-btn--ghost w-full justify-center" title="Optimize organization prompt with AI">
           <span id="s0" class="spinner hidden"></span>
-          <span class="flex items-center gap-1.5"><i class="fas fa-bullseye"></i><span class="text-[10px]">Clarify Strategic Intent</span></span>
+          <span class="flex items-center gap-2"><i class="fas fa-wand-magic-sparkles"></i><span class="text-[10px]">Optimize Prompt with AI</span></span>
         </button>
-        <button type="button" onclick="optimizeDescriptionPrompt()" class="ea-btn ea-btn--ghost w-full justify-center mt-1" title="Optimize organization prompt with AI">
-          <span class="flex items-center gap-1.5"><i class="fas fa-wand-magic-sparkles"></i><span class="text-[10px]">Optimize Prompt</span></span>
-        </button>
+        <div class="text-[10px] text-slate-500 mt-1">AI refines your description into architecture-ready input before generation.</div>
       </div>
-
-      <!-- STEP 2: Business Model Canvas -->
-      <div class="mt-1 workflow-step-section workflow-step-locked" id="step-2">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="workflow-step-badge" id="badge-2">2</span>
-          <span class="text-[10px] font-bold text-slate-700">Business Model Canvas</span>
-          <span id="step2-done" class="hidden ml-auto text-green-600"><i class="fas fa-check-circle text-xs"></i></span>
-        </div>
-        <button onclick="generateBMC()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step2">
-          <span id="s2b" class="spinner hidden"></span>
-          <span class="flex items-center gap-1.5"><i class="fas fa-th"></i><span class="text-[10px]">Generate BMC</span></span>
-        </button>
-      </div>
-
-      <!-- STEP 3: Architecture & Capability Map -->
-      <div class="mt-1 workflow-step-section workflow-step-locked" id="step-3">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="workflow-step-badge" id="badge-3">3</span>
-          <span class="text-[10px] font-bold text-slate-700">Capability Map</span>
-          <span id="step3-done" class="hidden ml-auto text-green-600"><i class="fas fa-check-circle text-xs"></i></span>
-        </div>
-        <button onclick="generateArchitecture()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step3">
-          <span id="s1" class="spinner hidden"></span>
-          <span class="flex items-center gap-1.5"><i class="fas fa-diagram-project"></i><span class="text-[10px]">Generate Architecture</span></span>
-        </button>
-      </div>
-
-      <!-- STEP 4: Operating Model -->
-      <div class="mt-1 workflow-step-section workflow-step-locked" id="step-4">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="workflow-step-badge" id="badge-4">4</span>
-          <span class="text-[10px] font-bold text-slate-700">Operating Model</span>
-          <span id="step4-done" class="hidden ml-auto text-green-600"><i class="fas fa-check-circle text-xs"></i></span>
-        </div>
-        <button onclick="generateOperatingModel()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step4">
-          <span id="s3" class="spinner hidden"></span>
-          <span class="flex items-center gap-1.5"><i class="fas fa-sitemap"></i><span class="text-[10px]">Generate Operating Model</span></span>
-        </button>
-      </div>
-
-      <!-- STEP 5: Gap Analysis -->
-      <div class="mt-1 workflow-step-section workflow-step-locked" id="step-5">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="workflow-step-badge" id="badge-5">5</span>
-          <span class="text-[10px] font-bold text-slate-700">Gap Analysis</span>
-          <span id="step5-done" class="hidden ml-auto text-green-600"><i class="fas fa-check-circle text-xs"></i></span>
-        </div>
-        <button onclick="analyseGaps()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step5">
-          <span id="s5" class="spinner hidden"></span>
-          <span class="flex items-center gap-1.5"><i class="fas fa-triangle-exclamation"></i><span class="text-[10px]">Analyse Gaps</span></span>
-        </button>
-      </div>
-
-      <!-- STEP 6: Value Pools -->
-      <div class="mt-1 workflow-step-section workflow-step-locked" id="step-6">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="workflow-step-badge" id="badge-6">6</span>
-          <span class="text-[10px] font-bold text-slate-700">Value Pools</span>
-          <span id="step6-done" class="hidden ml-auto text-green-600"><i class="fas fa-check-circle text-xs"></i></span>
-        </div>
-        <button onclick="generateValuePools()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step6">
-          <span id="s6v" class="spinner hidden"></span>
-          <span class="flex items-center gap-1.5"><i class="fas fa-gem"></i><span class="text-[10px]">Identify Value Pools</span></span>
-        </button>
-      </div>
-
-      <!-- STEP 7: Target Architecture & Roadmap -->
-      <div class="mt-1 workflow-step-section workflow-step-locked" id="step-7">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="workflow-step-badge" id="badge-7">7</span>
-          <span class="text-[10px] font-bold text-slate-700">Target Arch & Roadmap</span>
-          <span id="step7-done" class="hidden ml-auto text-green-600"><i class="fas fa-check-circle text-xs"></i></span>
-        </div>
-        <div class="grid grid-cols-2 gap-1">
-          <button onclick="generateTargetArch()" class="ea-btn ea-btn--secondary ea-action-cluster-btn" id="btn-step7a">
-            <span id="s6" class="spinner hidden"></span>
-            <span class="flex items-center gap-1"><i class="fas fa-compass-drafting"></i><span class="text-[10px]">Target Arch</span></span>
-          </button>
-          <button onclick="generateRoadmap()" class="ea-btn ea-btn--secondary ea-action-cluster-btn" id="btn-step7b">
-            <span id="s7" class="spinner hidden"></span>
-            <span class="flex items-center gap-1"><i class="fas fa-road"></i><span class="text-[10px]">Roadmap</span></span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Phase 4: Industry & Business Areas -->
       <div class="mt-3 p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
         <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">Phase 4: Industry & Business Areas</div>
         <div class="grid grid-cols-1 gap-2">
@@ -437,6 +370,14 @@
             <div id="phase4-area-toggles" class="grid grid-cols-2 gap-1 text-[10px]"></div>
           </div>
         </div>
+      </div>
+      <div class="grid grid-cols-2 gap-1.5 mt-3">
+        <button onclick="generateArchitecture()" class="ea-btn ea-btn--primary ea-action-cluster-btn col-span-2" title="Generate Architecture"><span id="s1" class="spinner hidden"></span><span class="flex items-center gap-1.5"><i class="fas fa-wand-magic-sparkles"></i><span class="text-[10px]">Generate Architecture</span></span></button>
+        <button onclick="generateCapabilityMap()" class="ea-btn ea-btn--secondary ea-action-cluster-btn" title="Generate Capability Map"><span id="s2" class="spinner hidden"></span><span class="flex items-center gap-1.5"><i class="fas fa-diagram-project"></i><span class="text-[10px]">Capability Map</span></span></button>
+        <button onclick="generateOperatingModel()" class="ea-btn ea-btn--secondary ea-action-cluster-btn" title="Generate Operating Model"><span id="s3" class="spinner hidden"></span><span class="flex items-center gap-1.5"><i class="fas fa-sitemap"></i><span class="text-[10px]">Op Model</span></span></button>
+        <button onclick="analyseGaps()" class="ea-btn ea-btn--secondary ea-action-cluster-btn" title="Generate Gap Analysis"><span id="s5" class="spinner hidden"></span><span class="flex items-center gap-1.5"><i class="fas fa-triangle-exclamation"></i><span class="text-[10px]">Gap Analysis</span></span></button>
+        <button onclick="generateTargetArch()" class="ea-btn ea-btn--secondary ea-action-cluster-btn" title="Generate Target Architecture"><span id="s6" class="spinner hidden"></span><span class="flex items-center gap-1.5"><i class="fas fa-compass-drafting"></i><span class="text-[10px]">Target Arch</span></span></button>
+        <button onclick="generateRoadmap()" class="ea-btn ea-btn--primary ea-action-cluster-btn col-span-2" title="Generate Transformation Roadmap"><span id="s7" class="spinner hidden"></span><span class="flex items-center gap-1.5"><i class="fas fa-road"></i><span class="text-[10px]">Generate Transformation Roadmap</span></span></button>
       </div>
     </div>
   </div>
@@ -503,6 +444,7 @@
             <option value="Industry Peer Group A">Peer: Industry Peer Group A</option>
             <option value="Global Asset Management">Peer: Global Asset Management</option>
             <option value="Public Housing (Sweden)">Peer: Public Housing (Sweden)</option>
+            <button id="ai-benchmark-btn" onclick="runAIBenchmarkAnalysis()" class="ml-2 text-[10px] bg-blue-600 text-white hover:bg-blue-700 px-3 py-1 rounded border border-blue-700 font-bold">AI Benchmark Analysis</button>
           </select>
         </div>
         
@@ -511,23 +453,23 @@
           <div class="text-[10px] font-bold text-blue-700 uppercase mb-2">Maturity Domains - Definitions</div>
           <div class="grid grid-cols-1 lg:grid-cols-5 gap-2 text-[8px] leading-relaxed">
             <div>
-              <div class="font-bold text-slate-700">🔷 Digitalisation</div>
+              <div class="font-bold text-slate-700">ðŸ”· Digitalisation</div>
               <div class="text-slate-600">Scope of digital systems, cloud platforms, APIs, and modern technologies.</div>
             </div>
             <div>
-              <div class="font-bold text-slate-700">💡 Innovation</div>
+              <div class="font-bold text-slate-700">ðŸ’¡ Innovation</div>
               <div class="text-slate-600">AI adoption, automation, analytics, and ability to renew technology.</div>
             </div>
             <div>
-              <div class="font-bold text-slate-700">🌱 Sustainability</div>
+              <div class="font-bold text-slate-700">ðŸŒ± Sustainability</div>
               <div class="text-slate-600">ESG capabilities, sustainability initiatives, and environmental impact.</div>
             </div>
             <div>
-              <div class="font-bold text-slate-700">⚙️ Process Optimisation</div>
+              <div class="font-bold text-slate-700">âš™ï¸ Process Optimisation</div>
               <div class="text-slate-600">Process automation, efficiency improvements, and continuous improvement.</div>
             </div>
             <div>
-              <div class="font-bold text-slate-700">📊 Data Governance</div>
+              <div class="font-bold text-slate-700">ðŸ“Š Data Governance</div>
               <div class="text-slate-600">Data governance, data quality, analytics, and reporting capabilities.</div>
             </div>
           </div>
@@ -541,6 +483,7 @@
           <div class="bg-white p-4 rounded-xl border shadow-sm">
             <div class="text-[10px] font-bold text-slate-500 mb-2 uppercase">Strategic Insights & Opportunity Cost</div>
             <div id="bench-insights" class="space-y-3 text-[11px]"></div>
+            <div id="ai-bench-result" class="mt-3 text-[11px] bg-blue-50 border border-blue-200 rounded p-2"></div>
           </div>
         </div>
       </div>
@@ -554,6 +497,7 @@
           </div>
           <div class="flex gap-2">
             <button onclick="generateDynamicSurveys()" class="text-[10px] bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1 rounded border border-indigo-700 font-bold">Generate Surveys</button>
+            <button id="ai-survey-btn" onclick="runAISurveyGeneration()" class="text-[10px] bg-blue-600 text-white hover:bg-blue-700 px-3 py-1 rounded border border-blue-700 font-bold">AI Survey Generation</button>
             <button onclick="exportSurveyCSV()" class="text-[10px] bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded border font-bold">Export CSV</button>
             <button onclick="document.getElementById('csv-import').click()" class="text-[10px] bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1 rounded border border-blue-200 font-bold">Import Data</button>
             <input type="file" id="csv-import" class="hidden" accept=".csv" onchange="importCSVData(event)">
@@ -627,6 +571,7 @@
               </div>
             </div>
             <div id="survey-list" class="max-h-[400px] overflow-y-auto space-y-2"></div>
+            <div id="ai-survey-result" class="mt-3 text-[11px] bg-blue-50 border border-blue-200 rounded p-2"></div>
           </div>
         </div>
       </div>
@@ -647,7 +592,7 @@
               <div class="text-xs font-bold uppercase text-slate-500 tracking-wide">Value Streams</div>
               <button onclick="addLayerItem('valueStreams')" class="ea-btn ea-btn--ghost"><i class="fas fa-plus"></i><span>Add</span></button>
             </div>
-            <div id="values"><div class="text-slate-300 text-xs">—</div></div>
+            <div id="values"><div class="text-slate-300 text-xs">â€”</div></div>
           </div>
 
           <div class="ea-section-card">
@@ -655,7 +600,7 @@
               <div class="text-xs font-bold uppercase text-slate-500 tracking-wide">Capabilities</div>
               <button onclick="addLayerItem('capabilities')" class="ea-btn ea-btn--ghost"><i class="fas fa-plus"></i><span>Add</span></button>
             </div>
-            <div id="caps"><div class="text-slate-300 text-xs">—</div></div>
+            <div id="caps"><div class="text-slate-300 text-xs">â€”</div></div>
           </div>
 
           <div class="ea-section-card">
@@ -663,7 +608,7 @@
               <div class="text-xs font-bold uppercase text-slate-500 tracking-wide">Systems</div>
               <button onclick="addLayerItem('systems')" class="ea-btn ea-btn--ghost"><i class="fas fa-plus"></i><span>Add</span></button>
             </div>
-            <div id="systems"><div class="text-slate-300 text-xs">—</div></div>
+            <div id="systems"><div class="text-slate-300 text-xs">â€”</div></div>
           </div>
 
           <div class="ea-section-card">
@@ -671,7 +616,7 @@
               <div class="text-xs font-bold uppercase text-slate-500 tracking-wide">AI Agents</div>
               <button onclick="addLayerItem('aiAgents')" class="ea-btn ea-btn--ghost"><i class="fas fa-plus"></i><span>Add</span></button>
             </div>
-            <div id="aiagents"><div class="text-slate-300 text-xs">—</div></div>
+            <div id="aiagents"><div class="text-slate-300 text-xs">â€”</div></div>
           </div>
         </div>
       </div>
@@ -769,47 +714,8 @@
 	  <!-- Insert new tab content here -->
       <div id="tab-exec" class="hidden">
         <div class="flex items-center justify-between mb-4">
-          <div class="text-sm font-bold text-slate-800">Strategic Intent & Summary</div>
+          <div class="text-sm font-bold text-slate-800">Executive Summary & Strategic Alignment</div>
           <div id="exec-status" class="text-[10px] font-bold px-2 py-1 rounded bg-blue-100 text-blue-700 uppercase tracking-wider">AI Analysis Active</div>
-        </div>
-
-        <!-- Strategic Intent section (populated after Step 1) -->
-        <div id="intent-display-section" class="hidden mb-4">
-          <div class="intent-card">
-            <div class="text-[10px] font-bold text-blue-300 uppercase tracking-widest mb-2">Strategic Intent — Step 1</div>
-            <div class="flex items-start justify-between gap-3 mb-3">
-              <div>
-                <div id="intent-org-name" class="text-base font-black text-white mb-0.5"></div>
-                <div id="intent-industry-timeframe" class="text-[10px] text-white/60 font-semibold"></div>
-              </div>
-              <button onclick="clarifyStrategicIntent()" class="text-[10px] text-white/60 hover:text-white/90 border border-white/20 rounded-lg px-2 py-1 flex-shrink-0 transition-colors" title="Re-run AI intent extraction">
-                <i class="fas fa-rotate-right mr-1"></i>Refresh
-              </button>
-            </div>
-            <div id="intent-ambition" class="text-[11px] text-slate-200 leading-relaxed mb-3 italic"></div>
-            <div id="intent-themes-row" class="mb-2">
-              <div class="text-[9px] font-bold text-white/50 uppercase mb-1">Strategic Themes</div>
-              <div id="intent-themes" class="flex flex-wrap gap-1"></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3 mt-3">
-              <div>
-                <div class="text-[9px] font-bold text-white/50 uppercase mb-1">Key Constraints</div>
-                <ul id="intent-constraints" class="text-[10px] text-slate-300 space-y-0.5 list-disc list-inside"></ul>
-              </div>
-              <div>
-                <div class="text-[9px] font-bold text-white/50 uppercase mb-1">Success Metrics</div>
-                <ul id="intent-metrics" class="text-[10px] text-slate-300 space-y-0.5 list-disc list-inside"></ul>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Placeholder when intent not yet set -->
-        <div id="intent-placeholder" class="mb-4 rounded-xl border-2 border-dashed border-slate-200 p-4 text-center">
-          <div class="text-slate-400 text-xs mb-2"><i class="fas fa-bullseye text-slate-300 text-xl mb-2 block"></i>No Strategic Intent defined yet</div>
-          <button onclick="clarifyStrategicIntent()" class="ea-btn ea-btn--primary text-[10px] px-3 py-1.5">
-            <i class="fas fa-bullseye mr-1.5"></i>Clarify Strategic Intent (Step 1)
-          </button>
         </div>
 
         <div class="grid grid-cols-3 gap-4 mb-6">
@@ -978,17 +884,17 @@
         <div id="impact-business-metrics" class="hidden mt-4 grid grid-cols-3 gap-3">
           <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
             <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Revenue at Risk</div>
-            <div class="text-lg font-black text-red-600" id="sim-rev-risk">—</div>
+            <div class="text-lg font-black text-red-600" id="sim-rev-risk">â€”</div>
             <div class="text-[9px] text-slate-400">Daily operational loss</div>
           </div>
           <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
             <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Regulatory Exposure</div>
-            <div class="text-lg font-black text-orange-600" id="sim-reg-risk">—</div>
+            <div class="text-lg font-black text-orange-600" id="sim-reg-risk">â€”</div>
             <div class="text-[9px] text-slate-400">Compliance penalty risk</div>
           </div>
           <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
             <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Customer Retention Impact</div>
-            <div class="text-lg font-black text-blue-600" id="sim-customer-risk">—</div>
+            <div class="text-lg font-black text-blue-600" id="sim-customer-risk">â€”</div>
             <div class="text-[9px] text-slate-400">Experience degradation</div>
           </div>
         </div>
@@ -997,38 +903,38 @@
       <!-- CFO VIEW (Phase 1) -->
       <div id="tab-cfo" class="hidden">
         <div class="flex items-center justify-between mb-3">
-          <div class="text-xs font-bold text-slate-600">CFO View — Financial Guardrails</div>
+          <div class="text-xs font-bold text-slate-600">CFO View â€” Financial Guardrails</div>
           <div class="text-[10px] text-slate-400">Business value is AI-estimated based on FTE & Volume drivers.</div>
         </div>
 
         <div class="grid grid-cols-5 gap-3 mb-4" id="cfo-kpis">
           <div class="kpi-card">
             <div class="text-[10px] font-bold text-slate-500 uppercase">Annual Savings (sum)</div>
-            <div class="text-2xl font-extrabold text-green-700" id="kpi-savings">—</div>
+            <div class="text-2xl font-extrabold text-green-700" id="kpi-savings">â€”</div>
             <div class="text-[10px] text-slate-400">OPEX & efficiency potential</div>
             <div class="text-[8px] text-slate-500 mt-2 leading-tight">Total projected annual cost reduction from automating and optimizing capabilities. Based on FTE time savings &times; labor cost.</div>
           </div>
           <div class="kpi-card">
             <div class="text-[10px] font-bold text-slate-500 uppercase">Risk Exposure (sum)</div>
-            <div class="text-2xl font-extrabold text-red-700" id="kpi-risk">—</div>
+            <div class="text-2xl font-extrabold text-red-700" id="kpi-risk">â€”</div>
             <div class="text-[10px] text-slate-400">Revenue/regulatory downside</div>
             <div class="text-[8px] text-slate-500 mt-2 leading-tight">Aggregate financial exposure from capability failures, combining revenue impact, regulatory penalties, and operational criticality.</div>
           </div>
           <div class="kpi-card">
             <div class="text-[10px] font-bold text-slate-500 uppercase">ROI Potential (avg)</div>
-            <div class="text-2xl font-extrabold text-blue-700" id="kpi-roi">—</div>
-            <div class="text-[10px] text-slate-400">Savings ÷ invest estimate</div>
+            <div class="text-2xl font-extrabold text-blue-700" id="kpi-roi">â€”</div>
+            <div class="text-[10px] text-slate-400">Savings Ã· invest estimate</div>
             <div class="text-[8px] text-slate-500 mt-2 leading-tight">Average return multiple on investment. A value of 2.5&times; means every SEK invested returns 2.5 SEK annually in savings.</div>
           </div>
           <div class="kpi-card">
             <div class="text-[10px] font-bold text-slate-500 uppercase">Payback (avg)</div>
-            <div class="text-2xl font-extrabold text-slate-800" id="kpi-payback">—</div>
+            <div class="text-2xl font-extrabold text-slate-800" id="kpi-payback">â€”</div>
             <div class="text-[10px] text-slate-400">Months to break-even</div>
             <div class="text-[8px] text-slate-500 mt-2 leading-tight">Average time required to recover initial investment through realized savings. Lower values indicate faster value realization.</div>
           </div>
           <div class="kpi-card">
             <div class="text-[10px] font-bold text-slate-500 uppercase">CO2 Reduction (avg)</div>
-            <div class="text-2xl font-extrabold text-teal-700" id="kpi-co2">—</div>
+            <div class="text-2xl font-extrabold text-teal-700" id="kpi-co2">â€”</div>
             <div class="text-[10px] text-slate-400">Sustainability impact %</div>
             <div class="text-[8px] text-slate-500 mt-2 leading-tight">Average percentage reduction in carbon footprint or energy consumption across capabilities. Supports ESG and climate commitments.</div>
           </div>
@@ -1098,8 +1004,8 @@
       <!-- TARGET ARCHITECTURE VISUAL -->
       <div id="tab-targetarch" class="hidden">
         <div class="flex items-center justify-between mb-4">
-          <div class="text-xs font-bold text-slate-600">Target Architecture — Capability Uplift Plan</div>
-          <span class="text-[10px] text-slate-400">Current → Target maturity per capability</span>
+          <div class="text-xs font-bold text-slate-600">Target Architecture â€” Capability Uplift Plan</div>
+          <span class="text-[10px] text-slate-400">Current â†’ Target maturity per capability</span>
         </div>
         <div id="targetarch-content">
           <div class="text-slate-400 text-xs text-center py-16">Click "Target Arch" to generate the visual</div>
@@ -1109,7 +1015,7 @@
       <!-- ROADMAP VISUAL (Gantt-style) -->
       <div id="tab-roadmapvis" class="hidden">
         <div class="flex items-center justify-between mb-4">
-          <div class="text-xs font-bold text-slate-600">Transformation Roadmap — Visual Timeline</div>
+          <div class="text-xs font-bold text-slate-600">Transformation Roadmap â€” Visual Timeline</div>
           <div class="flex gap-2 text-[10px]">
             <span class="px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold">High</span>
             <span class="px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 font-bold">Medium</span>
@@ -1163,8 +1069,8 @@
                 <i class="fas fa-project-diagram text-white"></i>
               </div>
               <div>
-                <div class="text-sm font-bold text-slate-800">🔗 Cross-Toolkit Integration</div>
-                <div class="text-[10px] text-slate-500">4-Phase End-to-End Data Flow · BMC → Value Chain → Capability → Strategy → EA Platform</div>
+                <div class="text-sm font-bold text-slate-800">ðŸ”— Cross-Toolkit Integration</div>
+                <div class="text-[10px] text-slate-500">4-Phase End-to-End Data Flow Â· BMC â†’ Value Chain â†’ Capability â†’ Strategy â†’ EA Platform</div>
               </div>
             </div>
             <div class="flex gap-2">
@@ -1182,7 +1088,7 @@
             <div id="integration-bmc" class="bg-white rounded-lg p-3 border border-slate-200">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-bold text-slate-700">BMC</span>
-                <span class="integration-status-badge" id="bmc-status-badge">—</span>
+                <span class="integration-status-badge" id="bmc-status-badge">â€”</span>
               </div>
               <div class="text-[9px] text-slate-500" id="bmc-status-text">No data</div>
               <button onclick="importFromToolkit('bmc')" class="mt-2 text-[9px] bg-teal-50 text-teal-700 hover:bg-teal-100 px-2 py-1 rounded font-bold w-full" disabled id="bmc-import-btn">
@@ -1194,7 +1100,7 @@
             <div id="integration-valuechain" class="bg-white rounded-lg p-3 border border-slate-200">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-bold text-slate-700">Value Chain</span>
-                <span class="integration-status-badge" id="valuechain-status-badge">—</span>
+                <span class="integration-status-badge" id="valuechain-status-badge">â€”</span>
               </div>
               <div class="text-[9px] text-slate-500" id="valuechain-status-text">No data</div>
               <button onclick="importFromToolkit('valueChain')" class="mt-2 text-[9px] bg-blue-50 text-blue-700 hover:bg-blue-100 px-2 py-1 rounded font-bold w-full" disabled id="valuechain-import-btn">
@@ -1206,7 +1112,7 @@
             <div id="integration-capability" class="bg-white rounded-lg p-3 border border-slate-200">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-bold text-slate-700">Capability Map</span>
-                <span class="integration-status-badge" id="capability-status-badge">—</span>
+                <span class="integration-status-badge" id="capability-status-badge">â€”</span>
               </div>
               <div class="text-[9px] text-slate-500" id="capability-status-text">No data</div>
               <button onclick="importFromToolkit('capability')" class="mt-2 text-[9px] bg-purple-50 text-purple-700 hover:bg-purple-100 px-2 py-1 rounded font-bold w-full" disabled id="capability-import-btn">
@@ -1218,7 +1124,7 @@
             <div id="integration-strategy" class="bg-white rounded-lg p-3 border border-slate-200">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-bold text-slate-700">Strategy</span>
-                <span class="integration-status-badge" id="strategy-status-badge">—</span>
+                <span class="integration-status-badge" id="strategy-status-badge">â€”</span>
               </div>
               <div class="text-[9px] text-slate-500" id="strategy-status-text">No data</div>
               <button onclick="importFromToolkit('strategy')" class="mt-2 text-[9px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-2 py-1 rounded font-bold w-full" disabled id="strategy-import-btn">
@@ -1245,37 +1151,122 @@
         </div>
 
         <div class="tools-grid">
-          <!-- CARD 1: BMC -->
-          <div class="tool-card">
-            <div class="card-header navy">
-              <div class="card-step-badge">Step 1</div>
+          <!-- CARD 1: BMC (Enhanced Accessibility & Modern UX) -->
+          <style>
+            /* BMC-specific accessibility and UX improvements */
+            .bmc-card-header {
+              background: linear-gradient(135deg, #1B2559 0%, #4318FF 100%) !important;
+              color: #fff !important;
+              padding: 28px 24px 20px 24px;
+              border-radius: 20px 20px 0 0;
+              box-shadow: 0 8px 32px rgba(67,24,255,0.10);
+            }
+            .bmc-card-title {
+              font-size: 2rem;
+              font-weight: 900;
+              color: #fff;
+              letter-spacing: -0.02em;
+              margin-bottom: 6px;
+              text-shadow: 0 2px 8px rgba(27,37,89,0.12);
+            }
+            .bmc-card-subtitle {
+              font-size: 1.1rem;
+              color: #c7d2fe;
+              font-weight: 500;
+              margin-bottom: 0.5rem;
+            }
+            .bmc-card-body {
+              background: #fff;
+              border-radius: 0 0 20px 20px;
+              padding: 28px 24px 20px 24px;
+              font-size: 1.08rem;
+              color: #2B3674;
+            }
+            .bmc-section-label {
+              font-size: 0.95rem;
+              font-weight: 800;
+              color: #6366f1;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              margin-bottom: 10px;
+              margin-top: 18px;
+            }
+            .bmc-instruction-list li {
+              font-size: 1.05rem;
+              color: #1B2559;
+              margin-bottom: 8px;
+            }
+            .bmc-scenario-title {
+              font-size: 1.08rem;
+              font-weight: 700;
+              color: #0d9488;
+              margin-bottom: 6px;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+            .bmc-scenario-text {
+              font-size: 1.05rem;
+              color: #334155;
+              margin-bottom: 10px;
+            }
+            .bmc-outcome-tag {
+              font-size: 0.95rem;
+              font-weight: 700;
+              border-radius: 12px;
+              padding: 4px 12px;
+              margin-right: 6px;
+              margin-bottom: 4px;
+              display: inline-block;
+            }
+            .bmc-outcome-tag.teal { background: #ccfbf1; color: #0f766e; }
+            .bmc-outcome-tag.green { background: #dcfce7; color: #166534; }
+            .bmc-outcome-tag.blue { background: #dbeafe; color: #1e40af; }
+            .bmc-card-footer {
+              background: #f8fafc;
+              border-top: 1px solid #e2e8f0;
+              padding: 18px 24px;
+              border-radius: 0 0 20px 20px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              gap: 12px;
+            }
+            @media (max-width: 600px) {
+              .bmc-card-header, .bmc-card-body, .bmc-card-footer { padding: 16px 8px !important; }
+              .bmc-card-title { font-size: 1.2rem; }
+            }
+          </style>
+          <div class="tool-card" style="overflow:visible;">
+            <div class="bmc-card-header">
+              <div class="card-step-badge" style="background:rgba(255,255,255,0.18);color:#fff;">Step 1</div>
               <div class="card-icon"><i class="fas fa-table-columns"></i></div>
-              <div class="card-title">AI Business Model Canvas</div>
-              <div class="card-subtitle">Business Model · Value Proposition · Revenue Logic</div>
+              <div class="bmc-card-title">AI Business Model Canvas</div>
+              <div class="bmc-card-subtitle">Business Model · Value Proposition · Revenue Logic</div>
             </div>
-            <div class="card-body">
-              <p class="card-desc">
-                Visualize the full business model in one framework. Define customer segments, value proposition, revenue streams, and cost structure. This is the starting point for all strategic analysis - export results directly to Excel (CSV).
+            <div class="bmc-card-body">
+              <p class="card-desc" style="font-size:1.08rem;color:#334155;">
+                Visualize the full business model in one framework. Define customer segments, value proposition, revenue streams, and cost structure. This is the starting point for all strategic analysis – export results directly to Excel (CSV).
               </p>
-              <div class="card-section-label">Instructions</div>
-              <ul class="instruction-list">
+              <div class="bmc-section-label">Instructions</div>
+              <ul class="instruction-list bmc-instruction-list">
                 <li><span class="bullet b-teal">1</span>Complete all nine BMC blocks including goals, business drivers, and ESG</li>
                 <li><span class="bullet b-teal">2</span>Click "AI Analyze" for a strategic review</li>
                 <li><span class="bullet b-teal">3</span>Export to Excel (CSV) using the Save button</li>
                 <li><span class="bullet b-teal">4</span>Bring insights into the Value Chain Analyzer</li>
               </ul>
-              <div class="card-section-label">Use Case</div>
+              <div class="bmc-section-label">Use Case</div>
               <div class="scenario-box">
-                <div class="scenario-title"><i class="fas fa-building" style="color:#0d9488;"></i> Enterprise Team - New Digital Business Model</div>
-                <div class="scenario-text">A business team wants to understand how a new digital service model affects revenue and costs. The BMC reveals weak customer relationships and channels - AI recommends a customer portal and proactive communication as top priorities.</div>
+                <div class="bmc-scenario-title"><i class="fas fa-building" style="color:#0d9488;"></i> Enterprise Team – New Digital Business Model</div>
+                <div class="bmc-scenario-text">A business team wants to understand how a new digital service model affects revenue and costs. The BMC reveals weak customer relationships and channels – AI recommends a customer portal and proactive communication as top priorities.</div>
                 <div class="outcome-tags">
-                  <span class="outcome-tag tag-teal">Customer retention</span>
-                  <span class="outcome-tag tag-green">Lower vacancy</span>
-                  <span class="outcome-tag tag-blue">Clear business logic</span>
+                  <span class="bmc-outcome-tag teal">Customer retention</span>
+                  <span class="bmc-outcome-tag green">Lower vacancy</span>
+                  <span class="bmc-outcome-tag blue">Clear business logic</span>
                 </div>
               </div>
             </div>
-            <div class="card-footer">
+            <div class="bmc-card-footer">
               <div class="ai-badge"><i class="fas fa-robot" style="color:#0d9488;"></i> GPT-4o · Excel-export</div>
               <div style="display:flex;gap:8px;">
                 <a href="../EA2_Toolkit/AI Business Model Canvas.html" target="_blank" class="open-btn teal">Open tool <i class="fas fa-arrow-right"></i></a>
@@ -1290,7 +1281,7 @@
               <div class="card-step-badge">Step 2</div>
               <div class="card-icon"><i class="fas fa-link"></i></div>
               <div class="card-title">AI Value Chain Analyzer</div>
-              <div class="card-subtitle">Porter's Value Chain · Strategic Value Analysis</div>
+              <div class="card-subtitle">Porter's Value Chain Â· Strategic Value Analysis</div>
             </div>
             <div class="card-body">
               <p class="card-desc">
@@ -1318,7 +1309,7 @@
               <div class="ai-badge"><i class="fas fa-robot" style="color:#1a56db;"></i> GPT-4o driven analysis</div>
               <div style="display:flex;gap:8px;">
                 <a href="../EA2_Toolkit/AI Value Chain Analyzer V2.html" target="_blank" class="open-btn blue">Open tool <i class="fas fa-arrow-right"></i></a>
-                <button onclick="syncToolkit('valueChain')" class="sync-btn blue" title="Sync workshop data to platform">⟳</button>
+                <button onclick="syncToolkit('valueChain')" class="sync-btn blue" title="Sync workshop data to platform">âŸ³</button>
               </div>
             </div>
           </div>
@@ -1329,7 +1320,7 @@
               <div class="card-step-badge">Step 3</div>
               <div class="card-icon"><i class="fas fa-sitemap"></i></div>
               <div class="card-title">AI Capability Mapping</div>
-              <div class="card-subtitle">Organizational Capabilities · Gap Analysis · Prioritization</div>
+              <div class="card-subtitle">Organizational Capabilities Â· Gap Analysis Â· Prioritization</div>
             </div>
             <div class="card-body">
               <p class="card-desc">
@@ -1357,7 +1348,7 @@
               <div class="ai-badge"><i class="fas fa-robot" style="color:#7c3aed;"></i> GPT-4o driven analysis</div>
               <div style="display:flex;gap:8px;">
                 <a href="../EA2_Toolkit/AI Capability Mapping V2.html" target="_blank" class="open-btn purple">Open tool <i class="fas fa-arrow-right"></i></a>
-                <button onclick="syncToolkit('capabilityMap')" class="sync-btn purple" title="Sync workshop data to platform">⟳</button>
+                <button onclick="syncToolkit('capabilityMap')" class="sync-btn purple" title="Sync workshop data to platform">âŸ³</button>
               </div>
             </div>
           </div>
@@ -1368,7 +1359,7 @@
               <div class="card-step-badge">Step 4</div>
               <div class="card-icon"><i class="fas fa-chess-board"></i></div>
               <div class="card-title">AI Strategy Workbench</div>
-              <div class="card-subtitle">Wardley Mapping · Evolution Strategy · Sourcing</div>
+              <div class="card-subtitle">Wardley Mapping Â· Evolution Strategy Â· Sourcing</div>
             </div>
             <div class="card-body">
               <p class="card-desc">
@@ -1396,7 +1387,7 @@
               <div class="ai-badge"><i class="fas fa-robot" style="color:#d97706;"></i> GPT-4o driven analysis</div>
               <div style="display:flex;gap:8px;">
                 <a href="../EA2_Toolkit/AI Strategy Workbench V2.html" target="_blank" class="open-btn gold">Open tool <i class="fas fa-arrow-right"></i></a>
-                <button onclick="syncToolkit('wardley')" class="sync-btn gold" title="Sync workshop data to platform">⟳</button>
+                <button onclick="syncToolkit('wardley')" class="sync-btn gold" title="Sync workshop data to platform">âŸ³</button>
               </div>
             </div>
           </div>
@@ -1407,7 +1398,7 @@
               <div class="card-step-badge">Step 5</div>
               <div class="card-icon"><i class="fas fa-building-shield"></i></div>
               <div class="card-title">NextGen EA Maturity Toolbox</div>
-              <div class="card-subtitle">Maturity Assessment · Multi-Industry · Strategic Roadmap</div>
+              <div class="card-subtitle">Maturity Assessment Â· Multi-Industry Â· Strategic Roadmap</div>
             </div>
             <div class="card-body">
               <p class="card-desc">
@@ -1432,10 +1423,10 @@
               </div>
             </div>
             <div class="card-footer">
-              <div class="ai-badge"><i class="fas fa-robot" style="color:#4f46e5;"></i> GPT-4o · PDF report · Multi-industry</div>
+              <div class="ai-badge"><i class="fas fa-robot" style="color:#4f46e5;"></i> GPT-4o Â· PDF report Â· Multi-industry</div>
               <div style="display:flex;gap:8px;">
                 <a href="../EA2_Toolkit/EA20 Maturity Toolbox V2.html" target="_blank" class="open-btn" style="background:#4f46e5;color:white;">Open tool <i class="fas fa-arrow-right"></i></a>
-                <button onclick="syncToolkit('maturity')" class="sync-btn" style="color:#4f46e5;border-color:#4f46e5;" title="Sync workshop data to platform">⟳</button>
+                <button onclick="syncToolkit('maturity')" class="sync-btn" style="color:#4f46e5;border-color:#4f46e5;" title="Sync workshop data to platform">âŸ³</button>
               </div>
             </div>
           </div>
@@ -1456,7 +1447,7 @@
 </div>
 
 <script>
-// ── INITIALIZATION & STORAGE ────
+// â”€â”€ INITIALIZATION & STORAGE â”€â”€â”€â”€
 // V3 Enhancement: Use DataManager for unified data management
 let dataManager = null;
 let syncEngine = null;
@@ -1474,9 +1465,6 @@ let model = {
   aiAgents:[],
   initiatives:[],
   operatingModel:{},
-  strategicIntent: null,
-  bmc: null,
-  valuePools: [],
   masterData: {
     businessModel: '',
     offerings: '',
@@ -1914,27 +1902,27 @@ function onHeaderLanguageChange(nextLanguage) {
 
 // Initialize DataManager, SyncEngine, and FileManager on page load
 window.addEventListener('DOMContentLoaded', () => {
-  console.log('🚀 NextGen EA V4 initializing...');
+  console.log('ðŸš€ NextGen EA V4 initializing...');
   // Load API key from storage into memory at startup
   if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
-  console.log('📋 API Key loaded from storage:', OPENAI_KEY ? '&#x2718; Present' : '✗ Missing');
+  console.log('ðŸ“‹ API Key loaded from storage:', OPENAI_KEY ? '&#x2718; Present' : 'âœ— Missing');
   
   if (typeof EA_DataManager !== 'undefined') {
     dataManager = new EA_DataManager();
     OPENAI_KEY = dataManager.getApiKey() || OPENAI_KEY || '';
-    console.log('✅ V3 DataManager initialized');
+    console.log('âœ… V3 DataManager initialized');
     
     // Initialize SyncEngine
     if (typeof EA_SyncEngine !== 'undefined') {
       syncEngine = new EA_SyncEngine(dataManager);
-      console.log('✅ V3 SyncEngine initialized');
+      console.log('âœ… V3 SyncEngine initialized');
     }
     
     // Initialize FileManager
     if (typeof EA_FileManager !== 'undefined') {
       fileManager = new EA_FileManager();
       fileManager.init(dataManager);
-      console.log('✅ V3 FileManager initialized');
+      console.log('âœ… V3 FileManager initialized');
       
       // Enable auto-save every 5 minutes
       fileManager.enableAutoSave(
@@ -1949,13 +1937,13 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof EA_IntegrationEngine !== 'undefined') {
       integrationEngine = new EA_IntegrationEngine();
       integrationEngine.init(dataManager, fileManager);
-      console.log('✅ V3 Integration Engine initialized');
+      console.log('âœ… V3 Integration Engine initialized');
       
       // Update integration dashboard
       updateIntegrationDashboard();
     }
   } else {
-    console.warn('⚠️ DataManager not loaded, using legacy storage');
+    console.warn('âš ï¸ DataManager not loaded, using legacy storage');
     OPENAI_KEY = localStorage.getItem('ea_api_key') || '';
   }
   loadLastModel();
@@ -1993,7 +1981,6 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     }, 220);
   }
-
 });
 
 function setupDescriptionField() {
@@ -2026,7 +2013,7 @@ function updateDescriptionExpandLabel(expanded) {
 
 function extractArchitectureSeedFromMessage(text) {
   return String(text || '')
-    .replace(/^(generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|for:)?:?/i, '')
+    .replace(/^(generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|fÃ¶r|for:)?:?/i, '')
     .replace(/^(generate|generera|create|skapa|build|bygg)\s*/i, '')
     .trim();
 }
@@ -2130,8 +2117,6 @@ function loadLastModel() {
           renderOperatingModel();
         }
         if (typeof syncConversationWithCurrentModel === 'function') syncConversationWithCurrentModel();
-        updateWorkflowStepStates();
-        renderStrategicIntentSection();
         toast('V3 Model loaded &#x2718;', false);
       }
     } catch (e) {
@@ -2176,7 +2161,7 @@ function autoSaveCurrentModel() {
 // Auto-save every 30 seconds
 setInterval(autoSaveCurrentModel, 30000);
 
-// ── API KEY MANAGEMENT ────
+// â”€â”€ API KEY MANAGEMENT â”€â”€â”€â”€
 function showSettingsModal() {
   // Ensure all fields are synced from model before showing
   ensurePhase4Fields();
@@ -2232,7 +2217,7 @@ function saveApiKey() {
   toast('API key saved &#x2718; (V3 unified)', false);
 }
 
-// ── NEW PROJECT MANAGEMENT ────
+// â”€â”€ NEW PROJECT MANAGEMENT â”€â”€â”€â”€
 function openNewProjectModal() {
   document.getElementById('newProjectName').value = '';
   document.getElementById('newProjectDescription').value = '';
@@ -2250,7 +2235,7 @@ function createNewProject() {
   const projectDescription = document.getElementById('newProjectDescription').value.trim();
   
   if (!projectName) {
-    toast('⚠ Please enter a project name', true);
+    toast('âš  Please enter a project name', true);
     return;
   }
   
@@ -2334,7 +2319,7 @@ function createNewProject() {
   toast(`&#x2718; Project "${projectName}" created (with backup)`, false);
 }
 
-// ── TOAST NOTIFICATIONS ────
+// â”€â”€ TOAST NOTIFICATIONS â”€â”€â”€â”€
 function toast(msg, err) {
   const t = document.createElement('div');
   t.style.cssText = `position:fixed;bottom:20px;right:20px;z-index:9999;padding:10px 18px;border-radius:10px;color:white;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.2);background:${err?'#dc2626':'#16a34a'}`;
@@ -2343,7 +2328,7 @@ function toast(msg, err) {
   setTimeout(() => t.remove(), 3000);
 }
 
-// ── MODEL MANAGEMENT (LOCALSTORAGE) ────
+// â”€â”€ MODEL MANAGEMENT (LOCALSTORAGE) â”€â”€â”€â”€
 function newModel() {
   // Check for unsaved changes
   if (model.capabilities.length > 0 || model.systems.length > 0 || model.valueStreams.length > 0) {
@@ -2485,8 +2470,6 @@ function selectModel(id) {
   localStorage.setItem('ea_current_model', JSON.stringify({ id: currentModelId, name: currentModelName, data: model }));
   updateHeaderTitle();
   if (typeof syncConversationWithCurrentModel === 'function') syncConversationWithCurrentModel();
-  updateWorkflowStepStates();
-  renderStrategicIntentSection();
   closeModal();
   toast('Model loaded successfully &#x2718;', false);
 }
@@ -2514,7 +2497,7 @@ function updateHeaderTitle() {
   }
 }
 
-// ── EXPORT / IMPORT ────
+// â”€â”€ EXPORT / IMPORT â”€â”€â”€â”€
 function exportModel() {
   if (fileManager) {
     // Use FileManager for enhanced export with backup
@@ -2625,7 +2608,7 @@ function importModel(event) {
   }
 }
 
-// ── OPENAI INTEGRATION ────
+// â”€â”€ OPENAI INTEGRATION â”€â”€â”€â”€
 function buildMasterDataPromptContext() {
   ensurePhase4Fields();
   const md = model.masterData || {};
@@ -2670,17 +2653,18 @@ async function callAI(sys, user, options = {}) {
   const userWithContext = includeProjectContext
     ? `${user}\n\nAnalysis Constraints:\n- Avoid generic advice\n- Use the provided master data and business context\n- Tailor output to the selected industry and business areas`
     : `${user}`;
-  const selectedModel = 'gpt-4.1';
+  const selectedModel = 'gpt-4o';
   const timeoutMs = Number(options.timeoutMs || (taskType === 'heavy' ? 150000 : 45000));
   const requestedTemperature = options.temperature;
-  // Responses API format
-  const responseBody = {
+  const chatBody = {
     model: selectedModel,
-    instructions: sysWithContext,
-    input: userWithContext
+    messages: [
+      { role: 'system', content: sysWithContext },
+      { role: 'user', content: userWithContext }
+    ]
   };
   if (typeof requestedTemperature === 'number') {
-    responseBody.temperature = requestedTemperature;
+    chatBody.temperature = requestedTemperature;
   }
 
   async function fetchWithTimeout(url, init, ms) {
@@ -2697,82 +2681,49 @@ async function callAI(sys, user, options = {}) {
     }
   }
 
-  const aiRoute = { path: 'Responses API (server)', model: selectedModel, taskType };
-  const backendUrl = '/api/openai-proxy';
+  const aiRoute = { path: 'Chat API (server)', model: selectedModel, taskType };
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const backendUrl = isLocal ? '/api/openai/chat' : '/api/openai-proxy';
 
   try {
     const response = await fetchWithTimeout(backendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(responseBody)
+      body: JSON.stringify(chatBody)
     }, timeoutMs);
-    let payload;
-    try { payload = await response.json(); } catch (_) { throw new Error(`Proxy returned empty/non-JSON response (HTTP ${response.status})`); }
-    if (!response.ok) throw new Error(payload.error?.message || payload.error || 'API error');
-    console.log('\u2705 AI response via ' + aiRoute.path);
-    return payload?.output_text || payload?.output?.[0]?.content?.[0]?.text || '';
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error?.message || payload.error || 'Chat API error');
+    console.log('âœ… AI response via ' + aiRoute.path);
+    return payload?.choices?.[0]?.message?.content || '';
   } catch (backendError) {
-    console.warn('⚠️ Backend failed (' + aiRoute.path + '), trying direct API key fallback...', backendError.message);
+    console.warn('âš ï¸ Backend failed (' + aiRoute.path + '), trying direct API key fallback...', backendError.message);
     if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
     if (!OPENAI_KEY) {
       if (options.silentOnNoKey) {
         throw new Error('No API key available for optional translation.');
       }
-      console.error('❌ No API key available. Opening Settings.');
+      console.error('âŒ No API key available. Opening Settings.');
       showSettingsModal();
       throw new Error('No API key provided. Please save your OpenAI API key in Settings or Quick Entry field.');
     }
 
-    aiRoute.path = 'Direct Responses API (browser, your API key)';
-    const directResponse = await fetchWithTimeout('https://api.openai.com/v1/responses', {
+    aiRoute.path = 'Direct API (browser, your API key)';
+    const directResponse = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + OPENAI_KEY
       },
-      body: JSON.stringify(responseBody)
+      body: JSON.stringify(chatBody)
     }, timeoutMs);
-    let directPayload;
-    try { directPayload = await directResponse.json(); } catch (_) { throw new Error(`Direct API returned empty/non-JSON response (HTTP ${directResponse.status})`); }
+    const directPayload = await directResponse.json();
     if (!directResponse.ok) {
-      console.error('\u274c Direct API also failed:', directPayload);
+      console.error('âŒ Direct API also failed:', directPayload);
       throw new Error(directPayload.error?.message || directPayload.error || backendError.message || 'API error');
     }
-    console.log('\u2705 AI response via ' + aiRoute.path);
-    return directPayload?.output_text || directPayload?.output?.[0]?.content?.[0]?.text || '';
+    console.log('âœ… AI response via ' + aiRoute.path);
+    return directPayload?.choices?.[0]?.message?.content || '';
   }
-}
-
-function capabilityHasBusinessArea(capability, area) {
-  if (area === 'all') return true;
-  const areas = normalizeBusinessAreas(capability.businessAreas || []);
-  return areas.includes(area);
-}
-
-function setIndustryProfile(industry) {
-  const profile = PHASE4_INDUSTRY_PROFILES[industry] || PHASE4_INDUSTRY_PROFILES.generic;
-  model.phase4Config = {
-    industry,
-    activeBusinessAreas: normalizeBusinessAreas(profile.areas)
-  };
-
-  renderPhase4ControlsFromModel();
-  updateDataCollectionTab();
-  renderCapMap();
-  renderHeatmap();
-  renderPhase4Dashboard();
-  autoSaveCurrentModel();
-}
-
-function setActiveBusinessAreasFromUI() {
-  const selected = Array.from(document.querySelectorAll('input[name="phase4-area-toggle"]:checked')).map(el => el.value);
-  model.phase4Config.activeBusinessAreas = normalizeBusinessAreas(selected);
-  syncAreaFilterSelectors();
-  updateDataCollectionTab();
-  renderCapMap();
-  renderHeatmap();
-  renderPhase4Dashboard();
-  autoSaveCurrentModel();
 }
 
 function extractJSON(text) {
@@ -2784,7 +2735,7 @@ function extractJSON(text) {
   return text.slice(start, Math.max(text.lastIndexOf(']'), text.lastIndexOf('}')) + 1);
 }
 
-// ── PHASE 4: INDUSTRY + BUSINESS AREA CONFIG ────
+// â”€â”€ PHASE 4: INDUSTRY + BUSINESS AREA CONFIG â”€â”€â”€â”€
 const PHASE4_BUSINESS_AREAS = ['general', 'operations', 'erp', 'finance', 'esg', 'itsm', 'gdpr', 'cybersecurity'];
 const PHASE4_INDUSTRY_PROFILES = {
   'generic': { branch: 'generic', benchPeer: 'Industry Peer Group A', areas: ['general', 'operations', 'erp', 'finance'] },
@@ -2861,6 +2812,38 @@ function ensurePhase4Fields() {
     ...c,
     businessAreas: normalizeBusinessAreas(c.businessAreas || model.phase4Config.activeBusinessAreas)
   }));
+}
+
+function capabilityHasBusinessArea(capability, area) {
+  if (area === 'all') return true;
+  const areas = normalizeBusinessAreas(capability.businessAreas || []);
+  return areas.includes(area);
+}
+
+function setIndustryProfile(industry) {
+  const profile = PHASE4_INDUSTRY_PROFILES[industry] || PHASE4_INDUSTRY_PROFILES.generic;
+  model.phase4Config = {
+    industry,
+    activeBusinessAreas: normalizeBusinessAreas(profile.areas)
+  };
+
+  renderPhase4ControlsFromModel();
+  updateDataCollectionTab();
+  renderCapMap();
+  renderHeatmap();
+  renderPhase4Dashboard();
+  autoSaveCurrentModel();
+}
+
+function setActiveBusinessAreasFromUI() {
+  const selected = Array.from(document.querySelectorAll('input[name="phase4-area-toggle"]:checked')).map(el => el.value);
+  model.phase4Config.activeBusinessAreas = normalizeBusinessAreas(selected);
+  syncAreaFilterSelectors();
+  updateDataCollectionTab();
+  renderCapMap();
+  renderHeatmap();
+  renderPhase4Dashboard();
+  autoSaveCurrentModel();
 }
 
 function setMasterDataField(field, value) {
@@ -3103,7 +3086,7 @@ function mapIndustryToProfileKey(industryText) {
   return 'generic';
 }
 
-// ── PHASE 6: BENCHMARKING ────
+// â”€â”€ PHASE 6: BENCHMARKING â”€â”€â”€â”€
 const benchDomains = ["Digitalisation", "Innovation", "Sustainability", "Process Optimisation", "Data Governance"];
 
 // Peer benchmarks by industry (scale 0-5)
@@ -3187,7 +3170,7 @@ function calculateMaturityScores() {
 
 function renderBenchmarking() {
   if (!model.capabilities.length) {
-    document.getElementById('bench-insights').innerHTML = '<div class="text-slate-400 text-xs text-center py-8">⚠️ Generate architecture first to view benchmarking data.</div>';
+    document.getElementById('bench-insights').innerHTML = '<div class="text-slate-400 text-xs text-center py-8">âš ï¸ Generate architecture first to view benchmarking data.</div>';
     return;
   }
   const peer = document.getElementById('bench-peer').value;
@@ -3293,7 +3276,7 @@ function updateBenchInsights(current, peer, peerName) {
     
     ${totalGap > 0.5 ? `
     <div class="p-3 bg-red-50 border border-red-100 rounded-lg mb-3">
-      <div class="font-bold text-red-700 mb-2">💰 Cost of Inaction: ${oppCost} SEK/year</div>
+      <div class="font-bold text-red-700 mb-2">ðŸ’° Cost of Inaction: ${oppCost} SEK/year</div>
       <div class="text-[9px] text-red-600 leading-relaxed">
         <strong>Definition:</strong> Estimated annual opportunity cost of trailing the industry average in maturity. Represents lost value from inefficiency, missed savings, and weaker competitive advantage.
       </div>
@@ -3311,7 +3294,7 @@ function updateBenchInsights(current, peer, peerName) {
     
     ${topGap.gap > 0.3 ? `
     <div class="p-3 bg-amber-50 border border-amber-100 rounded-lg mb-3">
-      <div class="text-[9px] font-bold text-amber-700 uppercase mb-2">🎯 Priority action</div>
+      <div class="text-[9px] font-bold text-amber-700 uppercase mb-2">ðŸŽ¯ Priority action</div>
       <div class="text-[10px] text-slate-800 font-bold mb-1">${topGap.domain} (Gap: ${topGap.gap.toFixed(1)} points)</div>
       <div class="text-[9px] text-slate-700 mb-2">
         <strong>Recommendation:</strong> ${recommendations[topGap.domain].action}
@@ -3332,11 +3315,11 @@ function updateBenchInsights(current, peer, peerName) {
       </div>
       ${benchDomains.map((d, i) => {
         const domainIcons = {
-          'Digitalisation': '🔷',
-          'Innovation': '💡', 
-          'Sustainability': '🌱',
-          'Process Optimisation': '⚙️',
-          'Data Governance': '📊'
+          'Digitalisation': 'ðŸ”·',
+          'Innovation': 'ðŸ’¡', 
+          'Sustainability': 'ðŸŒ±',
+          'Process Optimisation': 'âš™ï¸',
+          'Data Governance': 'ðŸ“Š'
         };
         return `
         <div class="flex justify-between items-center border-b pb-1">
@@ -3345,7 +3328,7 @@ function updateBenchInsights(current, peer, peerName) {
             <span class="font-mono text-[10px] ${current[i] < peer[i] ? 'text-red-600 font-bold' : 'text-green-600 font-bold'}">
               ${current[i].toFixed(1)} / ${peer[i].toFixed(1)}
             </span>
-            ${current[i] < peer[i] - 0.3 ? '<span class="text-red-500 text-xs" title="Significant gap">⚠️</span>' : ''}
+            ${current[i] < peer[i] - 0.3 ? '<span class="text-red-500 text-xs" title="Significant gap">âš ï¸</span>' : ''}
             ${current[i] >= peer[i] ? '<span class="text-green-500 text-xs" title="Above industry average">&#x2718;</span>' : ''}
           </div>
         </div>
@@ -3353,7 +3336,7 @@ function updateBenchInsights(current, peer, peerName) {
     </div>`;
 }
 
-// ── PHASE 8: DATA COLLECTION ────
+// â”€â”€ PHASE 8: DATA COLLECTION â”€â”€â”€â”€
 const SURVEY_TEMPLATE_LIBRARY = {
   general: [
     'How standardized is this capability across teams?',
@@ -3547,7 +3530,7 @@ function generateSurveyChecklists() {
   if (!model.capabilities.length) {
     container.innerHTML = `
       <div class="text-slate-400 text-xs py-6 space-y-3">
-        <div class="text-center">⚠️ No capability data found.</div>
+        <div class="text-center">âš ï¸ No capability data found.</div>
         <div class="text-center text-slate-500">Describe your business scenario below and start with AI, or import from the toolkit flow.</div>
         <div class="max-w-2xl mx-auto">
           <textarea id="survey-scenario-input" class="w-full border border-slate-300 rounded-lg p-2 text-[11px] h-24 resize-none text-slate-700" placeholder="Ex: Industry-specific company with 50 employees, ESG focus, rising operating costs, and a need for predictive maintenance and better Customer experience."></textarea>
@@ -3569,7 +3552,7 @@ function generateSurveyChecklists() {
       const survey = surveyEngineState.surveys?.[c.id] || null;
       const areaBadges = normalizeBusinessAreas(c.businessAreas).map(area => `<span class="text-[8px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-bold uppercase">${area}</span>`).join(' ');
       const surveyMeta = survey
-        ? `<div class="text-[9px] text-indigo-600 mt-1">Survey: ${survey.answeredCount}/${survey.questions.length} answered${survey.completed ? ' • completed' : ''}</div>`
+        ? `<div class="text-[9px] text-indigo-600 mt-1">Survey: ${survey.answeredCount}/${survey.questions.length} answered${survey.completed ? ' &bull; completed' : ''}</div>`
         : '<div class="text-[9px] text-slate-400 mt-1">Survey: not generated</div>';
 
       return `
@@ -3628,7 +3611,7 @@ function openCapabilitySurvey(capabilityId) {
   activeSurveyCapabilityId = capabilityId;
   const survey = surveyEngineState.surveys[capabilityId];
   document.getElementById('survey-response-title').innerText = survey.capabilityName;
-  document.getElementById('survey-response-meta').innerText = survey.domain + ' • Stakeholder: ' + survey.stakeholder;
+  document.getElementById('survey-response-meta').innerText = survey.domain + ' &bull; Stakeholder: ' + survey.stakeholder;
 
   document.getElementById('survey-response-body').innerHTML = survey.questions.map((q, i) => `
     <div class="p-3 border rounded-lg bg-slate-50">
@@ -3637,7 +3620,7 @@ function openCapabilitySurvey(capabilityId) {
         <input type="number" min="1" max="5" step="1" value="${q.score || ''}" placeholder="1-5"
           class="w-20 border rounded p-1.5 text-[11px]"
           onchange="setSurveyQuestionScore('${capabilityId}','${q.id}', this.value)">
-        <span class="text-[10px] text-slate-500">1 Initial • 3 Defined • 5 Optimized</span>
+        <span class="text-[10px] text-slate-500">1 Initial &bull; 3 Defined &bull; 5 Optimized</span>
       </div>
     </div>
   `).join('');
@@ -3757,7 +3740,7 @@ function exportSurveyCSV() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
-// ── TABS ────
+// â”€â”€ TABS â”€â”€â”€â”€
 function showTab(name, btn) {
   document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
   document.getElementById('tab-' + name).classList.remove('hidden');
@@ -3783,6 +3766,21 @@ function showTab(name, btn) {
   if (name === 'toolkits') setTimeout(updateToolkitBadges, 50);
   if (name === 'home') setTimeout(renderNordicDashboard, 50);
   if (name === 'maturity') setTimeout(renderMaturityDashboard, 50);
+}
+
+// Example: Call highlightTab('exec', true) when Step 1 is completed
+// You should call highlightTab('capmap', true) when capability map is generated, etc.
+
+// Example hooks (add these in your workflow where content is generated):
+// highlightTab('exec', true); // Highlight Executive tab
+// highlightTab('capmap', true); // Highlight Capability Map tab
+// highlightTab('bench', true); // Highlight Benchmark tab
+// highlightTab('survey', true); // Highlight Data Collection tab
+
+// Remove highlight when content is cleared or reset:
+// highlightTab('exec', false);
+// highlightTab('capmap', false);
+// ...
 }
 
 function openHomeFromHeader(btn) {
@@ -4003,14 +4001,14 @@ function renderNordicDashboard() {
     <div class="ea-summary-list__item">
       <div>
         <strong>${capability.name}</strong>
-        <span>${capability.domain || 'General'} domain · Maturity ${capability.maturity || 1}/5</span>
+        <span>${capability.domain || 'General'} domain Â· Maturity ${capability.maturity || 1}/5</span>
       </div>
       ${EANordicUI.statusBadge({ level: getStatusLevel(capability), label: `${(capability.strategicImportance || 'medium').toUpperCase()} focus`, icon: 'fas fa-circle' })}
     </div>`).join('');
 
   heatmapTarget.innerHTML = focusList.concat(capabilities.filter((capability) => !focusList.includes(capability))).slice(0, 24).map((capability) => EANordicUI.heatCell({
     level: getHeatLevel(capability),
-    title: `${capability.name} · ${capability.domain || 'General'} · Maturity ${capability.maturity || 1}/5 · ${(capability.strategicImportance || 'medium').toUpperCase()} importance`
+    title: `${capability.name} Â· ${capability.domain || 'General'} Â· Maturity ${capability.maturity || 1}/5 Â· ${(capability.strategicImportance || 'medium').toUpperCase()} importance`
   })).join('');
 
   legendTarget.innerHTML = [
@@ -4102,14 +4100,14 @@ function updateToolkitBadges() {
   });
 }
 
-// ── SPINNER ────
+// â”€â”€ SPINNER â”€â”€â”€â”€
 function spin(id, on) { document.getElementById(id)?.classList.toggle('hidden', !on); }
 
 // callAI and extractJSON functions now handled by client-integration.js
 
 
 
-// ── PHASE 5: BOARD REPORT GENERATION ────
+// â”€â”€ PHASE 5: BOARD REPORT GENERATION â”€â”€â”€â”€
 function openReportModal() {
   if (!model.capabilities.length) {
     alert("Please generate an architecture first.");
@@ -4180,7 +4178,7 @@ async function generateFullReport() {
   }
 }
 
-// ── PHASE 1: CONVERSATIONAL EA ASSISTANT ────
+// â”€â”€ PHASE 1: CONVERSATIONAL EA ASSISTANT â”€â”€â”€â”€
 function initChatPanel() {
   loadConversationHistory();
 
@@ -4552,20 +4550,20 @@ function normalizeCapabilityDomain(domainText) {
   if (/risk/.test(lower)) return 'Risk';
   if (/finance|finans|ekonomi/.test(lower)) return 'Finance';
   if (/technology|tech|it/.test(lower)) return 'Technology';
-  if (/support|stöd/.test(lower)) return 'Support';
+  if (/support|stÃ¶d/.test(lower)) return 'Support';
   return raw || 'Operations';
 }
 
 function normalizeOpModelBlockKey(blockText) {
   const lower = (blockText || '').toLowerCase().trim();
-  if (/value proposition|värdeerbjudande/.test(lower)) return 'valueProposition';
+  if (/value proposition|vÃ¤rdeerbjudande/.test(lower)) return 'valueProposition';
   if (/customer segment|kundsegment/.test(lower)) return 'customerSegments';
   if (/key activit|nyckelaktivitet/.test(lower)) return 'keyActivities';
   if (/key resource|nyckelresurs/.test(lower)) return 'keyResources';
   if (/key partner|partner/.test(lower)) return 'keyPartners';
   if (/channel|kanal/.test(lower)) return 'channels';
   if (/cost structure|kostnadsstruktur/.test(lower)) return 'costStructure';
-  if (/revenue stream|intäktsström/.test(lower)) return 'revenueStreams';
+  if (/revenue stream|intÃ¤ktsstrÃ¶m/.test(lower)) return 'revenueStreams';
   return null;
 }
 
@@ -4595,7 +4593,7 @@ function ensureOperatingModelShape() {
 }
 
 function cleanListItemText(text) {
-  return String(text || '').trim().replace(/^["'“”]+|["'“”]+$/g, '').replace(/[.,;:!?]+$/, '').trim();
+  return String(text || '').trim().replace(/^["'â€œâ€]+|["'â€œâ€]+$/g, '').replace(/[.,;:!?]+$/, '').trim();
 }
 
 function addOpModelItem(blockKey, itemText) {
@@ -4686,7 +4684,7 @@ function parseAssistantCommand(userMessage) {
 
   const text = (userMessage || '').toLowerCase();
 
-  const optimizePromptMatch = (userMessage || '').match(/(?:optimi[sz]e|improve|refine|förbättra|forbattra)\s+(?:the\s+)?(?:prompt|description|organisation description|organization description)\s*[:\-]?\s*(.*)/i);
+  const optimizePromptMatch = (userMessage || '').match(/(?:optimi[sz]e|improve|refine|fÃ¶rbÃ¤ttra|forbattra)\s+(?:the\s+)?(?:prompt|description|organisation description|organization description)\s*[:\-]?\s*(.*)/i);
   if (optimizePromptMatch) {
     return {
       type: 'run',
@@ -4695,7 +4693,7 @@ function parseAssistantCommand(userMessage) {
     };
   }
 
-  const addOpMatch = (userMessage || '').match(/(?:lägg\s+till|lagg\s+till|add)\s+(.+?)\s+(?:i|under|to|into)\s+(value proposition|customer segments?|key activit(?:y|ies)|key resources?|key partners?|channels?|cost structure|revenue streams?)/i);
+  const addOpMatch = (userMessage || '').match(/(?:lÃ¤gg\s+till|lagg\s+till|add)\s+(.+?)\s+(?:i|under|to|into)\s+(value proposition|customer segments?|key activit(?:y|ies)|key resources?|key partners?|channels?|cost structure|revenue streams?)/i);
   if (addOpMatch) {
     return {
       type: 'run',
@@ -4705,7 +4703,7 @@ function parseAssistantCommand(userMessage) {
     };
   }
 
-  const removeOpWithItemMatch = (userMessage || '').match(/(?:ta\s+bort|remove|delete)\s+(.+?)\s+(?:från|from)\s+(value proposition|customer segments?|key activit(?:y|ies)|key resources?|key partners?|channels?|cost structure|revenue streams?)/i);
+  const removeOpWithItemMatch = (userMessage || '').match(/(?:ta\s+bort|remove|delete)\s+(.+?)\s+(?:frÃ¥n|from)\s+(value proposition|customer segments?|key activit(?:y|ies)|key resources?|key partners?|channels?|cost structure|revenue streams?)/i);
   if (removeOpWithItemMatch) {
     return {
       type: 'run',
@@ -4725,7 +4723,7 @@ function parseAssistantCommand(userMessage) {
     };
   }
 
-  const updateOpFullMatch = (userMessage || '').match(/(?:uppdatera|update|ändra|andra)\s+(value proposition|customer segments?|key activit(?:y|ies)|key resources?|key partners?|channels?|cost structure|revenue streams?)\s+(?:från|from)\s+(.+?)\s+(?:till|to)\s+(.+)/i);
+  const updateOpFullMatch = (userMessage || '').match(/(?:uppdatera|update|Ã¤ndra|andra)\s+(value proposition|customer segments?|key activit(?:y|ies)|key resources?|key partners?|channels?|cost structure|revenue streams?)\s+(?:frÃ¥n|from)\s+(.+?)\s+(?:till|to)\s+(.+)/i);
   if (updateOpFullMatch) {
     return {
       type: 'run',
@@ -4736,7 +4734,7 @@ function parseAssistantCommand(userMessage) {
     };
   }
 
-  const updateOpSimpleMatch = (userMessage || '').match(/(?:uppdatera|update|ändra|andra)\s+(value proposition|customer segments?|key activit(?:y|ies)|key resources?|key partners?|channels?|cost structure|revenue streams?)\s+(?:till|to)\s+(.+)/i);
+  const updateOpSimpleMatch = (userMessage || '').match(/(?:uppdatera|update|Ã¤ndra|andra)\s+(value proposition|customer segments?|key activit(?:y|ies)|key resources?|key partners?|channels?|cost structure|revenue streams?)\s+(?:till|to)\s+(.+)/i);
   if (updateOpSimpleMatch) {
     return {
       type: 'run',
@@ -4747,7 +4745,7 @@ function parseAssistantCommand(userMessage) {
     };
   }
 
-  const addUnderMatch = (userMessage || '').match(/(?:lägg\s+till|lagg\s+till|add)\s+(.+?)\s+(?:under|i|in|within)\s+([a-zA-ZåäöÅÄÖ\-\s]+)/i);
+  const addUnderMatch = (userMessage || '').match(/(?:lÃ¤gg\s+till|lagg\s+till|add)\s+(.+?)\s+(?:under|i|in|within)\s+([a-zA-ZÃ¥Ã¤Ã¶Ã…Ã„Ã–\-\s]+)/i);
   if (addUnderMatch) {
     return {
       type: 'run',
@@ -4796,28 +4794,28 @@ function parseAssistantCommand(userMessage) {
     return { type: 'run', action: 'import_toolkit', toolkitId: resolvedToolkitId };
   }
 
-  const runWords = '(generate|generera|create|skapa|build|bygg|update|uppdatera|refresh|förnya|regenerate)';
+  const runWords = '(generate|generera|create|skapa|build|bygg|update|uppdatera|refresh|fÃ¶rnya|regenerate)';
   if (new RegExp(`${runWords}.*(architecture|arkitektur)`).test(text) || /^(architecture|arkitektur)\b/.test(text)) {
     return { type: 'run', action: 'generate_architecture' };
   }
   if (new RegExp(`${runWords}.*(roadmap|transformationsplan)`).test(text) || /\broadmap\b/.test(text) && /(update|uppdatera|generate|generera)/.test(text)) {
     return { type: 'run', action: 'generate_roadmap' };
   }
-  if (new RegExp(`${runWords}.*(capability map|capability|förmåga|förmågekarta)`).test(text) || /\bcapability map\b/.test(text)) {
+  if (new RegExp(`${runWords}.*(capability map|capability|fÃ¶rmÃ¥ga|fÃ¶rmÃ¥gekarta)`).test(text) || /\bcapability map\b/.test(text)) {
     return { type: 'run', action: 'generate_capability_map' };
   }
   if (new RegExp(`${runWords}.*(operating model|op model|operativ modell)`).test(text)) {
     return { type: 'run', action: 'generate_operating_model' };
   }
-  if (new RegExp(`${runWords}.*(target architecture|target arch|målarkitektur)`).test(text)) {
+  if (new RegExp(`${runWords}.*(target architecture|target arch|mÃ¥larkitektur)`).test(text)) {
     return { type: 'run', action: 'generate_target_architecture' };
   }
 
-  if (/(go to|open|visa|öppna|gå till).*(roadmap visual|timeline)/.test(text)) return { type: 'navigate', tabId: 'roadmapvis' };
-  if (/(go to|open|visa|öppna|gå till).*(roadmap)/.test(text)) return { type: 'navigate', tabId: 'roadmap' };
-  if (/(go to|open|visa|öppna|gå till).*(capability map|capmap|förmåga)/.test(text)) return { type: 'navigate', tabId: 'capmap' };
-  if (/(go to|open|visa|öppna|gå till).*(op model|operating model)/.test(text)) return { type: 'navigate', tabId: 'opmodel' };
-  if (/(go to|open|visa|öppna|gå till).*(target|målarkitektur)/.test(text)) return { type: 'navigate', tabId: 'targetarch' };
+  if (/(go to|open|visa|Ã¶ppna|gÃ¥ till).*(roadmap visual|timeline)/.test(text)) return { type: 'navigate', tabId: 'roadmapvis' };
+  if (/(go to|open|visa|Ã¶ppna|gÃ¥ till).*(roadmap)/.test(text)) return { type: 'navigate', tabId: 'roadmap' };
+  if (/(go to|open|visa|Ã¶ppna|gÃ¥ till).*(capability map|capmap|fÃ¶rmÃ¥ga)/.test(text)) return { type: 'navigate', tabId: 'capmap' };
+  if (/(go to|open|visa|Ã¶ppna|gÃ¥ till).*(op model|operating model)/.test(text)) return { type: 'navigate', tabId: 'opmodel' };
+  if (/(go to|open|visa|Ã¶ppna|gÃ¥ till).*(target|mÃ¥larkitektur)/.test(text)) return { type: 'navigate', tabId: 'targetarch' };
 
   return null;
 }
@@ -5080,7 +5078,7 @@ async function executeAssistantCommand(command, userMessage, context) {
     const capabilityName = (command.capabilityName || '').replace(/[.,;:!?]+$/, '').trim();
     if (!capabilityName) {
       return {
-        content: 'I could not parse the capability name. Try: "Lägg till Customer Relationship Management under Customer".',
+        content: 'I could not parse the capability name. Try: "LÃ¤gg till Customer Relationship Management under Customer".',
         metadata: null
       };
     }
@@ -5150,7 +5148,7 @@ async function executeAssistantCommand(command, userMessage, context) {
 function detectIntent(userMessage) {
   const text = userMessage.toLowerCase();
   if (/generate|generera|create architecture|start architecture|new architecture|build architecture|skapa arkitektur|bygg arkitektur/.test(text)) return 'generate_architecture';
-  if (/add capability|new capability|add a capability|include capability|lägg till|lagg till/.test(text)) return 'add_capability';
+  if (/add capability|new capability|add a capability|include capability|lÃ¤gg till|lagg till/.test(text)) return 'add_capability';
   if (/refine|change|update capability|modify capability|improve/.test(text)) return 'refine_capability';
   if (/gap|missing|bottleneck|lucka|flaskhals/.test(text)) return 'gap_analysis';
   if (/maturity|assess maturity|assessment|mognad/.test(text)) return 'maturity_assessment';
@@ -5599,7 +5597,7 @@ function addMessage(text, isUser) {
   else addAssistantMessage(text);
 }
 
-// ── PHASE 1: business value fields ────
+// â”€â”€ PHASE 1: business value fields â”€â”€â”€â”€
 function ensureBusinessFields() {
   model.capabilities = (model.capabilities||[]).map(c => ({
     revenueExposure: 'medium',
@@ -5620,7 +5618,7 @@ function ensureBusinessFields() {
   if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
   
   
-// ── GENERATE ARCHITECTURE ────
+// â”€â”€ GENERATE ARCHITECTURE â”€â”€â”€â”€
 function getArchitectureGenerationProfile() {
   ensureAIConfigFields();
   const mode = model.aiConfig?.architectureMode || 'standard';
@@ -5660,226 +5658,15 @@ function getArchitectureGenerationProfile() {
   };
 }
 
-// ── STEP 1: CLARIFY STRATEGIC INTENT ────────────────────────
-async function clarifyStrategicIntent() {
-  const desc = document.getElementById('description').value.trim();
-  if (!desc) { toast('Describe your organisation first', true); return; }
-  spin('s0', true);
-  try {
-    const raw = await callAI(
-      'You are a senior Enterprise Architect. Return ONLY valid JSON, no markdown, no explanation.',
-      `Extract structured Strategic Intent from this organisation description:\n\n"${desc}"\n\nReturn JSON:\n{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","strategic_themes":["","",""],"key_constraints":["",""],"success_metrics":["","",""],"summary":""}`,
-      { taskType: 'lightweight', temperature: 0.3 }
-    );
-    model.strategicIntent = JSON.parse(extractJSON(raw));
-    renderStrategicIntentSection();
-    updateWorkflowStepStates();
-    showTab('exec', findTabButton('exec'));
-    toast('Strategic Intent clarified ✓');
-  } catch(e) { toast('Error clarifying intent: ' + e.message, true); }
-  spin('s0', false);
-}
-
-// ── STEP 2: GENERATE BUSINESS MODEL CANVAS ──────────────────
-async function generateBMC() {
-  const desc = document.getElementById('description').value.trim();
-  if (!model.strategicIntent && !desc) { toast('Complete Step 1 first', true); return; }
-  spin('s2b', true);
-  try {
-    const intentCtx = model.strategicIntent
-      ? `Strategic Intent: ${model.strategicIntent.strategic_ambition}. Themes: ${(model.strategicIntent.strategic_themes||[]).join(', ')}.`
-      : '';
-    const raw = await callAI(
-      'You are a business strategist. Return ONLY valid JSON, no markdown.',
-      `Generate a Business Model Canvas for this organisation:\n\n"${desc}"\n${intentCtx}\n\nReturn JSON:\n{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]}`,
-      { taskType: 'heavy', temperature: 0.2 }
-    );
-    model.bmc = JSON.parse(extractJSON(raw));
-    updateWorkflowStepStates();
-    renderBMCPanel();
-    toast('Business Model Canvas generated ✓');
-  } catch(e) { toast('Error generating BMC: ' + e.message, true); }
-  spin('s2b', false);
-}
-
-function renderBMCPanel() {
-  const bmc = model.bmc;
-  if (!bmc) return;
-  // Show BMC in the operating model tab for now (reusing the panel)
-  const el = document.getElementById('tab-opmodel');
-  if (!el) return;
-  const section = document.getElementById('bmc-tab-section') || (() => {
-    const d = document.createElement('div');
-    d.id = 'bmc-tab-section';
-    el.insertAdjacentElement('afterbegin', d);
-    return d;
-  })();
-  const pill = (v) => `<span class="intent-theme-pill" style="background:rgba(74,119,99,0.15);border-color:#4A7763;color:#2e6b50;">${v}</span>`;
-  section.innerHTML = `
-    <div class="mb-4 p-4 bg-slate-800 rounded-xl text-white">
-      <div class="text-[10px] font-bold text-green-300 uppercase tracking-widest mb-3">Business Model Canvas — Step 2</div>
-      <div class="grid grid-cols-2 gap-3 text-[10px]">
-        <div><div class="font-bold text-slate-400 uppercase text-[9px] mb-1">Value Proposition</div><div class="text-slate-200">${bmc.value_proposition||''}</div></div>
-        <div><div class="font-bold text-slate-400 uppercase text-[9px] mb-1">Customer Segments</div><div>${(bmc.customer_segments||[]).map(pill).join('')}</div></div>
-        <div><div class="font-bold text-slate-400 uppercase text-[9px] mb-1">Key Activities</div><div>${(bmc.key_activities||[]).map(pill).join('')}</div></div>
-        <div><div class="font-bold text-slate-400 uppercase text-[9px] mb-1">Key Resources</div><div>${(bmc.key_resources||[]).map(pill).join('')}</div></div>
-        <div><div class="font-bold text-slate-400 uppercase text-[9px] mb-1">Revenue Streams</div><div>${(bmc.revenue_streams||[]).map(pill).join('')}</div></div>
-        <div><div class="font-bold text-slate-400 uppercase text-[9px] mb-1">Cost Structure</div><div>${(bmc.cost_structure||[]).map(pill).join('')}</div></div>
-      </div>
-    </div>`;
-  showTab('opmodel', null);
-}
-
-// ── STEP 6: IDENTIFY VALUE POOLS ────────────────────────────
-async function generateValuePools() {
-  if (!model.capabilities.length) { toast('Complete Step 3 (Architecture) first', true); return; }
-  spin('s6v', true);
-  try {
-    const intentCtx = model.strategicIntent
-      ? `Strategic ambition: ${model.strategicIntent.strategic_ambition}. Themes: ${(model.strategicIntent.strategic_themes||[]).join(', ')}.`
-      : '';
-    const raw = await callAI(
-      'You are a strategy consultant. Return ONLY valid JSON, no markdown.',
-      `Identify the top value pools for this enterprise architecture:\n\n${intentCtx}\nCapabilities: ${JSON.stringify(model.capabilities.slice(0,10).map(c=>({name:c.name,domain:c.domain,strategicImportance:c.strategicImportance,maturity:c.maturity})))}\n\nReturn JSON array:\n[{"name":"","description":"","value_driver":"cost|revenue|risk|experience","potential_impact":"high|medium|low","enabling_capabilities":[""],"time_horizon":"short|medium|long"}]`,
-      { taskType: 'heavy', temperature: 0.2 }
-    );
-    model.valuePools = JSON.parse(extractJSON(raw));
-    updateWorkflowStepStates();
-    renderValuePoolsPanel();
-    toast('Value Pools identified ✓');
-  } catch(e) { toast('Error identifying value pools: ' + e.message, true); }
-  spin('s6v', false);
-}
-
-function renderValuePoolsPanel() {
-  const pools = model.valuePools || [];
-  if (!pools.length) return;
-  const driverColor = {cost:'bg-amber-100 text-amber-700', revenue:'bg-green-100 text-green-700', risk:'bg-red-100 text-red-700', experience:'bg-blue-100 text-blue-700'};
-  const horizonColor = {short:'text-green-600', medium:'text-amber-600', long:'text-slate-500'};
-  // Inject into target architecture tab if exists, else insights
-  const targetEl = document.getElementById('tab-targetarch') || document.getElementById('tab-insights');
-  if (!targetEl) return;
-  let sec = document.getElementById('valuepools-section');
-  if (!sec) {
-    sec = document.createElement('div');
-    sec.id = 'valuepools-section';
-    targetEl.insertAdjacentElement('afterbegin', sec);
-  }
-  sec.innerHTML = `
-    <div class="mb-4">
-      <div class="text-[10px] font-bold text-slate-500 uppercase mb-2">Value Pools — Step 6</div>
-      <div class="grid grid-cols-1 gap-2">
-        ${pools.map(p=>`
-          <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
-            <div class="flex items-start justify-between gap-2 mb-1">
-              <div class="text-[11px] font-bold text-slate-800">${p.name||''}</div>
-              <div class="flex gap-1 flex-shrink-0">
-                <span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${driverColor[p.value_driver]||'bg-slate-100 text-slate-600'}">${p.value_driver||''}</span>
-                <span class="text-[9px] font-semibold ${horizonColor[p.time_horizon]||'text-slate-500'}">${p.time_horizon||''}</span>
-              </div>
-            </div>
-            <div class="text-[10px] text-slate-600 mb-1.5">${p.description||''}</div>
-            <div class="flex flex-wrap gap-1">${(p.enabling_capabilities||[]).map(c=>`<span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">${c}</span>`).join('')}</div>
-          </div>`).join('')}
-      </div>
-    </div>`;
-  showTab(targetEl.id.replace('tab-',''), null);
-}
-
-// ── RENDER STRATEGIC INTENT SECTION (EXEC TAB) ──────────────
-function renderStrategicIntentSection() {
-  const intent = model.strategicIntent;
-  const displayEl = document.getElementById('intent-display-section');
-  const placeholderEl = document.getElementById('intent-placeholder');
-  if (!intent) {
-    if (displayEl) displayEl.classList.add('hidden');
-    if (placeholderEl) placeholderEl.classList.remove('hidden');
-    return;
-  }
-  if (displayEl) displayEl.classList.remove('hidden');
-  if (placeholderEl) placeholderEl.classList.add('hidden');
-
-  const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val || ''; };
-  set('intent-org-name', intent.org_name || 'Organisation');
-  set('intent-industry-timeframe', [intent.industry, intent.timeframe].filter(Boolean).join(' · '));
-  set('intent-ambition', intent.strategic_ambition || '');
-
-  const themesEl = document.getElementById('intent-themes');
-  if (themesEl) {
-    themesEl.innerHTML = (intent.strategic_themes || [])
-      .map(t => `<span class="intent-theme-pill">${t}</span>`).join('');
-  }
-  const constraintsEl = document.getElementById('intent-constraints');
-  if (constraintsEl) {
-    constraintsEl.innerHTML = (intent.key_constraints || [])
-      .map(c => `<li>${c}</li>`).join('');
-  }
-  const metricsEl = document.getElementById('intent-metrics');
-  if (metricsEl) {
-    metricsEl.innerHTML = (intent.success_metrics || [])
-      .map(m => `<li>${m}</li>`).join('');
-  }
-}
-
-// ── UPDATE WORKFLOW STEP STATES ──────────────────────────────
-function updateWorkflowStepStates() {
-  const done = [
-    !!model.strategicIntent,                        // step 1
-    !!model.bmc,                                    // step 2
-    model.capabilities.length > 0,                  // step 3
-    Object.keys(model.operatingModel||{}).length>0, // step 4
-    !!model.gapAnalysisDone,                         // step 5
-    model.valuePools && model.valuePools.length > 0, // step 6
-    !!model.targetArchDone                           // step 7
-  ];
-
-  for (let i = 1; i <= 7; i++) {
-    const stepEl = document.getElementById('step-' + i);
-    const badge = document.getElementById('badge-' + i);
-    const doneIcon = document.getElementById('step' + i + '-done');
-    if (!stepEl) continue;
-
-    const isDone = done[i - 1];
-    const isUnlocked = i === 1 || done[i - 2];
-
-    // Badge styling
-    if (badge) {
-      badge.className = 'workflow-step-badge' + (isDone ? ' workflow-step-badge--done' : isUnlocked ? ' workflow-step-badge--active' : '');
-      if (isDone) badge.innerHTML = '<i class="fas fa-check text-[8px]"></i>';
-      else badge.textContent = String(i);
-    }
-
-    // Lock/unlock button
-    if (isUnlocked) {
-      stepEl.classList.remove('workflow-step-locked');
-    } else {
-      stepEl.classList.add('workflow-step-locked');
-    }
-
-    // Done marker
-    if (doneIcon) doneIcon.classList.toggle('hidden', !isDone);
-    // Border colour
-    stepEl.classList.toggle('step-complete', isDone);
-  }
-}
-
 async function generateArchitecture() {
   const desc = document.getElementById('description').value.trim();
   if (!desc) { toast('Describe your organisation first', true); return; }
   const profile = getArchitectureGenerationProfile();
 
-  // Enrich prompt with Strategic Intent context if available (Step 1 → Step 3 chaining)
-  const intentPrefix = model.strategicIntent
-    ? `\nStrategic context: ambition="${model.strategicIntent.strategic_ambition}", themes=${JSON.stringify(model.strategicIntent.strategic_themes||[])}, constraints=${JSON.stringify(model.strategicIntent.key_constraints||[])}.`
-    : '';
-  const bmcPrefix = model.bmc
-    ? `\nBusiness model: value_proposition="${model.bmc.value_proposition}", customer_segments=${JSON.stringify(model.bmc.customer_segments||[])}.`
-    : '';
-
   spin('s1', true);
   try {
     const raw = await callAI('Return ONLY valid JSON, no markdown.',
-      `Generate enterprise architecture for: "${desc}"${intentPrefix}${bmcPrefix}
+      `Generate enterprise architecture for: "${desc}"
 Return JSON:
 {"valueStreams":[{"name":""}],"capabilities":[{"name":"","domain":"Customer|Product|Operations|Risk|Finance|Technology|Support","maturity":3,"strategicImportance":"low|medium|high","revenueExposure":"low|medium|high","regulatoryExposure":"low|medium|high","operationalCriticality":3,"dependsOnCapabilities":[""],"fteHoursSavedPct":15,"invoiceVolumeImpactPct":5,"investmentEstimate":150000,"riskExposureEstimate":500000}],"systems":[{"name":"","supportsCapability":"","criticality":"low|medium|high"}],"dataDomains":[{"name":""}],"aiAgents":[{"name":"","supportsCapability":"","criticality":"low|medium|high"}]}
   Rules: ${profile.valueStreams} value streams, ${profile.capabilities} capabilities, ${profile.systems} systems, ${profile.aiAgents} AI agents. fteHoursSavedPct is % of 1 FTE time saved by automating this capability. invoiceVolumeImpactPct is % of total revenue/volume risk if this fails. sustainabilityImpactPct is % reduction in CO2/energy footprint for this capability. Estimates are annual.`, { taskType: 'heavy', temperature: profile.temperature, timeoutMs: profile.timeoutMs });
@@ -5889,7 +5676,6 @@ Return JSON:
     computeDerivedFinancials();
     renderLayers(); renderCapMap(); renderHeatmap(); renderMaturityDashboard(); populateImpactSelect(); renderExecSummary(); generateNarrative(); updateDataCollectionTab();
     renderPhase4ControlsFromModel();
-    updateWorkflowStepStates();
     document.getElementById('cxo-narrative-section').classList.remove('hidden');
     toast('Architecture generated &#x2718; (' + profile.mode + ' mode)');
   } catch(e) { toast('Error: ' + e.message, true); }
@@ -5918,7 +5704,7 @@ function computeDerivedFinancials() {
   });
 }
 
-// ── CAPABILITY MAP ────
+// â”€â”€ CAPABILITY MAP â”€â”€â”€â”€
 async function generateCapabilityMap() {
   if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
   spin('s2', true);
@@ -5928,23 +5714,19 @@ async function generateCapabilityMap() {
   spin('s2', false);
 }
 
-// ── OPERATING MODEL ────
+// â”€â”€ OPERATING MODEL â”€â”€â”€â”€
 async function generateOperatingModel() {
   if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
   spin('s3', true);
   try {
-    const intentCtx = model.strategicIntent
-      ? `\nStrategic intent: ambition="${model.strategicIntent.strategic_ambition}", themes=${JSON.stringify(model.strategicIntent.strategic_themes||[])}.` : '';
-    const bmcCtx = model.bmc ? `\nBusiness model: value_proposition="${model.bmc.value_proposition}".` : '';
     const raw = await callAI('Return ONLY valid JSON.',
-      `Generate operating model canvas for this architecture:${intentCtx}${bmcCtx}\n${JSON.stringify(model.capabilities.slice(0,8))}
+      `Generate operating model canvas for this architecture: ${JSON.stringify(model.capabilities.slice(0,8))}
 Return JSON:
   {"valueProposition":"","customerSegments":[""],"keyActivities":[""],"keyResources":[""],"keyPartners":[""],"channels":[""],"costStructure":[""],"revenueStreams":[""]}`, { taskType: 'heavy', temperature: 0.2 });
     model.operatingModel = JSON.parse(extractJSON(raw));
     renderOperatingModel();
-    updateWorkflowStepStates();
     showTab('opmodel', null);
-    toast('Operating model generated ✓');
+    toast('Operating model generated &#x2718;');
   } catch(e) { toast('Error: ' + e.message, true); }
   spin('s3', false);
 }
@@ -5961,9 +5743,7 @@ async function analyseGaps() {
   try {
     const raw = await requestDynamicGapAnalysis({ source: 'gap_button', activeTab: currentTab });
     document.getElementById('insights').innerHTML = formatGapAnalysisOutput(raw);
-    model.gapAnalysisDone = true;
-    updateWorkflowStepStates();
-    toast('Gap analysis complete ✓');
+    toast('Gap analysis complete &#x2718;');
   } catch(e) { toast('Error: ' + e.message, true); }
   spin('s5', false);
 }
@@ -6000,7 +5780,7 @@ function formatGapAnalysisOutput(rawText) {
         const detail = String(item.detail || item.description || '').trim();
         const owner = String(item.owner || '').trim();
         const horizon = String(item.timeHorizon || '').trim();
-        const suffix = [owner, horizon].filter(Boolean).join(' • ');
+        const suffix = [owner, horizon].filter(Boolean).join(' &bull; ');
 
         if (title && detail && suffix) return `${title}: ${detail} (${suffix})`;
         if (title && detail) return `${title}: ${detail}`;
@@ -6016,7 +5796,7 @@ function formatGapAnalysisOutput(rawText) {
   }
 
   const parseLeadSentence = (item) => {
-    const clean = String(item || '').replace(/^[-*•\d.)\s]+/, '').trim();
+    const clean = String(item || '').replace(/^[-*&bull;\d.)\s]+/, '').trim();
     if (!clean) return { title: '', body: '' };
     const parts = clean.split(/[:.-]\s+/);
     if (parts.length > 1 && parts[0].length <= 72) {
@@ -6027,7 +5807,7 @@ function formatGapAnalysisOutput(rawText) {
       return { title: clean.slice(0, sentenceCut + 1).trim(), body: clean.slice(sentenceCut + 1).trim() };
     }
     if (clean.length <= 86) return { title: clean, body: '' };
-    return { title: clean.slice(0, 86).trim() + '…', body: clean };
+    return { title: clean.slice(0, 86).trim() + 'â€¦', body: clean };
   };
 
   const toDesired = (item) => {
@@ -6064,11 +5844,11 @@ function formatGapAnalysisOutput(rawText) {
     let activeLane = 'gap';
     normalized.forEach((line) => {
       const raw = String(line || '');
-      const clean = raw.replace(/^[-*•\d.)\s]+/, '').trim();
+      const clean = raw.replace(/^[-*&bull;\d.)\s]+/, '').trim();
       if (!clean) return;
 
       const lower = clean.toLowerCase();
-      if (/quick\s*win|action|recommendation|next\s*step|✅/.test(lower)) {
+      if (/quick\s*win|action|recommendation|next\s*step|âœ…/.test(lower)) {
         activeLane = 'actions';
         return;
       }
@@ -6080,7 +5860,7 @@ function formatGapAnalysisOutput(rawText) {
         activeLane = 'desired';
         return;
       }
-      if (/gap|risk|bottleneck|priority|strategic|⚠|🔴|⚡/.test(lower) && !/^[-*•\d.)\s]/.test(raw)) {
+      if (/gap|risk|bottleneck|priority|strategic|âš |ðŸ”´|âš¡/.test(lower) && !/^[-*&bull;\d.)\s]/.test(raw)) {
         activeLane = 'gap';
         return;
       }
@@ -6091,7 +5871,7 @@ function formatGapAnalysisOutput(rawText) {
 
   if (!lanes.gap.length) {
     lanes.gap = normalized
-      .map((line) => line.replace(/^[-*•\d.)\s]+/, '').trim())
+      .map((line) => line.replace(/^[-*&bull;\d.)\s]+/, '').trim())
       .filter(Boolean)
       .slice(0, 6);
   }
@@ -6165,11 +5945,9 @@ Return JSON array:
 [{"name":"","currentMaturity":2,"targetMaturity":4,"domain":"","strategicImportance":"high|medium|low","action":"","enabler":"Platform|AI|Process|Data|People"}]
   Return ALL capabilities.`, { taskType: 'heavy', temperature: 0.2 });
     model.targetArch = JSON.parse(extractJSON(raw));
-    model.targetArchDone = true;
     renderTargetArchVisual();
-    updateWorkflowStepStates();
     showTab('targetarch', findTabButton('targetarch'));
-    toast('Target architecture generated ✓');
+    toast('Target architecture generated &#x2718;');
   } catch(e) { toast('Error: ' + e.message, true); }
   spin('s6', false);
 }
@@ -6221,7 +5999,7 @@ function renderTargetArchVisual() {
         <div class="ea-target-card__name">${escapeHtml(item.name || 'Unnamed capability')}</div>
         <span class="ea-target-card__dot" aria-hidden="true"></span>
       </div>
-      <div class="ea-target-card__meta">M${current} -> M${targetMat} · ${escapeHtml(enabler)}</div>
+      <div class="ea-target-card__meta">M${current} -> M${targetMat} Â· ${escapeHtml(enabler)}</div>
       ${action ? `<div class="ea-target-card__action">${escapeHtml(action)}</div>` : ''}
     </article>`;
   };
@@ -6408,7 +6186,7 @@ function renderRoadmapVisual() {
     </div>`;
 }
 
-// ── LAYER MANAGEMENT ────
+// â”€â”€ LAYER MANAGEMENT â”€â”€â”€â”€
 let currentEditLayer = null;
 let currentEditIndex = null;
 
@@ -6650,7 +6428,7 @@ function saveLayerItem() {
   toast(`Item ${index !== null ? 'updated' : 'added'} &#x2718;`, false);
 }
 
-// ── EXCEL IMPORT/EXPORT ────
+// â”€â”€ EXCEL IMPORT/EXPORT â”€â”€â”€â”€
 function showExcelImportExport() {
   document.getElementById('excelModal').classList.remove('hidden');
 }
@@ -6839,19 +6617,19 @@ function renderLayers() {
             <span class="truncate flex-1">${i.name}</span>
             ${extra?extra(i):''}
             <div class="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-              <button onclick="editLayerItem('${layerType}', ${idx})" class="text-xs px-1 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600" title="Edit">&#9999;&#65039;</button>
-              <button onclick="deleteLayerItem('${layerType}', ${idx})" class="text-xs px-1 py-0.5 bg-red-500 text-white rounded hover:bg-red-600" title="Delete">&#128465;&#65039;</button>
+              <button onclick="editLayerItem('${layerType}', ${idx})" class="text-xs px-1 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600" title="Edit">âœï¸</button>
+              <button onclick="deleteLayerItem('${layerType}', ${idx})" class="text-xs px-1 py-0.5 bg-red-500 text-white rounded hover:bg-red-600" title="Delete">ðŸ—‘ï¸</button>
             </div>
           </div>
         `).join('')
-      : '<div class="text-slate-300 text-xs">—</div>';
+      : '<div class="text-slate-300 text-xs">â€”</div>';
   };
   draw('values', model.valueStreams, 'value-card', 'valueStreams');
   draw('caps', model.capabilities, 'cap-card', 'capabilities', c => {
     const m = `<span class="text-[9px] font-bold opacity-50 shrink-0">M${c.maturity}</span>`;
     const oc = `<span class="text-[9px] font-bold opacity-50 shrink-0">OC${(c.operationalCriticality||3)}</span>`;
     const bv = (c.annualSavingsEstimate!=null) ? `<span class="text-[9px] font-bold text-green-700 shrink-0">+${fmtMoney(c.annualSavingsEstimate)}</span>` : '';
-    const co2 = (c.sustainabilityImpactPct > 0) ? `<span class="text-[9px] font-bold text-teal-600 shrink-0">&#127811;${c.sustainabilityImpactPct}%</span>` : '';
+    const co2 = (c.sustainabilityImpactPct > 0) ? `<span class="text-[9px] font-bold text-teal-600 shrink-0">ðŸƒ${c.sustainabilityImpactPct}%</span>` : '';
     const areaCount = normalizeBusinessAreas(c.businessAreas || []).length;
     const area = `<span class="text-[9px] font-bold text-slate-500 shrink-0">A${areaCount}</span>`;
     return `<span class="flex items-center gap-2">${m}${area}${bv}${co2}</span>`;
@@ -6920,7 +6698,7 @@ function renderHeatmap() {
     <div class="ea-summary-list__item">
       <div>
         <strong>${capability.name}</strong>
-        <span>${capability.domain || 'General'} · Maturity ${capability.maturity || 1}/5</span>
+        <span>${capability.domain || 'General'} Â· Maturity ${capability.maturity || 1}/5</span>
       </div>
       ${EANordicUI.statusBadge({ level: getStatusLevel(capability), label: `${(capability.strategicImportance || 'medium').toUpperCase()} focus`, icon: 'fas fa-circle' })}
     </div>`).join('');
@@ -6949,7 +6727,7 @@ function renderGraph() {
 
     nodes.push({
       id: 'cap_' + capability.name,
-      label: `${capability.name}\nM${maturity} · ${importanceLabel}`,
+      label: `${capability.name}\nM${maturity} Â· ${importanceLabel}`,
       title: `<b>Capability</b><br>${escapeHtml(capability.name)}<br>Domain: ${escapeHtml(capability.domain || 'General')}<br>Maturity: ${maturity}/5`,
       level: 1,
       shape: 'box',
@@ -7208,12 +6986,12 @@ function runImpactSim() {
   }
 
   const riskColors = { high:'bg-red-100 text-red-700 border-red-300', medium:'bg-orange-100 text-orange-700 border-orange-300', low:'bg-green-100 text-green-700 border-green-300' };
-  const riskBadge = { high:'🔴 HIGH RISK', medium:'🟠 MEDIUM RISK', low:'🟢 LOW RISK' };
+  const riskBadge = { high:'ðŸ”´ HIGH RISK', medium:'ðŸŸ  MEDIUM RISK', low:'ðŸŸ¢ LOW RISK' };
   const pill = (o, cls) => `<span class="impact-ring ${cls}">${o.kind}: ${o.name}</span>`;
 
   el.innerHTML = `
     <div class="border-2 ${riskColors[riskLevel]} rounded-xl p-4 mb-4">
-      <div class="font-bold text-sm mb-1">${riskBadge[riskLevel]} — ${name}</div>
+      <div class="font-bold text-sm mb-1">${riskBadge[riskLevel]} â€” ${name}</div>
       <div class="text-xs opacity-70">Outcome: quantify dependencies to reduce downtime, lost revenue, customer churn risk, and compliance exposure.</div>
     </div>
 
@@ -7231,7 +7009,7 @@ function runImpactSim() {
     <div class="mt-4 bg-slate-50 border border-slate-200 rounded-xl p-3">
       <div class="text-[10px] font-bold text-slate-500 mb-2 uppercase">Investment Linkage (${impactedInitiatives.length})</div>
       ${impactedInitiatives.length
-        ? impactedInitiatives.map(i => `<div class="text-[11px] text-slate-700">• <b>${i.name}</b> <span class="text-[10px] text-slate-400">(BV:${i.estimatedBusinessValue}, Cx:${i.complexity}, Pr:${i.priority})</span></div>`).join('')
+        ? impactedInitiatives.map(i => `<div class="text-[11px] text-slate-700">&bull; <b>${i.name}</b> <span class="text-[10px] text-slate-400">(BV:${i.estimatedBusinessValue}, Cx:${i.complexity}, Pr:${i.priority})</span></div>`).join('')
         : '<div class="text-xs text-slate-500">No initiatives mapped. Consider adding mitigation investment to reduce exposure.</div>'}
     </div>`;
 }
@@ -7287,7 +7065,7 @@ function renderMaturityDashboard() {
     </div>
     ${gaps.length
       ? `<div class="text-[10px] font-bold text-danger mb-2">Critical gaps (${gaps.length})</div>
-         ${gaps.slice(0, 4).map(c => `<div class="mb-1">${EANordicUI.statusBadge({ level: 'low', label: `${c.name} · M${c.maturity}`, icon: 'fas fa-circle' })}</div>`).join('')}`
+         ${gaps.slice(0, 4).map(c => `<div class="mb-1">${EANordicUI.statusBadge({ level: 'low', label: `${c.name} Â· M${c.maturity}`, icon: 'fas fa-circle' })}</div>`).join('')}`
       : `<div>${EANordicUI.statusBadge({ level: 'high', label: 'No critical gaps detected', icon: 'fas fa-check' })}</div>`}`;
   renderNordicDashboard();
 }
@@ -7314,7 +7092,7 @@ function renderInitiatives() {
       <div class="flex gap-2 text-[9px]">
         <span>BV: <b class="${i.estimatedBusinessValue==='high'?'text-green-600':i.estimatedBusinessValue==='medium'?'text-yellow-600':'text-slate-400'}">${i.estimatedBusinessValue}</b></span>
         <span>Cx: <b class="${i.complexity==='high'?'text-red-600':i.complexity==='medium'?'text-yellow-600':'text-green-600'}">${i.complexity}</b></span>
-        <span class="ml-auto font-bold text-blue-600">★ ${i.score}</span>
+        <span class="ml-auto font-bold text-blue-600">â˜… ${i.score}</span>
       </div>
       ${i.phase?`<div class="text-[9px] text-slate-400 mt-1">${i.phase}</div>`:''}
     </div>`).join('');
@@ -7322,9 +7100,6 @@ function renderInitiatives() {
 
 
 function renderExecSummary() {
-  // Always render Strategic Intent section (shows placeholder if not set)
-  renderStrategicIntentSection();
-
   if (!model.capabilities.length) return;
 
   // Calculate Alignment: High importance capabilities with M3+ maturity
@@ -7367,7 +7142,7 @@ function splitNarrativeIntoParagraphs(text) {
 
   // Fallback: split by sentence boundaries to create readable short paragraphs.
   const sentenceParts = cleaned
-    .split(/(?<=[.!?])\s+(?=[A-ZÅÄÖ])/)
+    .split(/(?<=[.!?])\s+(?=[A-ZÃ…Ã„Ã–])/)
     .map((s) => s.trim())
     .filter(Boolean);
 
@@ -7408,10 +7183,10 @@ async function generateNarrative() {
   } catch(e) { console.error(e); }
 }
 
-// ── CFO VIEW helpers ────
+// â”€â”€ CFO VIEW helpers â”€â”€â”€â”€
 function fmtMoney(v) {
   const n = Number(v);
-  if (!isFinite(n)) return '—';
+  if (!isFinite(n)) return 'â€”';
   if (Math.abs(n) >= 1e9) return (n/1e9).toFixed(1)+'B';
   if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(1)+'M';
   if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(0)+'k';
@@ -7426,10 +7201,10 @@ function recalcCFO() {
 
 function renderCFO() {
   if (!model.capabilities.length) {
-    document.getElementById('kpi-savings').textContent = '—';
-    document.getElementById('kpi-risk').textContent = '—';
-    document.getElementById('kpi-roi').textContent = '—';
-    document.getElementById('kpi-payback').textContent = '—';
+    document.getElementById('kpi-savings').textContent = 'â€”';
+    document.getElementById('kpi-risk').textContent = 'â€”';
+    document.getElementById('kpi-roi').textContent = 'â€”';
+    document.getElementById('kpi-payback').textContent = 'â€”';
     document.getElementById('cfo-top-savings').innerHTML = '<div class="text-slate-400 text-xs">Generate architecture first</div>';
     document.getElementById('cfo-top-risk').innerHTML = '';
     return;
@@ -7460,8 +7235,8 @@ function renderCFO() {
 
   document.getElementById('kpi-savings').textContent = fmtMoney(sumSavings);
   document.getElementById('kpi-risk').textContent = fmtMoney(sumRisk);
-  document.getElementById('kpi-roi').textContent = (avgROI==null? '—' : avgROI.toFixed(1)+'x');
-  document.getElementById('kpi-payback').textContent = (avgPayback==null? '—' : Math.round(avgPayback)+' mo');
+  document.getElementById('kpi-roi').textContent = (avgROI==null? 'â€”' : avgROI.toFixed(1)+'x');
+  document.getElementById('kpi-payback').textContent = (avgPayback==null? 'â€”' : Math.round(avgPayback)+' mo');
   const avgCO2 = caps.length ? (caps.reduce((s,c)=>s+(Number(c.sustainabilityImpactPct)||0),0)/caps.length) : 0;
   document.getElementById('kpi-co2').textContent = avgCO2.toFixed(1) + '%';
 
@@ -7472,7 +7247,7 @@ function renderCFO() {
     const right = mode==='save' ? `+${fmtMoney(c.annualSavingsEstimate)}` : `${fmtMoney(c.riskExposureEstimate)}`;
     const rightCls = mode==='save' ? 'text-green-700' : 'text-red-700';
     const driver = mode==='save' ? `${c.fteHoursSavedPct}% FTE` : `${c.invoiceVolumeImpactPct}% Vol`;
-    const sub = `${driver} · CO2:${c.sustainabilityImpactPct}% · M${c.maturity}`;
+    const sub = `${driver} Â· CO2:${c.sustainabilityImpactPct}% Â· M${c.maturity}`;
     return `<div class="bg-white rounded-lg border border-slate-200 p-2">
       <div class="flex items-start justify-between gap-2">
         <div class="min-w-0">
@@ -7484,11 +7259,11 @@ function renderCFO() {
     </div>`;
   };
 
-  document.getElementById('cfo-top-savings').innerHTML = topSavings.map(c=>row(c,'save')).join('') || '<div class="text-slate-400 text-xs">—</div>';
-  document.getElementById('cfo-top-risk').innerHTML = topRisk.map(c=>row(c,'risk')).join('') || '<div class="text-slate-400 text-xs">—</div>';
+  document.getElementById('cfo-top-savings').innerHTML = topSavings.map(c=>row(c,'save')).join('') || '<div class="text-slate-400 text-xs">â€”</div>';
+  document.getElementById('cfo-top-risk').innerHTML = topRisk.map(c=>row(c,'risk')).join('') || '<div class="text-slate-400 text-xs">â€”</div>';
 }
 
-// ── V3: TOOLKIT INTEGRATION ────
+// â”€â”€ V3: TOOLKIT INTEGRATION â”€â”€â”€â”€
 const TOOLKIT_AGENT_CATALOG = {
   bmc: {
     id: 'bmc',
@@ -7606,7 +7381,7 @@ function launchToolkit(toolkitId) {
   const file = TOOLKIT_AGENT_CATALOG[toolkitId]?.openPath;
   if (file) {
     window.open(file, '_blank');
-    addSyncLog(`🚀 Opened ${toolkitId} toolkit in new window`);
+    addSyncLog(`ðŸš€ Opened ${toolkitId} toolkit in new window`);
   } else {
     toast(`Toolkit ${toolkitId} not found`, true);
   }
@@ -7631,13 +7406,13 @@ function syncToolkit(toolkitId) {
       badge.textContent = 'Synced &#x2718;';
     }
     
-    addSyncLog(`✅ Synced ${result.synced} items from ${toolkitId} (${result.conflicts?.length || 0} conflicts)`);
+    addSyncLog(`âœ… Synced ${result.synced} items from ${toolkitId} (${result.conflicts?.length || 0} conflicts)`);
     toast(`Synced ${result.synced} items from ${toolkitId}`, false);
     
   } catch (error) {
     console.error('Sync error:', error);
     toast(`Sync failed: ${error.message}`, true);
-    addSyncLog(`❌ Sync failed for ${toolkitId}: ${error.message}`);
+    addSyncLog(`âŒ Sync failed for ${toolkitId}: ${error.message}`);
   }
 }
 
@@ -7657,9 +7432,9 @@ function syncAllToolkits() {
   toast(`Attempted sync for ${totalSynced} toolkits`, false);
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // INTEGRATION ENGINE FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Update integration dashboard with current status
@@ -7703,7 +7478,7 @@ function updateIntegrationCard(toolkitId, status) {
     importBtn.classList.remove('opacity-50', 'cursor-not-allowed');
   } else {
     badge.className = 'text-[8px] px-2 py-0.5 rounded-full bg-slate-300 text-slate-600 font-bold';
-    badge.textContent = '—';
+    badge.textContent = 'â€”';
     text.textContent = 'No data available';
     
     importBtn.disabled = true;
@@ -7716,14 +7491,14 @@ function updateIntegrationCard(toolkitId, status) {
  */
 function importFromValueChain() {
   if (!integrationEngine || !dataManager) {
-    toast('⚠️ Integration engine not available', true);
+    toast('âš ï¸ Integration engine not available', true);
     return;
   }
   
   // Check if Value Chain data is available
   const vcData = dataManager.getIntegrationData('valuechain_latest');
   if (!vcData) {
-    toast('⚠️ No Value Chain data available to import. Please export from Value Chain Analyzer first.', true);
+    toast('âš ï¸ No Value Chain data available to import. Please export from Value Chain Analyzer first.', true);
     return;
   }
   
@@ -7732,7 +7507,7 @@ function importFromValueChain() {
     const transformed = integrationEngine.transformValueChainToEA(vcData);
     
     if (!transformed) {
-      toast('❌ Transformation failed', true);
+      toast('âŒ Transformation failed', true);
       return;
     }
     
@@ -7788,7 +7563,7 @@ function importFromValueChain() {
     
   } catch (error) {
     console.error('Import error:', error);
-    toast(`❌ Import failed: ${error.message}`, true);
+    toast(`âŒ Import failed: ${error.message}`, true);
   }
 }
 
@@ -7797,12 +7572,12 @@ function importFromValueChain() {
  */
 function exportForCapabilityMap() {
   if (!integrationEngine || !dataManager) {
-    toast('⚠️ Integration engine not available', true);
+    toast('âš ï¸ Integration engine not available', true);
     return;
   }
   
   if (model.capabilities.length === 0) {
-    toast('⚠️ No capabilities to export. Add capabilities first.', true);
+    toast('âš ï¸ No capabilities to export. Add capabilities first.', true);
     return;
   }
   
@@ -7833,7 +7608,7 @@ function exportForCapabilityMap() {
     
   } catch (error) {
     console.error('Export error:', error);
-    toast(`❌ Export failed: ${error.message}`, true);
+    toast(`âŒ Export failed: ${error.message}`, true);
   }
 }
 
@@ -7922,7 +7697,7 @@ function mergeByName(target, incoming) {
 
 function importFromToolkit(toolkitId, silent = false) {
   if (!integrationEngine || !dataManager) {
-    if (!silent) toast('⚠️ Integration engine not available', true);
+    if (!silent) toast('âš ï¸ Integration engine not available', true);
     return;
   }
 
@@ -7938,7 +7713,7 @@ function importFromToolkit(toolkitId, silent = false) {
   const data = dataManager.getIntegrationData(dataKey);
 
   if (!data) {
-    if (!silent) toast(`⚠️ No data available from ${toolkitId}`, true);
+    if (!silent) toast(`âš ï¸ No data available from ${toolkitId}`, true);
     return;
   }
 
@@ -8055,7 +7830,7 @@ function importAllAvailableToolkits(fromAutoFlow = false) {
  */
 function viewIntegrationLog() {
   if (!integrationEngine) {
-    toast('⚠️ Integration engine not available', true);
+    toast('âš ï¸ Integration engine not available', true);
     return;
   }
   
@@ -8070,12 +7845,12 @@ function viewIntegrationLog() {
   
   log.forEach(entry => {
     const time = new Date(entry.timestamp).toLocaleString();
-    const icon = entry.status === 'success' ? '✅' : '❌';
+    const icon = entry.status === 'success' ? 'âœ…' : 'âŒ';
     const color = entry.status === 'success' ? 'text-green-700' : 'text-red-700';
     
     logHTML += `
       <div class="text-[11px] p-3 bg-slate-50 rounded border ${color}">
-        <div class="font-bold">${icon} ${entry.source} → ${entry.target}</div>
+        <div class="font-bold">${icon} ${entry.source} â†’ ${entry.target}</div>
         <div class="text-slate-600 text-[10px]">${time}</div>
         ${entry.metadata && Object.keys(entry.metadata).length > 0 ? 
           `<div class="text-[10px] mt-1">${JSON.stringify(entry.metadata)}</div>` : ''}
@@ -8126,7 +7901,7 @@ function openIntegrationHelp() {
  */
 function clearIntegrationCache() {
   if (!dataManager) {
-    toast('⚠️ DataManager not available', true);
+    toast('âš ï¸ DataManager not available', true);
     return;
   }
   
@@ -8140,7 +7915,7 @@ function clearIntegrationCache() {
     toast('&#x2718; Integration cache cleared', false);
   } catch (error) {
     console.error('Clear cache error:', error);
-    toast(`❌ Failed to clear cache: ${error.message}`, true);
+    toast(`âŒ Failed to clear cache: ${error.message}`, true);
   }
 }
 
@@ -8155,7 +7930,7 @@ function showSyncStatus() {
   
   Object.keys(status).forEach(toolkit => {
     const s = status[toolkit];
-    const icon = s.hasData ? '✅' : '⚠️';
+    const icon = s.hasData ? 'âœ…' : 'âš ï¸';
     const syncTime = s.lastSynced ? new Date(s.lastSynced).toLocaleString() : 'Never';
     
     statusHTML += `
@@ -8176,31 +7951,31 @@ function showSyncStatus() {
 function showWorkshopGuide() {
   const guide = `
 WORKSHOP INTEGRATION GUIDE
-═════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 1. PREPARE
-   • Open a toolkit (BMC, Capability Map, etc.) in workshop
-   • Facilitate session with stakeholders
-   • Capture results in the toolkit
+   &bull; Open a toolkit (BMC, Capability Map, etc.) in workshop
+   &bull; Facilitate session with stakeholders
+   &bull; Capture results in the toolkit
 
 2. EXPORT
-   • Use toolkit's Export function
-   • Save JSON file with results
+   &bull; Use toolkit's Export function
+   &bull; Save JSON file with results
 
 3. IMPORT TO EA PLATFORM
-   • Open EA Platform V3
-   • Go to Toolkits tab
-   • Click "Sync" for the toolkit
-   • Or use Import function to load JSON
+   &bull; Open EA Platform V3
+   &bull; Go to Toolkits tab
+   &bull; Click "Sync" for the toolkit
+   &bull; Or use Import function to load JSON
 
 4. SYNC & ANALYZE
-   • Data automatically merges with existing architecture
-   • Conflicts are flagged for review
-   • Generate insights and roadmap
+   &bull; Data automatically merges with existing architecture
+   &bull; Conflicts are flagged for review
+   &bull; Generate insights and roadmap
 
 5. ITERATE
-   • Update toolkit with changes
-   • Re-sync to keep platform current
+   &bull; Update toolkit with changes
+   &bull; Re-sync to keep platform current
   `;
   
   alert(guide);
@@ -8265,7 +8040,7 @@ function addSyncLog(message) {
     <div class="bg-slate-900 p-6 text-white flex justify-between items-center">
       <div>
         <h3 class="text-lg font-bold">Strategic Board Report (Board Pack)</h3>
-        <p class="text-slate-400 text-[10px] uppercase tracking-widest mt-1">AI-generated analysis • Business Outcomes • ROI</p>
+        <p class="text-slate-400 text-[10px] uppercase tracking-widest mt-1">AI-generated analysis &bull; Business Outcomes &bull; ROI</p>
       </div>
       <div class="flex gap-3">
         <button onclick="printReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
@@ -8290,6 +8065,14 @@ function addSyncLog(message) {
 </div>
 
 <style>
+  /* Highlighted tab style */
+  .tab-btn--highlight {
+    background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%) !important;
+    border-color: #15803d !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 2px #22c55e;
+    transition: background 0.2s, color 0.2s;
+  }
   @media print {
     body * { visibility: hidden; }
     #report-container, #report-container * { visibility: visible; }
@@ -8304,4 +8087,60 @@ function addSyncLog(message) {
 </style>
 
 </body>
+<script>
+async function runAISurveyGeneration() {
+  const btn = document.getElementById('ai-survey-btn');
+  btn.disabled = true;
+  btn.innerText = 'Generating...';
+  // Collect context for survey generation
+  const branch = document.getElementById('survey-branch').value;
+  const subject = document.getElementById('survey-subject').value;
+  const businessArea = document.getElementById('survey-business-area').value;
+  const stakeholder = document.getElementById('survey-stakeholder').value;
+  const input = `Generate a concise, actionable survey (5-7 questions) for assessing maturity in the following context.\nBranch: ${branch}\nSubject: ${subject}\nBusiness Area: ${businessArea}\nStakeholder: ${stakeholder}\n\nQuestions should be clear, relevant, and suitable for digital self-assessment. Format as a numbered list.`;
+  try {
+    const response = await AzureOpenAIProxy.chat([
+      {role: 'system', content: 'You are an expert in business surveys and digital transformation.'},
+      {role: 'user', content: input}
+    ], {model: 'gpt-4.1'});
+    const aiResult = document.getElementById('ai-survey-result');
+    aiResult.innerHTML = '<b>AI-Generated Survey:</b><br>' + (response.choices?.[0]?.message?.content || 'No response.');
+    // Highlight the Data Collection tab
+    highlightTab('survey', true);
+  } catch (e) {
+    const aiResult = document.getElementById('ai-survey-result');
+    aiResult.innerHTML = '<span class="text-red-600">AI survey generation failed: ' + e.message + '</span>';
+  } finally {
+    btn.disabled = false;
+    btn.innerText = 'AI Survey Generation';
+  }
+}
+</script>
+<script>
+async function runAIBenchmarkAnalysis() {
+  const btn = document.getElementById('ai-benchmark-btn');
+  btn.disabled = true;
+  btn.innerText = 'Analyzing...';
+  const peer = document.getElementById('bench-peer').value;
+  const currentScores = calculateMaturityScores();
+  const peerScores = peerBenchmarks[peer] || peerBenchmarks["Nordic Commercial RE"];
+  const input = `User maturity scores by domain: ${benchDomains.map((d,i)=>`${d}: ${currentScores[i]}`).join(', ')}\nIndustry peer scores: ${benchDomains.map((d,i)=>`${d}: ${peerScores[i]}`).join(', ')}\n\nInstructions: Compare the user's scores to the industry peer. Highlight strengths, weaknesses, and suggest 2-3 actionable improvements for the largest gaps. Format as a short executive summary.`;
+  try {
+    const response = await AzureOpenAIProxy.chat([
+      {role: 'system', content: 'You are an expert in business benchmarking and digital transformation.'},
+      {role: 'user', content: input}
+    ], {model: 'gpt-4.1'});
+    const aiResult = document.getElementById('ai-bench-result');
+    aiResult.innerHTML = '<b>AI Benchmark Analysis:</b><br>' + (response.choices?.[0]?.message?.content || 'No response.');
+    // Highlight the Benchmark tab
+    highlightTab('bench', true);
+  } catch (e) {
+    const aiResult = document.getElementById('ai-bench-result');
+    aiResult.innerHTML = '<span class="text-red-600">AI analysis failed: ' + e.message + '</span>';
+  } finally {
+    btn.disabled = false;
+    btn.innerText = 'AI Benchmark Analysis';
+  }
+}
+</script>
 </html>
