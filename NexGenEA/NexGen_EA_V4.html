@@ -4542,9 +4542,15 @@ function renderMessage(content, isUser, timestamp = Date.now(), metadata = null,
   messageDiv.className = 'chat-message ' + (isUser ? 'user-message' : 'assistant-message');
   const iconClass = isUser ? 'fa-user' : 'fa-robot';
   const messageHtml = parseMarkdown(content);
-  const actionsHtml = metadata && metadata.affectedCapabilities && metadata.affectedCapabilities.length
-    ? `<div class="message-actions"><button onclick="showTab('capmap', findTabButton('capmap'))">View Changes (${metadata.affectedCapabilities.length})</button></div>`
-    : '';
+  let actionsHtml = '';
+  if (metadata && metadata.affectedCapabilities && metadata.affectedCapabilities.length) {
+    actionsHtml = `<div class="message-actions"><button onclick="showTab('capmap', findTabButton('capmap'))">View Changes (${metadata.affectedCapabilities.length})</button></div>`;
+  } else if (metadata && metadata.pendingRecommendations) {
+    actionsHtml = `<div class="message-actions flex gap-2 mt-2 flex-wrap">
+      <button onclick="confirmApplyRecommendations()" style="background:#16a34a;color:#fff;padding:4px 12px;border-radius:4px;font-size:10px;font-weight:700;border:none;cursor:pointer;">&#10003; Yes, apply all changes</button>
+      <button onclick="skipRecommendations()" style="background:#e2e8f0;color:#334155;padding:4px 12px;border-radius:4px;font-size:10px;font-weight:700;border:none;cursor:pointer;">&#10007; Skip</button>
+    </div>`;
+  }
 
   messageDiv.innerHTML = `
     <div class="message-avatar"><i class="fas ${iconClass}"></i></div>
@@ -5286,12 +5292,27 @@ function detectIntent(userMessage) {
   if (/refine|change|update capability|modify capability|improve/.test(text)) return 'refine_capability';
   if (/gap|missing|bottleneck|lucka|flaskhals/.test(text)) return 'gap_analysis';
   if (/maturity|assess maturity|assessment|mognad/.test(text)) return 'maturity_assessment';
+  if (/analys|analy[sz]e|review|recommend|what should|suggest|optimis|optimiz|förbättra|forbattra|update model|modify model|improve model|update all|apply change/.test(text)) return 'analyze_and_recommend';
   return 'general_question';
 }
 
 async function processUserMessage(userMessage) {
   const context = buildConversationContext();
   context.preferredLanguage = resolveResponseLanguage(userMessage);
+
+  // Handle pending recommendations confirmation
+  if (window._pendingRecommendations) {
+    if (/\b(yes|apply|ja|ok\b|confirm|proceed|sure|do it|go ahead)\b/i.test(userMessage)) {
+      const result = applyAIRecommendations(window._pendingRecommendations);
+      if (result.content) result.content = await maybeTranslateAssistantContent(result.content, context.preferredLanguage);
+      return result;
+    }
+    if (/\b(no|skip|cancel|ignore|nej|avbryt|nope|don't)\b/i.test(userMessage)) {
+      window._pendingRecommendations = null;
+      return { content: 'Recommendations discarded. Let me know if you would like a different analysis.', metadata: null };
+    }
+  }
+
   const command = parseAssistantCommand(userMessage);
   if (command) {
     const commandResult = await executeAssistantCommand(command, userMessage, context);
@@ -5320,6 +5341,9 @@ async function processUserMessage(userMessage) {
       break;
     case 'maturity_assessment':
       result = await handleMaturityAssessment(context);
+      break;
+    case 'analyze_and_recommend':
+      result = await handleAnalyzeAndApply(userMessage, context);
       break;
     default:
       result = await handleGeneralQuestion(userMessage, context);
@@ -5664,6 +5688,133 @@ async function handleGeneralQuestion(userMessage, context) {
     content: `Context: **${context.activeView}**\n\n${response}`,
     metadata: null
   };
+}
+
+// Global pending recommendations store
+window._pendingRecommendations = null;
+
+async function handleAnalyzeAndApply(userMessage, context) {
+  const caps = (model.capabilities || []).map(c => ({ id: c.id, name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance, description: c.description }));
+  const strategicIntent = model.strategicIntent || {};
+  const opModel = model.operatingModel || {};
+
+  const systemPrompt = `You are an expert enterprise architecture consultant. Analyze the current EA model and return structured JSON recommendations. Return ONLY valid JSON — no markdown, no prose outside the JSON.`;
+  const userPrompt = `Model context:
+Capabilities (${caps.length}): ${JSON.stringify(caps)}
+Strategic intent: ${JSON.stringify(strategicIntent)}
+Operating model: ${JSON.stringify(opModel)}
+Active view: ${context.activeView}
+
+User request: ${userMessage}
+
+Return JSON in exactly this format:
+{
+  "summary": "2-3 sentence analysis summary",
+  "recommendations": [
+    {"action": "update_capability", "id": "<existingCapId>", "name": "<capName>", "field": "maturity", "value": 4, "description": "Why this change"},
+    {"action": "update_capability", "id": "<existingCapId>", "name": "<capName>", "field": "strategicImportance", "value": "high", "description": "Why this change"},
+    {"action": "update_capability", "id": "<existingCapId>", "name": "<capName>", "field": "description", "value": "New description text", "description": "Why this change"},
+    {"action": "add_capability", "name": "New Cap Name", "domain": "Technology", "maturity": 2, "strategicImportance": "high", "description": "What this capability does"},
+    {"action": "update_strategic_intent", "field": "vision", "value": "New vision text", "description": "Why update vision"}
+  ]
+}
+Allowed actions: update_capability, add_capability, update_strategic_intent.
+Allowed fields for update_capability: maturity (integer 1-5), strategicImportance (low|medium|high), description (string), domain (string).
+Allowed fields for update_strategic_intent: vision, mission, goals (all strings).
+Only recommend changes that genuinely improve the architecture. Include 3-8 recommendations.`;
+
+  let parsed = null;
+  try {
+    const raw = await callAI(systemPrompt, userPrompt, { taskType: 'heavy', temperature: 0.2 });
+    parsed = parseJSONResponse(raw);
+  } catch (e) {
+    return { content: 'I was unable to generate structured recommendations. Please try again or rephrase your request.', metadata: null };
+  }
+
+  if (!parsed || !Array.isArray(parsed.recommendations) || parsed.recommendations.length === 0) {
+    return { content: 'I analyzed the model but found no concrete improvements to recommend at this time.', metadata: null };
+  }
+
+  window._pendingRecommendations = parsed;
+
+  const lines = parsed.recommendations.map((r, i) => {
+    if (r.action === 'add_capability') return `${i + 1}. **Add** "${r.name}" (${r.domain}, maturity ${r.maturity}) — ${r.description}`;
+    if (r.action === 'update_capability') return `${i + 1}. **Update** "${r.name}": set ${r.field} = ${r.value} — ${r.description}`;
+    if (r.action === 'update_strategic_intent') return `${i + 1}. **Update** strategic intent (${r.field}) — ${r.description}`;
+    return `${i + 1}. ${r.description}`;
+  }).join('\n');
+
+  const content = `**Analysis: ${context.activeView}**\n\n${parsed.summary}\n\n**Recommended changes (${parsed.recommendations.length}):**\n${lines}\n\nWould you like me to apply all these changes?`;
+  return { content, metadata: { pendingRecommendations: parsed } };
+}
+
+function applyAIRecommendations(pendingRecs) {
+  if (!pendingRecs || !Array.isArray(pendingRecs.recommendations)) {
+    return { content: 'No recommendations to apply.', metadata: null };
+  }
+  let applied = 0;
+  const newCaps = [];
+
+  for (const rec of pendingRecs.recommendations) {
+    try {
+      if (rec.action === 'update_capability') {
+        const cap = model.capabilities.find(c => c.id === rec.id);
+        if (cap) {
+          if (rec.field === 'maturity') {
+            cap.maturity = Math.max(1, Math.min(5, parseInt(rec.value, 10) || cap.maturity));
+          } else {
+            cap[rec.field] = rec.value;
+          }
+          applied++;
+        }
+      } else if (rec.action === 'add_capability') {
+        const newCap = {
+          id: 'cap_ai_' + Date.now() + '_' + applied,
+          name: rec.name || 'New Capability',
+          domain: rec.domain || 'Operations',
+          maturity: Math.max(1, Math.min(5, parseInt(rec.maturity, 10) || 2)),
+          strategicImportance: rec.strategicImportance || 'medium',
+          description: rec.description || '',
+          businessAreas: model.phase4Config?.activeBusinessAreas || ['general'],
+          what: rec.what || rec.name || '',
+          revenueExposure: 'medium', regulatoryExposure: 'medium',
+          operationalCriticality: 3, fteHoursSavedPct: 10,
+          investmentEstimate: 100000, riskExposureEstimate: 200000
+        };
+        model.capabilities.push(newCap);
+        newCaps.push(newCap.name);
+        applied++;
+      } else if (rec.action === 'update_strategic_intent') {
+        if (!model.strategicIntent) model.strategicIntent = {};
+        model.strategicIntent[rec.field] = rec.value;
+        applied++;
+      }
+    } catch (_) {}
+  }
+
+  autoSaveCurrentModel();
+  renderLayers();
+  renderCapMap();
+  renderHeatmap();
+  if (typeof renderExecSummary === 'function') renderExecSummary();
+  if (typeof renderMaturityDashboard === 'function') renderMaturityDashboard();
+  updateWorkflowStepStates();
+
+  window._pendingRecommendations = null;
+  const addedStr = newCaps.length ? `\n\nNew capabilities added: ${newCaps.join(', ')}.` : '';
+  return { content: `Applied ${applied} changes to the model.${addedStr}\n\nAll views have been refreshed.`, metadata: { affectedCapabilities: model.capabilities.slice(0, applied) } };
+}
+
+function confirmApplyRecommendations() {
+  const pending = window._pendingRecommendations;
+  if (!pending) { addAssistantMessage('No pending recommendations to apply.'); return; }
+  const result = applyAIRecommendations(pending);
+  addAssistantMessage(result.content, result.metadata);
+}
+
+function skipRecommendations() {
+  window._pendingRecommendations = null;
+  addAssistantMessage('Recommendations discarded. Let me know if you would like a different analysis or any other changes.');
 }
 
 function normalizeCapabilities(capabilities) {
@@ -8552,7 +8703,12 @@ async function runAISurveyGeneration() {
   try {
     const content = await callAI('You are an expert in business surveys and digital transformation.', input);
     const aiResult = document.getElementById('ai-survey-result');
-    aiResult.innerHTML = '<b>AI-Generated Survey:</b><br>' + (content || 'No response.');
+    const formatted = (content || 'No response.').split('\n').filter(l => l.trim()).map(l => {
+      const m = l.trim().match(/^(\d+)\.\s*(.*)/);
+      if (m) return `<div class="flex gap-2 items-start p-2 bg-white rounded border border-blue-100 mb-1"><span class="text-blue-600 font-bold text-[10px] min-w-[16px] shrink-0">${m[1]}.</span><span class="text-[11px]">${m[2]}</span></div>`;
+      return `<div class="text-[10px] text-slate-500 mb-1">${l}</div>`;
+    }).join('');
+    aiResult.innerHTML = `<b class="text-[11px] text-blue-800 block mb-2">AI-Generated Survey:</b>${formatted}`;
     highlightTab('survey', true);
   } catch (e) {
     const aiResult = document.getElementById('ai-survey-result');
@@ -8575,7 +8731,13 @@ async function runAIBenchmarkAnalysis() {
   try {
     const content = await callAI('You are an expert in business benchmarking and digital transformation.', input);
     const aiResult = document.getElementById('ai-bench-result');
-    aiResult.innerHTML = '<b>AI Benchmark Analysis:</b><br>' + (content || 'No response.');
+    const fmtBench = (content || 'No response.').split('\n').filter(l => l.trim()).map(l => {
+      const m = l.trim().match(/^(\d+)\.\s*(.*)/);
+      if (m) return `<div class="flex gap-2 items-start p-2 bg-white rounded border border-blue-100 mb-1"><span class="text-blue-600 font-bold text-[10px] min-w-[16px] shrink-0">${m[1]}.</span><span class="text-[11px]">${m[2]}</span></div>`;
+      if (/^\*{1,2}(.+?)\*{1,2}/.test(l.trim())) return `<div class="text-[11px] font-semibold text-slate-700 mt-2 mb-1">${l.replace(/\*{1,2}(.+?)\*{1,2}/g,'$1').trim()}</div>`;
+      return `<div class="text-[11px] text-slate-600 mb-1">${l}</div>`;
+    }).join('');
+    aiResult.innerHTML = `<b class="text-[11px] text-blue-800 block mb-2">AI Benchmark Analysis:</b>${fmtBench}`;
     highlightTab('bench', true);
   } catch (e) {
     const aiResult = document.getElementById('ai-bench-result');
