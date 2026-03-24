@@ -8484,13 +8484,9 @@ async function runAISurveyGeneration() {
   const stakeholder = document.getElementById('survey-stakeholder').value;
   const input = `Generate a concise, actionable survey (5-7 questions) for assessing maturity in the following context.\nBranch: ${branch}\nSubject: ${subject}\nBusiness Area: ${businessArea}\nStakeholder: ${stakeholder}\n\nQuestions should be clear, relevant, and suitable for digital self-assessment. Format as a numbered list.`;
   try {
-    const response = await AzureOpenAIProxy.chat([
-      {role: 'system', content: 'You are an expert in business surveys and digital transformation.'},
-      {role: 'user', content: input}
-    ], {model: 'gpt-4.1'});
+    const content = await callAI('You are an expert in business surveys and digital transformation.', input);
     const aiResult = document.getElementById('ai-survey-result');
-    aiResult.innerHTML = '<b>AI-Generated Survey:</b><br>' + (response.choices?.[0]?.message?.content || 'No response.');
-    // Highlight the Data Collection tab
+    aiResult.innerHTML = '<b>AI-Generated Survey:</b><br>' + (content || 'No response.');
     highlightTab('survey', true);
   } catch (e) {
     const aiResult = document.getElementById('ai-survey-result');
@@ -8511,13 +8507,9 @@ async function runAIBenchmarkAnalysis() {
   const peerScores = peerBenchmarks[peer] || peerBenchmarks["Nordic Commercial RE"];
   const input = `User maturity scores by domain: ${benchDomains.map((d,i)=>`${d}: ${currentScores[i]}`).join(', ')}\nIndustry peer scores: ${benchDomains.map((d,i)=>`${d}: ${peerScores[i]}`).join(', ')}\n\nInstructions: Compare the user's scores to the industry peer. Highlight strengths, weaknesses, and suggest 2-3 actionable improvements for the largest gaps. Format as a short executive summary.`;
   try {
-    const response = await AzureOpenAIProxy.chat([
-      {role: 'system', content: 'You are an expert in business benchmarking and digital transformation.'},
-      {role: 'user', content: input}
-    ], {model: 'gpt-4.1'});
+    const content = await callAI('You are an expert in business benchmarking and digital transformation.', input);
     const aiResult = document.getElementById('ai-bench-result');
-    aiResult.innerHTML = '<b>AI Benchmark Analysis:</b><br>' + (response.choices?.[0]?.message?.content || 'No response.');
-    // Highlight the Benchmark tab
+    aiResult.innerHTML = '<b>AI Benchmark Analysis:</b><br>' + (content || 'No response.');
     highlightTab('bench', true);
   } catch (e) {
     const aiResult = document.getElementById('ai-bench-result');
