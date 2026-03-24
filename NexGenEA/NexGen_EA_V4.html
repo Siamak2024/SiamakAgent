@@ -6,6 +6,36 @@
 <title>NextGen EA Platform - V4</title>
 <link rel="icon" href="data:,">
 <script>
+  // Utility: Highlight a tab by name (e.g., 'exec', 'capmap')
+  // Highlight a tab and persist highlight
+  function highlightTab(tabName) {
+    const btn = document.querySelector(`.tab-btn[onclick*="showTab('${tabName}'"]`);
+    if (btn) {
+      btn.classList.add('tab-btn--highlight');
+    }
+  }
+
+  // Highlight all tab buttons (when all analyses are done)
+  function highlightAllTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.add('tab-btn--highlight'));
+  }
+
+  // Track which tabs have been highlighted (analysis done)
+  const analysisTabs = new Set();
+  function checkAllAnalysisComplete() {
+    // List of all tab names that should be highlighted when their analysis is done
+    const requiredTabs = ['exec', 'capmap', 'bench', 'survey'];
+    requiredTabs.forEach(tab => {
+      const btn = document.querySelector(`.tab-btn[onclick*="showTab('${tab}'"]`);
+      if (btn && btn.classList.contains('tab-btn--highlight')) {
+        analysisTabs.add(tab);
+      }
+    });
+    if (analysisTabs.size === requiredTabs.length) {
+      highlightAllTabs();
+    }
+  }
+
   tailwind.config = {
     theme: {
       extend: {
@@ -414,6 +444,7 @@
             <option value="Industry Peer Group A">Peer: Industry Peer Group A</option>
             <option value="Global Asset Management">Peer: Global Asset Management</option>
             <option value="Public Housing (Sweden)">Peer: Public Housing (Sweden)</option>
+            <button id="ai-benchmark-btn" onclick="runAIBenchmarkAnalysis()" class="ml-2 text-[10px] bg-blue-600 text-white hover:bg-blue-700 px-3 py-1 rounded border border-blue-700 font-bold">AI Benchmark Analysis</button>
           </select>
         </div>
         
@@ -452,6 +483,7 @@
           <div class="bg-white p-4 rounded-xl border shadow-sm">
             <div class="text-[10px] font-bold text-slate-500 mb-2 uppercase">Strategic Insights & Opportunity Cost</div>
             <div id="bench-insights" class="space-y-3 text-[11px]"></div>
+            <div id="ai-bench-result" class="mt-3 text-[11px] bg-blue-50 border border-blue-200 rounded p-2"></div>
           </div>
         </div>
       </div>
@@ -465,6 +497,7 @@
           </div>
           <div class="flex gap-2">
             <button onclick="generateDynamicSurveys()" class="text-[10px] bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1 rounded border border-indigo-700 font-bold">Generate Surveys</button>
+            <button id="ai-survey-btn" onclick="runAISurveyGeneration()" class="text-[10px] bg-blue-600 text-white hover:bg-blue-700 px-3 py-1 rounded border border-blue-700 font-bold">AI Survey Generation</button>
             <button onclick="exportSurveyCSV()" class="text-[10px] bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded border font-bold">Export CSV</button>
             <button onclick="document.getElementById('csv-import').click()" class="text-[10px] bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1 rounded border border-blue-200 font-bold">Import Data</button>
             <input type="file" id="csv-import" class="hidden" accept=".csv" onchange="importCSVData(event)">
@@ -538,6 +571,7 @@
               </div>
             </div>
             <div id="survey-list" class="max-h-[400px] overflow-y-auto space-y-2"></div>
+            <div id="ai-survey-result" class="mt-3 text-[11px] bg-blue-50 border border-blue-200 rounded p-2"></div>
           </div>
         </div>
       </div>
@@ -3647,6 +3681,21 @@ function showTab(name, btn) {
   if (name === 'toolkits') setTimeout(updateToolkitBadges, 50);
   if (name === 'home') setTimeout(renderNordicDashboard, 50);
   if (name === 'maturity') setTimeout(renderMaturityDashboard, 50);
+}
+
+// Example: Call highlightTab('exec', true) when Step 1 is completed
+// You should call highlightTab('capmap', true) when capability map is generated, etc.
+
+// Example hooks (add these in your workflow where content is generated):
+// highlightTab('exec', true); // Highlight Executive tab
+// highlightTab('capmap', true); // Highlight Capability Map tab
+// highlightTab('bench', true); // Highlight Benchmark tab
+// highlightTab('survey', true); // Highlight Data Collection tab
+
+// Remove highlight when content is cleared or reset:
+// highlightTab('exec', false);
+// highlightTab('capmap', false);
+// ...
 }
 
 function openHomeFromHeader(btn) {
@@ -7931,6 +7980,14 @@ function addSyncLog(message) {
 </div>
 
 <style>
+  /* Highlighted tab style */
+  .tab-btn--highlight {
+    background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%) !important;
+    border-color: #15803d !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 2px #22c55e;
+    transition: background 0.2s, color 0.2s;
+  }
   @media print {
     body * { visibility: hidden; }
     #report-container, #report-container * { visibility: visible; }
@@ -7945,4 +8002,60 @@ function addSyncLog(message) {
 </style>
 
 </body>
+<script>
+async function runAISurveyGeneration() {
+  const btn = document.getElementById('ai-survey-btn');
+  btn.disabled = true;
+  btn.innerText = 'Generating...';
+  // Collect context for survey generation
+  const branch = document.getElementById('survey-branch').value;
+  const subject = document.getElementById('survey-subject').value;
+  const businessArea = document.getElementById('survey-business-area').value;
+  const stakeholder = document.getElementById('survey-stakeholder').value;
+  const input = `Generate a concise, actionable survey (5-7 questions) for assessing maturity in the following context.\nBranch: ${branch}\nSubject: ${subject}\nBusiness Area: ${businessArea}\nStakeholder: ${stakeholder}\n\nQuestions should be clear, relevant, and suitable for digital self-assessment. Format as a numbered list.`;
+  try {
+    const response = await AzureOpenAIProxy.chat([
+      {role: 'system', content: 'You are an expert in business surveys and digital transformation.'},
+      {role: 'user', content: input}
+    ], {model: 'gpt-4.1'});
+    const aiResult = document.getElementById('ai-survey-result');
+    aiResult.innerHTML = '<b>AI-Generated Survey:</b><br>' + (response.choices?.[0]?.message?.content || 'No response.');
+    // Highlight the Data Collection tab
+    highlightTab('survey', true);
+  } catch (e) {
+    const aiResult = document.getElementById('ai-survey-result');
+    aiResult.innerHTML = '<span class="text-red-600">AI survey generation failed: ' + e.message + '</span>';
+  } finally {
+    btn.disabled = false;
+    btn.innerText = 'AI Survey Generation';
+  }
+}
+</script>
+<script>
+async function runAIBenchmarkAnalysis() {
+  const btn = document.getElementById('ai-benchmark-btn');
+  btn.disabled = true;
+  btn.innerText = 'Analyzing...';
+  const peer = document.getElementById('bench-peer').value;
+  const currentScores = calculateMaturityScores();
+  const peerScores = peerBenchmarks[peer] || peerBenchmarks["Nordic Commercial RE"];
+  const input = `User maturity scores by domain: ${benchDomains.map((d,i)=>`${d}: ${currentScores[i]}`).join(', ')}\nIndustry peer scores: ${benchDomains.map((d,i)=>`${d}: ${peerScores[i]}`).join(', ')}\n\nInstructions: Compare the user's scores to the industry peer. Highlight strengths, weaknesses, and suggest 2-3 actionable improvements for the largest gaps. Format as a short executive summary.`;
+  try {
+    const response = await AzureOpenAIProxy.chat([
+      {role: 'system', content: 'You are an expert in business benchmarking and digital transformation.'},
+      {role: 'user', content: input}
+    ], {model: 'gpt-4.1'});
+    const aiResult = document.getElementById('ai-bench-result');
+    aiResult.innerHTML = '<b>AI Benchmark Analysis:</b><br>' + (response.choices?.[0]?.message?.content || 'No response.');
+    // Highlight the Benchmark tab
+    highlightTab('bench', true);
+  } catch (e) {
+    const aiResult = document.getElementById('ai-bench-result');
+    aiResult.innerHTML = '<span class="text-red-600">AI analysis failed: ' + e.message + '</span>';
+  } finally {
+    btn.disabled = false;
+    btn.innerText = 'AI Benchmark Analysis';
+  }
+}
+</script>
 </html>
