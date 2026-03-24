@@ -5911,8 +5911,35 @@ async function clarifyStrategicIntent() {
   spin('s0', true);
   try {
     const raw = await callAI(
-      'You are a senior Enterprise Architect. Return ONLY valid JSON, no markdown, no explanation.',
-      `Extract structured Strategic Intent from this organisation description:\n\n"${desc}"\n\nReturn JSON:\n{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","strategic_themes":["","",""],"key_constraints":["",""],"success_metrics":["","",""],"summary":""}`,
+      `You are a senior strategy advisor supporting C-level executives (CIO, CFO, CDO, COO) across industries.
+
+Objective:
+Generate a concise, differentiated "Strategic Intent — Step 1" that reflects competitive positioning, economic realities, and measurable business outcomes.
+
+Instructions:
+- Avoid generic or template language that could apply to any company.
+- Tailor the strategy to the company's business model, industry dynamics, and current macro environment.
+- Explicitly address:
+  1) Where value is created (growth, margin expansion, capital efficiency)
+  2) Key economic drivers (e.g. cost of capital, pricing power, utilization, productivity)
+  3) Trade-offs (e.g. growth vs profitability, scale vs efficiency, risk vs return)
+- Highlight how the company can outperform competitors, not just operate efficiently.
+- Assume current macroeconomic conditions relevant to the industry (e.g. interest rates, inflation, demand shifts, regulatory pressure).
+
+Output structure:
+1. strategic_ambition: max 2 sentences. Must include clear business outcomes (e.g. revenue growth, margin improvement, cash flow, ROI, market share).
+2. strategic_themes: 3–5 bullets. Each theme must explain HOW value is created (e.g. cost reduction, revenue expansion, asset utilization, risk reduction). Avoid vague wording.
+3. key_constraints: max 3. Focus on real economic or operational constraints (e.g. capital cost, regulation, supply chain, talent).
+4. success_metrics: 4–6 bullets. Quantifiable where possible. Directly linked to financial or strategic outcomes.
+
+Tone: Executive, fact-based, and commercially sharp. Prioritize insight and differentiation over completeness.
+
+Quality criteria:
+- If the output could apply to multiple industries without change → it is too generic.
+- Each element must link to one of: cost savings, revenue growth, risk reduction, capital efficiency, or competitive advantage.
+
+Return ONLY valid JSON, no markdown, no explanation.`,
+      `Extract structured Strategic Intent from this organisation description:\n\n"${desc}"\n\nReturn JSON:\n{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","strategic_themes":["","",""],"key_constraints":["","",""],"success_metrics":["","","",""],"summary":""}`,
       { taskType: 'lightweight', temperature: 0.3 }
     );
     model.strategicIntent = JSON.parse(extractJSON(raw));
