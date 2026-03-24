@@ -7760,53 +7760,119 @@ function launchToolkit(toolkitId) {
 }
 
 function syncToolkit(toolkitId) {
-  if (!syncEngine || !currentModelId) {
-    toast('SyncEngine not available or no active project', true);
-    return;
+  const syncMap = {
+    bmc:          { key: 'bmc_latest',        merge: mergeBmcIntoModel },
+    capabilityMap:{ key: 'capability_latest', merge: mergeCapabilityIntoModel },
+    capability:   { key: 'capability_latest', merge: mergeCapabilityIntoModel },
+    valueChain:   { key: 'valuechain_latest', merge: mergeValueChainIntoModel },
+    strategy:     { key: 'strategy_latest',   merge: mergeStrategyIntoModel },
+    maturity:     { key: 'maturity_latest',   merge: mergeMaturityIntoModel },
+    wardley:      { key: 'capability_latest', merge: mergeCapabilityIntoModel }
+  };
+  const entry = syncMap[toolkitId];
+  if (!entry) {
+    addSyncLog('\u274C Unknown toolkit: ' + toolkitId);
+    toast('Unknown toolkit: ' + toolkitId, true);
+    return 0;
   }
-  
-  toast(`Syncing ${toolkitId}...`, false);
-  
   try {
-    // Simulate sync (in real implementation, this would read from toolkit's localStorage)
-    const result = syncEngine.syncToPlat(currentModelId, toolkitId, { mode: 'merge' });
-    
-    // Update badge
-    const badge = document.getElementById(`sync-badge-${toolkitId}`);
+    const stored = localStorage.getItem('ea_integration_' + entry.key);
+    if (!stored) {
+      addSyncLog('\u26A0\uFE0F No data for ' + toolkitId + ' \u2014 export from the toolkit first');
+      toast('No data for ' + toolkitId, true);
+      return 0;
+    }
+    const pkg = JSON.parse(stored);
+    const data = pkg.data || pkg;
+    const count = entry.merge(data);
+    localStorage.setItem('ea_current_model', JSON.stringify({ id: currentModelId, name: currentModelName, data: model }));
+    const badge = document.getElementById('sync-badge-' + toolkitId);
     if (badge) {
       badge.className = 'text-[9px] px-2 py-0.5 rounded-full bg-green-500 text-white font-bold';
-      badge.textContent = 'Synced &#x2718;';
+      badge.textContent = 'Synced \u2714';
     }
-    
-    addSyncLog(`âœ… Synced ${result.synced} items from ${toolkitId} (${result.conflicts?.length || 0} conflicts)`);
-    toast(`Synced ${result.synced} items from ${toolkitId}`, false);
-    
+    addSyncLog('\u2705 Synced ' + count + ' item(s) from ' + toolkitId);
+    return count;
   } catch (error) {
     console.error('Sync error:', error);
-    toast(`Sync failed: ${error.message}`, true);
-    addSyncLog(`âŒ Sync failed for ${toolkitId}: ${error.message}`);
+    addSyncLog('\u274C Sync failed for ' + toolkitId + ': ' + error.message);
+    toast('Sync failed: ' + error.message, true);
+    return 0;
   }
+}
+
+function mergeBmcIntoModel(data) {
+  if (data.valueProposition || data.customerSegments || data.keyActivities) {
+    model.operatingModel = Object.assign(model.operatingModel || {}, {
+      valueProposition: data.valueProposition || (model.operatingModel || {}).valueProposition,
+      customerSegments: data.customerSegments || (model.operatingModel || {}).customerSegments,
+      keyActivities: data.keyActivities || (model.operatingModel || {}).keyActivities,
+      keyResources: data.keyResources || (model.operatingModel || {}).keyResources,
+      channels: data.channels || (model.operatingModel || {}).channels,
+      revenueStreams: data.revenueStreams || (model.operatingModel || {}).revenueStreams,
+      costStructure: data.costStructure || (model.operatingModel || {}).costStructure
+    });
+    model.bmc = data;
+  } else {
+    model.bmc = Object.assign(model.bmc || {}, data);
+  }
+  return 1;
+}
+
+function mergeCapabilityIntoModel(data) {
+  const incoming = Array.isArray(data) ? data : (data.capabilities || data.items || []);
+  if (!incoming.length) return 0;
+  const existing = model.capabilities || [];
+  const existingNames = new Set(existing.map(c => (c.id || c.name || '').toLowerCase()));
+  let added = 0;
+  incoming.forEach(function(cap) {
+    if (!existingNames.has((cap.id || cap.name || '').toLowerCase())) {
+      existing.push(cap);
+      added++;
+    }
+  });
+  model.capabilities = existing;
+  return added;
+}
+
+function mergeValueChainIntoModel(data) {
+  const activities = Array.isArray(data) ? data : (data.activities || data.primaryActivities || []);
+  model.operatingModel = model.operatingModel || {};
+  model.operatingModel.valueChainActivities = activities;
+  return activities.length;
+}
+
+function mergeStrategyIntoModel(data) {
+  if (!model.strategicIntent || typeof model.strategicIntent === 'string') {
+    model.strategicIntent = { summary: model.strategicIntent || '' };
+  }
+  Object.assign(model.strategicIntent, {
+    vision: data.vision || model.strategicIntent.vision,
+    mission: data.mission || model.strategicIntent.mission,
+    strategicObjectives: data.strategicObjectives || data.objectives || model.strategicIntent.strategicObjectives
+  });
+  return 1;
+}
+
+function mergeMaturityIntoModel(data) {
+  const scores = data.scores || data.domainScores || (typeof data === 'object' ? data : {});
+  model.maturityScores = Object.assign(model.maturityScores || {}, scores);
+  return Object.keys(scores).length;
 }
 
 function syncAllToolkits() {
-  const toolkits = ['bmc', 'capabilityMap', 'wardley', 'valueChain', 'maturity'];
+  const toolkits = ['bmc', 'capabilityMap', 'valueChain', 'strategy', 'maturity'];
   let totalSynced = 0;
-  
-  toolkits.forEach(toolkit => {
-    try {
-      syncToolkit(toolkit);
-      totalSynced++;
-    } catch (error) {
-      console.error(`Failed to sync ${toolkit}:`, error);
-    }
+  toolkits.forEach(function(toolkit) {
+    totalSynced += syncToolkit(toolkit);
   });
-  
-  toast(`Attempted sync for ${totalSynced} toolkits`, false);
+  updateWorkflowStepStates();
+  renderLayers();
+  renderCapMap();
+  renderHeatmap();
+  renderExecSummary();
+  toast('Sync complete: ' + totalSynced + ' item(s) imported', false);
 }
-
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// INTEGRATION ENGINE FUNCTIONS
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Update integration dashboard with current status
