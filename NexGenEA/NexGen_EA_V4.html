@@ -5937,6 +5937,43 @@ function updateWorkflowStepStates() {
     if (doneIcon) doneIcon.classList.toggle('hidden', !isDone);
     stepEl.classList.toggle('step-complete', isDone);
   }
+  updateTabCompletionBadges();
+}
+
+function updateTabCompletionBadges() {
+  const caps = (model.capabilities||[]).length > 0;
+  const tabStates = {
+    exec:       !!model.strategicIntent,
+    phase4:     caps,
+    bench:      caps,
+    survey:     caps,
+    layers:     caps,
+    capmap:     caps,
+    heatmap:    caps,
+    graph:      caps,
+    impact:     caps,
+    cfo:        caps,
+    gap:        !!model.gapAnalysisDone,
+    maturity:   !!model.gapAnalysisDone || caps,
+    opmodel:    !!(model.bmc || Object.keys(model.operatingModel||{}).length > 0),
+    targetarch: !!model.targetArchDone || !!(model.valuePools && model.valuePools.length > 0),
+    roadmapvis: !!model.targetArchDone || !!(model.initiatives && model.initiatives.length > 0)
+  };
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const onclick = btn.getAttribute('onclick') || '';
+    const match = onclick.match(/showTab\('([^']+)'/);
+    if (!match) return;
+    const tabName = match[1];
+    const isDone = !!tabStates[tabName];
+    let badge = btn.querySelector('.tab-done-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'tab-done-badge';
+      badge.innerHTML = '<i class="fas fa-check"></i>';
+      btn.appendChild(badge);
+    }
+    badge.style.display = isDone ? '' : 'none';
+  });
 }
 
 // â”€â”€ GENERATE ARCHITECTURE â”€â”€â”€â”€
