@@ -50,7 +50,7 @@ class AzureOpenAIProxy {
    */
   static async create(input, options = {}) {
     const {
-      model = 'gpt-4.1',
+      model = 'gpt-5',
       instructions,
       tools,
       tool_choice,
@@ -214,15 +214,26 @@ class AzureOpenAIProxy {
    *   - `sources`    — full list of source URLs the model consulted
    *
    * @example
+   * // Simple search
    * const { outputText, citations } = await AzureOpenAIProxy.webSearch(
    *   'What is the latest news about OpenAI?'
    * );
    * console.log(outputText);
    * citations.forEach(c => console.log(c.title, c.url));
+   *
+   * @example
+   * // Domain-filtered, location-aware search
+   * const { outputText } = await AzureOpenAIProxy.webSearch(
+   *   'Local weather this weekend',
+   *   {
+   *     allowedDomains: ['weather.com', 'yr.no'],
+   *     userLocation: { country: 'SE', city: 'Stockholm', timezone: 'Europe/Stockholm' }
+   *   }
+   * );
    */
   static async webSearch(query, options = {}) {
     const {
-      model = 'gpt-4.1',
+      model = 'gpt-5',
       instructions,
       allowedDomains,
       userLocation,
@@ -232,6 +243,7 @@ class AzureOpenAIProxy {
       timeout = 30000
     } = options;
 
+    // Build the web_search tool definition
     const webSearchTool = { type: 'web_search' };
     if (allowedDomains && allowedDomains.length > 0) {
       webSearchTool.filters = { allowed_domains: allowedDomains };
@@ -258,12 +270,24 @@ class AzureOpenAIProxy {
     };
   }
 
+  /**
+   * Extract the assistant's answer text from a web-search response.
+   * @param {Object} response - Raw Responses API response.
+   * @returns {string}
+   */
   static _extractOutputText(response) {
+    // output_text is a convenience helper on the top-level response
     if (response.output_text) return response.output_text;
+    // Fallback: find the message item manually
     const msg = (response.output || []).find(item => item.type === 'message');
     return msg?.content?.[0]?.text ?? '';
   }
 
+  /**
+   * Extract url_citation annotations from a web-search response.
+   * @param {Object} response - Raw Responses API response.
+   * @returns {Array<{url, title, start_index, end_index}>}
+   */
   static _extractCitations(response) {
     const msg = (response.output || []).find(item => item.type === 'message');
     const annotations = msg?.content?.[0]?.annotations ?? [];
@@ -272,9 +296,15 @@ class AzureOpenAIProxy {
       .map(({ url, title, start_index, end_index }) => ({ url, title, start_index, end_index }));
   }
 
+  /**
+   * Extract the full list of source URLs from a web-search response.
+   * @param {Object} response - Raw Responses API response.
+   * @returns {Array<string>}
+   */
   static _extractSources(response) {
     const searchCall = (response.output || []).find(item => item.type === 'web_search_call');
     if (!searchCall) return [];
+    // `sources` may be present as a top-level field on the search call item
     return (searchCall.sources ?? []).map(s => (typeof s === 'string' ? s : s.url ?? s));
   }
 

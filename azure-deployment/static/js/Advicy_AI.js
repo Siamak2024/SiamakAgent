@@ -337,9 +337,10 @@ embed the change as a \`\`\`json block for automatic application.`;
       : userInput;
 
     const createOptions = {
-      model: 'gpt-4.1',
+      model: 'gpt-5',
       instructions: fullInstructions,
       timeout: taskType === 'heavy' ? 150000 : 45000,
+      reasoning: { summary: 'auto', effort: taskType === 'heavy' ? 'high' : 'medium' }
     };
 
     if (tools)                createOptions.tools = tools;

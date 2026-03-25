@@ -50,7 +50,7 @@ class AzureOpenAIProxy {
    */
   static async create(input, options = {}) {
     const {
-      model = 'gpt-4.1',
+      model = 'gpt-5',
       instructions,
       tools,
       tool_choice,
@@ -233,7 +233,7 @@ class AzureOpenAIProxy {
    */
   static async webSearch(query, options = {}) {
     const {
-      model = 'gpt-4.1',
+      model = 'gpt-5',
       instructions,
       allowedDomains,
       userLocation,

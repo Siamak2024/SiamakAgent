@@ -183,7 +183,7 @@
           <div class="text-[9px] text-slate-500 mt-1">Stored locally in your browser. Used automatically when backend key is unavailable.</div>
         </div>
         <div class="rounded border border-slate-200 bg-white p-3 text-[10px] text-slate-600">
-          Model is fixed to <strong>gpt-4o</strong> for both AI Assistant and Architecture Generation.
+          Model is fixed to <strong>gpt-5</strong> for both AI Assistant and Architecture Generation.
         </div>
         <div class="mt-3 rounded border border-slate-200 bg-white p-3">
           <label class="text-[10px] text-slate-600 font-semibold block mb-1">Architecture Generation Mode</label>
@@ -1428,7 +1428,7 @@
               </div>
             </div>
             <div class="bmc-card-footer">
-              <div class="ai-badge"><i class="fas fa-robot" style="color:#0d9488;"></i> GPT-4o · Excel-export</div>
+              <div class="ai-badge"><i class="fas fa-robot" style="color:#0d9488;"></i> GPT-5 · Excel-export</div>
               <div style="display:flex;gap:8px;">
                 <a href="../EA2_Toolkit/AI Business Model Canvas.html" target="_blank" class="open-btn teal">Open tool <i class="fas fa-arrow-right"></i></a>
                 <button onclick="syncToolkit('bmc')" class="sync-btn teal" title="Sync workshop data to platform">⟳</button>
@@ -1584,7 +1584,7 @@
               </div>
             </div>
             <div class="card-footer">
-              <div class="ai-badge"><i class="fas fa-robot" style="color:#4f46e5;"></i> GPT-4o · PDF report · Multi-industry</div>
+              <div class="ai-badge"><i class="fas fa-robot" style="color:#4f46e5;"></i> GPT-5 · PDF report · Multi-industry</div>
               <div style="display:flex;gap:8px;">
                 <a href="../EA2_Toolkit/EA20 Maturity Toolbox V2.html" target="_blank" class="open-btn" style="background:#4f46e5;color:white;">Open tool <i class="fas fa-arrow-right"></i></a>
                 <button onclick="syncToolkit('maturity')" class="sync-btn" style="color:#4f46e5;border-color:#4f46e5;" title="Sync workshop data to platform">⟳</button>
@@ -1641,7 +1641,7 @@ let model = {
     constraints: ''
   },
   aiConfig: {
-    model: 'gpt-4o',
+    model: 'gpt-5',
     architectureMode: 'standard'
   },
   phase4Config: { industry: 'generic', activeBusinessAreas: ['general'] }
@@ -2437,7 +2437,7 @@ function createNewProject() {
       constraints: ''
     },
     aiConfig: {
-      model: 'gpt-4o',
+      model: 'gpt-5',
       architectureMode: 'standard'
     },
     phase4Config: { industry: 'generic', activeBusinessAreas: ['general'] }
@@ -2885,13 +2885,13 @@ function buildMasterDataPromptContext() {
 
 async function callAI(sys, user, options = {}) {
   ensurePhase4Fields();
-  // Prompt Trace: visa redigerbart kort i chatten (hoppar över _fromChat för att undvika loop)
+
+  // Prompt Trace — show editable system+user card in sidebar (skip _fromChat to avoid re-run loop)
   if (window._advisyPromptTrace && !options._fromChat) {
     renderPromptTrace(options._traceLabel || options.taskType || 'callAI', sys, user);
     const panel = document.getElementById('ai-chat-panel');
     if (panel && panel.classList.contains('hidden')) toggleChatPanel();
   }
-  if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
 
   const taskType = options.taskType || 'lightweight';
   const includeProjectContext = options.includeProjectContext !== false;
@@ -2905,86 +2905,80 @@ async function callAI(sys, user, options = {}) {
       ? `\n\nResponse Language Policy:\n- Respond in ${replyLanguage}.\n- Keep required JSON keys, schema, and enum tokens exactly as requested.\n- Translate only natural-language values.`
       : `\n\nResponse Language Policy:\n- Respond in ${replyLanguage}.`);
 
-  const sysWithContext = includeProjectContext
+  // Responses API format: instructions (system) + input (user)
+  const instructions = includeProjectContext
     ? `${sys}${languageInstruction}\n\nProject Context:\n${masterDataContext}`
     : `${sys}${languageInstruction}`;
 
-  const userWithContext = includeProjectContext
+  const input = includeProjectContext
     ? `${user}\n\nAnalysis Constraints:\n- Avoid generic advice\n- Use the provided master data and business context\n- Tailor output to the selected industry and business areas`
     : `${user}`;
-  const selectedModel = 'gpt-4o';
+
   const timeoutMs = Number(options.timeoutMs || (taskType === 'heavy' ? 150000 : 45000));
-  const requestedTemperature = options.temperature;
-  const chatBody = {
-    model: selectedModel,
-    messages: [
-      { role: 'system', content: sysWithContext },
-      { role: 'user', content: userWithContext }
-    ]
+
+  // GPT-5 via Responses API with reasoning enabled
+  const createOpts = {
+    model: 'gpt-5',
+    instructions,
+    timeout: timeoutMs,
+    reasoning: { summary: 'auto', effort: taskType === 'heavy' ? 'high' : 'medium' }
   };
-  if (typeof requestedTemperature === 'number') {
-    chatBody.temperature = requestedTemperature;
-  }
 
-  async function fetchWithTimeout(url, init, ms) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), ms);
-    try {
-      const res = await fetch(url, { ...init, signal: controller.signal });
-      clearTimeout(timer);
-      return res;
-    } catch (err) {
-      clearTimeout(timer);
-      if (err.name === 'AbortError') throw new Error(`Request timed out after ${ms / 1000}s`);
-      throw err;
-    }
-  }
-
-  const aiRoute = { path: 'Chat API (server)', model: selectedModel, taskType };
-  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const backendUrl = isLocal ? '/api/openai/chat' : '/api/openai-proxy';
-
+  let response;
   try {
-    const response = await fetchWithTimeout(backendUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(chatBody)
-    }, timeoutMs);
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error?.message || payload.error || 'Chat API error');
-    console.log('✅ AI response via ' + aiRoute.path);
-    return payload?.choices?.[0]?.message?.content || '';
-  } catch (backendError) {
-    console.warn('⚠️ Backend failed (' + aiRoute.path + '), trying direct API key fallback...', backendError.message);
+    response = await AzureOpenAIProxy.create(input, createOpts);
+    console.log('AI response via Responses API (gpt-5)');
+  } catch (proxyErr) {
+    // Fallback: direct Responses API with the user's stored API key
+    console.warn('Proxy failed, trying direct API key fallback...', proxyErr.message);
     if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
     if (!OPENAI_KEY) {
-      if (options.silentOnNoKey) {
-        throw new Error('No API key available for optional translation.');
-      }
-      console.error('âŒ No API key available. Opening Settings.');
+      if (options.silentOnNoKey) throw new Error('No API key available for optional translation.');
       showSettingsModal();
       throw new Error('No API key provided. Please save your OpenAI API key in Settings or Quick Entry field.');
     }
-
-    aiRoute.path = 'Direct API (browser, your API key)';
-    const directResponse = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + OPENAI_KEY
-      },
-      body: JSON.stringify(chatBody)
-    }, timeoutMs);
-    const directPayload = await directResponse.json();
-    if (!directResponse.ok) {
-      console.error('âŒ Direct API also failed:', directPayload);
-      throw new Error(directPayload.error?.message || directPayload.error || backendError.message || 'API error');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + OPENAI_KEY },
+        body: JSON.stringify({ model: 'gpt-5', input, instructions, reasoning: createOpts.reasoning }),
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || 'Direct API error');
+      // Normalise output_text if the raw response does not include it
+      if (!data.output_text && data.output) {
+        const textItem = (data.output || []).find(o => o.type === 'message');
+        const textContent = textItem?.content?.find(c => c.type === 'output_text' || c.type === 'text');
+        data.output_text = textContent?.text || '';
+      }
+      response = data;
+      console.log('AI response via direct Responses API (gpt-5)');
+    } catch (directErr) {
+      clearTimeout(timer);
+      console.error('Direct API also failed:', directErr);
+      throw new Error(directErr.message || proxyErr.message || 'API error');
     }
-    console.log('✅ AI response via ' + aiRoute.path);
-    return directPayload?.choices?.[0]?.message?.content || '';
   }
-}
 
+  // Thinking card — render reasoning summary when Prompt Trace is active
+  if (window._advisyPromptTrace && !options._fromChat && response?.output) {
+    const thinkingParts = [];
+    for (const item of (response.output || [])) {
+      if (item.type === 'reasoning' && Array.isArray(item.summary)) {
+        thinkingParts.push(...item.summary.map(s => s.text || '').filter(Boolean));
+      }
+    }
+    if (thinkingParts.length) {
+      renderThinkingCard(options._traceLabel || options.taskType || 'callAI', thinkingParts.join('\n\n'));
+    }
+  }
+
+  return response?.output_text || '';
+}
 function extractJSON(text) {
   const m = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (m) return m[1].trim();
@@ -3049,7 +3043,7 @@ function ensureAIConfigFields() {
     model.aiConfig = {};
   }
   model.aiConfig = {
-    model: 'gpt-4o',
+    model: 'gpt-5',
     architectureMode: ['draft', 'standard', 'deep'].includes(String(model.aiConfig.architectureMode || '').toLowerCase())
       ? String(model.aiConfig.architectureMode || '').toLowerCase()
       : 'standard'
@@ -4746,6 +4740,49 @@ function togglePromptTrace() {
     btn.title = window._advisyPromptTrace ? 'Prompt trace PÅ – klicka för att stänga av' : 'Visa prompt trace';
   }
   console.log('[AdvisyAI] Prompt trace:', window._advisyPromptTrace ? 'PÅ' : 'AV');
+}
+
+/**
+ * Thinking Card — shows the model's reasoning/thinking summary (GPT-5 reasoning output)
+ * as a collapsible dark card in the chat sidebar. Collapsed by default (thinking can be long).
+ */
+function renderThinkingCard(label, thinkingText) {
+  const messagesContainer = document.getElementById('chat-messages');
+  if (!messagesContainer) return;
+  const cardId = 'tc-' + Date.now();
+  const escaped = (thinkingText || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'margin:6px 0;width:100%;box-sizing:border-box;';
+  wrapper.innerHTML = `
+    <div id="${cardId}" style="border:1px solid #2a3d2a;border-radius:8px;background:#1a2a1a;font-size:12px;overflow:hidden;width:100%;box-sizing:border-box;">
+      <div onclick="(function(el){
+          const body=el.nextElementSibling;
+          const arrow=el.querySelector('.tc-arrow');
+          const open=body.style.display!=='none';
+          body.style.display=open?'none':'block';
+          arrow.textContent=open?'▶':'▼';
+        })(this)"
+        style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:#1e2e1e;cursor:pointer;user-select:none;border-bottom:1px solid #2a3d2a;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;">🧠</span>
+          <span style="font-weight:700;color:#4ec9b0;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Thinking</span>
+          <span style="color:#4a6a4a;font-size:11px;">·</span>
+          <span style="color:#8fbf8f;font-size:11px;font-weight:600;">${label || 'Reasoning'}</span>
+        </div>
+        <span class="tc-arrow" style="color:#4a6a4a;font-size:10px;">▶</span>
+      </div>
+      <div style="padding:10px 12px;display:none;box-sizing:border-box;">
+        <textarea readonly
+          style="width:100%;min-height:120px;max-height:320px;resize:vertical;
+                 font-size:11px;line-height:1.6;font-family:'Cascadia Code','Fira Code','Consolas',monospace;
+                 border:1px solid #2a3d2a;border-radius:6px;padding:8px;
+                 background:#111a11;color:#b5d9b5;
+                 box-sizing:border-box;outline:none;"
+        >${escaped}</textarea>
+      </div>
+    </div>`;
+  messagesContainer.appendChild(wrapper);
+  scrollToBottom();
 }
 
 function renderPromptTrace(label, sys, user) {
