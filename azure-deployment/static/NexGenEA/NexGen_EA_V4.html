@@ -138,6 +138,10 @@
     <button onclick="showSettingsModal()" class="ea-header-icon" title="Settings" aria-label="Settings">
       <i class="fas fa-gear text-sm"></i>
     </button>
+    <button id="sidebar-toggle-btn" onclick="toggleChatPanel()" class="ea-header-icon" title="Advicy AI Chat (Ctrl+K)" aria-label="Toggle AI Chat sidebar" style="position:relative;">
+      <i class="fas fa-comments text-sm"></i>
+      <span id="unread-count" class="badge" style="display:none;position:absolute;top:-4px;right:-3px;background:#dc2626;color:#fff;border-radius:999px;min-width:18px;height:18px;padding:0 4px;display:none;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:2px solid #1e293b;">0</span>
+    </button>
     <div class="ea-avatar" title="Workspace user">EA</div>
     <input type="file" id="global-model-import" class="hidden" onchange="importModel(event)" accept=".json">
   </div>
@@ -4467,36 +4471,99 @@ function initChatPanel() {
     if (e.key === 'Escape') {
       const panel = document.getElementById('ai-chat-panel');
       if (panel && !panel.classList.contains('hidden')) {
-        panel.classList.add('hidden');
+        closeChatPanel();
       }
     }
   });
 
   syncConversationWithCurrentModel();
   renderActiveConversation();
+  _initChatSidebarResize();
+}
+
+function _initChatSidebarResize() {
+  const handle = document.getElementById('chat-resize-handle');
+  const panel  = document.getElementById('ai-chat-panel');
+  if (!handle || !panel) return;
+  let startX, startW;
+
+  // Restore saved width
+  const saved = parseInt(localStorage.getItem('advicy_sidebar_w') || '0', 10);
+  if (saved >= 240 && saved <= 700) _applySidebarWidth(saved);
+
+  handle.addEventListener('mousedown', (e) => {
+    startX = e.clientX;
+    startW = panel.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+
+    function onMove(ev) {
+      const diff = startX - ev.clientX;
+      const newW = Math.max(240, Math.min(700, startW + diff));
+      _applySidebarWidth(newW);
+    }
+    function onUp() {
+      localStorage.setItem('advicy_sidebar_w', panel.offsetWidth);
+      handle.classList.remove('dragging');
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+function _applySidebarWidth(w) {
+  const panel = document.getElementById('ai-chat-panel');
+  if (!panel) return;
+  panel.style.width = w + 'px';
+  // update grid right padding to match
+  const style = document.getElementById('_sidebar-width-style') || (() => {
+    const s = document.createElement('style');
+    s.id = '_sidebar-width-style';
+    document.head.appendChild(s);
+    return s;
+  })();
+  style.textContent = `body.chat-sidebar-open .ea-shell-grid{padding-right:calc(${w}px + 24px)!important;}`;
 }
 
 function toggleChatPanel() {
   const panel = document.getElementById('ai-chat-panel');
   if (!panel) return;
-  panel.classList.toggle('hidden');
-
-  if (!panel.classList.contains('hidden')) {
+  const isOpen = !panel.classList.contains('hidden');
+  if (isOpen) {
+    panel.classList.add('hidden');
+    document.body.classList.remove('chat-sidebar-open');
+    _updateSidebarToggleIcon(false);
+  } else {
+    panel.classList.remove('hidden');
+    document.body.classList.add('chat-sidebar-open');
+    _updateSidebarToggleIcon(true);
     clearUnreadCount();
     const input = document.getElementById('chat-input');
     if (input) input.focus({ preventScroll: true });
   }
 }
 
+function _updateSidebarToggleIcon(open) {
+  const btn = document.getElementById('sidebar-toggle-btn');
+  if (!btn) return;
+  btn.style.background = open ? 'rgba(14,122,254,0.18)' : '';
+  btn.style.color = open ? '#60a5fa' : '';
+}
+
 function minimizeChatPanel() {
-  const panel = document.getElementById('ai-chat-panel');
-  if (!panel) return;
-  panel.classList.toggle('minimized');
+  closeChatPanel(); // sidebar has no minimize — just close
 }
 
 function closeChatPanel() {
   const panel = document.getElementById('ai-chat-panel');
   if (panel) panel.classList.add('hidden');
+  document.body.classList.remove('chat-sidebar-open');
+  _updateSidebarToggleIcon(false);
 }
 
 function getDefaultEaAssistantWelcome() {
@@ -4553,6 +4620,9 @@ function incrementUnreadCount() {
   const value = Number(unreadCount.textContent || '0') + 1;
   unreadCount.textContent = String(value);
   unreadCount.style.display = 'flex';
+  // Also highlight the header toggle button
+  const btn = document.getElementById('sidebar-toggle-btn');
+  if (btn) btn.style.color = '#f59e0b';
 }
 
 function hasExistingConversation() {
@@ -6436,10 +6506,15 @@ async function clarifyStrategicIntent() {
   const hasResults = model.strategicIntent || model.bmc || (model.capabilities||[]).length;
   if (hasResults && !confirm('Running Step 1 again will clear all previously generated results and start fresh. Continue?')) return;
   if (hasResults) resetWorkflowModel();
+
+  // Feed description to AdvisyAI context + auto-enable prompt trace for this run
+  if (typeof AdvisyAI !== 'undefined') AdvisyAI.updateDescriptionContext(desc);
+  const _prevTrace = window._advisyPromptTrace;
+  window._advisyPromptTrace = true; // always show trace for workflow steps
+
   spin('s0', true);
   try {
-    const raw = await callAI(
-      `You are a senior strategy advisor supporting C-level executives (CIO, CFO, CDO, COO) across industries.
+    const sysPrompt = `You are a senior strategy advisor supporting C-level executives (CIO, CFO, CDO, COO) across industries.
 
 Objective:
 Generate a concise, differentiated "Strategic Intent — Step 1" that reflects competitive positioning, economic realities, and measurable business outcomes.
@@ -6466,23 +6541,36 @@ Quality criteria:
 - If the output could apply to multiple industries without change → it is too generic.
 - Each element must link to one of: cost savings, revenue growth, risk reduction, capital efficiency, or competitive advantage.
 
-Return ONLY valid JSON, no markdown, no explanation.`,
-      `Extract structured Strategic Intent from this organisation description:\n\n"${desc}"\n\nReturn JSON:\n{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","strategic_themes":["","",""],"key_constraints":["","",""],"success_metrics":["","","",""],"summary":""}`,
-      { taskType: 'lightweight', temperature: 0.3 }
+Return ONLY valid JSON, no markdown, no explanation.`;
+    const userPrompt = `Extract structured Strategic Intent from this organisation description:\n\n"${desc}"\n\nReturn JSON:\n{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","strategic_themes":["","",""],"key_constraints":["","",""],"success_metrics":["","","",""],"summary":""}`;
+    const raw = await callAI(sysPrompt, userPrompt,
+      { taskType: 'lightweight', temperature: 0.3, _traceLabel: 'Step 1 — Strategic Intent' }
     );
     model.strategicIntent = JSON.parse(extractJSON(raw));
     renderStrategicIntentSection();
     updateWorkflowStepStates();
     showTab('exec', findTabButton('exec'));
     toast('Strategic Intent clarified &#x2714;');
+
+    // ── Post result summary to Advicy AI sidebar ────────────────────────────
+    const si = model.strategicIntent;
+    const themes = (si.strategic_themes || []).map(t => `• ${t}`).join('\n');
+    const metrics = (si.success_metrics || []).map(m => `• ${m}`).join('\n');
+    const chatMsg = `**Step 1 — Strategic Intent generated** ✓\n\n**${si.org_name || 'Organisation'}** · ${si.industry || ''} · ${si.timeframe || '3-5 years'}\n\n**Ambition:** ${si.strategic_ambition || ''}\n\n**Strategic Themes:**\n${themes}\n\n**Success Metrics:**\n${metrics}`;
+    addAssistantMessage(chatMsg);
+    // Open sidebar if not already open
+    const _panel = document.getElementById('ai-chat-panel');
+    if (_panel && _panel.classList.contains('hidden')) toggleChatPanel();
   } catch(e) { toast('Error clarifying intent: ' + e.message, true); }
   spin('s0', false);
-}
+  window._advisyPromptTrace = _prevTrace;
 
 // ── STEP 2: GENERATE BUSINESS MODEL CANVAS ───────────────────────────────────
 async function generateBMC() {
   const desc = document.getElementById('description').value.trim();
   if (!model.strategicIntent && !desc) { toast('Complete Step 1 first', true); return; }
+  const _prevTrace = window._advisyPromptTrace;
+  window._advisyPromptTrace = true;
   spin('s2b', true);
   try {
     const intentCtx = model.strategicIntent
@@ -6491,14 +6579,19 @@ async function generateBMC() {
     const raw = await callAI(
       'You are a business strategist. Return ONLY valid JSON, no markdown.',
       `Generate a Business Model Canvas for this organisation:\n\n"${desc}"\n${intentCtx}\n\nReturn JSON:\n{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]}`,
-      { taskType: 'heavy', temperature: 0.2 }
+      { taskType: 'heavy', temperature: 0.2, _traceLabel: 'Step 2 — Business Model Canvas' }
     );
     model.bmc = JSON.parse(extractJSON(raw));
     updateWorkflowStepStates();
     renderBMCPanel();
     toast('Business Model Canvas generated &#x2714;');
+    const bmc = model.bmc;
+    addAssistantMessage(`**Step 2 — Business Model Canvas generated** ✓\n\n**Value Proposition:** ${bmc.value_proposition||''}\n\n**Revenue Streams:** ${(bmc.revenue_streams||[]).join(', ')}\n\n**Key Activities:** ${(bmc.key_activities||[]).join(', ')}`);
+    const _panel = document.getElementById('ai-chat-panel');
+    if (_panel && _panel.classList.contains('hidden')) toggleChatPanel();
   } catch(e) { toast('Error generating BMC: ' + e.message, true); }
   spin('s2b', false);
+  window._advisyPromptTrace = _prevTrace;
 }
 
 function renderBMCPanel() {
@@ -6531,6 +6624,8 @@ function renderBMCPanel() {
 // ── STEP 6: IDENTIFY VALUE POOLS ─────────────────────────────────────────────
 async function generateValuePools() {
   if (!model.capabilities.length) { toast('Complete Step 3 (Architecture) first', true); return; }
+  const _prevTrace = window._advisyPromptTrace;
+  window._advisyPromptTrace = true;
   spin('s6v', true);
   try {
     const intentCtx = model.strategicIntent
@@ -6539,14 +6634,22 @@ async function generateValuePools() {
     const raw = await callAI(
       'You are a strategy consultant. Return ONLY valid JSON, no markdown.',
       `Identify the top value pools for this enterprise architecture:\n\n${intentCtx}\nCapabilities: ${JSON.stringify(model.capabilities.slice(0,10).map(c=>({name:c.name,domain:c.domain,strategicImportance:c.strategicImportance,maturity:c.maturity})))}\n\nReturn JSON array:\n[{"name":"","description":"","value_driver":"cost|revenue|risk|experience","potential_impact":"high|medium|low","enabling_capabilities":[""],"time_horizon":"short|medium|long"}]`,
-      { taskType: 'heavy', temperature: 0.2 }
+      { taskType: 'heavy', temperature: 0.2, _traceLabel: 'Step 6 — Value Pools' }
     );
     model.valuePools = JSON.parse(extractJSON(raw));
     updateWorkflowStepStates();
     renderValuePoolsPanel();
     toast('Value Pools identified &#x2714;');
+    const pools = model.valuePools || [];
+    if (pools.length) {
+      const summary = pools.map(p=>`• **${p.name}** (${p.value_driver}, ${p.time_horizon}): ${p.description}`).join('\n');
+      addAssistantMessage(`**Step 6 — Value Pools identified** ✓\n\n${summary}`);
+      const _panel = document.getElementById('ai-chat-panel');
+      if (_panel && _panel.classList.contains('hidden')) toggleChatPanel();
+    }
   } catch(e) { toast('Error identifying value pools: ' + e.message, true); }
   spin('s6v', false);
+  window._advisyPromptTrace = _prevTrace;
 }
 
 function renderValuePoolsPanel() {
@@ -6789,6 +6892,8 @@ async function generateCapabilityMap() {
 // ── OPERATING MODEL ────
 async function generateOperatingModel() {
   if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
+  const _prevTrace4 = window._advisyPromptTrace;
+  window._advisyPromptTrace = true;
   spin('s3', true);
   try {
     const si = model.strategicIntent || {};
@@ -6833,8 +6938,13 @@ Return JSON:
     updateWorkflowStepStates();
     showTab('opmodel', null);
     toast('Operating model generated &#x2718;');
+    const om = model.operatingModel;
+    addAssistantMessage(`**Step 4 — Operating Model generated** ✓\n\n**Value Proposition:** ${om.valueProposition||''}\n\n**Key Activities:** ${(om.keyActivities||[]).join(', ')}\n\n**Revenue Streams:** ${(om.revenueStreams||[]).join(', ')}`);
+    const _panelOM = document.getElementById('ai-chat-panel');
+    if (_panelOM && _panelOM.classList.contains('hidden')) toggleChatPanel();
   } catch(e) { toast('Error: ' + e.message, true); }
   spin('s3', false);
+  window._advisyPromptTrace = _prevTrace4;
 }
 
 function analyseMaturity() {
@@ -7043,6 +7153,8 @@ function formatGapAnalysisOutput(rawText) {
 
 async function generateTargetArch() {
   if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
+  const _prevTrace7 = window._advisyPromptTrace;
+  window._advisyPromptTrace = true;
   spin('s6', true);
   try {
     const si = model.strategicIntent || {};
@@ -7089,8 +7201,14 @@ Return JSON array (ALL capabilities):
     updateWorkflowStepStates();
     showTab('targetarch', findTabButton('targetarch'));
     toast('Target architecture generated &#x2718;');
+    const taCaps = (model.targetArch||[]).filter(c=>c.strategicImportance==='high').slice(0,5);
+    const taMsg = taCaps.map(c=>`• **${c.name}** M${c.currentMaturity}→M${c.targetMaturity}: ${c.action||''}`).join('\n');
+    addAssistantMessage(`**Step 7a — Target Architecture generated** ✓\n\nTop priority capabilities:\n${taMsg}`);
+    const _panelTA = document.getElementById('ai-chat-panel');
+    if (_panelTA && _panelTA.classList.contains('hidden')) toggleChatPanel();
   } catch(e) { toast('Error: ' + e.message, true); }
   spin('s6', false);
+  window._advisyPromptTrace = _prevTrace7;
 }
 
 function renderTargetArchVisual() {
@@ -7189,6 +7307,8 @@ function renderTargetArchVisual() {
 
 async function generateRoadmap() {
   if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
+  const _prevTrace8 = window._advisyPromptTrace;
+  window._advisyPromptTrace = true;
   spin('s7', true);
   try {
     const si = model.strategicIntent || {};
@@ -7247,8 +7367,14 @@ Return JSON array:
     model.initiatives = JSON.parse(extractJSON(raw));
     renderInitiatives(); renderRoadmapVisual();
     toast('Roadmap generated &#x2718;');
+    const highPri = (model.initiatives||[]).filter(i=>i.priority==='high').slice(0,5);
+    const rdMsg = highPri.map(i=>`• **${i.name}** (${i.phase}): ${i.description||''}`).join('\n');
+    addAssistantMessage(`**Step 7b — Transformation Roadmap generated** ✓\n\nHigh-priority initiatives:\n${rdMsg}`);
+    const _panelRD = document.getElementById('ai-chat-panel');
+    if (_panelRD && _panelRD.classList.contains('hidden')) toggleChatPanel();
   } catch(e) { toast('Error: ' + e.message, true); }
   spin('s7', false);
+  window._advisyPromptTrace = _prevTrace8;
 }
 
 function renderRoadmapVisual() {
@@ -9260,34 +9386,29 @@ function addSyncLog(message) {
 // exportModel and importModel functions now handled by client-integration.js
 </script>
 
-<!-- FLOATING AI ASSISTANT (Phase 1) -->
+<!-- ADVICY AI SIDEBAR (VS Code Copilot style) -->
 <div id="ai-chat-panel" class="hidden">
+  <div id="chat-resize-handle" title="Drag to resize"></div>
   <div id="chat-header">
     <div id="chat-header-title">
-      <i class="fas fa-comments"></i>
-      <span id="chat-title-text">EA Assistant</span>
+      <i class="fas fa-robot"></i>
+      <span id="chat-title-text">Advicy Agent</span>
     </div>
     <div id="chat-controls">
       <button id="prompt-trace-toggle" onclick="togglePromptTrace()" title="Visa/dölj prompt trace" style="font-size:13px;opacity:0.5;transition:opacity .2s;">📋</button>
-      <button id="new-chat" onclick="startNewConversationChat()" title="New chat">+</button>
+      <button id="new-chat" onclick="startNewConversationChat()" title="New conversation">+</button>
       <button id="clear-chat" onclick="clearActiveConversationHistory()" title="Clear history">&#x21BA;</button>
-      <button id="minimize-chat" onclick="minimizeChatPanel()" title="Minimize">&minus;</button>
-      <button id="close-chat" onclick="closeChatPanel()" title="Close">&times;</button>
+      <button id="close-chat" onclick="closeChatPanel()" title="Close sidebar">&times;</button>
     </div>
   </div>
   <div id="chat-messages"></div>
   <div id="chat-input-container">
-    <textarea id="chat-input" placeholder="Describe your organization or ask a question..."></textarea>
-    <button id="send-chat" title="Send">
+    <textarea id="chat-input" placeholder="Ask Advicy Agent anything about your EA..."></textarea>
+    <button id="send-chat" title="Send (Enter)">
       <i class="fas fa-paper-plane"></i>
     </button>
   </div>
 </div>
-
-<button id="chat-toggle" class="floating-action-button" onclick="toggleChatPanel()" title="Open EA Assistant">
-  <i class="fas fa-comments"></i>
-  <span class="badge" id="unread-count" style="display:none;">0</span>
-</button>
 
 
 <!-- REPORT MODAL (Phase 5) -->
