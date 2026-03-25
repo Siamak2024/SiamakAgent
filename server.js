@@ -47,7 +47,16 @@ app.post('/api/openai/chat', async (req, res) => {
 
   try {
     const fetch = (await import('node-fetch')).default;
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+
+    // Detect request format:
+    // Responses API uses { input, instructions, model, ... }
+    // Chat Completions uses { messages, model, ... }
+    const isResponsesAPI = req.body.input !== undefined && req.body.messages === undefined;
+    const targetUrl = isResponsesAPI
+      ? 'https://api.openai.com/v1/responses'
+      : 'https://api.openai.com/v1/chat/completions';
+
+    const response = await fetch(targetUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -62,9 +71,16 @@ app.post('/api/openai/chat', async (req, res) => {
       return res.status(response.status).json(data);
     }
 
+    // Normalise response: always expose output_text for Responses API callers
+    if (isResponsesAPI && data.output && !data.output_text) {
+      const textItem = (data.output || []).find(o => o.type === 'message');
+      const textContent = textItem?.content?.find(c => c.type === 'output_text' || c.type === 'text');
+      data.output_text = textContent?.text || '';
+    }
+
     res.json(data);
   } catch (error) {
-    console.error('OpenAI Chat API Error:', error.message);
+    console.error('OpenAI API Error:', error.message);
     res.status(500).json({ error: 'Failed to communicate with OpenAI', details: error.message });
   }
 });

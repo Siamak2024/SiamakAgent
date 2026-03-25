@@ -81,6 +81,8 @@
 <script src="../js/EA_SyncEngine.js"></script>
 <script src="../js/EA_FileManager.js"></script>
 <script src="../js/EA_NordicUI.js"></script>
+<script src="../azure-deployment/AzureOpenAIProxy.js"></script>
+<script src="../js/Advicy_AI.js"></script>
 <script src="js/EA_IntegrationEngine.js"></script>
 <link rel="stylesheet" href="../css/ea-design-engine.css" />
 <link rel="stylesheet" href="../css/ea-nordic-theme.css" />
@@ -335,8 +337,11 @@
   <!-- LEFT PANEL -->
   <div class="ea-sidebar-panel flex flex-col gap-4">
     <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
-      <div class="text-xs font-bold uppercase text-slate-400 tracking-wide mb-2">Organisation Description</div>
-      <textarea id="description" class="w-full border border-slate-200 rounded-lg p-2.5 text-xs h-24 min-h-[96px] resize-y max-w-full focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200 overflow-auto" placeholder="E.g. Industry-specific owner/operator with multi-site portfolio, mixed-use buildings, and a legacy domain operations stack..." title="Click to expand"></textarea>
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-bold uppercase text-slate-400 tracking-wide">Organisation Description</div>
+        <button type="button" onclick="startNewWorkflow()" class="text-[9px] font-semibold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded px-2 py-0.5 flex items-center gap-1" title="Clear all results and start a new EA workflow"><i class="fas fa-rotate-right"></i> New Workflow</button>
+      </div>
+      <textarea id="description" class="w-full border border-slate-200 rounded-lg p-2.5 text-xs h-24 min-h-[96px] resize-y max-w-full focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200 overflow-auto" placeholder="E.g. Industry-specific owner/operator with multi-site portfolio, mixed-use buildings, and a legacy domain operations stack..." title="Click to expand" oninput="if(typeof AdvisyAI!=='undefined') AdvisyAI.updateDescriptionContext(this.value)"></textarea>
       <div class="mt-1.5 flex items-center justify-between text-[10px] text-slate-500">
         <span></span>
         <div class="flex items-center gap-3">
@@ -348,7 +353,10 @@
         <div class="flex items-center gap-2 mb-1.5">
           <span class="workflow-step-badge workflow-step-badge--active" id="badge-1">1</span>
           <span class="text-[10px] font-bold text-slate-700">Strategic Intent</span>
-          <span id="step1-done" class="hidden ml-auto text-green-600"><i class="fas fa-check-circle text-xs"></i></span>
+          <span id="step1-done" class="hidden ml-auto flex items-center gap-1">
+            <button type="button" onclick="openStepChat(1)" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200" title="Discuss Step 1 with AI"><i class="fas fa-comments"></i> Discuss</button>
+            <i class="fas fa-check-circle text-xs text-green-600"></i>
+          </span>
         </div>
         <button type="button" onclick="clarifyStrategicIntent()" class="ea-btn ea-btn--primary w-full justify-center" title="Use AI to extract structured strategic intent from your description">
           <span id="s0" class="spinner hidden"></span>
@@ -364,7 +372,10 @@
         <div class="flex items-center gap-2 mb-1.5">
           <span class="workflow-step-badge" id="badge-2">2</span>
           <span class="text-[10px] font-bold text-slate-700">Business Model Canvas</span>
-          <span id="step2-done" class="hidden ml-auto text-green-600"><i class="fas fa-check-circle text-xs"></i></span>
+          <span id="step2-done" class="hidden ml-auto flex items-center gap-1">
+            <button type="button" onclick="openStepChat(2)" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200" title="Discuss Step 2 with AI"><i class="fas fa-comments"></i> Discuss</button>
+            <i class="fas fa-check-circle text-xs text-green-600"></i>
+          </span>
         </div>
         <button onclick="generateBMC()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step2">
           <span id="s2b" class="spinner hidden"></span>
@@ -377,7 +388,10 @@
         <div class="flex items-center gap-2 mb-1.5">
           <span class="workflow-step-badge" id="badge-3">3</span>
           <span class="text-[10px] font-bold text-slate-700">Capability Map</span>
-          <span id="step3-done" class="hidden ml-auto text-green-600"><i class="fas fa-check-circle text-xs"></i></span>
+          <span id="step3-done" class="hidden ml-auto flex items-center gap-1">
+            <button type="button" onclick="openStepChat(3)" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200" title="Discuss Step 3 with AI"><i class="fas fa-comments"></i> Discuss</button>
+            <i class="fas fa-check-circle text-xs text-green-600"></i>
+          </span>
         </div>
         <button onclick="generateArchitecture()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step3">
           <span id="s1" class="spinner hidden"></span>
@@ -390,7 +404,10 @@
         <div class="flex items-center gap-2 mb-1.5">
           <span class="workflow-step-badge" id="badge-4">4</span>
           <span class="text-[10px] font-bold text-slate-700">Operating Model</span>
-          <span id="step4-done" class="hidden ml-auto text-green-600"><i class="fas fa-check-circle text-xs"></i></span>
+          <span id="step4-done" class="hidden ml-auto flex items-center gap-1">
+            <button type="button" onclick="openStepChat(4)" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200" title="Discuss Step 4 with AI"><i class="fas fa-comments"></i> Discuss</button>
+            <i class="fas fa-check-circle text-xs text-green-600"></i>
+          </span>
         </div>
         <button onclick="generateOperatingModel()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step4">
           <span id="s3" class="spinner hidden"></span>
@@ -403,7 +420,10 @@
         <div class="flex items-center gap-2 mb-1.5">
           <span class="workflow-step-badge" id="badge-5">5</span>
           <span class="text-[10px] font-bold text-slate-700">Gap Analysis</span>
-          <span id="step5-done" class="hidden ml-auto text-green-600"><i class="fas fa-check-circle text-xs"></i></span>
+          <span id="step5-done" class="hidden ml-auto flex items-center gap-1">
+            <button type="button" onclick="openStepChat(5)" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200" title="Discuss Step 5 with AI"><i class="fas fa-comments"></i> Discuss</button>
+            <i class="fas fa-check-circle text-xs text-green-600"></i>
+          </span>
         </div>
         <button onclick="analyseGaps()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step5">
           <span id="s5" class="spinner hidden"></span>
@@ -416,7 +436,10 @@
         <div class="flex items-center gap-2 mb-1.5">
           <span class="workflow-step-badge" id="badge-6">6</span>
           <span class="text-[10px] font-bold text-slate-700">Value Pools</span>
-          <span id="step6-done" class="hidden ml-auto text-green-600"><i class="fas fa-check-circle text-xs"></i></span>
+          <span id="step6-done" class="hidden ml-auto flex items-center gap-1">
+            <button type="button" onclick="openStepChat(6)" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200" title="Discuss Step 6 with AI"><i class="fas fa-comments"></i> Discuss</button>
+            <i class="fas fa-check-circle text-xs text-green-600"></i>
+          </span>
         </div>
         <button onclick="generateValuePools()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step6">
           <span id="s6v" class="spinner hidden"></span>
@@ -429,7 +452,10 @@
         <div class="flex items-center gap-2 mb-1.5">
           <span class="workflow-step-badge" id="badge-7">7</span>
           <span class="text-[10px] font-bold text-slate-700">Target Arch &amp; Roadmap</span>
-          <span id="step7-done" class="hidden ml-auto text-green-600"><i class="fas fa-check-circle text-xs"></i></span>
+          <span id="step7-done" class="hidden ml-auto flex items-center gap-1">
+            <button type="button" onclick="openStepChat(7)" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200" title="Discuss Step 7 with AI"><i class="fas fa-comments"></i> Discuss</button>
+            <i class="fas fa-check-circle text-xs text-green-600"></i>
+          </span>
         </div>
         <div class="grid grid-cols-2 gap-1">
           <button onclick="generateTargetArch()" class="ea-btn ea-btn--secondary ea-action-cluster-btn" id="btn-step7a">
@@ -2034,6 +2060,13 @@ function onHeaderLanguageChange(nextLanguage) {
 // Initialize DataManager, SyncEngine, and FileManager on page load
 window.addEventListener('DOMContentLoaded', () => {
   console.log('🚀 NextGen EA V4 initializing...');
+
+  // Seed AdvisyAI with any pre-filled description text on load
+  if (typeof AdvisyAI !== 'undefined') {
+    const descEl = document.getElementById('description');
+    if (descEl && descEl.value) AdvisyAI.updateDescriptionContext(descEl.value);
+  }
+
   // Load API key from storage into memory at startup
   if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
   console.log('📋 API Key loaded from storage:', OPENAI_KEY ? '&#x2718; Present' : '✗ Missing');
@@ -2767,6 +2800,12 @@ function buildMasterDataPromptContext() {
 
 async function callAI(sys, user, options = {}) {
   ensurePhase4Fields();
+  // Prompt Trace: visa redigerbart kort i chatten (hoppar över _fromChat för att undvika loop)
+  if (window._advisyPromptTrace && !options._fromChat) {
+    renderPromptTrace(options._traceLabel || options.taskType || 'callAI', sys, user);
+    const panel = document.getElementById('ai-chat-panel');
+    if (panel && panel.classList.contains('hidden')) toggleChatPanel();
+  }
   if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
 
   const taskType = options.taskType || 'lightweight';
@@ -2956,11 +2995,17 @@ function capabilityHasBusinessArea(capability, area) {
 }
 
 function setIndustryProfile(industry) {
+  if (typeof AdvisyAI !== 'undefined') AdvisyAI.updateIndustryLayer(industry);
   const profile = PHASE4_INDUSTRY_PROFILES[industry] || PHASE4_INDUSTRY_PROFILES.generic;
   model.phase4Config = {
     industry,
     activeBusinessAreas: normalizeBusinessAreas(profile.areas)
   };
+  // Sync ESG layer: buildSystemPrompt() reads window.model live, but log for traceability
+  if (typeof AdvisyAI !== 'undefined') {
+    const hasESG = model.phase4Config.activeBusinessAreas.includes('esg');
+    console.log('[AdvisyAI] ESG layer:', hasESG ? 'active' : 'inactive', '| Industry:', industry);
+  }
 
   renderPhase4ControlsFromModel();
   updateDataCollectionTab();
@@ -2973,6 +3018,10 @@ function setIndustryProfile(industry) {
 function setActiveBusinessAreasFromUI() {
   const selected = Array.from(document.querySelectorAll('input[name="phase4-area-toggle"]:checked')).map(el => el.value);
   model.phase4Config.activeBusinessAreas = normalizeBusinessAreas(selected);
+  if (typeof AdvisyAI !== 'undefined') {
+    const hasESG = model.phase4Config.activeBusinessAreas.includes('esg');
+    console.log('[AdvisyAI] ESG layer:', hasESG ? 'active' : 'inactive');
+  }
   syncAreaFilterSelectors();
   updateDataCollectionTab();
   renderCapMap();
@@ -3889,6 +3938,7 @@ function showTab(name, btn) {
     iconBtn.classList.toggle('is-active', name === 'toolkits');
   });
   currentTab = name;
+  if (typeof AdvisyAI !== 'undefined') AdvisyAI.setActiveView(name);
   if (name === 'phase4') setTimeout(renderPhase4Dashboard, 50);
   if (name === 'layers') setTimeout(renderLayers, 50);
   if (name === 'capmap') setTimeout(renderCapMap, 50);
@@ -4534,6 +4584,65 @@ function parseMarkdown(text) {
   return formatted;
 }
 
+// ── Prompt Trace (Advicy AI) ──────────────────────────────────────────────
+window._advisyPromptTrace = false;
+
+function togglePromptTrace() {
+  window._advisyPromptTrace = !window._advisyPromptTrace;
+  const btn = document.getElementById('prompt-trace-toggle');
+  if (btn) {
+    btn.style.opacity = window._advisyPromptTrace ? '1' : '0.5';
+    btn.title = window._advisyPromptTrace ? 'Prompt trace PÅ – klicka för att stänga av' : 'Visa prompt trace';
+  }
+  console.log('[AdvisyAI] Prompt trace:', window._advisyPromptTrace ? 'PÅ' : 'AV');
+}
+
+function renderPromptTrace(label, sys, user) {
+  const messagesContainer = document.getElementById('chat-messages');
+  if (!messagesContainer) return;
+  const traceId = 'pt-' + Date.now();
+  const wrapper = document.createElement('div');
+  wrapper.className = 'chat-message';
+  wrapper.style.cssText = 'margin:4px 8px;';
+  wrapper.innerHTML = `
+    <div id="${traceId}" style="border:1.5px solid #c4b5fd;border-radius:10px;background:#faf5ff;font-size:11px;overflow:hidden;">
+      <div onclick="(function(el){el.nextElementSibling.style.display=el.nextElementSibling.style.display==='none'?'block':'none';})(this)"
+           style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:#ede9fe;cursor:pointer;user-select:none;">
+        <span style="font-weight:700;color:#6d28d9;">📋 Prompt Trace</span>
+        <span style="color:#7c3aed;font-size:10px;font-weight:600;">${label || 'Workflow'} &nbsp;▾</span>
+      </div>
+      <div style="padding:8px 10px;display:block;">
+        <label style="display:block;font-weight:700;color:#7c3aed;margin-bottom:2px;">SYSTEM</label>
+        <textarea id="${traceId}-sys" style="width:100%;min-height:80px;max-height:200px;resize:vertical;font-size:10px;font-family:monospace;border:1px solid #ddd6fe;border-radius:6px;padding:6px;background:#fff;box-sizing:border-box;">${(sys||'').replace(/</g,'&lt;')}</textarea>
+        <label style="display:block;font-weight:700;color:#0369a1;margin:6px 0 2px;">USER PROMPT</label>
+        <textarea id="${traceId}-user" style="width:100%;min-height:60px;max-height:150px;resize:vertical;font-size:10px;font-family:monospace;border:1px solid #bae6fd;border-radius:6px;padding:6px;background:#fff;box-sizing:border-box;">${(user||'').replace(/</g,'&lt;')}</textarea>
+        <div style="text-align:right;margin-top:6px;">
+          <button onclick="(async function(){
+            const s=document.getElementById('${traceId}-sys').value;
+            const u=document.getElementById('${traceId}-user').value;
+            const btn=this;
+            btn.disabled=true;btn.textContent='Kör...';
+            try{
+              showTypingIndicator();
+              const panel=document.getElementById('ai-chat-panel');
+              if(panel&&panel.classList.contains('hidden'))toggleChatPanel();
+              const res=await callAI(s,u,{_fromChat:true});
+              hideTypingIndicator();
+              addAssistantMessage(res);
+            }catch(e){
+              hideTypingIndicator();
+              addAssistantMessage('Fel vid omkörning: '+e.message);
+            } finally{btn.disabled=false;btn.textContent='Kör om ▶';}
+          }).call(this)"
+          style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:4px 14px;font-size:11px;font-weight:700;cursor:pointer;">Kör om ▶</button>
+        </div>
+      </div>
+    </div>`;
+  messagesContainer.appendChild(wrapper);
+  scrollToBottom();
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function renderMessage(content, isUser, timestamp = Date.now(), metadata = null, increaseUnread = true) {
   const messagesContainer = document.getElementById('chat-messages');
   if (!messagesContainer) return;
@@ -4662,6 +4771,55 @@ function buildConversationContext() {
       'show sync status',
       'open integration help'
     ],
+    completedSteps: {
+      step1_strategic_intent: model.strategicIntent ? {
+        ambition: model.strategicIntent.strategic_ambition || '',
+        themes: model.strategicIntent.strategic_themes || [],
+        constraints: model.strategicIntent.key_constraints || [],
+        metrics: model.strategicIntent.success_metrics || [],
+        org_name: model.strategicIntent.org_name || '',
+        industry: model.strategicIntent.industry || '',
+        timeframe: model.strategicIntent.timeframe || ''
+      } : null,
+      step2_bmc: model.bmc ? {
+        value_proposition: model.bmc.value_proposition || '',
+        customer_segments: model.bmc.customer_segments || [],
+        revenue_streams: model.bmc.revenue_streams || [],
+        key_activities: model.bmc.key_activities || [],
+        key_resources: model.bmc.key_resources || [],
+        key_partners: model.bmc.key_partners || [],
+        channels: model.bmc.channels || [],
+        cost_structure: model.bmc.cost_structure || [],
+        customer_relationships: model.bmc.customer_relationships || []
+      } : null,
+      step3_capabilities: {
+        count: (model.capabilities || []).length,
+        domains: [...new Set((model.capabilities || []).map(c => c.domain))],
+        avg_maturity: (model.capabilities || []).length
+          ? ((model.capabilities || []).reduce((s, c) => s + Number(c.maturity || 0), 0) / model.capabilities.length).toFixed(1)
+          : 0,
+        top_strategic: (model.capabilities || []).filter(c => c.strategicImportance === 'high').map(c => c.name).slice(0, 6),
+        systems: (model.systems || []).map(s => ({ name: s.name, criticality: s.criticality })),
+        ai_agents: (model.aiAgents || []).map(a => ({ name: a.name, supportsCapability: a.supportsCapability }))
+      },
+      step4_operating_model: (model.operatingModel && model.operatingModel.valueProposition) ? {
+        value_proposition: model.operatingModel.valueProposition,
+        key_activities: (model.operatingModel.keyActivities || []).slice(0, 6),
+        key_resources: (model.operatingModel.keyResources || []).slice(0, 6),
+        key_partners: (model.operatingModel.keyPartners || []).slice(0, 4),
+        channels: (model.operatingModel.channels || []).slice(0, 4),
+        cost_structure: (model.operatingModel.costStructure || []).slice(0, 4),
+        revenue_streams: (model.operatingModel.revenueStreams || []).slice(0, 6)
+      } : null,
+      step5_gap_analysis: model.gapAnalysisDone ? 'completed' : null,
+      step6_value_pools: (model.valuePools && model.valuePools.length) ? model.valuePools.slice(0, 6) : null,
+      step7_target_arch: (model.targetArch && model.targetArch.length) ? {
+        count: model.targetArch.length,
+        initiatives_count: (model.initiatives || []).length,
+        items: model.targetArch.slice(0, 5).map(t => ({ name: t.name || t.title || '', status: t.status || '' })),
+        top_initiatives: (model.initiatives || []).slice(0, 5).map(i => ({ name: i.name || i.title || '', phase: i.phase || '', priority: i.priority || '' }))
+      } : null
+    },
     conversationHistory: recentMessages,
     preferredLanguage: getAppLanguage()
   };
@@ -5296,9 +5454,177 @@ function detectIntent(userMessage) {
   return 'general_question';
 }
 
+// ── STEP-FOCUSED CHAT ─────────────────────────────────────────────────────────
+const STEP_NAMES = {
+  1: 'Strategic Intent',
+  2: 'Business Model Canvas',
+  3: 'Capability Map',
+  4: 'Operating Model',
+  5: 'Gap Analysis',
+  6: 'Value Pools',
+  7: 'Target Architecture & Roadmap'
+};
+
+function openStepChat(stepNum) {
+  window._stepChatContext = { step: stepNum, name: STEP_NAMES[stepNum] || ('Step ' + stepNum) };
+  const titleEl = document.getElementById('chat-title-text');
+  if (titleEl) titleEl.textContent = 'Step ' + stepNum + ': ' + window._stepChatContext.name;
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel) panel.classList.remove('hidden');
+  clearUnreadCount();
+  const input = document.getElementById('chat-input');
+  if (input) {
+    input.placeholder = 'Discuss or refine Step ' + stepNum + ' — type "exit" to return to general mode';
+    input.focus({ preventScroll: true });
+  }
+  const opening = buildStepOpeningCritique(stepNum);
+  if (opening) addAssistantMessage(opening);
+}
+
+function closeStepChatContext() {
+  window._stepChatContext = null;
+  const titleEl = document.getElementById('chat-title-text');
+  if (titleEl) titleEl.textContent = 'EA Assistant';
+  const input = document.getElementById('chat-input');
+  if (input) input.placeholder = 'Describe your organization or ask a question...';
+}
+
+function buildStepOpeningCritique(stepNum) {
+  const si = model.strategicIntent;
+  const siLine = si ? `**Strategic ambition:** ${si.strategic_ambition || ''}` : null;
+  switch (stepNum) {
+    case 1: {
+      if (!si) return 'Step 1 is not yet complete.';
+      const themes = (si.strategic_themes || []).join(' · ');
+      const metrics = (si.success_metrics || []).join(' · ');
+      return `**Step 1 — Strategic Intent**\n\n${siLine}\n**Themes:** ${themes}\n**Success Metrics:** ${metrics}\n\nI can help you:\n- Challenge whether this ambition is genuinely differentiated or still generic\n- Refine themes to be specific about HOW value is created\n- Strengthen metrics to be quantifiable\n- Make trade-offs (cost vs growth) more explicit\n\nWhat would you like to explore or change?`;
+    }
+    case 2: {
+      if (!model.bmc) return 'Step 2 is not yet complete.';
+      const vp = model.bmc.value_proposition || '';
+      const siCtx = si ? `\n**Strategic ambition:** "${si.strategic_ambition}"` : '';
+      return `**Step 2 — Business Model Canvas**${siCtx}\n\n**Value Proposition:** ${vp}\n\nI can help you:\n- Verify the value proposition delivers the strategic ambition\n- Identify misalignments between revenue streams and strategic themes\n- Challenge whether key activities reflect true differentiators\n- Flag cost structures that contradict the strategic direction\n\nWhat would you like to discuss or refine?`;
+    }
+    case 3: {
+      const capCount = (model.capabilities || []).length;
+      const highStr = (model.capabilities || []).filter(c => c.strategicImportance === 'high').map(c => c.name).slice(0, 4).join(', ');
+      const avgMat = capCount ? ((model.capabilities || []).reduce((s, c) => s + Number(c.maturity || 0), 0) / capCount).toFixed(1) : 0;
+      return `**Step 3 — Capability Map**\n${siLine || ''}\n\n**${capCount} capabilities** · Avg maturity: **${avgMat}/5**\n**High strategic importance:** ${highStr || 'none flagged'}\n\nI can help you:\n- Verify high-importance capabilities align to strategic themes\n- Add capabilities the strategy requires but are missing\n- Adjust maturity levels to reflect reality\n- Remove or merge redundant capabilities\n\nWhat would you like to discuss?`;
+    }
+    case 4: {
+      if (!model.operatingModel || !model.operatingModel.valueProposition) return 'Step 4 is not yet complete.';
+      const vp = model.operatingModel.valueProposition;
+      const acts = (model.operatingModel.keyActivities || []).slice(0, 3).join(', ');
+      return `**Step 4 — Operating Model**\n${siLine || ''}\n\n**Value Proposition:** ${vp}\n**Key Activities (sample):** ${acts}\n\nI can help you:\n- Verify key activities reflect what the org must excel at to deliver the strategic ambition\n- Check whether cost structure reflects cost-reduction OR investment-led direction\n- Add/remove items from any block\n- Identify misalignments between the operating model and strategic intent\n\nWhat would you like to discuss?`;
+    }
+    case 5: {
+      return `**Step 5 — Gap Analysis**\n${siLine || ''}\n\nI can help you:\n- Identify which gaps are most critical to the strategic ambition\n- Challenge severity ratings of specific gaps\n- Find gaps the strategic intent implies but the AI missed\n- Re-run the analysis with a tighter strategic focus\n\nWhat would you like to explore?`;
+    }
+    case 6: {
+      const vpCount = (model.valuePools || []).length;
+      const vpNames = (model.valuePools || []).slice(0, 4).map(v => typeof v === 'string' ? v : (v.name || '')).join(', ');
+      return `**Step 6 — Value Pools**\n${siLine || ''}\n\n**${vpCount} value pools:** ${vpNames || 'none identified'}\n\nI can help you:\n- Verify value pools are sequenced by strategic priority (not just size)\n- Add value pools the strategy implies but the AI missed\n- Challenge whether pools are specific enough to guide investment decisions\n\nWhat would you like to discuss?`;
+    }
+    case 7: {
+      const archCount = (model.targetArch || []).length;
+      const initCount = (model.initiatives || []).length;
+      return `**Step 7 — Target Architecture & Roadmap**\n${siLine || ''}\n\n**${archCount} capability uplifts** · **${initCount} initiatives**\n\nI can help you:\n- Verify Year 1 initiatives deliver quick wins aligned to strategic constraints\n- Challenge whether target maturity levels are driven by strategy or just fill gaps\n- Move initiatives between phases based on strategic priority\n- Deprioritize high-cost, low-strategic-value items\n\nWhat would you like to discuss?`;
+    }
+    default: return null;
+  }
+}
+
+async function handleStepFocusedMessage(userMessage, context, stepCtx) {
+  const stepNum = stepCtx.step;
+  const stepName = stepCtx.name;
+  const si = model.strategicIntent;
+
+  const priorContext = {
+    step1_strategic_intent: si ? { ambition: si.strategic_ambition, themes: si.strategic_themes, constraints: si.key_constraints, metrics: si.success_metrics, timeframe: si.timeframe } : null,
+    step2_bmc: stepNum >= 2 ? model.bmc : null,
+    step3_capabilities: stepNum >= 3 ? {
+      count: (model.capabilities || []).length,
+      domains: [...new Set((model.capabilities || []).map(c => c.domain))],
+      avg_maturity: (model.capabilities || []).length ? ((model.capabilities || []).reduce((s, c) => s + Number(c.maturity || 0), 0) / model.capabilities.length).toFixed(1) : 0,
+      items: (model.capabilities || []).map(c => ({ name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance }))
+    } : null,
+    step4_operating_model: stepNum >= 4 ? model.operatingModel : null,
+    step5_gap_done: stepNum >= 5 ? !!model.gapAnalysisDone : null,
+    step6_value_pools: stepNum >= 6 ? model.valuePools : null,
+    step7_target_arch: stepNum >= 7 ? model.targetArch : null,
+    step7_initiatives: stepNum >= 7 ? (model.initiatives || []).map(i => ({ name: i.name || i.title, phase: i.phase, priority: i.priority })) : null
+  };
+
+  const stepSystemPrompts = {
+    1: `You are a senior strategy advisor reviewing Step 1 (Strategic Intent). Critically evaluate whether the ambition is truly differentiated, whether themes explain HOW value is created, whether metrics are quantifiable, and whether trade-offs are visible. When the user agrees with a change, embed it as a \`\`\`json block with action "update_strategic_intent" and field/value.`,
+    2: `You are a senior strategy advisor reviewing Step 2 (Business Model Canvas) against Strategic Intent. Evaluate: value proposition vs strategic ambition, revenue streams vs themes, key activities as differentiators, cost structure vs strategic direction. To apply changes, embed \`\`\`json with action "update_bmc" and field/value.`,
+    3: `You are a senior enterprise architect reviewing Step 3 (Capability Map) against Steps 1–2. Evaluate: high-importance capabilities vs strategic themes, missing capabilities, realistic maturity levels, redundancies. To apply, embed \`\`\`json with "add_capability" or "update_capability".`,
+    4: `You are a senior EA and operating model expert reviewing Step 4 (TO-BE Operating Model) — the most strategically critical step. The operating model must be shaped by strategic direction. Evaluate: key activities vs what the org must excel at, cost structure vs cost-reduction or investment-led strategy, internal contradictions. To apply, embed \`\`\`json with action "update_bmc" using op model field names (valueProposition, keyActivities, keyResources, keyPartners, channels, costStructure, revenueStreams).`,
+    5: `You are a senior EA expert reviewing Step 5 (Gap Analysis) against Steps 1–4. Identify which gaps are most critical to the strategic ambition, challenge severity ratings, find gaps the strategy implies but the AI missed. Suggest re-running with sharper strategic focus if needed.`,
+    6: `You are a senior strategy advisor reviewing Step 6 (Value Pools) against strategic intent. Value pools must be sequenced by strategic priority. To apply, embed \`\`\`json with action "update_value_pools" and value as array.`,
+    7: `You are a senior EA transformation expert reviewing Step 7 (Target Architecture & Roadmap) against all prior steps. Evaluate Year 1 initiative sequencing, target maturity vs strategic need, phase design for cost-reduction vs value-creation strategy. To apply, embed \`\`\`json with action "update_initiatives" and value as array.`
+  };
+
+  const _stepBasePrompt = (stepSystemPrompts[stepNum] || `You are a senior EA advisor reviewing Step ${stepNum} (${stepName}).`) +
+    ' Be direct and commercially sharp. When proposing changes, discuss first. If user confirms, embed the change as a ```json ... ``` block for automatic application. Otherwise respond conversationally.';
+  // Inject industry + ESG layers from AdvisyAI around the step-specific prompt
+  const systemPrompt = (typeof AdvisyAI !== 'undefined')
+    ? AdvisyAI.buildSystemPrompt({ stepNum, stepOverridePrompt: _stepBasePrompt, userText: userMessage })
+    : _stepBasePrompt;
+
+  const recentMessages = (getActiveConversation().messages || []).slice(-8).map(m => ({ role: m.role, content: String(m.content || '').slice(0, 500) }));
+
+  const userPrompt = `You are in a focused working session on Step ${stepNum}: ${stepName}.
+
+Full EA context (Steps 1–${stepNum}):
+${JSON.stringify(priorContext, null, 2)}
+
+Recent conversation:
+${recentMessages.map(m => m.role + ': ' + m.content).join('\n')}
+
+User: ${userMessage}
+
+Available apply-actions (embed as \`\`\`json if user confirms a change):
+- update_strategic_intent: { "action": "update_strategic_intent", "field": "strategic_ambition|strategic_themes|key_constraints|success_metrics", "value": "..." }
+- update_bmc: { "action": "update_bmc", "field": "value_proposition|customer_segments|key_activities|key_resources|key_partners|channels|cost_structure|revenue_streams", "value": "..." }
+- update_capability: { "action": "update_capability", "id": "...", "name": "...", "field": "maturity|strategicImportance|description|domain", "value": "..." }
+- add_capability: { "action": "add_capability", "name": "...", "domain": "...", "maturity": 2, "strategicImportance": "high", "description": "..." }
+- update_value_pools: { "action": "update_value_pools", "value": [...] }
+- update_initiatives: { "action": "update_initiatives", "value": [...] }`;
+
+  try {
+    const raw = await callAI(systemPrompt, userPrompt, { taskType: 'heavy', temperature: 0.35, replyLanguage: context.preferredLanguage });
+    const jsonMatch = raw.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      try {
+        const action = JSON.parse(jsonMatch[1]);
+        const applyResult = applyAIRecommendations({ recommendations: Array.isArray(action) ? action : [action] });
+        const narrative = raw.replace(/```json[\s\S]*?```/, '').trim();
+        return { content: (narrative ? narrative + '\n\n' : '') + `**Applied:** ${applyResult.content}`, metadata: applyResult.metadata };
+      } catch (_) { /* fall through to plain response */ }
+    }
+    return { content: raw, metadata: null };
+  } catch (e) {
+    return { content: 'Error in step discussion: ' + e.message, metadata: null };
+  }
+}
+
 async function processUserMessage(userMessage) {
   const context = buildConversationContext();
   context.preferredLanguage = resolveResponseLanguage(userMessage);
+
+  // If a step-focused chat is active, route through step-specific handler
+  if (window._stepChatContext) {
+    if (/\b(exit|close|back|general|reset context)\b/i.test(userMessage)) {
+      closeStepChatContext();
+      return { content: 'Returned to general EA Assistant mode. What would you like to work on?', metadata: null };
+    }
+    const stepResult = await handleStepFocusedMessage(userMessage, context, window._stepChatContext);
+    if (stepResult?.content) {
+      stepResult.content = await maybeTranslateAssistantContent(stepResult.content, context.preferredLanguage);
+    }
+    return stepResult;
+  }
 
   // Handle pending recommendations confirmation
   if (window._pendingRecommendations) {
@@ -5679,9 +6005,28 @@ async function handleMaturityAssessment(context) {
 }
 
 async function handleGeneralQuestion(userMessage, context) {
+  const si = model.strategicIntent;
+  const stepsCompleted = [
+    si ? `Step 1 (Strategic Intent): ambition="${si.strategic_ambition}", themes=${JSON.stringify(si.strategic_themes||[])}` : null,
+    model.bmc ? `Step 2 (Business Model Canvas): value_proposition="${model.bmc.value_proposition}"` : null,
+    (model.capabilities||[]).length ? `Step 3 (Capability Map): ${model.capabilities.length} capabilities, avg maturity ${((model.capabilities||[]).reduce((s,c)=>s+Number(c.maturity||0),0)/model.capabilities.length).toFixed(1)}` : null,
+    model.operatingModel?.valueProposition ? `Step 4 (Operating Model): value_proposition="${model.operatingModel.valueProposition}"` : null,
+    model.gapAnalysisDone ? 'Step 5 (Gap Analysis): completed' : null,
+    (model.valuePools||[]).length ? `Step 6 (Value Pools): ${model.valuePools.length} value pools` : null,
+    (model.targetArch||[]).length ? `Step 7 (Target Architecture & Roadmap): ${model.targetArch.length} capability uplifts, ${(model.initiatives||[]).length} initiatives` : null
+  ].filter(Boolean);
+
+  const stepsContext = stepsCompleted.length
+    ? `\n\nCompleted EA steps:\n${stepsCompleted.map(s => ' - ' + s).join('\n')}`
+    : '\n\nNo EA steps completed yet.';
+
+  const systemPrompt = (typeof AdvisyAI !== 'undefined')
+    ? AdvisyAI.buildSystemPrompt({ userText: userMessage })
+    : `You are Advicy AI, a senior enterprise architecture and business strategy advisor. You guide users through a 7-step EA framework: (1) Strategic Intent, (2) Business Model Canvas, (3) Capability Map, (4) Operating Model, (5) Gap Analysis, (6) Value Pools, (7) Target Architecture & Roadmap.\n\nYou have full awareness of the user's completed steps and their outputs. When answering, always orient guidance toward the strategic ambition captured in Step 1. Reference specific step outputs when relevant, flag cross-step dependencies, and suggest next actions that are correctly sequenced in the EA workflow.`;
+
   const response = await callAI(
-    'You are NextGen EA Assistant, an expert enterprise architecture agent operating inside the application. You know the available toolkits, their workflow order, import and sync actions, and current integration state. When the user asks about scenarios, qualifying answers, or simulation paths, ground your guidance in the toolkit catalog and integration instructions found in context. Prefer concrete app-native steps over abstract advice.',
-    `Context: ${JSON.stringify(context)}\n\nActive tab: ${context.activeView} (id: ${context.activeTabId})\n\nUser question: ${userMessage}\n\nAnswer requirements:\n- Reference relevant available toolkits when useful.\n- Mention integration or sync prerequisites when relevant.\n- If the request sounds like an app action but was not auto-executed, state the nearest supported action clearly.\n- Be concise and operational.`,
+    systemPrompt,
+    `Context: ${JSON.stringify(context)}${stepsContext}\n\nActive tab: ${context.activeView}\n\nUser question: ${userMessage}\n\nAnswer requirements:\n- Reference step outputs when relevant (e.g. "Based on your Step 1 ambition...")\n- Flag cross-step dependencies if the question touches multiple steps\n- Suggest concrete next actions within the platform\n- Be concise and commercially sharp`,
     { taskType: 'lightweight', temperature: 0.3, replyLanguage: context.preferredLanguage }
   );
   return {
@@ -5694,58 +6039,78 @@ async function handleGeneralQuestion(userMessage, context) {
 window._pendingRecommendations = null;
 
 async function handleAnalyzeAndApply(userMessage, context) {
+  const si = model.strategicIntent || {};
   const caps = (model.capabilities || []).map(c => ({ id: c.id, name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance, description: c.description }));
-  const strategicIntent = model.strategicIntent || {};
+  const bmc = model.bmc || {};
   const opModel = model.operatingModel || {};
+  const valuePools = (model.valuePools || []).slice(0, 8);
+  const initiatives = (model.initiatives || []).map(i => ({ name: i.name || i.title, phase: i.phase, priority: i.priority, estimatedBusinessValue: i.estimatedBusinessValue, impactsCapability: i.impactsCapability }));
+  const targetArch = (model.targetArch || []).map(t => ({ name: t.name, domain: t.domain, currentMaturity: t.currentMaturity, targetMaturity: t.targetMaturity, strategicImportance: t.strategicImportance, action: t.action }));
 
-  const systemPrompt = `You are an expert enterprise architecture consultant. Analyze the current EA model and return structured JSON recommendations. Return ONLY valid JSON — no markdown, no prose outside the JSON.`;
-  const userPrompt = `Model context:
+  const focusStep = /step\s*1|strategic\s*intent/i.test(userMessage) ? 1
+    : /step\s*2|business\s*model|bmc/i.test(userMessage) ? 2
+    : /step\s*3|capabilit/i.test(userMessage) ? 3
+    : /step\s*4|operating\s*model/i.test(userMessage) ? 4
+    : /step\s*5|gap\s*analysis/i.test(userMessage) ? 5
+    : /step\s*6|value\s*pool/i.test(userMessage) ? 6
+    : /step\s*7|target\s*arch|roadmap/i.test(userMessage) ? 7 : null;
+
+  const systemPrompt = `You are an expert enterprise architecture consultant with strategic advisory experience. Analyze the full EA model and return structured JSON recommendations grounded in the strategic intent. Return ONLY valid JSON — no markdown, no prose outside the JSON.`;
+
+  const userPrompt = `Full EA model:
+Strategic Intent: ${JSON.stringify(si)}
+Business Model Canvas: ${JSON.stringify(bmc)}
 Capabilities (${caps.length}): ${JSON.stringify(caps)}
-Strategic intent: ${JSON.stringify(strategicIntent)}
-Operating model: ${JSON.stringify(opModel)}
-Active view: ${context.activeView}
+Operating Model: ${JSON.stringify(opModel)}
+Value Pools: ${JSON.stringify(valuePools)}
+Target Architecture: ${JSON.stringify(targetArch)}
+Roadmap Initiatives: ${JSON.stringify(initiatives)}
+Active view: ${context.activeView}${focusStep ? `\nUser focus area: Step ${focusStep}` : ''}
 
 User request: ${userMessage}
 
-Return JSON in exactly this format:
+Return JSON:
 {
-  "summary": "2-3 sentence analysis summary",
+  "summary": "2-3 sentence analysis grounded in the strategic ambition",
   "recommendations": [
-    {"action": "update_capability", "id": "<existingCapId>", "name": "<capName>", "field": "maturity", "value": 4, "description": "Why this change"},
-    {"action": "update_capability", "id": "<existingCapId>", "name": "<capName>", "field": "strategicImportance", "value": "high", "description": "Why this change"},
-    {"action": "update_capability", "id": "<existingCapId>", "name": "<capName>", "field": "description", "value": "New description text", "description": "Why this change"},
-    {"action": "add_capability", "name": "New Cap Name", "domain": "Technology", "maturity": 2, "strategicImportance": "high", "description": "What this capability does"},
-    {"action": "update_strategic_intent", "field": "vision", "value": "New vision text", "description": "Why update vision"}
+    {"action": "update_strategic_intent", "field": "strategic_ambition|strategic_themes|key_constraints|success_metrics", "value": "...", "description": "Why"},
+    {"action": "update_bmc", "field": "value_proposition|customer_segments|key_activities|key_resources|key_partners|channels|cost_structure|revenue_streams", "value": "...", "description": "Why"},
+    {"action": "update_capability", "id": "<id>", "name": "<name>", "field": "maturity|strategicImportance|description|domain", "value": "...", "description": "Why"},
+    {"action": "add_capability", "name": "...", "domain": "...", "maturity": 2, "strategicImportance": "high|medium|low", "description": "..."},
+    {"action": "update_value_pools", "value": [...], "description": "Why"},
+    {"action": "update_initiatives", "value": [...], "description": "Why"}
   ]
 }
-Allowed actions: update_capability, add_capability, update_strategic_intent.
-Allowed fields for update_capability: maturity (integer 1-5), strategicImportance (low|medium|high), description (string), domain (string).
-Allowed fields for update_strategic_intent: vision, mission, goals (all strings).
-Only recommend changes that genuinely improve the architecture. Include 3-8 recommendations.`;
+Include 3-8 focused, actionable recommendations that close the gap between current model state and the strategic ambition.`;
 
   let parsed = null;
   try {
     const raw = await callAI(systemPrompt, userPrompt, { taskType: 'heavy', temperature: 0.2 });
     parsed = parseJSONResponse(raw);
   } catch (e) {
-    return { content: 'I was unable to generate structured recommendations. Please try again or rephrase your request.', metadata: null };
+    return { content: 'Unable to generate structured recommendations. Please try again or rephrase.', metadata: null };
   }
 
-  if (!parsed || !Array.isArray(parsed.recommendations) || parsed.recommendations.length === 0) {
+  if (!parsed || !Array.isArray(parsed.recommendations) || !parsed.recommendations.length) {
     return { content: 'I analyzed the model but found no concrete improvements to recommend at this time.', metadata: null };
   }
 
   window._pendingRecommendations = parsed;
 
   const lines = parsed.recommendations.map((r, i) => {
-    if (r.action === 'add_capability') return `${i + 1}. **Add** "${r.name}" (${r.domain}, maturity ${r.maturity}) — ${r.description}`;
-    if (r.action === 'update_capability') return `${i + 1}. **Update** "${r.name}": set ${r.field} = ${r.value} — ${r.description}`;
-    if (r.action === 'update_strategic_intent') return `${i + 1}. **Update** strategic intent (${r.field}) — ${r.description}`;
-    return `${i + 1}. ${r.description}`;
+    if (r.action === 'add_capability') return `${i+1}. **Add capability** "${r.name}" (${r.domain}, maturity ${r.maturity}) — ${r.description}`;
+    if (r.action === 'update_capability') return `${i+1}. **Update capability** "${r.name}": set ${r.field} = ${r.value} — ${r.description}`;
+    if (r.action === 'update_strategic_intent') return `${i+1}. **Update strategic intent** (${r.field}) — ${r.description}`;
+    if (r.action === 'update_bmc') return `${i+1}. **Update business model** (${r.field}) — ${r.description}`;
+    if (r.action === 'update_value_pools') return `${i+1}. **Update value pools** — ${r.description}`;
+    if (r.action === 'update_initiatives') return `${i+1}. **Update roadmap initiatives** — ${r.description}`;
+    return `${i+1}. ${r.description}`;
   }).join('\n');
 
-  const content = `**Analysis: ${context.activeView}**\n\n${parsed.summary}\n\n**Recommended changes (${parsed.recommendations.length}):**\n${lines}\n\nWould you like me to apply all these changes?`;
-  return { content, metadata: { pendingRecommendations: parsed } };
+  return {
+    content: `**Analysis complete**\n\n${parsed.summary}\n\n**Recommended changes (${parsed.recommendations.length}):**\n${lines}\n\nWould you like me to apply all these changes?`,
+    metadata: { pendingRecommendations: parsed }
+  };
 }
 
 function applyAIRecommendations(pendingRecs) {
@@ -5786,8 +6151,35 @@ function applyAIRecommendations(pendingRecs) {
         applied++;
       } else if (rec.action === 'update_strategic_intent') {
         if (!model.strategicIntent) model.strategicIntent = {};
-        model.strategicIntent[rec.field] = rec.value;
+        const arrayFields = ['strategic_themes', 'key_constraints', 'success_metrics'];
+        if (arrayFields.includes(rec.field) && typeof rec.value === 'string') {
+          model.strategicIntent[rec.field] = rec.value.split(/[,;]\s*/).map(s => s.trim()).filter(Boolean);
+        } else {
+          model.strategicIntent[rec.field] = rec.value;
+        }
         applied++;
+      } else if (rec.action === 'update_bmc') {
+        if (!model.bmc) model.bmc = {};
+        const snakeToCamel = s => s.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
+        const camelField = snakeToCamel(rec.field || '');
+        if (model.bmc.hasOwnProperty(rec.field)) {
+          model.bmc[rec.field] = rec.value;
+        } else if (model.bmc.hasOwnProperty(camelField)) {
+          model.bmc[camelField] = rec.value;
+        } else {
+          model.bmc[rec.field] = rec.value;
+        }
+        applied++;
+      } else if (rec.action === 'update_value_pools') {
+        if (Array.isArray(rec.value)) {
+          model.valuePools = rec.value;
+          applied++;
+        }
+      } else if (rec.action === 'update_initiatives') {
+        if (Array.isArray(rec.value)) {
+          model.initiatives = rec.value;
+          applied++;
+        }
       }
     } catch (_) {}
   }
@@ -5798,6 +6190,9 @@ function applyAIRecommendations(pendingRecs) {
   renderHeatmap();
   if (typeof renderExecSummary === 'function') renderExecSummary();
   if (typeof renderMaturityDashboard === 'function') renderMaturityDashboard();
+  if (typeof renderInitiatives === 'function') renderInitiatives();
+  if (typeof renderRoadmapVisual === 'function') renderRoadmapVisual();
+  if (typeof renderOperatingModel === 'function') renderOperatingModel();
   updateWorkflowStepStates();
 
   window._pendingRecommendations = null;
@@ -5905,14 +6300,93 @@ function ensureBusinessFields() {
   
 
 // ── STEP 1: CLARIFY STRATEGIC INTENT ─────────────────────────────────────────
+function startNewWorkflow() {
+  const hasData = model.strategicIntent || model.bmc || (model.capabilities||[]).length || model.operatingModel || model.targetArch;
+  if (hasData && !confirm('This will clear all generated results and start a fresh workflow. Continue?')) return;
+  resetWorkflowModel();
+}
+
+function resetWorkflowModel() {
+  // Reset all generated model data
+  model.strategicIntent = null;
+  model.bmc = null;
+  model.capabilities = [];
+  model.operatingModel = null;
+  model.targetArch = null;
+  model.targetArchDone = false;
+  model.initiatives = [];
+  model.valuePools = [];
+  model.gapAnalysisDone = false;
+  model.valueStreams = [];
+  model.processes = [];
+  model.systems = [];
+  model.dataDomains = [];
+  model.aiAgents = [];
+  window._stepChatContext = null;
+  window._pendingRecommendations = null;
+
+  // Clear the description textarea
+  const descEl = document.getElementById('description');
+  if (descEl) descEl.value = '';
+
+  // Clear rendered content areas
+  const clearIds = ['exec-content', 'bmc-content', 'capmap-content', 'heatmap-content',
+    'opmodel-content', 'insights', 'valuepools-content', 'targetarch-content',
+    'roadmapvis-content', 'initiatives-content'];
+  clearIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+
+  // Reset chat context title
+  closeStepChatContext();
+
+  autoSaveCurrentModel();
+  updateWorkflowStepStates();
+  showTab('exec', findTabButton('exec'));
+  toast('Workflow reset — ready for a new EA generation');
+}
+
 async function clarifyStrategicIntent() {
   const desc = document.getElementById('description').value.trim();
   if (!desc) { toast('Describe your organisation first', true); return; }
+
+  // If results already exist, confirm reset before overwriting
+  const hasResults = model.strategicIntent || model.bmc || (model.capabilities||[]).length;
+  if (hasResults && !confirm('Running Step 1 again will clear all previously generated results and start fresh. Continue?')) return;
+  if (hasResults) resetWorkflowModel();
   spin('s0', true);
   try {
     const raw = await callAI(
-      'You are a senior Enterprise Architect. Return ONLY valid JSON, no markdown, no explanation.',
-      `Extract structured Strategic Intent from this organisation description:\n\n"${desc}"\n\nReturn JSON:\n{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","strategic_themes":["","",""],"key_constraints":["",""],"success_metrics":["","",""],"summary":""}`,
+      `You are a senior strategy advisor supporting C-level executives (CIO, CFO, CDO, COO) across industries.
+
+Objective:
+Generate a concise, differentiated "Strategic Intent — Step 1" that reflects competitive positioning, economic realities, and measurable business outcomes.
+
+Instructions:
+- Avoid generic or template language that could apply to any company.
+- Tailor the strategy to the company's business model, industry dynamics, and current macro environment.
+- Explicitly address:
+  1) Where value is created (growth, margin expansion, capital efficiency)
+  2) Key economic drivers (e.g. cost of capital, pricing power, utilization, productivity)
+  3) Trade-offs (e.g. growth vs profitability, scale vs efficiency, risk vs return)
+- Highlight how the company can outperform competitors, not just operate efficiently.
+- Assume current macroeconomic conditions relevant to the industry (e.g. interest rates, inflation, demand shifts, regulatory pressure).
+
+Output structure:
+1. strategic_ambition: max 2 sentences. Must include clear business outcomes (e.g. revenue growth, margin improvement, cash flow, ROI, market share).
+2. strategic_themes: 3–5 bullets. Each theme must explain HOW value is created (e.g. cost reduction, revenue expansion, asset utilization, risk reduction). Avoid vague wording.
+3. key_constraints: max 3. Focus on real economic or operational constraints (e.g. capital cost, regulation, supply chain, talent).
+4. success_metrics: 4–6 bullets. Quantifiable where possible. Directly linked to financial or strategic outcomes.
+
+Tone: Executive, fact-based, and commercially sharp. Prioritize insight and differentiation over completeness.
+
+Quality criteria:
+- If the output could apply to multiple industries without change → it is too generic.
+- Each element must link to one of: cost savings, revenue growth, risk reduction, capital efficiency, or competitive advantage.
+
+Return ONLY valid JSON, no markdown, no explanation.`,
+      `Extract structured Strategic Intent from this organisation description:\n\n"${desc}"\n\nReturn JSON:\n{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","strategic_themes":["","",""],"key_constraints":["","",""],"success_metrics":["","","",""],"summary":""}`,
       { taskType: 'lightweight', temperature: 0.3 }
     );
     model.strategicIntent = JSON.parse(extractJSON(raw));
@@ -6236,11 +6710,43 @@ async function generateOperatingModel() {
   if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
   spin('s3', true);
   try {
-    const intentCtx = model.strategicIntent
-      ? `\nStrategic intent: ambition="${model.strategicIntent.strategic_ambition}", themes=${JSON.stringify(model.strategicIntent.strategic_themes||[])}.` : '';
-    const bmcCtx = model.bmc ? `\nBusiness model: value_proposition="${model.bmc.value_proposition}".` : '';
-    const raw = await callAI('Return ONLY valid JSON.',
-      `Generate operating model canvas for this architecture:${intentCtx}${bmcCtx}\n${JSON.stringify(model.capabilities.slice(0,8))}\nReturn JSON:\n  {"valueProposition":"","customerSegments":[""],"keyActivities":[""],"keyResources":[""],"keyPartners":[""],"channels":[""],"costStructure":[""],"revenueStreams":[""]}`, { taskType: 'heavy', temperature: 0.2 });
+    const si = model.strategicIntent || {};
+    const isCostreduction = /cost|efficien|lean|optim|save|reduc/i.test(si.strategic_ambition || '');
+    const strategicDirection = isCostreduction ? 'COST-REDUCTION / EFFICIENCY' : 'VALUE-CREATION / GROWTH';
+
+    const siBlock = si.strategic_ambition ? `
+STRATEGIC INTENT (must drive every section of the operating model):
+- Ambition: "${si.strategic_ambition}"
+- Strategic themes: ${JSON.stringify(si.strategic_themes || [])}
+- Key constraints: ${JSON.stringify(si.key_constraints || [])}
+- Success metrics: ${JSON.stringify(si.success_metrics || [])}
+- Timeframe: ${si.timeframe || 'not specified'}
+- Strategic direction: ${strategicDirection}
+` : '';
+
+    const bmcBlock = model.bmc ? `Business model context (Step 2):
+- Value proposition: "${model.bmc.value_proposition || ''}"
+- Customer segments: ${JSON.stringify(model.bmc.customer_segments || [])}
+- Revenue streams: ${JSON.stringify(model.bmc.revenue_streams || [])}
+` : '';
+
+    const capSample = model.capabilities.slice(0, 10).map(c => ({ name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance }));
+
+    const raw = await callAI('Return ONLY valid JSON. No markdown, no comments.',
+      `Generate the TO-BE Operating Model Canvas for this organization. The operating model must be directly shaped by the Strategic Intent — every section must reflect the strategic direction.
+${siBlock}${bmcBlock}
+Capability context (sample): ${JSON.stringify(capSample)}
+
+Rules:
+- If direction is COST-REDUCTION: key activities = process excellence + automation; cost structure = lean, fixed-to-variable shift; revenue streams = efficient delivery of existing products
+- If direction is VALUE-CREATION/GROWTH: key activities = innovation + customer experience + new market entry; key resources = talent + data + platform; channels = digital-first + partnerships
+- Value proposition must directly deliver the stated strategic ambition — not be generic
+- Each array should have 4-6 specific, actionable items (not generic filler)
+- Items must reference the strategic themes explicitly where possible
+
+Return JSON:
+{"valueProposition":"","customerSegments":[""],"keyActivities":[""],"keyResources":[""],"keyPartners":[""],"channels":[""],"costStructure":[""],"revenueStreams":[""]}`,
+      { taskType: 'heavy', temperature: 0.2 });
     model.operatingModel = JSON.parse(extractJSON(raw));
     renderOperatingModel();
     updateWorkflowStepStates();
@@ -6458,13 +6964,44 @@ async function generateTargetArch() {
   if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
   spin('s6', true);
   try {
-    const raw = await callAI('Return ONLY valid JSON array, no markdown.',
-      `Based on this architecture: ${JSON.stringify(model.capabilities)}
+    const si = model.strategicIntent || {};
+    const isCostreduction = /cost|efficien|lean|optim|save|reduc/i.test(si.strategic_ambition || '');
+    const strategicDirection = isCostreduction ? 'COST-REDUCTION / EFFICIENCY' : 'VALUE-CREATION / GROWTH';
 
-For each capability, return a target maturity and a one-line action.
-Return JSON array:
-[{"name":"","currentMaturity":2,"targetMaturity":4,"domain":"","strategicImportance":"high|medium|low","action":"","enabler":"Platform|AI|Process|Data|People"}]
-  Return ALL capabilities.`, { taskType: 'heavy', temperature: 0.2 });
+    const siBlock = si.strategic_ambition ? `
+STRATEGIC INTENT (must drive target maturity and action for each capability):
+- Ambition: "${si.strategic_ambition}"
+- Strategic themes: ${JSON.stringify(si.strategic_themes || [])}
+- Key constraints: ${JSON.stringify(si.key_constraints || [])}
+- Success metrics: ${JSON.stringify(si.success_metrics || [])}
+- Strategic direction: ${strategicDirection}
+
+Prioritization rules based on strategic direction:
+- ${isCostreduction
+    ? 'COST-REDUCTION: Prioritize automation, process standardization, and shared services capabilities. Set high target maturity for operational and finance domains. Constrain investment in customer-facing uplift unless directly tied to efficiency.'
+    : 'VALUE-CREATION: Prioritize customer experience, innovation, data, and partner ecosystem capabilities. Set high target maturity for capabilities linked to strategic themes. Allow high investment in differentiating capabilities.'}
+` : '';
+
+    const raw = await callAI('Return ONLY valid JSON array, no markdown.',
+      `Based on this architecture and strategic intent, define the Target Architecture.
+
+${siBlock}
+Capabilities to analyze: ${JSON.stringify(model.capabilities)}
+
+For each capability, set a target maturity that is justified by the strategic direction — not just "one level up from current". High-strategic-importance capabilities aligned to strategic themes should have the most aggressive targets.
+
+Return JSON array (ALL capabilities):
+[{
+  "name": "",
+  "currentMaturity": 2,
+  "targetMaturity": 4,
+  "domain": "",
+  "strategicImportance": "high|medium|low",
+  "action": "One specific action statement describing what must be done",
+  "enabler": "Platform|AI|Process|Data|People",
+  "strategicThemeLink": "Which strategic theme drives this uplift, or null"
+}]`,
+      { taskType: 'heavy', temperature: 0.2 });
     model.targetArch = JSON.parse(extractJSON(raw));
     model.targetArchDone = true;
     renderTargetArchVisual();
@@ -6573,11 +7110,59 @@ async function generateRoadmap() {
   if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
   spin('s7', true);
   try {
+    const si = model.strategicIntent || {};
+    const isCostreduction = /cost|efficien|lean|optim|save|reduc/i.test(si.strategic_ambition || '');
+    const strategicDirection = isCostreduction ? 'COST-REDUCTION / EFFICIENCY' : 'VALUE-CREATION / GROWTH';
+
+    const siBlock = si.strategic_ambition ? `
+STRATEGIC INTENT (must sequence and prioritize all initiatives):
+- Ambition: "${si.strategic_ambition}"
+- Strategic themes: ${JSON.stringify(si.strategic_themes || [])}
+- Key constraints: ${JSON.stringify(si.key_constraints || [])}
+- Success metrics: ${JSON.stringify(si.success_metrics || [])}
+- Strategic direction: ${strategicDirection}
+
+Phase sequencing rules:
+- Year 1 (Foundation): ${isCostreduction
+    ? 'Quick wins with fastest ROI — process automation, cost takeout, consolidation of redundant systems'
+    : 'Customer-facing and differentiating foundation — core platform, key data assets, priority customer journeys'}
+- Year 2 (Expansion): ${isCostreduction
+    ? 'Scale efficiency gains — standardization, shared services, advanced analytics for cost optimization'
+    : 'Scale and deepen — new market capabilities, partner integrations, AI/data-driven product expansion'}
+- Year 3 (Optimisation): ${isCostreduction
+    ? 'Sustain and govern — continuous improvement, governance, benchmarking'
+    : 'Optimise and innovate — ecosystem leadership, next-generation capabilities, strategic agility'}
+` : '';
+
+    const capContext = model.targetArch && model.targetArch.length
+      ? model.targetArch.map(t => ({ name: t.name, domain: t.domain, currentMaturity: t.currentMaturity, targetMaturity: t.targetMaturity, strategicImportance: t.strategicImportance, strategicThemeLink: t.strategicThemeLink }))
+      : model.capabilities.map(c => ({ name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance }));
+
     const raw = await callAI('Return ONLY valid JSON array.',
-      `Create transformation initiatives for: ${JSON.stringify(model.capabilities)}
+      `Create a transformation roadmap grounded in the strategic intent.
+
+${siBlock}
+Capability context: ${JSON.stringify(capContext)}
+
+Rules:
+- High-priority initiatives in Year 1 must be directly tied to strategic constraints or quick wins for the stated direction
+- Each initiative must name the capability it impacts
+- Business value ratings must reflect strategic importance — not just "size" of the change
+- Include 12-15 initiatives total, spread across all 3 phases
+- High-strategic-importance capabilities aligned to strategic themes → high priority
+
 Return JSON array:
-[{"name":"","impactsCapability":"","estimatedBusinessValue":"low|medium|high","complexity":"low|medium|high","priority":"high|medium|low","phase":"Year 1 - Foundation|Year 2 - Expansion|Year 3 - Optimisation","description":""}]
-  Generate 12-15 initiatives across all 3 phases.`, { taskType: 'heavy', temperature: 0.2 });
+[{
+  "name": "Initiative name",
+  "impactsCapability": "Capability name",
+  "estimatedBusinessValue": "low|medium|high",
+  "complexity": "low|medium|high",
+  "priority": "high|medium|low",
+  "phase": "Year 1 - Foundation|Year 2 - Expansion|Year 3 - Optimisation",
+  "description": "What specifically will be done and why it matters strategically",
+  "strategicThemeLink": "Which strategic theme this delivers, or null"
+}]`,
+      { taskType: 'heavy', temperature: 0.2 });
     model.initiatives = JSON.parse(extractJSON(raw));
     renderInitiatives(); renderRoadmapVisual();
     toast('Roadmap generated &#x2718;');
@@ -8599,9 +9184,10 @@ function addSyncLog(message) {
   <div id="chat-header">
     <div id="chat-header-title">
       <i class="fas fa-comments"></i>
-      <span>EA Assistant</span>
+      <span id="chat-title-text">EA Assistant</span>
     </div>
     <div id="chat-controls">
+      <button id="prompt-trace-toggle" onclick="togglePromptTrace()" title="Visa/dölj prompt trace" style="font-size:13px;opacity:0.5;transition:opacity .2s;">📋</button>
       <button id="new-chat" onclick="startNewConversationChat()" title="New chat">+</button>
       <button id="clear-chat" onclick="clearActiveConversationHistory()" title="Clear history">&#x21BA;</button>
       <button id="minimize-chat" onclick="minimizeChatPanel()" title="Minimize">&minus;</button>

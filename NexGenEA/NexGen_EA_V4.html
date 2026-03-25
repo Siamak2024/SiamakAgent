@@ -81,6 +81,8 @@
 <script src="../js/EA_SyncEngine.js"></script>
 <script src="../js/EA_FileManager.js"></script>
 <script src="../js/EA_NordicUI.js"></script>
+<script src="../azure-deployment/AzureOpenAIProxy.js"></script>
+<script src="../js/Advicy_AI.js"></script>
 <script src="js/EA_IntegrationEngine.js"></script>
 <link rel="stylesheet" href="../css/ea-design-engine.css" />
 <link rel="stylesheet" href="../css/ea-nordic-theme.css" />
@@ -339,7 +341,7 @@
         <div class="text-xs font-bold uppercase text-slate-400 tracking-wide">Organisation Description</div>
         <button type="button" onclick="startNewWorkflow()" class="text-[9px] font-semibold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded px-2 py-0.5 flex items-center gap-1" title="Clear all results and start a new EA workflow"><i class="fas fa-rotate-right"></i> New Workflow</button>
       </div>
-      <textarea id="description" class="w-full border border-slate-200 rounded-lg p-2.5 text-xs h-24 min-h-[96px] resize-y max-w-full focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200 overflow-auto" placeholder="E.g. Industry-specific owner/operator with multi-site portfolio, mixed-use buildings, and a legacy domain operations stack..." title="Click to expand"></textarea>
+      <textarea id="description" class="w-full border border-slate-200 rounded-lg p-2.5 text-xs h-24 min-h-[96px] resize-y max-w-full focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200 overflow-auto" placeholder="E.g. Industry-specific owner/operator with multi-site portfolio, mixed-use buildings, and a legacy domain operations stack..." title="Click to expand" oninput="if(typeof AdvisyAI!=='undefined') AdvisyAI.updateDescriptionContext(this.value)"></textarea>
       <div class="mt-1.5 flex items-center justify-between text-[10px] text-slate-500">
         <span></span>
         <div class="flex items-center gap-3">
@@ -2058,6 +2060,13 @@ function onHeaderLanguageChange(nextLanguage) {
 // Initialize DataManager, SyncEngine, and FileManager on page load
 window.addEventListener('DOMContentLoaded', () => {
   console.log('🚀 NextGen EA V4 initializing...');
+
+  // Seed AdvisyAI with any pre-filled description text on load
+  if (typeof AdvisyAI !== 'undefined') {
+    const descEl = document.getElementById('description');
+    if (descEl && descEl.value) AdvisyAI.updateDescriptionContext(descEl.value);
+  }
+
   // Load API key from storage into memory at startup
   if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
   console.log('📋 API Key loaded from storage:', OPENAI_KEY ? '&#x2718; Present' : '✗ Missing');
@@ -2791,6 +2800,12 @@ function buildMasterDataPromptContext() {
 
 async function callAI(sys, user, options = {}) {
   ensurePhase4Fields();
+  // Prompt Trace: visa redigerbart kort i chatten (hoppar över _fromChat för att undvika loop)
+  if (window._advisyPromptTrace && !options._fromChat) {
+    renderPromptTrace(options._traceLabel || options.taskType || 'callAI', sys, user);
+    const panel = document.getElementById('ai-chat-panel');
+    if (panel && panel.classList.contains('hidden')) toggleChatPanel();
+  }
   if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
 
   const taskType = options.taskType || 'lightweight';
@@ -2980,11 +2995,17 @@ function capabilityHasBusinessArea(capability, area) {
 }
 
 function setIndustryProfile(industry) {
+  if (typeof AdvisyAI !== 'undefined') AdvisyAI.updateIndustryLayer(industry);
   const profile = PHASE4_INDUSTRY_PROFILES[industry] || PHASE4_INDUSTRY_PROFILES.generic;
   model.phase4Config = {
     industry,
     activeBusinessAreas: normalizeBusinessAreas(profile.areas)
   };
+  // Sync ESG layer: buildSystemPrompt() reads window.model live, but log for traceability
+  if (typeof AdvisyAI !== 'undefined') {
+    const hasESG = model.phase4Config.activeBusinessAreas.includes('esg');
+    console.log('[AdvisyAI] ESG layer:', hasESG ? 'active' : 'inactive', '| Industry:', industry);
+  }
 
   renderPhase4ControlsFromModel();
   updateDataCollectionTab();
@@ -2997,6 +3018,10 @@ function setIndustryProfile(industry) {
 function setActiveBusinessAreasFromUI() {
   const selected = Array.from(document.querySelectorAll('input[name="phase4-area-toggle"]:checked')).map(el => el.value);
   model.phase4Config.activeBusinessAreas = normalizeBusinessAreas(selected);
+  if (typeof AdvisyAI !== 'undefined') {
+    const hasESG = model.phase4Config.activeBusinessAreas.includes('esg');
+    console.log('[AdvisyAI] ESG layer:', hasESG ? 'active' : 'inactive');
+  }
   syncAreaFilterSelectors();
   updateDataCollectionTab();
   renderCapMap();
@@ -3913,6 +3938,7 @@ function showTab(name, btn) {
     iconBtn.classList.toggle('is-active', name === 'toolkits');
   });
   currentTab = name;
+  if (typeof AdvisyAI !== 'undefined') AdvisyAI.setActiveView(name);
   if (name === 'phase4') setTimeout(renderPhase4Dashboard, 50);
   if (name === 'layers') setTimeout(renderLayers, 50);
   if (name === 'capmap') setTimeout(renderCapMap, 50);
@@ -4557,6 +4583,65 @@ function parseMarkdown(text) {
   formatted = formatted.replace(/\n/g, '<br>');
   return formatted;
 }
+
+// ── Prompt Trace (Advicy AI) ──────────────────────────────────────────────
+window._advisyPromptTrace = false;
+
+function togglePromptTrace() {
+  window._advisyPromptTrace = !window._advisyPromptTrace;
+  const btn = document.getElementById('prompt-trace-toggle');
+  if (btn) {
+    btn.style.opacity = window._advisyPromptTrace ? '1' : '0.5';
+    btn.title = window._advisyPromptTrace ? 'Prompt trace PÅ – klicka för att stänga av' : 'Visa prompt trace';
+  }
+  console.log('[AdvisyAI] Prompt trace:', window._advisyPromptTrace ? 'PÅ' : 'AV');
+}
+
+function renderPromptTrace(label, sys, user) {
+  const messagesContainer = document.getElementById('chat-messages');
+  if (!messagesContainer) return;
+  const traceId = 'pt-' + Date.now();
+  const wrapper = document.createElement('div');
+  wrapper.className = 'chat-message';
+  wrapper.style.cssText = 'margin:4px 8px;';
+  wrapper.innerHTML = `
+    <div id="${traceId}" style="border:1.5px solid #c4b5fd;border-radius:10px;background:#faf5ff;font-size:11px;overflow:hidden;">
+      <div onclick="(function(el){el.nextElementSibling.style.display=el.nextElementSibling.style.display==='none'?'block':'none';})(this)"
+           style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:#ede9fe;cursor:pointer;user-select:none;">
+        <span style="font-weight:700;color:#6d28d9;">📋 Prompt Trace</span>
+        <span style="color:#7c3aed;font-size:10px;font-weight:600;">${label || 'Workflow'} &nbsp;▾</span>
+      </div>
+      <div style="padding:8px 10px;display:block;">
+        <label style="display:block;font-weight:700;color:#7c3aed;margin-bottom:2px;">SYSTEM</label>
+        <textarea id="${traceId}-sys" style="width:100%;min-height:80px;max-height:200px;resize:vertical;font-size:10px;font-family:monospace;border:1px solid #ddd6fe;border-radius:6px;padding:6px;background:#fff;box-sizing:border-box;">${(sys||'').replace(/</g,'&lt;')}</textarea>
+        <label style="display:block;font-weight:700;color:#0369a1;margin:6px 0 2px;">USER PROMPT</label>
+        <textarea id="${traceId}-user" style="width:100%;min-height:60px;max-height:150px;resize:vertical;font-size:10px;font-family:monospace;border:1px solid #bae6fd;border-radius:6px;padding:6px;background:#fff;box-sizing:border-box;">${(user||'').replace(/</g,'&lt;')}</textarea>
+        <div style="text-align:right;margin-top:6px;">
+          <button onclick="(async function(){
+            const s=document.getElementById('${traceId}-sys').value;
+            const u=document.getElementById('${traceId}-user').value;
+            const btn=this;
+            btn.disabled=true;btn.textContent='Kör...';
+            try{
+              showTypingIndicator();
+              const panel=document.getElementById('ai-chat-panel');
+              if(panel&&panel.classList.contains('hidden'))toggleChatPanel();
+              const res=await callAI(s,u,{_fromChat:true});
+              hideTypingIndicator();
+              addAssistantMessage(res);
+            }catch(e){
+              hideTypingIndicator();
+              addAssistantMessage('Fel vid omkörning: '+e.message);
+            } finally{btn.disabled=false;btn.textContent='Kör om ▶';}
+          }).call(this)"
+          style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:4px 14px;font-size:11px;font-weight:700;cursor:pointer;">Kör om ▶</button>
+        </div>
+      </div>
+    </div>`;
+  messagesContainer.appendChild(wrapper);
+  scrollToBottom();
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function renderMessage(content, isUser, timestamp = Date.now(), metadata = null, increaseUnread = true) {
   const messagesContainer = document.getElementById('chat-messages');
@@ -5480,8 +5565,12 @@ async function handleStepFocusedMessage(userMessage, context, stepCtx) {
     7: `You are a senior EA transformation expert reviewing Step 7 (Target Architecture & Roadmap) against all prior steps. Evaluate Year 1 initiative sequencing, target maturity vs strategic need, phase design for cost-reduction vs value-creation strategy. To apply, embed \`\`\`json with action "update_initiatives" and value as array.`
   };
 
-  const systemPrompt = (stepSystemPrompts[stepNum] || `You are a senior EA advisor reviewing Step ${stepNum} (${stepName}).`) +
+  const _stepBasePrompt = (stepSystemPrompts[stepNum] || `You are a senior EA advisor reviewing Step ${stepNum} (${stepName}).`) +
     ' Be direct and commercially sharp. When proposing changes, discuss first. If user confirms, embed the change as a ```json ... ``` block for automatic application. Otherwise respond conversationally.';
+  // Inject industry + ESG layers from AdvisyAI around the step-specific prompt
+  const systemPrompt = (typeof AdvisyAI !== 'undefined')
+    ? AdvisyAI.buildSystemPrompt({ stepNum, stepOverridePrompt: _stepBasePrompt, userText: userMessage })
+    : _stepBasePrompt;
 
   const recentMessages = (getActiveConversation().messages || []).slice(-8).map(m => ({ role: m.role, content: String(m.content || '').slice(0, 500) }));
 
@@ -5931,7 +6020,9 @@ async function handleGeneralQuestion(userMessage, context) {
     ? `\n\nCompleted EA steps:\n${stepsCompleted.map(s => ' - ' + s).join('\n')}`
     : '\n\nNo EA steps completed yet.';
 
-  const systemPrompt = `You are NextGen EA Assistant, a senior enterprise architecture and business strategy advisor. You guide users through a 7-step EA framework: (1) Strategic Intent, (2) Business Model Canvas, (3) Capability Map, (4) Operating Model, (5) Gap Analysis, (6) Value Pools, (7) Target Architecture & Roadmap.\n\nYou have full awareness of the user's completed steps and their outputs. When answering, always orient guidance toward the strategic ambition captured in Step 1. Reference specific step outputs when relevant, flag cross-step dependencies, and suggest next actions that are correctly sequenced in the EA workflow.`;
+  const systemPrompt = (typeof AdvisyAI !== 'undefined')
+    ? AdvisyAI.buildSystemPrompt({ userText: userMessage })
+    : `You are Advicy AI, a senior enterprise architecture and business strategy advisor. You guide users through a 7-step EA framework: (1) Strategic Intent, (2) Business Model Canvas, (3) Capability Map, (4) Operating Model, (5) Gap Analysis, (6) Value Pools, (7) Target Architecture & Roadmap.\n\nYou have full awareness of the user's completed steps and their outputs. When answering, always orient guidance toward the strategic ambition captured in Step 1. Reference specific step outputs when relevant, flag cross-step dependencies, and suggest next actions that are correctly sequenced in the EA workflow.`;
 
   const response = await callAI(
     systemPrompt,
@@ -9096,6 +9187,7 @@ function addSyncLog(message) {
       <span id="chat-title-text">EA Assistant</span>
     </div>
     <div id="chat-controls">
+      <button id="prompt-trace-toggle" onclick="togglePromptTrace()" title="Visa/dölj prompt trace" style="font-size:13px;opacity:0.5;transition:opacity .2s;">📋</button>
       <button id="new-chat" onclick="startNewConversationChat()" title="New chat">+</button>
       <button id="clear-chat" onclick="clearActiveConversationHistory()" title="Clear history">&#x21BA;</button>
       <button id="minimize-chat" onclick="minimizeChatPanel()" title="Minimize">&minus;</button>
