@@ -2446,19 +2446,16 @@ function createNewProject() {
   
   // Save to DataManager (if available)
   if (dataManager) {
-    const projectData = {
-      ...emptyModel,
-      metadata: {
-        description: projectDescription,
-        created: new Date().toISOString(),
-        modified: new Date().toISOString()
-      }
-    };
-    dataManager.saveProject(projectId, projectName, projectData);
-    
+    // EA_DataManager uses createProject(name, description) then updateProject for data
+    const dmProject = dataManager.createProject(projectName, projectDescription);
+    // createProject generates its own ID — align currentModelId with it
+    currentModelId = dmProject.id;
+    dataManager.updateProject(dmProject.id, { data: { platform: emptyModel } });
+    dataManager.setCurrentProject(dmProject.id);
+
     // Create initial snapshot with FileManager
     if (fileManager) {
-      fileManager.saveProjectSnapshot(projectId, projectName, projectData, false);
+      fileManager.saveProjectSnapshot(currentModelId, projectName, emptyModel, false);
     }
   } else {
     // Fallback to legacy storage
