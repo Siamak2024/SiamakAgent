@@ -6179,29 +6179,43 @@ function getGapAnalysisContextSnapshot() {
 
 async function requestDynamicGapAnalysis(contextHint = {}) {
   const snapshot = getGapAnalysisContextSnapshot();
+  const capabilityIndex = (model.capabilities || []).map(c => ({
+    name: c.name,
+    domain: c.domain,
+    maturity: c.maturity,
+    strategicImportance: c.strategicImportance,
+    targetMaturity: ((model.targetArch || []).find(t => t.name === c.name) || {}).targetMaturity || null
+  }));
+  const sysGap = (window._stepPrompts && window._stepPrompts.step_5) ||
+    'You are an enterprise architecture gap analysis expert. Stay industry-agnostic by default, and adapt only to evidence from provided context. Return ONLY valid JSON, no markdown.';
   return callAI(
-    'You are an enterprise architecture gap analysis expert. Stay industry-agnostic by default, and adapt only to evidence from provided context. Return ONLY valid JSON, no markdown.',
+    sysGap,
     `Create a clear and actionable gap analysis using architecture and toolkit context.
 
 Context:
 ${JSON.stringify({ ...snapshot, contextHint }, null, 2)}
 
+Capability model (${capabilityIndex.length} capabilities):
+${JSON.stringify(capabilityIndex, null, 2)}
+
 Return JSON with this exact shape:
 {
   "title": "Gap Analysis",
   "executiveSummary": "2 concise sentences",
-  "gapAnalysis": [{"title":"","detail":"","severity":"high|medium|low"}],
+  "gapAnalysis": [{"title":"","detail":"","severity":"high|medium|low","capability_ref":"capability name from the capability model","priority_score":{"strategic_alignment":5,"financial_impact":5,"feasibility":3,"urgency":4,"weighted_total":4.3},"classification":"quick_win|foundation|strategic_bet|defer","cost_of_gap_annual":0}],
   "desiredState": [{"title":"","detail":""}],
   "currentState": [{"title":"","detail":""}],
-  "actionSteps": [{"title":"","detail":"","owner":"Business|Technology|Data|Risk|Operations","timeHorizon":"0-90 days|3-6 months|6-12 months"}]
+  "actionSteps": [{"title":"","detail":"","owner":"Business|Technology|Data|Risk|Operations","timeHorizon":"0-90 days|3-6 months|6-12 months","depends_on":[]}]
 }
 
 Rules:
 - 4 to 6 rows per lane.
-- Use neutral, cross-industry wording unless specific industry evidence exists in context.
-- Reflect imported toolkit signals when available (BMC/ValueChain/Capability/Strategy/Maturity).
+- Every gap must reference a specific capability by name from the provided capability model.
+- priority_score.weighted_total = (strategic_alignment*0.35 + financial_impact*0.30 + urgency*0.25 + feasibility*0.10).
+- classification: quick_win = high impact + low complexity; foundation = enables other gaps; strategic_bet = high impact + high complexity + long horizon; defer = low impact.
+- cost_of_gap_annual: estimated annual cost (€) of not closing this gap.
+- depends_on in actionSteps: list action titles that must complete first (empty array if none).
 - Ensure each action maps to a corresponding gap and is practical.
-- Keep each title short and each detail concrete.
 - Do not include commentary outside JSON.`,
     { taskType: 'heavy', temperature: 0.2, replyLanguage: contextHint.preferredLanguage || getAppLanguage() }
   );
@@ -6618,51 +6632,83 @@ function resetWorkflowModel() {
  * @returns {Promise<string>}  Tailored system prompt ready for the Step 1 callAI()
  */
 async function _buildOptimizedStep1Prompt(desc) {
-  const metaSys = `You are a senior strategy advisor with deep expertise in the exact industry described in the input, operating inside an enterprise architecture platform. Your task is to generate "Step 1 — Strategic Intent" that is specific, commercially rigorous, and uniquely tailored to the company. Generic output is unacceptable.
+  const metaSys = `You are the Context Engine for an enterprise architecture platform. Your task is to analyse a company description and produce TWO things in a single JSON response:
 
-Reason silently and focus only on delivering a sharp, decision-ready result.
+1. A structured Context Object that classifies the organisation with confidence-scored fields.
+2. Industry-calibrated system prompts for all 7 workflow steps, each containing the right expert persona, precise industry terminology, and a quality gate instruction.
 
-Instructions:
+Each step prompt must be a complete system prompt string — not a title, not a summary. It must include:
+- A named expert persona with 15+ years of relevant experience
+- Industry-specific terminology unique to the described company
+- A "Return ONLY valid JSON, no markdown" instruction (except step_1 which has its own JSON gate added separately)
+- A quality gate: "Generic output that could apply to any industry is unacceptable"
 
-1. Use precise industry terminology and reflect the true value-creation logic of this business model.
-2. Integrate only the most material macroeconomic factors (interest rates, inflation, regulation, supply/demand, capital markets) and explicitly link them to strategic and capital allocation implications.
-3. Identify and prioritise the key value-creation levers that drive growth, profitability, scalability, and valuation. Show clear cause-effect relationships.
-4. Analyse competitive dynamics, including positioning, differentiation, barriers to entry, and risks (e.g. commoditisation, margin pressure). State clearly how the company can win.
-5. Frame the critical executive trade-offs (e.g. growth vs profitability, scale vs efficiency, asset-heavy vs asset-light, short vs long term value). Highlight consequences of choices.
-6. Anchor the analysis in financial reality by referencing the KPIs and metrics that matter most to investors, lenders, and boards.
+Return ONLY valid JSON — no prose, no markdown outside the JSON structure.`;
 
-Output style:
-- Be concise, structured, and insight-dense
-- No fluff, no repetition, no generic statements
-- Every sentence must be company- and industry-specific
-- Write in a direct, executive tone suitable for C-level decision-making
-- Return ONLY the system prompt text — no JSON, no markdown, no explanation.`;
+  const metaUser = `Company description: "${desc}"
 
-  const metaUser = `Company description:\n"${desc}"\n\nWrite a highly specific, industry-tailored system prompt for a Step 1 Strategic Intent analysis of this organisation. Every sentence must be specific to this type of company — remove any language that could apply generically to any industry.`;
+Return JSON with this exact shape:
+{
+  "context": {
+    "org_name": "",
+    "industry": "",
+    "sub_sector": "",
+    "org_type": "enterprise|SME|startup|public-sector|PE-backed",
+    "maturity_estimate": "1|2|3|4|5",
+    "scale_estimate": "estimated revenue range and headcount",
+    "primary_challenge": "",
+    "strategic_posture": "survival|stabilize|grow|transform|disrupt",
+    "regulatory_flags": [],
+    "clarification_needed": ["any field where confidence is below 0.7"]
+  },
+  "step_prompts": {
+    "step_1": "You are a senior strategy advisor with 15+ years in [industry]. [Full industry-specific Step 1 system prompt — commercially rigorous, C-level tone. Analyse value-creation levers, competitive dynamics, macro factors, and key executive trade-offs specific to this industry. Every sentence must be company- and industry-specific.]",
+    "step_2": "You are a business model strategist with deep [industry] expertise. Analyse the strategic intent and produce both the current-state and target-state Business Model Canvas for this organisation. Every block must reflect industry-specific dynamics and the stated strategic ambition. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
+    "step_3": "You are a senior enterprise architect with 15+ years in [industry] transformation. Generate a complete capability architecture grounded in the strategic ambition. Use [industry]-specific capability names, value streams, and system archetypes. Every financial estimate must reflect realistic [industry] benchmarks. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
+    "step_4": "You are a senior operating model designer specialising in [industry] transformation. Design the TO-BE operating model that directly delivers the stated strategic ambition. Every section must reflect the strategic direction and be specific to this industry. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
+    "step_5": "You are a senior EA gap analysis specialist with deep [industry] expertise. Analyse the current versus desired capability state and produce a capability-anchored gap analysis. Reference specific capabilities by name, score each gap by strategic alignment and financial impact, and classify by action urgency. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
+    "step_6": "You are a transformation value architect with [industry] economics expertise. Identify the highest-value transformation pools grounded in the capability model and strategic themes. Every value pool must be anchored to a named capability and quantified against [industry] benchmarks. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
+    "step_7": "You are a senior transformation programme director with [industry] delivery experience. Build a phased transformation roadmap sequenced by strategic priority, capability dependency, and deliverable complexity. Every initiative must link to a named capability and a strategic theme. Include clear phase gate criteria. Generic output is unacceptable. Return ONLY valid JSON, no markdown."
+  }
+}`;
 
-  let enriched = '';
+  let contextObj = {};
+  let stepPrompts = {};
+
   try {
-    enriched = await callAI(metaSys, metaUser, {
+    const rawJson = await callAI(metaSys, metaUser, {
       taskType: 'lightweight',
       temperature: 0.5,
-      _traceLabel: 'Step 1 — Prompt Optimiser'
+      _traceLabel: 'Pre-Step 1 — Context Engine'
     });
+    const parsed = JSON.parse(extractJSON(rawJson));
+    if (parsed && typeof parsed === 'object') {
+      contextObj = parsed.context || {};
+      stepPrompts = parsed.step_prompts || {};
+    }
   } catch (_e) {
     // Silently fall through — static fallback applied below
   }
 
-  // Always append the JSON output schema — never allow it to be lost
+  // Store context and step prompts for downstream steps to use
+  model.contextObj = contextObj;
+  window._stepPrompts = stepPrompts;
+
+  // JSON output schema for Step 1 (always appended — never lost)
   const jsonSchema = '\n\nOutput requirements — Return ONLY valid JSON (no markdown, no explanation):\n' +
-    '{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","strategic_themes":["","",""],"key_constraints":["","",""],"success_metrics":["","","",""],"summary":""}\n\n' +
+    '{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","strategic_themes":["","",""],"key_constraints":["","",""],"success_metrics":["","","",""],"summary":"","burning_platform":"","assumptions_and_caveats":[""]}\n\n' +
     'Rules:\n' +
     '- strategic_ambition: max 2 sentences; must include clear business outcomes (revenue growth, margin improvement, cash flow, ROI, or market share)\n' +
     '- strategic_themes: 3–5 items; each must explain HOW value is created — avoid vague wording\n' +
     '- key_constraints: max 3; real economic or operational constraints specific to this industry\n' +
     '- success_metrics: 4–6 items; quantifiable, directly linked to financial or strategic outcomes\n' +
+    '- burning_platform: 1 sentence — the single most urgent reason this transformation cannot be delayed\n' +
+    '- assumptions_and_caveats: 2–4 AI-generated estimates that must be validated by the client before proceeding\n' +
     '- Quality gate: if any element could apply unchanged to a different industry, make it specific';
 
-  if (enriched && enriched.trim().length > 80) {
-    return enriched.trim() + jsonSchema;
+  const step1Prompt = stepPrompts.step_1;
+  if (step1Prompt && step1Prompt.trim().length > 80) {
+    return step1Prompt.trim() + jsonSchema;
   }
 
   // Fallback: concise static base prompt + schema
@@ -6712,6 +6758,14 @@ async function clarifyStrategicIntent() {
     const metrics = (si.success_metrics || []).map(m => `• ${m}`).join('\n');
     const chatMsg = `**Step 1 — Strategic Intent generated** ✓\n\n**${si.org_name || 'Organisation'}** · ${si.industry || ''} · ${si.timeframe || '3-5 years'}\n\n**Ambition:** ${si.strategic_ambition || ''}\n\n**Strategic Themes:**\n${themes}\n\n**Success Metrics:**\n${metrics}`;
     addAssistantMessage(chatMsg);
+
+    // ── Show burning platform + assumptions validation notice ────────────────
+    if (si.burning_platform || (si.assumptions_and_caveats || []).length) {
+      const caveatLines = (si.assumptions_and_caveats || []).map(c => `⚠ ${c}`).join('\n');
+      const burnLine = si.burning_platform ? `**Burning platform:** ${si.burning_platform}\n\n` : '';
+      addAssistantMessage(`**⚠ Assumptions to validate before proceeding:**\n\n${burnLine}${caveatLines}\n\n_These are AI-generated estimates. Verify key figures with the client before running Steps 2–7._`);
+    }
+
     // Open sidebar if not already open
     const _panel = document.getElementById('ai-chat-panel');
     if (_panel && _panel.classList.contains('hidden')) toggleChatPanel();
@@ -6731,17 +6785,26 @@ async function generateBMC() {
     const intentCtx = model.strategicIntent
       ? `Strategic Intent: ${model.strategicIntent.strategic_ambition}. Themes: ${(model.strategicIntent.strategic_themes||[]).join(', ')}.`
       : '';
+    const sysBMC = (window._stepPrompts && window._stepPrompts.step_2) ||
+      'You are a business model strategist. Return ONLY valid JSON, no markdown.';
     const raw = await callAI(
-      'You are a business strategist. Return ONLY valid JSON, no markdown.',
-      `Generate a Business Model Canvas for this organisation:\n\n"${desc}"\n${intentCtx}\n\nReturn JSON:\n{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]}`,
+      sysBMC,
+      `Generate a Business Model Canvas (current AND target state) for this organisation:\n\n"${desc}"\n${intentCtx}\n\nReturn JSON:\n{"current_state_bmc":{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]},"target_state_bmc":{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]},"model_shift_analysis":{"blocks_requiring_transformation":[""],"revenue_concentration_risk":"","new_revenue_streams_enabled":[""],"cost_lines_addressable":[""]}}`,
       { taskType: 'heavy', temperature: 0.2, _traceLabel: 'Step 2 — Business Model Canvas' }
     );
-    model.bmc = JSON.parse(extractJSON(raw));
+    const parsed = JSON.parse(extractJSON(raw));
+    // target_state_bmc is stored in model.bmc for backwards compatibility with Steps 3–7
+    model.bmc = parsed.target_state_bmc || parsed;
+    model.bmc_current = parsed.current_state_bmc || null;
+    model.bmc_analysis = parsed.model_shift_analysis || null;
     updateWorkflowStepStates();
     renderBMCPanel();
     toast('Business Model Canvas generated &#x2714;');
     const bmc = model.bmc;
-    addAssistantMessage(`**Step 2 — Business Model Canvas generated** ✓\n\n**Value Proposition:** ${bmc.value_proposition||''}\n\n**Revenue Streams:** ${(bmc.revenue_streams||[]).join(', ')}\n\n**Key Activities:** ${(bmc.key_activities||[]).join(', ')}`);
+    const shiftMsg = model.bmc_analysis
+      ? `\n\n**Model Shift:** ${(model.bmc_analysis.blocks_requiring_transformation||[]).join(', ')} require transformation. Revenue risk: ${model.bmc_analysis.revenue_concentration_risk||'n/a'}`
+      : '';
+    addAssistantMessage(`**Step 2 — Business Model Canvas generated** ✓\n\n**Target Value Proposition:** ${bmc.value_proposition||''}\n\n**Target Revenue Streams:** ${(bmc.revenue_streams||[]).join(', ')}\n\n**Key Activities:** ${(bmc.key_activities||[]).join(', ')}${shiftMsg}`);
     const _panel = document.getElementById('ai-chat-panel');
     if (_panel && _panel.classList.contains('hidden')) toggleChatPanel();
   } catch(e) { toast('Error generating BMC: ' + e.message, true); }
@@ -6761,17 +6824,36 @@ function renderBMCPanel() {
     return d;
   })();
   const pill = (v) => `<span class="intent-theme-pill" style="background:rgba(74,119,99,0.15);border-color:#4A7763;color:#2e6b50;">${v}</span>`;
+  const renderGrid = (b) => `
+    <div class="grid grid-cols-2 gap-3 text-[10px]">
+      <div><div class="font-bold text-slate-500 uppercase text-[9px] mb-1">Value Proposition</div><div class="text-slate-700">${b.value_proposition||''}</div></div>
+      <div><div class="font-bold text-slate-500 uppercase text-[9px] mb-1">Customer Segments</div><div>${(b.customer_segments||[]).map(pill).join('')}</div></div>
+      <div><div class="font-bold text-slate-500 uppercase text-[9px] mb-1">Key Activities</div><div>${(b.key_activities||[]).map(pill).join('')}</div></div>
+      <div><div class="font-bold text-slate-500 uppercase text-[9px] mb-1">Key Resources</div><div>${(b.key_resources||[]).map(pill).join('')}</div></div>
+      <div><div class="font-bold text-slate-500 uppercase text-[9px] mb-1">Revenue Streams</div><div>${(b.revenue_streams||[]).map(pill).join('')}</div></div>
+      <div><div class="font-bold text-slate-500 uppercase text-[9px] mb-1">Cost Structure</div><div>${(b.cost_structure||[]).map(pill).join('')}</div></div>
+    </div>`;
+
+  const hasDual = !!model.bmc_current;
+  const shiftHtml = (model.bmc_analysis && hasDual) ? `
+    <div class="mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg text-[10px]">
+      <div class="font-bold text-amber-700 uppercase text-[9px] mb-1">Model Shift Analysis</div>
+      <div class="text-amber-800 mb-1"><span class="font-semibold">Transformation blocks:</span> ${(model.bmc_analysis.blocks_requiring_transformation||[]).join(', ')}</div>
+      <div class="text-amber-800 mb-1"><span class="font-semibold">Revenue concentration risk:</span> ${model.bmc_analysis.revenue_concentration_risk||''}</div>
+      <div class="text-amber-800"><span class="font-semibold">New streams enabled:</span> ${(model.bmc_analysis.new_revenue_streams_enabled||[]).join(', ')}</div>
+    </div>` : '';
+
   section.innerHTML = `
     <div class="mb-4 p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
       <div class="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-3">Business Model Canvas &mdash; Step 2</div>
-      <div class="grid grid-cols-2 gap-3 text-[10px]">
-        <div><div class="font-bold text-slate-500 uppercase text-[9px] mb-1">Value Proposition</div><div class="text-slate-700">${bmc.value_proposition||''}</div></div>
-        <div><div class="font-bold text-slate-500 uppercase text-[9px] mb-1">Customer Segments</div><div>${(bmc.customer_segments||[]).map(pill).join('')}</div></div>
-        <div><div class="font-bold text-slate-500 uppercase text-[9px] mb-1">Key Activities</div><div>${(bmc.key_activities||[]).map(pill).join('')}</div></div>
-        <div><div class="font-bold text-slate-500 uppercase text-[9px] mb-1">Key Resources</div><div>${(bmc.key_resources||[]).map(pill).join('')}</div></div>
-        <div><div class="font-bold text-slate-500 uppercase text-[9px] mb-1">Revenue Streams</div><div>${(bmc.revenue_streams||[]).map(pill).join('')}</div></div>
-        <div><div class="font-bold text-slate-500 uppercase text-[9px] mb-1">Cost Structure</div><div>${(bmc.cost_structure||[]).map(pill).join('')}</div></div>
+      ${hasDual ? `
+      <div class="flex gap-2 mb-3">
+        <button id="bmc-tab-target" onclick="document.getElementById('bmc-panel-current').classList.add('hidden');document.getElementById('bmc-panel-target').classList.remove('hidden');this.classList.add('bg-ea-green','text-white');document.getElementById('bmc-tab-current').classList.remove('bg-ea-green','text-white');" class="px-3 py-1 rounded text-[9px] font-bold border border-ea-green bg-ea-green text-white">Target State</button>
+        <button id="bmc-tab-current" onclick="document.getElementById('bmc-panel-target').classList.add('hidden');document.getElementById('bmc-panel-current').classList.remove('hidden');this.classList.add('bg-ea-green','text-white');document.getElementById('bmc-tab-target').classList.remove('bg-ea-green','text-white');" class="px-3 py-1 rounded text-[9px] font-bold border border-slate-300 text-slate-600">Current State (AS-IS)</button>
       </div>
+      <div id="bmc-panel-target">${renderGrid(bmc)}</div>
+      <div id="bmc-panel-current" class="hidden">${renderGrid(model.bmc_current)}</div>
+      ${shiftHtml}` : renderGrid(bmc)}
     </div>`;
   showTab('opmodel', null);
 }
@@ -6787,7 +6869,7 @@ async function generateValuePools() {
       ? `Strategic ambition: ${model.strategicIntent.strategic_ambition}. Themes: ${(model.strategicIntent.strategic_themes||[]).join(', ')}.`
       : '';
     const raw = await callAI(
-      'You are a strategy consultant. Return ONLY valid JSON, no markdown.',
+      (window._stepPrompts && window._stepPrompts.step_6) || 'You are a strategy consultant. Return ONLY valid JSON, no markdown.',
       `Identify the top value pools for this enterprise architecture:\n\n${intentCtx}\nCapabilities: ${JSON.stringify(model.capabilities.slice(0,10).map(c=>({name:c.name,domain:c.domain,strategicImportance:c.strategicImportance,maturity:c.maturity})))}\n\nReturn JSON array:\n[{"name":"","description":"","value_driver":"cost|revenue|risk|experience","potential_impact":"high|medium|low","enabling_capabilities":[""],"time_horizon":"short|medium|long"}]`,
       { taskType: 'heavy', temperature: 0.2, _traceLabel: 'Step 6 — Value Pools' }
     );
@@ -6870,6 +6952,35 @@ function renderStrategicIntentSection() {
   const metricsEl = document.getElementById('intent-metrics');
   if (metricsEl) {
     metricsEl.innerHTML = (intent.success_metrics || []).map(m => `<li>${m}</li>`).join('');
+  }
+
+  // Render burning_platform and assumptions_and_caveats if present
+  let burnEl = document.getElementById('intent-burning-platform');
+  if (intent.burning_platform) {
+    if (!burnEl) {
+      burnEl = document.createElement('div');
+      burnEl.id = 'intent-burning-platform';
+      burnEl.className = 'mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-[10px]';
+      if (displayEl) displayEl.appendChild(burnEl);
+    }
+    burnEl.innerHTML = `<div class="font-bold text-amber-700 uppercase text-[9px] tracking-widest mb-1">⚠ Burning Platform</div><div class="text-amber-800">${intent.burning_platform}</div>`;
+    burnEl.classList.remove('hidden');
+  } else if (burnEl) {
+    burnEl.classList.add('hidden');
+  }
+
+  let caveatsEl = document.getElementById('intent-caveats');
+  if ((intent.assumptions_and_caveats || []).length) {
+    if (!caveatsEl) {
+      caveatsEl = document.createElement('div');
+      caveatsEl.id = 'intent-caveats';
+      caveatsEl.className = 'mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-[10px]';
+      if (displayEl) displayEl.appendChild(caveatsEl);
+    }
+    caveatsEl.innerHTML = `<div class="font-bold text-slate-500 uppercase text-[9px] tracking-widest mb-1">Assumptions to Validate</div><ul class="list-disc list-inside text-slate-600 space-y-0.5">${(intent.assumptions_and_caveats || []).map(c => `<li>${c}</li>`).join('')}</ul>`;
+    caveatsEl.classList.remove('hidden');
+  } else if (caveatsEl) {
+    caveatsEl.classList.add('hidden');
   }
 }
 
@@ -6995,10 +7106,12 @@ async function generateArchitecture() {
 
   spin('s1', true);
   try {
-    const raw = await callAI('Return ONLY valid JSON, no markdown.',
+    const sysArch = (window._stepPrompts && window._stepPrompts.step_3) ||
+      'You are a senior enterprise architect. Return ONLY valid JSON, no markdown.';
+    const raw = await callAI(sysArch,
       `Generate enterprise architecture for: "${desc}"${intentPrefix}${bmcPrefix}\nReturn JSON:
-{"valueStreams":[{"name":""}],"capabilities":[{"name":"","domain":"Customer|Product|Operations|Risk|Finance|Technology|Support","maturity":3,"strategicImportance":"low|medium|high","revenueExposure":"low|medium|high","regulatoryExposure":"low|medium|high","operationalCriticality":3,"dependsOnCapabilities":[""],"fteHoursSavedPct":15,"invoiceVolumeImpactPct":5,"investmentEstimate":150000,"riskExposureEstimate":500000}],"systems":[{"name":"","supportsCapability":"","criticality":"low|medium|high"}],"dataDomains":[{"name":""}],"aiAgents":[{"name":"","supportsCapability":"","criticality":"low|medium|high"}]}
-  Rules: ${profile.valueStreams} value streams, ${profile.capabilities} capabilities, ${profile.systems} systems, ${profile.aiAgents} AI agents. fteHoursSavedPct is % of 1 FTE time saved by automating this capability. invoiceVolumeImpactPct is % of total revenue/volume risk if this fails. sustainabilityImpactPct is % reduction in CO2/energy footprint for this capability. Estimates are annual.`, { taskType: 'heavy', temperature: profile.temperature, timeoutMs: profile.timeoutMs });
+{"valueStreams":[{"name":""}],"capabilities":[{"name":"","domain":"Customer|Product|Operations|Risk|Finance|Technology|Support","maturity":3,"strategicImportance":"low|medium|high","revenueExposure":"low|medium|high","regulatoryExposure":"low|medium|high","operationalCriticality":3,"dependsOnCapabilities":[""],"fteHoursSavedPct":15,"invoiceVolumeImpactPct":5,"investmentEstimate":150000,"riskExposureEstimate":500000,"revenueUpliftEstimate":200000}],"systems":[{"name":"","supportsCapability":"","criticality":"low|medium|high"}],"dataDomains":[{"name":""}],"aiAgents":[{"name":"","supportsCapability":"","criticality":"low|medium|high"}]}
+  Rules: ${profile.valueStreams} value streams, ${profile.capabilities} capabilities, ${profile.systems} systems, ${profile.aiAgents} AI agents. fteHoursSavedPct is % of 1 FTE time saved by automating this capability. invoiceVolumeImpactPct is % of total revenue/volume risk if this fails. revenueUpliftEstimate is annual revenue value (€) enabled or protected by maturing this capability. riskExposureEstimate is total risk exposure (€) that this capability mitigates. sustainabilityImpactPct is % reduction in CO2/energy footprint. All estimates are annual.`, { taskType: 'heavy', temperature: profile.temperature, timeoutMs: profile.timeoutMs });
     model = { ...model, ...JSON.parse(extractJSON(raw)) };
     ensurePhase4Fields();
     ensureBusinessFields();
@@ -7016,21 +7129,30 @@ function computeDerivedFinancials() {
   const fteCost = Number(document.getElementById('assume-fte')?.value || 90000);
   (model.capabilities||[]).forEach(c => {
     const invest = Number(c.investmentEstimate);
-    // Savings = FTE Cost * % FTE Hours Saved
+
+    // Lever 1: FTE savings
     c.annualSavingsEstimate = fteCost * (Number(c.fteHoursSavedPct || 0) / 100);
 
-    const save = c.annualSavingsEstimate;
-    c.roiMultiple = (isFinite(invest) && invest>0 && isFinite(save)) ? (save / invest) : null;
-    c.paybackMonths = (isFinite(save) && save>0 && isFinite(invest)) ? (12 * invest / save) : null;
+    // Lever 2: Revenue uplift (annual value enabled or protected by maturing this capability)
+    c.annualRevenueUplift = Number(c.revenueUpliftEstimate || 0);
 
+    // Lever 3: Risk avoidance (expected annual loss = exposure × 15% probability of materialisation)
     if (!isFinite(c.riskExposureEstimate) || c.riskExposureEstimate === null) {
       const expW = {low:1, medium:2, high:3};
       const rev = expW[c.revenueExposure||'medium'];
       const reg = expW[c.regulatoryExposure||'medium'];
       const oc = Math.max(1, Math.min(5, Number(c.operationalCriticality)||3));
       c.riskExposureEstimate = Math.round(50000 * (rev + reg) * (oc/3));
-    if (c.sustainabilityImpactPct === undefined) c.sustainabilityImpactPct = Math.floor(Math.random() * 15);
+      if (c.sustainabilityImpactPct === undefined) c.sustainabilityImpactPct = Math.floor(Math.random() * 15);
     }
+    c.annualRiskAvoidance = Number(c.riskExposureEstimate || 0) * 0.15;
+
+    // Total annual value across all three levers
+    c.totalAnnualValue = c.annualSavingsEstimate + c.annualRevenueUplift + c.annualRiskAvoidance;
+
+    c.roiMultiple = (isFinite(invest) && invest > 0 && c.totalAnnualValue > 0) ? (c.totalAnnualValue / invest) : null;
+    c.paybackMonths = (c.totalAnnualValue > 0 && isFinite(invest) && invest > 0) ? (12 * invest / c.totalAnnualValue) : null;
+    c.paybackFlag = (c.paybackMonths !== null && c.paybackMonths > 48) ? 'requires strategic justification' : null;
   });
 }
 
@@ -7073,7 +7195,8 @@ STRATEGIC INTENT (must drive every section of the operating model):
 
     const capSample = model.capabilities.slice(0, 10).map(c => ({ name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance }));
 
-    const raw = await callAI('Return ONLY valid JSON. No markdown, no comments.',
+    const raw = await callAI(
+      (window._stepPrompts && window._stepPrompts.step_4) || 'Return ONLY valid JSON. No markdown, no comments.',
       `Generate the TO-BE Operating Model Canvas for this organization. The operating model must be directly shaped by the Strategic Intent — every section must reflect the strategic direction.
 ${siBlock}${bmcBlock}
 Capability context (sample): ${JSON.stringify(capSample)}
@@ -7494,7 +7617,8 @@ Phase sequencing rules:
       ? model.targetArch.map(t => ({ name: t.name, domain: t.domain, currentMaturity: t.currentMaturity, targetMaturity: t.targetMaturity, strategicImportance: t.strategicImportance, strategicThemeLink: t.strategicThemeLink }))
       : model.capabilities.map(c => ({ name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance }));
 
-    const raw = await callAI('Return ONLY valid JSON array.',
+    const raw = await callAI(
+      (window._stepPrompts && window._stepPrompts.step_7) || 'Return ONLY valid JSON.',
       `Create a transformation roadmap grounded in the strategic intent.
 
 ${siBlock}
@@ -7506,20 +7630,37 @@ Rules:
 - Business value ratings must reflect strategic importance — not just "size" of the change
 - Include 12-15 initiatives total, spread across all 3 phases
 - High-strategic-importance capabilities aligned to strategic themes → high priority
+- depends_on: list initiative names that must complete before this one can start (empty array if none)
+- start_month and duration_months: realistic sequencing within the overall 36-month programme
 
-Return JSON array:
-[{
-  "name": "Initiative name",
-  "impactsCapability": "Capability name",
-  "estimatedBusinessValue": "low|medium|high",
-  "complexity": "low|medium|high",
-  "priority": "high|medium|low",
-  "phase": "Year 1 - Foundation|Year 2 - Expansion|Year 3 - Optimisation",
-  "description": "What specifically will be done and why it matters strategically",
-  "strategicThemeLink": "Which strategic theme this delivers, or null"
-}]`,
+Return JSON:
+{
+  "initiatives": [{
+    "name": "Initiative name",
+    "impactsCapability": "Capability name",
+    "estimatedBusinessValue": "low|medium|high",
+    "complexity": "low|medium|high",
+    "priority": "high|medium|low",
+    "phase": "Year 1 - Foundation|Year 2 - Expansion|Year 3 - Optimisation",
+    "description": "What specifically will be done and why it matters strategically",
+    "strategicThemeLink": "Which strategic theme this delivers, or null",
+    "depends_on": [],
+    "start_month": 1,
+    "duration_months": 3,
+    "success_criteria": "Measurable outcome that proves this initiative succeeded",
+    "risk": {"description": "Primary delivery risk", "mitigation": "How it is mitigated"}
+  }],
+  "phase_gates": [
+    {"phase": "Year 1 - Foundation", "criteria": ["What must be true to proceed to Year 2"], "decision_maker": "CTO|COO|Board", "fallback_if_gate_fails": ""},
+    {"phase": "Year 2 - Expansion", "criteria": ["What must be true to proceed to Year 3"], "decision_maker": "CTO|COO|Board", "fallback_if_gate_fails": ""},
+    {"phase": "Year 3 - Optimisation", "criteria": ["What must be true to declare the programme complete"], "decision_maker": "CTO|COO|Board", "fallback_if_gate_fails": ""}
+  ]
+}`,
       { taskType: 'heavy', temperature: 0.2 });
-    model.initiatives = JSON.parse(extractJSON(raw));
+    const rdParsed = JSON.parse(extractJSON(raw));
+    // Support both flat array (legacy) and new {initiatives, phase_gates} schema
+    model.initiatives = Array.isArray(rdParsed) ? rdParsed : (rdParsed.initiatives || []);
+    model.roadmapPhaseGates = Array.isArray(rdParsed) ? null : (rdParsed.phase_gates || null);
     renderInitiatives(); renderRoadmapVisual();
     toast('Roadmap generated &#x2718;');
     const highPri = (model.initiatives||[]).filter(i=>i.priority==='high').slice(0,5);
