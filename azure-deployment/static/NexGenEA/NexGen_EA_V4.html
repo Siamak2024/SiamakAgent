@@ -862,7 +862,8 @@
                 </button>
               </div>
             </div>
-            <div id="intent-ambition" class="text-[11px] text-slate-200 leading-relaxed mb-3 italic"></div>
+            <div id="intent-ambition" class="text-[11px] text-slate-200 leading-relaxed mb-2 italic"></div>
+            <div id="intent-situation-narrative" class="hidden text-[10px] text-slate-300 leading-relaxed mb-3 border-t border-white/10 pt-2"></div>
             <div id="intent-themes-row" class="mb-2">
               <div class="text-[9px] font-bold text-white/50 uppercase mb-1">Strategic Themes</div>
               <div id="intent-themes" class="flex flex-wrap gap-1"></div>
@@ -896,6 +897,14 @@
               <input id="intent-edit-timeframe" type="text" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400" placeholder="e.g. 3 years" />
             </div>
             <div class="mb-2">
+              <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Situation Narrative <span class="normal-case font-normal text-white/30">(business context + why current situation constrains)</span></div>
+              <textarea id="intent-edit-situation-narrative" rows="3" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400 resize-none" placeholder="2-3 sentences: company context, challenges, why situation constrains performance..."></textarea>
+            </div>
+            <div class="mb-2">
+              <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Key Questions for EA <span class="normal-case font-normal text-white/30">(one per line — what the EA must investigate)</span></div>
+              <textarea id="intent-edit-investigation-scope" rows="4" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400 resize-none" placeholder="Whether the ERP is the primary bottleneck...&#10;How current processes contribute to inefficiency...&#10;What capabilities are required to..."></textarea>
+            </div>
+            <div class="mb-2">
               <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Strategic Ambition</div>
               <textarea id="intent-edit-ambition" rows="2" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400 resize-none" placeholder="One sentence — direction + key outcome"></textarea>
             </div>
@@ -906,12 +915,20 @@
             <div class="grid grid-cols-2 gap-2 mb-2">
               <div>
                 <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Key Constraints <span class="normal-case font-normal text-white/30">(one per line)</span></div>
-                <textarea id="intent-edit-constraints" rows="3" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400 resize-none" placeholder="Constraint 1&#10;Constraint 2&#10;Constraint 3"></textarea>
+                <textarea id="intent-edit-constraints" rows="5" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400 resize-none" placeholder="Operational: ...&#10;Financial: ...&#10;Organisational: ...&#10;Technical: ...&#10;External: ..."></textarea>
               </div>
               <div>
                 <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Success Metrics <span class="normal-case font-normal text-white/30">(one per line)</span></div>
-                <textarea id="intent-edit-metrics" rows="3" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400 resize-none" placeholder="Metric 1&#10;Metric 2&#10;Metric 3"></textarea>
+                <textarea id="intent-edit-metrics" rows="5" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400 resize-none" placeholder="Reduction in cost per shipment...&#10;Improvement in on-time delivery...&#10;Increase in EBITDA margin..."></textarea>
               </div>
+            </div>
+            <div class="mb-2">
+              <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Key Assumptions to Validate <span class="normal-case font-normal text-white/30">(one per line — strategic assumptions)</span></div>
+              <textarea id="intent-edit-key-assumptions" rows="4" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400 resize-none" placeholder="The ERP is the primary bottleneck rather than process or organisational factors&#10;Core processes are sufficiently standardised to enable system-driven optimisation&#10;..."></textarea>
+            </div>
+            <div class="mb-3">
+              <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Expected Outcomes <span class="normal-case font-normal text-white/30">(one per line — what this work delivers)</span></div>
+              <textarea id="intent-edit-expected-outcomes" rows="3" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400 resize-none" placeholder="A clear view of current-state gaps and risks&#10;A definition of target capabilities and to-be architecture&#10;A pragmatic roadmap balancing speed, cost, and operational risk"></textarea>
             </div>
             <div class="mb-3">
               <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Burning Platform <span class="normal-case font-normal text-white/30">(why act now)</span></div>
@@ -6730,7 +6747,7 @@ Return JSON with this exact shape:
     "clarification_needed": ["any field where confidence is below 0.7"]
   },
   "step_prompts": {
-    "step_1": "You are a senior strategy advisor with 15+ years in [industry]. Generate a concise Strategic Intent grounded ONLY in what the user described — do not invent specific service lines, geographic corridors, system names, customer segments, or revenue figures that were not stated. If an attribute is unknown, mark it with [to be confirmed] rather than fabricating a plausible-sounding detail. C-level tone, plain boardroom English, commercially rigorous.",
+    "step_1": "You are a senior strategy advisor with 15+ years in [industry]. Your task is to translate the company description into a structured Strategic Intent brief for a Senior Enterprise Architect. The output must define business context, clarify the problem, and set a strong foundation for architectural investigation. It must be specific, commercially grounded, and tailored to the company — never generic. Produce ALL SIX sections mapped to the JSON fields: (1) STRATEGIC AMBITION + SITUATION NARRATIVE — describe company context, industry dynamics, current challenges, and why the situation constrains performance and competitiveness; articulate executive ambition (efficiency/scalability/growth/transformation); keep it business-focused not technical. (2) INVESTIGATION SCOPE [investigation_scope] — what the Senior EA must investigate: current-state limitations in systems/processes/data/organisation; root causes of inefficiencies; required capabilities for future goals; strategic options such as optimise/replace/transform. (3) KEY CONSTRAINTS [key_constraints] — exactly 5 items, one per category in this order prefixed with its label: 'Operational: ...', 'Financial: ...', 'Organisational: ...', 'Technical: ...', 'External: ...'. (4) SUCCESS METRICS [success_metrics] — mix of operational KPIs (cycle times, utilisation, service levels), financial KPIs (cost reduction, margin, ROI), quality/risk indicators (error rates, reliability, compliance), data/decision metrics (visibility, real-time). Use directional framing: 'Reduction in...', 'Improvement in...', 'Increase in...'. No invented numbers. (5) KEY ASSUMPTIONS TO VALIDATE [key_assumptions_to_validate] — 5-8 explicit engagement assumptions the EA work must test before committing to direction. These are strategic assumptions — not data gaps. Examples: whether the problem is system-driven vs process/organisational; data availability for automation; feasibility of integration; business readiness for change; whether expected ROI is achievable; vendor or contractual constraints. (6) EXPECTED OUTCOMES [expected_outcomes] — exactly 3 things this EA work will deliver. CRITICAL RULES: Do NOT invent specific service lines, corridors, system names, revenue figures, or company attributes not stated by the user. Mark unknown attributes with [to be confirmed]. C-level tone, plain boardroom English.",
     "step_2": "You are a business model strategist with deep [industry] expertise. Analyse the strategic intent and produce both the current-state and target-state Business Model Canvas for this organisation. Every block must reflect industry-specific dynamics and the stated strategic ambition. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
     "step_3": "You are a senior enterprise architect with 15+ years in [industry] transformation. Generate a complete capability architecture grounded in the strategic ambition. Use [industry]-specific capability names, value streams, and system archetypes. Every financial estimate must reflect realistic [industry] benchmarks. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
     "step_4": "You are a senior operating model designer specialising in [industry] transformation. Design the TO-BE operating model that directly delivers the stated strategic ambition. Every section must reflect the strategic direction and be specific to this industry. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
@@ -6764,28 +6781,36 @@ Return JSON with this exact shape:
 
   // JSON output schema for Step 1 (always appended — never lost)
   const jsonSchema = '\n\nOutput requirements — Return ONLY valid JSON (no markdown, no explanation):\n' +
-    '{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","strategic_themes":["","",""],"key_constraints":["","",""],"success_metrics":["","","",""],"summary":"","burning_platform":"","assumptions_and_caveats":[""]}\n\n' +
+    '{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","situation_narrative":"","strategic_themes":["","",""],"investigation_scope":["","","","",""],"key_constraints":["","","","",""],"success_metrics":["","","","","",""],"key_assumptions_to_validate":["","","","","",""],"expected_outcomes":["","",""],"burning_platform":"","assumptions_and_caveats":[""]}\n\n' +
     'Rules:\n' +
-    '- strategic_ambition: 1 sentence only — direction + one key outcome, plain boardroom English. Do NOT invent specific numbers — use ranges only if stated by user\n' +
-    '- strategic_themes: exactly 3 items — plain English, max 8 words each, no jargon\n' +
-    '- key_constraints: exactly 3 — one short phrase each, plain language\n' +
-    '- success_metrics: 3–4 items max — use RANGES (e.g., "operating margin from ~X% toward industry benchmark") not invented point estimates. Mark unknowns as "TBD — requires client discovery"\n' +
-    '- summary: 2–3 bullet points only, plain language, suitable for a 30-second CEO briefing\n' +
-    '- timeframe: infer from posture — survival/PE-backed = "12–18 months"; standard = "3 years"; long-term = "3–5 years"\n' +
-    '- burning_platform: 1 short sentence — why act now, grounded only in what user stated. Never invented.\n' +
-    '- assumptions_and_caveats: list EVERY number, attribute, or detail that was inferred not stated by user — these must be client-validated\n' +
-    '- Quality gate: anything invented beyond what the user wrote must appear in assumptions_and_caveats';
+    '- strategic_ambition: 1 sentence — executive ambition (efficiency/scalability/growth/transformation). C-level tone. No invented numbers.\n' +
+    '- situation_narrative: 2-3 sentences — company context, industry dynamics, why the current situation constrains performance and competitiveness. Grounded ONLY in what user stated. Business-focused not technical.\n' +
+    '- strategic_themes: exactly 3 — top-level strategic directions, plain English, max 8 words each\n' +
+    '- investigation_scope: 4-6 items — what the Senior EA must investigate. Cover: (1) current-state system/process/data/org limitations, (2) root causes of inefficiency, (3) required future capabilities, (4) strategic options. Start each with "Whether", "How", "What", or an action noun.\n' +
+    '- key_constraints: exactly 5 items — one per category in this order, prefixed with its label: "Operational: ...", "Financial: ...", "Organisational: ...", "Technical: ...", "External: ..."\n' +
+    '- success_metrics: 5-6 items — mix of operational KPIs (cycle times, utilisation, service levels), financial KPIs (cost reduction, margin, ROI), quality/risk indicators, data/decision metrics. Use "Reduction in...", "Improvement in...", "Increase in..." framing. No invented baselines or numbers.\n' +
+    '- key_assumptions_to_validate: 5-8 ENGAGEMENT ASSUMPTIONS that must be tested before committing to architecture direction. Strategic assumptions — not data gaps. Example: "The ERP system is the primary bottleneck rather than process or organisational factors."\n' +
+    '- expected_outcomes: exactly 3 — what this EA engagement will deliver (e.g. "A clear view of current-state gaps and risks")\n' +
+    '- timeframe: survival/PE-backed = "12-18 months"; standard = "3 years"; long-term = "3-5 years"\n' +
+    '- burning_platform: 1 sentence — urgency driver. Grounded only in what user stated.\n' +
+    '- assumptions_and_caveats: DATA GAPS only — every attribute inferred not stated by user (scale, revenue, headcount, systems, geography). Format: "[Attribute]; to be confirmed."\n' +
+    '- Quality gate: any specific detail not present in the user description must appear in assumptions_and_caveats, never in the main fields.';
 
   const step1Prompt = stepPrompts.step_1;
   if (step1Prompt && step1Prompt.trim().length > 80) {
     return step1Prompt.trim() + jsonSchema;
   }
 
-  // Fallback: concise static base prompt + schema
-  return 'You are a senior strategy advisor supporting C-level executives across industries. ' +
-    'Generate a concise, differentiated Strategic Intent that reflects competitive positioning, ' +
-    'economic realities, and measurable business outcomes. Avoid generic language. ' +
-    'Tailor every element to the specific company type, industry dynamics, and current macro environment.' +
+  // Fallback: static base prompt + schema
+  return 'You are a senior strategy advisor with 15+ years of cross-industry experience. ' +
+    'Translate the company description into a structured Strategic Intent brief for a Senior Enterprise Architect. ' +
+    'Produce all six sections: (1) Strategic Ambition + Situation Narrative — business context, challenges, why the current situation constrains performance; ' +
+    '(2) Investigation Scope — what the EA must investigate: current-state limitations, root causes, required capabilities, strategic options (optimise/replace/transform); ' +
+    '(3) Key Constraints — exactly 5 items, one each for Operational, Financial, Organisational, Technical, and External, each prefixed with its category label; ' +
+    '(4) Success Metrics — operational, financial, quality/risk, and data/decision KPIs using directional framing (Reduction in / Improvement in / Increase in), no invented numbers; ' +
+    '(5) Key Assumptions to Validate — 5-8 explicit engagement assumptions that must be tested before committing to architecture direction (strategic assumptions, not data gaps); ' +
+    '(6) Expected Outcomes — exactly 3 things this EA work will deliver. ' +
+    'C-level tone, plain boardroom English. Do NOT invent specifics not stated by the user — mark unknowns as [to be confirmed].' +
     jsonSchema;
 }
 
@@ -6871,12 +6896,17 @@ function confirmStrategicIntent() {
   if (confirmBtn) confirmBtn.classList.add('hidden');
   toast('Step 1 confirmed — Business Model Canvas unlocked ✓');
   const si = model.strategicIntent;
+  const totalAssumptions = (si.key_assumptions_to_validate || []).length;
+  const answeredAssumptions = (si.assumption_answers || []).filter(a => a && a.trim()).length;
+  const assumptionLine = totalAssumptions > 0
+    ? `\n• **Assumptions addressed:** ${answeredAssumptions}/${totalAssumptions}${answeredAssumptions < totalAssumptions ? ' — remaining can be completed during the engagement' : ' ✓'}`
+    : '';
   addAssistantMessage(
     `**Step 1 confirmed ✓**\n\n` +
-    `Business Model Canvas (Step 2) is now unlocked. The BMC will be grounded in:\n` +
+    `Business Model Canvas (Step 2) is now unlocked. The EA brief is grounded in:\n` +
     `• **Ambition:** ${si.strategic_ambition || ''}\n` +
-    `• **Themes:** ${(si.strategic_themes || []).join(' · ')}\n\n` +
-    `_You can still refine the Strategic Intent via chat. Re-run Step 1 to apply changes and confirm again._`
+    `• **Themes:** ${(si.strategic_themes || []).join(' · ')}${assumptionLine}\n\n` +
+    `_You can still refine the Strategic Intent via the ✏ Edit button or chat. Re-confirm when satisfied._`
   );
 }
 
@@ -7043,17 +7073,19 @@ function enterIntentEditMode() {
   g('intent-edit-org-name', si.org_name);
   g('intent-edit-industry', si.industry);
   g('intent-edit-timeframe', si.timeframe);
+  g('intent-edit-situation-narrative', si.situation_narrative);
   g('intent-edit-ambition', si.strategic_ambition);
   g('intent-edit-themes', (si.strategic_themes || []).join('\n'));
   g('intent-edit-constraints', (si.key_constraints || []).join('\n'));
   g('intent-edit-metrics', (si.success_metrics || []).join('\n'));
+  g('intent-edit-key-assumptions', (si.key_assumptions_to_validate || []).join('\n'));
+  g('intent-edit-expected-outcomes', (si.expected_outcomes || []).join('\n'));
   g('intent-edit-burning-platform', si.burning_platform);
   // Toggle visibility
   document.getElementById('intent-view-card')?.classList.add('hidden');
-  const burnEl = document.getElementById('intent-burning-platform');
-  const caveatsEl = document.getElementById('intent-caveats');
-  if (burnEl) burnEl.classList.add('hidden');
-  if (caveatsEl) caveatsEl.classList.add('hidden');
+  ['intent-burning-platform','intent-caveats','intent-investigation-scope','intent-assumptions-validate','intent-expected-outcomes'].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
+  });
   document.getElementById('intent-edit-form')?.classList.remove('hidden');
   // Focus on ambition field
   setTimeout(() => document.getElementById('intent-edit-ambition')?.focus(), 50);
@@ -7067,11 +7099,17 @@ function saveIntentEdits() {
   si.org_name = g('intent-edit-org-name');
   si.industry = g('intent-edit-industry');
   si.timeframe = g('intent-edit-timeframe');
+  si.situation_narrative = g('intent-edit-situation-narrative');
   si.strategic_ambition = g('intent-edit-ambition');
   si.strategic_themes = lines(g('intent-edit-themes'));
   si.key_constraints = lines(g('intent-edit-constraints'));
   si.success_metrics = lines(g('intent-edit-metrics'));
   si.burning_platform = g('intent-edit-burning-platform');
+  // Editing assumption text resets any existing answers
+  const newAssumptions = lines(g('intent-edit-key-assumptions'));
+  si.key_assumptions_to_validate = newAssumptions;
+  si.assumption_answers = Array(newAssumptions.length).fill('');
+  si.expected_outcomes = lines(g('intent-edit-expected-outcomes'));
   // Reset confirmation — user must re-confirm after manual edits
   model.strategicIntentConfirmed = false;
   updateWorkflowStepStates();
@@ -7095,6 +7133,78 @@ function cancelIntentEdit() {
   renderStrategicIntentSection();
 }
 
+function _renderAssumptionsSection(intent, displayEl) {
+  const assumptions = intent.key_assumptions_to_validate || [];
+  const answers = intent.assumption_answers || [];
+  let el = document.getElementById('intent-assumptions-validate');
+  if (!assumptions.length) { if (el) el.classList.add('hidden'); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'intent-assumptions-validate';
+    el.className = 'mt-2 p-3 rounded-lg text-[10px] bg-amber-950/40 border border-amber-700/50';
+    if (displayEl) displayEl.appendChild(el);
+  }
+  const answeredCount = answers.filter(a => a && a.trim()).length;
+  const itemsHtml = assumptions.map((a, i) => {
+    const ans = answers[i] || '';
+    const isAnswered = ans.trim().length > 0;
+    return `<div class="mb-2 last:mb-0">
+      <div class="flex items-start gap-1.5">
+        <button onclick="toggleAssumptionInput(${i})" class="mt-0.5 flex-shrink-0 w-3.5 h-3.5 rounded border ${isAnswered ? 'bg-amber-400 border-amber-400' : 'bg-transparent border-amber-500/60'} flex items-center justify-center transition-colors" title="${isAnswered ? 'Answered — click to edit' : 'Click to add your answer'}">
+          ${isAnswered ? '<i class="fas fa-check text-[7px] text-amber-900"></i>' : ''}
+        </button>
+        <div class="flex-1">
+          <div class="text-amber-100/90 leading-relaxed">${a}</div>
+          ${isAnswered ? `<div class="mt-0.5 text-emerald-300/90 italic text-[9px] cursor-pointer" onclick="toggleAssumptionInput(${i})">→ ${ans.replace(/</g,'&lt;')}</div>` : ''}
+          <div id="assumption-input-${i}" class="hidden mt-1">
+            <div class="flex gap-1">
+              <input type="text" id="assumption-answer-${i}" value="${ans.replace(/"/g,'&quot;')}" placeholder="Your answer or confirmation..." class="flex-1 bg-white/10 border border-amber-700/50 rounded px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-amber-400" onkeydown="if(event.key==='Enter'){saveAssumptionAnswer(${i});}" />
+              <button onclick="saveAssumptionAnswer(${i})" class="px-2 py-1 bg-amber-600 hover:bg-amber-500 text-white text-[9px] rounded font-semibold transition-colors flex-shrink-0">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="flex items-center justify-between mb-2">
+      <div class="font-bold text-amber-300 uppercase text-[9px] tracking-widest">Key Assumptions to Validate</div>
+      <div class="text-[9px] ${answeredCount === assumptions.length && assumptions.length > 0 ? 'text-emerald-400' : 'text-amber-300/70'}">${answeredCount}/${assumptions.length} answered</div>
+    </div>
+    ${itemsHtml}
+    <div class="mt-2 text-[9px] italic ${answeredCount === assumptions.length && assumptions.length > 0 ? 'text-emerald-400' : 'text-amber-300/60'}">
+      ${answeredCount === assumptions.length && assumptions.length > 0 ? '✓ All assumptions addressed — ready to confirm Step 1.' : 'Click the checkbox next to each assumption to record your answer or confirmation.'}
+    </div>`;
+  el.classList.remove('hidden');
+}
+
+function toggleAssumptionInput(idx) {
+  const inputDiv = document.getElementById('assumption-input-' + idx);
+  if (inputDiv) {
+    const isHidden = inputDiv.classList.contains('hidden');
+    inputDiv.classList.toggle('hidden', !isHidden);
+    if (isHidden) { setTimeout(() => document.getElementById('assumption-answer-' + idx)?.focus(), 50); }
+  }
+}
+
+function saveAssumptionAnswer(idx) {
+  const si = model.strategicIntent;
+  if (!si) return;
+  const inputEl = document.getElementById('assumption-answer-' + idx);
+  if (!inputEl) return;
+  const value = inputEl.value.trim();
+  if (!Array.isArray(si.assumption_answers)) {
+    si.assumption_answers = Array((si.key_assumptions_to_validate || []).length).fill('');
+  }
+  while (si.assumption_answers.length < (si.key_assumptions_to_validate || []).length) {
+    si.assumption_answers.push('');
+  }
+  si.assumption_answers[idx] = value;
+  autoSaveCurrentModel();
+  const displayEl = document.getElementById('intent-display-section');
+  _renderAssumptionsSection(si, displayEl);
+}
+
 function renderStrategicIntentSection() {
   const intent = model.strategicIntent;
   const displayEl = document.getElementById('intent-display-section');
@@ -7107,10 +7217,27 @@ function renderStrategicIntentSection() {
   if (displayEl) displayEl.classList.remove('hidden');
   if (placeholderEl) placeholderEl.classList.add('hidden');
 
+  // Initialise assumption_answers array if missing or wrong length
+  const assumptionCount = (intent.key_assumptions_to_validate || []).length;
+  if (!Array.isArray(intent.assumption_answers)) {
+    intent.assumption_answers = Array(assumptionCount).fill('');
+  } else if (intent.assumption_answers.length !== assumptionCount) {
+    intent.assumption_answers = Array.from({ length: assumptionCount }, (_, i) =>
+      (intent.assumption_answers[i] || '')
+    );
+  }
+
   const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val || ''; };
   set('intent-org-name', intent.org_name || 'Organisation');
   set('intent-industry-timeframe', [intent.industry, intent.timeframe].filter(Boolean).join(' \u00b7 '));
   set('intent-ambition', intent.strategic_ambition || '');
+
+  // Situation narrative — shown inline beneath the ambition
+  const narrativeEl = document.getElementById('intent-situation-narrative');
+  if (narrativeEl) {
+    narrativeEl.textContent = intent.situation_narrative || '';
+    narrativeEl.classList.toggle('hidden', !intent.situation_narrative);
+  }
 
   const themesEl = document.getElementById('intent-themes');
   if (themesEl) {
@@ -7125,30 +7252,60 @@ function renderStrategicIntentSection() {
     metricsEl.innerHTML = (intent.success_metrics || []).map(m => `<li>${m}</li>`).join('');
   }
 
-  // Render burning_platform and assumptions_and_caveats if present
+  // Burning platform
   let burnEl = document.getElementById('intent-burning-platform');
   if (intent.burning_platform) {
     if (!burnEl) {
       burnEl = document.createElement('div');
       burnEl.id = 'intent-burning-platform';
-      burnEl.className = 'mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-[10px]';
+      burnEl.className = 'mt-2 p-3 bg-amber-950/40 border border-amber-700/50 rounded-lg text-[10px]';
       if (displayEl) displayEl.appendChild(burnEl);
     }
-    burnEl.innerHTML = `<div class="font-bold text-amber-700 uppercase text-[9px] tracking-widest mb-1">⚠ Burning Platform</div><div class="text-amber-800">${intent.burning_platform}</div>`;
+    burnEl.innerHTML = `<div class="font-bold text-amber-300 uppercase text-[9px] tracking-widest mb-1">⚠ Burning Platform</div><div class="text-amber-100/80">${intent.burning_platform}</div>`;
     burnEl.classList.remove('hidden');
   } else if (burnEl) {
     burnEl.classList.add('hidden');
   }
 
+  // Key questions / investigation scope
+  let scopeEl = document.getElementById('intent-investigation-scope');
+  if ((intent.investigation_scope || []).length) {
+    if (!scopeEl) {
+      scopeEl = document.createElement('div');
+      scopeEl.id = 'intent-investigation-scope';
+      scopeEl.className = 'mt-2 p-3 bg-blue-950/40 border border-blue-700/50 rounded-lg text-[10px]';
+      if (displayEl) displayEl.appendChild(scopeEl);
+    }
+    scopeEl.innerHTML = `<div class="font-bold text-blue-300 uppercase text-[9px] tracking-widest mb-1.5">Key Questions for Enterprise Architecture</div><ul class="list-disc list-inside text-slate-300 space-y-0.5">${(intent.investigation_scope || []).map(s => `<li>${s}</li>`).join('')}</ul>`;
+    scopeEl.classList.remove('hidden');
+  } else if (scopeEl) { scopeEl.classList.add('hidden'); }
+
+  // Key assumptions with interactive per-item answering
+  _renderAssumptionsSection(intent, displayEl);
+
+  // Expected outcomes
+  let outcomesEl = document.getElementById('intent-expected-outcomes');
+  if ((intent.expected_outcomes || []).length) {
+    if (!outcomesEl) {
+      outcomesEl = document.createElement('div');
+      outcomesEl.id = 'intent-expected-outcomes';
+      outcomesEl.className = 'mt-2 p-3 bg-emerald-950/40 border border-emerald-700/50 rounded-lg text-[10px]';
+      if (displayEl) displayEl.appendChild(outcomesEl);
+    }
+    outcomesEl.innerHTML = `<div class="font-bold text-emerald-300 uppercase text-[9px] tracking-widest mb-1.5">This Work Will Deliver</div><ul class="list-disc list-inside text-emerald-100/80 space-y-0.5">${(intent.expected_outcomes || []).map(o => `<li>${o}</li>`).join('')}</ul>`;
+    outcomesEl.classList.remove('hidden');
+  } else if (outcomesEl) { outcomesEl.classList.add('hidden'); }
+
+  // Data gaps (assumptions_and_caveats — inferred attributes requiring client confirmation)
   let caveatsEl = document.getElementById('intent-caveats');
   if ((intent.assumptions_and_caveats || []).length) {
     if (!caveatsEl) {
       caveatsEl = document.createElement('div');
       caveatsEl.id = 'intent-caveats';
-      caveatsEl.className = 'mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-[10px]';
+      caveatsEl.className = 'mt-2 p-3 bg-slate-800/60 border border-slate-600/40 rounded-lg text-[10px]';
       if (displayEl) displayEl.appendChild(caveatsEl);
     }
-    caveatsEl.innerHTML = `<div class="font-bold text-slate-500 uppercase text-[9px] tracking-widest mb-1">Assumptions to Validate</div><ul class="list-disc list-inside text-slate-600 space-y-0.5">${(intent.assumptions_and_caveats || []).map(c => `<li>${c}</li>`).join('')}</ul>`;
+    caveatsEl.innerHTML = `<div class="font-bold text-slate-400 uppercase text-[9px] tracking-widest mb-1">Data Gaps — To Be Confirmed</div><ul class="list-disc list-inside text-slate-400 space-y-0.5">${(intent.assumptions_and_caveats || []).map(c => `<li>${c}</li>`).join('')}</ul>`;
     caveatsEl.classList.remove('hidden');
   } else if (caveatsEl) {
     caveatsEl.classList.add('hidden');
