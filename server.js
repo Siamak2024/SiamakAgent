@@ -56,14 +56,20 @@ app.post('/api/openai/chat', async (req, res) => {
       ? 'https://api.openai.com/v1/responses'
       : 'https://api.openai.com/v1/chat/completions';
 
+    // Give the upstream OpenAI call up to 5 minutes before forcing a server-side abort
+    const upstreamController = new AbortController();
+    const upstreamTimer = setTimeout(() => upstreamController.abort(), 300000);
+
     const response = await fetch(targetUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify(req.body),
+      signal: upstreamController.signal
     });
+    clearTimeout(upstreamTimer);
 
     const data = await response.json();
 
