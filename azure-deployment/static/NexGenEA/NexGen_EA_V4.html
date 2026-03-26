@@ -372,6 +372,9 @@
         <button type="button" onclick="optimizeDescriptionPrompt()" class="ea-btn ea-btn--ghost w-full justify-center mt-1" title="Optimize organization prompt with AI">
           <span class="flex items-center gap-1.5"><i class="fas fa-wand-magic-sparkles"></i><span class="text-[10px]">Optimize Prompt</span></span>
         </button>
+        <button type="button" id="btn-step1-confirm" onclick="confirmStrategicIntent()" class="ea-btn ea-btn--primary w-full justify-center mt-1 hidden" title="Confirm the Strategic Intent and unlock the Business Model Canvas">
+          <span class="flex items-center gap-1.5"><i class="fas fa-check-circle"></i><span class="text-[10px]">✓ Confirm Step 1 — Unlock BMC</span></span>
+        </button>
       </div>
 
       <!-- STEP 2: Business Model Canvas -->
@@ -6582,6 +6585,7 @@ function startNewWorkflow() {
 function resetWorkflowModel() {
   // Reset all generated model data
   model.strategicIntent = null;
+  model.strategicIntentConfirmed = false;
   model.bmc = null;
   model.capabilities = [];
   model.operatingModel = null;
@@ -6597,6 +6601,10 @@ function resetWorkflowModel() {
   model.aiAgents = [];
   window._stepChatContext = null;
   window._pendingRecommendations = null;
+
+  // Hide confirm button
+  const confirmBtn = document.getElementById('btn-step1-confirm');
+  if (confirmBtn) confirmBtn.classList.add('hidden');
 
   // Clear the description textarea
   const descEl = document.getElementById('description');
@@ -6639,9 +6647,11 @@ async function _buildOptimizedStep1Prompt(desc) {
 
 Each step prompt must be a complete system prompt string — not a title, not a summary. It must include:
 - A named expert persona with 15+ years of relevant experience
-- Industry-specific terminology unique to the described company
+- Industry context grounded ONLY in what the user described — never invent company attributes
 - A "Return ONLY valid JSON, no markdown" instruction (except step_1 which has its own JSON gate added separately)
 - A quality gate: "Generic output that could apply to any industry is unacceptable"
+
+CRITICAL — COMPANY ATTRIBUTE RULE: Do NOT invent specific service lines, geographic corridors, system names, customer types, or revenue figures that the user did not state. If an attribute is unknown, mark it with [to be confirmed] rather than fabricating a plausible-sounding value. Only use details explicitly stated by the user in the company description.
 
 Return ONLY valid JSON — no prose, no markdown outside the JSON structure.`;
 
@@ -6662,7 +6672,7 @@ Return JSON with this exact shape:
     "clarification_needed": ["any field where confidence is below 0.7"]
   },
   "step_prompts": {
-    "step_1": "You are a senior strategy advisor with 15+ years in [industry]. [Full industry-specific Step 1 system prompt — commercially rigorous, C-level tone. Analyse value-creation levers, competitive dynamics, macro factors, and key executive trade-offs specific to this industry. Every sentence must be company- and industry-specific.]",
+    "step_1": "You are a senior strategy advisor with 15+ years in [industry]. Generate a concise Strategic Intent grounded ONLY in what the user described — do not invent specific service lines, geographic corridors, system names, customer segments, or revenue figures that were not stated. If an attribute is unknown, mark it with [to be confirmed] rather than fabricating a plausible-sounding detail. C-level tone, plain boardroom English, commercially rigorous.",
     "step_2": "You are a business model strategist with deep [industry] expertise. Analyse the strategic intent and produce both the current-state and target-state Business Model Canvas for this organisation. Every block must reflect industry-specific dynamics and the stated strategic ambition. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
     "step_3": "You are a senior enterprise architect with 15+ years in [industry] transformation. Generate a complete capability architecture grounded in the strategic ambition. Use [industry]-specific capability names, value streams, and system archetypes. Every financial estimate must reflect realistic [industry] benchmarks. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
     "step_4": "You are a senior operating model designer specialising in [industry] transformation. Design the TO-BE operating model that directly delivers the stated strategic ambition. Every section must reflect the strategic direction and be specific to this industry. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
@@ -6698,13 +6708,15 @@ Return JSON with this exact shape:
   const jsonSchema = '\n\nOutput requirements — Return ONLY valid JSON (no markdown, no explanation):\n' +
     '{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","strategic_themes":["","",""],"key_constraints":["","",""],"success_metrics":["","","",""],"summary":"","burning_platform":"","assumptions_and_caveats":[""]}\n\n' +
     'Rules:\n' +
-    '- strategic_ambition: max 2 sentences; must include clear business outcomes (revenue growth, margin improvement, cash flow, ROI, or market share)\n' +
-    '- strategic_themes: 3–5 items; each must explain HOW value is created — avoid vague wording\n' +
-    '- key_constraints: max 3; real economic or operational constraints specific to this industry\n' +
-    '- success_metrics: 4–6 items; quantifiable, directly linked to financial or strategic outcomes\n' +
-    '- burning_platform: 1 sentence — the single most urgent reason this transformation cannot be delayed\n' +
-    '- assumptions_and_caveats: 2–4 AI-generated estimates that must be validated by the client before proceeding\n' +
-    '- Quality gate: if any element could apply unchanged to a different industry, make it specific';
+    '- strategic_ambition: 1 sentence only — direction + one key outcome, plain boardroom English. Do NOT invent specific numbers — use ranges only if stated by user\n' +
+    '- strategic_themes: exactly 3 items — plain English, max 8 words each, no jargon\n' +
+    '- key_constraints: exactly 3 — one short phrase each, plain language\n' +
+    '- success_metrics: 3–4 items max — use RANGES (e.g., "operating margin from ~X% toward industry benchmark") not invented point estimates. Mark unknowns as "TBD — requires client discovery"\n' +
+    '- summary: 2–3 bullet points only, plain language, suitable for a 30-second CEO briefing\n' +
+    '- timeframe: infer from posture — survival/PE-backed = "12–18 months"; standard = "3 years"; long-term = "3–5 years"\n' +
+    '- burning_platform: 1 short sentence — why act now, grounded only in what user stated. Never invented.\n' +
+    '- assumptions_and_caveats: list EVERY number, attribute, or detail that was inferred not stated by user — these must be client-validated\n' +
+    '- Quality gate: anything invented beyond what the user wrote must appear in assumptions_and_caveats';
 
   const step1Prompt = stepPrompts.step_1;
   if (step1Prompt && step1Prompt.trim().length > 80) {
@@ -6759,12 +6771,31 @@ async function clarifyStrategicIntent() {
     const chatMsg = `**Step 1 — Strategic Intent generated** ✓\n\n**${si.org_name || 'Organisation'}** · ${si.industry || ''} · ${si.timeframe || '3-5 years'}\n\n**Ambition:** ${si.strategic_ambition || ''}\n\n**Strategic Themes:**\n${themes}\n\n**Success Metrics:**\n${metrics}`;
     addAssistantMessage(chatMsg);
 
-    // ── Show burning platform + assumptions validation notice ────────────────
-    if (si.burning_platform || (si.assumptions_and_caveats || []).length) {
-      const caveatLines = (si.assumptions_and_caveats || []).map(c => `⚠ ${c}`).join('\n');
-      const burnLine = si.burning_platform ? `**Burning platform:** ${si.burning_platform}\n\n` : '';
-      addAssistantMessage(`**⚠ Assumptions to validate before proceeding:**\n\n${burnLine}${caveatLines}\n\n_These are AI-generated estimates. Verify key figures with the client before running Steps 2–7._`);
-    }
+    // ── Pre-BMC review: questions + assumptions ──────────────────────────────
+    const ctx = model.contextObj || {};
+    const clarify = ctx.clarification_needed || [];
+    const preBmcQuestions = [
+      clarify.includes('sub_sector') ? `• What type of ${ctx.industry || 'company'} is this exactly? (sub-sector, business model)` : null,
+      clarify.includes('scale_estimate') ? `• What is the approximate revenue and headcount?` : null,
+      clarify.includes('maturity_estimate') ? `• How would you rate digital/EA maturity today — nascent, developing, or established?` : null,
+      `• Is the strategic ambition above directionally correct, or does it need adjustment?`,
+      `• Are there regulatory deadlines or hard budget constraints the plan must respect?`,
+      `• What is one capability or system that is blocking progress most today?`,
+    ].filter(Boolean).join('\n');
+
+    const caveatLines = (si.assumptions_and_caveats || []).length
+      ? '\n\n**⚠ AI-estimated (not stated by user — validate with client):**\n' + (si.assumptions_and_caveats || []).map(c => `⚠ ${c}`).join('\n')
+      : '';
+
+    addAssistantMessage(
+      `**Review before proceeding to Step 2:**\n\n` +
+      `Use the chat to refine any part of the Strategic Intent. When ready, click **✓ Confirm Step 1** in the panel to unlock the Business Model Canvas.\n\n` +
+      `**Suggested questions to address with the client:**\n${preBmcQuestions}${caveatLines}`
+    );
+
+    // Show confirm button
+    const confirmBtn = document.getElementById('btn-step1-confirm');
+    if (confirmBtn) confirmBtn.classList.remove('hidden');
 
     // Open sidebar if not already open
     const _panel = document.getElementById('ai-chat-panel');
@@ -6774,10 +6805,32 @@ async function clarifyStrategicIntent() {
   window._advisyPromptTrace = _prevTrace;
 }
 
+function confirmStrategicIntent() {
+  if (!model.strategicIntent) return;
+  model.strategicIntentConfirmed = true;
+  updateWorkflowStepStates();
+  const confirmBtn = document.getElementById('btn-step1-confirm');
+  if (confirmBtn) confirmBtn.classList.add('hidden');
+  toast('Step 1 confirmed — Business Model Canvas unlocked ✓');
+  const si = model.strategicIntent;
+  addAssistantMessage(
+    `**Step 1 confirmed ✓**\n\n` +
+    `Business Model Canvas (Step 2) is now unlocked. The BMC will be grounded in:\n` +
+    `• **Ambition:** ${si.strategic_ambition || ''}\n` +
+    `• **Themes:** ${(si.strategic_themes || []).join(' · ')}\n\n` +
+    `_You can still refine the Strategic Intent via chat. Re-run Step 1 to apply changes and confirm again._`
+  );
+}
+
 // ── STEP 2: GENERATE BUSINESS MODEL CANVAS ───────────────────────────────────
 async function generateBMC() {
   const desc = document.getElementById('description').value.trim();
   if (!model.strategicIntent && !desc) { toast('Complete Step 1 first', true); return; }
+  if (!model.strategicIntentConfirmed) {
+    toast('Confirm the Strategic Intent first — click "✓ Confirm Step 1" in the workflow panel', true);
+    addAssistantMessage('**Step 2 is locked.** Please review the Strategic Intent and click **✓ Confirm Step 1** in the left panel to unlock the Business Model Canvas.');
+    return;
+  }
   const _prevTrace = window._advisyPromptTrace;
   window._advisyPromptTrace = true;
   spin('s2b', true);
@@ -7001,7 +7054,7 @@ function updateWorkflowStepStates() {
     const doneIcon = document.getElementById('step' + i + '-done');
     if (!stepEl) continue;
     const isDone = done[i - 1];
-    const isUnlocked = i === 1 || done[i - 2];
+    const isUnlocked = i === 1 || (i === 2 ? (!!model.strategicIntent && !!model.strategicIntentConfirmed) : done[i - 2]);
     if (badge) {
       badge.className = 'workflow-step-badge' + (isDone ? ' workflow-step-badge--done' : isUnlocked ? ' workflow-step-badge--active' : '');
       if (isDone) badge.innerHTML = '<i class="fas fa-check text-[8px]"></i>';
