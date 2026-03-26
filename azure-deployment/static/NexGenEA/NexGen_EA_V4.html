@@ -8995,9 +8995,10 @@ function renderGraph() {
   const capCount = model.capabilities.length || 1;
   const sysCount = model.systems.length || 0;
   const aiCount = model.aiAgents.length || 0;
-  const canvasMinWidth = Math.max(960, capCount * 260);
+  // 520px per capability: 220px max node width + 300px minimum spacing between nodes
+  const canvasMinWidth = Math.max(1400, capCount * 520);
   const levelCount = (capCount ? 1 : 0) + (sysCount ? 1 : 0) + (aiCount ? 1 : 0);
-  const canvasHeight = Math.max(680, levelCount * 260 + 140);
+  const canvasHeight = Math.max(720, levelCount * 280 + 160);
   graphTarget.style.width = canvasMinWidth + 'px';
   graphTarget.style.height = canvasHeight + 'px';
 
@@ -9009,11 +9010,11 @@ function renderGraph() {
     nodes.push({
       id: 'cap_' + capability.name,
       label: `${capability.name}\nM${maturity} · ${importanceLabel}`,
-      title: `<b>Capability</b><br>${escapeHtml(capability.name)}<br>Domain: ${escapeHtml(capability.domain || 'General')}<br>Maturity: ${maturity}/5`,
+      title: _makeTooltipEl(`<b>Capability</b><br>${escapeHtml(capability.name)}<br>Domain: ${escapeHtml(capability.domain || 'General')}<br>Maturity: ${maturity}/5`),
       level: 1,
       shape: 'box',
       margin: { top: 8, right: 12, bottom: 8, left: 12 },
-      widthConstraint: { minimum: 130, maximum: 180 },
+      widthConstraint: { minimum: 140, maximum: 220 },
       color: { background: '#e8f7ef', border: '#4a7763', highlight: { background: '#d6f0e1', border: '#2f5e4d' } },
       borderWidth: 1.5,
       font: { size: 11, color: '#234035', face: 'Manrope', multi: false, vadjust: -1 },
@@ -9038,11 +9039,11 @@ function renderGraph() {
     nodes.push({
       id: 'sys_' + s.name,
       label: `${s.name}`,
-      title: `<b>System</b><br>${escapeHtml(s.name)}<br>Status: ${escapeHtml(s.status || 'active')}<br>Category: ${escapeHtml(s.category || 'core')}`,
+      title: _makeTooltipEl(`<b>System</b><br>${escapeHtml(s.name)}<br>Status: ${escapeHtml(s.status || 'active')}<br>Category: ${escapeHtml(s.category || 'core')}`),
       level: 2,
       shape: 'box',
       margin: { top: 8, right: 12, bottom: 8, left: 12 },
-      widthConstraint: { minimum: 140, maximum: 200 },
+      widthConstraint: { minimum: 140, maximum: 220 },
       color: { background: '#eff3f8', border: '#6a7b8a', highlight: { background: '#e2e9f1', border: '#4e5f6e' } },
       borderWidth: 1.3,
       font: { size: 10, color: '#334a5f', face: 'Manrope' },
@@ -9065,7 +9066,8 @@ function renderGraph() {
     nodes.push({
       id: 'ai_' + a.name,
       label: a.name,
-      title: `<b>AI Agent</b><br>${escapeHtml(a.name)}<br>Purpose: ${escapeHtml(a.purpose || 'Not specified')}`,
+      title: _makeTooltipEl(`<b>AI Agent</b><br>${escapeHtml(a.name)}<br>Purpose: ${escapeHtml(a.purpose || 'Not specified')}`),
+
       level: 3,
       shape: 'circularImage',
       image: aiIcon,
@@ -9124,7 +9126,7 @@ function renderGraph() {
         direction: 'UD',
         sortMethod: 'directed',
         levelSeparation: 220,
-        nodeSpacing: 260,
+        nodeSpacing: 320,
         treeSpacing: 280,
         blockShifting: true,
         edgeMinimization: true,
@@ -9164,13 +9166,21 @@ function renderGraph() {
 
   networkInstance.once('stabilizationIterationsDone', () => {
     networkInstance.setOptions({ physics: { enabled: false } });
-    // Fit view but cap zoom-out so nodes stay legible
+    // Fit to show all nodes, but clamp zoom so labels stay legible
     networkInstance.fit({ animation: { duration: 360, easingFunction: 'easeInOutQuad' } });
     setTimeout(() => {
       const scale = networkInstance.getScale();
-      if (scale < 0.55) networkInstance.moveTo({ scale: 0.60, animation: { duration: 280, easingFunction: 'easeInOutQuad' } });
+      if (scale < 0.70) networkInstance.moveTo({ scale: 0.75, animation: { duration: 280, easingFunction: 'easeInOutQuad' } });
     }, 420);
   });
+}
+
+// Creates a real DOM element for vis.js tooltips so HTML renders correctly
+function _makeTooltipEl(html) {
+  const div = document.createElement('div');
+  div.style.cssText = 'padding:7px 10px;font-size:12px;line-height:1.6;max-width:240px;color:#1e293b;font-family:Manrope,sans-serif';
+  div.innerHTML = html;
+  return div;
 }
 
 function getDependencyGraphNodeIcon(type) {
