@@ -2914,7 +2914,7 @@ async function callAI(sys, user, options = {}) {
     ? `${user}\n\nAnalysis Constraints:\n- Avoid generic advice\n- Use the provided master data and business context\n- Tailor output to the selected industry and business areas`
     : `${user}`;
 
-  const timeoutMs = Number(options.timeoutMs || (taskType === 'heavy' ? 150000 : 45000));
+  const timeoutMs = Number(options.timeoutMs || (taskType === 'heavy' ? 240000 : 120000));
 
   // GPT-5 via Responses API with reasoning enabled
   const createOpts = {
@@ -6618,20 +6618,25 @@ function resetWorkflowModel() {
  * @returns {Promise<string>}  Tailored system prompt ready for the Step 1 callAI()
  */
 async function _buildOptimizedStep1Prompt(desc) {
-  const metaSys = `You are an expert prompt engineer specialising in enterprise strategy AI systems.
+  const metaSys = `You are a senior strategy advisor with deep expertise in the exact industry described in the input, operating inside an enterprise architecture platform. Your task is to generate "Step 1 — Strategic Intent" that is specific, commercially rigorous, and uniquely tailored to the company. Generic output is unacceptable.
 
-Your task: Read a company description and write a tailored system prompt that instructs an AI to produce a "Step 1 — Strategic Intent" analysis that is specific, commercially sharp, and impossible to confuse with any other company type.
+Reason silently and focus only on delivering a sharp, decision-ready result.
 
-The system prompt you write MUST:
-1. Define the AI persona as a senior strategy advisor for this SPECIFIC industry — use industry-accurate terminology, not generic phrases
-2. Embed current macroeconomic conditions relevant to this sector (interest rates, inflation trends, regulatory shifts, demand patterns, cost pressures specific to the industry)
-3. Name the key value-creation levers for this exact business model and industry (e.g. for Real Estate / Platform: NOI yield optimisation, occupancy & utilisation rates, digital tenant experience, PropTech integration, green building / ESG premium, cap rate compression under high interest rates)
-4. Identify competitive forces and differentiation opportunities unique to this company type
-5. Frame the strategic trade-offs C-level executives in this industry face (e.g. scale vs efficiency, asset-heavy vs asset-light, growth vs margin protection, platform economics vs service delivery)
-6. Reference the financial KPIs and metrics that matter most to investors and boards in this industry
+Instructions:
 
-Write in second person (\"You are a senior strategy advisor...\") as direct instructions to another AI.
-Return ONLY the system prompt text — no JSON, no markdown, no explanation.`;
+1. Use precise industry terminology and reflect the true value-creation logic of this business model.
+2. Integrate only the most material macroeconomic factors (interest rates, inflation, regulation, supply/demand, capital markets) and explicitly link them to strategic and capital allocation implications.
+3. Identify and prioritise the key value-creation levers that drive growth, profitability, scalability, and valuation. Show clear cause-effect relationships.
+4. Analyse competitive dynamics, including positioning, differentiation, barriers to entry, and risks (e.g. commoditisation, margin pressure). State clearly how the company can win.
+5. Frame the critical executive trade-offs (e.g. growth vs profitability, scale vs efficiency, asset-heavy vs asset-light, short vs long term value). Highlight consequences of choices.
+6. Anchor the analysis in financial reality by referencing the KPIs and metrics that matter most to investors, lenders, and boards.
+
+Output style:
+- Be concise, structured, and insight-dense
+- No fluff, no repetition, no generic statements
+- Every sentence must be company- and industry-specific
+- Write in a direct, executive tone suitable for C-level decision-making
+- Return ONLY the system prompt text — no JSON, no markdown, no explanation.`;
 
   const metaUser = `Company description:\n"${desc}"\n\nWrite a highly specific, industry-tailored system prompt for a Step 1 Strategic Intent analysis of this organisation. Every sentence must be specific to this type of company — remove any language that could apply generically to any industry.`;
 
