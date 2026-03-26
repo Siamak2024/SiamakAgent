@@ -845,16 +845,22 @@
 
         <!-- Strategic Intent section (populated after Step 1) -->
         <div id="intent-display-section" class="hidden mb-4">
-          <div class="intent-card">
+          <!-- READ VIEW -->
+          <div id="intent-view-card" class="intent-card">
             <div class="text-[10px] font-bold text-blue-300 uppercase tracking-widest mb-2">Strategic Intent — Step 1</div>
             <div class="flex items-start justify-between gap-3 mb-3">
               <div>
                 <div id="intent-org-name" class="text-base font-black text-white mb-0.5"></div>
                 <div id="intent-industry-timeframe" class="text-[10px] text-white/60 font-semibold"></div>
               </div>
-              <button onclick="clarifyStrategicIntent()" class="text-[10px] text-white/60 hover:text-white/90 border border-white/20 rounded-lg px-2 py-1 flex-shrink-0 transition-colors" title="Re-run AI intent extraction">
-                <i class="fas fa-rotate-right mr-1"></i>Refresh
-              </button>
+              <div class="flex gap-1.5 flex-shrink-0">
+                <button onclick="enterIntentEditMode()" class="text-[10px] text-white/60 hover:text-white/90 border border-white/20 rounded-lg px-2 py-1 transition-colors" title="Edit Strategic Intent manually">
+                  <i class="fas fa-pen mr-1"></i>Edit
+                </button>
+                <button onclick="clarifyStrategicIntent()" class="text-[10px] text-white/60 hover:text-white/90 border border-white/20 rounded-lg px-2 py-1 transition-colors" title="Re-run AI intent extraction">
+                  <i class="fas fa-rotate-right mr-1"></i>Refresh
+                </button>
+              </div>
             </div>
             <div id="intent-ambition" class="text-[11px] text-slate-200 leading-relaxed mb-3 italic"></div>
             <div id="intent-themes-row" class="mb-2">
@@ -870,6 +876,50 @@
                 <div class="text-[9px] font-bold text-white/50 uppercase mb-1">Success Metrics</div>
                 <ul id="intent-metrics" class="text-[10px] text-slate-300 space-y-0.5 list-disc list-inside"></ul>
               </div>
+            </div>
+          </div>
+          <!-- EDIT FORM (hidden by default) -->
+          <div id="intent-edit-form" class="hidden intent-card">
+            <div class="text-[10px] font-bold text-amber-300 uppercase tracking-widest mb-3"><i class="fas fa-pen mr-1.5"></i>Edit Strategic Intent</div>
+            <div class="grid grid-cols-2 gap-2 mb-2">
+              <div>
+                <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Organisation Name</div>
+                <input id="intent-edit-org-name" type="text" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400" placeholder="Organisation name" />
+              </div>
+              <div>
+                <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Industry</div>
+                <input id="intent-edit-industry" type="text" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400" placeholder="Industry" />
+              </div>
+            </div>
+            <div class="mb-2">
+              <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Timeframe</div>
+              <input id="intent-edit-timeframe" type="text" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400" placeholder="e.g. 3 years" />
+            </div>
+            <div class="mb-2">
+              <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Strategic Ambition</div>
+              <textarea id="intent-edit-ambition" rows="2" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400 resize-none" placeholder="One sentence — direction + key outcome"></textarea>
+            </div>
+            <div class="mb-2">
+              <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Strategic Themes <span class="normal-case font-normal text-white/30">(one per line)</span></div>
+              <textarea id="intent-edit-themes" rows="3" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400 resize-none" placeholder="Theme 1&#10;Theme 2&#10;Theme 3"></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mb-2">
+              <div>
+                <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Key Constraints <span class="normal-case font-normal text-white/30">(one per line)</span></div>
+                <textarea id="intent-edit-constraints" rows="3" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400 resize-none" placeholder="Constraint 1&#10;Constraint 2&#10;Constraint 3"></textarea>
+              </div>
+              <div>
+                <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Success Metrics <span class="normal-case font-normal text-white/30">(one per line)</span></div>
+                <textarea id="intent-edit-metrics" rows="3" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400 resize-none" placeholder="Metric 1&#10;Metric 2&#10;Metric 3"></textarea>
+              </div>
+            </div>
+            <div class="mb-3">
+              <div class="text-[9px] font-bold text-white/50 uppercase mb-0.5">Burning Platform <span class="normal-case font-normal text-white/30">(why act now)</span></div>
+              <input id="intent-edit-burning-platform" type="text" class="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-white placeholder-white/30 focus:outline-none focus:border-blue-400" placeholder="One sentence — urgency driver" />
+            </div>
+            <div class="flex gap-1.5">
+              <button onclick="saveIntentEdits()" class="ea-btn ea-btn--primary flex-1 justify-center"><i class="fas fa-save mr-1.5"></i><span class="text-[10px]">Save Changes</span></button>
+              <button onclick="cancelIntentEdit()" class="ea-btn ea-btn--ghost flex-1 justify-center"><span class="text-[10px]">Cancel</span></button>
             </div>
           </div>
         </div>
@@ -6433,6 +6483,8 @@ function applyAIRecommendations(pendingRecs) {
         } else {
           model.strategicIntent[rec.field] = rec.value;
         }
+        // Reset confirmation — user must re-confirm after AI edits
+        model.strategicIntentConfirmed = false;
         applied++;
       } else if (rec.action === 'update_bmc') {
         if (!model.bmc) model.bmc = {};
@@ -6464,12 +6516,18 @@ function applyAIRecommendations(pendingRecs) {
   renderLayers();
   renderCapMap();
   renderHeatmap();
+  if (typeof renderStrategicIntentSection === 'function') renderStrategicIntentSection();
   if (typeof renderExecSummary === 'function') renderExecSummary();
   if (typeof renderMaturityDashboard === 'function') renderMaturityDashboard();
   if (typeof renderInitiatives === 'function') renderInitiatives();
   if (typeof renderRoadmapVisual === 'function') renderRoadmapVisual();
   if (typeof renderOperatingModel === 'function') renderOperatingModel();
   updateWorkflowStepStates();
+  // If strategic intent was modified, show confirm button so user re-confirms
+  if (!model.strategicIntentConfirmed && model.strategicIntent) {
+    const confirmBtn = document.getElementById('btn-step1-confirm');
+    if (confirmBtn) confirmBtn.classList.remove('hidden');
+  }
 
   window._pendingRecommendations = null;
   const addedStr = newCaps.length ? `\n\nNew capabilities added: ${newCaps.join(', ')}.` : '';
@@ -6977,6 +7035,66 @@ function renderValuePoolsPanel() {
 }
 
 // ── RENDER STRATEGIC INTENT SECTION (EXEC TAB) ───────────────────────────────
+function enterIntentEditMode() {
+  const si = model.strategicIntent;
+  if (!si) return;
+  // Populate form fields
+  const g = (id, val) => { const e = document.getElementById(id); if (e) e.value = val || ''; };
+  g('intent-edit-org-name', si.org_name);
+  g('intent-edit-industry', si.industry);
+  g('intent-edit-timeframe', si.timeframe);
+  g('intent-edit-ambition', si.strategic_ambition);
+  g('intent-edit-themes', (si.strategic_themes || []).join('\n'));
+  g('intent-edit-constraints', (si.key_constraints || []).join('\n'));
+  g('intent-edit-metrics', (si.success_metrics || []).join('\n'));
+  g('intent-edit-burning-platform', si.burning_platform);
+  // Toggle visibility
+  document.getElementById('intent-view-card')?.classList.add('hidden');
+  const burnEl = document.getElementById('intent-burning-platform');
+  const caveatsEl = document.getElementById('intent-caveats');
+  if (burnEl) burnEl.classList.add('hidden');
+  if (caveatsEl) caveatsEl.classList.add('hidden');
+  document.getElementById('intent-edit-form')?.classList.remove('hidden');
+  // Focus on ambition field
+  setTimeout(() => document.getElementById('intent-edit-ambition')?.focus(), 50);
+}
+
+function saveIntentEdits() {
+  const si = model.strategicIntent;
+  if (!si) return;
+  const g = id => (document.getElementById(id)?.value || '').trim();
+  const lines = str => str.split('\n').map(s => s.trim()).filter(Boolean);
+  si.org_name = g('intent-edit-org-name');
+  si.industry = g('intent-edit-industry');
+  si.timeframe = g('intent-edit-timeframe');
+  si.strategic_ambition = g('intent-edit-ambition');
+  si.strategic_themes = lines(g('intent-edit-themes'));
+  si.key_constraints = lines(g('intent-edit-constraints'));
+  si.success_metrics = lines(g('intent-edit-metrics'));
+  si.burning_platform = g('intent-edit-burning-platform');
+  // Reset confirmation — user must re-confirm after manual edits
+  model.strategicIntentConfirmed = false;
+  updateWorkflowStepStates();
+  const confirmBtn = document.getElementById('btn-step1-confirm');
+  if (confirmBtn) confirmBtn.classList.remove('hidden');
+  // Exit edit mode and redraw
+  document.getElementById('intent-edit-form')?.classList.add('hidden');
+  document.getElementById('intent-view-card')?.classList.remove('hidden');
+  renderStrategicIntentSection();
+  autoSaveCurrentModel();
+  toast('Strategic Intent updated — please re-confirm before proceeding to Step 2');
+  addAssistantMessage(
+    `**Strategic Intent updated manually ✓**\n\n` +
+    `The intent has been edited. Please review the changes and click **✓ Confirm Step 1** in the left panel when you're satisfied — this will re-unlock Step 2.`
+  );
+}
+
+function cancelIntentEdit() {
+  document.getElementById('intent-edit-form')?.classList.add('hidden');
+  document.getElementById('intent-view-card')?.classList.remove('hidden');
+  renderStrategicIntentSection();
+}
+
 function renderStrategicIntentSection() {
   const intent = model.strategicIntent;
   const displayEl = document.getElementById('intent-display-section');
