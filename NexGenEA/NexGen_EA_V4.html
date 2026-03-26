@@ -602,8 +602,15 @@
         
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div class="bg-white p-4 rounded-xl border shadow-sm flex flex-col items-center">
-            <div class="text-[10px] font-bold text-slate-500 mb-4 uppercase">Maturity Score vs Industry Index</div>
-            <canvas id="benchRadar" width="300" height="300"></canvas>
+            <div class="flex items-center justify-between w-full mb-3">
+              <div class="text-[10px] font-bold text-slate-500 uppercase">Maturity Score vs Industry Index</div>
+              <div class="flex items-center gap-1">
+                <button onclick="_radarZoom(-80)" title="Zoom out" class="w-6 h-6 rounded border border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-400 text-sm font-bold flex items-center justify-center transition-colors">−</button>
+                <span id="bench-radar-zoom-label" class="text-[9px] text-slate-400 w-10 text-center">460px</span>
+                <button onclick="_radarZoom(80)" title="Zoom in" class="w-6 h-6 rounded border border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-400 text-sm font-bold flex items-center justify-center transition-colors">+</button>
+              </div>
+            </div>
+            <canvas id="benchRadar" width="460" height="460" style="max-width:100%;"></canvas>
           </div>
           <div class="bg-white p-4 rounded-xl border shadow-sm">
             <div class="text-[10px] font-bold text-slate-500 mb-2 uppercase">Strategic Insights & Opportunity Cost</div>
@@ -3517,8 +3524,13 @@ function drawRadar(id, labels, current, peer, peerName) {
   const canvas = document.getElementById(id);
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  const cx = canvas.width/2, cy = canvas.height/2, r = 100;
+  const cx = canvas.width/2, cy = canvas.height/2;
+  const r = Math.min(canvas.width, canvas.height) * 0.36;
+  const labelOffset = r + Math.max(16, canvas.width * 0.055);
+  const fontSize = Math.max(10, Math.round(canvas.width * 0.026));
+  // Grid rings
   ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 1;
   for(let i=1; i<=5; i++) {
     ctx.beginPath();
     for(let j=0; j<labels.length; j++) {
@@ -3528,6 +3540,15 @@ function drawRadar(id, labels, current, peer, peerName) {
     }
     ctx.closePath(); ctx.stroke();
   }
+  // Axis spokes
+  ctx.strokeStyle = '#e2e8f0';
+  labels.forEach((_, j) => {
+    const ang = (Math.PI*2/labels.length)*j - Math.PI/2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(ang)*r, cy + Math.sin(ang)*r);
+    ctx.stroke();
+  });
   const drawShape = (data, color, fill) => {
     ctx.beginPath(); ctx.strokeStyle = color; ctx.fillStyle = fill; ctx.lineWidth = 2;
     data.forEach((v, i) => {
@@ -3537,14 +3558,28 @@ function drawRadar(id, labels, current, peer, peerName) {
     });
     ctx.closePath(); ctx.stroke(); ctx.fill();
   };
-  drawShape(peer, '#94a3b8', 'rgba(148,163,184,0.1)');
-  drawShape(current, '#3b82f6', 'rgba(59,130,246,0.2)');
-  ctx.fillStyle = '#64748b'; ctx.font = '9px Inter';
+  drawShape(peer, '#94a3b8', 'rgba(148,163,184,0.12)');
+  drawShape(current, '#3b82f6', 'rgba(59,130,246,0.22)');
+  // Labels
+  ctx.fillStyle = '#475569'; ctx.font = `${fontSize}px Inter, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   labels.forEach((l, i) => {
     const ang = (Math.PI*2/labels.length)*i - Math.PI/2;
-    const x = cx + Math.cos(ang)*(r+15), y = cy + Math.sin(ang)*(r+15);
-    ctx.fillText(l, x-20, y);
+    const x = cx + Math.cos(ang)*labelOffset;
+    const y = cy + Math.sin(ang)*labelOffset;
+    ctx.fillText(l, x, y);
   });
+  ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+}
+
+function _radarZoom(delta) {
+  const canvas = document.getElementById('benchRadar');
+  if (!canvas) return;
+  const newSize = Math.min(700, Math.max(300, canvas.width + delta));
+  canvas.width = newSize;
+  canvas.height = newSize;
+  const lbl = document.getElementById('bench-radar-zoom-label');
+  if (lbl) lbl.textContent = newSize + 'px';
+  renderBenchmarking();
 }
 
 function updateBenchInsights(current, peer, peerName) {
