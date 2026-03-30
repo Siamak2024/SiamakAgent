@@ -7496,7 +7496,7 @@ function renderBMCPanel() {
 
   const _bmcBlock = (cls, label, data, isText) => {
     const content = isText
-      ? `<div class="bmc-block-text">${data || '<span style="color:#94a3b8;font-style:italic;font-size:9px;">Not yet defined</span>'}</div>`
+      ? `<div class="bmc-block-text">${data ? parseMarkdown(data) : '<span style="color:#94a3b8;font-style:italic;font-size:9px;">Not yet defined</span>'}</div>`
       : (Array.isArray(data) && data.length)
         ? `<ul class="bmc-block-items">${data.map(it => `<li>${it}</li>`).join('')}</ul>`
         : `<span style="color:#94a3b8;font-style:italic;font-size:9px;">Not yet defined</span>`;
@@ -7599,7 +7599,7 @@ function _bmcSetState(state) {
   const b = (state === 'current' && model.bmc_current) ? model.bmc_current : model.bmc;
   const _bmcBlock = (cls, label, data, isText) => {
     const content = isText
-      ? `<div class="bmc-block-text">${data || '<span style="color:#94a3b8;font-style:italic;font-size:9px;">Not yet defined</span>'}</div>`
+      ? `<div class="bmc-block-text">${data ? parseMarkdown(data) : '<span style="color:#94a3b8;font-style:italic;font-size:9px;">Not yet defined</span>'}</div>`
       : (Array.isArray(data) && data.length)
         ? `<ul class="bmc-block-items">${data.map(it => `<li>${it}</li>`).join('')}</ul>`
         : `<span style="color:#94a3b8;font-style:italic;font-size:9px;">Not yet defined</span>`;
@@ -8016,14 +8016,15 @@ function renderStrategicIntentSection() {
   }
 
   const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val || ''; };
+  const setMd = (id, val) => { const e = document.getElementById(id); if (e) e.innerHTML = parseMarkdown(val || ''); };
   set('intent-org-name', intent.org_name || 'Organisation');
   set('intent-industry-timeframe', [intent.industry, intent.timeframe].filter(Boolean).join(' \u00b7 '));
-  set('intent-ambition', intent.strategic_ambition || '');
+  setMd('intent-ambition', intent.strategic_ambition || '');
 
   // Situation narrative — shown inline beneath the ambition
   const narrativeEl = document.getElementById('intent-situation-narrative');
   if (narrativeEl) {
-    narrativeEl.textContent = intent.situation_narrative || '';
+    narrativeEl.innerHTML = parseMarkdown(intent.situation_narrative || '');
     narrativeEl.classList.toggle('hidden', !intent.situation_narrative);
   }
 
@@ -8051,7 +8052,7 @@ function renderStrategicIntentSection() {
     } else {
       burnEl.className = 'mt-2 p-3 bg-white border border-slate-200 rounded-lg text-[10px]';
     }
-    burnEl.innerHTML = `<div class="font-bold text-slate-600 uppercase text-[9px] tracking-widest mb-1">⚠ Burning Platform</div><div class="text-slate-700">${intent.burning_platform}</div>`;
+    burnEl.innerHTML = `<div class="font-bold text-slate-600 uppercase text-[9px] tracking-widest mb-1">⚠ Burning Platform</div><div class="text-slate-700">${parseMarkdown(intent.burning_platform)}</div>`;
     burnEl.classList.remove('hidden');
   } else if (burnEl) {
     burnEl.classList.add('hidden');
