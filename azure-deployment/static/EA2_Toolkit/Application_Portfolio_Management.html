@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Portfolio Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="../js/EA_Config.js"></script>
+    <script src="../js/EA_DataManager.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Inter',sans-serif;background:#f8fafc;color:#0f172a}
+        header{background:#fff;border-bottom:1px solid #e2e8f0;position:sticky;top:0;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+        .header-inner{max-width:1400px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+        .logo{display:flex;align-items:center;gap:12px}
+        .logo-icon{width:40px;height:40px;background:linear-gradient(135deg,#ea580c,#f97316);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;box-shadow:0 4px 12px rgba(234,88,12,.3)}
+        .logo h1{font-size:17px;font-weight:900;letter-spacing:-.5px}
+        .logo p{font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;font-weight:700}
+        .nav-btns{display:flex;align-items:center;gap:8px}
+        .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;font-size:11px;font-weight:800;cursor:pointer;border:none;transition:all .2s;text-transform:uppercase;letter-spacing:.5px}
+        .btn-primary{background:#ea580c;color:#fff;box-shadow:0 4px 12px rgba(234,88,12,.3)}
+        .btn-primary:hover{background:#c2410c;transform:translateY(-1px)}
+        .btn-success{background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0}
+        .btn-success:hover{background:#dcfce7}
+        .btn-warning{background:#fffbeb;color:#d97706;border:1.5px solid #fde68a}
+        .btn-warning:hover{background:#fef3c7}
+        .btn-ghost{background:transparent;color:#64748b;border:1.5px solid #e2e8f0}
+        .btn-ghost:hover{background:#f8fafc;color:#ea580c}
+        .btn-danger{background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca}
+        .btn-danger:hover{background:#fee2e2}
+        /* Tabs */
+        .tab-bar{background:#fff;border-bottom:1px solid #e2e8f0;position:sticky;top:64px;z-index:90}
+        .tab-bar-inner{max-width:1400px;margin:0 auto;padding:0 24px;display:flex;gap:4px}
+        .tab-btn{padding:14px 16px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#64748b;cursor:pointer;border:none;background:none;border-bottom:3px solid transparent;transition:all .2s;display:inline-flex;align-items:center;gap:7px}
+        .tab-btn:hover{color:#ea580c}
+        .tab-btn.active{color:#ea580c;border-bottom-color:#ea580c}
+        /* Main */
+        main{max-width:1400px;margin:0 auto;padding:32px 24px}
+        .section-view{display:none}
+        .section-view.active{display:block}
+        /* Cards */
+        .card{background:#fff;border-radius:20px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,.04);padding:24px}
+        .card+.card{margin-top:20px}
+        .section-label{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:2px;color:#94a3b8;margin-bottom:12px}
+        /* KPI strip */
+        .kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:28px}
+        .kpi-card{background:#fff;border-radius:16px;border:1px solid #e2e8f0;padding:20px;text-align:center}
+        .kpi-value{font-size:32px;font-weight:900;line-height:1}
+        .kpi-label{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#94a3b8;margin-top:6px}
+        /* Table */
+        .table-wrap{overflow-x:auto}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th{padding:10px 14px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;background:#f8fafc;text-align:left;border-bottom:1px solid #e2e8f0;white-space:nowrap}
+        td{padding:12px 14px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+        tr:last-child td{border-bottom:none}
+        tr:hover td{background:#fafafa}
+        .app-name{font-weight:700;color:#0f172a}
+        .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:800;white-space:nowrap}
+        /* Lifecycle badges */
+        .lc-active{background:#dcfce7;color:#16a34a}
+        .lc-phaseIn{background:#dbeafe;color:#1d4ed8}
+        .lc-phaseOut{background:#fef3c7;color:#d97706}
+        .lc-legacy{background:#fee2e2;color:#dc2626}
+        .lc-retired{background:#f1f5f9;color:#64748b}
+        /* Action badges */
+        .ac-retain{background:#dcfce7;color:#16a34a}
+        .ac-invest{background:#dbeafe;color:#1d4ed8}
+        .ac-replace{background:#fef3c7;color:#d97706}
+        .ac-consolidate{background:#fdf4ff;color:#9333ea}
+        .ac-retire{background:#fee2e2;color:#dc2626}
+        .score-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+        /* Filter bar */
+        .filter-bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;align-items:center}
+        .filter-bar input,.filter-bar select{padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#fff;color:#0f172a}
+        .filter-bar input:focus,.filter-bar select:focus{border-color:#ea580c}
+        .filter-bar input{min-width:220px}
+        /* Kanban */
+        .kanban-board{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
+        @media(max-width:1100px){.kanban-board{grid-template-columns:repeat(3,1fr)}}
+        @media(max-width:700px){.kanban-board{grid-template-columns:1fr}}
+        .kanban-col{background:#f8fafc;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden}
+        .kanban-header{padding:14px 16px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;justify-content:space-between}
+        .kanban-header.kh-active{background:#dcfce7;color:#16a34a;border-bottom:2px solid #86efac}
+        .kanban-header.kh-phaseIn{background:#dbeafe;color:#1d4ed8;border-bottom:2px solid #93c5fd}
+        .kanban-header.kh-phaseOut{background:#fef3c7;color:#d97706;border-bottom:2px solid #fde68a}
+        .kanban-header.kh-legacy{background:#fee2e2;color:#dc2626;border-bottom:2px solid #fca5a5}
+        .kanban-header.kh-retired{background:#f1f5f9;color:#64748b;border-bottom:2px solid #cbd5e1}
+        .kanban-body{padding:12px;display:flex;flex-direction:column;gap:8px;min-height:80px}
+        .kanban-card{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:12px;font-size:11px;cursor:pointer;transition:all .2s}
+        .kanban-card:hover{border-color:#ea580c;box-shadow:0 4px 12px rgba(234,88,12,.1);transform:translateY(-2px)}
+        .kanban-card-name{font-weight:700;margin-bottom:4px;font-size:12px}
+        .kanban-card-dept{color:#94a3b8;font-size:10px}
+        /* Ownership */
+        .dept-group{margin-bottom:24px}
+        .dept-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+        .dept-icon{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#ea580c,#f97316);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px}
+        .dept-name{font-weight:900;font-size:14px}
+        .dept-count{font-size:10px;font-weight:700;color:#94a3b8}
+        .owner-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+        .owner-card{background:#fff;border-radius:14px;border:1px solid #e2e8f0;padding:16px;cursor:pointer;transition:all .2s}
+        .owner-card:hover{border-color:#ea580c;box-shadow:0 4px 12px rgba(234,88,12,.1)}
+        .owner-name{font-weight:800;font-size:13px;margin-bottom:2px}
+        .owner-role{font-size:10px;color:#94a3b8;margin-bottom:10px}
+        .owner-apps{font-size:11px;color:#64748b}
+        /* Fit Matrix */
+        .matrix-container{position:relative;width:100%;height:520px}
+        /* Rationalization */
+        .action-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-bottom:28px}
+        .action-card{background:#fff;border-radius:16px;border:1px solid #e2e8f0;padding:20px;text-align:center;cursor:pointer;transition:all .2s}
+        .action-card:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08)}
+        .action-card-value{font-size:36px;font-weight:900;line-height:1;margin-bottom:6px}
+        .action-card-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#64748b}
+        /* Modal */
+        .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+        .modal-box{background:#fff;border-radius:24px;max-width:700px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,.2)}
+        .modal-header{padding:28px 28px 0;display:flex;align-items:center;justify-content:space-between}
+        .modal-body{padding:24px 28px}
+        .modal-footer{padding:0 28px 28px;display:flex;gap:10px;justify-content:flex-end}
+        .modal-title{font-size:20px;font-weight:900}
+        .modal-close{background:none;border:none;font-size:20px;color:#94a3b8;cursor:pointer;padding:4px}
+        .modal-close:hover{color:#0f172a}
+        .form-group{margin-bottom:16px}
+        .form-label{display:block;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:6px}
+        .form-input{width:100%;padding:11px 14px;border:2px solid #e2e8f0;border-radius:12px;font-size:13px;font-weight:600;outline:none;transition:border-color .2s;font-family:inherit;background:#fff;color:#0f172a}
+        .form-input:focus{border-color:#ea580c}
+        .form-select{width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:12px;font-size:13px;font-weight:600;outline:none;font-family:inherit;background:#fff;color:#0f172a}
+        .form-select:focus{border-color:#ea580c}
+        .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+        .score-row{display:flex;gap:8px}
+        .score-btn{flex:1;padding:10px 4px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:13px;font-weight:900;color:#94a3b8;transition:all .15s;text-align:center}
+        .score-btn:hover{border-color:#fdba74;color:#ea580c}
+        .score-btn.sel{background:#ea580c;border-color:#ea580c;color:#fff;box-shadow:0 4px 12px rgba(234,88,12,.3);transform:scale(1.05)}
+        .divider{height:1px;background:#f1f5f9;margin:20px 0}
+        .hidden{display:none!important}
+        .empty-state{text-align:center;padding:60px 20px;color:#94a3b8}
+        .empty-state i{font-size:48px;margin-bottom:16px;display:block}
+        .empty-state p{font-size:14px;font-weight:600}
+        .action-row{display:flex;gap:6px;align-items:center}
+        .icon-btn{background:none;border:none;cursor:pointer;padding:5px;border-radius:6px;color:#94a3b8;font-size:13px;transition:all .15s}
+        .icon-btn:hover{background:#f1f5f9;color:#0f172a}
+        .icon-btn.del:hover{background:#fef2f2;color:#dc2626}
+        .total-cost{font-size:11px;font-weight:700;color:#ea580c;background:#fff7ed;padding:3px 8px;border-radius:6px;border:1px solid #fed7aa}
+        /* Toast */
+        .toast{position:fixed;bottom:24px;right:24px;background:#0f172a;color:#fff;padding:13px 20px;border-radius:12px;font-size:12px;font-weight:700;z-index:9999;transform:translateY(100px);opacity:0;transition:all .3s;display:flex;align-items:center;gap:8px}
+        .toast.show{transform:translateY(0);opacity:1}
+        .toast.toast-ok{background:#16a34a}
+        .toast.toast-err{background:#dc2626}
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+    <div class="header-inner">
+        <div class="logo">
+            <div class="logo-icon"><i class="fas fa-cubes"></i></div>
+            <div>
+                <h1>Application Portfolio Management</h1>
+                <p>Inventory · Lifecycle · Ownership · Fit Matrix · Rationalization</p>
+            </div>
+        </div>
+        <div class="nav-btns">
+            <button class="btn btn-success" onclick="exportData()"><i class="fas fa-download"></i> Export JSON</button>
+            <button class="btn btn-warning" onclick="document.getElementById('importFile').click()"><i class="fas fa-upload"></i> Import</button>
+            <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
+            <button class="btn btn-primary" onclick="openModal()"><i class="fas fa-plus"></i> Add Application</button>
+        </div>
+    </div>
+</header>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+    <div class="tab-bar-inner">
+        <button class="tab-btn active" onclick="switchTab('inventory',this)"><i class="fas fa-table-list"></i> Inventory</button>
+        <button class="tab-btn" onclick="switchTab('lifecycle',this)"><i class="fas fa-timeline"></i> Lifecycle</button>
+        <button class="tab-btn" onclick="switchTab('ownership',this)"><i class="fas fa-users"></i> Ownership</button>
+        <button class="tab-btn" onclick="switchTab('fitmatrix',this)"><i class="fas fa-chart-scatter"></i> Fit Matrix</button>
+        <button class="tab-btn" onclick="switchTab('rationalization',this)"><i class="fas fa-chart-pie"></i> Rationalization</button>
+    </div>
+</div>
+
+<main>
+
+<!-- ==================== INVENTORY ==================== -->
+<div id="view-inventory" class="section-view active">
+    <!-- KPI Strip -->
+    <div class="kpi-strip" id="kpiStrip"></div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+        <input type="text" id="searchInput" placeholder="&#xf002;  Search applications..." oninput="renderInventory()" style="font-family:'Inter','Font Awesome 6 Free',sans-serif">
+        <select id="filterLifecycle" onchange="renderInventory()">
+            <option value="">All Lifecycle States</option>
+            <option value="phaseIn">Phase In</option>
+            <option value="active">Active</option>
+            <option value="legacy">Legacy</option>
+            <option value="phaseOut">Phase Out</option>
+            <option value="retired">Retired</option>
+        </select>
+        <select id="filterAction" onchange="renderInventory()">
+            <option value="">All Actions</option>
+            <option value="retain">Retain</option>
+            <option value="invest">Invest</option>
+            <option value="replace">Replace</option>
+            <option value="consolidate">Consolidate</option>
+            <option value="retire">Retire</option>
+        </select>
+        <select id="filterDept" onchange="renderInventory()">
+            <option value="">All Departments</option>
+        </select>
+        <span id="costBadge" class="total-cost hidden"></span>
+    </div>
+
+    <!-- Table -->
+    <div class="card" style="padding:0;overflow:hidden">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Application</th>
+                        <th>Department</th>
+                        <th>Owner</th>
+                        <th>Lifecycle</th>
+                        <th>Vendor</th>
+                        <th>Annual Cost</th>
+                        <th>Users</th>
+                        <th title="Technical Fit">Tech Fit</th>
+                        <th title="Business Value">Biz Value</th>
+                        <th>Action</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== LIFECYCLE ==================== -->
+<div id="view-lifecycle" class="section-view">
+    <div class="kanban-board" id="kanbanBoard"></div>
+</div>
+
+<!-- ==================== OWNERSHIP ==================== -->
+<div id="view-ownership" class="section-view">
+    <div id="ownershipView"></div>
+</div>
+
+<!-- ==================== FIT MATRIX ==================== -->
+<div id="view-fitmatrix" class="section-view">
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:flex-start">
+        <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <div>
+                    <div class="section-label">Technical Fit vs Business Value</div>
+                    <div style="font-size:11px;color:#64748b">Bubble size = annual cost (min $10k shown). Click a bubble to view details.</div>
+                </div>
+            </div>
+            <div class="matrix-container"><canvas id="fitChart"></canvas></div>
+        </div>
+        <div class="card" id="matrixDetail">
+            <div class="section-label">Selected Application</div>
+            <div style="color:#94a3b8;font-size:12px;margin-top:8px">Click a bubble in the matrix to see details here.</div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== RATIONALIZATION ==================== -->
+<div id="view-rationalization" class="section-view">
+    <div class="action-cards" id="actionCards"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+        <div class="card">
+            <div class="section-label">Action Distribution</div>
+            <div style="position:relative;height:300px"><canvas id="ratPieChart"></canvas></div>
+        </div>
+        <div class="card">
+            <div class="section-label">Lifecycle Distribution</div>
+            <div style="position:relative;height:300px"><canvas id="ratLcChart"></canvas></div>
+        </div>
+    </div>
+    <div class="card" style="margin-top:24px">
+        <div class="section-label">Rationalization Candidates</div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Application</th>
+                        <th>Action</th>
+                        <th>Lifecycle</th>
+                        <th>Annual Cost</th>
+                        <th>Tech Fit</th>
+                        <th>Biz Value</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody id="ratTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+</main>
+
+<!-- ==================== MODAL ==================== -->
+<div id="appModal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title" id="modalTitle">Add Application</div>
+            <button class="modal-close" onclick="closeModal()"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editId">
+
+            <div class="form-row">
+                <div class="form-group" style="grid-column:1/-1">
+                    <label class="form-label">Application Name *</label>
+                    <input type="text" id="fName" class="form-input" placeholder="e.g. SAP ERP, Salesforce CRM">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea id="fDesc" class="form-input" rows="2" placeholder="Brief description of purpose and capabilities"></textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Department</label>
+                    <input type="text" id="fDept" class="form-input" placeholder="e.g. Finance, HR, IT">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Owner</label>
+                    <input type="text" id="fOwner" class="form-input" placeholder="Full name or team">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Vendor</label>
+                    <input type="text" id="fVendor" class="form-input" placeholder="e.g. SAP, Microsoft, Custom">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Technology Stack</label>
+                    <input type="text" id="fTech" class="form-input" placeholder="e.g. .NET, Java, SaaS">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Annual Cost (USD)</label>
+                    <input type="number" id="fCost" class="form-input" placeholder="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">User Count</label>
+                    <input type="number" id="fUsers" class="form-input" placeholder="0" min="0">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Lifecycle State</label>
+                    <select id="fLifecycle" class="form-select">
+                        <option value="phaseIn">Phase In</option>
+                        <option value="active" selected>Active</option>
+                        <option value="legacy">Legacy</option>
+                        <option value="phaseOut">Phase Out</option>
+                        <option value="retired">Retired</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Rationalization Action</label>
+                    <select id="fAction" class="form-select">
+                        <option value="retain" selected>Retain</option>
+                        <option value="invest">Invest</option>
+                        <option value="replace">Replace</option>
+                        <option value="consolidate">Consolidate</option>
+                        <option value="retire">Retire</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="form-group">
+                <label class="form-label">Technical Fit Score (1 = Poor, 5 = Excellent)</label>
+                <div class="score-row" id="techFitBtns">
+                    <button class="score-btn" onclick="setScore('techFit',1)">1</button>
+                    <button class="score-btn" onclick="setScore('techFit',2)">2</button>
+                    <button class="score-btn" onclick="setScore('techFit',3)">3</button>
+                    <button class="score-btn" onclick="setScore('techFit',4)">4</button>
+                    <button class="score-btn sel" onclick="setScore('techFit',5)">5</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Business Value Score (1 = Low, 5 = Critical)</label>
+                <div class="score-row" id="bizValueBtns">
+                    <button class="score-btn" onclick="setScore('bizValue',1)">1</button>
+                    <button class="score-btn" onclick="setScore('bizValue',2)">2</button>
+                    <button class="score-btn" onclick="setScore('bizValue',3)">3</button>
+                    <button class="score-btn" onclick="setScore('bizValue',4)">4</button>
+                    <button class="score-btn sel" onclick="setScore('bizValue',5)">5</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Business Capabilities (comma-separated)</label>
+                <input type="text" id="fCaps" class="form-input" placeholder="e.g. Finance Reporting, Procurement, HR Mgmt">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Notes</label>
+                <textarea id="fNotes" class="form-input" rows="2" placeholder="Migration notes, dependencies, constraints..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveApp()"><i class="fas fa-floppy-disk"></i> Save Application</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────
+//  DATA LAYER
+// ─────────────────────────────────────────────
+const STORAGE_KEY = 'apm_portfolio';
+
+function loadData() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+    } catch(e) {}
+    return { applications: [], lastUpdated: null };
+}
+
+function saveData(data) {
+    data.lastUpdated = new Date().toISOString();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function getApps() { return loadData().applications || []; }
+
+function upsertApp(app) {
+    const data = loadData();
+    const idx = data.applications.findIndex(a => a.id === app.id);
+    if (idx >= 0) data.applications[idx] = app;
+    else data.applications.push(app);
+    saveData(data);
+}
+
+function deleteApp(id) {
+    const data = loadData();
+    data.applications = data.applications.filter(a => a.id !== id);
+    saveData(data);
+}
+
+function generateId() {
+    return 'app_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+// ─────────────────────────────────────────────
+//  TABS
+// ─────────────────────────────────────────────
+function switchTab(name, btn) {
+    document.querySelectorAll('.section-view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('view-' + name).classList.add('active');
+    btn.classList.add('active');
+    if (name === 'inventory')     { renderKPIs(); renderInventory(); }
+    if (name === 'lifecycle')     { renderLifecycle(); }
+    if (name === 'ownership')     { renderOwnership(); }
+    if (name === 'fitmatrix')     { renderFitMatrix(); }
+    if (name === 'rationalization') { renderRationalization(); }
+}
+
+// ─────────────────────────────────────────────
+//  KPIs
+// ─────────────────────────────────────────────
+function renderKPIs() {
+    const apps = getApps();
+    const totalCost = apps.reduce((s, a) => s + (Number(a.annualCost) || 0), 0);
+    const avgTech = apps.length ? (apps.reduce((s, a) => s + (Number(a.technicalFitScore)||0), 0) / apps.length).toFixed(1) : '—';
+    const avgBiz  = apps.length ? (apps.reduce((s, a) => s + (Number(a.businessValueScore)||0), 0) / apps.length).toFixed(1) : '—';
+    const retireCount = apps.filter(a => a.rationalizationAction === 'retire' || a.rationalizationAction === 'replace').length;
+
+    const kpis = [
+        { value: apps.length, label: 'Total Applications', color: '#ea580c' },
+        { value: apps.filter(a => a.lifecycle === 'active').length, label: 'Active', color: '#16a34a' },
+        { value: apps.filter(a => a.lifecycle === 'legacy' || a.lifecycle === 'phaseOut').length, label: 'Legacy / Phase-Out', color: '#d97706' },
+        { value: '$' + (totalCost >= 1e6 ? (totalCost/1e6).toFixed(1)+'M' : totalCost >= 1e3 ? (totalCost/1e3).toFixed(0)+'K' : totalCost), label: 'Total Annual Cost', color: '#7c3aed' },
+        { value: avgTech, label: 'Avg Tech Fit', color: '#0891b2' },
+        { value: avgBiz,  label: 'Avg Biz Value', color: '#0d9488' },
+        { value: retireCount, label: 'Retire / Replace', color: '#dc2626' },
+    ];
+
+    document.getElementById('kpiStrip').innerHTML = kpis.map(k => `
+        <div class="kpi-card">
+            <div class="kpi-value" style="color:${k.color}">${k.value}</div>
+            <div class="kpi-label">${k.label}</div>
+        </div>`).join('');
+}
+
+// ─────────────────────────────────────────────
+//  INVENTORY
+// ─────────────────────────────────────────────
+const LC_LABEL = { phaseIn:'Phase In', active:'Active', legacy:'Legacy', phaseOut:'Phase Out', retired:'Retired' };
+const AC_LABEL = { retain:'Retain', invest:'Invest', replace:'Replace', consolidate:'Consolidate', retire:'Retire' };
+
+function scoreColor(v) {
+    if (v >= 4) return '#16a34a';
+    if (v >= 3) return '#d97706';
+    return '#dc2626';
+}
+
+function renderInventory() {
+    const apps = getApps();
+    const search = (document.getElementById('searchInput').value || '').toLowerCase();
+    const lcFilter = document.getElementById('filterLifecycle').value;
+    const acFilter = document.getElementById('filterAction').value;
+    const deptFilter = document.getElementById('filterDept').value;
+
+    // Populate dept filter
+    const depts = [...new Set(apps.map(a => a.department).filter(Boolean))].sort();
+    const deptSel = document.getElementById('filterDept');
+    const curDept = deptSel.value;
+    deptSel.innerHTML = '<option value="">All Departments</option>' + depts.map(d => `<option value="${d}"${d===curDept?' selected':''}>${d}</option>`).join('');
+
+    let filtered = apps.filter(a => {
+        if (search && !((a.name||'').toLowerCase().includes(search) || (a.owner||'').toLowerCase().includes(search) || (a.vendor||'').toLowerCase().includes(search) || (a.department||'').toLowerCase().includes(search))) return false;
+        if (lcFilter && a.lifecycle !== lcFilter) return false;
+        if (acFilter && a.rationalizationAction !== acFilter) return false;
+        if (deptFilter && a.department !== deptFilter) return false;
+        return true;
+    });
+
+    const totalCost = filtered.reduce((s, a) => s + (Number(a.annualCost)||0), 0);
+    const costBadge = document.getElementById('costBadge');
+    if (filtered.length && totalCost > 0) {
+        costBadge.textContent = 'Filtered Cost: $' + totalCost.toLocaleString();
+        costBadge.classList.remove('hidden');
+    } else {
+        costBadge.classList.add('hidden');
+    }
+
+    const tbody = document.getElementById('inventoryBody');
+    if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><i class="fas fa-inbox"></i><p>${apps.length ? 'No applications match the current filters.' : 'No applications yet. Click "Add Application" to get started.'}</p></div></td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(a => {
+        const cost = Number(a.annualCost)||0;
+        const costStr = cost ? '$' + cost.toLocaleString() : '—';
+        const tf = Number(a.technicalFitScore)||0;
+        const bv = Number(a.businessValueScore)||0;
+        return `<tr>
+            <td><span class="app-name">${esc(a.name)}</span>${a.businessCapabilities?.length ? `<br><span style="font-size:10px;color:#94a3b8">${a.businessCapabilities.slice(0,2).join(', ')}${a.businessCapabilities.length>2?'…':''}</span>` : ''}</td>
+            <td>${esc(a.department||'—')}</td>
+            <td>${esc(a.owner||'—')}</td>
+            <td><span class="badge lc-${a.lifecycle}">${LC_LABEL[a.lifecycle]||a.lifecycle}</span></td>
+            <td>${esc(a.vendor||'—')}</td>
+            <td style="font-weight:700;color:${cost>100000?'#dc2626':cost>50000?'#d97706':'#16a34a'}">${costStr}</td>
+            <td>${a.userCount ? Number(a.userCount).toLocaleString() : '—'}</td>
+            <td><span style="font-weight:900;color:${scoreColor(tf)}">${tf||'—'}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
+            <td><span style="font-weight:900;color:${scoreColor(bv)}">${bv||'—'}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
+            <td><span class="badge ac-${a.rationalizationAction}">${AC_LABEL[a.rationalizationAction]||a.rationalizationAction||'—'}</span></td>
+            <td><div class="action-row">
+                <button class="icon-btn" onclick="openModal('${a.id}')" title="Edit"><i class="fas fa-pen"></i></button>
+                <button class="icon-btn del" onclick="confirmDelete('${a.id}')" title="Delete"><i class="fas fa-trash"></i></button>
+            </div></td>
+        </tr>`;
+    }).join('');
+}
+
+// ─────────────────────────────────────────────
+//  LIFECYCLE (KANBAN)
+// ─────────────────────────────────────────────
+const LC_ORDER = ['phaseIn','active','legacy','phaseOut','retired'];
+const LC_ICON  = { phaseIn:'fas fa-seedling', active:'fas fa-circle-check', legacy:'fas fa-triangle-exclamation', phaseOut:'fas fa-arrow-down-to-line', retired:'fas fa-archive' };
+
+function renderLifecycle() {
+    const apps = getApps();
+    const board = document.getElementById('kanbanBoard');
+    board.innerHTML = LC_ORDER.map(lc => {
+        const cols = apps.filter(a => a.lifecycle === lc);
+        return `<div class="kanban-col">
+            <div class="kanban-header kh-${lc}">
+                <span><i class="${LC_ICON[lc]}" style="margin-right:6px"></i>${LC_LABEL[lc]}</span>
+                <span style="font-size:18px;font-weight:900">${cols.length}</span>
+            </div>
+            <div class="kanban-body">
+                ${cols.length ? cols.map(a => `
+                    <div class="kanban-card" onclick="openModal('${a.id}')">
+                        <div class="kanban-card-name">${esc(a.name)}</div>
+                        <div class="kanban-card-dept">${esc(a.department||'—')} · ${esc(a.owner||'—')}</div>
+                        ${a.annualCost ? `<div style="font-size:10px;color:#ea580c;margin-top:4px;font-weight:700">$${Number(a.annualCost).toLocaleString()}</div>` : ''}
+                        <div style="margin-top:6px"><span class="badge ac-${a.rationalizationAction}" style="font-size:9px">${AC_LABEL[a.rationalizationAction]||'—'}</span></div>
+                    </div>`).join('') : '<div style="padding:16px;text-align:center;color:#cbd5e1;font-size:11px;font-weight:700">No applications</div>'}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ─────────────────────────────────────────────
+//  OWNERSHIP
+// ─────────────────────────────────────────────
+function renderOwnership() {
+    const apps = getApps();
+    const container = document.getElementById('ownershipView');
+    if (!apps.length) {
+        container.innerHTML = `<div class="empty-state"><i class="fas fa-users"></i><p>No applications yet.</p></div>`;
+        return;
+    }
+
+    // Group by department
+    const deptMap = {};
+    apps.forEach(a => {
+        const d = a.department || 'Unknown';
+        if (!deptMap[d]) deptMap[d] = [];
+        deptMap[d].push(a);
+    });
+
+    container.innerHTML = Object.keys(deptMap).sort().map(dept => {
+        const dApps = deptMap[dept];
+        // Group by owner within dept
+        const ownerMap = {};
+        dApps.forEach(a => {
+            const o = a.owner || 'Unassigned';
+            if (!ownerMap[o]) ownerMap[o] = [];
+            ownerMap[o].push(a);
+        });
+
+        const totalCost = dApps.reduce((s, a) => s + (Number(a.annualCost)||0), 0);
+
+        return `<div class="dept-group">
+            <div class="dept-header">
+                <div class="dept-icon"><i class="fas fa-building"></i></div>
+                <div>
+                    <div class="dept-name">${esc(dept)}</div>
+                    <div class="dept-count">${dApps.length} application${dApps.length!==1?'s':''} · ${totalCost ? '$'+totalCost.toLocaleString()+' / yr' : 'no cost data'}</div>
+                </div>
+            </div>
+            <div class="owner-grid">
+                ${Object.keys(ownerMap).sort().map(owner => {
+                    const oApps = ownerMap[owner];
+                    const oCost = oApps.reduce((s, a) => s + (Number(a.annualCost)||0), 0);
+                    const lcs = [...new Set(oApps.map(a => a.lifecycle))];
+                    return `<div class="owner-card" onclick="filterByOwner('${esc(owner)}')">
+                        <div class="owner-name">${esc(owner)}</div>
+                        <div class="owner-role">${dept} · ${oApps.length} app${oApps.length!==1?'s':''}</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
+                            ${oApps.slice(0,4).map(a => `<span class="badge lc-${a.lifecycle}" style="font-size:9px">${esc(a.name.length>14?a.name.slice(0,14)+'…':a.name)}</span>`).join('')}
+                            ${oApps.length>4?`<span style="font-size:10px;color:#94a3b8">+${oApps.length-4} more</span>`:''}
+                        </div>
+                        <div class="owner-apps">
+                            ${oCost ? '<span style="color:#ea580c;font-weight:700">$'+oCost.toLocaleString()+' / yr</span>' : ''}
+                            ${lcs.map(l => `<span class="badge lc-${l}" style="font-size:9px;margin-left:4px">${LC_LABEL[l]}</span>`).join('')}
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function filterByOwner(owner) {
+    switchTab('inventory', document.querySelector('.tab-btn'));
+    document.querySelector('.tab-btn').classList.add('active');
+    // Find correct btn
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        if (b.textContent.includes('Inventory')) b.classList.add('active');
+        else b.classList.remove('active');
+    });
+    document.getElementById('view-inventory').classList.add('active');
+    document.querySelectorAll('.section-view').forEach(v => {
+        if (v.id !== 'view-inventory') v.classList.remove('active');
+    });
+    document.getElementById('searchInput').value = owner;
+    renderKPIs();
+    renderInventory();
+}
+
+// ─────────────────────────────────────────────
+//  FIT MATRIX (BUBBLE CHART)
+// ─────────────────────────────────────────────
+let fitChartInst = null;
+
+function renderFitMatrix() {
+    const apps = getApps();
+    if (fitChartInst) { fitChartInst.destroy(); fitChartInst = null; }
+
+    const ctx = document.getElementById('fitChart').getContext('2d');
+
+    // Jitter to avoid perfect overlap
+    const jitter = () => (Math.random() - 0.5) * 0.25;
+
+    const datasets = apps.map(a => {
+        const cost = Number(a.annualCost) || 10000;
+        const tf = (Number(a.technicalFitScore) || 3) + jitter();
+        const bv = (Number(a.businessValueScore) || 3) + jitter();
+        const r = Math.max(8, Math.min(40, Math.sqrt(cost / 5000)));
+        const lc = a.lifecycle || 'active';
+        const colorMap = { active:'rgba(22,163,74,0.75)', phaseIn:'rgba(29,78,216,0.75)', legacy:'rgba(220,38,38,0.75)', phaseOut:'rgba(217,119,6,0.75)', retired:'rgba(100,116,139,0.75)' };
+        return {
+            label: a.name,
+            data: [{ x: tf, y: bv, r }],
+            backgroundColor: colorMap[lc] || 'rgba(100,116,139,0.6)',
+            borderColor: '#fff',
+            borderWidth: 2,
+            _appId: a.id
+        };
+    });
+
+    fitChartInst = new Chart(ctx, {
+        type: 'bubble',
+        data: { datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            onClick(evt) {
+                const pts = fitChartInst.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+                if (pts.length) {
+                    const ds = fitChartInst.data.datasets[pts[0].datasetIndex];
+                    showMatrixDetail(ds._appId);
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label(ctx) {
+                            const app = getApps().find(a => a.name === ctx.dataset.label);
+                            if (!app) return ctx.dataset.label;
+                            const cost = Number(app.annualCost)||0;
+                            return [
+                                ctx.dataset.label,
+                                `Tech Fit: ${app.technicalFitScore||'—'}  Biz Value: ${app.businessValueScore||'—'}`,
+                                cost ? `Cost: $${cost.toLocaleString()}` : ''
+                            ].filter(Boolean);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { min: 0.5, max: 5.5, title: { display: true, text: 'Technical Fit Score', font: { weight: '700', size: 11 } }, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
+                y: { min: 0.5, max: 5.5, title: { display: true, text: 'Business Value Score', font: { weight: '700', size: 11 } }, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } }
+            }
+        }
+    });
+
+    // Draw quadrant labels via plugin
+    fitChartInst.options.plugins.customQuadrants = true;
+    fitChartInst.update();
+}
+
+function showMatrixDetail(id) {
+    const app = getApps().find(a => a.id === id);
+    if (!app) return;
+    const cost = Number(app.annualCost)||0;
+    document.getElementById('matrixDetail').innerHTML = `
+        <div class="section-label">Selected Application</div>
+        <div style="font-size:18px;font-weight:900;margin-bottom:4px">${esc(app.name)}</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:16px">${esc(app.department||'')} · ${esc(app.owner||'')}</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Lifecycle</span><span class="badge lc-${app.lifecycle}">${LC_LABEL[app.lifecycle]}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Action</span><span class="badge ac-${app.rationalizationAction}">${AC_LABEL[app.rationalizationAction]||'—'}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Technical Fit</span><span style="font-weight:900;color:${scoreColor(app.technicalFitScore||0)}">${app.technicalFitScore||'—'}/5</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Business Value</span><span style="font-weight:900;color:${scoreColor(app.businessValueScore||0)}">${app.businessValueScore||'—'}/5</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Annual Cost</span><span style="font-weight:700">${cost ? '$'+cost.toLocaleString() : '—'}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Users</span><span style="font-weight:700">${app.userCount ? Number(app.userCount).toLocaleString() : '—'}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Vendor</span><span style="font-weight:700">${esc(app.vendor||'—')}</span></div>
+            ${app.businessCapabilities?.length ? `<div><span style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px">Capabilities</span><div style="display:flex;flex-wrap:wrap;gap:4px">${app.businessCapabilities.map(c=>`<span style="background:#f1f5f9;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700">${esc(c)}</span>`).join('')}</div></div>` : ''}
+            ${app.notes ? `<div><span style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px">Notes</span><div style="font-size:11px;color:#475569;line-height:1.6">${esc(app.notes)}</div></div>` : ''}
+        </div>
+        <div style="margin-top:16px;display:flex;gap:8px">
+            <button class="btn btn-primary" style="width:100%" onclick="openModal('${app.id}')"><i class="fas fa-pen"></i> Edit</button>
+        </div>`;
+}
+
+// ─────────────────────────────────────────────
+//  RATIONALIZATION
+// ─────────────────────────────────────────────
+let ratPieInst = null, ratLcInst = null;
+
+function renderRationalization() {
+    const apps = getApps();
+
+    const actionCounts = { retain:0, invest:0, replace:0, consolidate:0, retire:0 };
+    const actionCosts  = { retain:0, invest:0, replace:0, consolidate:0, retire:0 };
+    apps.forEach(a => {
+        const ac = a.rationalizationAction || 'retain';
+        if (ac in actionCounts) { actionCounts[ac]++; actionCosts[ac] += Number(a.annualCost)||0; }
+    });
+
+    const acColors = { retain:'#16a34a', invest:'#1d4ed8', replace:'#d97706', consolidate:'#9333ea', retire:'#dc2626' };
+
+    document.getElementById('actionCards').innerHTML = Object.keys(actionCounts).map(ac => `
+        <div class="action-card">
+            <div class="action-card-value" style="color:${acColors[ac]}">${actionCounts[ac]}</div>
+            <div class="action-card-label">${AC_LABEL[ac]}</div>
+            ${actionCosts[ac] ? `<div style="font-size:10px;color:#94a3b8;margin-top:4px">$${actionCosts[ac].toLocaleString()}</div>` : ''}
+        </div>`).join('');
+
+    if (ratPieInst) ratPieInst.destroy();
+    ratPieInst = new Chart(document.getElementById('ratPieChart'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(actionCounts).map(k => AC_LABEL[k]),
+            datasets: [{ data: Object.values(actionCounts), backgroundColor: Object.keys(actionCounts).map(k => acColors[k] + 'cc'), borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ font:{weight:'700',size:10} } } } }
+    });
+
+    const lcCounts = { phaseIn:0, active:0, legacy:0, phaseOut:0, retired:0 };
+    apps.forEach(a => { const l = a.lifecycle||'active'; if (l in lcCounts) lcCounts[l]++; });
+    const lcColors = { phaseIn:'#1d4ed8', active:'#16a34a', legacy:'#dc2626', phaseOut:'#d97706', retired:'#94a3b8' };
+
+    if (ratLcInst) ratLcInst.destroy();
+    ratLcInst = new Chart(document.getElementById('ratLcChart'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(lcCounts).map(k => LC_LABEL[k]),
+            datasets: [{ label: 'Applications', data: Object.values(lcCounts), backgroundColor: Object.keys(lcCounts).map(k => lcColors[k] + 'cc'), borderRadius: 8, borderSkipped: false }]
+        },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, grid:{ color:'#f1f5f9' } }, x:{ grid:{ display:false } } } }
+    });
+
+    // Rationalization candidates = replace or retire
+    const candidates = apps.filter(a => a.rationalizationAction === 'replace' || a.rationalizationAction === 'retire' || a.rationalizationAction === 'consolidate');
+    const tbody = document.getElementById('ratTable');
+    if (!candidates.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;font-size:12px">No rationalization candidates (Replace / Retire / Consolidate).</td></tr>`;
+    } else {
+        tbody.innerHTML = candidates.map(a => {
+            const cost = Number(a.annualCost)||0;
+            return `<tr>
+                <td><span class="app-name">${esc(a.name)}</span></td>
+                <td><span class="badge ac-${a.rationalizationAction}">${AC_LABEL[a.rationalizationAction]}</span></td>
+                <td><span class="badge lc-${a.lifecycle}">${LC_LABEL[a.lifecycle]}</span></td>
+                <td style="font-weight:700;color:#dc2626">${cost ? '$'+cost.toLocaleString() : '—'}</td>
+                <td style="font-weight:900;color:${scoreColor(a.technicalFitScore||0)}">${a.technicalFitScore||'—'}/5</td>
+                <td style="font-weight:900;color:${scoreColor(a.businessValueScore||0)}">${a.businessValueScore||'—'}/5</td>
+                <td style="font-size:11px;color:#64748b;max-width:200px">${esc(a.notes||'—')}</td>
+            </tr>`;
+        }).join('');
+    }
+}
+
+// ─────────────────────────────────────────────
+//  MODAL
+// ─────────────────────────────────────────────
+let _techFit = 5, _bizValue = 5;
+
+function openModal(id) {
+    const modal = document.getElementById('appModal');
+    modal.classList.remove('hidden');
+
+    // Reset
+    _techFit = 5; _bizValue = 5;
+    clearForm();
+
+    if (id) {
+        const app = getApps().find(a => a.id === id);
+        if (app) {
+            document.getElementById('modalTitle').textContent = 'Edit Application';
+            document.getElementById('editId').value = app.id;
+            document.getElementById('fName').value = app.name || '';
+            document.getElementById('fDesc').value = app.description || '';
+            document.getElementById('fDept').value = app.department || '';
+            document.getElementById('fOwner').value = app.owner || '';
+            document.getElementById('fVendor').value = app.vendor || '';
+            document.getElementById('fTech').value = app.technology || '';
+            document.getElementById('fCost').value = app.annualCost || '';
+            document.getElementById('fUsers').value = app.userCount || '';
+            document.getElementById('fLifecycle').value = app.lifecycle || 'active';
+            document.getElementById('fAction').value = app.rationalizationAction || 'retain';
+            document.getElementById('fCaps').value = (app.businessCapabilities || []).join(', ');
+            document.getElementById('fNotes').value = app.notes || '';
+            _techFit = Number(app.technicalFitScore) || 5;
+            _bizValue = Number(app.businessValueScore) || 5;
+            highlightScore('techFit', _techFit);
+            highlightScore('bizValue', _bizValue);
+            return;
+        }
+    }
+    document.getElementById('modalTitle').textContent = 'Add Application';
+    document.getElementById('editId').value = '';
+    highlightScore('techFit', 5);
+    highlightScore('bizValue', 5);
+}
+
+function closeModal() {
+    document.getElementById('appModal').classList.add('hidden');
+}
+
+function clearForm() {
+    ['fName','fDesc','fDept','fOwner','fVendor','fTech','fCaps','fNotes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('fCost').value = '';
+    document.getElementById('fUsers').value = '';
+    document.getElementById('fLifecycle').value = 'active';
+    document.getElementById('fAction').value = 'retain';
+}
+
+function setScore(type, val) {
+    if (type === 'techFit') _techFit = val;
+    else _bizValue = val;
+    highlightScore(type, val);
+}
+
+function highlightScore(type, val) {
+    const id = type === 'techFit' ? 'techFitBtns' : 'bizValueBtns';
+    const btns = document.querySelectorAll('#' + id + ' .score-btn');
+    btns.forEach((b, i) => {
+        if (i + 1 === val) b.classList.add('sel');
+        else b.classList.remove('sel');
+    });
+}
+
+function saveApp() {
+    const name = document.getElementById('fName').value.trim();
+    if (!name) { showToast('Application name is required.', 'err'); return; }
+
+    const id = document.getElementById('editId').value || generateId();
+    const caps = document.getElementById('fCaps').value.split(',').map(s => s.trim()).filter(Boolean);
+
+    const app = {
+        id,
+        name,
+        description: document.getElementById('fDesc').value.trim(),
+        department:  document.getElementById('fDept').value.trim(),
+        owner:       document.getElementById('fOwner').value.trim(),
+        vendor:      document.getElementById('fVendor').value.trim(),
+        technology:  document.getElementById('fTech').value.trim(),
+        annualCost:  Number(document.getElementById('fCost').value) || 0,
+        userCount:   Number(document.getElementById('fUsers').value) || 0,
+        lifecycle:   document.getElementById('fLifecycle').value,
+        rationalizationAction: document.getElementById('fAction').value,
+        businessCapabilities: caps,
+        technicalFitScore:  _techFit,
+        businessValueScore: _bizValue,
+        notes: document.getElementById('fNotes').value.trim(),
+    };
+
+    upsertApp(app);
+    closeModal();
+    showToast(document.getElementById('editId').value ? 'Application updated.' : 'Application added.', 'ok');
+    renderKPIs();
+    renderInventory();
+}
+
+function confirmDelete(id) {
+    const app = getApps().find(a => a.id === id);
+    if (!app) return;
+    if (!confirm(`Delete "${app.name}"? This cannot be undone.`)) return;
+    deleteApp(id);
+    showToast('Application deleted.', 'ok');
+    renderKPIs();
+    renderInventory();
+}
+
+// ─────────────────────────────────────────────
+//  EXPORT / IMPORT
+// ─────────────────────────────────────────────
+function exportData() {
+    const data = loadData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'apm_portfolio_' + new Date().toISOString().slice(0,10) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Portfolio exported.', 'ok');
+}
+
+function importData(evt) {
+    const file = evt.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (!Array.isArray(data.applications)) throw new Error('Invalid format');
+            saveData(data);
+            renderKPIs();
+            renderInventory();
+            showToast(`Imported ${data.applications.length} applications.`, 'ok');
+        } catch(err) {
+            showToast('Import failed: invalid JSON format.', 'err');
+        }
+    };
+    reader.readAsText(file);
+    evt.target.value = '';
+}
+
+// ─────────────────────────────────────────────
+//  UTILS
+// ─────────────────────────────────────────────
+function esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer = null;
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (type === 'ok' ? ' toast-ok' : type === 'err' ? ' toast-err' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Close modal on backdrop click
+document.getElementById('appModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+
+// ─────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────
+renderKPIs();
+renderInventory();
+</script>
+</body>
+</html>
