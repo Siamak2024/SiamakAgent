@@ -2483,6 +2483,13 @@ function loadLastModel() {
         if (model.operatingModel?.valueProposition) {
           renderOperatingModel();
         }
+        if (model.gapAnalysisRaw) {
+          const insightsEl = document.getElementById('insights');
+          if (insightsEl) insightsEl.innerHTML = formatGapAnalysisOutput(model.gapAnalysisRaw);
+        }
+        if (model.targetArch?.length) {
+          renderTargetArchVisual();
+        }
         if (typeof syncConversationWithCurrentModel === 'function') syncConversationWithCurrentModel();
         updateWorkflowStepStates();
         renderStrategicIntentSection();
@@ -2879,6 +2886,11 @@ function _loadEntry(id, source) {
   document.getElementById('cxo-narrative-section').classList.remove('hidden');
   if (model.initiatives?.length) { renderInitiatives(); renderRoadmapVisual(); }
   if (model.operatingModel?.valueProposition) renderOperatingModel();
+  if (model.gapAnalysisRaw) {
+    const insightsEl = document.getElementById('insights');
+    if (insightsEl) insightsEl.innerHTML = formatGapAnalysisOutput(model.gapAnalysisRaw);
+  }
+  if (model.targetArch?.length) renderTargetArchVisual();
   localStorage.setItem('ea_current_model', JSON.stringify({ id: currentModelId, name: currentModelName, data: model }));
   updateHeaderTitle();
   if (typeof syncConversationWithCurrentModel === 'function') syncConversationWithCurrentModel();
@@ -8676,6 +8688,8 @@ async function analyseGaps() {
     const raw = await requestDynamicGapAnalysis({ source: 'gap_button', activeTab: currentTab });
     document.getElementById('insights').innerHTML = formatGapAnalysisOutput(raw);
     model.gapAnalysisDone = true;
+    model.gapAnalysisRaw = raw;
+    autoSaveCurrentModel();
     updateWorkflowStepStates();
     toast('Gap analysis complete &#x2718;');
   } catch(e) { toast('Error: ' + e.message, true); }
