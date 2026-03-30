@@ -9760,16 +9760,27 @@ function renderHeatmap() {
     return;
   }
 
+  const HEAT_BG   = ['', '#5E8C6A', '#8FAF8C', '#C8A96B', '#C98C6B', '#B06A6A'];
+  const HEAT_TEXT = ['', '#ffffff', '#1e293b', '#1e293b', '#1e293b', '#ffffff'];
+
   const ranked = caps
     .slice()
     .sort((left, right) => getHeatLevel(right) - getHeatLevel(left) || Number(left.maturity || 1) - Number(right.maturity || 1));
 
-  grid.innerHTML = ranked.map((capability) => EANordicUI.heatCell({
-    level: getHeatLevel(capability),
-    label: capability.name,
-    meta: `${capability.domain || 'General'} · Maturity ${capability.maturity || 1}/5`,
-    title: `${capability.name} · ${capability.domain || 'General'} · Maturity ${capability.maturity || 1}/5 · ${(capability.strategicImportance || 'medium').toUpperCase()} importance`
-  })).join('');
+  grid.innerHTML = ranked.map((capability) => {
+    const level = getHeatLevel(capability);
+    const capIdx = model.capabilities.indexOf(capability);
+    return EANordicUI.heatCell({
+      level,
+      label: capability.name,
+      meta: `${capability.domain || 'General'} · Maturity ${capability.maturity || 1}/5`,
+      title: `${capability.name} · ${capability.domain || 'General'} · Maturity ${capability.maturity || 1}/5 · ${(capability.strategicImportance || 'medium').toUpperCase()} importance — click to inspect`,
+      attrs: {
+        style: `background-color:${HEAT_BG[level]};color:${HEAT_TEXT[level]}`,
+        onclick: capIdx >= 0 ? `editLayerItem('capabilities',${capIdx})` : ''
+      }
+    });
+  }).join('');
 
   if (legend) {
     legend.innerHTML = [
