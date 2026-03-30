@@ -4929,10 +4929,67 @@ function escapeHtml(text) {
 }
 
 function parseMarkdown(text) {
-  let formatted = escapeHtml(text || '');
-  formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  formatted = formatted.replace(/\n/g, '<br>');
-  return formatted;
+  if (!text) return '';
+  // Escape HTML first (XSS safety)
+  let t = escapeHtml(text);
+  // Inline formatting
+  t = t.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  t = t.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  t = t.replace(/`([^`]+)`/g, '<code style="font-family:monospace;background:#f1f5f9;padding:1px 4px;border-radius:3px;font-size:10px;">$1</code>');
+  // Line-by-line block processing
+  const lines = t.split('\n');
+  const out = [];
+  let inUL = false, inOL = false;
+  const closeList = () => {
+    if (inUL) { out.push('</ul>'); inUL = false; }
+    if (inOL) { out.push('</ol>'); inOL = false; }
+  };
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Headings
+    const h3m = trimmed.match(/^### (.+)$/);
+    const h2m = trimmed.match(/^## (.+)$/);
+    const h1m = trimmed.match(/^# (.+)$/);
+    if (h1m || h2m || h3m) {
+      closeList();
+      if (h3m)      out.push(`<div style="font-size:11px;font-weight:700;color:#1e293b;margin:12px 0 3px;">${h3m[1]}</div>`);
+      else if (h2m) out.push(`<div style="font-size:12px;font-weight:700;color:#0f172a;border-bottom:1px solid #e2e8f0;padding-bottom:3px;margin:14px 0 5px;">${h2m[1]}</div>`);
+      else          out.push(`<div style="font-size:13px;font-weight:700;color:#0f172a;margin:16px 0 5px;">${h1m[1]}</div>`);
+      continue;
+    }
+    // Horizontal rule
+    if (/^---+$/.test(trimmed)) {
+      closeList();
+      out.push('<hr style="border:none;border-top:1px solid #e2e8f0;margin:8px 0;">');
+      continue;
+    }
+    // Unordered list
+    const ulm = trimmed.match(/^[-*\u2022] (.+)$/);
+    if (ulm) {
+      if (!inUL) { closeList(); out.push('<ul style="margin:5px 0;padding-left:16px;list-style-type:disc;">'); inUL = true; }
+      out.push(`<li style="margin-bottom:5px;line-height:1.55;">${ulm[1]}</li>`);
+      continue;
+    }
+    // Ordered list
+    const olm = trimmed.match(/^\d+\.\s(.+)$/);
+    if (olm) {
+      if (!inOL) { closeList(); out.push('<ol style="margin:5px 0;padding-left:18px;">'); inOL = true; }
+      out.push(`<li style="margin-bottom:5px;line-height:1.55;">${olm[1]}</li>`);
+      continue;
+    }
+    // Empty line → spacer
+    if (trimmed === '') {
+      closeList();
+      out.push('<div style="height:6px;"></div>');
+      continue;
+    }
+    // Regular text
+    closeList();
+    out.push(`<div style="line-height:1.55;margin-bottom:2px;">${trimmed}</div>`);
+  }
+  closeList();
+  return out.join('');
 }
 
 // ── Prompt Trace (Advicy AI) ──────────────────────────────────────────────
@@ -6031,7 +6088,8 @@ async function handleStepFocusedMessage(userMessage, context, stepCtx) {
   };
 
   const _stepBasePrompt = (stepSystemPrompts[stepNum] || `You are a senior EA advisor reviewing Step ${stepNum} (${stepName}).`) +
-    ' Be direct and commercially sharp. When proposing changes, discuss first. If user confirms, embed the change as a ```json ... ``` block for automatic application. Otherwise respond conversationally.';
+    ' Be direct and commercially sharp. When proposing changes, discuss first. If user confirms, embed the change as a ```json ... ``` block for automatic application. Otherwise respond conversationally.' +
+    '\n\nFormatting rules: Write for a C-level audience. Use ## for section headers, bullet points starting with "- " for lists, leave a blank line between each section, and keep sentences concise and commercially focused. Avoid technical jargon unless necessary.';
   // Inject industry + ESG layers from AdvisyAI around the step-specific prompt
   const systemPrompt = (typeof AdvisyAI !== 'undefined')
     ? AdvisyAI.buildSystemPrompt({ stepNum, stepOverridePrompt: _stepBasePrompt, userText: userMessage })
@@ -6598,7 +6656,7 @@ async function handleGeneralQuestion(userMessage, context) {
 
   const systemPrompt = (typeof AdvisyAI !== 'undefined')
     ? AdvisyAI.buildSystemPrompt({ userText: userMessage })
-    : `You are Advicy AI, a senior enterprise architecture and business strategy advisor. You guide users through a 7-step EA framework: (1) Strategic Intent, (2) Business Model Canvas, (3) Capability Map, (4) Operating Model, (5) Gap Analysis, (6) Value Pools, (7) Target Architecture & Roadmap.\n\nYou have full awareness of the user's completed steps and their outputs. When answering, always orient guidance toward the strategic ambition captured in Step 1. Reference specific step outputs when relevant, flag cross-step dependencies, and suggest next actions that are correctly sequenced in the EA workflow.`;
+    : `You are Advicy AI, a senior enterprise architecture and business strategy advisor. You guide users through a 7-step EA framework: (1) Strategic Intent, (2) Business Model Canvas, (3) Capability Map, (4) Operating Model, (5) Gap Analysis, (6) Value Pools, (7) Target Architecture & Roadmap.\n\nYou have full awareness of the user's completed steps and their outputs. When answering, always orient guidance toward the strategic ambition captured in Step 1. Reference specific step outputs when relevant, flag cross-step dependencies, and suggest next actions that are correctly sequenced in the EA workflow.\n\nFormatting rules: Write for a C-level audience. Use ## for section headers, bullet points starting with "- " for lists, leave a blank line between each section, and keep sentences concise and commercially focused.`;
 
   const response = await callAI(
     systemPrompt,
