@@ -7389,7 +7389,7 @@ async function clarifyStrategicIntent() {
     const si = model.strategicIntent;
     const themes = (si.strategic_themes || []).map(t => `• ${t}`).join('\n');
     const metrics = (si.success_metrics || []).map(m => `• ${m}`).join('\n');
-    const chatMsg = `**Step 1 — Strategic Intent generated** ✓\n\n**${si.org_name || 'Organisation'}** · ${si.industry || ''} · ${si.timeframe || '3-5 years'}\n\n**Ambition:** ${si.strategic_ambition || ''}\n\n**Strategic Themes:**\n${themes}\n\n**Success Metrics:**\n${metrics}`;
+    const chatMsg = `**Step 1 — Strategic Intent generated** ✓\n\nReview the full output in the **Executive** tab → Strategic Intent card.`;
     addAssistantMessage(chatMsg);
 
     // ── Pre-BMC review: questions + assumptions ──────────────────────────────
@@ -7499,7 +7499,7 @@ async function generateBMC() {
     const shiftMsg = model.bmc_analysis
       ? `\n\n**Model Shift:** ${(model.bmc_analysis.blocks_requiring_transformation||[]).join(', ')} require transformation. Revenue risk: ${model.bmc_analysis.revenue_concentration_risk||'n/a'}`
       : '';
-    addAssistantMessage(`**Step 2 — Business Model Canvas generated** ✓\n\n**Target Value Proposition:** ${bmc.value_proposition||''}\n\n**Target Revenue Streams:** ${(bmc.revenue_streams||[]).join(', ')}\n\n**Key Activities:** ${(bmc.key_activities||[]).join(', ')}${shiftMsg}`);
+    addAssistantMessage(`**Step 2 — Business Model Canvas generated** ✓\n\nReview the full canvas in the **Op Model** tab → Business Model Canvas.`);
     const _panel = document.getElementById('ai-chat-panel');
     if (_panel && _panel.classList.contains('hidden')) toggleChatPanel();
   } catch(e) { toast('Error generating BMC: ' + e.message, true); }
@@ -7814,7 +7814,7 @@ async function generateValuePools() {
     const pools = model.valuePools || [];
     if (pools.length) {
       const summary = pools.map(p=>`• **${p.name}** (${p.value_driver}, ${p.time_horizon}): ${p.description}`).join('\n');
-      addAssistantMessage(`**Step 6 — Value Pools identified** ✓\n\n${summary}`);
+      addAssistantMessage(`**Step 6 — Value Pools identified** ✓\n\n${pools.length} value pools generated. Review them in the **Op Model** tab.`);
       const _panel = document.getElementById('ai-chat-panel');
       if (_panel && _panel.classList.contains('hidden')) toggleChatPanel();
     }
@@ -8595,7 +8595,7 @@ Return JSON:
     showTab('opmodel', null);
     toast('Operating model generated &#x2718;');
     const om = model.operatingModel;
-    addAssistantMessage(`**Step 4 — Operating Model generated** ✓\n\n**Value Proposition:** ${om.valueProposition||''}\n\n**Key Activities:** ${(om.keyActivities||[]).join(', ')}\n\n**Revenue Streams:** ${(om.revenueStreams||[]).join(', ')}`);
+    addAssistantMessage(`**Step 4 — Operating Model generated** ✓\n\nReview the full model in the **Op Model** tab.`);
     const _panelOM = document.getElementById('ai-chat-panel');
     if (_panelOM && _panelOM.classList.contains('hidden')) toggleChatPanel();
   } catch(e) { toast('Error: ' + e.message, true); }
@@ -8859,7 +8859,7 @@ Return JSON array (ALL capabilities):
     toast('Target architecture generated &#x2718;');
     const taCaps = (model.targetArch||[]).filter(c=>c.strategicImportance==='high').slice(0,5);
     const taMsg = taCaps.map(c=>`• **${c.name}** M${c.currentMaturity}→M${c.targetMaturity}: ${c.action||''}`).join('\n');
-    addAssistantMessage(`**Step 7a — Target Architecture generated** ✓\n\nTop priority capabilities:\n${taMsg}`);
+    addAssistantMessage(`**Step 7a — Target Architecture generated** ✓\n\n${taCaps.length} high-priority capability uplifts. Review in the **Target** tab.`);
     const _panelTA = document.getElementById('ai-chat-panel');
     if (_panelTA && _panelTA.classList.contains('hidden')) toggleChatPanel();
   } catch(e) { toast('Error: ' + e.message, true); }
@@ -9058,7 +9058,7 @@ Return JSON:
     toast('Roadmap generated &#x2718;');
     const highPri = (model.initiatives||[]).filter(i=>i.priority==='high').slice(0,5);
     const rdMsg = highPri.map(i=>`• **${i.name}** (${i.phase}): ${i.description||''}`).join('\n');
-    addAssistantMessage(`**Step 7b — Transformation Roadmap generated** ✓\n\nHigh-priority initiatives:\n${rdMsg}`);
+    addAssistantMessage(`**Step 7b — Transformation Roadmap generated** ✓\n\n${highPri.length} high-priority initiatives. Review all in the **Roadmap** tab.`);
     const _panelRD = document.getElementById('ai-chat-panel');
     if (_panelRD && _panelRD.classList.contains('hidden')) toggleChatPanel();
   } catch(e) { toast('Error: ' + e.message, true); }
