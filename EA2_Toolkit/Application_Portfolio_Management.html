@@ -155,6 +155,58 @@
         .toast.show{transform:translateY(0);opacity:1}
         .toast.toast-ok{background:#16a34a}
         .toast.toast-err{background:#dc2626}
+
+        /* ── APM AI ASSISTANT ── */
+        #apm-assistant-btn {
+            position:fixed;bottom:28px;right:28px;width:52px;height:52px;
+            background:linear-gradient(135deg,#ea580c,#9333ea);
+            border-radius:50%;display:flex;align-items:center;justify-content:center;
+            cursor:pointer;box-shadow:0 4px 20px rgba(234,88,12,.45);z-index:999;
+            border:none;transition:transform .2s,box-shadow .2s;
+        }
+        #apm-assistant-btn:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(234,88,12,.55)}
+        #apm-assistant-btn .notif-dot{position:absolute;top:4px;right:4px;width:10px;height:10px;background:#f59e0b;border-radius:50%;border:2px solid white}
+        #apm-chat-panel{
+            position:fixed;bottom:90px;right:28px;width:780px;max-height:620px;
+            background:white;border-radius:16px;box-shadow:0 12px 50px rgba(15,23,42,.18);
+            display:flex;flex-direction:column;z-index:998;overflow:hidden;
+            transition:opacity .2s,transform .2s;
+        }
+        #apm-chat-panel.hidden{opacity:0;pointer-events:none;transform:translateY(12px)}
+        .apm-chat-header{background:linear-gradient(135deg,#0f172a,#c2410c);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+        .apm-chat-header-title{display:flex;align-items:center;gap:8px;color:white}
+        .apm-chat-avatar{width:30px;height:30px;background:rgba(255,255,255,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem}
+        .apm-chat-header-title span{font-size:.82rem;font-weight:700;color:white}
+        .apm-chat-header-title small{display:block;font-size:.62rem;opacity:.7;font-weight:400;color:white}
+        #apm-api-notice{background:#fffbeb;border-bottom:1px solid #fde68a;padding:5px 10px;font-size:.62rem;color:#92400e;text-align:center;flex-shrink:0}
+        .apm-context-toggle{padding:5px 10px;background:#fff7ed;border-bottom:1px solid #fed7aa;display:flex;align-items:center;gap:6px;font-size:.65rem;color:#ea580c;font-weight:600;flex-shrink:0}
+        .apm-quick-actions{padding:8px 10px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;flex-wrap:wrap;gap:5px;flex-shrink:0}
+        .apm-qa-btn{font-size:.65rem;font-weight:600;padding:4px 9px;border-radius:20px;border:1px solid #e2e8f0;background:white;color:#475569;cursor:pointer;transition:all .15s;white-space:nowrap}
+        .apm-qa-btn:hover{background:#ea580c;color:white;border-color:#ea580c}
+        #apm-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:0}
+        .apm-msg{display:flex;gap:7px;align-items:flex-start}
+        .apm-msg.user{flex-direction:row-reverse}
+        .apm-msg-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;flex-shrink:0;margin-top:2px}
+        .apm-msg.ai .apm-msg-avatar{background:linear-gradient(135deg,#ea580c,#9333ea);color:white}
+        .apm-msg.user .apm-msg-avatar{background:#e2e8f0;color:#475569}
+        .apm-msg-bubble{max-width:82%;padding:8px 11px;border-radius:12px;font-size:.78rem;line-height:1.55}
+        .apm-msg.ai .apm-msg-bubble{background:#f1f5f9;color:#1e293b;border-bottom-left-radius:4px}
+        .apm-msg.user .apm-msg-bubble{background:linear-gradient(135deg,#ea580c,#f97316);color:white;border-bottom-right-radius:4px}
+        .apm-msg-bubble strong{font-weight:700}
+        .apm-msg-bubble ul{margin-left:1rem;margin-top:4px}
+        .apm-msg-bubble li{list-style:disc;margin-bottom:2px}
+        .apm-typing-dots span{display:inline-block;width:6px;height:6px;background:#94a3b8;border-radius:50%;margin:0 1px;animation:apmBounce 1.2s infinite}
+        .apm-typing-dots span:nth-child(2){animation-delay:.2s}
+        .apm-typing-dots span:nth-child(3){animation-delay:.4s}
+        @keyframes apmBounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+        .apm-chat-input-area{padding:10px;border-top:1px solid #e2e8f0;display:flex;gap:7px;align-items:flex-end;flex-shrink:0;background:white}
+        #apm-chat-input{flex:1;border:1px solid #e2e8f0;border-radius:10px;padding:8px 11px;font-size:.78rem;resize:none;outline:none;max-height:90px;line-height:1.4;font-family:inherit}
+        #apm-chat-input:focus{border-color:#ea580c}
+        #apm-send-btn{width:34px;height:34px;background:#ea580c;border:none;border-radius:9px;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;transition:background .15s}
+        #apm-send-btn:hover{background:#c2410c}
+        #apm-send-btn:disabled{background:#94a3b8;cursor:not-allowed}
+        .apm-spin{animation:apmSpin 1s linear infinite}
+        @keyframes apmSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
     </style>
 </head>
 <body>
@@ -1123,6 +1175,340 @@ document.getElementById('appModal').addEventListener('click', function(e) {
 // ─────────────────────────────────────────────
 renderKPIs();
 renderInventory();
+</script>
+
+<!-- ================================================================
+     APM AI ASSISTANT
+     ================================================================ -->
+
+<!-- FLOATING BUTTON -->
+<button id="apm-assistant-btn" onclick="toggleAPMChat()" title="APM AI Assistant">
+    <i class="fas fa-robot text-white text-lg"></i>
+    <span class="notif-dot"></span>
+</button>
+
+<!-- CHAT PANEL -->
+<div id="apm-chat-panel" class="hidden">
+
+    <!-- Header -->
+    <div class="apm-chat-header">
+        <div class="apm-chat-header-title">
+            <div class="apm-chat-avatar"><i class="fas fa-robot"></i></div>
+            <div>
+                <span>APM AI Assistant</span>
+                <small>Rationalization · Lifecycle · Cost · Fit Analysis</small>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+            <button onclick="apmNewChat()" class="text-white/80 hover:text-white text-[11px] font-bold bg-white/10 border border-white/15 rounded px-2 py-1 cursor-pointer" style="font-size:11px;font-weight:700;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:6px;padding:4px 10px;cursor:pointer">New chat</button>
+            <button onclick="apmClearChatHistory()" class="text-white/80 hover:text-white text-[11px] font-bold bg-white/10 border border-white/15 rounded px-2 py-1 cursor-pointer" style="font-size:11px;font-weight:700;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:6px;padding:4px 10px;cursor:pointer">Clear</button>
+            <button onclick="toggleAPMChat()" style="color:rgba(255,255,255,.6);font-size:1.1rem;background:none;border:none;cursor:pointer;line-height:1">&times;</button>
+        </div>
+    </div>
+
+    <!-- API notice -->
+    <div id="apm-api-notice">
+        <i class="fas fa-key" style="margin-right:4px"></i> No API key found — responses served in demo mode
+    </div>
+
+    <!-- Context toggle -->
+    <div class="apm-context-toggle">
+        <input type="checkbox" id="apm-use-context" checked>
+        <label for="apm-use-context">Include current portfolio data in queries</label>
+        <i class="fas fa-info-circle" style="margin-left:auto;color:#ea580c" title="When enabled, your applications list is sent to the AI for context-aware answers"></i>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="apm-quick-actions">
+        <button class="apm-qa-btn" onclick="apmQuickAsk('Analyze my portfolio and identify the top 5 rationalization candidates — applications that should be retired or replaced based on lifecycle, fit scores, and cost')">Rationalization candidates</button>
+        <button class="apm-qa-btn" onclick="apmQuickAsk('Assess the overall health of my application portfolio. Highlight any lifecycle risks, technical debt, and business alignment gaps')">Portfolio health</button>
+        <button class="apm-qa-btn" onclick="apmQuickAsk('Identify cost optimization opportunities in my portfolio. Which applications have the highest OPEX and low business value?')">Cost optimization</button>
+        <button class="apm-qa-btn" onclick="apmQuickAsk('Which applications in my portfolio represent the highest technical risk due to legacy status or low technical fit score? Suggest remediation actions')">Legacy risk</button>
+        <button class="apm-qa-btn" onclick="apmQuickAsk('Give me a prioritized invest / retire recommendation for each application based on tech fit and business value scores')">Invest / Retire plan</button>
+        <button class="apm-qa-btn" onclick="apmQuickAsk('Which applications could be consolidated? Look for overlapping capabilities, same department, or similar technology stacks')">Consolidation opportunities</button>
+        <button class="apm-qa-btn" onclick="apmQuickAsk('Analyze technology standardization opportunities across my portfolio. Which technology stacks are duplicated?')">Tech standardization</button>
+        <button class="apm-qa-btn" onclick="apmQuickAsk('Build a 12-month roadmap for my application portfolio rationalization — sequence replacements, consolidations, and retirements')">12-month roadmap</button>
+        <button class="apm-qa-btn" onclick="apmQuickAsk('What KPIs and metrics should I track to measure the success of my portfolio rationalization initiative?')">Portfolio KPIs</button>
+    </div>
+
+    <!-- Messages -->
+    <div id="apm-messages"></div>
+
+    <!-- Input -->
+    <div class="apm-chat-input-area">
+        <textarea id="apm-chat-input"
+            placeholder="Ask anything about your application portfolio..."
+            rows="1"
+            onkeydown="apmHandleKey(event)"
+            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+        <button id="apm-send-btn" onclick="apmSendMessage()">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+</div>
+
+<script>
+/* ================================================================
+   APM AI ASSISTANT — JavaScript
+   ================================================================ */
+const APM_ASSISTANT = {
+    open: false,
+    history: [],
+    API_KEYS: ['ea20_openai_key','vc_openai_key','cap_openai_key','strategy_openai_key','openai_api_key'],
+
+    getApiKey() {
+        for (const k of this.API_KEYS) {
+            const v = localStorage.getItem(k);
+            if (v) return v;
+        }
+        return '';
+    },
+
+    getAPMContext() {
+        const apps = (typeof getApps === 'function') ? getApps() : [];
+        if (!apps.length) return null;
+
+        const LC_MAP = { active:'Active', phaseIn:'Phase-In', phaseOut:'Phase-Out', legacy:'Legacy', retired:'Retired' };
+        const AC_MAP = { retain:'Retain', invest:'Invest', replace:'Replace', consolidate:'Consolidate', retire:'Retire' };
+
+        const lines = [`Application Portfolio — ${apps.length} applications:\n`];
+        apps.forEach(a => {
+            const cur = a.currency || 'SEK';
+            const capex = Number(a.capex) || 0;
+            const opex  = Number(a.opex)  || 0;
+            const total = capex + opex;
+            const costStr = total ? `Cost ${cur} ${total >= 1e6 ? (total/1e6).toFixed(1)+'M' : total >= 1000 ? (total/1000).toFixed(0)+'K' : total} / yr` : 'No cost data';
+            lines.push(
+                `- ${a.name} | Dept: ${a.department||'—'} | Owner: ${a.owner||'—'} | Lifecycle: ${LC_MAP[a.lifecycle]||a.lifecycle} | Action: ${AC_MAP[a.rationalizationAction]||'—'} | TechFit: ${a.technicalFitScore||'—'}/5 | BizValue: ${a.businessValueScore||'—'}/5 | ${costStr} | Users: ${a.userCount||'—'} | Vendor: ${a.vendor||'—'} | Tech: ${a.technology||'—'}`
+            );
+        });
+        return lines.join('\n');
+    },
+
+    systemPrompt: `You are an expert AI assistant specialised in Application Portfolio Management (APM) and Enterprise Architecture.
+
+Your role is to:
+1. ANALYSE the application portfolio and identify rationalisation candidates, risks, and opportunities
+2. RECOMMEND concrete actions: Retain, Invest, Replace, Consolidate, or Retire for each application
+3. PRIORITISE based on technical fit score, business value score, lifecycle status, and total cost (CAPEX + OPEX)
+4. IDENTIFY cost optimisation opportunities — especially high-OPEX applications with low business value
+5. SUGGEST consolidation opportunities for overlapping applications
+6. SUPPORT roadmap planning for portfolio rationalisation
+
+Always respond in English. Be concrete, structured, and business-focused.
+Use bullet points, short headers, and prioritised lists.
+Always justify recommendations with data from the portfolio context when available.
+
+Focus on:
+- Portfolio health (lifecycle distribution, fit scores)
+- Cost efficiency (CAPEX/OPEX vs business value)
+- Technical risk (legacy applications, low tech fit)
+- Business alignment (low business value applications)
+- Consolidation potential (overlapping vendors, departments, technologies)
+- Rationalisation roadmap sequencing`,
+
+    welcomeMsg: `Hello! I'm your **APM AI Assistant**.
+
+I help you:
+- Identify rationalization candidates (Replace / Retire / Consolidate)
+- Analyse portfolio health and lifecycle risks
+- Optimize costs — CAPEX & OPEX vs business value
+- Plan a sequenced rationalization roadmap
+- Benchmark technical fit and business alignment
+
+Use the quick-action buttons above or type your question below. If you have applications in your portfolio, I'll automatically use them as context for tailored recommendations.`,
+
+    init() {
+        this.renderWelcome();
+        this.updateApiNotice();
+    },
+
+    updateApiNotice() {
+        const notice = document.getElementById('apm-api-notice');
+        if (!notice) return;
+        notice.style.display = this.getApiKey() ? 'none' : 'block';
+    },
+
+    renderWelcome() {
+        this.addMessage('ai', this.welcomeMsg);
+    },
+
+    reset(message = null) {
+        this.history = [];
+        const container = document.getElementById('apm-messages');
+        if (container) container.innerHTML = '';
+        const input = document.getElementById('apm-chat-input');
+        if (input) { input.value = ''; input.style.height = 'auto'; }
+        this.updateApiNotice();
+        this.addMessage('ai', message || this.welcomeMsg);
+    },
+
+    addMessage(role, text) {
+        const container = document.getElementById('apm-messages');
+        if (!container) return;
+        const div = document.createElement('div');
+        div.className = `apm-msg ${role}`;
+        const avatar = document.createElement('div');
+        avatar.className = 'apm-msg-avatar';
+        avatar.innerHTML = role === 'ai' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
+        const bubble = document.createElement('div');
+        bubble.className = 'apm-msg-bubble';
+        bubble.innerHTML = this.formatText(text);
+        div.appendChild(avatar);
+        div.appendChild(bubble);
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    },
+
+    addTyping() {
+        const container = document.getElementById('apm-messages');
+        if (!container) return;
+        const div = document.createElement('div');
+        div.className = 'apm-msg ai';
+        div.id = 'apm-typing';
+        div.innerHTML = `<div class="apm-msg-avatar"><i class="fas fa-robot"></i></div><div class="apm-msg-bubble"><div class="apm-typing-dots"><span></span><span></span><span></span></div></div>`;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    },
+
+    removeTyping() {
+        const el = document.getElementById('apm-typing');
+        if (el) el.remove();
+    },
+
+    formatText(text) {
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^### (.*)$/gm, '<strong style="font-size:.8rem;display:block;margin-top:6px;color:#0f172a">$1</strong>')
+            .replace(/^## (.*)$/gm, '<strong style="font-size:.82rem;display:block;margin-top:8px;color:#0f172a">$1</strong>')
+            .replace(/^- (.*)$/gm, '<li>$1</li>')
+            .replace(/^\* (.*)$/gm, '<li>$1</li>')
+            .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
+            .replace(/\n{2,}/g, '<br>')
+            .replace(/\n/g, '<br>');
+    },
+
+    async send(userText) {
+        if (!userText.trim()) return;
+        this.addMessage('user', userText);
+        this.history.push({ role: 'user', content: userText });
+
+        const sendBtn = document.getElementById('apm-send-btn');
+        if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner apm-spin"></i>'; }
+        this.addTyping();
+
+        const apiKey = this.getApiKey();
+        const useContext = document.getElementById('apm-use-context')?.checked !== false;
+        let systemContent = this.systemPrompt;
+        if (useContext) {
+            const ctx = this.getAPMContext();
+            if (ctx) systemContent += `\n\n---\nCURRENT PORTFOLIO DATA:\n${ctx}`;
+        }
+
+        const messages = [
+            { role: 'system', content: systemContent },
+            ...this.history.slice(-10)
+        ];
+
+        if (!apiKey) {
+            await new Promise(r => setTimeout(r, 900));
+            this.removeTyping();
+            const demoReply = this.getDemoReply(userText);
+            this.addMessage('ai', demoReply);
+            this.history.push({ role: 'assistant', content: demoReply });
+        } else {
+            try {
+                const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+                    body: JSON.stringify({ model: 'gpt-4.1', messages, temperature: 0.65, max_tokens: 1000 })
+                });
+                const json = await res.json();
+                if (json.error) throw new Error(json.error.message);
+                const reply = json.choices[0].message.content;
+                this.removeTyping();
+                this.addMessage('ai', reply);
+                this.history.push({ role: 'assistant', content: reply });
+            } catch (e) {
+                this.removeTyping();
+                this.addMessage('ai', `Error: ${e.message}\n\nCheck your API key under the EA Platform settings.`);
+            }
+        }
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>'; }
+    },
+
+    getDemoReply(question) {
+        const q = question.toLowerCase();
+        if (q.includes('rationali') || q.includes('retire') || q.includes('replace')) {
+            return `**Rationalization Candidates (Demo):**\n\n- **Legacy + Low Business Value** → strong Retire candidates\n- **High OPEX + Low Tech Fit** → Replace or Consolidate\n- **Phase-Out lifecycle + available modern alternative** → accelerate retirement\n\n**Key factors to evaluate:**\n- Tech Fit < 2/5 with Biz Value < 2/5 → immediate Retire/Replace\n- OPEX > 500K/yr with low utilization → cost-driven consolidation\n- Duplicate vendors/tech stacks → merge and standardize\n\n*Connect an OpenAI API key to get recommendations tailored to your actual portfolio data.*`;
+        }
+        if (q.includes('cost') || q.includes('capex') || q.includes('opex')) {
+            return `**Cost Optimization Opportunities (Demo):**\n\n- Prioritize applications with high OPEX and low business value for consolidation\n- License cost (CAPEX) rationalization: eliminate duplicate SaaS subscriptions\n- Target legacy applications for replacement with lower-cost cloud alternatives\n\n**Typical savings levers:**\n- Consolidate 3–5 overlapping tools: 20–35% cost reduction\n- Retire unused applications: eliminate 100% of their run cost\n- Renegotiate vendor contracts for retained applications\n\n*Add an API key to analyze your specific CAPEX/OPEX data.*`;
+        }
+        if (q.includes('health') || q.includes('portfolio') || q.includes('overview')) {
+            return `**Portfolio Health Assessment (Demo):**\n\n**Lifecycle distribution target:**\n- Active: 60–70% | Phase-In: 10–15% | Legacy/Phase-Out: < 20%\n\n**Fit Matrix positioning:**\n- Stars (High Tech + High Biz): Invest & grow\n- Cash Cows (Low Tech + High Biz): Sustain or modernize\n- Question Marks (High Tech + Low Biz): Evaluate ROI\n- Dogs (Low Tech + Low Biz): Retire / Replace\n\n*Open with your real portfolio data and an API key for a data-driven health report.*`;
+        }
+        if (q.includes('roadmap') || q.includes('plan') || q.includes('12-month')) {
+            return `**12-Month Rationalization Roadmap (Demo):**\n\n**Q1:** Assessment & quick wins\n- Complete portfolio data with costs, scores, and owners\n- Retire applications with zero users and no dependencies\n\n**Q2:** Consolidation initiatives\n- Merge overlapping tools (target: same department, same vendor family)\n- Initiate replacement RFPs for highest-risk legacy apps\n\n**Q3–Q4:** Strategic transitions\n- Execute top-3 replacement projects\n- Renegotiate retained vendor contracts\n- Update architecture target state\n\n*Provide an API key to generate a roadmap based on your actual portfolio.*`;
+        }
+        return `Thank you for your question!\n\nIn **demo mode** I provide predefined example answers.\n\nFor answers tailored to your specific portfolio:\n1. Add your OpenAI API key in the EA Platform settings\n2. Make sure your applications have costs, scores, and lifecycle data filled in\n3. Ask your question again — I'll analyse your real portfolio data\n\nTry the quick-action buttons above for common APM analysis tasks.`;
+    },
+
+    showMiniToast(msg) {
+        const t = document.createElement('div');
+        t.style.cssText = 'position:fixed;bottom:100px;right:28px;background:#0f172a;color:white;font-size:11px;padding:6px 12px;border-radius:8px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.2)';
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 2000);
+    }
+};
+
+function toggleAPMChat() {
+    const panel = document.getElementById('apm-chat-panel');
+    const btn   = document.getElementById('apm-assistant-btn');
+    APM_ASSISTANT.open = !APM_ASSISTANT.open;
+    if (APM_ASSISTANT.open) {
+        panel.classList.remove('hidden');
+        btn.querySelector('.notif-dot').style.display = 'none';
+        APM_ASSISTANT.updateApiNotice();
+        document.getElementById('apm-chat-input')?.focus();
+    } else {
+        panel.classList.add('hidden');
+    }
+}
+
+function apmSendMessage() {
+    const input = document.getElementById('apm-chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    input.style.height = 'auto';
+    APM_ASSISTANT.send(text);
+}
+
+function apmQuickAsk(question) {
+    if (!APM_ASSISTANT.open) toggleAPMChat();
+    APM_ASSISTANT.send(question);
+}
+
+function apmHandleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); apmSendMessage(); }
+}
+
+function apmClearChatHistory() {
+    APM_ASSISTANT.reset('Chat history cleared. Ask a new question about your portfolio.');
+}
+
+function apmNewChat() {
+    APM_ASSISTANT.reset();
+    APM_ASSISTANT.showMiniToast('New chat started');
+}
+
+document.addEventListener('DOMContentLoaded', () => APM_ASSISTANT.init());
+if (document.readyState !== 'loading') APM_ASSISTANT.init();
+/* ================================================================
+   APM AI ASSISTANT END
+   ================================================================ */
 </script>
 </body>
 </html>
