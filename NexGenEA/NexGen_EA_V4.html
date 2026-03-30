@@ -9760,8 +9760,10 @@ function renderHeatmap() {
     return;
   }
 
-  const HEAT_BG   = ['', '#5E8C6A', '#8FAF8C', '#C8A96B', '#C98C6B', '#B06A6A'];
-  const HEAT_TEXT = ['', '#ffffff', '#1e293b', '#1e293b', '#1e293b', '#ffffff'];
+  const HEAT_BG    = ['', '#5E8C6A', '#8FAF8C', '#C8A96B', '#C98C6B', '#B06A6A'];
+  const HEAT_TEXT  = ['', '#ffffff', '#1e293b', '#1e293b', '#1e293b', '#ffffff'];
+  const HEAT_LABEL = ['', 'Stable',  'Controlled', 'Monitor', 'Elevated', 'Critical'];
+  const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
   const ranked = caps
     .slice()
@@ -9770,26 +9772,28 @@ function renderHeatmap() {
   grid.innerHTML = ranked.map((capability) => {
     const level = getHeatLevel(capability);
     const capIdx = model.capabilities.indexOf(capability);
-    return EANordicUI.heatCell({
-      level,
-      label: capability.name,
-      meta: `${capability.domain || 'General'} · Maturity ${capability.maturity || 1}/5`,
-      title: `${capability.name} · ${capability.domain || 'General'} · Maturity ${capability.maturity || 1}/5 · ${(capability.strategicImportance || 'medium').toUpperCase()} importance — click to inspect`,
-      attrs: {
-        style: `background-color:${HEAT_BG[level]};color:${HEAT_TEXT[level]}`,
-        onclick: capIdx >= 0 ? `editLayerItem('capabilities',${capIdx})` : ''
-      }
-    });
+    const cellStyle = [
+      `background-color:${HEAT_BG[level]}`,
+      `color:${HEAT_TEXT[level]}`,
+      'display:flex','flex-direction:column','justify-content:center','align-items:flex-start',
+      'width:100%','min-height:64px','padding:10px 12px','border:none','border-radius:10px',
+      'cursor:pointer','text-align:left','box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)',
+      'transition:transform 140ms ease,box-shadow 140ms ease'
+    ].join(';');
+    const onclick = capIdx >= 0 ? `editLayerItem('capabilities',${capIdx})` : '';
+    return `<button type="button" onclick="${onclick}" title="${esc(capability.name)} · ${esc(capability.domain||'General')} · Maturity ${capability.maturity||1}/5 — click to edit" style="${cellStyle}">
+      <span style="display:block;font-size:12px;font-weight:700;line-height:1.3;color:inherit">${esc(capability.name)}</span>
+      <span style="display:block;font-size:10px;font-weight:500;opacity:.82;line-height:1.3;margin-top:2px;color:inherit">${esc(capability.domain||'General')} &middot; Maturity ${capability.maturity||1}/5</span>
+    </button>`;
   }).join('');
 
   if (legend) {
-    legend.innerHTML = [
-      EANordicUI.legendItem('ea-heat-1', 'Stable'),
-      EANordicUI.legendItem('ea-heat-2', 'Controlled'),
-      EANordicUI.legendItem('ea-heat-3', 'Monitor'),
-      EANordicUI.legendItem('ea-heat-4', 'Elevated'),
-      EANordicUI.legendItem('ea-heat-5', 'Critical')
-    ].join('');
+    legend.innerHTML = [1,2,3,4,5].map(i =>
+      `<span style="display:inline-flex;align-items:center;gap:6px;font-size:10px;color:#5f6b75">
+        <span style="width:12px;height:12px;border-radius:999px;background-color:${HEAT_BG[i]};display:inline-block;flex-shrink:0"></span>
+        <span>${HEAT_LABEL[i]}</span>
+      </span>`
+    ).join('');
   }
 
   summary.innerHTML = ranked.slice(0, 6).map((capability) => `
