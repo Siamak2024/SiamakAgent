@@ -262,6 +262,21 @@
   </div>
 </div>
 
+<!-- GRAPH RIGHT-CLICK CONTEXT MENU -->
+<div id="graph-context-menu" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.13);min-width:180px;padding:6px 0;font-family:Manrope,sans-serif;">
+  <div id="graph-ctx-cap-label" style="padding:6px 14px 4px;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #f1f5f9;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;"></div>
+  <button onclick="graphCtxAddSystem()" style="display:flex;align-items:center;gap:8px;width:100%;padding:7px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#334155;text-align:left;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">
+    <i class="fas fa-server" style="color:#6a7b8a;width:14px;"></i> Add IT System
+  </button>
+  <button onclick="graphCtxAddAIAgent()" style="display:flex;align-items:center;gap:8px;width:100%;padding:7px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#334155;text-align:left;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">
+    <i class="fas fa-robot" style="color:#1ea7c2;width:14px;"></i> Add AI Agent
+  </button>
+  <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+  <button onclick="graphCtxEditCapability()" style="display:flex;align-items:center;gap:8px;width:100%;padding:7px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#334155;text-align:left;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">
+    <i class="fas fa-pen-to-square" style="color:#64748b;width:14px;"></i> Edit Capability
+  </button>
+</div>
+
 <!-- EXCEL IMPORT/EXPORT MODAL -->
 <div id="excelModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
   <div class="bg-white rounded-2xl p-6 w-[600px] shadow-2xl">
@@ -10001,7 +10016,74 @@ function renderGraph() {
       if (scale < 0.70) networkInstance.moveTo({ scale: 0.75, animation: { duration: 280, easingFunction: 'easeInOutQuad' } });
     }, 420);
   });
+
+  // Right-click context menu on capability nodes
+  networkInstance.on('oncontext', (params) => {
+    params.event.preventDefault();
+    const nodeId = networkInstance.getNodeAt(params.pointer.DOM);
+    if (!nodeId || !String(nodeId).startsWith('cap_')) return;
+
+    const capName = String(nodeId).replace(/^cap_/, '');
+    _graphCtxCapName = capName;
+
+    const menu = document.getElementById('graph-context-menu');
+    const label = document.getElementById('graph-ctx-cap-label');
+    label.textContent = capName;
+
+    // Position the menu at the mouse location (fixed coords)
+    const rect = graphTarget.closest('.ea-graph-canvas-wrap').getBoundingClientRect();
+    const mx = params.event.clientX;
+    const my = params.event.clientY;
+
+    menu.style.left = (mx + 4) + 'px';
+    menu.style.top = (my + 4) + 'px';
+    menu.style.display = 'block';
+  });
 }
+
+// State for context menu
+let _graphCtxCapName = '';
+
+function _hideGraphContextMenu() {
+  const m = document.getElementById('graph-context-menu');
+  if (m) m.style.display = 'none';
+}
+
+function graphCtxAddSystem() {
+  _hideGraphContextMenu();
+  currentEditLayer = 'systems';
+  currentEditIndex = null;
+  showEditLayerModal('systems', null);
+  // Pre-select the capability after the modal renders
+  requestAnimationFrame(() => {
+    const sel = document.getElementById('edit_supportsCapability');
+    if (sel) sel.value = _graphCtxCapName;
+  });
+}
+
+function graphCtxAddAIAgent() {
+  _hideGraphContextMenu();
+  currentEditLayer = 'aiAgents';
+  currentEditIndex = null;
+  showEditLayerModal('aiAgents', null);
+  requestAnimationFrame(() => {
+    const sel = document.getElementById('edit_supportsCapability');
+    if (sel) sel.value = _graphCtxCapName;
+  });
+}
+
+function graphCtxEditCapability() {
+  _hideGraphContextMenu();
+  const idx = (model.capabilities || []).findIndex(c => c.name === _graphCtxCapName);
+  if (idx === -1) return;
+  currentEditLayer = 'capabilities';
+  currentEditIndex = idx;
+  showEditLayerModal('capabilities', model.capabilities[idx]);
+}
+
+// Dismiss context menu on any outside click
+document.addEventListener('click', () => _hideGraphContextMenu());
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') _hideGraphContextMenu(); });
 
 // Creates a real DOM element for vis.js tooltips so HTML renders correctly
 function _makeTooltipEl(html) {
