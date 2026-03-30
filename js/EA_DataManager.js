@@ -245,7 +245,7 @@ class EA_DataManager {
     const project = projects[projectId];
     
     if (!project) {
-      console.error('Project not found:', projectId);
+      console.warn('updateProject: project not found —', projectId);
       return false;
     }
     

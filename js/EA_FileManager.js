@@ -242,8 +242,10 @@ class EA_FileManager {
         const autoSaveId = setInterval(() => {
             const data = getDataCallback();
             if (data && this.dataManager) {
-                this.dataManager.updateProject(projectId, data);
-                console.log(`💾 Auto-saved at ${new Date().toLocaleTimeString()}`);
+                const projects = this.dataManager.getStorageItem(this.dataManager.config.storage.projects) || {};
+                if (!projectId || !projects[projectId]) return; // no real project yet — skip silently
+                const saved = this.dataManager.updateProject(projectId, data);
+                if (saved) console.log(`💾 Auto-saved at ${new Date().toLocaleTimeString()}`);
             }
         }, intervalMs);
 
