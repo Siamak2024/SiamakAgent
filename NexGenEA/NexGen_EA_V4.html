@@ -6116,7 +6116,13 @@ Available apply-actions (embed as \`\`\`json if user confirms a change):
 - remove_capability: { "action": "remove_capability", "id": "...", "name": "..." }
 - update_operating_model: { "action": "update_operating_model", "field": "valueProposition|keyActivities|keyResources|keyPartners|channels|costStructure|revenueStreams", "value": "..." }
 - update_value_pools: { "action": "update_value_pools", "value": [...] }
-- update_initiatives: { "action": "update_initiatives", "value": [...] }`;
+- update_initiatives: { "action": "update_initiatives", "value": [...] }
+- add_system: { "action": "add_system", "name": "...", "status": "active|legacy|planned", "category": "core|supporting|infrastructure", "supportsCapability": "<capability name>", "criticality": "high|medium|low", "description": "..." }
+- update_system: { "action": "update_system", "name": "<existing system name>", "field": "status|category|supportsCapability|criticality|description", "value": "..." }
+- remove_system: { "action": "remove_system", "name": "<system name>" }
+- add_ai_agent: { "action": "add_ai_agent", "name": "...", "purpose": "...", "supportsCapability": "<capability name>", "status": "active|planned|experimental", "capabilities": "...", "triggerConditions": "..." }
+- update_ai_agent: { "action": "update_ai_agent", "name": "<existing agent name>", "field": "purpose|supportsCapability|status|capabilities|triggerConditions", "value": "..." }
+- remove_ai_agent: { "action": "remove_ai_agent", "name": "<agent name>" }`;
 
   try {
     const raw = await callAI(systemPrompt, userPrompt, { taskType: 'heavy', temperature: 0.35, replyLanguage: context.preferredLanguage });
@@ -6837,6 +6843,28 @@ function applyAIRecommendations(pendingRecs) {
           model.initiatives = rec.value;
           applied++;
         }
+      } else if (rec.action === 'add_system') {
+        if (!model.systems) model.systems = [];
+        model.systems.push({ name: rec.name||'New System', status: rec.status||'active', category: rec.category||'core', supportsCapability: rec.supportsCapability||null, criticality: rec.criticality||'medium', description: rec.description||'' });
+        applied++;
+      } else if (rec.action === 'update_system') {
+        const sys = (model.systems||[]).find(s => s.name.toLowerCase()===(rec.name||'').toLowerCase());
+        if (sys && rec.field) { sys[rec.field]=rec.value; applied++; }
+      } else if (rec.action === 'remove_system') {
+        const before=(model.systems||[]).length;
+        model.systems=(model.systems||[]).filter(s=>s.name.toLowerCase()!==(rec.name||'').toLowerCase());
+        if (model.systems.length<before) applied++;
+      } else if (rec.action === 'add_ai_agent') {
+        if (!model.aiAgents) model.aiAgents = [];
+        model.aiAgents.push({ name: rec.name||'New AI Agent', purpose: rec.purpose||'', supportsCapability: rec.supportsCapability||null, status: rec.status||'active', capabilities: rec.capabilities||'', triggerConditions: rec.triggerConditions||'' });
+        applied++;
+      } else if (rec.action === 'update_ai_agent') {
+        const agent=(model.aiAgents||[]).find(a=>a.name.toLowerCase()===(rec.name||'').toLowerCase());
+        if (agent && rec.field) { agent[rec.field]=rec.value; applied++; }
+      } else if (rec.action === 'remove_ai_agent') {
+        const before=(model.aiAgents||[]).length;
+        model.aiAgents=(model.aiAgents||[]).filter(a=>a.name.toLowerCase()!==(rec.name||'').toLowerCase());
+        if (model.aiAgents.length<before) applied++;
       }
     } catch (_) {}
   }
@@ -6848,6 +6876,7 @@ function applyAIRecommendations(pendingRecs) {
   if (typeof renderStrategicIntentSection === 'function') renderStrategicIntentSection();
   if (typeof renderExecSummary === 'function') renderExecSummary();
   if (typeof renderMaturityDashboard === 'function') renderMaturityDashboard();
+  if (typeof renderGraph === 'function') renderGraph();
   if (typeof renderInitiatives === 'function') renderInitiatives();
   if (typeof renderRoadmapVisual === 'function') renderRoadmapVisual();
   if (typeof renderOperatingModel === 'function') renderOperatingModel();
@@ -9274,6 +9303,9 @@ function showEditLayerModal(layerType, item) {
       </div>
     `;
   } else if (layerType === 'systems') {
+    const _sysCapOpts = (model.capabilities || []).map(c =>
+      `<option value="${escapeHtml(c.name)}"${item?.supportsCapability===c.name?' selected':''}>${escapeHtml(c.name)}</option>`
+    ).join('');
     fields = `
       <div>
         <label class="text-xs font-bold text-slate-600 block mb-1">Name *</label>
@@ -9298,23 +9330,60 @@ function showEditLayerModal(layerType, item) {
           </select>
         </div>
       </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Supports Capability <span class="normal-case font-normal text-slate-400">(graph link)</span></label>
+          <select id="edit_supportsCapability" class="w-full border rounded-lg p-2 text-sm">
+            <option value="">— None —</option>
+            ${_sysCapOpts}
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Criticality</label>
+          <select id="edit_criticality" class="w-full border rounded-lg p-2 text-sm">
+            <option value="high" ${item?.criticality==='high'?'selected':''}>High</option>
+            <option value="medium" ${(!item?.criticality||item?.criticality==='medium')?'selected':''}>Medium</option>
+            <option value="low" ${item?.criticality==='low'?'selected':''}>Low</option>
+          </select>
+        </div>
+      </div>
       <div>
         <label class="text-xs font-bold text-slate-600 block mb-1">Description</label>
         <textarea id="edit_description" class="w-full border rounded-lg p-2 text-sm h-16">${item?.description || ''}</textarea>
       </div>
     `;
   } else if (layerType === 'aiAgents') {
+    const _aiCapOpts = (model.capabilities || []).map(c =>
+      `<option value="${escapeHtml(c.name)}"${item?.supportsCapability===c.name?' selected':''}>${escapeHtml(c.name)}</option>`
+    ).join('');
     fields = `
       <div>
         <label class="text-xs font-bold text-slate-600 block mb-1">Name *</label>
         <input type="text" id="edit_name" value="${item?.name || ''}" class="w-full border rounded-lg p-2 text-sm" required>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Supports Capability <span class="normal-case font-normal text-slate-400">(graph link)</span></label>
+          <select id="edit_supportsCapability" class="w-full border rounded-lg p-2 text-sm">
+            <option value="">— None —</option>
+            ${_aiCapOpts}
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Status</label>
+          <select id="edit_status" class="w-full border rounded-lg p-2 text-sm">
+            <option value="active" ${(!item?.status||item?.status==='active')?'selected':''}>Active</option>
+            <option value="planned" ${item?.status==='planned'?'selected':''}>Planned</option>
+            <option value="experimental" ${item?.status==='experimental'?'selected':''}>Experimental</option>
+          </select>
+        </div>
       </div>
       <div>
         <label class="text-xs font-bold text-slate-600 block mb-1">Purpose</label>
         <input type="text" id="edit_purpose" value="${item?.purpose || ''}" class="w-full border rounded-lg p-2 text-sm">
       </div>
       <div>
-        <label class="text-xs font-bold text-slate-600 block mb-1">Capabilities</label>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Agent Capabilities</label>
         <textarea id="edit_capabilities" class="w-full border rounded-lg p-2 text-sm h-16">${item?.capabilities || ''}</textarea>
       </div>
       <div>
@@ -9364,12 +9433,16 @@ function saveLayerItem() {
       name: document.getElementById('edit_name').value,
       status: document.getElementById('edit_status').value,
       category: document.getElementById('edit_category').value,
+      supportsCapability: document.getElementById('edit_supportsCapability').value || null,
+      criticality: document.getElementById('edit_criticality').value,
       description: document.getElementById('edit_description').value
     };
   } else if (layerType === 'aiAgents') {
     item = {
       name: document.getElementById('edit_name').value,
       purpose: document.getElementById('edit_purpose').value,
+      supportsCapability: document.getElementById('edit_supportsCapability').value || null,
+      status: document.getElementById('edit_status').value,
       capabilities: document.getElementById('edit_capabilities').value,
       triggerConditions: document.getElementById('edit_triggerConditions').value
     };
@@ -9393,6 +9466,7 @@ function saveLayerItem() {
   renderCapMap();
   renderHeatmap();
   renderMaturityDashboard();
+  if (typeof renderGraph === 'function') renderGraph();
   
   // Update Data Collection tab if capabilities were modified
   if (layerType === 'capabilities') {
