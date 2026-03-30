@@ -72,6 +72,13 @@
         .ac-consolidate{background:#fdf4ff;color:#9333ea}
         .ac-retire{background:#fee2e2;color:#dc2626}
         .score-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+        /* Currency input */
+        .cost-input-wrap{position:relative;display:flex;align-items:center}
+        .cost-currency{position:absolute;left:12px;font-size:11px;font-weight:900;color:#64748b;pointer-events:none;z-index:1;white-space:nowrap}
+        .cost-input{padding-left:50px!important}
+        .curr-btn{padding:8px 22px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:12px;font-weight:900;color:#64748b;transition:all .15s;letter-spacing:.5px}
+        .curr-btn:hover{border-color:#fdba74;color:#ea580c}
+        .curr-btn.sel{background:#ea580c;border-color:#ea580c;color:#fff;box-shadow:0 4px 12px rgba(234,88,12,.3)}
         /* Filter bar */
         .filter-bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;align-items:center}
         .filter-bar input,.filter-bar select{padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#fff;color:#0f172a}
@@ -225,7 +232,9 @@
                         <th>Owner</th>
                         <th>Lifecycle</th>
                         <th>Vendor</th>
-                        <th>Annual Cost</th>
+                        <th title="CAPEX — Avg. Yearly License Cost">CAPEX / yr</th>
+                        <th title="OPEX — Avg. Yearly Support &amp; Consulting">OPEX / yr</th>
+                        <th title="Total Annual Cost (CAPEX + OPEX)">Total / yr</th>
                         <th>Users</th>
                         <th title="Technical Fit">Tech Fit</th>
                         <th title="Business Value">Biz Value</th>
@@ -290,7 +299,9 @@
                         <th>Application</th>
                         <th>Action</th>
                         <th>Lifecycle</th>
-                        <th>Annual Cost</th>
+                        <th title="CAPEX — Avg. Yearly License Cost">CAPEX / yr</th>
+                        <th title="OPEX — Avg. Yearly Support &amp; Consulting">OPEX / yr</th>
+                        <th title="Total Annual Cost">Total / yr</th>
                         <th>Tech Fit</th>
                         <th>Biz Value</th>
                         <th>Notes</th>
@@ -348,15 +359,34 @@
                 </div>
             </div>
 
+            <div class="form-group">
+                <label class="form-label">Currency</label>
+                <div style="display:flex;gap:8px;margin-top:2px">
+                    <button type="button" class="curr-btn sel" id="curr-SEK" onclick="setCurrency('SEK')">SEK</button>
+                    <button type="button" class="curr-btn" id="curr-EUR" onclick="setCurrency('EUR')">EUR</button>
+                </div>
+            </div>
+
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label">Annual Cost (USD)</label>
-                    <input type="number" id="fCost" class="form-input" placeholder="0" min="0">
+                    <label class="form-label">CAPEX — Avg. Yearly License Cost</label>
+                    <div class="cost-input-wrap">
+                        <span class="cost-currency" id="capexCurrLabel">SEK</span>
+                        <input type="number" id="fCapex" class="form-input cost-input" placeholder="0" min="0">
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">User Count</label>
-                    <input type="number" id="fUsers" class="form-input" placeholder="0" min="0">
+                    <label class="form-label">OPEX — Avg. Yearly Support &amp; Consulting</label>
+                    <div class="cost-input-wrap">
+                        <span class="cost-currency" id="opexCurrLabel">SEK</span>
+                        <input type="number" id="fOpex" class="form-input cost-input" placeholder="0" min="0">
+                    </div>
                 </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">User Count</label>
+                <input type="number" id="fUsers" class="form-input" placeholder="0" min="0">
             </div>
 
             <div class="form-row">
@@ -481,11 +511,39 @@ function switchTab(name, btn) {
 }
 
 // ─────────────────────────────────────────────
+//  COST HELPER
+// ─────────────────────────────────────────────
+function fmtCost(amount, currency) {
+    const n = Number(amount) || 0;
+    if (!n) return '—';
+    const c = currency || 'SEK';
+    const sym = c === 'EUR' ? '€' : '';
+    const suffix = c === 'SEK' ? ' kr' : '';
+    const display = n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(0)+'K' : n.toLocaleString('sv-SE');
+    return sym + display + suffix;
+}
+
+function totalCostOf(a) {
+    return (Number(a.capex)||0) + (Number(a.opex)||0);
+}
+
+// ─────────────────────────────────────────────
 //  KPIs
 // ─────────────────────────────────────────────
 function renderKPIs() {
     const apps = getApps();
-    const totalCost = apps.reduce((s, a) => s + (Number(a.annualCost) || 0), 0);
+
+    // Group totals by currency
+    const capexByCurr = {}, opexByCurr = {};
+    apps.forEach(a => {
+        const c = a.currency || 'SEK';
+        capexByCurr[c] = (capexByCurr[c]||0) + (Number(a.capex)||0);
+        opexByCurr[c]  = (opexByCurr[c]||0)  + (Number(a.opex)||0);
+    });
+    const currencies = [...new Set(Object.keys(capexByCurr).concat(Object.keys(opexByCurr)))];
+    const capexStr = currencies.map(c => fmtCost(capexByCurr[c]||0, c)).filter(s=>s!=='—').join(' + ') || '—';
+    const opexStr  = currencies.map(c => fmtCost(opexByCurr[c]||0, c)).filter(s=>s!=='—').join(' + ') || '—';
+
     const avgTech = apps.length ? (apps.reduce((s, a) => s + (Number(a.technicalFitScore)||0), 0) / apps.length).toFixed(1) : '—';
     const avgBiz  = apps.length ? (apps.reduce((s, a) => s + (Number(a.businessValueScore)||0), 0) / apps.length).toFixed(1) : '—';
     const retireCount = apps.filter(a => a.rationalizationAction === 'retire' || a.rationalizationAction === 'replace').length;
@@ -494,15 +552,15 @@ function renderKPIs() {
         { value: apps.length, label: 'Total Applications', color: '#ea580c' },
         { value: apps.filter(a => a.lifecycle === 'active').length, label: 'Active', color: '#16a34a' },
         { value: apps.filter(a => a.lifecycle === 'legacy' || a.lifecycle === 'phaseOut').length, label: 'Legacy / Phase-Out', color: '#d97706' },
-        { value: '$' + (totalCost >= 1e6 ? (totalCost/1e6).toFixed(1)+'M' : totalCost >= 1e3 ? (totalCost/1e3).toFixed(0)+'K' : totalCost), label: 'Total Annual Cost', color: '#7c3aed' },
-        { value: avgTech, label: 'Avg Tech Fit', color: '#0891b2' },
-        { value: avgBiz,  label: 'Avg Biz Value', color: '#0d9488' },
+        { value: capexStr, label: 'Total CAPEX / yr', color: '#7c3aed' },
+        { value: opexStr,  label: 'Total OPEX / yr',  color: '#0891b2' },
+        { value: avgTech, label: 'Avg Tech Fit', color: '#0d9488' },
         { value: retireCount, label: 'Retire / Replace', color: '#dc2626' },
     ];
 
     document.getElementById('kpiStrip').innerHTML = kpis.map(k => `
         <div class="kpi-card">
-            <div class="kpi-value" style="color:${k.color}">${k.value}</div>
+            <div class="kpi-value" style="color:${k.color};font-size:${String(k.value).length>8?'20px':'32px'}">${k.value}</div>
             <div class="kpi-label">${k.label}</div>
         </div>`).join('');
 }
@@ -540,10 +598,14 @@ function renderInventory() {
         return true;
     });
 
-    const totalCost = filtered.reduce((s, a) => s + (Number(a.annualCost)||0), 0);
+    const totalCost = filtered.reduce((s, a) => s + totalCostOf(a), 0);
     const costBadge = document.getElementById('costBadge');
     if (filtered.length && totalCost > 0) {
-        costBadge.textContent = 'Filtered Cost: $' + totalCost.toLocaleString();
+        // If all same currency show with symbol, else just number
+        const currs = [...new Set(filtered.map(a => a.currency || 'SEK'))];
+        const sym = currs.length === 1 ? (currs[0] === 'EUR' ? '€' : '') : '';
+        const suf = currs.length === 1 && currs[0] === 'SEK' ? ' kr' : '';
+        costBadge.textContent = 'Filtered Total: ' + sym + totalCost.toLocaleString('sv-SE') + suf;
         costBadge.classList.remove('hidden');
     } else {
         costBadge.classList.add('hidden');
@@ -551,22 +613,27 @@ function renderInventory() {
 
     const tbody = document.getElementById('inventoryBody');
     if (!filtered.length) {
-        tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><i class="fas fa-inbox"></i><p>${apps.length ? 'No applications match the current filters.' : 'No applications yet. Click "Add Application" to get started.'}</p></div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="13"><div class="empty-state"><i class="fas fa-inbox"></i><p>${apps.length ? 'No applications match the current filters.' : 'No applications yet. Click "Add Application" to get started.'}</p></div></td></tr>`;
         return;
     }
 
     tbody.innerHTML = filtered.map(a => {
-        const cost = Number(a.annualCost)||0;
-        const costStr = cost ? '$' + cost.toLocaleString() : '—';
+        const cur = a.currency || 'SEK';
+        const capex = Number(a.capex)||0;
+        const opex  = Number(a.opex)||0;
+        const total = capex + opex;
         const tf = Number(a.technicalFitScore)||0;
         const bv = Number(a.businessValueScore)||0;
+        const costColor = total > 500000 ? '#dc2626' : total > 200000 ? '#d97706' : '#16a34a';
         return `<tr>
             <td><span class="app-name">${esc(a.name)}</span>${a.businessCapabilities?.length ? `<br><span style="font-size:10px;color:#94a3b8">${a.businessCapabilities.slice(0,2).join(', ')}${a.businessCapabilities.length>2?'…':''}</span>` : ''}</td>
             <td>${esc(a.department||'—')}</td>
             <td>${esc(a.owner||'—')}</td>
             <td><span class="badge lc-${a.lifecycle}">${LC_LABEL[a.lifecycle]||a.lifecycle}</span></td>
             <td>${esc(a.vendor||'—')}</td>
-            <td style="font-weight:700;color:${cost>100000?'#dc2626':cost>50000?'#d97706':'#16a34a'}">${costStr}</td>
+            <td style="font-weight:700;color:#64748b">${fmtCost(capex,cur)}</td>
+            <td style="font-weight:700;color:#64748b">${fmtCost(opex,cur)}</td>
+            <td style="font-weight:800;color:${costColor}">${fmtCost(total,cur)}</td>
             <td>${a.userCount ? Number(a.userCount).toLocaleString() : '—'}</td>
             <td><span style="font-weight:900;color:${scoreColor(tf)}">${tf||'—'}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
             <td><span style="font-weight:900;color:${scoreColor(bv)}">${bv||'—'}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
@@ -600,7 +667,7 @@ function renderLifecycle() {
                     <div class="kanban-card" onclick="openModal('${a.id}')">
                         <div class="kanban-card-name">${esc(a.name)}</div>
                         <div class="kanban-card-dept">${esc(a.department||'—')} · ${esc(a.owner||'—')}</div>
-                        ${a.annualCost ? `<div style="font-size:10px;color:#ea580c;margin-top:4px;font-weight:700">$${Number(a.annualCost).toLocaleString()}</div>` : ''}
+                        ${totalCostOf(a) ? `<div style="font-size:10px;color:#ea580c;margin-top:4px;font-weight:700">${fmtCost(totalCostOf(a), a.currency||'SEK')} / yr</div>` : ''}
                         <div style="margin-top:6px"><span class="badge ac-${a.rationalizationAction}" style="font-size:9px">${AC_LABEL[a.rationalizationAction]||'—'}</span></div>
                     </div>`).join('') : '<div style="padding:16px;text-align:center;color:#cbd5e1;font-size:11px;font-weight:700">No applications</div>'}
             </div>
@@ -637,20 +704,24 @@ function renderOwnership() {
             ownerMap[o].push(a);
         });
 
-        const totalCost = dApps.reduce((s, a) => s + (Number(a.annualCost)||0), 0);
+        const totalCost = dApps.reduce((s, a) => s + totalCostOf(a), 0);
+        const dCurrs = [...new Set(dApps.map(a => a.currency||'SEK'))];
+        const totalCostStr = totalCost ? fmtCost(totalCost, dCurrs.length===1 ? dCurrs[0] : 'SEK') + ' / yr' + (dCurrs.length>1?' (mixed currencies)':'') : 'no cost data';
 
         return `<div class="dept-group">
             <div class="dept-header">
                 <div class="dept-icon"><i class="fas fa-building"></i></div>
                 <div>
                     <div class="dept-name">${esc(dept)}</div>
-                    <div class="dept-count">${dApps.length} application${dApps.length!==1?'s':''} · ${totalCost ? '$'+totalCost.toLocaleString()+' / yr' : 'no cost data'}</div>
+                    <div class="dept-count">${dApps.length} application${dApps.length!==1?'s':''} · ${totalCostStr}</div>
                 </div>
             </div>
             <div class="owner-grid">
                 ${Object.keys(ownerMap).sort().map(owner => {
                     const oApps = ownerMap[owner];
-                    const oCost = oApps.reduce((s, a) => s + (Number(a.annualCost)||0), 0);
+                    const oCost = oApps.reduce((s, a) => s + totalCostOf(a), 0);
+                    const oCurrs = [...new Set(oApps.map(a => a.currency||'SEK'))];
+                    const oCostStr = oCost ? fmtCost(oCost, oCurrs.length===1?oCurrs[0]:'SEK') + ' / yr' : '';
                     const lcs = [...new Set(oApps.map(a => a.lifecycle))];
                     return `<div class="owner-card" onclick="filterByOwner('${esc(owner)}')">
                         <div class="owner-name">${esc(owner)}</div>
@@ -660,7 +731,7 @@ function renderOwnership() {
                             ${oApps.length>4?`<span style="font-size:10px;color:#94a3b8">+${oApps.length-4} more</span>`:''}
                         </div>
                         <div class="owner-apps">
-                            ${oCost ? '<span style="color:#ea580c;font-weight:700">$'+oCost.toLocaleString()+' / yr</span>' : ''}
+                            ${oCostStr ? `<span style="color:#ea580c;font-weight:700">${oCostStr}</span>` : ''}
                             ${lcs.map(l => `<span class="badge lc-${l}" style="font-size:9px;margin-left:4px">${LC_LABEL[l]}</span>`).join('')}
                         </div>
                     </div>`;
@@ -702,7 +773,7 @@ function renderFitMatrix() {
     const jitter = () => (Math.random() - 0.5) * 0.25;
 
     const datasets = apps.map(a => {
-        const cost = Number(a.annualCost) || 10000;
+        const cost = totalCostOf(a) || 10000;
         const tf = (Number(a.technicalFitScore) || 3) + jitter();
         const bv = (Number(a.businessValueScore) || 3) + jitter();
         const r = Math.max(8, Math.min(40, Math.sqrt(cost / 5000)));
@@ -738,11 +809,12 @@ function renderFitMatrix() {
                         label(ctx) {
                             const app = getApps().find(a => a.name === ctx.dataset.label);
                             if (!app) return ctx.dataset.label;
-                            const cost = Number(app.annualCost)||0;
+                            const cur = app.currency || 'SEK';
                             return [
                                 ctx.dataset.label,
                                 `Tech Fit: ${app.technicalFitScore||'—'}  Biz Value: ${app.businessValueScore||'—'}`,
-                                cost ? `Cost: $${cost.toLocaleString()}` : ''
+                                app.capex ? `CAPEX: ${fmtCost(app.capex, cur)}` : '',
+                                app.opex  ? `OPEX: ${fmtCost(app.opex, cur)}`  : '',
                             ].filter(Boolean);
                         }
                     }
@@ -763,7 +835,10 @@ function renderFitMatrix() {
 function showMatrixDetail(id) {
     const app = getApps().find(a => a.id === id);
     if (!app) return;
-    const cost = Number(app.annualCost)||0;
+    const cur = app.currency || 'SEK';
+    const capex = Number(app.capex)||0;
+    const opex  = Number(app.opex)||0;
+    const total = capex + opex;
     document.getElementById('matrixDetail').innerHTML = `
         <div class="section-label">Selected Application</div>
         <div style="font-size:18px;font-weight:900;margin-bottom:4px">${esc(app.name)}</div>
@@ -773,7 +848,9 @@ function showMatrixDetail(id) {
             <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Action</span><span class="badge ac-${app.rationalizationAction}">${AC_LABEL[app.rationalizationAction]||'—'}</span></div>
             <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Technical Fit</span><span style="font-weight:900;color:${scoreColor(app.technicalFitScore||0)}">${app.technicalFitScore||'—'}/5</span></div>
             <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Business Value</span><span style="font-weight:900;color:${scoreColor(app.businessValueScore||0)}">${app.businessValueScore||'—'}/5</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Annual Cost</span><span style="font-weight:700">${cost ? '$'+cost.toLocaleString() : '—'}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">CAPEX / yr</span><span style="font-weight:700">${fmtCost(capex, cur)}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">OPEX / yr</span><span style="font-weight:700">${fmtCost(opex, cur)}</span></div>
+            <div style="display:flex;justify-content:space-between;border-top:1px solid #f1f5f9;padding-top:6px;margin-top:2px"><span style="font-size:11px;font-weight:700;color:#64748b">Total / yr</span><span style="font-weight:900;color:#ea580c">${fmtCost(total, cur)}</span></div>
             <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Users</span><span style="font-weight:700">${app.userCount ? Number(app.userCount).toLocaleString() : '—'}</span></div>
             <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Vendor</span><span style="font-weight:700">${esc(app.vendor||'—')}</span></div>
             ${app.businessCapabilities?.length ? `<div><span style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px">Capabilities</span><div style="display:flex;flex-wrap:wrap;gap:4px">${app.businessCapabilities.map(c=>`<span style="background:#f1f5f9;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700">${esc(c)}</span>`).join('')}</div></div>` : ''}
@@ -796,7 +873,7 @@ function renderRationalization() {
     const actionCosts  = { retain:0, invest:0, replace:0, consolidate:0, retire:0 };
     apps.forEach(a => {
         const ac = a.rationalizationAction || 'retain';
-        if (ac in actionCounts) { actionCounts[ac]++; actionCosts[ac] += Number(a.annualCost)||0; }
+        if (ac in actionCounts) { actionCounts[ac]++; actionCosts[ac] += totalCostOf(a); }
     });
 
     const acColors = { retain:'#16a34a', invest:'#1d4ed8', replace:'#d97706', consolidate:'#9333ea', retire:'#dc2626' };
@@ -805,7 +882,7 @@ function renderRationalization() {
         <div class="action-card">
             <div class="action-card-value" style="color:${acColors[ac]}">${actionCounts[ac]}</div>
             <div class="action-card-label">${AC_LABEL[ac]}</div>
-            ${actionCosts[ac] ? `<div style="font-size:10px;color:#94a3b8;margin-top:4px">$${actionCosts[ac].toLocaleString()}</div>` : ''}
+            ${actionCosts[ac] ? `<div style="font-size:10px;color:#94a3b8;margin-top:4px">${actionCosts[ac] >= 1e6 ? (actionCosts[ac]/1e6).toFixed(1)+'M' : actionCosts[ac] >= 1000 ? (actionCosts[ac]/1000).toFixed(0)+'K' : actionCosts[ac].toLocaleString()}</div>` : ''}
         </div>`).join('');
 
     if (ratPieInst) ratPieInst.destroy();
@@ -836,15 +913,17 @@ function renderRationalization() {
     const candidates = apps.filter(a => a.rationalizationAction === 'replace' || a.rationalizationAction === 'retire' || a.rationalizationAction === 'consolidate');
     const tbody = document.getElementById('ratTable');
     if (!candidates.length) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;font-size:12px">No rationalization candidates (Replace / Retire / Consolidate).</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:32px;color:#94a3b8;font-size:12px">No rationalization candidates (Replace / Retire / Consolidate).</td></tr>`;
     } else {
         tbody.innerHTML = candidates.map(a => {
-            const cost = Number(a.annualCost)||0;
+            const cur = a.currency || 'SEK';
             return `<tr>
                 <td><span class="app-name">${esc(a.name)}</span></td>
                 <td><span class="badge ac-${a.rationalizationAction}">${AC_LABEL[a.rationalizationAction]}</span></td>
                 <td><span class="badge lc-${a.lifecycle}">${LC_LABEL[a.lifecycle]}</span></td>
-                <td style="font-weight:700;color:#dc2626">${cost ? '$'+cost.toLocaleString() : '—'}</td>
+                <td style="font-weight:700;color:#64748b">${fmtCost(Number(a.capex)||0, cur)}</td>
+                <td style="font-weight:700;color:#64748b">${fmtCost(Number(a.opex)||0, cur)}</td>
+                <td style="font-weight:800;color:#dc2626">${fmtCost(totalCostOf(a), cur)}</td>
                 <td style="font-weight:900;color:${scoreColor(a.technicalFitScore||0)}">${a.technicalFitScore||'—'}/5</td>
                 <td style="font-weight:900;color:${scoreColor(a.businessValueScore||0)}">${a.businessValueScore||'—'}/5</td>
                 <td style="font-size:11px;color:#64748b;max-width:200px">${esc(a.notes||'—')}</td>
@@ -856,7 +935,18 @@ function renderRationalization() {
 // ─────────────────────────────────────────────
 //  MODAL
 // ─────────────────────────────────────────────
-let _techFit = 5, _bizValue = 5;
+let _techFit = 5, _bizValue = 5, _currency = 'SEK';
+
+function setCurrency(c) {
+    _currency = c;
+    document.querySelectorAll('.curr-btn').forEach(b => b.classList.remove('sel'));
+    const btn = document.getElementById('curr-' + c);
+    if (btn) btn.classList.add('sel');
+    const cl = document.getElementById('capexCurrLabel');
+    const ol = document.getElementById('opexCurrLabel');
+    if (cl) cl.textContent = c;
+    if (ol) ol.textContent = c;
+}
 
 function openModal(id) {
     const modal = document.getElementById('appModal');
@@ -877,7 +967,9 @@ function openModal(id) {
             document.getElementById('fOwner').value = app.owner || '';
             document.getElementById('fVendor').value = app.vendor || '';
             document.getElementById('fTech').value = app.technology || '';
-            document.getElementById('fCost').value = app.annualCost || '';
+            document.getElementById('fCapex').value = app.capex || '';
+            document.getElementById('fOpex').value  = app.opex  || '';
+            setCurrency(app.currency || 'SEK');
             document.getElementById('fUsers').value = app.userCount || '';
             document.getElementById('fLifecycle').value = app.lifecycle || 'active';
             document.getElementById('fAction').value = app.rationalizationAction || 'retain';
@@ -902,7 +994,9 @@ function closeModal() {
 
 function clearForm() {
     ['fName','fDesc','fDept','fOwner','fVendor','fTech','fCaps','fNotes'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('fCost').value = '';
+    document.getElementById('fCapex').value = '';
+    document.getElementById('fOpex').value  = '';
+    setCurrency('SEK');
     document.getElementById('fUsers').value = '';
     document.getElementById('fLifecycle').value = 'active';
     document.getElementById('fAction').value = 'retain';
@@ -938,7 +1032,10 @@ function saveApp() {
         owner:       document.getElementById('fOwner').value.trim(),
         vendor:      document.getElementById('fVendor').value.trim(),
         technology:  document.getElementById('fTech').value.trim(),
-        annualCost:  Number(document.getElementById('fCost').value) || 0,
+        capex:      Number(document.getElementById('fCapex').value) || 0,
+        opex:       Number(document.getElementById('fOpex').value) || 0,
+        currency:   _currency,
+        annualCost: (Number(document.getElementById('fCapex').value)||0) + (Number(document.getElementById('fOpex').value)||0),
         userCount:   Number(document.getElementById('fUsers').value) || 0,
         lifecycle:   document.getElementById('fLifecycle').value,
         rationalizationAction: document.getElementById('fAction').value,
