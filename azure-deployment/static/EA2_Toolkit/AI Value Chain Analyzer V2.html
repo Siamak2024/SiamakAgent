@@ -338,6 +338,9 @@
                 <i id="api-status-icon" class="fas fa-circle text-xs"></i>
                 <span id="api-status-text">Konfigurera API-nyckel</span>
             </button>
+            <a href="ValueChain_Workshop_Builder.html" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition font-semibold text-white no-underline" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);border:1px solid #1e3a5f;" onmouseover="this.style.background='linear-gradient(135deg,#15305a,#1d4ed8)'" onmouseout="this.style.background='linear-gradient(135deg,#1e3a5f,#2563eb)'" title="Använd Workshop Builder för att strukturera analysen innan du börjar">
+                <i class="fas fa-link"></i> Workshop Builder
+            </a>
             <button onclick="openImportModal()" class="flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-100 text-sm transition font-semibold">
                 <i class="fas fa-file-import"></i> Importera (BMC)
             </button>
@@ -1601,6 +1604,13 @@ Var specifik med konkreta aktiviteter, system och åtgärder från BMC-kontexten
 
         const params = new URLSearchParams(window.location.search);
         const forceFromBmc = params.get('from') === 'bmc' || params.get('refresh') === '1';
+
+        if (params.get('from') === 'workshop') {
+            const wctx = JSON.parse(localStorage.getItem('vc_workshop_context') || '{}');
+            if (wctx.org || wctx.industry) {
+                setTimeout(() => showToast('✓ Workshop-data inläst: ' + (wctx.org || '') + (wctx.scope ? ' – ' + wctx.scope : '')), 600);
+            }
+        }
 
         const saved = localStorage.getItem('valuechain_v2');
         if (saved) {

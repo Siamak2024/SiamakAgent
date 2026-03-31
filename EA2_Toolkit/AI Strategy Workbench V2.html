@@ -474,6 +474,9 @@
             </p>
         </div>
         <div class="flex flex-wrap gap-2">
+            <a href="Wardley_Workshop_Builder.html" class="btn text-[11px]" style="background:linear-gradient(135deg,#5b21b6,#1e40af);color:white;text-decoration:none;" title="Bygg kartan steg för steg med guidad workshop">
+                <i class="fas fa-chess-board"></i> Workshop Builder
+            </a>
             <button onclick="openApiModal()" class="btn btn-secondary text-[11px]">
                 <i class="fas fa-key"></i>
                 <span id="api-status-text">API-nyckel</span>
@@ -1457,6 +1460,35 @@ Steg 1–3 med tydlig prioritering och förväntad ROI eller riskminskningseffek
                 setTimeout(() => autoFillWardleyFromCapContext(cap), 250);
             }
             renderWardContextBadge();
+        }
+
+        // Load context from Wardley Workshop Builder if launched via ?from=workshop
+        if (wardParams.get('from') === 'workshop') {
+            try {
+                const wctx = JSON.parse(localStorage.getItem('wardley_workshop_context') || '{}');
+                if (wctx.org)     document.getElementById('ctx-org').value = wctx.org;
+                if (wctx.horizon) document.getElementById('ctx-horizon').value = wctx.horizon;
+                if (wctx.trigger) {
+                    // Map trigger to closest focus option
+                    const focusEl = document.getElementById('ctx-focus');
+                    const t = wctx.trigger.toLowerCase();
+                    if (t.includes('esg') || t.includes('csrd'))              focusEl.value = 'ESG & hållbarhet';
+                    else if (t.includes('kostnad') || t.includes('opex'))     focusEl.value = 'Kostnadsoptimering';
+                    else if (t.includes('tillväxt') || t.includes('skalning'))focusEl.value = 'Tillväxt & skalning';
+                    else if (t.includes('risk'))                               focusEl.value = 'Riskreduktion';
+                    else                                                        focusEl.value = 'Digitalisering & automation';
+                }
+                if (wctx.workshopDone) {
+                    const n = components.length;
+                    showToast(`✓ Workshop-data importerad: ${n} komponenter från Wardley Workshop Builder`);
+                    // Show workshop badge
+                    const badge = document.getElementById('ward-context-badge');
+                    if (badge) {
+                        badge.innerHTML = '<i class="fas fa-chess-board mr-1"></i> Karta byggd med Workshop Builder · ' + (wctx.persona || '') + (wctx.needs?.length ? ' · ' + wctx.needs.slice(0,2).join(', ') : '');
+                        badge.classList.remove('hidden');
+                    }
+                }
+            } catch(e) { console.warn('Could not load workshop context', e); }
         }
 
         window.addEventListener('resize', renderNodes);
