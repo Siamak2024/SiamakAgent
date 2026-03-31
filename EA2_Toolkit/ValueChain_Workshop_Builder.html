@@ -159,18 +159,10 @@
         <div><label class="wl">Organisation / Bolag *</label><input id="f-org" class="wi" placeholder="Ex: Riksbyggen, Vasakronan, NCC, Rikshem..."/></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div><label class="wl">Bransch *</label>
-            <select id="f-industry" class="wi">
-              <option value="">Vaelj...</option>
-              <option>Fastighet - Bostader</option>
-              <option>Fastighet - Kommersiellt</option>
-              <option>Fastighet - Samhaellsfastigheter</option>
-              <option>PropTech - SaaS-leverantoer</option>
-              <option>Byggbolag</option>
-              <option>Foervaltning &amp; FM</option>
-              <option>Finans / Fastighetskredit</option>
-              <option>Offentlig sektor / Kommunalt</option>
-              <option>Annat</option>
-            </select>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input id="f-industry" class="wi" style="flex:1;" placeholder="Ex: Fastighet, SaaS, Fintech, Offentlig sektor..." autocomplete="off"/>
+              <button id="btn-lookup-industry" type="button" onclick="aiLookupIndustry()" title="AI soeker bransch baserat pa bolagsnamnet" style="flex-shrink:0;padding:7px 10px;background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;white-space:nowrap;"><i class="fas fa-search"></i> AI-soek</button>
+            </div>
           </div>
           <div><label class="wl">Analysens scope *</label>
             <select id="f-scope" class="wi">
@@ -470,7 +462,7 @@ function goStep(n){
 function validateStep(n){
   if(n===1){
     if(!document.getElementById('f-org').value.trim()){toast('Ange organisation');return false;}
-    if(!document.getElementById('f-industry').value){toast('Vaelj bransch');return false;}
+    if(!document.getElementById('f-industry').value.trim()){toast('Fyll i bransch');return false;}
     if(!document.getElementById('f-trigger').value){toast('Vaelj strategisk trigger');return false;}
   }
   if(n===2){
@@ -638,6 +630,23 @@ function exportWorkshopCSV(){
     custVal:document.getElementById('f-customer-value').value||'',
     gap:document.getElementById('f-value-gap').value||''
   };
+}
+async function aiLookupIndustry(){
+  const org=document.getElementById('f-org').value.trim();
+  if(!org){toast('Fyll i bolagsnamn foerst');return;}
+  const key=getApiKey();
+  if(!key){toast('Lagg till OpenAI API-nyckel');openApiModal();return;}
+  const btn=document.getElementById('btn-lookup-industry');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner spinner"></i>';}
+  try{
+    const res=await fetch('/api/openai/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'gpt-4.1',messages:[{role:'system',content:'Du aer en expert pa bolagsanalys. Svara med exakt 2-5 ord pa svenska - bara branschnamnet, inga meningar.'},{role:'user',content:'Vad aer bransch/sektor foer "'+org+'"? Svara med max 5 ord, bara branschnamnet pa svenska. Exempel: "Fastighet - Bostader", "SaaS - HR-tech", "Finans - Kreditgivning", "Offentlig sektor - Utbildning".'}],temperature:0.2})});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+    const ind=data.choices[0].message.content.trim().replace(/^["']|["']$/g,'');
+    document.getElementById('f-industry').value=ind;
+    toast('Bransch: '+ind);
+  }catch(e){toast('AI-fel: '+e.message);}
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-search"></i> AI-soek';}
 }
 async function callAI(sys,usr,onSuccess,btnId,btnLabel){
   const key=getApiKey();const btn=document.getElementById(btnId);
