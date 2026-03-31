@@ -645,7 +645,7 @@ async function buildCapToBeProposal(apiKey, analysisText) {
     body: JSON.stringify({
       model: 'gpt-4.1',
       temperature: 0.35,
-      input: [
+      messages: [
         { role: 'system', content: 'Du ar senior enterprise architect. Prioritera verksamhetskapabiliteter och industrispecifika förbättringar före generell teknikexpansion. Returnera endast JSON.' },
         { role: 'user', content: prompt }
       ]
@@ -823,7 +823,7 @@ Prioritera de capabilities som bäst stöder processautomation, AI-agenter, arbe
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
       body: JSON.stringify({
         model, temperature: 0.7,
-        input: [
+        messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: 'Capability Map:\n\n' + capText }
         ]
@@ -1248,7 +1248,7 @@ Riktlinjer per domän (3-5 capabilities vardera):
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-      body: JSON.stringify({ model: 'gpt-4.1', temperature: 0.4, input: [
+      body: JSON.stringify({ model: 'gpt-4.1', temperature: 0.4, messages: [
         { role: 'system', content: capSystemPrompt },
         { role: 'user', content: 'Skapa en komplett Capability Map baserat på följande underlag:\n\n' + contextParts.join('\n\n') }
       ]})
@@ -1610,7 +1610,7 @@ async function sendCapMessage() {
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
             body: JSON.stringify({
                 model: 'gpt-4.1',
-                input: [
+                messages: [
                     { role: 'system', content: `Du är en senior Enterprise Architect specialiserad på Verksamhet och domain-specific. Svara alltid på svenska. Var konkret och affärsfokuserad.\n\n${context || 'Capability map är tom.'}` },
                     { role: 'user', content: text }
                 ]
