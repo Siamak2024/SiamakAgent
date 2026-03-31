@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="../js/EA_Config.js"></script>
     <script src="../js/EA_DataManager.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
@@ -223,8 +224,9 @@
         </div>
         <div class="nav-btns">
             <button class="btn btn-success" onclick="exportData()"><i class="fas fa-download"></i> Export JSON</button>
+            <button class="btn btn-success" onclick="exportExcelTemplate()" title="Download a pre-filled Excel template with all fields. Edit and import back."><i class="fas fa-file-excel"></i> Excel Template</button>
             <button class="btn btn-warning" onclick="document.getElementById('importFile').click()"><i class="fas fa-upload"></i> Import</button>
-            <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
+            <input type="file" id="importFile" accept=".json,.xlsx,.xls" class="hidden" onchange="importData(event)">
             <button class="btn btn-primary" onclick="openModal()"><i class="fas fa-plus"></i> Add Application</button>
         </div>
     </div>
@@ -1129,23 +1131,168 @@ function exportData() {
     showToast('Portfolio exported.', 'ok');
 }
 
+// Excel column → app field mapping (must match exportExcelTemplate headers)
+const EXCEL_COLS = [
+    { header: 'Name *',              field: 'name' },
+    { header: 'Description',         field: 'description' },
+    { header: 'Department',          field: 'department' },
+    { header: 'Owner',               field: 'owner' },
+    { header: 'Vendor',              field: 'vendor' },
+    { header: 'Technology Stack',    field: 'techStack' },
+    { header: 'Currency (SEK/EUR)',  field: 'currency' },
+    { header: 'CAPEX / yr',          field: 'capex' },
+    { header: 'OPEX / yr',           field: 'opex' },
+    { header: 'Users',               field: 'userCount' },
+    { header: 'Lifecycle State',     field: 'lifecycle' },
+    { header: 'Action',              field: 'rationalizationAction' },
+    { header: 'Technical Fit (1-5)', field: 'technicalFitScore' },
+    { header: 'Business Value (1-5)',field: 'businessValueScore' },
+    { header: 'Capabilities',        field: 'capabilities' },
+    { header: 'Notes',               field: 'notes' }
+];
+
+function exportExcelTemplate() {
+    const LIFECYCLE_VALS = 'phaseIn | active | legacy | phaseOut | retired';
+    const ACTION_VALS    = 'retain | invest | replace | consolidate | retire';
+
+    // Build rows: header row, instruction row, then existing apps (or 5 blank rows)
+    const headers = EXCEL_COLS.map(c => c.header);
+    const instructions = [
+        '(Required) Application name',
+        'Short description',
+        'e.g. Finance, HR, IT',
+        'Full name or team',
+        'e.g. SAP, Microsoft, Custom',
+        'e.g. .NET, Java, SaaS',
+        'SEK or EUR',
+        'Numeric — avg yearly license cost',
+        'Numeric — avg yearly support & consulting',
+        'Numeric — number of users',
+        LIFECYCLE_VALS,
+        ACTION_VALS,
+        '1 (Poor) to 5 (Excellent)',
+        '1 (Low) to 5 (Critical)',
+        'Comma-separated capabilities',
+        'Migration notes, dependencies…'
+    ];
+
+    const existingApps = getApps();
+    const dataRows = existingApps.length > 0
+        ? existingApps.map(a => EXCEL_COLS.map(c => a[c.field] != null ? a[c.field] : ''))
+        : Array(5).fill(null).map(() => Array(EXCEL_COLS.length).fill(''));
+
+    const wsData = [headers, instructions, ...dataRows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Column widths
+    ws['!cols'] = EXCEL_COLS.map((c, i) => ({ wch: i === 0 ? 30 : i <= 5 ? 22 : 18 }));
+
+    // Style header row cells bold (via cell metadata — cosmetic hint for Excel)
+    headers.forEach((h, i) => {
+        const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+        if (!ws[cellRef]) return;
+        ws[cellRef].s = { font: { bold: true }, fill: { fgColor: { rgb: 'EA580C' } } };
+    });
+
+    // Freeze first row + first column
+    ws['!freeze'] = { xSplit: 1, ySplit: 2 };
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Applications');
+
+    // Add a second sheet with allowed values reference
+    const refData = [
+        ['Field', 'Allowed Values'],
+        ['Lifecycle State', LIFECYCLE_VALS],
+        ['Action',          ACTION_VALS],
+        ['Currency',        'SEK | EUR'],
+        ['Technical Fit',   '1 | 2 | 3 | 4 | 5'],
+        ['Business Value',  '1 | 2 | 3 | 4 | 5']
+    ];
+    const wsRef = XLSX.utils.aoa_to_sheet(refData);
+    wsRef['!cols'] = [{ wch: 20 }, { wch: 60 }];
+    XLSX.utils.book_append_sheet(wb, wsRef, 'Reference');
+
+    XLSX.writeFile(wb, 'APM_Template_' + new Date().toISOString().slice(0,10) + '.xlsx');
+    showToast('Excel template downloaded.', 'ok');
+}
+
 function importData(evt) {
     const file = evt.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-        try {
-            const data = JSON.parse(e.target.result);
-            if (!Array.isArray(data.applications)) throw new Error('Invalid format');
-            saveData(data);
-            renderKPIs();
-            renderInventory();
-            showToast(`Imported ${data.applications.length} applications.`, 'ok');
-        } catch(err) {
-            showToast('Import failed: invalid JSON format.', 'err');
-        }
-    };
-    reader.readAsText(file);
+    const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+
+    if (isExcel) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                if (rows.length < 2) throw new Error('Empty sheet');
+
+                // First row = headers, second row = instructions (skip)
+                const headerRow = rows[0].map(h => String(h).trim());
+                const dataRows  = rows.slice(2).filter(r => r.some(c => c !== ''));
+
+                const colMap = {};
+                EXCEL_COLS.forEach(c => {
+                    const idx = headerRow.indexOf(c.header);
+                    if (idx >= 0) colMap[c.field] = idx;
+                });
+
+                const imported = [];
+                dataRows.forEach(row => {
+                    const name = String(row[colMap['name']] || '').trim();
+                    if (!name) return; // skip rows without a name
+                    const app = { id: generateId() };
+                    EXCEL_COLS.forEach(c => {
+                        const idx = colMap[c.field];
+                        if (idx == null) return;
+                        let val = row[idx];
+                        if (c.field === 'capex' || c.field === 'opex' || c.field === 'userCount') val = Number(val) || 0;
+                        if (c.field === 'technicalFitScore' || c.field === 'businessValueScore') val = Math.min(5, Math.max(1, Number(val) || 3));
+                        if (c.field === 'currency') val = val === 'EUR' ? 'EUR' : 'SEK';
+                        app[c.field] = val;
+                    });
+                    imported.push(app);
+                });
+
+                if (!imported.length) throw new Error('No valid rows found (Name * column required)');
+
+                // Merge: update existing by name, add new
+                const data = loadData();
+                imported.forEach(imp => {
+                    const existing = data.applications.findIndex(a => a.name === imp.name);
+                    if (existing >= 0) data.applications[existing] = { ...data.applications[existing], ...imp, id: data.applications[existing].id };
+                    else data.applications.push(imp);
+                });
+                saveData(data);
+                renderKPIs();
+                renderInventory();
+                showToast(`Imported ${imported.length} applications from Excel.`, 'ok');
+            } catch(err) {
+                showToast('Excel import failed: ' + err.message, 'err');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    } else {
+        // JSON import (original)
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (!Array.isArray(data.applications)) throw new Error('Invalid format');
+                saveData(data);
+                renderKPIs();
+                renderInventory();
+                showToast(`Imported ${data.applications.length} applications.`, 'ok');
+            } catch(err) {
+                showToast('Import failed: invalid JSON format.', 'err');
+            }
+        };
+        reader.readAsText(file);
+    }
     evt.target.value = '';
 }
 
