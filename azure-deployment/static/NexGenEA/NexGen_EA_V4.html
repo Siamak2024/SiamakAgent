@@ -84,6 +84,9 @@
 <script src="../azure-deployment/AzureOpenAIProxy.js"></script>
 <script src="../js/Advicy_AI.js"></script>
 <script src="js/EA_IntegrationEngine.js"></script>
+<script src="js/SimulationEngine.js"></script>
+<script src="js/FinancialEngine.js"></script>
+<script src="js/OptimizationEngine.js"></script>
 <link rel="stylesheet" href="../css/ea-design-engine.css" />
 <link rel="stylesheet" href="../css/ea-nordic-theme.css" />
 </head>
@@ -579,6 +582,15 @@
           <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('toolkits',this)" title="EA Strategy &amp; Portfolio Toolkit — BMC, Value Chain, Capability Map, Maturity, APM"><span class="flex flex-col items-center leading-tight"><i class="fas fa-toolbox"></i><span class="text-[9px]">EA Toolkit</span></span></button>
         </div>
         <div class="ea-tab-group__label">Toolkit</div>
+      </div>
+
+      <div class="ea-tab-group">
+        <div class="ea-tab-group__buttons">
+          <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('scenarios',this)" title="What-if scenarios — create, simulate and compare architecture changes"><span class="flex flex-col items-center leading-tight"><i class="fas fa-flask"></i><span class="text-[9px]">Scenarios</span></span></button>
+          <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('financials',this)" title="Financial analysis — NPV, ROI, IRR, Payback per scenario"><span class="flex flex-col items-center leading-tight"><i class="fas fa-coins"></i><span class="text-[9px]">Financials</span></span></button>
+          <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('optimisation',this)" title="Portfolio optimisation — best initiatives under budget constraints"><span class="flex flex-col items-center leading-tight"><i class="fas fa-sliders"></i><span class="text-[9px]">Optimise</span></span></button>
+        </div>
+        <div class="ea-tab-group__label">Decision Intelligence</div>
       </div>
     </div>
 
@@ -1346,6 +1358,125 @@
         </div>
       </div>
 
+      <!-- DECISION INTELLIGENCE: SCENARIOS -->
+      <div id="tab-scenarios" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="text-sm font-bold text-slate-800">Decision Intelligence — Scenarios</div>
+            <div class="text-[10px] text-slate-500">Create what-if scenarios, apply changes and simulate financial impact</div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="createScenario()" class="ea-btn ea-btn--primary"><i class="fas fa-plus"></i><span>New Scenario</span></button>
+            <button onclick="generateAIScenarios()" class="ea-btn ea-btn--secondary"><i class="fas fa-robot"></i><span>AI Suggest</span></button>
+          </div>
+        </div>
+        <div class="grid gap-4" style="grid-template-columns:280px 1fr;min-height:480px;">
+          <div class="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col">
+            <div class="p-3 bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wide">Scenarios</div>
+            <div id="scenario-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+              <div class="text-slate-400 italic text-center py-8 text-[11px]">No scenarios yet.</div>
+            </div>
+          </div>
+          <div id="scenario-detail" class="bg-white border border-slate-200 rounded-xl p-5">
+            <div class="text-slate-400 italic text-center py-16 text-[11px]">Select a scenario to view or edit</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DECISION INTELLIGENCE: FINANCIALS -->
+      <div id="tab-financials" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="text-sm font-bold text-slate-800">Decision Intelligence — Financial Analysis</div>
+            <div class="text-[10px] text-slate-500">NPV · ROI · IRR · Payback — compare scenarios side by side</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="financial-scenario-select" class="text-[10px] border border-slate-200 rounded-lg px-2 py-1.5" onchange="renderFinancials()">
+              <option value="">All scenarios</option>
+            </select>
+            <input type="number" id="financial-discount-rate" value="8" min="1" max="30" step="0.5"
+              class="w-16 text-[10px] border border-slate-200 rounded-lg px-2 py-1.5 text-center"
+              onchange="renderFinancials()" title="Discount rate %" />
+            <span class="text-[10px] text-slate-400">% discount</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-4 gap-4 mb-5">
+          <div class="bg-white border border-slate-200 rounded-xl p-4 text-center">
+            <div class="text-[10px] text-slate-400 uppercase font-bold mb-1">NPV</div>
+            <div class="text-base font-bold text-slate-800" id="fin-npv">—</div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-4 text-center">
+            <div class="text-[10px] text-slate-400 uppercase font-bold mb-1">ROI</div>
+            <div class="text-base font-bold text-slate-800" id="fin-roi">—</div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-4 text-center">
+            <div class="text-[10px] text-slate-400 uppercase font-bold mb-1">IRR</div>
+            <div class="text-base font-bold text-slate-800" id="fin-irr">—</div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-4 text-center">
+            <div class="text-[10px] text-slate-400 uppercase font-bold mb-1">Payback</div>
+            <div class="text-base font-bold text-slate-800" id="fin-payback">—</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="bg-white border border-slate-200 rounded-xl p-4">
+            <div class="text-[10px] font-bold text-slate-600 mb-3">Cash Flow Over Time</div>
+            <div style="height:180px"><canvas id="chart-cashflow"></canvas></div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-4">
+            <div class="text-[10px] font-bold text-slate-600 mb-3">Cost vs Benefit</div>
+            <div style="height:180px"><canvas id="chart-costbenefit"></canvas></div>
+          </div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div class="p-3 bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase">Scenario Comparison</div>
+          <div id="financial-table-body" class="p-3 text-[11px] text-slate-400 italic text-center py-6">No scenarios yet.</div>
+        </div>
+      </div>
+
+      <!-- DECISION INTELLIGENCE: OPTIMISATION -->
+      <div id="tab-optimisation" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="text-sm font-bold text-slate-800">Decision Intelligence — Portfolio Optimisation</div>
+            <div class="text-[10px] text-slate-500">Select the best portfolio of scenarios within budget and risk constraints</div>
+          </div>
+          <button onclick="runPortfolioOptimisation()" class="ea-btn ea-btn--primary">
+            <i class="fas fa-sliders"></i><span>Optimise Portfolio</span>
+          </button>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-5 mb-4">
+          <div class="grid grid-cols-2 gap-6">
+            <div>
+              <label class="text-[10px] font-bold text-slate-600 block mb-1">Budget</label>
+              <input type="range" id="opt-budget" min="100000" max="10000000" step="100000" value="2000000" class="w-full"
+                oninput="document.getElementById('opt-budget-val').textContent = _diFormatCurrency(this.value)" />
+              <div class="text-[11px] font-bold text-slate-700 mt-1" id="opt-budget-val">2,000,000 SEK</div>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-600 block mb-1">Risk Tolerance</label>
+              <input type="range" id="opt-risk" min="0" max="1" step="0.1" value="0.5" class="w-full"
+                oninput="document.getElementById('opt-risk-val').textContent = Math.round(this.value*100)+'%'" />
+              <div class="text-[11px] font-bold text-slate-700 mt-1" id="opt-risk-val">50%</div>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div class="p-3 bg-green-50 border-b border-green-100 text-[10px] font-bold text-green-700 uppercase">Selected Initiatives</div>
+            <div id="opt-selected" class="p-3 text-[11px] text-slate-400 italic text-center py-6">Run optimisation to see results</div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div class="p-3 bg-red-50 border-b border-red-100 text-[10px] font-bold text-red-600 uppercase">Rejected / Over Budget</div>
+            <div id="opt-rejected" class="p-3 text-[11px] text-slate-400 italic text-center py-6">—</div>
+          </div>
+        </div>
+        <div id="opt-explanation" class="bg-blue-50 border border-blue-200 rounded-xl p-4 hidden">
+          <div class="text-[10px] font-bold text-blue-700 uppercase mb-1">Trade-off Analysis</div>
+          <div id="opt-explanation-text" class="text-[11px] text-blue-800"></div>
+        </div>
+      </div>
+
       <!-- TOOLKITS (V3 Integration) -->
       <div id="tab-toolkits" class="hidden">
         <div class="flex items-center justify-between mb-4">
@@ -1757,6 +1888,8 @@ let model = {
     architectureMode: 'standard'
   },
   phase4Config: { industry: 'generic', activeBusinessAreas: ['general'] },
+  scenarios: [],
+  investments: [],
   stepMeta: {}
 };
 let currentModelId = null;
@@ -4232,6 +4365,9 @@ function showTab(name, btn) {
   if (name === 'toolkits') setTimeout(updateToolkitBadges, 50);
   if (name === 'home') setTimeout(renderNordicDashboard, 50);
   if (name === 'maturity') setTimeout(renderMaturityDashboard, 50);
+  if (name === 'scenarios') setTimeout(renderDecisionScenarios, 50);
+  if (name === 'financials') setTimeout(renderFinancials, 50);
+  if (name === 'optimisation') setTimeout(renderOptimisation, 50);
 }
 
 // Example: Call highlightTab('exec', true) when Step 1 is completed
@@ -7007,6 +7143,8 @@ function resetWorkflowModel() {
   model.dataDomains = [];
   model.aiAgents = [];
   model.aiBenchmark = null;
+  model.scenarios = [];
+  model.investments = [];
   window._stepChatContext = null;
   window._pendingRecommendations = null;
   window._stepPrompts = null;
@@ -11317,6 +11455,398 @@ function addSyncLog(message) {
 }
 
 // exportModel and importModel functions now handled by client-integration.js
+
+// ── DECISION INTELLIGENCE ─────────────────────────────────────────────────────
+let _diEngineInit = false, _simEngine = null, _finEngine = null, _optEngine = null;
+let _activeScenarioId = null;
+
+function _initDIEngines() {
+  if (_diEngineInit) return;
+  if (typeof SimulationEngine !== 'undefined' && typeof FinancialEngine !== 'undefined' && typeof OptimizationEngine !== 'undefined') {
+    _simEngine = new SimulationEngine(model);
+    _finEngine = new FinancialEngine();
+    _optEngine = new OptimizationEngine(_finEngine);
+    _diEngineInit = true;
+  }
+}
+function _ensureScenarios() {
+  if (!model.scenarios) model.scenarios = [];
+  if (!model.investments) model.investments = [];
+}
+function _diId() { return 'sc_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); }
+function _diEsc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _diFormatCurrency(n) {
+  const v = Math.abs(+n||0);
+  return (v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v.toLocaleString()) + ' SEK';
+}
+
+// ── SCENARIOS TAB ─────────────────────────────────────────────────────────────
+function renderDecisionScenarios() {
+  _ensureScenarios();
+  const list = document.getElementById('scenario-list');
+  if (!list) return;
+  if (!model.scenarios.length) {
+    list.innerHTML = '<div class="text-slate-400 italic text-center py-8 text-[11px]">No scenarios yet.<br>Click "+ New Scenario" to start.</div>';
+    const det = document.getElementById('scenario-detail');
+    if (det) det.innerHTML = '<div class="text-slate-400 italic text-center py-16 text-[11px]">Select a scenario to view details</div>';
+    return;
+  }
+  list.innerHTML = model.scenarios.map(sc => `
+    <div class="flex items-center justify-between px-2 py-2 rounded-lg cursor-pointer hover:bg-slate-50 border
+         ${_activeScenarioId===sc.id ? 'border-orange-300 bg-orange-50' : 'border-transparent'}"
+         onclick="selectScenario('${sc.id}')">
+      <div>
+        <div class="text-[11px] font-bold text-slate-700">${_diEsc(sc.name)}</div>
+        <div class="text-[10px] text-slate-400">${sc.changes.length} change(s) · ${sc.simResult ? '\u2713 run' : 'pending'}</div>
+      </div>
+      <button onclick="event.stopPropagation();deleteScenario('${sc.id}')" class="text-slate-300 hover:text-red-500 text-base px-1">&times;</button>
+    </div>`).join('');
+  if (_activeScenarioId) {
+    const active = model.scenarios.find(s => s.id === _activeScenarioId);
+    if (active) renderScenarioDetail(active);
+  }
+}
+
+function createScenario() {
+  _ensureScenarios();
+  const name = prompt('Scenario name:', 'Scenario ' + (model.scenarios.length + 1));
+  if (!name) return;
+  const sc = { id: _diId(), name, changes: [], duration: 3, simResult: null, created: new Date().toISOString() };
+  model.scenarios.push(sc);
+  _activeScenarioId = sc.id;
+  autoSaveCurrentModel();
+  renderDecisionScenarios();
+}
+
+function deleteScenario(id) {
+  model.scenarios = (model.scenarios||[]).filter(s => s.id !== id);
+  if (_activeScenarioId === id) _activeScenarioId = null;
+  autoSaveCurrentModel();
+  renderDecisionScenarios();
+}
+
+function selectScenario(id) { _activeScenarioId = id; renderDecisionScenarios(); }
+
+function renderScenarioDetail(sc) {
+  const det = document.getElementById('scenario-detail');
+  if (!det) return;
+  const changesHtml = sc.changes.length
+    ? sc.changes.map((c,i) => `
+        <div class="flex items-start gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+          <div class="flex-1">
+            <span class="text-[11px] font-bold text-slate-700">${c.type}</span>
+            <span class="text-slate-400 ml-2 text-[11px]">${_diEsc(c.target||'')}</span>
+            <div class="text-[10px] text-slate-400 mt-1">
+              Cost: ${_diFormatCurrency(c.costChange||0)} \u00b7 Benefit: ${_diFormatCurrency(c.benefitChange||0)}
+              \u00b7 Risk: ${((c.riskChange||0)*100).toFixed(0)}%
+            </div>
+          </div>
+          <button onclick="removeChangeFromScenario('${sc.id}',${i})" class="text-red-400 hover:text-red-600">&times;</button>
+        </div>`).join('')
+    : '<div class="text-slate-400 italic text-[11px]">No changes. Add one below.</div>';
+  const simHtml = sc.simResult ? `
+    <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl">
+      <div class="text-[10px] font-bold text-green-700 uppercase mb-2">Simulation Result</div>
+      <div class="grid grid-cols-4 gap-3 text-center">
+        <div><div class="text-[10px] text-slate-500">NPV</div><div class="text-sm font-bold text-green-700">${_diFormatCurrency(sc.simResult.npv)}</div></div>
+        <div><div class="text-[10px] text-slate-500">ROI</div><div class="text-sm font-bold text-green-700">${sc.simResult.roi}%</div></div>
+        <div><div class="text-[10px] text-slate-500">IRR</div><div class="text-sm font-bold text-green-700">${sc.simResult.irr!=null ? sc.simResult.irr+'%' : '\u2014'}</div></div>
+        <div><div class="text-[10px] text-slate-500">Payback</div><div class="text-sm font-bold text-green-700">${sc.simResult.payback!=null ? 'Year '+sc.simResult.payback : '> horizon'}</div></div>
+      </div>
+      ${(sc.simResult.impacted||[]).length ? `<div class="mt-2 text-[10px] text-green-700">Downstream: ${sc.simResult.impacted.map(i=>i.capability+'\u2192'+i.affectedSystems.join(', ')).join(' \u00b7 ')}</div>` : ''}
+    </div>` : '';
+  det.innerHTML = `
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <div class="text-sm font-bold text-slate-800">${_diEsc(sc.name)}</div>
+        <div class="text-[10px] text-slate-400">${sc.duration} year(s) \u00b7 ${sc.changes.length} change(s)</div>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="runSimulation('${sc.id}')" class="ea-btn ea-btn--primary"><i class="fas fa-play"></i><span>Run Simulation</span></button>
+        <button onclick="showAddChangeDialog('${sc.id}')" class="ea-btn ea-btn--secondary"><i class="fas fa-plus"></i><span>Add Change</span></button>
+      </div>
+    </div>
+    <div class="mb-4 bg-slate-50 rounded-lg p-3 border border-slate-200">
+      <label class="text-[10px] font-bold text-slate-600 block mb-1">Horizon: <span id="dur-lbl-${sc.id}">${sc.duration}</span> yr</label>
+      <input type="range" min="1" max="10" value="${sc.duration}" class="w-full"
+        oninput="updateScenarioDuration('${sc.id}',this.value);document.getElementById('dur-lbl-${sc.id}').textContent=this.value"/>
+    </div>
+    <div class="text-[10px] font-bold text-slate-500 uppercase mb-2">Changes</div>
+    <div class="space-y-2 mb-4">${changesHtml}</div>
+    ${simHtml}`;
+}
+
+function showAddChangeDialog(scenarioId) {
+  if (document.getElementById('add-change-dialog')) return;
+  const det = document.getElementById('scenario-detail');
+  if (!det) return;
+  const capOpts = (model.capabilities||[]).map(c=>`<option value="${_diEsc(c.name)}">${_diEsc(c.name)}</option>`).join('');
+  det.insertAdjacentHTML('afterbegin', `
+    <div id="add-change-dialog" class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+      <div class="text-[11px] font-bold text-slate-700 mb-3">Add Change</div>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 block mb-1">Type</label>
+          <select id="chg-type" class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5" onchange="diUpdateTargetOptions()">
+            <option value="INVEST_CAPABILITY">Invest in Capability</option>
+            <option value="MIGRATE_APP">Migrate Application</option>
+            <option value="REMOVE_APP">Remove Application</option>
+            <option value="OUTSOURCE">Outsource</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 block mb-1">Target</label>
+          <select id="chg-target" class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5">
+            ${capOpts || '<option value="">\u2014</option>'}
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-3 mb-3">
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 block mb-1">Cost (negative)</label>
+          <input id="chg-cost" type="number" value="-150000" step="10000" class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5"/>
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 block mb-1">Annual Benefit</label>
+          <input id="chg-benefit" type="number" value="300000" step="10000" class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5"/>
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 block mb-1">Risk delta (\u22121..+1)</label>
+          <input id="chg-risk" type="number" value="-0.1" min="-1" max="1" step="0.05" class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5"/>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="confirmAddChange('${scenarioId}')" class="ea-btn ea-btn--primary"><i class="fas fa-check"></i><span>Add</span></button>
+        <button onclick="document.getElementById('add-change-dialog').remove()" class="ea-btn ea-btn--ghost">Cancel</button>
+      </div>
+    </div>`);
+}
+
+function diUpdateTargetOptions() {
+  const type = document.getElementById('chg-type')?.value;
+  const el = document.getElementById('chg-target');
+  if (!el) return;
+  const isCap = type === 'INVEST_CAPABILITY';
+  const items = isCap ? (model.capabilities||[]) : (model.systems||[]);
+  el.innerHTML = items.map(i=>`<option value="${_diEsc(i.name)}">${_diEsc(i.name)}</option>`).join('') || '<option value="">&mdash;</option>';
+}
+
+function confirmAddChange(scenarioId) {
+  const sc = (model.scenarios||[]).find(s => s.id === scenarioId);
+  if (!sc) return;
+  const type = document.getElementById('chg-type')?.value;
+  const target = document.getElementById('chg-target')?.value;
+  const costChange = parseFloat(document.getElementById('chg-cost')?.value)||0;
+  const benefitChange = parseFloat(document.getElementById('chg-benefit')?.value)||0;
+  const riskChange = parseFloat(document.getElementById('chg-risk')?.value)||0;
+  if (!target) { toast('Select a target', true); return; }
+  sc.changes.push({ type, target, costChange, benefitChange, riskChange });
+  sc.simResult = null;
+  document.getElementById('add-change-dialog')?.remove();
+  autoSaveCurrentModel();
+  renderScenarioDetail(sc);
+}
+
+function removeChangeFromScenario(scenarioId, index) {
+  const sc = (model.scenarios||[]).find(s => s.id === scenarioId);
+  if (!sc) return;
+  sc.changes.splice(index, 1);
+  sc.simResult = null;
+  autoSaveCurrentModel();
+  renderScenarioDetail(sc);
+}
+
+function updateScenarioDuration(scenarioId, value) {
+  const sc = (model.scenarios||[]).find(s => s.id === scenarioId);
+  if (!sc) return;
+  sc.duration = parseInt(value,10)||3;
+  sc.simResult = null;
+  autoSaveCurrentModel();
+}
+
+function runSimulation(scenarioId) {
+  _initDIEngines();
+  if (!_simEngine||!_finEngine) { toast('Engines not loaded', true); return; }
+  const sc = (model.scenarios||[]).find(s => s.id === scenarioId);
+  if (!sc) return;
+  try {
+    _simEngine.model = model;
+    const { impacted } = _simEngine.runScenario(sc);
+    const dr = parseFloat(document.getElementById('financial-discount-rate')?.value)||8;
+    const m = _finEngine.evaluateScenario(sc, dr);
+    sc.simResult = { ...m, impacted, ts: new Date().toISOString() };
+    autoSaveCurrentModel();
+    renderScenarioDetail(sc);
+    renderDecisionScenarios();
+    toast('Simulation complete');
+  } catch(e) { toast('Simulation error: '+e.message, true); }
+}
+
+async function generateAIScenarios() {
+  if (!(model.capabilities||[]).length) { toast('Generate architecture first (Step 3)', true); return; }
+  _ensureScenarios();
+  try {
+    const caps = (model.capabilities||[]).slice(0,12).map(c=>({name:c.name,domain:c.domain,maturity:c.maturity}));
+    const sys = (model.systems||[]).slice(0,8).map(s=>({name:s.name,status:s.status}));
+    const raw = await callAI(
+      'You are an EA decision architect. Return ONLY a valid JSON array of scenario objects — no markdown.',
+      `Capabilities: ${JSON.stringify(caps)}\nSystems: ${JSON.stringify(sys)}\nAmbition: ${model.strategicIntent?.strategic_ambition||'not defined'}\n\nGenerate 3 realistic what-if scenarios. Each with name, duration (years), and changes.\n[\n{"name":"...","duration":3,"changes":[{"type":"INVEST_CAPABILITY","target":"<from list>","costChange":-150000,"benefitChange":300000,"riskChange":-0.1}]}\n]`,
+      { taskType: 'standard', temperature: 0.3 });
+    const arr = JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0]||'[]');
+    let added = 0;
+    for (const sc of arr) {
+      if (sc.name && Array.isArray(sc.changes)) {
+        model.scenarios.push({ id:_diId(), name:sc.name, duration:sc.duration||3, changes:sc.changes, simResult:null, created:new Date().toISOString() });
+        added++;
+      }
+    }
+    autoSaveCurrentModel();
+    renderDecisionScenarios();
+    toast(added+' AI scenario(s) added');
+  } catch(e) { toast('AI scenario generation failed: '+e.message, true); }
+}
+
+// ── FINANCIALS TAB ────────────────────────────────────────────────────────────
+function renderFinancials() {
+  _initDIEngines();
+  _ensureScenarios();
+  if (!_finEngine) return;
+  const dr = parseFloat(document.getElementById('financial-discount-rate')?.value)||8;
+  const selEl = document.getElementById('financial-scenario-select');
+  const sel = selEl?.value||'';
+  if (selEl) {
+    const cur = selEl.value;
+    selEl.innerHTML = '<option value="">All scenarios</option>' +
+      model.scenarios.map(s=>`<option value="${s.id}"${s.id===cur?' selected':''} >${_diEsc(s.name)}</option>`).join('');
+  }
+  const scenarios = sel ? model.scenarios.filter(s=>s.id===sel) : model.scenarios;
+  const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  if (!scenarios.length) {
+    ['fin-npv','fin-roi','fin-irr','fin-payback'].forEach(id=>set(id,'\u2014'));
+    const tb = document.getElementById('financial-table-body');
+    if (tb) tb.innerHTML = '<div class="p-3 text-[11px] text-slate-400 italic text-center py-6">No scenarios yet.</div>';
+    return;
+  }
+  const allM = scenarios.map(sc=>({ sc, m: _finEngine.evaluateScenario(sc, dr) }));
+  const totalNPV = allM.reduce((s,x)=>s+x.m.npv,0);
+  const avgROI = Math.round(allM.reduce((s,x)=>s+x.m.roi,0)/allM.length);
+  const irrs = allM.filter(x=>x.m.irr!=null).map(x=>x.m.irr);
+  const paybacks = allM.filter(x=>x.m.payback!=null).map(x=>x.m.payback);
+  set('fin-npv', _diFormatCurrency(totalNPV));
+  set('fin-roi', avgROI+'%');
+  set('fin-irr', irrs.length ? (irrs.reduce((a,b)=>a+b)/irrs.length).toFixed(1)+'%' : '\u2014');
+  set('fin-payback', paybacks.length ? 'Year '+Math.min(...paybacks) : '\u2014');
+  const tb = document.getElementById('financial-table-body');
+  if (tb) tb.innerHTML = `
+    <table class="w-full text-[11px]">
+      <thead><tr class="bg-slate-50 text-[10px] text-slate-500 uppercase">
+        <th class="text-left px-3 py-2">Scenario</th>
+        <th class="text-right px-3 py-2">Changes</th>
+        <th class="text-right px-3 py-2">NPV</th>
+        <th class="text-right px-3 py-2">ROI</th>
+        <th class="text-right px-3 py-2">IRR</th>
+        <th class="text-right px-3 py-2">Payback</th>
+      </tr></thead>
+      <tbody>
+        ${allM.map(({sc,m})=>`<tr class="border-t border-slate-100 hover:bg-slate-50">
+          <td class="px-3 py-2 font-semibold text-slate-700">${_diEsc(sc.name)}</td>
+          <td class="px-3 py-2 text-right text-slate-500">${sc.changes.length}</td>
+          <td class="px-3 py-2 text-right font-bold ${m.npv>=0?'text-green-600':'text-red-600'}">${_diFormatCurrency(m.npv)}</td>
+          <td class="px-3 py-2 text-right ${m.roi>=0?'text-green-600':'text-red-600'}">${m.roi}%</td>
+          <td class="px-3 py-2 text-right text-slate-600">${m.irr!=null?m.irr+'%':'\u2014'}</td>
+          <td class="px-3 py-2 text-right text-slate-600">${m.payback!=null?'Yr '+m.payback:'\u2014'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  _renderCashflowChart(allM);
+  _renderCostBenefitChart(allM);
+}
+
+function _renderCashflowChart(allM) {
+  const canvas = document.getElementById('chart-cashflow');
+  if (!canvas||!allM.length) return;
+  if (canvas._chart) { canvas._chart.destroy(); canvas._chart=null; }
+  const maxYrs = Math.max(...allM.map(x=>x.sc.duration||3));
+  const colors = ['#ea580c','#2563eb','#16a34a','#9333ea','#d97706'];
+  canvas._chart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: Array.from({length:maxYrs+1},(_,i)=>i===0?'Y0':'Y'+i),
+      datasets: allM.map(({sc,m},i)=>({
+        label: sc.name, data: m.cashFlows,
+        borderColor: colors[i%colors.length], backgroundColor: colors[i%colors.length]+'22',
+        tension: 0.3, fill: false, pointRadius: 3
+      }))
+    },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:10}}}},
+      scales:{y:{ticks:{font:{size:10},callback:v=>Math.abs(v)>=1e6?(v/1e6).toFixed(1)+'M':Math.abs(v)>=1e3?(v/1e3).toFixed(0)+'K':v}},x:{ticks:{font:{size:10}}}}
+    }
+  });
+}
+
+function _renderCostBenefitChart(allM) {
+  const canvas = document.getElementById('chart-costbenefit');
+  if (!canvas||!allM.length) return;
+  if (canvas._chart) { canvas._chart.destroy(); canvas._chart=null; }
+  canvas._chart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: allM.map(x=>x.sc.name),
+      datasets: [
+        { label:'Cost', data: allM.map(({sc})=>(sc.changes||[]).filter(c=>c.costChange<0).reduce((s,c)=>s+Math.abs(c.costChange),0)), backgroundColor:'#fca5a5' },
+        { label:'Benefit', data: allM.map(({sc})=>(sc.changes||[]).filter(c=>c.benefitChange>0).reduce((s,c)=>s+c.benefitChange,0)), backgroundColor:'#86efac' }
+      ]
+    },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:10}}}},
+      scales:{y:{ticks:{font:{size:10},callback:v=>Math.abs(v)>=1e6?(v/1e6).toFixed(1)+'M':Math.abs(v)>=1e3?(v/1e3).toFixed(0)+'K':v}},x:{ticks:{font:{size:10}}}}
+    }
+  });
+}
+
+// ── OPTIMISATION TAB ──────────────────────────────────────────────────────────
+function renderOptimisation() {
+  _initDIEngines();
+  const bv = document.getElementById('opt-budget-val');
+  const b = document.getElementById('opt-budget');
+  if (bv && b) bv.textContent = _diFormatCurrency(b.value);
+}
+
+function runPortfolioOptimisation() {
+  _initDIEngines();
+  _ensureScenarios();
+  if (!_optEngine) { toast('Optimisation engine not loaded', true); return; }
+  const scenarios = model.scenarios.filter(s=>s.changes&&s.changes.length>0);
+  if (!scenarios.length) { toast('Create at least one scenario with changes first', true); return; }
+  const budget = parseFloat(document.getElementById('opt-budget')?.value)||2e6;
+  const risk = parseFloat(document.getElementById('opt-risk')?.value)||0.5;
+  const result = _optEngine.optimizePortfolio(scenarios, budget, risk);
+
+  const renderItem = (sc, classes) => {
+    const m = _finEngine ? _finEngine.evaluateScenario(sc) : { npv:0, roi:0 };
+    const cost = (sc.changes||[]).filter(c=>c.costChange<0).reduce((s,c)=>s+Math.abs(c.costChange),0);
+    return `<div class="p-3 rounded-lg border ${classes} mb-2">
+      <div class="font-bold text-[11px] text-slate-700">${_diEsc(sc.name)}</div>
+      <div class="text-[10px] text-slate-500 mt-0.5">Cost: ${_diFormatCurrency(cost)} \u00b7 NPV: ${_diFormatCurrency(m.npv)} \u00b7 ROI: ${m.roi}%</div>
+    </div>`;
+  };
+
+  const selEl = document.getElementById('opt-selected');
+  if (selEl) selEl.innerHTML = result.selected.length
+    ? result.selected.map(s=>renderItem(s,'border-green-200 bg-green-50')).join('')
+    : '<div class="text-slate-400 italic text-[11px] text-center py-4">No initiatives fit in budget</div>';
+
+  const rejEl = document.getElementById('opt-rejected');
+  if (rejEl) rejEl.innerHTML = result.rejected.length
+    ? result.rejected.map(s=>renderItem(s,'border-red-100 bg-red-50')).join('')
+    : '<div class="text-slate-400 italic text-[11px] text-center py-4">All selected</div>';
+
+  const expEl = document.getElementById('opt-explanation');
+  const expTxt = document.getElementById('opt-explanation-text');
+  if (expEl && expTxt) { expTxt.textContent = result.explanation; expEl.classList.remove('hidden'); }
+  toast('Portfolio optimised');
+}
 </script>
 
 <!-- ADVICY AI SIDEBAR (VS Code Copilot style) -->
