@@ -610,11 +610,11 @@ async function sendMatMessage() {
     }
 
     try {
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        const res = await fetch('/api/openai/chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-5',
                 messages: [{ role: 'system', content: systemPrompt }].concat(matHistory.slice(-8)),
                 temperature: 0.55,
                 max_tokens: 700
@@ -924,11 +924,11 @@ Returnera ENBART ett rent JSON-objekt:
 Listan ska ha EXAKT ${fw.questions.length} heltal (1-5), ett per fråga i ordning.`;
 
     try {
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        const res = await fetch('/api/openai/chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: 'gpt-4o', temperature: 0.3,
+                model: 'gpt-5', temperature: 0.3,
                 messages: [
                     { role: 'system', content: matSystemPrompt },
                     { role: 'user', content: `Gör mognadsbedömning baserat på:\n\n${contextParts.join('\n\n')}\n\nFrågor (${fw.questions.length} st):\n${questionsText}` }
@@ -1413,14 +1413,13 @@ async function runAI() {
     const summary = fw.categories.map((c,i) => c+': '+avgs[i]+'/5').join(', ');
     const org = localStorage.getItem('ea20_org_name') || 'Kunden';
     try {
-const res = await fetch('https://api.openai.com/v1/chat/completions', {
+const res = await fetch('/api/openai/chat', {
     method: 'POST',
     headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + apiKey
+        'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-5',
         messages: [
             {
                 role: 'system',

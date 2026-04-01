@@ -636,14 +636,13 @@ async function buildCapToBeProposal(apiKey, analysisText) {
   const asIs = cloneCapabilities();
   const prompt = `Ta fram en TO BE Capability Map utifran AS IS och AI-analysen.\n\nAS IS:\n${JSON.stringify(asIs, null, 2)}\n\nAI-analys:\n${analysisText}\n\nReturnera ENDAST giltig JSON med exakt nycklar: customer, operations, product, finance, technology.\nVarje doman innehaller array av objekt med: name, desc, priority (strategic|important|commodity), maturity (1-5).\nPrioritera capabilities som är mest relevanta för affärsmodell, processautomation, AI-agenter, styrning, kompetens, samverkan, kundvärde och regulatoriska krav i den aktuella industrin. Skapa inte teknikcentrerade capabilities som standard om underlaget inte tydligt motiverar det.`;
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetch('/api/openai/chat', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + apiKey
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'gpt-4o',
+      model: 'gpt-5',
       temperature: 0.35,
       messages: [
         { role: 'system', content: 'Du ar senior enterprise architect. Prioritera verksamhetskapabiliteter och industrispecifika förbättringar före generell teknikexpansion. Returnera endast JSON.' },
@@ -816,11 +815,11 @@ Ett stycke: övergripande bedömning och den enskilt viktigaste åtgärden.
 Var specifik, faktabaserad och fokusera på affärsnytta.
 Prioritera de capabilities som bäst stöder processautomation, AI-agenter, arbetssätt, styrning, kompetens, partnerstyrning och andra industrispecifika behov. Föreslå teknikexpansion endast när underlaget tydligt motiverar det.`;
 
-  const model = 'gpt-4o';
+  const model = 'gpt-5';
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch('/api/openai/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model, temperature: 0.7,
         messages: [
@@ -1245,10 +1244,10 @@ Riktlinjer per domän (3-5 capabilities vardera):
 - technology: IT-arkitektur, verksamhetssystem, integrationsförmåga, dataförsörjning, AI-agentstöd, cybersäkerhet`;
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch('/api/openai/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-      body: JSON.stringify({ model: 'gpt-4o', temperature: 0.4, messages: [
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-5', temperature: 0.4, messages: [
         { role: 'system', content: capSystemPrompt },
         { role: 'user', content: 'Skapa en komplett Capability Map baserat på följande underlag:\n\n' + contextParts.join('\n\n') }
       ]})
@@ -1605,11 +1604,11 @@ async function sendCapMessage() {
     document.getElementById('cap-chat-messages').appendChild(loadingDiv);
 
     try {
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        const res = await fetch('/api/openai/chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-5',
                 messages: [
                     { role: 'system', content: `Du är en senior Enterprise Architect specialiserad på Verksamhet och domain-specific. Svara alltid på svenska. Var konkret och affärsfokuserad.\n\n${context || 'Capability map är tom.'}` },
                     { role: 'user', content: text }

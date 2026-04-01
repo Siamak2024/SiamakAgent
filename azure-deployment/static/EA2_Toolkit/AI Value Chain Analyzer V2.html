@@ -661,14 +661,13 @@
         const asIs = collectVcRawData();
         const prompt = `Du ska ta fram TO BE-forslag for en Value Chain-analys.\n\nAS IS-data:\n${JSON.stringify(asIs, null, 2)}\n\nAI-analys:\n${analysisText}\n\nReturnera ENDAST giltig JSON med exakt nycklarna: infrastructure, hr, tech, procurement, inbound, operations, outbound, marketing, service, margin.\nKort, konkret och handlingsorienterat TO BE-innehall per falt.\nPrioritera de mest relevanta förbättringshävstängerna för den aktuella industrin och verksamheten, till exempel processautomation, AI-agenter, arbetssätt, styrning, sourcing, kompetens, kapacitetsplanering och kundservice. Föreslå inte ny teknik eller digitalisering som standard om underlaget inte motiverar det tydligt.`;
 
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        const res = await fetch('/api/openai/chat', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + apiKey
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-5',
                 temperature: 0.35,
                 messages: [
                     { role: 'system', content: 'Du ar en senior EA- och verksamhetsstrateg. Prioritera verksamhetsflöden, processautomation, AI-agenter och andra industrispecifika förbättringar före generell teknikförnyelse. Returnera endast JSON.' },
@@ -1002,11 +1001,11 @@ Riktlinjer per fält (4-6 konkreta punkter per fält, använd \\n för radbrytni
 Var specifik med konkreta aktiviteter, system och åtgärder från BMC-kontexten. Koppla alltid till affärsnytta.`;
 
         try {
-            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            const res = await fetch('/api/openai/chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: 'gpt-4o',
+                    model: 'gpt-5',
                     temperature: 0.4,
                     messages: [
                         { role: 'system', content: systemPrompt },
@@ -1099,20 +1098,20 @@ Var specifik med konkreta aktiviteter, system och åtgärder från BMC-kontexten
         const prompt = fields.map(f => `${fieldLabels[f]}:\n${document.getElementById(f).value || '(ej ifyllt)'}`).join('\n\n');
         const systemPrompt = `Du är en senior strategisk rådgivare specialiserad på Verksamhet, domain-specific och operativ transformation. Analysera värdekedjan och svara på svenska med rubrikerna: ## Värdeskapande aktiviteter, ## Värdeförstörande aktiviteter, ## Prioriterade förbättringshävstänger, ## Strategiska rekommendationer, ## Sammanfattning. Prioritera de mest relevanta åtgärderna för industrin och nuläget, exempelvis processautomation, AI-agenter, arbetssätt, sourcing, styrning, kompetens och kundservice. Föreslå inte ny teknik eller digitalisering som standardsvar om annat är mer relevant.`;
         try {
-            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            const res = await fetch('/api/openai/chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-                body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }], temperature: 0.7 })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: 'gpt-5', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }], temperature: 0.7 })
             });
             const json = await res.json();
             if (json.error) throw new Error(json.error.message);
             const raw = json.choices[0].message.content;
             lastVcAnalysis = {
-                model: 'gpt-4o',
+                model: 'gpt-5',
                 generatedAt: new Date().toISOString(),
                 text: raw
             };
-            document.getElementById('model-badge').textContent = 'gpt-4o';
+            document.getElementById('model-badge').textContent = 'gpt-5';
             content.innerHTML = formatMarkdown(raw);
             
             // Auto-export after successful analysis
@@ -1509,10 +1508,10 @@ Var specifik med konkreta aktiviteter, system och åtgärder från BMC-kontexten
         const systemPrompt = `Du är en senior strategisk rådgivare och expert inom Verksamhet, domain-specific, operativ transformation och hållbarhet. Du hjälper användaren att analysera och optimera sin värdekedja enligt Porter's Value Chain-modell. Svara alltid på svenska. Fokusera på konkreta affärsutfall: kostnadsreduktion, ökad marginal, ESG-compliance, Customer retention och konkurrensfördel. Prioritera de mest relevanta förbättringshävstängerna för den aktuella industrin, exempelvis processautomation, AI-agenter, arbetssätt, sourcing, styrning, kompetens, partnerstyrning och kundnära förbättringar. Föreslå ny teknik eller digitalisering endast när det tydligt stöds av användarens underlag. Var koncis, faktabaserad och handlingsorienterad. Använd bullet points och rubriker för tydlighet.`;
         try {
             const messages = [{ role: 'system', content: systemPrompt }, ...vcHistory.slice(-10)];
-            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            const res = await fetch('/api/openai/chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-                body: JSON.stringify({ model: 'gpt-4o', input: messages, temperature: 0.7, max_tokens: 1000 })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: 'gpt-5', messages: messages, temperature: 0.7, max_tokens: 1000 })
             });
             const json = await res.json();
             if (json.error) throw new Error(json.error.message);
