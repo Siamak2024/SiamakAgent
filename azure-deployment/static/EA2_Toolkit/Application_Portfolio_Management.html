@@ -97,8 +97,11 @@
         .kanban-header.kh-legacy{background:#fee2e2;color:#dc2626;border-bottom:2px solid #fca5a5}
         .kanban-header.kh-retired{background:#f1f5f9;color:#64748b;border-bottom:2px solid #cbd5e1}
         .kanban-body{padding:12px;display:flex;flex-direction:column;gap:8px;min-height:80px}
-        .kanban-card{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:12px;font-size:11px;cursor:pointer;transition:all .2s}
+        .kanban-card{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:12px;font-size:11px;cursor:grab;transition:all .2s}
+        .kanban-card:active{cursor:grabbing}
         .kanban-card:hover{border-color:#ea580c;box-shadow:0 4px 12px rgba(234,88,12,.1);transform:translateY(-2px)}
+        .kanban-card.dragging{opacity:.35;transform:scale(.97)}
+        .kanban-body.drag-over{background:rgba(234,88,12,.06);border:2px dashed #ea580c;border-radius:10px}
         .kanban-card-name{font-weight:700;margin-bottom:4px;font-size:12px}
         .kanban-card-dept{color:#94a3b8;font-size:10px}
         /* Ownership */
@@ -716,17 +719,72 @@ function renderLifecycle() {
                 <span><i class="${LC_ICON[lc]}" style="margin-right:6px"></i>${LC_LABEL[lc]}</span>
                 <span style="font-size:18px;font-weight:900">${cols.length}</span>
             </div>
-            <div class="kanban-body">
+            <div class="kanban-body" data-lc="${lc}"
+                 ondragover="kanbanDragOver(event)"
+                 ondragleave="kanbanDragLeave(event)"
+                 ondrop="kanbanDrop(event,'${lc}')">
                 ${cols.length ? cols.map(a => `
-                    <div class="kanban-card" onclick="openModal('${a.id}')">
+                    <div class="kanban-card" draggable="true"
+                         data-id="${a.id}"
+                         ondragstart="kanbanDragStart(event,'${a.id}')"
+                         ondragend="kanbanDragEnd(event)"
+                         onclick="openModal('${a.id}')">
                         <div class="kanban-card-name">${esc(a.name)}</div>
                         <div class="kanban-card-dept">${esc(a.department||'—')} · ${esc(a.owner||'—')}</div>
                         ${totalCostOf(a) ? `<div style="font-size:10px;color:#ea580c;margin-top:4px;font-weight:700">${fmtCost(totalCostOf(a), a.currency||'SEK')} / yr</div>` : ''}
                         <div style="margin-top:6px"><span class="badge ac-${a.rationalizationAction}" style="font-size:9px">${AC_LABEL[a.rationalizationAction]||'—'}</span></div>
-                    </div>`).join('') : '<div style="padding:16px;text-align:center;color:#cbd5e1;font-size:11px;font-weight:700">No applications</div>'}
+                    </div>`).join('') : '<div style="padding:16px;text-align:center;color:#cbd5e1;font-size:11px;font-weight:700">Drop here</div>'}
             </div>
         </div>`;
     }).join('');
+}
+
+// ─────────────────────────────────────────────
+//  KANBAN DRAG & DROP
+// ─────────────────────────────────────────────
+let _dragId = null;
+
+function kanbanDragStart(event, id) {
+    _dragId = id;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', id);
+    // Slight delay so the card renders as semi-transparent after drag starts
+    setTimeout(() => { const el = document.querySelector(`.kanban-card[data-id="${id}"]`); if (el) el.classList.add('dragging'); }, 0);
+}
+
+function kanbanDragEnd(event) {
+    document.querySelectorAll('.kanban-card.dragging').forEach(el => el.classList.remove('dragging'));
+    document.querySelectorAll('.kanban-body.drag-over').forEach(el => el.classList.remove('drag-over'));
+    _dragId = null;
+}
+
+function kanbanDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    event.currentTarget.classList.add('drag-over');
+}
+
+function kanbanDragLeave(event) {
+    // Only remove if leaving the body itself, not a child
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+        event.currentTarget.classList.remove('drag-over');
+    }
+}
+
+function kanbanDrop(event, targetLc) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('drag-over');
+    const id = _dragId || event.dataTransfer.getData('text/plain');
+    if (!id) return;
+    const data = loadData();
+    const app = data.applications.find(a => a.id === id);
+    if (!app || app.lifecycle === targetLc) return;
+    const prevLc = LC_LABEL[app.lifecycle] || app.lifecycle;
+    app.lifecycle = targetLc;
+    saveData(data);
+    renderLifecycle();
+    renderKPIs();
+    showToast(`${app.name} moved to ${LC_LABEL[targetLc]}.`, 'ok');
 }
 
 // ─────────────────────────────────────────────
