@@ -126,6 +126,9 @@
     <button onclick="toast('No unread notifications')" class="ea-header-icon" title="Notifications" aria-label="Notifications">
       <i class="fas fa-bell text-sm"></i>
     </button>
+    <button id="header-new-project-btn" onclick="openNewProjectModal()" class="ea-header-icon hidden" title="New project" aria-label="New project">
+      <i class="fas fa-plus text-sm"></i>
+    </button>
     <button onclick="saveModelToDB()" class="ea-header-icon" title="Save model" aria-label="Save model">
       <i class="fas fa-floppy-disk text-sm"></i>
     </button>
@@ -155,6 +158,24 @@
     <input type="file" id="global-model-import" class="hidden" onchange="importModel(event)" accept=".json">
   </div>
 </header>
+
+<!-- SURVEY RESPONSE MODAL -->
+<div id="survey-response-modal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-6">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden">
+    <div class="flex items-center justify-between p-4 border-b">
+      <div>
+        <div class="text-sm font-bold text-slate-800" id="survey-response-title">Capability Survey</div>
+        <div class="text-[10px] text-slate-500" id="survey-response-meta">Maturity questions</div>
+      </div>
+      <button onclick="closeSurveyResponseModal()" class="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
+    </div>
+    <div id="survey-response-body" class="p-4 space-y-3 overflow-y-auto" style="max-height: calc(85vh - 132px);"></div>
+    <div class="p-4 border-t bg-slate-50 flex justify-between items-center">
+      <div class="text-[11px] text-slate-500">Scores: 1 (Initial) to 5 (Optimized)</div>
+      <button onclick="submitCapabilitySurvey()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg">Save Survey Response</button>
+    </div>
+  </div>
+</div>
 
 <!-- API MODAL -->
 <div id="apiModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
@@ -880,14 +901,11 @@
                 <h1 id="hero-project-name" class="text-2xl font-bold truncate mb-1">—</h1>
                 <p class="text-sm text-white/75">NextGen EA Platform &middot; AI-powered Enterprise Architecture</p>
               </div>
-              <div class="flex flex-col items-end gap-2 flex-shrink-0">
+              <div class="flex items-center gap-2 flex-shrink-0">
                 <div class="flex gap-2 text-xs">
                   <div class="bg-white/15 px-3 py-1.5 rounded-lg flex items-center gap-1.5"><i class="fas fa-robot"></i>AI-Enhanced</div>
                   <div class="bg-white/15 px-3 py-1.5 rounded-lg flex items-center gap-1.5"><i class="fas fa-users"></i>Collaborative</div>
                 </div>
-                <button onclick="openNewProjectModal()" class="text-xs text-white/60 hover:text-white/90 underline">
-                  <i class="fas fa-plus mr-1"></i>New Project
-                </button>
               </div>
             </div>
           </div>
@@ -1758,24 +1776,6 @@
         <div class="flex items-center justify-between mb-4">
           <div>
             <div class="text-sm font-bold text-slate-800">Integrated Toolkits</div>
-          <!-- SURVEY RESPONSE MODAL -->
-          <div id="survey-response-modal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-6">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden">
-              <div class="flex items-center justify-between p-4 border-b">
-                <div>
-                  <div class="text-sm font-bold text-slate-800" id="survey-response-title">Capability Survey</div>
-                  <div class="text-[10px] text-slate-500" id="survey-response-meta">Maturity questions</div>
-                </div>
-                <button onclick="closeSurveyResponseModal()" class="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
-              </div>
-              <div id="survey-response-body" class="p-4 space-y-3 overflow-y-auto" style="max-height: calc(85vh - 132px);"></div>
-              <div class="p-4 border-t bg-slate-50 flex justify-between items-center">
-                <div class="text-[11px] text-slate-500">Scores: 1 (Initial) to 5 (Optimized)</div>
-                <button onclick="submitCapabilitySurvey()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg">Save Survey Response</button>
-              </div>
-            </div>
-          </div>
-
             <div class="text-[10px] text-slate-500">Workshop tools with bi-directional sync to EA Platform</div>
           </div>
           <div class="flex gap-2">
@@ -2928,6 +2928,8 @@ function showProjectDashboard() {
   if (dashboardEl) dashboardEl.classList.remove('hidden');
   const nameEl = document.getElementById('hero-project-name');
   if (nameEl) nameEl.textContent = (typeof currentModelName !== 'undefined' && currentModelName) ? currentModelName : 'Untitled Project';
+  const newBtn = document.getElementById('header-new-project-btn');
+  if (newBtn) newBtn.classList.remove('hidden');
 }
 
 function showWelcomeScreen() {
@@ -2935,6 +2937,8 @@ function showWelcomeScreen() {
   const dashboardEl = document.getElementById('project-dashboard');
   if (welcomeEl) welcomeEl.classList.remove('hidden');
   if (dashboardEl) dashboardEl.classList.add('hidden');
+  const newBtn = document.getElementById('header-new-project-btn');
+  if (newBtn) newBtn.classList.add('hidden');
 }
 
 function updateHomeView() {
@@ -4718,19 +4722,16 @@ function openToolkitFromHeader(btn) {
 
 // Workflow Path Navigation
 function startArchitectWorkflow() {
-  // Show workflow progress indicator
-  document.getElementById('workflow-progress-indicator').classList.remove('hidden');
   // Navigate to left panel to start the workflow
   showTab('home');
-  // Scroll to left panel
+  // Scroll to left panel and focus description field
   setTimeout(() => {
     const leftPanel = document.querySelector('.ea-sidebar-panel');
     if (leftPanel) leftPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    // Focus on description textarea
     const descriptionField = document.getElementById('description');
     if (descriptionField) descriptionField.focus();
   }, 300);
-  toast('Starting Architect Workflow - Begin with Strategic Intent');
+  toast('Starting AI Workflow — describe your organisation in the left panel');
 }
 
 function startWorkshopFlow() {
