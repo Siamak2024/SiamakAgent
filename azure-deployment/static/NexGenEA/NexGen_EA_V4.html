@@ -129,8 +129,14 @@
     <button onclick="saveModelToDB()" class="ea-header-icon" title="Save model" aria-label="Save model">
       <i class="fas fa-floppy-disk text-sm"></i>
     </button>
-    <button onclick="loadModelFromDB()" class="ea-header-icon" title="Load / Manage projects" aria-label="Load model">
+    <button onclick="loadModelFromDB()" class="ea-header-icon" title="Open project" aria-label="Open project">
       <i class="fas fa-folder-open text-sm"></i>
+    </button>
+    <button onclick="document.getElementById('global-model-import').click()" class="ea-header-icon" title="Import project" aria-label="Import project">
+      <i class="fas fa-file-import text-sm"></i>
+    </button>
+    <button onclick="exportModel()" class="ea-header-icon" title="Export project" aria-label="Export project">
+      <i class="fas fa-file-export text-sm"></i>
     </button>
     <button onclick="openManageProjectsModal()" class="ea-header-icon" title="Delete project / model" aria-label="Manage projects">
       <i class="fas fa-trash-can text-sm"></i>
@@ -318,40 +324,57 @@
 </div>
 
 <!-- NEW PROJECT MODAL -->
-<div id="newProjectModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
-  <div class="bg-white rounded-2xl p-6 w-[500px] shadow-2xl">
-    <h3 class="font-bold text-lg mb-1">📄 Create New Project</h3>
-    <p class="text-xs text-slate-500 mb-4">Start a new NextGen EA architecture model. All unsaved changes to the current project will be lost.</p>
-    
-    <div class="space-y-4">
+<div id="newProjectModal" class="fixed inset-0 z-50 hidden flex items-center justify-center" style="background: rgba(31,42,51,0.55); backdrop-filter: blur(4px);">
+  <div style="background: var(--ea-surface); border: 1px solid var(--ea-border); border-radius: 12px; box-shadow: var(--ea-shadow-card); width: 480px; max-width: calc(100vw - 32px); font-family: 'Manrope', 'Segoe UI', sans-serif;">
+    <!-- Header -->
+    <div style="padding: 20px 24px 16px; border-bottom: 1px solid var(--ea-border); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
       <div>
-        <label class="block text-sm font-bold mb-1.5">Project Name *</label>
-        <input 
-          id="newProjectName" 
-          type="text" 
-          placeholder="e.g., Digital Transformation 2024" 
-          class="w-full border rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+        <div style="font-size: 15px; font-weight: 700; color: var(--ea-text-primary); margin-bottom: 3px;">Create New Project</div>
+        <div style="font-size: 11px; color: var(--ea-text-secondary);">Define your project to get started with the EA workflow.</div>
+      </div>
+      <button onclick="closeNewProjectModal()" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--ea-border);background:var(--ea-hover);color:var(--ea-text-secondary);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0;" title="Close">&times;</button>
+    </div>
+
+    <!-- Body -->
+    <div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
+      <div>
+        <label style="display:block; font-size:11px; font-weight:700; color:var(--ea-text-primary); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">Project Name <span style="color:var(--ea-danger);">*</span></label>
+        <input
+          id="newProjectName"
+          type="text"
+          placeholder="e.g., Digital Transformation 2026"
+          style="width:100%; box-sizing:border-box; border:1px solid var(--ea-border); border-radius:6px; padding:9px 12px; font-size:13px; color:var(--ea-text-primary); background:var(--ea-surface); font-family:inherit; outline:none; transition:border-color 150ms ease;"
+          onfocus="this.style.borderColor='var(--ea-accent)'"
+          onblur="this.style.borderColor='var(--ea-border)'"
           onkeypress="if(event.key==='Enter') createNewProject()"
         >
       </div>
-      
+
       <div>
-        <label class="block text-sm font-bold mb-1.5">Description (optional)</label>
-        <textarea 
-          id="newProjectDescription" 
-          placeholder="Brief description of project scope and objectives..." 
-          class="w-full border rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 h-20 resize-none"
+        <label style="display:block; font-size:11px; font-weight:700; color:var(--ea-text-primary); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">Description <span style="color:var(--ea-text-secondary); font-weight:400; text-transform:none;">(optional)</span></label>
+        <textarea
+          id="newProjectDescription"
+          placeholder="Brief description of project scope and objectives..."
+          style="width:100%; box-sizing:border-box; border:1px solid var(--ea-border); border-radius:6px; padding:9px 12px; font-size:13px; color:var(--ea-text-primary); background:var(--ea-surface); font-family:inherit; outline:none; resize:none; height:80px; transition:border-color 150ms ease;"
+          onfocus="this.style.borderColor='var(--ea-accent)'"
+          onblur="this.style.borderColor='var(--ea-border)'"
         ></textarea>
       </div>
-      
-      <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-slate-600">
-        <strong>💡 Tip:</strong> Your project will be automatically saved and backed up every 5 minutes. You can access it anytime from the "💾 Load" menu.
+
+      <div style="display:flex; align-items:flex-start; gap:8px; background:var(--ea-hover); border:1px solid var(--ea-border); border-radius:6px; padding:10px 12px;">
+        <i class="fas fa-circle-info" style="color:var(--ea-accent); font-size:12px; margin-top:1px; flex-shrink:0;"></i>
+        <span style="font-size:11px; color:var(--ea-text-secondary); line-height:1.5;">Projects are automatically saved every 5 minutes and can be accessed anytime via <strong style="color:var(--ea-text-primary);">Open Project</strong>.</span>
       </div>
     </div>
-    
-    <div class="flex gap-2 mt-6">
-      <button onclick="createNewProject()" class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-bold text-sm hover:bg-blue-700">Create Project</button>
-      <button onclick="closeNewProjectModal()" class="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-lg font-bold text-sm hover:bg-slate-200">Cancel</button>
+
+    <!-- Footer -->
+    <div style="padding: 16px 24px 20px; border-top: 1px solid var(--ea-border); display: flex; gap: 10px;">
+      <button onclick="createNewProject()" class="ea-btn ea-btn--primary" style="flex:1; justify-content:center; min-height:38px; font-size:13px;">
+        <i class="fas fa-plus"></i> Create Project
+      </button>
+      <button onclick="closeNewProjectModal()" class="ea-btn ea-btn--secondary" style="flex:1; justify-content:center; min-height:38px; font-size:13px;">
+        Cancel
+      </button>
     </div>
   </div>
 </div>
@@ -608,12 +631,17 @@
       <div id="tab-bench" class="hidden">
         <div class="flex items-center justify-between mb-2">
           <div class="text-sm font-bold text-slate-800">Industry Benchmarking & Gap Analysis</div>
-          <select id="bench-peer" class="text-[10px] border rounded px-2 py-1" onchange="renderBenchmarking()">
-            <option value="Industry Peer Group A">Peer: Industry Peer Group A</option>
-            <option value="Global Asset Management">Peer: Global Asset Management</option>
-            <option value="Public Housing (Sweden)">Peer: Public Housing (Sweden)</option>
+          <div class="flex gap-2">
+            <button onclick="generateCxOSummary('Benchmarking Analysis')" class="ea-btn ea-btn--cxo text-[10px]">
+              <i class="fas fa-file-powerpoint"></i><span>CxO Summary</span>
+            </button>
+            <select id="bench-peer" class="text-[10px] border rounded px-2 py-1" onchange="renderBenchmarking()">
+              <option value="Industry Peer Group A">Peer: Industry Peer Group A</option>
+              <option value="Global Asset Management">Peer: Global Asset Management</option>
+              <option value="Public Housing (Sweden)">Peer: Public Housing (Sweden)</option>
+            </select>
             <button id="ai-benchmark-btn" onclick="runAIBenchmarkAnalysis()" class="ml-2 text-[10px] bg-blue-600 text-white hover:bg-blue-700 px-3 py-1 rounded border border-blue-700 font-bold">AI Benchmark Analysis</button>
-          </select>
+          </div>
         </div>
         
         <!-- Domain Descriptions -->
@@ -795,14 +823,245 @@
           </div>
         </div>
       </div>
-      <!-- HOME PAGE -->
+      <!-- HOME PAGE / OVERVIEW -->
       <div id="tab-home">
-        <div class="space-y-6">
+        <!-- Minimal Welcome - First Visit -->
+        <div id="first-visit-welcome" class="flex items-center justify-center" style="min-height: 60vh;">
+          <div class="text-center max-w-2xl mx-auto">
+            <div class="mb-6">
+              <div class="inline-flex items-center justify-center w-20 h-20 bg-primary/10 rounded-2xl mb-4">
+                <i class="fas fa-layer-group text-4xl text-primary"></i>
+              </div>
+              <h1 class="text-4xl font-bold text-slate-800 mb-3">Welcome to NextGen EA Platform</h1>
+              <p class="text-lg text-slate-600 mb-8">AI-powered Enterprise Architecture from Strategy to Execution</p>
+            </div>
+            
+            <!-- Single Clear Choice -->
+            <div class="bg-gradient-to-br from-blue-50 to-white rounded-2xl border-2 border-blue-200 p-10 shadow-lg">
+              <h2 class="text-2xl font-bold text-slate-800 mb-3">Get Started</h2>
+              <p class="text-slate-600 mb-8">Choose how you want to begin</p>
+              
+              <div class="flex flex-col gap-4 mb-6">
+                <button onclick="openNewProjectModal()" class="ea-btn ea-btn--primary" style="padding: 16px 40px; font-size: 16px; font-weight: bold; justify-content: center;">
+                  <i class="fas fa-plus mr-3 text-lg"></i>
+                  <span>Create New Project</span>
+                </button>
+                <button onclick="loadModelFromDB()" class="ea-btn ea-btn--secondary" style="padding: 16px 40px; font-size: 16px; font-weight: bold; justify-content: center;">
+                  <i class="fas fa-folder-open mr-3 text-lg"></i>
+                  <span>Open Existing Project</span>
+                </button>
+              </div>
+              
+              <div class="text-xs text-slate-500 border-t border-slate-200 pt-4">
+                <i class="fas fa-lightbulb mr-1"></i>
+                New to the platform? Start by creating your first project.
+              </div>
+            </div>
+            
+            <!-- Secondary Access -->
+            <div class="mt-8 flex justify-center gap-4">
+              <button onclick="showTab('toolkits', this)" class="text-sm text-slate-500 hover:text-primary underline">
+                <i class="fas fa-toolbox mr-1"></i>Strategic Toolkits
+              </button>
+              <button onclick="openDocumentation()" class="text-sm text-slate-500 hover:text-primary underline">
+                <i class="fas fa-book-open mr-1"></i>Documentation
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Full Dashboard - Shown after project is created/loaded -->
+        <div id="project-dashboard" class="hidden">
+          <!-- Hero with Project Name -->
+          <div class="ea-overview-hero bg-gradient-to-br from-primary to-accent text-white rounded-xl p-6 mb-6">
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-semibold uppercase tracking-widest text-white/60 mb-1">Active Project</div>
+                <h1 id="hero-project-name" class="text-2xl font-bold truncate mb-1">—</h1>
+                <p class="text-sm text-white/75">NextGen EA Platform &middot; AI-powered Enterprise Architecture</p>
+              </div>
+              <div class="flex flex-col items-end gap-2 flex-shrink-0">
+                <div class="flex gap-2 text-xs">
+                  <div class="bg-white/15 px-3 py-1.5 rounded-lg flex items-center gap-1.5"><i class="fas fa-robot"></i>AI-Enhanced</div>
+                  <div class="bg-white/15 px-3 py-1.5 rounded-lg flex items-center gap-1.5"><i class="fas fa-users"></i>Collaborative</div>
+                </div>
+                <button onclick="openNewProjectModal()" class="text-xs text-white/60 hover:text-white/90 underline">
+                  <i class="fas fa-plus mr-1"></i>New Project
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── WHAT WOULD YOU LIKE TO DO? ── -->
+          <div style="margin-bottom:20px;">
+            <div style="font-size:11px;font-weight:700;color:var(--ea-text-secondary);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;">Choose your path</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+
+              <!-- Path 1: AI-Guided EA Workflow -->
+              <div onclick="startArchitectWorkflow()" style="background:var(--ea-surface);border:2px solid var(--ea-border);border-radius:10px;padding:22px 20px;cursor:pointer;transition:border-color 160ms,box-shadow 160ms;" onmouseover="this.style.borderColor='var(--ea-primary)';this.style.boxShadow='0 6px 20px rgba(44,62,80,.10)'" onmouseout="this.style.borderColor='var(--ea-border)';this.style.boxShadow='none'">
+                <div style="display:flex;align-items:flex-start;gap:14px;">
+                  <div style="width:44px;height:44px;border-radius:10px;background:rgba(44,62,80,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas fa-robot" style="font-size:20px;color:var(--ea-primary);"></i>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:700;color:var(--ea-text-primary);margin-bottom:4px;">AI-Guided EA Workflow</div>
+                    <div style="font-size:12px;color:var(--ea-text-secondary);margin-bottom:12px;line-height:1.5;">Use AI to build your complete EA model step by step through the left panel.</div>
+                    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;">
+                      <div style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-text-secondary);"><span style="width:18px;height:18px;border-radius:50%;background:var(--ea-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;">1</span>Describe your organisation</div>
+                      <div style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-text-secondary);"><span style="width:18px;height:18px;border-radius:50%;background:var(--ea-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;">2</span>Clarify Strategic Intent with AI</div>
+                      <div style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-text-secondary);"><span style="width:18px;height:18px;border-radius:50%;background:var(--ea-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;">3</span>Generate Business Model Canvas</div>
+                      <div style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-text-secondary);"><span style="width:18px;height:18px;border-radius:50%;background:var(--ea-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;">4</span>Generate Architecture &amp; Capability Map</div>
+                      <div style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-text-secondary);"><span style="width:18px;height:18px;border-radius:50%;background:var(--ea-accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;">5</span>Gap Analysis, Roadmap &amp; Reports</div>
+                    </div>
+                    <button class="ea-btn ea-btn--primary" style="font-size:12px;min-height:34px;padding:0 14px;">
+                      <i class="fas fa-play mr-2"></i>Start AI Workflow
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Path 2: Workshop & Toolkits -->
+              <div onclick="showTab('toolkits',this)" style="background:var(--ea-surface);border:2px solid var(--ea-border);border-radius:10px;padding:22px 20px;cursor:pointer;transition:border-color 160ms,box-shadow 160ms;" onmouseover="this.style.borderColor='var(--ea-accent)';this.style.boxShadow='0 6px 20px rgba(74,119,99,.12)'" onmouseout="this.style.borderColor='var(--ea-border)';this.style.boxShadow='none'">
+                <div style="display:flex;align-items:flex-start;gap:14px;">
+                  <div style="width:44px;height:44px;border-radius:10px;background:rgba(74,119,99,.10);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas fa-toolbox" style="font-size:20px;color:var(--ea-accent);"></i>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:700;color:var(--ea-text-primary);margin-bottom:4px;">Workshop &amp; Standalone Toolkits</div>
+                    <div style="font-size:12px;color:var(--ea-text-secondary);margin-bottom:12px;line-height:1.5;">Run EA workshops or use standalone analysis tools independently.</div>
+                    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;">
+                      <a href="../EA2_Toolkit/AI Strategy Workbench V2.html" target="_blank" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-accent);text-decoration:none;" onmouseover="this.style.color='var(--ea-primary)'" onmouseout="this.style.color='var(--ea-accent)'"><i class="fas fa-chess" style="width:14px;"></i>AI Strategy Workbench</a>
+                      <a href="../EA2_Toolkit/AI Business Model Canvas.html" target="_blank" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-accent);text-decoration:none;" onmouseover="this.style.color='var(--ea-primary)'" onmouseout="this.style.color='var(--ea-accent)'"><i class="fas fa-th" style="width:14px;"></i>Business Model Canvas</a>
+                      <a href="../EA2_Toolkit/AI Value Chain Analyzer V2.html" target="_blank" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-accent);text-decoration:none;" onmouseover="this.style.color='var(--ea-primary)'" onmouseout="this.style.color='var(--ea-accent)'"><i class="fas fa-link" style="width:14px;"></i>Value Chain Analyzer</a>
+                      <a href="../EA2_Toolkit/AI Capability Mapping V2.html" target="_blank" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-accent);text-decoration:none;" onmouseover="this.style.color='var(--ea-primary)'" onmouseout="this.style.color='var(--ea-accent)'"><i class="fas fa-diagram-project" style="width:14px;"></i>Capability Mapping</a>
+                      <a href="../EA2_Toolkit/EA20 Maturity Toolbox V2.html" target="_blank" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-accent);text-decoration:none;" onmouseover="this.style.color='var(--ea-primary)'" onmouseout="this.style.color='var(--ea-accent)'"><i class="fas fa-chart-line" style="width:14px;"></i>EA20 Maturity Toolbox</a>
+                    </div>
+                    <button class="ea-btn ea-btn--secondary" style="font-size:12px;min-height:34px;padding:0 14px;">
+                      <i class="fas fa-toolbox mr-2"></i>Open Toolkit Hub
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ── QUICK REFERENCE GUIDE ── -->
+          <div style="background:var(--ea-surface);border:1px solid var(--ea-border);border-radius:10px;margin-bottom:20px;overflow:hidden;">
+            <button onclick="this.parentElement.querySelector('.qrg-body').classList.toggle('hidden');this.querySelector('.qrg-chevron').style.transform=this.parentElement.querySelector('.qrg-body').classList.contains('hidden')?'rotate(0deg)':'rotate(180deg)'" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:none;border:none;cursor:pointer;font-family:inherit;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <i class="fas fa-book-open" style="color:var(--ea-accent);font-size:14px;"></i>
+                <span style="font-size:13px;font-weight:700;color:var(--ea-text-primary);">Quick Reference Guide</span>
+                <span style="font-size:10px;color:var(--ea-text-secondary);background:var(--ea-hover);border:1px solid var(--ea-border);border-radius:4px;padding:1px 7px;">How everything works</span>
+              </div>
+              <i class="fas fa-chevron-down qrg-chevron" style="color:var(--ea-text-secondary);font-size:11px;transition:transform 200ms;"></i>
+            </button>
+
+            <div class="qrg-body hidden" style="padding:0 18px 18px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:4px;">
+
+                <!-- Column 1: AI Workflow -->
+                <div>
+                  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ea-primary);border-bottom:2px solid var(--ea-primary);padding-bottom:5px;margin-bottom:10px;">AI Workflow (Left Panel)</div>
+                  <div style="display:flex;flex-direction:column;gap:8px;">
+                    <div style="display:flex;gap:8px;"><span style="width:20px;height:20px;border-radius:50%;background:var(--ea-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">1</span><div><div style="font-size:11px;font-weight:700;color:var(--ea-text-primary);">Organisation Description</div><div style="font-size:10px;color:var(--ea-text-secondary);">Paste or type your org context in the text field on the left.</div></div></div>
+                    <div style="display:flex;gap:8px;"><span style="width:20px;height:20px;border-radius:50%;background:var(--ea-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">2</span><div><div style="font-size:11px;font-weight:700;color:var(--ea-text-primary);">Strategic Intent</div><div style="font-size:10px;color:var(--ea-text-secondary);">Click «Clarify Strategic Intent» — AI extracts goals and unlocks next steps.</div></div></div>
+                    <div style="display:flex;gap:8px;"><span style="width:20px;height:20px;border-radius:50%;background:var(--ea-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">3</span><div><div style="font-size:11px;font-weight:700;color:var(--ea-text-primary);">Business Model Canvas</div><div style="font-size:10px;color:var(--ea-text-secondary);">«Generate BMC» — creates a full canvas linked to your strategy.</div></div></div>
+                    <div style="display:flex;gap:8px;"><span style="width:20px;height:20px;border-radius:50%;background:var(--ea-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">4</span><div><div style="font-size:11px;font-weight:700;color:var(--ea-text-primary);">Capability Map &amp; Architecture</div><div style="font-size:10px;color:var(--ea-text-secondary);">«Generate Architecture» — builds capability map, layers, and heatmap.</div></div></div>
+                    <div style="display:flex;gap:8px;"><span style="width:20px;height:20px;border-radius:50%;background:var(--ea-accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">5</span><div><div style="font-size:11px;font-weight:700;color:var(--ea-text-primary);">Gap Analysis &amp; Roadmap</div><div style="font-size:10px;color:var(--ea-text-secondary);">«Analyse Gaps» then «Roadmap» — generates transformation plan.</div></div></div>
+                    <div style="display:flex;gap:8px;"><span style="width:20px;height:20px;border-radius:50%;background:#C8A96B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">6</span><div><div style="font-size:11px;font-weight:700;color:var(--ea-text-primary);">CxO Report</div><div style="font-size:10px;color:var(--ea-text-secondary);">Use the 📄 report icon in the header to generate a board-ready summary.</div></div></div>
+                  </div>
+                </div>
+
+                <!-- Column 2: Standalone Toolkits -->
+                <div>
+                  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ea-accent);border-bottom:2px solid var(--ea-accent);padding-bottom:5px;margin-bottom:10px;">Standalone Toolkits</div>
+                  <div style="display:flex;flex-direction:column;gap:7px;">
+                    <a href="../EA2_Toolkit/AI Strategy Workbench V2.html" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--ea-hover);border:1px solid var(--ea-border);border-radius:6px;text-decoration:none;transition:border-color 120ms;" onmouseover="this.style.borderColor='var(--ea-accent)'" onmouseout="this.style.borderColor='var(--ea-border)'">
+                      <div style="display:flex;align-items:center;gap:7px;"><i class="fas fa-chess" style="color:var(--ea-accent);width:13px;"></i><span style="font-size:11px;font-weight:600;color:var(--ea-text-primary);">AI Strategy Workbench</span></div>
+                      <i class="fas fa-arrow-up-right-from-square" style="font-size:9px;color:var(--ea-text-secondary);"></i>
+                    </a>
+                    <a href="../EA2_Toolkit/AI Business Model Canvas.html" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--ea-hover);border:1px solid var(--ea-border);border-radius:6px;text-decoration:none;transition:border-color 120ms;" onmouseover="this.style.borderColor='var(--ea-accent)'" onmouseout="this.style.borderColor='var(--ea-border)'">
+                      <div style="display:flex;align-items:center;gap:7px;"><i class="fas fa-th" style="color:var(--ea-accent);width:13px;"></i><span style="font-size:11px;font-weight:600;color:var(--ea-text-primary);">Business Model Canvas</span></div>
+                      <i class="fas fa-arrow-up-right-from-square" style="font-size:9px;color:var(--ea-text-secondary);"></i>
+                    </a>
+                    <a href="../EA2_Toolkit/AI Value Chain Analyzer V2.html" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--ea-hover);border:1px solid var(--ea-border);border-radius:6px;text-decoration:none;transition:border-color 120ms;" onmouseover="this.style.borderColor='var(--ea-accent)'" onmouseout="this.style.borderColor='var(--ea-border)'">
+                      <div style="display:flex;align-items:center;gap:7px;"><i class="fas fa-link" style="color:var(--ea-accent);width:13px;"></i><span style="font-size:11px;font-weight:600;color:var(--ea-text-primary);">Value Chain Analyzer</span></div>
+                      <i class="fas fa-arrow-up-right-from-square" style="font-size:9px;color:var(--ea-text-secondary);"></i>
+                    </a>
+                    <a href="../EA2_Toolkit/AI Capability Mapping V2.html" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--ea-hover);border:1px solid var(--ea-border);border-radius:6px;text-decoration:none;transition:border-color 120ms;" onmouseover="this.style.borderColor='var(--ea-accent)'" onmouseout="this.style.borderColor='var(--ea-border)'">
+                      <div style="display:flex;align-items:center;gap:7px;"><i class="fas fa-diagram-project" style="color:var(--ea-accent);width:13px;"></i><span style="font-size:11px;font-weight:600;color:var(--ea-text-primary);">Capability Mapping</span></div>
+                      <i class="fas fa-arrow-up-right-from-square" style="font-size:9px;color:var(--ea-text-secondary);"></i>
+                    </a>
+                    <a href="../EA2_Toolkit/EA20 Maturity Toolbox V2.html" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--ea-hover);border:1px solid var(--ea-border);border-radius:6px;text-decoration:none;transition:border-color 120ms;" onmouseover="this.style.borderColor='var(--ea-accent)'" onmouseout="this.style.borderColor='var(--ea-border)'">
+                      <div style="display:flex;align-items:center;gap:7px;"><i class="fas fa-chart-line" style="color:var(--ea-accent);width:13px;"></i><span style="font-size:11px;font-weight:600;color:var(--ea-text-primary);">EA20 Maturity Toolbox</span></div>
+                      <i class="fas fa-arrow-up-right-from-square" style="font-size:9px;color:var(--ea-text-secondary);"></i>
+                    </a>
+                    <a href="../EA2_Toolkit/Application_Portfolio_Management.html" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--ea-hover);border:1px solid var(--ea-border);border-radius:6px;text-decoration:none;transition:border-color 120ms;" onmouseover="this.style.borderColor='var(--ea-accent)'" onmouseout="this.style.borderColor='var(--ea-border)'">
+                      <div style="display:flex;align-items:center;gap:7px;"><i class="fas fa-layer-group" style="color:var(--ea-accent);width:13px;"></i><span style="font-size:11px;font-weight:600;color:var(--ea-text-primary);">Application Portfolio Mgmt</span></div>
+                      <i class="fas fa-arrow-up-right-from-square" style="font-size:9px;color:var(--ea-text-secondary);"></i>
+                    </a>
+                    <button onclick="showTab('toolkits',this)" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;background:rgba(74,119,99,.08);border:1px solid rgba(74,119,99,.25);border-radius:6px;font-size:11px;font-weight:600;color:var(--ea-accent);cursor:pointer;font-family:inherit;margin-top:2px;">
+                      <i class="fas fa-toolbox"></i> Open Integrated Toolkit Hub
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Column 3: Key Tabs & Header Actions -->
+                <div>
+                  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#5865a0;border-bottom:2px solid #5865a0;padding-bottom:5px;margin-bottom:10px;">Key Tabs &amp; Header Actions</div>
+                  <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+                    <div style="font-size:10px;font-weight:700;color:var(--ea-text-secondary);text-transform:uppercase;margin-top:2px;">Analysis tabs</div>
+                    <div onclick="showTab('capmap',this)" style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-text-primary);cursor:pointer;padding:5px 8px;border-radius:5px;" onmouseover="this.style.background='var(--ea-hover)'" onmouseout="this.style.background=''"><i class="fas fa-diagram-project" style="color:#5865a0;width:13px;"></i><span><b>Cap Map</b> — visual capability map</span></div>
+                    <div onclick="showTab('gap',this)" style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-text-primary);cursor:pointer;padding:5px 8px;border-radius:5px;" onmouseover="this.style.background='var(--ea-hover)'" onmouseout="this.style.background=''"><i class="fas fa-triangle-exclamation" style="color:#5865a0;width:13px;"></i><span><b>Gap</b> — gap analysis results</span></div>
+                    <div onclick="showTab('maturity',this)" style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-text-primary);cursor:pointer;padding:5px 8px;border-radius:5px;" onmouseover="this.style.background='var(--ea-hover)'" onmouseout="this.style.background=''"><i class="fas fa-chart-line" style="color:#5865a0;width:13px;"></i><span><b>Maturity</b> — maturity dashboard</span></div>
+                    <div onclick="showTab('roadmapvis',this)" style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-text-primary);cursor:pointer;padding:5px 8px;border-radius:5px;" onmouseover="this.style.background='var(--ea-hover)'" onmouseout="this.style.background=''"><i class="fas fa-timeline" style="color:#5865a0;width:13px;"></i><span><b>Roadmap</b> — visual roadmap</span></div>
+                    <div onclick="showTab('exec',this)" style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-text-primary);cursor:pointer;padding:5px 8px;border-radius:5px;" onmouseover="this.style.background='var(--ea-hover)'" onmouseout="this.style.background=''"><i class="fas fa-gauge-high" style="color:#5865a0;width:13px;"></i><span><b>Executive</b> — CxO summary</span></div>
+                    <div style="font-size:10px;font-weight:700;color:var(--ea-text-secondary);text-transform:uppercase;margin-top:6px;">Header icons (top right)</div>
+                    <div style="font-size:10px;color:var(--ea-text-secondary);line-height:1.9;padding:0 4px;">
+                      <i class="fas fa-floppy-disk" style="color:var(--ea-text-primary);width:13px;"></i> Save &nbsp;·&nbsp;
+                      <i class="fas fa-folder-open" style="color:var(--ea-text-primary);width:13px;"></i> Open &nbsp;·&nbsp;
+                      <i class="fas fa-file-import" style="color:var(--ea-text-primary);width:13px;"></i> Import &nbsp;·&nbsp;
+                      <i class="fas fa-file-export" style="color:var(--ea-text-primary);width:13px;"></i> Export<br>
+                      <i class="fas fa-file-lines" style="color:var(--ea-text-primary);width:13px;"></i> Report &nbsp;·&nbsp;
+                      <i class="fas fa-comments" style="color:var(--ea-text-primary);width:13px;"></i> AI Chat &nbsp;·&nbsp;
+                      <i class="fas fa-gear" style="color:var(--ea-text-primary);width:13px;"></i> Settings
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- ── RECENT PROJECTS ── -->
+          <div style="background:var(--ea-surface);border:1px solid var(--ea-border);border-radius:10px;padding:18px 20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <span style="font-size:13px;font-weight:700;color:var(--ea-text-primary);">Recent Projects</span>
+              <button onclick="loadModelFromDB()" class="ea-btn ea-btn--ghost" style="font-size:11px;min-height:30px;padding:0 10px;">
+                <i class="fas fa-folder-open mr-1"></i>View All
+              </button>
+            </div>
+            <div id="recent-projects-list" class="space-y-2">
+              <div class="text-sm text-slate-400 italic text-center py-6">No recent projects yet.</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Enterprise Dashboard (Shown after architecture generation) -->
+        <div id="enterprise-dashboard-section" class="hidden mt-6">
+          <div class="bg-slate-50 border-t-4 border-primary rounded-xl p-6 mb-6">
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Enterprise Dashboard</h2>
+            <p class="text-slate-600">Management overview — capability health, focus areas, and transformation readiness.</p>
+          </div>
+          
+          <div class="space-y-6">
           <div class="ea-section-card">
             <div class="ea-section-heading">
               <div>
-                <h1>Enterprise dashboard</h1>
-                <p>Management overview — capability health, focus areas, and transformation readiness. Available after <strong>Step 3: Capability Mapping</strong>.</p>
+                <h3>Capability health overview</h3>
+                <p>Comprehensive view of capability maturity and focus areas.</p>
               </div>
               <div class="flex items-center gap-2">
                 <div id="home-dynamic-summary" class="ea-insight-stack"></div>
@@ -887,6 +1146,8 @@
             </div>
             <div class="overflow-x-auto" id="nordic-focus-table"></div>
           </div>
+        </div>
+        </div>
         </div>
       </div>
 
@@ -1304,7 +1565,12 @@
 
       <!-- OPERATING MODEL CANVAS -->
       <div id="tab-opmodel" class="hidden">
-        <div class="text-xs font-bold text-slate-600 mb-3">Operating Model Canvas</div>
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-xs font-bold text-slate-600">Operating Model Canvas</div>
+          <button onclick="generateCxOSummary('Operating Model')" class="ea-btn ea-btn--cxo">
+            <i class="fas fa-file-powerpoint"></i><span>Generate CxO Summary</span>
+          </button>
+        </div>
         <div id="opmodel-content">
           <div class="text-slate-400 text-xs text-center py-16">Click "Op Model" to generate the operating model canvas</div>
         </div>
@@ -1314,7 +1580,12 @@
       <div id="tab-gap" class="hidden">
         <div class="flex items-center justify-between mb-3">
           <div class="text-xs font-bold text-slate-600">Gap Analysis</div>
-          <button onclick="analyseGaps()" class="ea-btn ea-btn--secondary"><i class="fas fa-triangle-exclamation"></i><span>Run Gap Analysis</span></button>
+          <div class="flex gap-2">
+            <button onclick="generateCxOSummary('Gap Analysis')" class="ea-btn ea-btn--cxo">
+              <i class="fas fa-file-powerpoint"></i><span>Generate CxO Summary</span>
+            </button>
+            <button onclick="analyseGaps()" class="ea-btn ea-btn--secondary"><i class="fas fa-triangle-exclamation"></i><span>Run Gap Analysis</span></button>
+          </div>
         </div>
         <div id="insights" class="ea-summary-list">
           <div class="text-slate-400 italic text-center py-6 text-[11px]">Run Gap Analysis to generate prioritized findings</div>
@@ -1325,7 +1596,12 @@
       <div id="tab-maturity" class="hidden">
         <div class="flex items-center justify-between mb-3">
           <div class="text-xs font-bold text-slate-600">Maturity Dashboard</div>
-          <button onclick="renderMaturityDashboard()" class="ea-btn ea-btn--secondary"><i class="fas fa-chart-line"></i><span>Refresh Maturity</span></button>
+          <div class="flex gap-2">
+            <button onclick="generateCxOSummary('Maturity Assessment')" class="ea-btn ea-btn--cxo">
+              <i class="fas fa-file-powerpoint"></i><span>Generate CxO Summary</span>
+            </button>
+            <button onclick="renderMaturityDashboard()" class="ea-btn ea-btn--secondary"><i class="fas fa-chart-line"></i><span>Refresh Maturity</span></button>
+          </div>
         </div>
         <div id="maturity-dashboard">
           <div class="text-slate-400 text-xs italic text-center py-4">Generate architecture to view maturity</div>
@@ -2370,6 +2646,9 @@ window.addEventListener('DOMContentLoaded', () => {
   renderLanguageSelector();
   applyLanguagePreference(getAppLanguage());
   initChatPanel();
+  loadRecentProjects();
+  // Update home view based on project state
+  updateHomeView();
   // Open the Home tab by default
   showTab('home', null);
 
@@ -2641,6 +2920,32 @@ function saveApiKey() {
   toast('API key saved &#x2718; (V3 unified)', false);
 }
 
+// ── PROGRESSIVE DISCLOSURE ────
+function showProjectDashboard() {
+  const welcomeEl = document.getElementById('first-visit-welcome');
+  const dashboardEl = document.getElementById('project-dashboard');
+  if (welcomeEl) welcomeEl.classList.add('hidden');
+  if (dashboardEl) dashboardEl.classList.remove('hidden');
+  const nameEl = document.getElementById('hero-project-name');
+  if (nameEl) nameEl.textContent = (typeof currentModelName !== 'undefined' && currentModelName) ? currentModelName : 'Untitled Project';
+}
+
+function showWelcomeScreen() {
+  const welcomeEl = document.getElementById('first-visit-welcome');
+  const dashboardEl = document.getElementById('project-dashboard');
+  if (welcomeEl) welcomeEl.classList.remove('hidden');
+  if (dashboardEl) dashboardEl.classList.add('hidden');
+}
+
+function updateHomeView() {
+  // Show dashboard if there's a current project, otherwise show welcome
+  if (currentModelId || (model && (model.capabilities?.length > 0 || model.valueStreams?.length > 0))) {
+    showProjectDashboard();
+  } else {
+    showWelcomeScreen();
+  }
+}
+
 // ── NEW PROJECT MANAGEMENT ────
 function openNewProjectModal() {
   document.getElementById('newProjectName').value = '';
@@ -2737,7 +3042,10 @@ function createNewProject() {
   
   // Close modal and show success
   closeNewProjectModal();
-  toast(`&#x2718; Project "${projectName}" created (with backup)`, false);
+  toast(`✓ Project "${projectName}" created (with backup)`, false);
+  
+  // Show the full dashboard now that we have a project
+  showProjectDashboard();
 }
 
 // ── TOAST NOTIFICATIONS ────
@@ -2925,27 +3233,35 @@ function _loadEntry(id, source) {
     currentModelName = saved.name;
     model = saved.data;
   }
+  // Close dialog and navigate home FIRST — before any rendering that might throw
+  closeModal();
+  showProjectDashboard();
+  showTab('home');
+
   ensurePhase4Fields();
   ensureBusinessFields();
   computeDerivedFinancials();
-  renderLayers(); renderCapMap(); renderHeatmap(); renderMaturityDashboard();
-  populateImpactSelect(); renderExecSummary(); generateNarrative(); updateDataCollectionTab();
-  renderPhase4ControlsFromModel();
-  document.getElementById('cxo-narrative-section').classList.remove('hidden');
-  if (model.initiatives?.length) { renderInitiatives(); renderRoadmapVisual(); }
-  if (model.operatingModel?.valueProposition) renderOperatingModel();
+  try { renderLayers(); } catch(e) { console.warn('renderLayers', e); }
+  try { renderCapMap(); } catch(e) { console.warn('renderCapMap', e); }
+  try { renderHeatmap(); } catch(e) { console.warn('renderHeatmap', e); }
+  try { renderMaturityDashboard(); } catch(e) { console.warn('renderMaturityDashboard', e); }
+  try { populateImpactSelect(); renderExecSummary(); generateNarrative(); updateDataCollectionTab(); } catch(e) { console.warn('renderExec', e); }
+  try { renderPhase4ControlsFromModel(); } catch(e) { console.warn('renderPhase4', e); }
+  const cxoSection = document.getElementById('cxo-narrative-section');
+  if (cxoSection) cxoSection.classList.remove('hidden');
+  if (model.initiatives?.length) { try { renderInitiatives(); renderRoadmapVisual(); } catch(e) { console.warn('renderRoadmap', e); } }
+  if (model.operatingModel?.valueProposition) { try { renderOperatingModel(); } catch(e) { console.warn('renderOM', e); } }
   if (model.gapAnalysisRaw) {
     const insightsEl = document.getElementById('insights');
     if (insightsEl) insightsEl.innerHTML = formatGapAnalysisOutput(model.gapAnalysisRaw);
   }
-  if (model.targetArch?.length) renderTargetArchVisual();
+  if (model.targetArch?.length) { try { renderTargetArchVisual(); } catch(e) { console.warn('renderTarget', e); } }
   localStorage.setItem('ea_current_model', JSON.stringify({ id: currentModelId, name: currentModelName, data: model }));
   updateHeaderTitle();
   if (typeof syncConversationWithCurrentModel === 'function') syncConversationWithCurrentModel();
-  updateWorkflowStepStates();
-  renderStrategicIntentSection();
-  closeModal();
-  toast('Loaded: ' + currentModelName + ' &#x2718;', false);
+  try { updateWorkflowStepStates(); } catch(e) { console.warn('updateWorkflow', e); }
+  try { renderStrategicIntentSection(); } catch(e) { console.warn('renderStrategicIntent', e); }
+  toast('Loaded: ' + currentModelName, false);
 }
 
 function _deleteEntry(id, source) {
@@ -4363,7 +4679,10 @@ function showTab(name, btn) {
   if(name==='survey') setTimeout(()=>{ generateSurveyChecklists(); updateSurveyHealth(); },50);
   if (name === 'exec') setTimeout(renderExecSummary, 50);
   if (name === 'toolkits') setTimeout(updateToolkitBadges, 50);
-  if (name === 'home') setTimeout(renderNordicDashboard, 50);
+  if (name === 'home') {
+    setTimeout(renderNordicDashboard, 50);
+    setTimeout(loadRecentProjects, 100);
+  }
   if (name === 'maturity') setTimeout(renderMaturityDashboard, 50);
   if (name === 'scenarios') setTimeout(renderDecisionScenarios, 50);
   if (name === 'financials') setTimeout(renderFinancials, 50);
@@ -4395,29 +4714,302 @@ function openToolkitFromHeader(btn) {
   if (btn) btn.blur();
 }
 
+// ── UX IMPROVEMENTS: NEW FUNCTIONS ────
+
+// Workflow Path Navigation
+function startArchitectWorkflow() {
+  // Show workflow progress indicator
+  document.getElementById('workflow-progress-indicator').classList.remove('hidden');
+  // Navigate to left panel to start the workflow
+  showTab('home');
+  // Scroll to left panel
+  setTimeout(() => {
+    const leftPanel = document.querySelector('.ea-sidebar-panel');
+    if (leftPanel) leftPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Focus on description textarea
+    const descriptionField = document.getElementById('description');
+    if (descriptionField) descriptionField.focus();
+  }, 300);
+  toast('Starting Architect Workflow - Begin with Strategic Intent');
+}
+
+function startWorkshopFlow() {
+  showTab('toolkits');
+  toast('Opening Strategic Toolkits for Business Workshop');
+}
+
+function showExecutiveDashboard() {
+  if (model.capabilities && model.capabilities.length > 0) {
+    document.getElementById('enterprise-dashboard-section').classList.remove('hidden');
+    showTab('home');
+    setTimeout(() => {
+      document.getElementById('enterprise-dashboard-section').scrollIntoView({ behavior: 'smooth' });
+    }, 200);
+  } else {
+    showTab('exec');
+    toast('Executive dashboard available after architecture generation');
+  }
+}
+
+function openDocumentation() {
+  const docModal = confirm('Open platform documentation?\\n\\nThis will open the Quick Reference guide in a new window.');
+  if (docModal) {
+    window.open('EA_Platform_V4_Quick_Reference.md', '_blank');
+  }
+}
+
+// Update Workflow Progress Indicator
+function updateWorkflowProgress(completedSteps) {
+  const progressIndicator = document.getElementById('workflow-progress-indicator');
+  if (!progressIndicator) return;
+  
+  progressIndicator.classList.remove('hidden');
+  
+  const steps = progressIndicator.querySelectorAll('.ea-progress-step');
+  steps.forEach((step, index) => {
+    step.classList.remove('ea-progress-step--completed', 'ea-progress-step--active');
+    
+    if (completedSteps.includes(index + 1)) {
+      step.classList.add('ea-progress-step--completed');
+    } else if (completedSteps.length === index) {
+      step.classList.add('ea-progress-step--active');
+    }
+  });
+}
+
+// CxO Summary Generation - Unified Function
+async function generateCxOSummary(context, contextData) {
+  if (!OPENAI_KEY && !API_HAS_KEY) {
+    toast('Please configure your OpenAI API key in Settings', true);
+    return;
+  }
+
+  // Show loading modal  
+  const modal = document.createElement('div');
+  modal.id = 'cxo-summary-modal';
+  modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
+  modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden">
+      <div class="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700">
+        <div class="flex items-center gap-3">
+          <i class="fas fa-file-powerpoint text-2xl text-white"></i>
+          <div>
+            <h3 class="text-xl font-bold text-white">Executive Summary</h3>
+            <p class="text-sm text-blue-100">${context}</p>
+          </div>
+        </div>
+        <button onclick="closeCxOModal()" class="text-white/80 hover:text-white text-2xl">&times;</button>
+      </div>
+      <div class="p-6 overflow-y-auto" style="max-height: calc(85vh - 180px);">
+        <div class="flex items-center justify-center py-12">
+          <div class="text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p class="text-slate-600">Generating executive summary...</p>
+          </div>
+        </div>
+      </div>
+      <div class="p-4 border-t bg-slate-50 flex justify-between items-center">
+        <div class="text-sm text-slate-500">AI-generated content - review before sharing</div>
+        <div class="flex gap-2">
+          <button onclick="exportCxOSummary('pdf')" class="ea-btn ea-btn--ghost" disabled>
+            <i class="fas fa-file-pdf mr-2"></i>Export PDF
+          </button>
+          <button onclick="exportCxOSummary('pptx')" class="ea-btn ea-btn--ghost" disabled>
+            <i class="fas fa-file-powerpoint mr-2"></i>Export PowerPoint
+          </button>
+          <button onclick="copyCxOSummary()" class="ea-btn ea-btn--secondary" disabled>
+            <i class="fas fa-copy mr-2"></i>Copy Text
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  try {
+    // Prepare context-specific data
+    let summaryData = contextData || extractContextData(context);
+    
+    // Generate AI summary
+    const prompt = `You are a CxO advisory consultant preparing an executive summary for the board.
+    
+Context: ${context}
+
+Create a comprehensive 5-paragraph executive summary:
+1. **Situation** (Current state assessment - 2-3 sentences)
+2. **Business Impact** (Quantified impact on revenue, cost, risk - with specific numbers)
+3. **Key Findings** (3-4 bullet points of critical insights)
+4. **Strategic Recommendations** (Prioritized actions - 3-4 bullets)
+5. **Next Steps** (Immediate actionable items with timeline)
+
+Use business language, avoid technical jargon. Focus on outcomes and decisions.
+Be concise but compelling. Include metrics where available.
+
+Data:
+${JSON.stringify(summaryData, null, 2)}`;
+
+    const narrative = await callAI(
+      'You are a strategic board advisor. Create clear, decision-focused executive summaries.',
+      prompt
+    );
+
+    // Update modal with generated content
+    updateCxOModalContent(narrative, summaryData);
+    
+  } catch (error) {
+    console.error('CxO Summary generation failed:', error);
+    modal.querySelector('.p-6').innerHTML = `
+      <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+        <i class="fas fa-exclamation-triangle mr-2"></i>
+        Failed to generate summary. Please check your API key and try again.
+      </div>
+    `;
+  }
+}
+
+function extractContextData(context) {
+  const data = {
+    context: context,
+    timestamp: new Date().toISOString(),
+    projectName: model.projectName || 'Unnamed Project',
+    description: model.description || '',
+  };
+
+  if (context === 'gap-analysis' && model.gaps) {
+    data.gaps = model.gaps.slice(0, 5);
+    data.gapCount = model.gaps.length;
+  }
+
+  if (context === 'maturity' && model.capabilities) {
+    const avgMaturity = model.capabilities.reduce((sum, c) => sum + (c.maturity || 0), 0) / model.capabilities.length;
+    data.averageMaturity = avgMaturity.toFixed(2);
+    data.lowMaturityCount = model.capabilities.filter(c => c.maturity <= 2).length;
+  }
+
+  if (context === 'operating-model' && model.operatingModel) {
+    data.operatingModel = model.operatingModel;
+  }
+
+  if (context === 'roadmap' && model.initiatives) {
+    data.initiatives = model.initiatives.slice(0, 8);
+    data.totalInitiatives = model.initiatives.length;
+  }
+
+  if (context === 'benchmarking') {
+    data.benchmarkData = 'Industry comparison data';
+  }
+
+  // Financial data if available
+  if (model.capabilities) {
+    data.totalSavings = model.capabilities.reduce((sum, c) => sum + (c.annualSavingsEstimate || 0), 0);
+    data.totalRisk = model.capabilities.reduce((sum, c) => sum + (c.riskExposure || 0), 0);
+  }
+
+  return data;
+}
+
+function updateCxOModalContent(narrative, data) {
+  const modal = document.getElementById('cxo-summary-modal');
+  if (!modal) return;
+
+  const contentDiv = modal.querySelector('.p-6');
+  contentDiv.innerHTML = `
+    <div class="prose max-w-none">
+      <div class="ea-cxo-summary-content text-slate-700 leading-relaxed" contenteditable="true">
+        ${narrative.replace(/\\n/g, '<br><br>')}
+      </div>
+    </div>
+    <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+      <div class="text-xs font-bold text-blue-700 uppercase mb-2">Summary Metadata</div>
+      <div class="grid grid-cols-2 gap-2 text-sm text-slate-600">
+        <div><strong>Project:</strong> ${data.projectName}</div>
+        <div><strong>Generated:</strong> ${new Date().toLocaleDateString()}</div>
+        <div><strong>Context:</strong> ${data.context}</div>
+        <div><strong>AI Model:</strong> GPT-4o</div>
+      </div>
+    </div>
+  `;
+
+  // Enable export buttons
+  modal.querySelectorAll('button[onclick^="exportCxO"], button[onclick^="copyCxO"]').forEach(btn => {
+    btn.disabled = false;
+  });
+}
+
+function closeCxOModal() {
+  const modal = document.getElementById('cxo-summary-modal');
+  if (modal) modal.remove();
+}
+
+function copyCxOSummary() {
+  const content = document.querySelector('.ea-cxo-summary-content');
+  if (!content) return;
+  
+  const text = content.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    toast('Summary copied to clipboard ✓');
+  });
+}
+
+function exportCxOSummary(format) {
+  toast(`Export to ${format.toUpperCase()} - Feature coming soon`);
+  // Placeholder for future PDF/PowerPoint export functionality
+}
+
+// Load Recent Projects
+function loadRecentProjects() {
+  const projectsList = document.getElementById('recent-projects-list');
+  if (!projectsList) return;
+
+  const allProjects = JSON.parse(localStorage.getItem('ea_all_models') || '{}');
+  const projectKeys = Object.keys(allProjects).sort((a, b) => {
+    const timeA = allProjects[a].lastModified || 0;
+    const timeB = allProjects[b].lastModified || 0;
+    return timeB - timeA;
+  }).slice(0, 5);
+
+  if (projectKeys.length === 0) {
+    projectsList.innerHTML = '<div class="text-sm text-slate-400 italic text-center py-6">No recent projects yet.</div>';
+    return;
+  }
+
+  projectsList.innerHTML = projectKeys.map(key => {
+    const project = allProjects[key];
+    const lastModified = project.lastModified ? new Date(project.lastModified).toLocaleDateString() : 'Unknown';
+    const capCount = project.capabilities ? project.capabilities.length : 0;
+    
+    return `
+      <div class="project-card" onclick="loadProjectByName('${key}')">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <div class="font-bold text-sm text-slate-800">${key}</div>
+            <div class="text-xs text-slate-500 mt-1">${capCount} capabilities • Last modified: ${lastModified}</div>
+          </div>
+          <i class="fas fa-chevron-right text-slate-400"></i>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function loadProjectByName(projectName) {
+  const allProjects = JSON.parse(localStorage.getItem('ea_all_models') || '{}');
+  if (allProjects[projectName]) {
+    model = allProjects[projectName];
+    model.projectName = projectName;
+    populateModelInUI();
+    toast(`Loaded project: ${projectName}`);
+    showProjectDashboard();
+    showTab('home');
+  }
+}
+
 function renderActionBar() {
   const target = document.getElementById('dashboard-action-bar');
   if (!target || typeof EANordicUI === 'undefined') return;
-  target.innerHTML = [
-    EANordicUI.button({
-      variant: 'primary',
-      icon: 'fas fa-plus',
-      label: 'Add',
-      attrs: { onclick: 'newModel()' }
-    }),
-    EANordicUI.button({
-      variant: 'secondary',
-      icon: 'fas fa-file-import',
-      label: 'Import',
-      attrs: { onclick: "document.getElementById('global-model-import').click()" }
-    }),
-    EANordicUI.button({
-      variant: 'secondary',
-      icon: 'fas fa-file-export',
-      label: 'Export',
-      attrs: { onclick: 'exportModel()' }
-    }),
-  ].join('');
+  // Action bar is now contextual - only shows when inside a project
+  // Primary entry actions (New/Open) are on the home page instead
+  target.innerHTML = '';
 }
 
 function toggleDashboardFilters() {
@@ -7557,6 +8149,7 @@ function confirmStrategicIntent() {
   if (!model.strategicIntent) return;
   model.strategicIntentConfirmed = true;
   updateWorkflowStepStates();
+  updateWorkflowProgress([1]); // Mark Step 1 as completed
   const confirmBtn = document.getElementById('btn-step1-confirm');
   if (confirmBtn) confirmBtn.classList.add('hidden');
   toast('Step 1 confirmed — Business Model Canvas unlocked ✓');
@@ -7618,6 +8211,7 @@ async function generateBMC() {
     model.bmc_current = parsed.current_state_bmc || null;
     model.bmc_analysis = parsed.model_shift_analysis || null;
     updateWorkflowStepStates();
+    updateWorkflowProgress([1, 2]); // Mark Steps 1-2 as completed
     renderBMCPanel();
     toast('Business Model Canvas generated &#x2714;');
     const bmc = model.bmc;
@@ -8567,6 +9161,7 @@ Rules: ${profile.valueStreams} value streams, ${profile.capabilities} capabiliti
     // Narrative fires last (uses financials)
     generateNarrative();
     updateWorkflowStepStates();
+    updateWorkflowProgress([1, 2, 3]); // Mark Steps 1-3 as completed
 
     _setStep3Status(`✓ Done — ${capCount} capabilities · financials & benchmark ready`, 'done');
     if (btnLabel) btnLabel.textContent = isRefineArch ? 'Re-generate Architecture' : 'Generate Architecture';
@@ -8717,6 +9312,7 @@ Return JSON:
     model.operatingModel = JSON.parse(extractJSON(raw));
     renderOperatingModel();
     updateWorkflowStepStates();
+    updateWorkflowProgress([1, 2, 3, 4]); // Mark Steps 1-4 as completed
     showTab('opmodel', null);
     toast('Operating model generated &#x2718;');
     const om = model.operatingModel;
@@ -8744,6 +9340,7 @@ async function analyseGaps() {
     model.gapAnalysisRaw = raw;
     autoSaveCurrentModel();
     updateWorkflowStepStates();
+    updateWorkflowProgress([1, 2, 3, 4, 5]); // Mark Steps 1-5 as completed
     toast('Gap analysis complete &#x2718;');
   } catch(e) { toast('Error: ' + e.message, true); }
   spin('s5', false);
@@ -9182,6 +9779,7 @@ Return JSON:
     model.initiatives = Array.isArray(rdParsed) ? rdParsed : (rdParsed.initiatives || []);
     model.roadmapPhaseGates = Array.isArray(rdParsed) ? null : (rdParsed.phase_gates || null);
     renderInitiatives(); renderRoadmapVisual();
+    updateWorkflowProgress([1, 2, 3, 4, 5]); // Mark all workflow steps as completed
     toast('Roadmap generated &#x2718;');
     const highPri = (model.initiatives||[]).filter(i=>i.priority==='high').slice(0,5);
     const rdMsg = highPri.map(i=>`• **${i.name}** (${i.phase}): ${i.description||''}`).join('\n');
