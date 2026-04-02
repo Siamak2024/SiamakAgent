@@ -14,6 +14,7 @@ module.exports = async function (context, req) {
   if (!apiKey) {
     context.res = {
       status: 500,
+      headers: { 'Content-Type': 'application/json' },
       body: {
         error: 'OpenAI API key not configured in Azure Function settings'
       }
@@ -25,6 +26,7 @@ module.exports = async function (context, req) {
   if (!req.body) {
     context.res = {
       status: 400,
+      headers: { 'Content-Type': 'application/json' },
       body: {
         error: 'Request body is required'
       }
@@ -119,6 +121,7 @@ module.exports = async function (context, req) {
 
     context.res = {
       status: 200,
+      headers: { 'Content-Type': 'application/json' },
       body: response
     };
 
@@ -126,6 +129,7 @@ module.exports = async function (context, req) {
     context.log('Error:', error.message);
     context.res = {
       status: 500,
+      headers: { 'Content-Type': 'application/json' },
       body: {
         error: 'Failed to process OpenAI Responses API request',
         details: error.message

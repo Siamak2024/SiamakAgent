@@ -847,10 +847,10 @@
       <!-- HOME PAGE / OVERVIEW -->
       <div id="tab-home">
         <!-- Minimal Welcome - First Visit -->
-        <div id="first-visit-welcome" class="flex items-center justify-center" style="min-height: 60vh;">
-          <div class="text-center max-w-2xl mx-auto">
+        <div id="first-visit-welcome" class="flex items-center justify-center" style="min-height: 60vh; background-image: url('NextGenEA.jpeg'); background-size: cover; background-position: center; background-repeat: no-repeat; border-radius: 12px; position: relative;">
+          <div class="text-center max-w-2xl mx-auto" style="position: relative; z-index: 1;">
             <div class="mb-6">
-              <div class="inline-flex items-center justify-center w-20 h-20 bg-primary/10 rounded-2xl mb-4">
+              <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4" style="background: rgba(44,62,80,0.12);">
                 <i class="fas fa-layer-group text-4xl text-primary"></i>
               </div>
               <h1 class="text-4xl font-bold text-slate-800 mb-3">Welcome to NextGen EA Platform</h1>
@@ -858,7 +858,7 @@
             </div>
             
             <!-- Single Clear Choice -->
-            <div class="bg-gradient-to-br from-blue-50 to-white rounded-2xl border-2 border-blue-200 p-10 shadow-lg">
+            <div class="rounded-2xl border-2 border-blue-200 p-10 shadow-lg" style="background: rgba(255,255,255,0.82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);">
               <h2 class="text-2xl font-bold text-slate-800 mb-3">Get Started</h2>
               <p class="text-slate-600 mb-8">Choose how you want to begin</p>
               
@@ -1291,7 +1291,7 @@
         </div>
 
         <!-- KPI grid — hidden until capabilities are loaded -->
-        <div id="exec-kpi-grid" class="hidden grid grid-cols-3 gap-4 mb-6">
+        <div id="exec-kpi-grid" style="display:none" class="grid grid-cols-3 gap-4 mb-6">
           <div class="kpi-card">
             <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">Strategic Alignment</div>
             <div class="text-3xl font-black text-primary" id="exec-alignment">–</div>
@@ -1322,14 +1322,7 @@
           <div id="cxo-narrative-section" class="hidden bg-slate-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
             <div class="absolute top-0 right-0 p-4 opacity-10"><svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
             <div class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-3">AI-Generated CXO Narrative</div>
-            <div id="exec-narrative" class="text-base leading-8 font-medium text-slate-200 italic">
-              Generate architecture to receive a board-level strategic narrative...
-            </div>
-            <div class="mt-6 flex gap-3">
-              <div class="px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 text-[10px] font-bold">Target: 36mo ROI</div>
-              <div class="px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 text-[10px] font-bold">Focus: OpEx Reduction</div>
-              <div class="px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 text-[10px] font-bold">Risk: Legacy Migration</div>
-            </div>
+            <div id="exec-narrative" class="text-base leading-8 font-medium text-slate-200 italic"></div>
           </div>
         </div>
       </div>
@@ -2651,6 +2644,8 @@ window.addEventListener('DOMContentLoaded', () => {
   updateHomeView();
   // Open the Home tab by default
   showTab('home', null);
+  // Apply initial tab locks (runs even if no model is loaded)
+  setTimeout(() => { try { updateTabCompletionBadges(); } catch(e) {} }, 50);
 
   const params = new URLSearchParams(window.location.search);
   if (params.get('autoflow') === '1') {
@@ -2802,7 +2797,6 @@ function loadLastModel() {
         generateNarrative();
         updateDataCollectionTab();
         renderPhase4ControlsFromModel();
-        document.getElementById('cxo-narrative-section').classList.remove('hidden');
         if (model.initiatives?.length) {
           renderInitiatives();
           renderRoadmapVisual();
@@ -4660,11 +4654,19 @@ function exportSurveyCSV() {
 
 // ── TABS ────
 function showTab(name, btn) {
+  // Guard: block navigation to locked tabs
+  const resolvedBtn0 = btn || findTabButton(name);
+  if (resolvedBtn0 && resolvedBtn0.classList.contains('tab-btn--locked')) {
+    const reason = resolvedBtn0.getAttribute('data-tab-locked-reason') || 'Content not yet generated';
+    toast('\uD83D\uDD12 ' + reason, true);
+    return;
+  }
   document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
   document.getElementById('tab-' + name).classList.remove('hidden');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  const resolvedBtn = btn || findTabButton(name);
-  if (resolvedBtn) resolvedBtn.classList.add('active');
+  if (resolvedBtn0) resolvedBtn0.classList.add('active');
+  const _cp = document.querySelector('.ea-content-panel');
+  if (_cp) _cp.scrollTop = 0;
   document.querySelectorAll('.ea-header-icon--home').forEach((iconBtn) => {
     iconBtn.classList.toggle('is-active', name === 'home');
   });
@@ -7045,7 +7047,6 @@ async function handleGenerateArchitecture(userMessage, context) {
     generateNarrative();
     updateDataCollectionTab();
     renderPhase4ControlsFromModel();
-    document.getElementById('cxo-narrative-section').classList.remove('hidden');
     autoSaveCurrentModel();
 
     return {
@@ -8878,29 +8879,53 @@ function updateWorkflowStepStates() {
 
 function updateTabCompletionBadges() {
   const caps = (model.capabilities||[]).length > 0;
+  const hasBmc = !!(model.bmc || Object.keys(model.operatingModel||{}).length > 0);
+  const hasScenarios = !!(model.scenarios && model.scenarios.length > 0);
+
+  // tabStates[name] = { unlocked: bool, done: bool, reason: string }
   const tabStates = {
-    exec:       !!model.strategicIntent,
-    phase4:     caps,
-    bench:      caps,
-    survey:     caps,
-    layers:     caps,
-    capmap:     caps,
-    heatmap:    caps,
-    graph:      caps,
-    impact:     caps,
-    cfo:        caps,
-    gap:        !!model.gapAnalysisDone,
-    maturity:   !!model.gapAnalysisDone || caps,
-    opmodel:    !!(model.bmc || Object.keys(model.operatingModel||{}).length > 0),
-    targetarch: !!model.targetArchDone || !!(model.valuePools && model.valuePools.length > 0),
-    roadmapvis: !!model.targetArchDone || !!(model.initiatives && model.initiatives.length > 0)
+    home:       { unlocked: true,                                              done: caps,                               reason: '' },
+    exec:       { unlocked: !!model.strategicIntent,                           done: !!model.strategicIntent,            reason: 'Complete Step 1 — Clarify Strategic Intent' },
+    phase4:     { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
+    bench:      { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
+    survey:     { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
+    layers:     { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
+    capmap:     { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
+    heatmap:    { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
+    graph:      { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
+    impact:     { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
+    cfo:        { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
+    gap:        { unlocked: !!model.gapAnalysisDone,                          done: !!model.gapAnalysisDone,            reason: 'Complete Step 5 — Analyse Gaps' },
+    maturity:   { unlocked: caps,                                              done: !!model.gapAnalysisDone || caps,    reason: 'Complete Step 3 — Generate Architecture' },
+    opmodel:    { unlocked: hasBmc,                                            done: hasBmc,                             reason: 'Complete Step 2 — Generate Business Model Canvas' },
+    targetarch: { unlocked: !!(model.targetArchDone || (model.valuePools && model.valuePools.length > 0)), done: !!model.targetArchDone, reason: 'Complete Step 7 — Target Arch & Roadmap' },
+    roadmapvis: { unlocked: !!(model.targetArchDone || (model.initiatives && model.initiatives.length > 0)), done: !!model.targetArchDone, reason: 'Complete Step 7 — Target Arch & Roadmap' },
+    toolkits:   { unlocked: true,                                              done: false,                              reason: '' },
+    scenarios:  { unlocked: caps,                                              done: hasScenarios,                       reason: 'Complete Step 3 — Generate Architecture' },
+    financials: { unlocked: hasScenarios,                                      done: hasScenarios,                       reason: 'Create at least one Scenario first' },
+    optimisation:{ unlocked: caps,                                             done: caps,                               reason: 'Complete Step 3 — Generate Architecture' }
   };
+
   document.querySelectorAll('.tab-btn').forEach(btn => {
     const onclick = btn.getAttribute('onclick') || '';
     const match = onclick.match(/showTab\('([^']+)'/);
     if (!match) return;
     const tabName = match[1];
-    const isDone = !!tabStates[tabName];
+    const state = tabStates[tabName];
+    if (!state) return; // unknown tab — leave as-is
+
+    // Lock / unlock visual
+    if (state.unlocked) {
+      btn.classList.remove('tab-btn--locked');
+      btn.removeAttribute('disabled');
+      btn.removeAttribute('data-tab-locked-reason');
+    } else {
+      btn.classList.add('tab-btn--locked');
+      btn.setAttribute('disabled', 'disabled');
+      btn.setAttribute('data-tab-locked-reason', state.reason);
+    }
+
+    // Done badge (green checkmark)
     let badge = btn.querySelector('.tab-done-badge');
     if (!badge) {
       badge = document.createElement('span');
@@ -8908,7 +8933,7 @@ function updateTabCompletionBadges() {
       badge.innerHTML = '<i class="fas fa-check"></i>';
       btn.appendChild(badge);
     }
-    badge.style.display = isDone ? '' : 'none';
+    badge.style.display = state.done ? '' : 'none';
   });
 }
 
@@ -9117,7 +9142,6 @@ Rules: ${profile.valueStreams} value streams, ${profile.capabilities} capabiliti
     populateImpactSelect(); renderExecSummary(); updateDataCollectionTab();
     renderPhase4ControlsFromModel();
     updateWorkflowStepStates();
-    document.getElementById('cxo-narrative-section')?.classList.remove('hidden');
     showTab('capmap', findTabButton('capmap'));
 
     const capCount = (model.capabilities||[]).length;
@@ -11047,13 +11071,13 @@ function renderExecSummary() {
   if (!model.capabilities || !model.capabilities.length) {
     // Step 3 not yet complete — show placeholder, hide KPI cards
     if (placeholder) placeholder.classList.remove('hidden');
-    if (grid) grid.classList.add('hidden');
+    if (grid) grid.style.display = 'none';
     return;
   }
 
   // Step 3+ data available — hide placeholder, show KPI grid
   if (placeholder) placeholder.classList.add('hidden');
-  if (grid) grid.classList.remove('hidden');
+  if (grid) grid.style.display = 'grid';
 
   // ── KPI 1: Strategic Alignment ───────────────────────────────────────────
   // Rule: % of high-importance capabilities with maturity ≥ 3
@@ -11128,10 +11152,12 @@ function splitNarrativeIntoParagraphs(text) {
 
 function renderExecNarrativeText(text) {
   const el = document.getElementById('exec-narrative');
+  const section = document.getElementById('cxo-narrative-section');
   if (!el) return;
 
   const paragraphs = splitNarrativeIntoParagraphs(text);
   if (!paragraphs.length) {
+    if (section) section.classList.add('hidden');
     el.textContent = '';
     return;
   }
@@ -11139,6 +11165,7 @@ function renderExecNarrativeText(text) {
   el.innerHTML = paragraphs
     .map((paragraph) => `<p class="mb-4 last:mb-0">${escapeNarrativeHtml(paragraph)}</p>`)
     .join('');
+  if (section) section.classList.remove('hidden');
 }
 
 async function generateNarrative() {

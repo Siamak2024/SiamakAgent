@@ -87,8 +87,14 @@ class AzureOpenAIProxy {
       clearTimeout(timeoutId);
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error?.message || `API error: ${res.status}`);
+        let errMsg = `API error: ${res.status}`;
+        try {
+          const err = await res.json();
+          errMsg = err.error?.message || err.error || errMsg;
+        } catch (_) {
+          try { const txt = await res.text(); if (txt) errMsg = txt; } catch (_2) {}
+        }
+        throw new Error(errMsg);
       }
 
       return await res.json();
