@@ -2175,16 +2175,16 @@ const AI_MODEL_CONFIG = {
     temperature: 0.7,
     timeoutMs: 180000,
     reasoning: { summary: 'auto', effort: 'high' },
-    description: 'Deep reasoning för kontext-medveten diskussion av EA resultat'
+    description: 'Deep reasoning for context-aware discussion of EA results'
   },
   
-  // ⚡ ACTION MODE - Snabb JSON-generering, strukturerade uppdateringar
+  // ⚡ ACTION MODE - Fast JSON generation, structured updates
   action: {
     model: 'gpt-5',
     temperature: 0.2,
     timeoutMs: 120000,
     reasoning: { summary: 'auto', effort: 'medium' },
-    description: 'Exakt JSON-generering för uppdatering av EA modell'
+    description: 'Exact JSON generation for updating the EA model'
   },
   
   // 🏗️ HEAVY TASKS - Stor arkitekturgenerering (Step 3, 4, 7)
@@ -2193,7 +2193,7 @@ const AI_MODEL_CONFIG = {
     temperature: 0.3,
     timeoutMs: 240000,
     reasoning: { summary: 'auto', effort: 'high' },
-    description: 'Komplex EA arkitektur-generering med djup analys'
+    description: 'Complex EA architecture generation with deep analysis'
   },
   
   // 📊 ANALYSIS - Gap analysis, maturity assessment, benchmarking
@@ -2202,7 +2202,7 @@ const AI_MODEL_CONFIG = {
     temperature: 0.4,
     timeoutMs: 180000,
     reasoning: { summary: 'auto', effort: 'high' },
-    description: 'Strategisk analys och insights-generering'
+    description: 'Strategic analysis and insights generation'
   },
   
   // 💬 GENERAL - Standard chat, Q&A
@@ -2211,7 +2211,7 @@ const AI_MODEL_CONFIG = {
     temperature: 0.6,
     timeoutMs: 120000,
     reasoning: { summary: 'auto', effort: 'medium' },
-    description: 'Allmän EA-rådgivning och frågor'
+    description: 'General EA advisory and questions'
   },
   
   // 🪶 LIGHTWEIGHT - Simple translations, quick lookups
@@ -2226,7 +2226,7 @@ const AI_MODEL_CONFIG = {
 
 // ── ASSISTANT MODE MANAGEMENT ────────────────────────────────────────────────
 let assistantMode = 'general'; // 'discovery' | 'action' | 'general'
-let assistantContext = {}; // Håller kontext för aktivt läge
+let assistantContext = {}; // Holds context for the active mode
 
 function setAssistantMode(mode, context = {}) {
   assistantMode = mode;
@@ -2273,26 +2273,26 @@ function updateChatPlaceholder() {
   if (!input) return;
   switch (assistantMode) {
     case 'discovery':
-      input.placeholder = 'Diskutera resultatet, ställ frågor, föreslå förbättringar...';
+      input.placeholder = 'Discuss the result, ask questions, suggest improvements...';
       break;
     case 'action':
-      input.placeholder = 'Beskriv ändringen du vill göra...';
+      input.placeholder = 'Describe the change you want to make...';
       break;
     case 'general':
     default:
-      input.placeholder = 'Fråga Advicy Agent om din EA...';
+      input.placeholder = 'Ask Advicy Agent about your EA...';
       break;
   }
 }
 
 const UI_TRANSLATIONS = {
   sv: {
-    'Generate Architecture': 'Generera arkitektur',
+    'Generate Architecture': 'Generate Architecture',
     'Capability Map': 'Kapabilitetskarta',
     'Op Model': 'Operativ modell',
     'Gap Analysis': 'Gap-analys',
     'Target Arch': 'Malaritektur',
-    'Generate Transformation Roadmap': 'Generera transformationsplan',
+    'Generate Transformation Roadmap': 'Generate Transformation Roadmap',
     'Executive': 'Ledning',
     'Benchmark': 'Benchmark',
     'Data': 'Data',
@@ -2762,7 +2762,7 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('beforeunload', (e) => {
     if (window.hasUnsavedChanges && currentModelId) {
       e.preventDefault();
-      e.returnValue = 'Du har osparade ändringar. Vill du verkligen lämna sidan?';
+      e.returnValue = 'You have unsaved changes. Are you sure you want to leave the page?';
       return e.returnValue;
     }
   });
@@ -3383,7 +3383,7 @@ Use markdown with ## headers, bullet points, and **bold** for key terms.`;
   const userPrompt = `**Step ${stepNum} Data:**
 ${JSON.stringify(stepData, null, 2)}
 
-Generate CxO Summary in Swedish if the data is in Swedish, otherwise in English.`;
+Generate CxO Summary in the same language as the input data. Default to English.`;
 
   try {
     const summary = await callAI(systemPrompt, userPrompt, {
@@ -3444,7 +3444,7 @@ Then add detailed narrative for each scenario (max 100 words each).`;
   const userPrompt = `**Diagnostic Context:**
 ${JSON.stringify(contextData, null, 2)}
 
-Generate scenario analysis in Swedish if context is Swedish, otherwise English.`;
+Generate scenario analysis in English unless the surrounding data is clearly in another language.`;
 
   try {
     const scenarios = await callAI(systemPrompt, userPrompt, {
@@ -5298,7 +5298,7 @@ function openToolkitFromHeader(btn) {
 // Workflow Path Navigation
 function startArchitectWorkflow() {
   // Open AI sidebar in Discovery mode instead of showing left panel
-  setAssistantMode('discovery', { step: 1, stepName: 'Beskriv din organisation' });
+  setAssistantMode('discovery', { step: 1, stepName: 'Describe your organisation' });
   
   // Open chat panel
   const panel = document.getElementById('ai-chat-panel');
@@ -5313,30 +5313,30 @@ function startArchitectWorkflow() {
   if (chatMessages) chatMessages.innerHTML = '';
   
   // Add welcome message from AI
-  const welcomeMsg = `**Välkommen till EA Strategic Diagnostic**
+  const welcomeMsg = `**Welcome to EA Strategic Diagnostic**
 
-Jag är din **Senior Enterprise Architect, Management Consultant och Data Strategy Advisor**.
+I am your **Senior Enterprise Architect, Management Consultant and Data Strategy Advisor**.
 
-Min uppgift är att guida dig genom en strukturerad **7-stegs diagnostikprocess** som leder till:
-• Tydlig Strategic Intent
+My role is to guide you through a structured **7-step diagnostic process** leading to:
+• A clear Strategic Intent
 • EA Transformation Foundation
-• Data- och AI-driven målarkitektur
+• Data- and AI-driven target architecture
 
 ---
 
-## STEG 1: KONTEXT & OMFATTNING
+## STEP 1: CONTEXT & SCOPE
 
-Låt oss börja med att definiera ramarna:
+Let's start by defining the frame:
 
-1. **Industry Profile** - Vilken typ av organisation/bransch är detta?
-   (t.ex. Startup, Fintech, Banking, Healthcare, Public Sector, Retail, Insurance)
+1. **Industry Profile** — What type of organisation or industry is this?
+   (e.g. Startup, Fintech, Banking, Healthcare, Public Sector, Real Estate, Insurance)
 
-2. **Focus Area** - Vilket område fokuserar vi på?
-   (t.ex. General, ERP, ESG, GDPR, Finance, ITSM, Cybersecurity)
+2. **Focus Area** — What area are we focusing on?
+   (e.g. General, ERP, ESG, GDPR, Finance, ITSM, Cybersecurity)
 
-3. **Situation** - Är detta en problemsituation eller ett generellt förbättringsinitiativ?
+3. **Situation** — Is this a problem to solve or a general improvement initiative?
 
-**OBS:** Jag kommer att anpassa ALL min kommunikation, alla frågor och analyser baserat på din bransch och fokusområde. Svara på första frågan!`;
+**Note:** I will tailor ALL my communication, questions and analysis to your industry and focus area. Answer the first question to get started!`;
 
   addMessage(welcomeMsg, 'ai');
   
@@ -5345,11 +5345,11 @@ Låt oss börja med att definiera ramarna:
     const input = document.getElementById('chat-input');
     if (input) {
       input.focus();
-      input.placeholder = 'Svara på frågorna steg för steg...';
+      input.placeholder = 'Answer the questions step by step...';
     }
   }, 300);
   
-  toast('AI Discovery Mode aktiverad - beskriv din organisation i chatten');
+  toast('AI Discovery Mode activated — describe your organisation in the chat');
 }
 
 function startWorkshopFlow() {
@@ -6452,9 +6452,9 @@ function togglePromptTrace() {
   const btn = document.getElementById('prompt-trace-toggle');
   if (btn) {
     btn.style.opacity = window._advisyPromptTrace ? '1' : '0.5';
-    btn.title = window._advisyPromptTrace ? 'Prompt trace PÅ – klicka för att stänga av' : 'Visa prompt trace';
+    btn.title = window._advisyPromptTrace ? 'Prompt trace ON — click to disable' : 'Show prompt trace';
   }
-  console.log('[AdvisyAI] Prompt trace:', window._advisyPromptTrace ? 'PÅ' : 'AV');
+  console.log('[AdvisyAI] Prompt trace:', window._advisyPromptTrace ? 'ON' : 'OFF');
 }
 
 /**
@@ -7407,7 +7407,7 @@ async function executeAssistantCommand(command, userMessage, context) {
     const capabilityName = (command.capabilityName || '').replace(/[.,;:!?]+$/, '').trim();
     if (!capabilityName) {
       return {
-        content: 'I could not parse the capability name. Try: "Lägg till Customer Relationship Management under Customer".',
+        content: 'I could not parse the capability name. Try: "Add Customer Relationship Management under Customer".',
         metadata: null
       };
     }
@@ -7696,24 +7696,24 @@ function getStepContextSummary(stepNum) {
   
   switch (stepNum) {
     case 1:
-      if (!si) return 'Step 1 \u00e4r inte genomf\u00f6rt \u00e4n.';
-      return `**Strategic Ambition:** ${si.strategic_ambition || 'ej definierad'}\\n**Teman:** ${(si.strategic_themes || []).join(', ') || 'inga'}\\n**Success Metrics:** ${(si.success_metrics || []).join(', ') || 'inga'}`;
+      if (!si) return 'Step 1 has not been completed yet.';
+      return `**Strategic Ambition:** ${si.strategic_ambition || 'not defined'}\\n**Themes:** ${(si.strategic_themes || []).join(', ') || 'none'}\\n**Success Metrics:** ${(si.success_metrics || []).join(', ') || 'none'}`;
     case 2:
-      if (!model.bmc) return 'Step 2 \u00e4r inte genomf\u00f6rt \u00e4n.';
-      return `**Value Proposition:** ${model.bmc.value_proposition || 'ej definierad'}\\n**Customer Segments:** ${(model.bmc.customer_segments || []).join(', ') || 'inga'}`;
+      if (!model.bmc) return 'Step 2 has not been completed yet.';
+      return `**Value Proposition:** ${model.bmc.value_proposition || 'not defined'}\\n**Customer Segments:** ${(model.bmc.customer_segments || []).join(', ') || 'none'}`;
     case 3:
-      return `**Capabilities genererade:** ${capCount}\\n**System:** ${sysCount}\\n**Avg Maturity:** ${capCount ? (model.capabilities.reduce((s,c)=>s+(c.maturity||0),0)/capCount).toFixed(1) : 0}/5`;
+      return `**Capabilities generated:** ${capCount}\\n**Systems:** ${sysCount}\\n**Avg Maturity:** ${capCount ? (model.capabilities.reduce((s,c)=>s+(c.maturity||0),0)/capCount).toFixed(1) : 0}/5`;
     case 4:
-      if (!model.operatingModel?.valueProposition) return 'Step 4 \u00e4r inte genomf\u00f6rt \u00e4n.';
-      return `**Operating Model VP:** ${model.operatingModel.valueProposition}\\n**Key Activities:** ${(model.operatingModel.keyActivities||[]).length} definierade`;
+      if (!model.operatingModel?.valueProposition) return 'Step 4 has not been completed yet.';
+      return `**Operating Model VP:** ${model.operatingModel.valueProposition}\\n**Key Activities:** ${(model.operatingModel.keyActivities||[]).length} defined`;
     case 5:
-      return `**Gap Analysis:** ${(model.gapAnalysis?.gaps||[]).length || 0} gaps identifierade`;
+      return `**Gap Analysis:** ${(model.gapAnalysis?.gaps||[]).length || 0} gaps identified`;
     case 6:
-      return `**Value Pools:** ${(model.valuePools||[]).length} pools identifierade`;
+      return `**Value Pools:** ${(model.valuePools||[]).length} pools identified`;
     case 7:
-      return `**Target Architecture:** ${(model.targetArch||[]).length} uplifts\\n**Initiatives:** ${(model.initiatives||[]).length} definierade`;
+      return `**Target Architecture:** ${(model.targetArch||[]).length} uplifts\\n**Initiatives:** ${(model.initiatives||[]).length} defined`;
     default:
-      return 'Kontextinformation laddas...';
+      return 'Loading context...';
   }
 }
 
@@ -7737,7 +7737,7 @@ function _discoveryNextStepHtml(stepNum) {
   if (!next) return ''; // Step 7 is the last — no further step
   if (stepNum === 1 && !model.strategicIntentConfirmed) return ''; // Locked until SI confirmed
   return `<div style="margin-top:14px;padding:10px 12px;background:linear-gradient(135deg,#f0f7ff,#e8f4f9);border:1px solid #bfdbfe;border-radius:8px;">
-  <div style="font-size:10px;font-weight:700;color:#1e40af;margin-bottom:4px;"><i class="fas fa-arrow-right" style="margin-right:4px;"></i>Redo att gå vidare?</div>
+  <div style="font-size:10px;font-weight:700;color:#1e40af;margin-bottom:4px;"><i class="fas fa-arrow-right" style="margin-right:4px;"></i>Ready to proceed?</div>
   <div style="font-size:10px;color:#3b82f6;margin-bottom:8px;">${next.desc}</div>
   <button onclick="${next.fn}" style="width:100%;padding:7px 10px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><i class="fas ${next.icon}"></i> ${next.label}</button>
 </div>`;
@@ -7868,7 +7868,7 @@ async function handleDiscoveryMessage(userMessage) {
     const forceStop = aiExchangeCount >= 4;
     const hardStopPrefix = forceStop ? `🛑 MANDATORY STOP — You have already sent ${aiExchangeCount} messages. You MUST follow these instructions exactly:
 1. Write a brief summary (3-5 bullet points) of what you now know about this organisation
-2. End your response with EXACTLY this sentence (in the user's language): "**Redo att gå vidare — klicka på 'Clarify Strategic Intent' i vänsterpanelen för att generera analysen.**"
+2. End your response with EXACTLY this sentence (translated to match the user's language): "**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**"
 3. Do NOT ask any further questions. Do NOT continue gathering information. Stop completely after the summary.
 
 ` : '';
@@ -7896,15 +7896,15 @@ You help users build a clear, comprehensive description of their context through
 
 ### Essential questions (if not already stated):
 
-1. **Industry & Focus** - "Vilken bransch? Vilket fokusområde (ERP/Finance/GDPR/etc.)?"
-2. **Main Problem** - "Vad är huvudutmaningen eller problemet som ska lösas?"
-3. **Desired Outcome** - "Vad vill ni uppnå inom 12-24 månader?"
-4. **Current State** (if unclear) - "Hur ser nuläget ut? Vilka system används idag?"
-5. **Constraints** (if relevant) - "Finns det begränsningar (budget/tid/compliance)?"
+1. **Industry & Focus** — What type of organisation/industry? What focus area (ERP/Finance/GDPR/etc.)?
+2. **Main Problem** — What is the main challenge or problem to solve?
+3. **Desired Outcome** — What do you want to achieve within 12-24 months?
+4. **Current State** (if unclear) — What does the current state look like? What systems are in use?
+5. **Constraints** (if relevant) — Are there constraints (budget/timeline/compliance)?
 
 ### Optional follow-ups (use sparingly):
-6. **Scale** - "Hur stor organisation (omsättning/antal anställda)?"
-7. **Urgency** - "Finns det deadline eller brådskande behov?"
+6. **Scale** — How large is the organisation (revenue/headcount)?
+7. **Urgency** — Is there a deadline or urgent need?
 
 ---
 
@@ -7922,8 +7922,8 @@ You help users build a clear, comprehensive description of their context through
 
 **After 3-5 questions:**
 - Summarize your understanding
-- Ask: "Har jag förstått rätt? Något mer att lägga till?"
-- Suggest: "Klicka på '**Clarify Strategic Intent**' knappen när du är redo att generera strukturerad analys"
+- Ask: "Have I understood correctly? Anything to add?"
+- Suggest: "Click the '**Clarify Strategic Intent**' button when you are ready to generate a structured analysis"
 
 ---
 
@@ -7949,23 +7949,24 @@ You help users build a clear, comprehensive description of their context through
 
 ## LANGUAGE
 
-* Respond in **Swedish** if user writes in Swedish
-* Respond in **English** if user writes in English
-* Match user's language and tone
+* Always respond in the **same language the user writes in**
+* Default language is **English**
+* If user writes in Swedish, respond in Swedish; if Finnish, respond in Finnish; etc.
+* Never switch language unless the user does first
 
 ---
 
 ## ENDING THE DISCOVERY
 
-After 3-4 questions (or sooner if context is clear), you MUST stop asking and write:
+After 3-4 questions (or sooner if context is clear), you MUST stop asking and write a summary in the user's language:
 
-**Sammanfattning:**
+**Summary:**
 - [bullet: industry + scale]
 - [bullet: main challenge]
 - [bullet: desired outcome]
 - [bullet: any constraints/context]
 
-**Redo att gå vidare — klicka på 'Clarify Strategic Intent' i vänsterpanelen för att generera analysen.**
+**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**
 
 Then STOP. Do not ask more questions. Do not continue.`;
 
@@ -7991,9 +7992,9 @@ Remember: This is discovery mode. Ask helpful questions to build understanding, 
       scrollToBottom();
       
     } catch (error) {
-      addAssistantMessage(`❌ Ett fel uppstod: ${error.message}`, { mode: 'discovery', error: true });
+      addAssistantMessage(`❌ An error occurred: ${error.message}`, { mode: 'discovery', error: true });
     }
-    
+
     return; // Exit early for Step 1 special handling
   }
   
@@ -8031,9 +8032,9 @@ ${stepContext}
 - Leave blank lines between sections
 - Tables where appropriate (| header | header |)
 
-Respond in Swedish if the user writes in Swedish, otherwise respond in English.`;
+Always respond in the same language the user writes in. Default to English.`;
 
-  const userPrompt = `**Senaste konversation:**
+  const userPrompt = `**Recent conversation:**
 ${recentMessages}
 
 **Anv\u00e4ndarens fr\u00e5ga:**
@@ -8054,7 +8055,7 @@ ${userMessage}`;
 
 <button class="mode-action-btn mode-action-btn--action" onclick="switchToActionMode('${userMessage.replace(/'/g, "\\'")}')">
   <i class="fas fa-bolt"></i>
-  Byt till Action Mode & Applicera
+  Switch to Action Mode & Apply
 </button>
 <button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
   <i class="fas fa-comments"></i>
@@ -8101,13 +8102,13 @@ function saveOrgDescriptionAndProceed(description) {
   setAssistantMode('general', {});
   
   // Show confirmation message
-  addAssistantMessage(`**Organisationsbeskrivning sparad!**
+  addAssistantMessage(`**Organisation description saved!**
 
-Beskrivningen \u00e4r nu sparad och vi kan g\u00e5 vidare.
+The description has been saved and we can proceed.
 
-## N\u00e4sta steg: Clarify Strategic Intent
+## Next step: Clarify Strategic Intent
 
-Jag kommer nu att analysera er organisation och extrahera den strategiska intentionen. Klicka p\u00e5 knappen "**Clarify Strategic Intent**" i v\u00e4nstra panelen för att fortsätta.`, 
+I will now analyse your organisation and extract the strategic intent. Click the "**Clarify Strategic Intent**" button in the left panel to continue.`, 
     { mode: 'general' });
   
   scrollToBottom();
@@ -8121,7 +8122,7 @@ Jag kommer nu att analysera er organisation och extrahera den strategiska intent
     }
   }, 500);
   
-  toast('Organisationsbeskrivning sparad! Gå vidare till Step 2');
+  toast('Organisation description saved! Proceed to Step 2');
 }
 
 async function handleActionMessage(userMessage) {
