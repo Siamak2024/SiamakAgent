@@ -7849,19 +7849,32 @@ async function handleDiscoveryMessage(userMessage) {
   const modeInfo = getAssistantMode();
   const stepNum = modeInfo.context.step;
   const stepName = modeInfo.context.stepName;
-  
-  // Build conversation history
-  const recentMessages = (getActiveConversation()?.messages || [])
-    .slice(-6)
+
+  // Count AI turns to enforce hard exit from Step 1 loop
+  const allMessages = getActiveConversation()?.messages || [];
+  const aiExchangeCount = allMessages.filter(m => m.role === 'assistant').length;
+
+  // Build conversation history — last 10 messages so AI can see how long it's been going
+  const recentMessages = allMessages
+    .slice(-10)
     .map(m => `${m.role}: ${m.content}`)
-    .join('\\n');
-  
+    .join('\n');
+
   // SPECIAL HANDLING FOR STEP 1: Organization Description (Initial workflow start)
   if (stepNum === 1 && !model.strategicIntent?.strategic_ambition) {
     showTypingIndicator();
-    
+
+    // Hard-stop instruction injected at TOP of prompt when AI has asked enough questions
+    const forceStop = aiExchangeCount >= 4;
+    const hardStopPrefix = forceStop ? `🛑 MANDATORY STOP — You have already sent ${aiExchangeCount} messages. You MUST follow these instructions exactly:
+1. Write a brief summary (3-5 bullet points) of what you now know about this organisation
+2. End your response with EXACTLY this sentence (in the user's language): "**Redo att gå vidare — klicka på 'Clarify Strategic Intent' i vänsterpanelen för att generera analysen.**"
+3. Do NOT ask any further questions. Do NOT continue gathering information. Stop completely after the summary.
+
+` : '';
+
     // Discovery Mode: Help user describe their situation (NO Strategic Intent generation here)
-    const systemPrompt = `You are an expert AI assistant helping business leaders and architects describe their organization's situation before Enterprise Architecture work.
+    const systemPrompt = `${hardStopPrefix}You are an expert AI assistant helping business leaders and architects describe their organization's situation before Enterprise Architecture work.
 
 ## YOUR ROLE
 
@@ -7944,19 +7957,19 @@ You help users build a clear, comprehensive description of their context through
 
 ## ENDING THE DISCOVERY
 
-After 5-7 questions or when user seems ready:
+After 3-4 questions (or sooner if context is clear), you MUST stop asking and write:
 
-\`\`\`
-## Sammanfattning av vad jag förstått:
+**Sammanfattning:**
+- [bullet: industry + scale]
+- [bullet: main challenge]
+- [bullet: desired outcome]
+- [bullet: any constraints/context]
 
-[2-3 line summary of situation]
+**Redo att gå vidare — klicka på 'Clarify Strategic Intent' i vänsterpanelen för att generera analysen.**
 
-**Nästa steg:** Klicka på knappen "**Clarify Strategic Intent**" i vänstra panelen för att generera en strukturerad strategisk analys baserad på denna beskrivning.
-\`\`\`
+Then STOP. Do not ask more questions. Do not continue.`;
 
-Then STOP asking questions and wait for user to click the button.`;
-    
-    const userPrompt = `**Conversation history:**
+    const userPrompt = `**Conversation history (${aiExchangeCount} AI messages so far):**
 ${recentMessages}
 
 **User message:**
