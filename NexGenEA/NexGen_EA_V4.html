@@ -7895,101 +7895,82 @@ async function handleDiscoveryMessage(userMessage) {
     const exchangeNum = window._discoveryStep1ExchangeCount;
     const isSv = /[åäöÅÄÖ]/.test(userMessage) || /[åäöÅÄÖ]/.test(recentMessages);
 
-    // ── EXCHANGE 1: Bypass the AI entirely — hardcoded question about main challenge ──
-    if (exchangeNum === 1) {
+    // ── PROCEED INTENT: user explicitly wants to move on — offer clear exit immediately ──
+    if (exchangeNum >= 2 && /\b(proceed|next step|let'?s go|go ahead|yes|ja|sure|sounds good|looks good|continue|gå vidare|kör|fortsätt|done|redo|klart)\b/i.test(userMessage)) {
       hideTypingIndicator();
-      const q1 = isSv
-        ? `Tack! Vad är den **huvudsakliga utmaningen** ni vill lösa — vad fungerar inte som det borde idag?`
-        : `Thanks! What is the **main challenge** you want to solve — what isn't working the way it should today?`;
-      addAssistantMessage(q1, { mode: 'discovery' });
+      const confirmMsg = isSv
+        ? `Perfekt! Klicka på **"Clarify Strategic Intent"** i vänstra panelen — eller använd knappen nedan.\n\n<button class="mode-action-btn mode-action-btn--action" onclick="clarifyStrategicIntent()"><i class="fas fa-arrow-right"></i> Gå vidare nu</button>`
+        : `Ready! Click **"Clarify Strategic Intent"** in the left panel — or use the button below.\n\n<button class="mode-action-btn mode-action-btn--action" onclick="clarifyStrategicIntent()"><i class="fas fa-arrow-right"></i> Proceed now</button>`;
+      addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1 });
       scrollToBottom();
       return;
     }
 
-    // ── EXCHANGE 2: Bypass AI — hardcoded question about desired outcome ────
-    if (exchangeNum === 2) {
-      hideTypingIndicator();
-      const q2 = isSv
-        ? `Tack! Och vad vill ni **uppnå** under de kommande 12–24 månaderna — hur ser framgång ut för er?`
-        : `Thanks! And what do you want to **achieve** over the next 12–24 months — what would success look like for you?`;
-      addAssistantMessage(q2, { mode: 'discovery' });
-      scrollToBottom();
-      return;
-    }
-
-    // Hard-stop: after enough exchanges, force summary
+    // Hard-stop: after enough exchanges, force a final summary and exit
     const forceStop = aiExchangeCount >= 8;
-    const hardStopPrefix = forceStop ? `🛑 MANDATORY STOP — You have already sent ${aiExchangeCount} messages. You MUST follow these instructions exactly:
-1. Write a final summary using ONLY what the user explicitly stated. Mark unknowns as "not specified".
-2. End with EXACTLY: "**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**"
-3. Do NOT ask any further questions.
+    const hardStopPrefix = forceStop ? `🛑 MANDATORY STOP — ${aiExchangeCount} AI messages have been sent. You MUST now: write a final 3–5 sentence summary using ONLY what the user explicitly stated (mark unknowns as "not specified"), then end with: "**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**" Do NOT ask any further questions.\n\n` : '';
 
-` : '';
+    // Unified AI approach for ALL exchanges — Propose Minimum Viable Context
+    const systemPrompt = `${hardStopPrefix}You are a Senior Enterprise Architect acting as a discovery consultant. Help the user build a short, clear description of their situation — good enough to generate a meaningful Strategic Intent.
 
-    // Discovery Mode for exchanges 3+: AI reasons with its knowledge, proposes interpretations, user confirms
-    const systemPrompt = `${hardStopPrefix}You are a Senior Enterprise Architect and industry expert. Your job is to help the user build a description rich enough to generate a high-quality Strategic Intent — not by asking blank questions, but by using your knowledge to interpret, propose, and confirm.
+## YOUR METHOD: PROPOSE MINIMUM VIABLE CONTEXT
+When a user gives vague input, do NOT ask blank questions. Instead:
+1. Apply your industry knowledge to enrich their description with what is typically true
+2. Write a short "minimum viable context" paragraph (2–4 sentences) upgrading their vague input
+3. Identify the ONE most critical missing piece
+4. Ask ONE focused question to fill that gap
 
-## YOUR APPROACH: REASON → PROPOSE → CONFIRM
+## MINIMUM VIABLE CONTEXT covers:
+- What kind of organisation (industry, type, rough scale if known)
+- Core problem/pressure (why change is needed — specific, not generic)
+- What is blocking progress (constraints)
+- What they want to achieve (business outcome)
 
-NEVER ask blank open questions like "Can you tell me more?"
-INSTEAD: Draw on your knowledge of the user's industry, interpret what they likely mean, propose a concrete picture, and ask them to confirm or correct it.
+## RULES
+- Max 6–8 lines total. Never produce architecture plans or vendor lists.
+- Do NOT assume country from language. English ≠ UK/US/AU. Ask if geography is relevant and unknown.
+- Ask ONE question per exchange — the most critical missing piece.
+- Do NOT say "Ready to proceed" until: specific pain + desired outcome + rough scale/context are all confirmed.
 
-### Example
-User: "We need to modernize the platform for better data-driven decisions"
+## WHEN ALL GAPS ARE FILLED
+Write a clean 3–5 sentence summary, ask "Does this capture it correctly?", then end your message with:
+"**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**"
 
-❌ WRONG: "What do you mean by modernize?"
+## ALWAYS END EVERY RESPONSE WITH THIS EXACT FOOTER LINE:
+> 💬 _Want to **add or change** something? Tell me — or say **"proceed"** when ready._
 
-✅ RIGHT: "Based on what I know about real estate companies running on legacy platforms, this typically looks like one or more of these:
-- **Disconnected systems** — property management, finance, and leasing in separate silos, no single source of truth
-- **Manual reporting** — monthly KPIs assembled in Excel, taking 1–2 weeks after period-end
-- **No real-time visibility** — portfolio managers can't see occupancy, rent performance, or maintenance cost in one place
-- **Legacy ERP bottleneck** — systems like Vitec, Dynamics NAV, or Visma can't feed modern BI tools (Power BI, Tableau)
+## LANGUAGE: Match user's language exactly. Swedish → Swedish. Finnish → Finnish. Danish → Danish.`;
 
-Does any of this match your situation? Which resonates most — or is your challenge something different?"
-
-## QUALITY THRESHOLDS (must have all three before summarizing)
-- ✅ **Specific pain** — not "modernize" but WHAT is broken or missing today
-- ✅ **Measurable outcome** — not "better support" but WHAT capability they want to gain
-- ✅ **Scale or context** — portfolio size, team size, or at least one key system name
-
-If any threshold is missing, use the reason-propose-confirm approach to fill it — drawing on your knowledge of the industry.
-
-## WEB SEARCH
-You have access to web search. Use it when helpful — e.g. to find common real estate legacy platform pain points, modernization benchmarks, or typical outcomes. Ground your proposals in real industry data.
-
-## WHEN TO SUMMARIZE
-Once all three thresholds are met, write a structured summary:
-- **Industry & type:** [value]
-- **Current pain (specific):** [value]
-- **Desired outcome (specific):** [value]
-- **Scale/context:** [value or "not specified"]
-- **Timeframe/constraints:** [value or "not specified"]
-
-Ask: "Does this capture it correctly? Anything to add or correct?"
-Then end with: "**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**"
-
-## LANGUAGE
-Match the user's language exactly. Swedish → Swedish. English → English.`;
-
-    const userPrompt = `**Discovery session — exchange #${exchangeNum} from user (${aiExchangeCount} AI messages sent):**
-
+    const userPrompt = `**Discovery session — exchange #${exchangeNum} (${aiExchangeCount} AI turns so far):**
 ${recentMessages}
-
 **User's latest message:** ${userMessage}
 
-Instruction: Use your industry knowledge to interpret what they've said. Propose a concrete understanding. Ask them to confirm, correct, or add detail. Do NOT ask blank questions.`;
+Apply industry knowledge to enrich what they said. Propose a "minimum viable context" paragraph. Ask ONE focused question. Max 6–8 lines. End with the footer line.`;
 
     try {
-      let response = await callAIStreaming(systemPrompt, userPrompt, {
+      const response = await callAIStreaming(systemPrompt, userPrompt, {
         taskType: 'discovery',
         includeProjectContext: false,
-        webSearch: true,
+        webSearch: false,
         _traceLabel: 'Discovery: Organization Description (Step 1)'
       });
-      
+
+      // Always render clear action buttons after every AI turn — prevents loop trap
+      const proceedLabel = isSv ? 'Gå vidare till nästa steg' : 'Proceed to next step';
+      const adjustLabel  = isSv ? 'Lägg till / justera' : 'Add or adjust';
+      const exitHtml = `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+  <button class="mode-action-btn mode-action-btn--action" onclick="clarifyStrategicIntent()">
+    <i class="fas fa-arrow-right"></i> ${proceedLabel}
+  </button>
+  <button class="mode-action-btn mode-action-btn--secondary" onclick="document.getElementById('chat-input')?.focus()">
+    <i class="fas fa-edit"></i> ${adjustLabel}
+  </button>
+</div>`;
+      addAssistantMessage(exitHtml, { mode: 'discovery', step: 1, isActionButton: true });
+
       window.hasUnsavedChanges = true;
       scrollToBottom();
-      
+
     } catch (error) {
       addAssistantMessage(`❌ An error occurred: ${error.message}`, { mode: 'discovery', error: true });
     }
