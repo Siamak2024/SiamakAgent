@@ -9567,7 +9567,31 @@ function _showClarificationGate(hypothesis, questions) {
 }
 
 async function clarifyStrategicIntent() {
-  const desc = document.getElementById('description').value.trim();
+  let desc = document.getElementById('description').value.trim();
+
+  // If the description field is empty, synthesize it from the Discovery Mode
+  // conversation — the user provided context via chat rather than the text area.
+  if (!desc) {
+    const conversation = getActiveConversation();
+    // Find the start of the current session (last welcome/reset message)
+    const msgs = conversation.messages || [];
+    const lastWelcomeIdx = (() => {
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        if (msgs[i].role === 'assistant' && /describe your organisation|beskriv din organisation|tell me about|welcome/i.test(msgs[i].content)) return i;
+      }
+      return 0;
+    })();
+    const meaningfulUserMsgs = msgs
+      .slice(lastWelcomeIdx)
+      .filter(m => m.role === 'user' && m.content && m.content.trim().length > 20
+        && !/^\s*(proceed|yes|ja|sure|ok|go ahead|gå vidare|kör|fortsätt|done|redo|klart|sounds good|looks good)\s*$/i.test(m.content.trim()))
+      .map(m => m.content.trim());
+    if (meaningfulUserMsgs.length) {
+      desc = meaningfulUserMsgs.join('\n\n');
+      document.getElementById('description').value = desc;
+    }
+  }
+
   if (!desc) { toast('Describe your organisation first', true); return; }
 
   // Refinement mode: Strategic Intent already exists — user clicked Refresh after editing
