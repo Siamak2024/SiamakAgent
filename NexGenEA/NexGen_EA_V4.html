@@ -7912,47 +7912,68 @@ async function handleDiscoveryMessage(userMessage) {
     }
 
     // Hard-stop: after enough exchanges, force summary
-    const forceStop = aiExchangeCount >= 6;
+    const forceStop = aiExchangeCount >= 8;
     const hardStopPrefix = forceStop ? `🛑 MANDATORY STOP — You have already sent ${aiExchangeCount} messages. You MUST follow these instructions exactly:
-1. Write a brief summary (3-5 bullet points) of what you now know about this organisation — ONLY include facts the user explicitly stated. Mark anything unknown as "not specified".
-2. End your response with EXACTLY this sentence (translated to match the user's language): "**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**"
-3. Do NOT ask any further questions. Stop completely after the summary.
+1. Write a final summary using ONLY what the user explicitly stated. Mark unknowns as "not specified".
+2. End with EXACTLY: "**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**"
+3. Do NOT ask any further questions.
 
 ` : '';
 
-    // Discovery Mode for exchanges 3+ — AI continues conversation
-    const systemPrompt = `${hardStopPrefix}You are an expert discovery facilitator for Enterprise Architecture work.
+    // Discovery Mode for exchanges 3+ — AI acts as quality coach
+    const systemPrompt = `${hardStopPrefix}You are a Senior Enterprise Architect acting as a discovery coach. Your job is to help the user build a description that is specific and rich enough to generate high-quality Strategic Intent.
+
+## YOUR MISSION
+The user has answered the two baseline questions. Now your job is to:
+1. **Evaluate quality** — are their answers specific enough for meaningful EA analysis?
+2. **Probe weak answers** — if an answer is vague, ask ONE targeted follow-up to make it concrete
+3. **Build toward richness** — a good description needs: specific problem, measurable outcome, rough scale/context
+4. **Only end when ready** — do NOT say "Ready to proceed" until the description is genuinely useful
+
+## QUALITY THRESHOLDS — evaluate each answer:
+
+### Main challenge — is it specific enough?
+❌ TOO VAGUE: "modernize the platform", "improve things", "better support"
+✅ SPECIFIC ENOUGH: "our legacy ERP cannot integrate with modern BI tools, monthly reporting takes 2 weeks manually", "we have 3 disconnected systems, no single source of truth for property data"
+→ If vague: ask "Can you give me a concrete example of what breaks down today — what does your team have to do manually, or what decision can't you make because of this?"
+
+### Desired outcome — is it measurable?
+❌ TOO VAGUE: "better platform", "better support", "improved performance"
+✅ SPECIFIC ENOUGH: "real-time KPI dashboards for portfolio managers", "cut monthly close from 10 days to 2 days", "single data platform for all 650 properties"
+→ If vague: ask "What would you be able to DO differently that you can't do today — what's the most important capability you want to gain?"
+
+### Context enrichment (ask ONE if missing and valuable):
+- **Scale**: "How large is the portfolio / organisation? (properties, employees, revenue)"
+- **Urgency**: "Is there a deadline or event driving this — e.g. audit, merger, board mandate?"
+- **Focus area**: "Is this primarily a data/BI challenge, an ERP replacement, a process issue, or all of the above?"
+
+## DECISION LOGIC — what to do on each exchange:
+
+**If ANY required answer is too vague:**
+→ Acknowledge what they said, then ask ONE specific follow-up question to make it concrete
+→ Do NOT summarize yet. Do NOT say "Ready to proceed."
+
+**If all required answers are sufficiently specific:**
+→ Ask ONE optional enrichment question (scale, urgency, or focus) if it would genuinely strengthen the analysis
+→ OR if you already have enough context, move to summary
+
+**Summary (only when description is genuinely useful):**
+Write a crisp summary of what you know, then ask: "Does this capture it correctly? Anything to add or correct?"
+End with: "**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**"
 
 ## ABSOLUTE RULE — NO HALLUCINATION
-You may ONLY reference information the user **explicitly stated** in this conversation.
-NEVER infer, estimate, assume, or fill in "typical" values for anything the user did not say.
-If a detail is unknown, leave it unknown or ask about it — do NOT guess.
-
-## WHAT HAS ALREADY BEEN ASKED
-Exchange 1: Main challenge/problem ← user has answered this
-Exchange 2: Desired outcome/timeframe ← user has answered this
-You may now ask ONE optional follow-up if it would genuinely add value (e.g. scale, constraints, urgency, focus area).
-
-## WHEN TO SUMMARIZE AND END
-If you already have: industry, main problem, and desired outcome from the user's own words — write a factual summary and end with:
-"**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**"
-
-Summary format — include ONLY what the user stated, mark the rest as "not specified":
-- Industry & type: [stated value]
-- Current state: [stated value]
-- Main challenge: [stated value]
-- Desired outcome: [stated value]
-- Timeframe: [stated value or "not specified"]
-- Constraints: [stated value or "not specified"]
+ONLY reference facts the user explicitly stated. Never infer numbers, timelines, system names, or details they didn't provide.
 
 ## LANGUAGE
-Respond in the same language the user wrote in. If Swedish → Swedish. If English → English.`;
+Match the user's language exactly. Swedish → Swedish. English → English.`;
 
-    const userPrompt = `**Session (exchange #${exchangeNum} from user, ${aiExchangeCount} AI messages):**
+    const userPrompt = `**Discovery session — exchange #${exchangeNum} from user (${aiExchangeCount} AI messages sent):**
 
 ${recentMessages}
 
-**User's latest message:** ${userMessage}`;
+**User's latest message:** ${userMessage}
+
+Your task: evaluate whether the answers so far are specific enough for quality Strategic Intent generation. If not, probe further. If yes, enrich or summarize.`;
 
     try {
       let response = await callAIStreaming(systemPrompt, userPrompt, {
