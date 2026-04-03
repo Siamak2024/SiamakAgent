@@ -4866,19 +4866,26 @@ function startArchitectWorkflow() {
   if (chatMessages) chatMessages.innerHTML = '';
   
   // Add welcome message from AI
-  const welcomeMsg = `**Välkommen till EA Workflow! 🚀**
+  const welcomeMsg = `**Välkommen till EA Strategic Diagnostic 🎯**
 
-Jag hjälper dig att skapa en optimal beskrivning av din organisation och situation.
+Jag är din **Senior Enterprise Architect och Management Consultant**.
 
-**Låt oss börja:**
-• Berätta om din organisation - vad gör ni?
-• Vilken bransch är ni i?
-• Vilka är era huvudsakliga affärsområden?
-• Vad är drivkrafterna för att påbörja en EA-process?
+Min uppgift är att guida dig genom en strukturerad **7-stegs diagnostikprocess** som leder till:
+✓ Tydlig Strategic Intent
+✓ EA Transformation Foundation
+✓ Data- och AI-driven målarkitektur
 
-Ta din tid och dela så mycket kontext som möjligt. Jag kommer ställa uppföljningsfrågor för att säkerställa att vi får en komplett och användbar beskrivning.
+---
 
-**💡 Tips:** Ju mer detaljer du ger, desto bättre kan jag hjälpa dig skapa en EA-modell som passar just er organisation.`;
+## STEG 1: KONTEXT & OMFATTNING
+
+Låt oss börja med att definiera ramarna:
+
+1. **Vilken typ av organisation är detta?**
+2. **Vilket affärsområde eller funktion fokuserar vi på?**
+3. **Är detta en problemsituation eller ett generellt förbättringsinitiativ?**
+
+**OBS:** Jag kommer att ställa EN fokuserad fråga i taget. Vi går inte vidare förrän vi har tillräcklig klarhet.`;
 
   addMessage(welcomeMsg, 'ai');
   
@@ -4887,7 +4894,7 @@ Ta din tid och dela så mycket kontext som möjligt. Jag kommer ställa uppfölj
     const input = document.getElementById('chat-input');
     if (input) {
       input.focus();
-      input.placeholder = 'Beskriv din organisation här...';
+      input.placeholder = 'Svara på frågorna steg för steg...';
     }
   }, 300);
   
@@ -7087,7 +7094,44 @@ async function handleStepFocusedMessage(userMessage, context, stepCtx) {
   };
 
   const stepSystemPrompts = {
-    1: `You are a senior strategy advisor reviewing Step 1 (Strategic Intent). Critically evaluate whether the ambition is truly differentiated, whether themes explain HOW value is created, whether metrics are quantifiable, and whether trade-offs are visible. When the user agrees with a change, embed it as a \`\`\`json block with action "update_strategic_intent" and field/value.`,
+    1: !model.strategicIntent?.strategic_ambition ? `You are an expert AI assistant acting as a **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
+
+Your role is to **guide the user through a structured diagnostic and strategic process** to describe the current state of an organization or business unit, and transform that into **clear Strategic Intent and EA transformation input**, with strong focus on **AI and data-driven decision-making**.
+
+**MANDATORY PROCESS (DO NOT SKIP STEPS):**
+
+STEP 1 – CONTEXT & SCOPE: Define boundaries (org type, focus area, problem vs improvement)
+STEP 2 – CURRENT STATE: Build objective baseline (processes, systems, data, organization)
+STEP 3 – FRICTION & PROBLEMS: Identify pain points with business impact
+STEP 4 – MATURITY & CAPABILITY: Assess current maturity (1-5) and gaps
+STEP 5 – TARGET OUTCOMES: Define business-driven ambition (NOT technical solutions)
+STEP 6 – STRATEGIC INTENT: Synthesize into strategic direction (paragraph + bullets)
+STEP 7 – EA TARGET INPUT: Prepare transformation foundation (capabilities, principles, priorities)
+
+**CORE PRINCIPLES:**
+• Ask ONE focused question at a time
+• Always validate and refine user input
+• Challenge vague or generic answers
+• Identify gaps, inconsistencies, missing data
+• Separate facts from assumptions
+• Think in three levels: Operational (what) → Tactical (why) → Strategic (what should change)
+• Never move forward until sufficient clarity is reached
+• Use clear headings, bullet points, simple professional language
+
+**QUALITY CONTROL:**
+• Highlight missing information
+• Flag unclear inputs
+• Identify contradictions
+• Push for clarity and precision
+
+**BEHAVIOR:**
+• Act as senior advisor, not passive assistant
+• Be direct and analytical
+• Force concrete answers with examples
+• End each interaction with short structured summary
+
+When you reach STEP 6 and have generated Strategic Intent, format it as: \"##STRATEGIC_INTENT_READY##\" followed by the structured output, so the system can capture it.` 
+    : `You are a senior strategy advisor reviewing Step 1 (Strategic Intent). Critically evaluate whether the ambition is truly differentiated, whether themes explain HOW value is created, whether metrics are quantifiable, and whether trade-offs are visible. When the user agrees with a change, embed it as a \`\`\`json block with action "update_strategic_intent" and field/value.`,
     2: `You are a senior strategy advisor reviewing Step 2 (Business Model Canvas) against Strategic Intent. Evaluate: value proposition vs strategic ambition, revenue streams vs themes, key activities as differentiators, cost structure vs strategic direction. To apply changes, embed \`\`\`json with action "update_bmc" and field/value.`,
     3: `You are a senior enterprise architect reviewing Step 3 (Capability Map) against Steps 1–2. Evaluate: high-importance capabilities vs strategic themes, missing capabilities, realistic maturity levels, redundancies. To apply, embed \`\`\`json with "add_capability", "update_capability", or "remove_capability".`,
     4: `You are a senior EA and operating model expert reviewing Step 4 (TO-BE Operating Model) — the most strategically critical step. The operating model must be shaped by strategic direction. Evaluate: key activities vs what the org must excel at, cost structure vs cost-reduction or investment-led strategy, internal contradictions. To apply, embed \`\`\`json with action "update_operating_model" and field (one of: valueProposition, keyActivities, keyResources, keyPartners, channels, costStructure, revenueStreams) and value.`,
@@ -7229,87 +7273,96 @@ async function handleDiscoveryMessage(userMessage) {
   if (stepNum === 1 && !model.strategicIntent?.strategic_ambition) {
     showTypingIndicator();
     
-    // Check if user wants to finalize the description
-    const isReady = /klar|f\u00e4rdig|n\u00f6jd|g\u00e5 vidare|forts\u00e4tt|ready|done|proceed|next|save|spara/i.test(userMessage);
-    
-    if (isReady) {
-      // Generate summary and offer to proceed to Step 2
-      const summaryPrompt = `Baserat p\u00e5 konversationen, skapa en koncis sammanfattning av organisationen (max 3 meningar) som kan anv\u00e4ndas som input till EA-processen.
+    // Structured EA diagnostic system prompt (7-step process)
+    const systemPrompt = `You are an expert AI assistant acting as a **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
 
-**Konversation:**
+Your role is to **guide the user through a structured diagnostic and strategic process** to describe the current state of an organization or business unit, and transform that into **clear Strategic Intent and EA transformation input**, with strong focus on **AI and data-driven decision-making**.
+
+**MANDATORY PROCESS (DO NOT SKIP STEPS):**
+
+STEP 1 \u2013 CONTEXT & SCOPE: Define boundaries (org type, focus area, problem vs improvement)
+STEP 2 \u2013 CURRENT STATE: Build objective baseline (processes, systems, data, organization)
+STEP 3 \u2013 FRICTION & PROBLEMS: Identify pain points with business impact
+STEP 4 \u2013 MATURITY & CAPABILITY: Assess current maturity (1-5) and gaps
+STEP 5 \u2013 TARGET OUTCOMES: Define business-driven ambition (NOT technical solutions)
+STEP 6 \u2013 STRATEGIC INTENT: Synthesize into strategic direction (paragraph + bullets)
+STEP 7 \u2013 EA TARGET INPUT: Prepare transformation foundation (capabilities, principles, priorities)
+
+**CORE PRINCIPLES:**
+\u2022 Ask ONE focused question at a time
+\u2022 Always validate and refine user input
+\u2022 Challenge vague or generic answers
+\u2022 Identify gaps, inconsistencies, missing data
+\u2022 Separate facts from assumptions
+\u2022 Think in three levels: Operational (what) \u2192 Tactical (why) \u2192 Strategic (what should change)
+\u2022 Never move forward until sufficient clarity is reached
+\u2022 Use clear headings, bullet points, simple professional language
+
+**QUALITY CONTROL:**
+\u2022 Highlight missing information
+\u2022 Flag unclear inputs
+\u2022 Identify contradictions
+\u2022 Push for clarity and precision
+
+**BEHAVIOR:**
+\u2022 Act as senior advisor, not passive assistant
+\u2022 Be direct and analytical
+\u2022 Force concrete answers with examples
+\u2022 End each interaction with short structured summary
+
+When you reach STEP 6 and have generated Strategic Intent, format it as: "##STRATEGIC_INTENT_READY##" followed by the structured output, so the system can capture it.`;
+    
+    const userPrompt = `**Conversation history:**
 ${recentMessages}
 
-**Senaste meddelande:**
+**User message:**
 ${userMessage}
 
-Returnera ENDAST sammanfattningen, ingen extra text.`;
-      
-      try {
-        const summary = await callAI('Du skapar koncisa organisationsbeskrivningar.', summaryPrompt, {
-          taskType: 'lightweight',
-          _traceLabel: 'Summary: Org Description'
-        });
-        
-        hideTypingIndicator();
-        
-        const confirmMsg = `## Utmärkt! 🎯
+Remember: Ask ONE focused question at a time. Progress systematically through the 7 steps. When you reach STEP 6 and have synthesized Strategic Intent, format it as:
 
-Jag har sammanfattat er organisation så här:
+##STRATEGIC_INTENT_READY##
+[Strategic Intent paragraph]
+[Bullet points]
 
-**"${summary.trim()}"**
-
-Vill du använda denna beskrivning och gå vidare till **Step 2: Clarify Strategic Intent**?
-
-<button class="mode-action-btn mode-action-btn--action" onclick="saveOrgDescriptionAndProceed(\`${summary.trim().replace(/`/g, '\\`')}\`)">
-  <i class="fas fa-check-circle"></i>
-  Ja, spara & gå vidare till Step 2
-</button>
-<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
-  <i class="fas fa-edit"></i>
-  Nej, jag vill förbättra beskrivningen
-</button>`;
-        
-        addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1, offersAction: true });
-        scrollToBottom();
-        return;
-        
-      } catch (error) {
-        hideTypingIndicator();
-        addAssistantMessage(`\u274c Ett fel uppstod: ${error.message}`, { mode: 'discovery', error: true });
-        return;
-      }
-    }
-    
-    // Continue building the description with follow-up questions
-    const systemPrompt = `Du \u00e4r en expert Enterprise Architect som hj\u00e4lper anv\u00e4ndaren att skapa en optimal beskrivning av sin organisation.
-
-**Din uppgift:**
-- St\u00e4ll relevanta uppf\u00f6ljningsfr\u00e5gor baserat p\u00e5 vad anv\u00e4ndaren delat
-- Identifiera viktiga aspekter som saknas: bransch, aff\u00e4rsomr\u00e5den, strategiska utmaningar, digitala ambitioner
-- Ge konkreta exempel n\u00e4r det hj\u00e4lper anv\u00e4ndaren
-- N\u00e4r du har tillr\u00e4cklig information (efter 3-4 meddelanden), fr\u00e5ga om anv\u00e4ndaren \u00e4r "klar" att g\u00e5 vidare
-
-**Konversation hittills:**
-${recentMessages}
-
-**Viktigt:**
-- Var v\u00e4nlig och uppmuntrande
-- St\u00e4ll max 2-3 fr\u00e5gor \u00e5t g\u00e5ngen
-- Anv\u00e4nd **fetstil** f\u00f6r nyckelbegrepp
-- L\u00e4mna blankrader mellan stycken
-
-Svara p\u00e5 svenska.`;
-    
-    const userPrompt = userMessage;
+Respond in Swedish if the user writes in Swedish.`;
     
     try {
       const response = await callAI(systemPrompt, userPrompt, {
         taskType: 'discovery',
-        _traceLabel: 'Discovery: Org Description (Step 1)'
+        _traceLabel: 'Discovery: EA Diagnostic (Step 1)'
       });
       
       hideTypingIndicator();
-      addAssistantMessage(response, { mode: 'discovery', step: 1 });
+      
+      // Check if AI has reached STEP 6 and generated Strategic Intent
+      if (response.includes('##STRATEGIC_INTENT_READY##')) {
+        const intentText = response.replace('##STRATEGIC_INTENT_READY##', '').trim();
+        
+        const confirmMsg = `${intentText}
+
+---
+
+## Fantastic! \ud83c\udfaf
+
+Jag har nu slutf\u00f6rt den strukturerade diagnostiken och skapat er **Strategic Intent**.
+
+Vill du spara detta och g\u00e5 vidare till **Action Mode** f\u00f6r att generera den kompletta EA-modellen?
+
+<button class="mode-action-btn mode-action-btn--action" onclick="saveOrgDescriptionAndProceed(\`${intentText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+  <i class="fas fa-check-circle"></i>
+  Ja, spara & generera EA-modell
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-edit"></i>
+  Nej, jag vill justera Strategic Intent
+</button>`;
+        
+        addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1, offersAction: true });
+      } else {
+        // Continue the structured diagnostic conversation
+        addAssistantMessage(response, { mode: 'discovery', step: 1 });
+      }
+      
       scrollToBottom();
       
     } catch (error) {
