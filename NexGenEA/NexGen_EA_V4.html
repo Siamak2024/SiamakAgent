@@ -2748,6 +2748,36 @@ window.addEventListener('DOMContentLoaded', () => {
   applyLanguagePreference(getAppLanguage());
   initChatPanel();
   loadRecentProjects();
+  
+  // ── UNSAVED CHANGES WARNING & PERIODIC AUTO-SAVE ────────────────────────────
+  window.hasUnsavedChanges = false;
+  
+  // Warn before closing if unsaved changes
+  window.addEventListener('beforeunload', (e) => {
+    if (window.hasUnsavedChanges && currentModelId) {
+      e.preventDefault();
+      e.returnValue = 'Du har osparade ändringar. Vill du verkligen lämna sidan?';
+      return e.returnValue;
+    }
+  });
+  
+  // Periodic auto-save every 2 minutes if project exists and has changes
+  setInterval(() => {
+    if (currentModelId && window.hasUnsavedChanges) {
+      saveModelToDB(false, true); // Auto-save without prompt
+      console.log('✓ Periodic auto-save triggered');
+    }
+  }, 120000); // 2 minutes
+  
+  // Track model changes
+  const originalModel = JSON.stringify(model);
+  setInterval(() => {
+    if (JSON.stringify(model) !== originalModel) {
+      window.hasUnsavedChanges = true;
+    }
+  }, 10000); // Check every 10 seconds
+  
+  console.log('✅ Unsaved changes tracking initialized');
   // Update home view based on project state
   updateHomeView();
   // Open the Home tab by default
@@ -3110,27 +3140,52 @@ function createNewProject() {
   currentModelName = projectName;
   model = emptyModel;
   
+  // Initialize new conversation for this project
+  const newConv = {
+    id: 'conv_' + Date.now(),
+    createdAt: new Date().toISOString(),
+    messages: [],
+    mode: 'general',
+    context: {}
+  };
+  aiConversationStore = {
+    conversations: [newConv],
+    activeConversationId: newConv.id
+  };
+  saveConversationHistory();
+  
+  // Prepare project data with chat history
+  const projectData = {
+    model: emptyModel,
+    chatHistory: aiConversationStore,
+    savedAt: new Date().toISOString(),
+    version: '4.0'
+  };
+  
   // Save to DataManager (if available)
   if (dataManager) {
     // EA_DataManager uses createProject(name, description) then updateProject for data
     const dmProject = dataManager.createProject(projectName, projectDescription);
     // createProject generates its own ID — align currentModelId with it
     currentModelId = dmProject.id;
-    dataManager.updateProject(dmProject.id, { data: { platform: emptyModel } });
+    dataManager.updateProject(dmProject.id, { data: { platform: projectData } });
     dataManager.setCurrentProject(dmProject.id);
 
     // Create initial snapshot with FileManager
     if (fileManager) {
-      fileManager.saveProjectSnapshot(currentModelId, projectName, emptyModel, false);
+      fileManager.saveProjectSnapshot(currentModelId, projectName, projectData, false);
     }
   } else {
     // Fallback to legacy storage
     localStorage.setItem('ea_current_model', JSON.stringify({
       id: projectId,
       name: projectName,
-      data: emptyModel
+      data: projectData
     }));
   }
+  
+  // Mark as saved (no unsaved changes yet)
+  window.hasUnsavedChanges = false;
   
   // Update UI
   document.getElementById('description').value = projectDescription;
@@ -3389,23 +3444,40 @@ Generate scenario analysis in Swedish if context is Swedish, otherwise English.`
   }
 }
 
-function saveModelToDB() {
-  if (!model.capabilities || model.capabilities.length === 0) {
-    toast('Generate architecture first before saving', true);
-    return;
+function saveModelToDB(promptForName = true, autoSave = false) {
+  // Allow saving even without capabilities if we have diagnostic data
+  const hasContent = (model.capabilities && model.capabilities.length > 0) || 
+                     (model.diagnosticProgress && model.diagnosticProgress.completedSteps.length > 0) ||
+                     (model.strategicIntent?.strategic_ambition);
+  
+  if (!hasContent && !autoSave) {
+    toast('No content to save yet', true);
+    return false;
   }
   
-  const name = prompt('Enter model name:', currentModelName || 'Untitled Model');
-  if (!name) return;
+  let name = currentModelName || 'Untitled Model';
+  
+  if (promptForName && !autoSave) {
+    name = prompt('Enter project name:', name);
+    if (!name) return false;
+  }
   
   const modelsList = getSavedModels();
+  
+  // Include chat history in save
+  const projectData = {
+    model: model,
+    chatHistory: aiConversationStore,
+    savedAt: new Date().toISOString(),
+    version: '4.0'
+  };
   
   if (currentModelId) {
     // Update existing
     const existing = modelsList.find(m => m.id === currentModelId);
     if (existing) {
       existing.name = name;
-      existing.data = model;
+      existing.data = projectData;
       existing.updated = new Date().toISOString();
     }
   } else {
@@ -3414,7 +3486,7 @@ function saveModelToDB() {
     modelsList.push({
       id: currentModelId,
       name: name,
-      data: model,
+      data: projectData,
       created: new Date().toISOString(),
       updated: new Date().toISOString()
     });
@@ -3422,15 +3494,24 @@ function saveModelToDB() {
   
   currentModelName = name;
   saveModelsListToStorage(modelsList);
-  localStorage.setItem('ea_current_model', JSON.stringify({ id: currentModelId, name: currentModelName, data: model }));
+  localStorage.setItem('ea_current_model', JSON.stringify({ id: currentModelId, name: currentModelName, data: projectData }));
+  
+  // Mark as saved (for unsaved changes tracking)
+  window.hasUnsavedChanges = false;
   
   // Create file-based snapshot backup
   if (fileManager) {
-    fileManager.saveProjectSnapshot(currentModelId, currentModelName, model, false);
+    fileManager.saveProjectSnapshot(currentModelId, currentModelName, projectData, false);
   }
   
   updateHeaderTitle();
-  toast('Model saved successfully &#x2718; (with backup)', false);
+  
+  if (!autoSave) {
+    toast(`Project "${name}" saved successfully ✓ (with chat history)`, false);
+  }
+  
+  console.log(`✓ Project saved: ${name} (ID: ${currentModelId})`);
+  return true;
 }
 
 // ── UNIFIED PROJECT / MODEL MANAGER ─────────────────────────────────────────
@@ -3544,14 +3625,36 @@ function _loadEntry(id, source) {
     currentModelId   = p.id;
     currentModelName = p.name;
     // DataManager projects store EA data under .data.platform or directly in .data
-    model = p.data?.platform || p.data || {};
+    const projectData = p.data?.platform || p.data || {};
+    
+    // Check if this is new format (with model + chatHistory)
+    if (projectData.model && projectData.chatHistory) {
+      model = projectData.model;
+      aiConversationStore = projectData.chatHistory;
+      saveConversationHistory(); // Persist to localStorage
+    } else {
+      model = projectData;
+    }
   } else {
     const saved = getSavedModels().find(m => m.id === id);
     if (!saved) { toast('Model not found', true); return; }
     currentModelId   = saved.id;
     currentModelName = saved.name;
-    model = saved.data;
+    
+    // Check if this is new format (with model + chatHistory)
+    if (saved.data && saved.data.model && saved.data.chatHistory) {
+      model = saved.data.model;
+      aiConversationStore = saved.data.chatHistory;
+      saveConversationHistory(); // Persist to localStorage
+    } else {
+      // Legacy format (just model data)
+      model = saved.data;
+    }
   }
+  
+  // Load chat history into UI
+  refreshChatUI();
+  
   // Close dialog and navigate home FIRST — before any rendering that might throw
   closeModal();
   showProjectDashboard();
@@ -3580,7 +3683,81 @@ function _loadEntry(id, source) {
   if (typeof syncConversationWithCurrentModel === 'function') syncConversationWithCurrentModel();
   try { updateWorkflowStepStates(); } catch(e) { console.warn('updateWorkflow', e); }
   try { renderStrategicIntentSection(); } catch(e) { console.warn('renderStrategicIntent', e); }
-  toast('Loaded: ' + currentModelName, false);
+  toast(`Loaded: ${currentModelName} (with chat history)`, false);
+}
+
+// ── CHAT UI REFRESH & MANAGEMENT ─────────────────────────────────────────────
+
+function refreshChatUI() {
+  const chatMessages = document.getElementById('chat-messages');
+  if (!chatMessages) return;
+  
+  chatMessages.innerHTML = '';
+  
+  const activeConv = getActiveConversation();
+  if (activeConv && activeConv.messages && activeConv.messages.length > 0) {
+    activeConv.messages.forEach(msg => {
+      addMessage(msg.content, msg.role === 'user' ? 'user' : 'ai', false);
+    });
+    scrollToBottom();
+    console.log(`✓ Chat history loaded: ${activeConv.messages.length} messages`);
+  }
+}
+
+function clearChatHistory() {
+  if (!confirm('Clear all chat history for this project? This cannot be undone.')) return;
+  
+  const activeConv = getActiveConversation();
+  if (activeConv) {
+    activeConv.messages = [];
+    saveConversationHistory();
+  }
+  
+  const chatMessages = document.getElementById('chat-messages');
+  if (chatMessages) chatMessages.innerHTML = '';
+  
+  toast('Chat history cleared ✓');
+  console.log('✓ Chat history cleared');
+}
+
+function startNewChat() {
+  if (!confirm('Start a new chat? Current chat will be archived.')) return;
+  
+  // Create new conversation
+  const newConv = {
+    id: 'conv_' + Date.now(),
+    createdAt: new Date().toISOString(),
+    messages: [],
+    mode: 'general',
+    context: {}
+  };
+  
+  aiConversationStore.conversations.push(newConv);
+  aiConversationStore.activeConversationId = newConv.id;
+  saveConversationHistory();
+  
+  const chatMessages = document.getElementById('chat-messages');
+  if (chatMessages) chatMessages.innerHTML = '';
+  
+  toast('New chat started ✓');
+  console.log('✓ New chat started:', newConv.id);
+}
+
+function trimChatHistory(maxMessages = 50) {
+  const activeConv = getActiveConversation();
+  if (!activeConv || !activeConv.messages) return;
+  
+  if (activeConv.messages.length > maxMessages) {
+    const oldCount = activeConv.messages.length;
+    // Keep system message + last N messages
+    const systemMessages = activeConv.messages.filter(m => m.role === 'system');
+    const otherMessages = activeConv.messages.filter(m => m.role !== 'system').slice(-maxMessages);
+    activeConv.messages = [...systemMessages, ...otherMessages];
+    saveConversationHistory();
+    console.log(`✓ Chat trimmed: ${oldCount} → ${activeConv.messages.length} messages`);
+    return oldCount - activeConv.messages.length;
+  }
+  return 0;
 }
 
 function _deleteEntry(id, source) {
@@ -7686,9 +7863,22 @@ Vill du spara detta och g\u00e5 vidare till **Action Mode** f\u00f6r att generer
 </button>`;
         
         addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1, offersAction: true });
+        
+        // Auto-save or prompt to save if no project exists
+        if (!currentModelId) {
+          setTimeout(() => {
+            if (confirm('Strategic Intent \u00e4r klar! Vill du spara detta som ett projekt?')) {
+              saveModelToDB(true, false);
+            }
+          }, 1500);
+        } else {
+          saveModelToDB(false, true);
+          console.log('\u2713 Auto-saved Strategic Intent to current project');
+        }
       } else {
         // Continue the structured diagnostic conversation
         addAssistantMessage(response, { mode: 'discovery', step: 1 });
+        window.hasUnsavedChanges = true;
       }
       
       scrollToBottom();
