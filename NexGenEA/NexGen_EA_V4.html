@@ -6306,15 +6306,41 @@ function loadConversationHistory() {
 }
 
 function saveConversationHistory() {
-  localStorage.setItem(AI_CONVERSATIONS_KEY, JSON.stringify(aiConversationStore));
+  const MAX_ATTEMPTS = 5;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      localStorage.setItem(AI_CONVERSATIONS_KEY, JSON.stringify(aiConversationStore));
+      return; // success
+    } catch (e) {
+      if (e.name !== 'QuotaExceededError' && e.name !== 'NS_ERROR_DOM_QUOTA_REACHED') throw e;
+      // Storage full — trim the oldest messages from the active conversation and retry
+      const conv = aiConversationStore.conversations.find(c => c.id === aiConversationStore.activeConversationId);
+      if (!conv || !conv.messages || conv.messages.length < 20) break; // nothing safe to trim
+      // Remove the oldest 10 non-user messages (large AI responses)
+      let removed = 0;
+      conv.messages = conv.messages.filter(m => {
+        if (removed >= 10 || m.role === 'user') return true;
+        removed++;
+        return false;
+      });
+      console.warn(`saveConversationHistory: quota exceeded, trimmed ${removed} old messages (attempt ${attempt + 1})`);
+    }
+  }
+  console.error('saveConversationHistory: could not persist after trimming — localStorage quota exhausted');
 }
 
 function addMessageToConversation(role, content, metadata = null) {
   const conversation = getActiveConversation();
+  // Cap assistant messages at 10 000 chars to avoid blowing localStorage quota.
+  // The actual structured data lives in model.* — the chat copy is display-only.
+  const MAX_CHAT_CHARS = 10000;
+  const storedContent = (role === 'assistant' && typeof content === 'string' && content.length > MAX_CHAT_CHARS)
+    ? content.slice(0, MAX_CHAT_CHARS) + '\n\n_[message truncated for storage — full data saved in model]_'
+    : content;
   conversation.messages.push({
     id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
     role,
-    content,
+    content: storedContent,
     timestamp: Date.now(),
     metadata
   });
