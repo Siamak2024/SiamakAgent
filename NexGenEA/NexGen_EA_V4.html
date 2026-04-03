@@ -9573,21 +9573,48 @@ async function clarifyStrategicIntent() {
   // conversation — the user provided context via chat rather than the text area.
   if (!desc) {
     const conversation = getActiveConversation();
-    // Find the start of the current session (last welcome/reset message)
     const msgs = conversation.messages || [];
+
+    // Find the start of the current session (last welcome/reset message)
     const lastWelcomeIdx = (() => {
       for (let i = msgs.length - 1; i >= 0; i--) {
         if (msgs[i].role === 'assistant' && /describe your organisation|beskriv din organisation|tell me about|welcome/i.test(msgs[i].content)) return i;
       }
       return 0;
     })();
-    const meaningfulUserMsgs = msgs
-      .slice(lastWelcomeIdx)
+    const sessionMsgs = msgs.slice(lastWelcomeIdx);
+
+    // Prefer the AI's last enriched-context synthesis — that is what the user approved
+    // by clicking "Proceed". Exclude action-button-only messages (isActionButton flag)
+    // and very short messages (< 80 chars = unlikely to be a real synthesis).
+    const lastAiSummary = [...sessionMsgs]
+      .reverse()
+      .find(m =>
+        m.role === 'assistant' &&
+        !(m.metadata && m.metadata.isActionButton) &&
+        m.content && m.content.trim().length > 80 &&
+        !/^❌|^🔄/.test(m.content.trim()) // skip error / streaming-start messages
+      );
+
+    // Also collect user messages as supplementary context
+    const userMsgs = sessionMsgs
       .filter(m => m.role === 'user' && m.content && m.content.trim().length > 20
         && !/^\s*(proceed|yes|ja|sure|ok|go ahead|gå vidare|kör|fortsätt|done|redo|klart|sounds good|looks good)\s*$/i.test(m.content.trim()))
       .map(m => m.content.trim());
-    if (meaningfulUserMsgs.length) {
-      desc = meaningfulUserMsgs.join('\n\n');
+
+    if (lastAiSummary) {
+      // Use the AI’s enriched synthesis as the primary description.
+      // Strip markdown action footers (— the “> 💬 _Want to…” line and anything after it)
+      const cleaned = lastAiSummary.content
+        .replace(/>\s*💬[\s\S]*/g, '')
+        .replace(/\*\*Ready to proceed[\s\S]*/gi, '')
+        .trim();
+      // Prepend raw user input as a heading so the upstream prompt builder has both
+      const userContext = userMsgs.length ? `Original user input:\n${userMsgs.join('\n')}\n\nAI-enriched context:\n` : '';
+      desc = userContext + cleaned;
+      document.getElementById('description').value = desc;
+    } else if (userMsgs.length) {
+      desc = userMsgs.join('\n\n');
       document.getElementById('description').value = desc;
     }
   }
