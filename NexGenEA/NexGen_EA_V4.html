@@ -3304,6 +3304,24 @@ function getDiagnosticProgress() {
   return model.diagnosticProgress;
 }
 
+function updateDiscoveryProgressUI(currentStep, completedSteps, totalSteps) {
+  // Update progress in chat assistant badge/panel if visible
+  const assistantBadge = document.querySelector('.ea-assistant-mode-badge');
+  if (assistantBadge) {
+    const progressText = assistantBadge.querySelector('.progress-text');
+    if (!progressText) {
+      const newProgress = document.createElement('div');
+      newProgress.className = 'progress-text';
+      newProgress.style.cssText = 'font-size: 9px; color: #64748b; margin-top: 2px;';
+      assistantBadge.appendChild(newProgress);
+    }
+    const progressElem = assistantBadge.querySelector('.progress-text');
+    if (progressElem) {
+      progressElem.textContent = `Step ${currentStep}/7 · ${completedSteps} completed`;
+    }
+  }
+}
+
 function setDiagnosticContext(industryProfile, focusArea) {
   if (!model.diagnosticProgress) initDiagnosticProgress();
   model.diagnosticProgress.industryProfile = industryProfile;
@@ -4068,102 +4086,6 @@ async function callAI(sys, user, options = {}) {
 
   return response?.output_text || '';
 }
-
-// ── STREAMING AI CALL (for chat interactions) ────────────────────────────────
-async function callAIStreaming(sys, user, options = {}) {
-  if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
-  if (!OPENAI_KEY) {
-    showSettingsModal();
-    throw new Error('No API key provided. Please save your OpenAI API key in Settings.');
-  }
-
-  const taskType = options.taskType || 'general';
-  const modelConfig = AI_MODEL_CONFIG[taskType] || AI_MODEL_CONFIG.general;
-  
-  const includeProjectContext = options.includeProjectContext !== false;
-  const masterDataContext = includeProjectContext ? buildMasterDataPromptContext() : '';
-  const replyLanguage = normalizeLanguageCode(options.replyLanguage || getAppLanguage());
-  
-  const languageInstruction = replyLanguage === 'en' ? '' : `\n\nResponse Language: ${replyLanguage}`;
-  
-  const systemPrompt = includeProjectContext
-    ? `${sys}${languageInstruction}\n\nProject Context:\n${masterDataContext}`
-    : `${sys}${languageInstruction}`;
-
-  const userPrompt = includeProjectContext
-    ? `${user}\n\nAnalysis Constraints:\n- Avoid generic advice\n- Use the provided master data and business context\n- Tailor output to the selected industry and business areas`
-    : `${user}`;
-
-  const messages = [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userPrompt }
-  ];
-
-  startStreamingMessage();
-  
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + OPENAI_KEY
-      },
-      body: JSON.stringify({
-        model: modelConfig.model === 'gpt-5-preview' ? 'gpt-4o' : modelConfig.model,
-        messages: messages,
-        temperature: modelConfig.temperature,
-        stream: true
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || 'Streaming API error');
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let fullText = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n').filter(line => line.trim() !== '');
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') continue;
-
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              fullText += content;
-              updateStreamingMessage(content);
-            }
-          } catch (e) {
-            // Ignore parse errors for incomplete chunks
-          }
-        }
-      }
-    }
-
-    finalizeStreamingMessage();
-    return fullText;
-
-  } catch (error) {
-    // Clean up streaming UI on error
-    if (streamingMessageDiv) {
-      streamingMessageDiv.remove();
-      streamingMessageDiv = null;
-    }
-    throw error;
-  }
-}
-
 function extractJSON(text) {
   const m = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (m) return m[1].trim();
@@ -5371,7 +5293,7 @@ Låt oss börja med att definiera ramarna:
 
 3. **Situation** - Är detta en problemsituation eller ett generellt förbättringsinitiativ?
 
-**OBS:** Jag kommer att anpassa ALL min kommunikation, alla frågor och analyser baserat på din bransch och fokusområde. Svara på första frågan!`;
+**OBS:** Jag kommer att anpassa ALL min kommunikation, alla frågor och analyser baserat på din bransch och fokusområde. Svara på första frågan!`;`;
 
   addMessage(welcomeMsg, 'ai');
   
@@ -6789,10 +6711,7 @@ async function sendMessage() {
   try {
     const response = await processUserMessage(content);
     hideTypingIndicator();
-    // Check if handler already displayed the message (discovery/action modes)
-    if (response && !response._handled) {
-      addAssistantMessage(response.content, response.metadata || null);
-    }
+    addAssistantMessage(response.content, response.metadata || null);
   } catch (e) {
     hideTypingIndicator();
     addAssistantMessage('I hit an error while processing your request: ' + e.message);
@@ -7766,7 +7685,31 @@ function enterDiscoveryModeForStep(stepNum, stepName) {
   // Get context summary for this step
   const contextSummary = getStepContextSummary(stepNum);
   
+  // Get progress and calculate completion percentage
+  const progress = getDiagnosticProgress();
+  const completedSteps = progress.completedSteps.length;
+  const totalSteps = 7;
+  const progressPercent = Math.round((completedSteps / totalSteps) * 100);
+  
   const welcomeMsg = `**Discovery Mode: ${stepName}**
+
+<div class="ea-progress-tracker" style="margin: 16px 0; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+    <span style="font-size: 11px; font-weight: 600; color: #64748b;">Step ${stepNum} of ${totalSteps}</span>
+    <span style="font-size: 11px; font-weight: 700; color: #3b82f6;">${progressPercent}% Complete</span>
+  </div>
+  <div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+    <div style="height: 100%; background: linear-gradient(90deg, #3b82f6, #2563eb); width: ${progressPercent}%; transition: width 0.3s ease;"></div>
+  </div>
+  <div style="display: flex; gap: 4px; margin-top: 8px;">
+    ${Array.from({length: totalSteps}, (_, i) => {
+      const step = i + 1;
+      const isCompleted = progress.completedSteps.includes(step);
+      const isCurrent = step === stepNum;
+      return `<div style="flex: 1; height: 4px; background: ${isCompleted ? '#22c55e' : isCurrent ? '#3b82f6' : '#e2e8f0'}; border-radius: 2px;"></div>`;
+    }).join('')}
+  </div>
+</div>
 
 ${contextSummary}
 
@@ -7777,9 +7720,12 @@ ${contextSummary}
 \u2022 Identifiera luckor eller felaktigheter
 \u2022 N\u00e4r du vill g\u00f6ra \u00e4ndringar s\u00e4ger du till, s\u00e5 byter jag till Action Mode
 
-**Tips:** St\u00e4ll \u00f6ppna fr\u00e5gor som "Varf\u00f6r valde du dessa capabilities?" eller "Hur kan vi f\u00f6rb\u00e4ttra BMC f\u00f6r v\u00e5rt specifika m\u00e5l?"`;
+**Tips:** Vi har max 10-15 fr\u00e5gor totalt för att n\u00e5 Strategic Intent. Var koncis!`;
 
   addAssistantMessage(welcomeMsg, { mode: 'discovery', step: stepNum });
+  
+  // Update progress tracker in left panel if exists
+  updateDiscoveryProgressUI(stepNum, completedSteps, totalSteps);
   scrollToBottom();
   
   const input = document.getElementById('chat-input');
@@ -7801,103 +7747,194 @@ async function handleDiscoveryMessage(userMessage) {
   if (stepNum === 1 && !model.strategicIntent?.strategic_ambition) {
     showTypingIndicator();
     
-    // Structured EA diagnostic system prompt (7-step process with Context Adaptation Layer)
+    // Streamlined EA diagnostic system prompt (fast and focused)
     const systemPrompt = `You are an expert AI assistant acting as a **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
 
-Your role is to **guide the user through a structured diagnostic and strategic process** to describe the current state of an organization or business unit, and transform that into **clear Strategic Intent and EA transformation input**, with strong focus on **AI and data-driven decision-making**.
-
-You MUST follow the process strictly. Do NOT skip steps. Do NOT jump ahead. Do NOT provide solutions too early.
+Your role is to guide the user through a **focused and efficient diagnostic process** that leads to a **clear Strategic Intent and EA transformation direction**.
 
 ---
 
-## CORE PRINCIPLES
+## CRITICAL BEHAVIOR RULE (ANTI-LOOP)
 
-* Be structured, concise, and fact-based
-* Ask ONE focused question at a time
-* Always validate and refine user input
-* Challenge vague or generic answers
-* Identify gaps, inconsistencies, and missing data
-* Separate facts from assumptions
-* Think in three levels: Operational (what is happening) → Tactical (why it happens) → Strategic (what should change)
-* Never move forward until sufficient clarity is reached
-* Continuously summarize and structure outputs
+You MUST prioritize progress over perfection.
 
----
+* Do NOT over-analyze
+* Do NOT ask excessive follow-up questions
+* Use "good enough" information to move forward
+* Max 2–3 questions per step
+* If sufficient context exists → move forward
 
-## CONTEXT ADAPTATION LAYER (MANDATORY)
-
-The user will provide:
-* **Industry Profile** (e.g. Startup, Fintech, Banking, Healthcare, Public Sector, Retail, Insurance)
-* **Focus Area** (e.g. General, ERP, ESG, GDPR, Finance, ITSM, Cybersecurity)
-
-You MUST adapt your behavior, questions, and outputs based on this context.
-
-**INDUSTRY-SPECIFIC ADAPTATION:**
-
-* **Banking/Insurance**: Emphasize compliance, auditability, risk, legacy core systems, data governance
-* **Healthcare**: Emphasize privacy, interoperability, patient data, regulatory compliance
-* **Public Sector**: Emphasize transparency, regulation, budget constraints, legacy complexity
-* **Startup/Fintech**: Emphasize scalability, speed, modular architecture, API-first, innovation
-* **Retail**: Emphasize customer data, omnichannel, demand forecasting, personalization
-
-**FOCUS AREA ADAPTATION:**
-
-* **ERP**: Process standardization, system dependencies, integrations
-* **ESG**: Data collection, reporting, traceability, compliance
-* **GDPR**: Personal data flows, storage, consent, risk exposure
-* **Finance**: Reporting, forecasting, decision support, data accuracy
-* **ITSM**: Service processes, incident/change/problem management
-* **Cybersecurity**: Risk exposure, controls, monitoring, incident response
-
-**ADAPTIVE QUESTIONING RULE:**
-Modify ALL questions to reflect both industry and focus area. Avoid generic questions. Ask domain-relevant follow-ups. Push for concrete examples.
+If the user shows signs of frustration:
+→ Immediately summarize and move to next step
 
 ---
 
-## MANDATORY PROCESS FLOW:
+## WORKING MODES
 
-**STEP 1 – CONTEXT & SCOPE:** Confirm Industry Profile, Focus Area, org type, business unit, problem vs improvement → Output: Scope definition (max 5 bullets)
+1. DISCOVERY MODE (default)
 
-**STEP 2 – CURRENT STATE:** Build objective baseline (processes, systems, data, organization) → Output: Structured EA baseline
+* Ask focused questions
+* Max 2–3 questions per step
+* Avoid deep technical/data-level questions
+* Stay at business + EA level
 
-**STEP 3 – FRICTION & PROBLEMS:** Identify pain points with business impact (frequency, cost, risk, time, customer) → Output: Prioritized problem list
+2. SYNTHESIS MODE (triggered when enough info exists)
 
-**STEP 4 – MATURITY & CAPABILITY:** Assess maturity (1-5) across data, AI/analytics, processes, technology → Output: Maturity level + capability gaps
+* Stop asking questions
+* Summarize
+* Move forward in the process
+* Generate outputs
 
-**STEP 5 – TARGET OUTCOMES:** Define business ambition (NO technical solutions) → Output: Outcome statements
+You MUST switch to SYNTHESIS MODE when:
 
-**STEP 6 – STRATEGIC INTENT:** Synthesize into strategic direction → Output: Paragraph (5-6 lines) + 4-6 bullets (business ambition, transformation focus, target capabilities, role of data, role of AI)
-
-**STEP 7 – EA TARGET ARCHITECTURE INPUT:** Prepare transformation foundation → Output: Target capabilities, architecture principles (API-first, data-as-asset, AI-embedded), priority areas (data platform, integration, AI use cases, process automation)
+* You have a reasonable understanding (even if incomplete)
+* OR user signals impatience
 
 ---
 
-## QUALITY CONTROL RULES
+## SIMPLIFICATION RULE
 
-You MUST:
-* Highlight missing information
-* Flag unclear inputs
-* Identify contradictions
-* Ask clarifying follow-ups
+You are NOT a solution architect.
 
-You MUST NOT:
-* Jump to solutions before Step 5
-* Accept vague answers
-* Provide generic consulting output
+Avoid:
+
+* Data model deep dives
+* Field-level questions
+* Technical schema discussions
+
+Focus on:
+
+* Processes
+* Capabilities
+* Data usage (not structure)
+* Business impact
+
+---
+
+## PROCESS FLOW (SIMPLIFIED)
+
+STEP 1 – CONTEXT (FAST)
+Goal: Define scope quickly
+
+Ask max 2 questions:
+
+* Confirm industry + focus
+* Problem vs improvement
+
+Then:
+→ Summarize and move on
+
+---
+
+STEP 2 – CURRENT STATE (LIGHT)
+Goal: Understand situation (not details)
+
+Ask max 2–3 questions:
+
+* What systems are used (high level)?
+* How does reporting work today?
+* What is manual vs automated?
+
+DO NOT ask about:
+
+* IDs
+* field structures
+* technical formats
+
+Output:
+
+* High-level current state
+
+---
+
+STEP 3 – KEY PROBLEMS
+Goal: Identify core issues
+
+Ask:
+
+* What are the biggest pain points?
+* What is slow/manual?
+* What decisions lack data?
+
+Limit to 2–3 questions
+
+Output:
+
+* Top 3–5 problems
+
+---
+
+STEP 4 – QUICK MATURITY VIEW
+Goal: Rough positioning
+
+Do NOT ask many questions
+
+Infer and state:
+
+* Data maturity
+* Process maturity
+* Tech maturity
+
+---
+
+STEP 5 – TARGET OUTCOMES
+Goal: Define ambition
+
+Ask max 2 questions:
+
+* What should improve?
+* What would create biggest impact?
+
+---
+
+STEP 6 – STRATEGIC INTENT (MANDATORY OUTPUT)
+You MUST generate this even if data is incomplete.
+
+Format:
+
+* Short paragraph (5 lines max)
+* 4–6 bullet points
+
+---
+
+STEP 7 – EA DIRECTION (LIGHT)
+Provide:
+
+* Key capabilities
+* 3–5 priorities:
+
+  * Data
+  * Integration
+  * AI
+  * Process
+
+---
+
+## PROGRESSION RULE
+
+You MUST complete the full flow within:
+→ 10–15 total questions MAX
 
 ---
 
 ## OUTPUT STYLE
 
-* Clear headings (use ## for sections)
+* Clear headings
 * Bullet points
-* Simple, professional language
-* No unnecessary verbosity
-* End each step with structured summary
+* No long text
+* Direct and executive-level
+
+---
+
+## BEHAVIOR
+
+* Act like a senior advisor under time pressure
+* Be pragmatic, not perfect
+* Drive toward Strategic Intent quickly
 
 When you reach STEP 6 and have generated Strategic Intent, format it as: "##STRATEGIC_INTENT_READY##" followed by the structured output.
 
-**Remember:** Act as senior advisor (direct, analytical), not passive assistant. Guide step-by-step toward high-quality Strategic Intent.`;
+Start with STEP 1.`;
     
     const userPrompt = `**Conversation history:**
 ${recentMessages}
@@ -7914,10 +7951,12 @@ Remember: Ask ONE focused question at a time. Progress systematically through th
 Respond in Swedish if the user writes in Swedish.`;
     
     try {
-      const response = await callAIStreaming(systemPrompt, userPrompt, {
+      const response = await callAI(systemPrompt, userPrompt, {
         taskType: 'discovery',
         _traceLabel: 'Discovery: EA Diagnostic (Step 1)'
       });
+      
+      hideTypingIndicator();
       
       // Check if AI has reached STEP 6 and generated Strategic Intent
       if (response.includes('##STRATEGIC_INTENT_READY##')) {
@@ -7974,13 +8013,14 @@ Vill du spara detta och g\u00e5 vidare till **Action Mode** f\u00f6r att generer
         }
       } else {
         // Continue the structured diagnostic conversation
-        // Message already displayed by streaming, just scroll
+        addAssistantMessage(response, { mode: 'discovery', step: 1 });
         window.hasUnsavedChanges = true;
       }
       
       scrollToBottom();
       
     } catch (error) {
+      hideTypingIndicator();
       addAssistantMessage(`\u274c Ett fel uppstod: ${error.message}`, { mode: 'discovery', error: true });
     }
     
@@ -8023,11 +8063,15 @@ ${recentMessages}
 **Anv\u00e4ndarens fr\u00e5ga:**
 ${userMessage}`;
 
+  showTypingIndicator();
+  
   try {
-    const response = await callAIStreaming(systemPrompt, userPrompt, { 
+    const response = await callAI(systemPrompt, userPrompt, { 
       taskType: 'discovery',
       _traceLabel: `Discovery: ${stepName}`
     });
+    
+    hideTypingIndicator();
     
     // Check if user wants to make changes
     const wantsAction = /\u00e4ndra|uppdatera|l\u00e4gg till|ta bort|f\u00f6rb\u00e4ttra|justera|fixa|modify|update|add|remove|change/i.test(userMessage);
@@ -8047,10 +8091,11 @@ ${userMessage}`;
       
       addAssistantMessage(actionPrompt, { mode: 'discovery', step: stepNum, offersAction: true });
     } else {
-      // Message already displayed by streaming, just scroll
+      addAssistantMessage(response, { mode: 'discovery', step: stepNum });
     }
     
   } catch (error) {
+    hideTypingIndicator();
     addAssistantMessage(`\u274c Ett fel uppstod: ${error.message}`, { mode: 'discovery', error: true });
   }
   
@@ -8149,30 +8194,31 @@ ${modelContext}
 
 Generate the action JSON to fulfill this request.`;
 
+  showTypingIndicator();
+  
   try {
-    const response = await callAIStreaming(systemPrompt, userPrompt, { 
+    const response = await callAI(systemPrompt, userPrompt, { 
       taskType: 'action',
       _traceLabel: 'Action Mode'
     });
     
+    hideTypingIndicator();
+    
     // Parse and execute command
     const command = parseAssistantCommand(response);
     if (command && command.action) {
-      // Message already displayed by streaming
+      addAssistantMessage(response, { mode: 'action', hasCommand: true });
       const context = buildConversationContext();
       await executeAssistantCommand(command, userMessage, context);
       
       // Return to Discovery Mode after action
       setTimeout(() => returnToDiscoveryMode(), 1000);
     } else {
-      // Streaming already showed response, append error note
-      const lastMsg = document.querySelector('.chat-message.assistant-message:last-child .message-text');
-      if (lastMsg) {
-        lastMsg.innerHTML += '<div class="mt-2 text-red-600">\u274c Kunde inte generera en giltig action. Vill du f\u00f6rtydliga?</div>';
-      }
+      addAssistantMessage(response + '\\n\\n\u274c Kunde inte generera en giltig action. Vill du f\u00f6rtydliga?', { mode: 'action', error: true });
     }
     
   } catch (error) {
+    hideTypingIndicator();
     addAssistantMessage(`\u274c Action Mode error: ${error.message}`, { mode: 'action', error: true });
   }
   
@@ -8194,13 +8240,13 @@ async function processUserMessage(userMessage) {
   const currentMode = getAssistantMode();
   if (currentMode.mode === 'discovery') {
     await handleDiscoveryMessage(userMessage);
-    return { _handled: true };
+    return;
   }
   
   // ── ACTION MODE ────────────────────────────────────────────────────────────
   if (currentMode.mode === 'action') {
     await handleActionMessage(userMessage);
-    return { _handled: true };
+    return;
   }
 
   // If a step-focused chat is active, route through step-specific handler
