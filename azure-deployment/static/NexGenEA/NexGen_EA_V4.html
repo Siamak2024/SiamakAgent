@@ -4856,16 +4856,48 @@ function openToolkitFromHeader(btn) {
 
 // Workflow Path Navigation
 function startArchitectWorkflow() {
-  // Navigate to left panel to start the workflow
-  showTab('home');
-  // Scroll to left panel and focus description field
+  // Open AI sidebar in Discovery mode instead of showing left panel
+  setAssistantMode('discovery', { step: 1, stepName: 'Beskriv din organisation' });
+  
+  // Open chat panel
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel) {
+    panel.classList.remove('hidden');
+    document.body.classList.add('chat-sidebar-open');
+    _updateSidebarToggleIcon(true);
+  }
+  
+  // Clear chat history for fresh start
+  const chatMessages = document.getElementById('chat-messages');
+  if (chatMessages) chatMessages.innerHTML = '';
+  
+  // Add welcome message from AI
+  const welcomeMsg = `**Välkommen till EA Workflow! 🚀**
+
+Jag hjälper dig att skapa en optimal beskrivning av din organisation och situation.
+
+**Låt oss börja:**
+• Berätta om din organisation - vad gör ni?
+• Vilken bransch är ni i?
+• Vilka är era huvudsakliga affärsområden?
+• Vad är drivkrafterna för att påbörja en EA-process?
+
+Ta din tid och dela så mycket kontext som möjligt. Jag kommer ställa uppföljningsfrågor för att säkerställa att vi får en komplett och användbar beskrivning.
+
+**💡 Tips:** Ju mer detaljer du ger, desto bättre kan jag hjälpa dig skapa en EA-modell som passar just er organisation.`;
+
+  addMessage(welcomeMsg, 'ai');
+  
+  // Focus on chat input
   setTimeout(() => {
-    const leftPanel = document.querySelector('.ea-sidebar-panel');
-    if (leftPanel) leftPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    const descriptionField = document.getElementById('description');
-    if (descriptionField) descriptionField.focus();
+    const input = document.getElementById('chat-input');
+    if (input) {
+      input.focus();
+      input.placeholder = 'Beskriv din organisation här...';
+    }
   }, 300);
-  toast('Starting AI Workflow — describe your organisation in the left panel');
+  
+  toast('AI Discovery Mode aktiverad - beskriv din organisation i chatten');
 }
 
 function startWorkshopFlow() {
@@ -7199,6 +7231,102 @@ async function handleDiscoveryMessage(userMessage) {
     .map(m => `${m.role}: ${m.content}`)
     .join('\\n');
   
+  // SPECIAL HANDLING FOR STEP 1: Organization Description (Initial workflow start)
+  if (stepNum === 1 && !model.strategicIntent?.strategic_ambition) {
+    showTypingIndicator();
+    
+    // Check if user wants to finalize the description
+    const isReady = /klar|f\u00e4rdig|n\u00f6jd|g\u00e5 vidare|forts\u00e4tt|ready|done|proceed|next|save|spara/i.test(userMessage);
+    
+    if (isReady) {
+      // Generate summary and offer to proceed to Step 2
+      const summaryPrompt = `Baserat p\u00e5 konversationen, skapa en koncis sammanfattning av organisationen (max 3 meningar) som kan anv\u00e4ndas som input till EA-processen.
+
+**Konversation:**
+${recentMessages}
+
+**Senaste meddelande:**
+${userMessage}
+
+Returnera ENDAST sammanfattningen, ingen extra text.`;
+      
+      try {
+        const summary = await callAI('Du skapar koncisa organisationsbeskrivningar.', summaryPrompt, {
+          taskType: 'lightweight',
+          _traceLabel: 'Summary: Org Description'
+        });
+        
+        hideTypingIndicator();
+        
+        const confirmMsg = `## Utmärkt! 🎯
+
+Jag har sammanfattat er organisation så här:
+
+**"${summary.trim()}"**
+
+Vill du använda denna beskrivning och gå vidare till **Step 2: Clarify Strategic Intent**?
+
+<button class="mode-action-btn mode-action-btn--action" onclick="saveOrgDescriptionAndProceed(\`${summary.trim().replace(/`/g, '\\`')}\`)">
+  <i class="fas fa-check-circle"></i>
+  Ja, spara & gå vidare till Step 2
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-edit"></i>
+  Nej, jag vill förbättra beskrivningen
+</button>`;
+        
+        addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1, offersAction: true });
+        scrollToBottom();
+        return;
+        
+      } catch (error) {
+        hideTypingIndicator();
+        addAssistantMessage(`\u274c Ett fel uppstod: ${error.message}`, { mode: 'discovery', error: true });
+        return;
+      }
+    }
+    
+    // Continue building the description with follow-up questions
+    const systemPrompt = `Du \u00e4r en expert Enterprise Architect som hj\u00e4lper anv\u00e4ndaren att skapa en optimal beskrivning av sin organisation.
+
+**Din uppgift:**
+- St\u00e4ll relevanta uppf\u00f6ljningsfr\u00e5gor baserat p\u00e5 vad anv\u00e4ndaren delat
+- Identifiera viktiga aspekter som saknas: bransch, aff\u00e4rsomr\u00e5den, strategiska utmaningar, digitala ambitioner
+- Ge konkreta exempel n\u00e4r det hj\u00e4lper anv\u00e4ndaren
+- N\u00e4r du har tillr\u00e4cklig information (efter 3-4 meddelanden), fr\u00e5ga om anv\u00e4ndaren \u00e4r "klar" att g\u00e5 vidare
+
+**Konversation hittills:**
+${recentMessages}
+
+**Viktigt:**
+- Var v\u00e4nlig och uppmuntrande
+- St\u00e4ll max 2-3 fr\u00e5gor \u00e5t g\u00e5ngen
+- Anv\u00e4nd **fetstil** f\u00f6r nyckelbegrepp
+- L\u00e4mna blankrader mellan stycken
+
+Svara p\u00e5 svenska.`;
+    
+    const userPrompt = userMessage;
+    
+    try {
+      const response = await callAI(systemPrompt, userPrompt, {
+        taskType: 'discovery',
+        _traceLabel: 'Discovery: Org Description (Step 1)'
+      });
+      
+      hideTypingIndicator();
+      addAssistantMessage(response, { mode: 'discovery', step: 1 });
+      scrollToBottom();
+      
+    } catch (error) {
+      hideTypingIndicator();
+      addAssistantMessage(`\u274c Ett fel uppstod: ${error.message}`, { mode: 'discovery', error: true });
+    }
+    
+    return; // Exit early for Step 1 special handling
+  }
+  
+  // STANDARD DISCOVERY MODE (for steps with existing results)
   // Build step-specific context using existing _buildStepContext
   const stepContext = _buildStepContext(stepNum);
   
@@ -7288,6 +7416,40 @@ function switchToActionMode(proposedChange) {
 function continueDiscovery() {
   addAssistantMessage('Bra! L\u00e5t oss forts\u00e4tta diskussionen. Vad vill du utforska mer?', { mode: 'discovery' });
   scrollToBottom();
+}
+
+function saveOrgDescriptionAndProceed(description) {
+  // Save description to the description field
+  const descField = document.getElementById('description');
+  if (descField) {
+    descField.value = description;
+  }
+  
+  // Exit Discovery mode and return to General mode
+  setAssistantMode('general', {});
+  
+  // Show confirmation message
+  addAssistantMessage(`✅ **Organisationsbeskrivning sparad!**
+
+Beskrivningen \u00e4r nu sparad och vi kan g\u00e5 vidare.
+
+## N\u00e4sta steg: Clarify Strategic Intent
+
+Jag kommer nu att analysera er organisation och extrahera den strategiska intentionen. Klicka p\u00e5 knappen "**Clarify Strategic Intent**" i v\u00e4nstra panelen för att fortsätta.`, 
+    { mode: 'general' });
+  
+  scrollToBottom();
+  
+  // Highlight the "Clarify Strategic Intent" button in left panel
+  setTimeout(() => {
+    const clarifyBtn = document.querySelector('button[onclick="clarifyStrategicIntent()"]');
+    if (clarifyBtn) {
+      clarifyBtn.classList.add('pulse');
+      clarifyBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 500);
+  
+  toast('Organisationsbeskrivning sparad! Gå vidare till Step 2');
 }
 
 async function handleActionMessage(userMessage) {
