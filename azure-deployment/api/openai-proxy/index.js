@@ -88,7 +88,9 @@ module.exports = async function (context, req) {
     if (parallel_tool_calls !== undefined) payload.parallel_tool_calls = parallel_tool_calls;
     if (previous_response_id !== undefined) payload.previous_response_id = previous_response_id;
     if (store !== undefined)               payload.store = store;
-    if (temperature !== undefined)         payload.temperature = temperature;
+    // Reasoning models (o1, o3, o4-mini, gpt-5) do not support the temperature parameter
+    const isReasoningModel = /^(o1|o3|o4|gpt-5)/i.test(model);
+    if (temperature !== undefined && !isReasoningModel) payload.temperature = temperature;
 
     // Resolve text format — support both native text.format and legacy response_format
     let resolvedText = text;

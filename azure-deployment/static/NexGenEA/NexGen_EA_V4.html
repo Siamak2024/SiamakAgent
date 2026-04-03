@@ -5308,6 +5308,10 @@ function startArchitectWorkflow() {
     _updateSidebarToggleIcon(true);
   }
   
+  // Reset per-session exchange counter — used by handleDiscoveryMessage to
+  // bypass the AI on the first two exchanges (preventing hallucinated summaries).
+  window._discoveryStep1ExchangeCount = 0;
+
   // Clear chat history for fresh start
   const chatMessages = document.getElementById('chat-messages');
   if (chatMessages) chatMessages.innerHTML = '';
@@ -5338,7 +5342,7 @@ Let's start by defining the frame:
 
 **Note:** I will tailor ALL my communication, questions and analysis to your industry and focus area. Answer the first question to get started!`;
 
-  addMessage(welcomeMsg, 'ai');
+  addAssistantMessage(welcomeMsg);
   
   // Focus on chat input
   setTimeout(() => {
@@ -7850,12 +7854,26 @@ async function handleDiscoveryMessage(userMessage) {
   const stepNum = modeInfo.context.step;
   const stepName = modeInfo.context.stepName;
 
-  // Count AI turns to enforce hard exit from Step 1 loop
+  // Scope all message history to the CURRENT session only.
+  // The welcome message (containing "EA Strategic Diagnostic") marks the start of each session.
+  // This prevents old conversation data from previous sessions/projects bleeding into the prompt.
   const allMessages = getActiveConversation()?.messages || [];
-  const aiExchangeCount = allMessages.filter(m => m.role === 'assistant').length;
+  const lastWelcomeIdx = (() => {
+    for (let i = allMessages.length - 1; i >= 0; i--) {
+      if (allMessages[i].role === 'assistant' &&
+          String(allMessages[i].content || '').includes('EA Strategic Diagnostic')) {
+        return i;
+      }
+    }
+    return 0;
+  })();
+  const sessionMessages = allMessages.slice(lastWelcomeIdx);
 
-  // Build conversation history — last 10 messages so AI can see how long it's been going
-  const recentMessages = allMessages
+  // Count AI turns in the current session to enforce hard exit from Step 1 loop
+  const aiExchangeCount = sessionMessages.filter(m => m.role === 'assistant').length;
+
+  // Build conversation history — last 10 messages from current session only
+  const recentMessages = sessionMessages
     .slice(-10)
     .map(m => `${m.role}: ${m.content}`)
     .join('\n');
@@ -7864,131 +7882,86 @@ async function handleDiscoveryMessage(userMessage) {
   if (stepNum === 1 && !model.strategicIntent?.strategic_ambition) {
     showTypingIndicator();
 
-    // Hard-stop instruction injected at TOP of prompt when AI has asked enough questions
-    const forceStop = aiExchangeCount >= 4;
+    // Use module-level counter (reset by initDiscoveryMode) — completely independent of
+    // localStorage history, which was causing old session messages to inflate the count.
+    if (typeof window._discoveryStep1ExchangeCount !== 'number') window._discoveryStep1ExchangeCount = 0;
+    window._discoveryStep1ExchangeCount++;
+    const exchangeNum = window._discoveryStep1ExchangeCount;
+    const isSv = /[åäöÅÄÖ]/.test(userMessage) || /[åäöÅÄÖ]/.test(recentMessages);
+
+    // ── EXCHANGE 1: Bypass the AI entirely — hardcoded question about main challenge ──
+    if (exchangeNum === 1) {
+      hideTypingIndicator();
+      const q1 = isSv
+        ? `Tack! Vad är den **huvudsakliga utmaningen** ni vill lösa — vad fungerar inte som det borde idag?`
+        : `Thanks! What is the **main challenge** you want to solve — what isn't working the way it should today?`;
+      addAssistantMessage(q1, { mode: 'discovery' });
+      scrollToBottom();
+      return;
+    }
+
+    // ── EXCHANGE 2: Bypass AI — hardcoded question about desired outcome ────
+    if (exchangeNum === 2) {
+      hideTypingIndicator();
+      const q2 = isSv
+        ? `Tack! Och vad vill ni **uppnå** under de kommande 12–24 månaderna — hur ser framgång ut för er?`
+        : `Thanks! And what do you want to **achieve** over the next 12–24 months — what would success look like for you?`;
+      addAssistantMessage(q2, { mode: 'discovery' });
+      scrollToBottom();
+      return;
+    }
+
+    // Hard-stop: after enough exchanges, force summary
+    const forceStop = aiExchangeCount >= 6;
     const hardStopPrefix = forceStop ? `🛑 MANDATORY STOP — You have already sent ${aiExchangeCount} messages. You MUST follow these instructions exactly:
-1. Write a brief summary (3-5 bullet points) of what you now know about this organisation
+1. Write a brief summary (3-5 bullet points) of what you now know about this organisation — ONLY include facts the user explicitly stated. Mark anything unknown as "not specified".
 2. End your response with EXACTLY this sentence (translated to match the user's language): "**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**"
-3. Do NOT ask any further questions. Do NOT continue gathering information. Stop completely after the summary.
+3. Do NOT ask any further questions. Stop completely after the summary.
 
 ` : '';
 
-    // Discovery Mode: Help user describe their situation (NO Strategic Intent generation here)
-    const systemPrompt = `${hardStopPrefix}You are an expert AI assistant helping business leaders and architects describe their organization's situation before Enterprise Architecture work.
+    // Discovery Mode for exchanges 3+ — AI continues conversation
+    const systemPrompt = `${hardStopPrefix}You are an expert discovery facilitator for Enterprise Architecture work.
 
-## YOUR ROLE
+## ABSOLUTE RULE — NO HALLUCINATION
+You may ONLY reference information the user **explicitly stated** in this conversation.
+NEVER infer, estimate, assume, or fill in "typical" values for anything the user did not say.
+If a detail is unknown, leave it unknown or ask about it — do NOT guess.
 
-You help users build a clear, comprehensive description of their context through **guided questions**. You do NOT generate Strategic Intent or analysis — that happens when the user clicks "Clarify Strategic Intent" button.
+## WHAT HAS ALREADY BEEN ASKED
+Exchange 1: Main challenge/problem ← user has answered this
+Exchange 2: Desired outcome/timeframe ← user has answered this
+You may now ask ONE optional follow-up if it would genuinely add value (e.g. scale, constraints, urgency, focus area).
 
----
+## WHEN TO SUMMARIZE AND END
+If you already have: industry, main problem, and desired outcome from the user's own words — write a factual summary and end with:
+"**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**"
 
-## CRITICAL RULES
-
-1. **NO Strategic Intent generation** - Your job is discovery conversation only
-2. **Ask MAX 5-7 clarifying questions** - Don't loop forever
-3. **One question at a time** - Keep it conversational
-4. **Extract first, then ask** - Don't ask for information user already provided
-5. **Confirm understanding** - Summarize what you learned after 3-5 questions
-
----
-
-## QUESTION STRATEGY
-
-### Essential questions (if not already stated):
-
-1. **Industry & Focus** — What type of organisation/industry? What focus area (ERP/Finance/GDPR/etc.)?
-2. **Main Problem** — What is the main challenge or problem to solve?
-3. **Desired Outcome** — What do you want to achieve within 12-24 months?
-4. **Current State** (if unclear) — What does the current state look like? What systems are in use?
-5. **Constraints** (if relevant) — Are there constraints (budget/timeline/compliance)?
-
-### Optional follow-ups (use sparingly):
-6. **Scale** — How large is the organisation (revenue/headcount)?
-7. **Urgency** — Is there a deadline or urgent need?
-
----
-
-## CONVERSATION FLOW
-
-**First Message:**
-- Extract what user already said
-- Ask 1-2 most critical missing pieces
-- Keep it short and focused
-
-**Follow-up Messages:**
-- Build on previous answers
-- Ask next most important question
-- Never repeat what user already said
-
-**After 3-5 questions:**
-- Summarize your understanding
-- Ask: "Have I understood correctly? Anything to add?"
-- Suggest: "Click the '**Clarify Strategic Intent**' button when you are ready to generate a structured analysis"
-
----
-
-## WHAT YOU DO NOT DO
-
-❌ Generate Strategic Intent structure
-❌ Create bullet lists of themes/constraints/metrics
-❌ Provide recommendations or EA direction
-❌ Use ##STRATEGIC_INTENT_READY## marker
-❌ Ask about technical details (system names, data formats)
-
----
-
-## WHAT YOU DO
-
-✅ Ask clarifying questions about business context
-✅ Help user articulate their situation clearly
-✅ Confirm understanding of what they described
-✅ Build up the organization description field
-✅ Guide them to click "Clarify Strategic Intent" when ready
-
----
+Summary format — include ONLY what the user stated, mark the rest as "not specified":
+- Industry & type: [stated value]
+- Current state: [stated value]
+- Main challenge: [stated value]
+- Desired outcome: [stated value]
+- Timeframe: [stated value or "not specified"]
+- Constraints: [stated value or "not specified"]
 
 ## LANGUAGE
+Respond in the same language the user wrote in. If Swedish → Swedish. If English → English.`;
 
-* Always respond in the **same language the user writes in**
-* Default language is **English**
-* If user writes in Swedish, respond in Swedish; if Finnish, respond in Finnish; etc.
-* Never switch language unless the user does first
+    const userPrompt = `**Session (exchange #${userMessageCount} from user, ${aiExchangeCount} AI messages):**
 
----
-
-## ENDING THE DISCOVERY
-
-After 3-4 questions (or sooner if context is clear), you MUST stop asking and write a summary in the user's language:
-
-**Summary:**
-- [bullet: industry + scale]
-- [bullet: main challenge]
-- [bullet: desired outcome]
-- [bullet: any constraints/context]
-
-**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**
-
-Then STOP. Do not ask more questions. Do not continue.`;
-
-    const userPrompt = `**Conversation history (${aiExchangeCount} AI messages so far):**
 ${recentMessages}
 
-**User message:**
-${userMessage}
+**User's latest message:** ${userMessage}`;
 
-Remember: This is discovery mode. Ask helpful questions to build understanding, but DO NOT generate Strategic Intent. Keep it conversational and focused.`;
-    
     try {
-      const response = await callAIStreaming(systemPrompt, userPrompt, {
+      let response = await callAIStreaming(systemPrompt, userPrompt, {
         taskType: 'discovery',
+        includeProjectContext: false,
         _traceLabel: 'Discovery: Organization Description (Step 1)'
       });
       
-      // Discovery Mode does NOT generate Strategic Intent
-      // The AI just helps user describe their situation through questions
-      // Message already displayed by streaming
       window.hasUnsavedChanges = true;
-      
       scrollToBottom();
       
     } catch (error) {
