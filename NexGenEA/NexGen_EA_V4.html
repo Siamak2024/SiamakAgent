@@ -5824,22 +5824,22 @@ function parseMarkdown(text) {
       row.split('|').filter(c => c.trim()).map(c => c.trim())
     );
     
-    let tableHtml = '<table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:11px;background:white;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">';
+    let tableHtml = '<table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;background:#1a1a1a;border-radius:8px;overflow:hidden;border:1px solid #404040;">';
     
     // Header
-    tableHtml += '<thead><tr style="background:linear-gradient(135deg,#2C3E50 0%,#4A7763 100%);color:white;">';
+    tableHtml += '<thead><tr style="background:#0066cc;color:#ffffff;">';
     headerCells.forEach(cell => {
-      tableHtml += `<th style="padding:8px 12px;text-align:left;font-weight:600;">${cell}</th>`;
+      tableHtml += `<th style="padding:10px 14px;text-align:left;font-weight:600;">${cell}</th>`;
     });
     tableHtml += '</tr></thead>';
     
     // Body
     tableHtml += '<tbody>';
     dataRows.forEach((rowCells, idx) => {
-      const rowBg = idx % 2 === 0 ? '#f8fafc' : 'white';
+      const rowBg = idx % 2 === 0 ? '#2d2d2d' : '#1a1a1a';
       tableHtml += `<tr style="background:${rowBg};">`;
       rowCells.forEach(cell => {
-        tableHtml += `<td style="padding:6px 12px;border-top:1px solid #e2e8f0;">${cell}</td>`;
+        tableHtml += `<td style="padding:8px 14px;border-top:1px solid #404040;color:#e0e0e0;">${cell}</td>`;
       });
       tableHtml += '</tr>';
     });
@@ -5850,9 +5850,9 @@ function parseMarkdown(text) {
   
   // ── INLINE FORMATTING ──────────────────────────────────────────────────────
   t = t.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
-  t = t.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#0f172a;font-weight:700;">$1</strong>');
+  t = t.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff;font-weight:700;">$1</strong>');
   t = t.replace(/\*(.*?)\*/g, '<em>$1</em>');
-  t = t.replace(/`([^`]+)`/g, '<code style="font-family:monospace;background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:10px;color:#e11d48;font-weight:600;">$1</code>');
+  t = t.replace(/`([^`]+)`/g, '<code style="font-family:monospace;background:#1a1a1a;padding:2px 6px;border-radius:4px;font-size:12px;color:#66d9ef;font-weight:500;border:1px solid #404040;">$1</code>');
   
   // ── BLOCK PROCESSING ───────────────────────────────────────────────────────
   const lines = t.split('\n');
@@ -5894,16 +5894,16 @@ function parseMarkdown(text) {
     const h1m = trimmed.match(/^# (.+)$/);
     if (h1m || h2m || h3m) {
       closeList();
-      if (h3m)      out.push(`<div style="font-size:12px;font-weight:700;color:#5F6B75;margin:14px 0 6px;">${h3m[1]}</div>`);
-      else if (h2m) out.push(`<div style="font-size:13px;font-weight:700;color:#2C3E50;border-bottom:2px solid #4A7763;padding-bottom:4px;margin:16px 0 8px;">${h2m[1]}</div>`);
-      else          out.push(`<div style="font-size:14px;font-weight:700;color:#1F2A33;margin:18px 0 8px;">${h1m[1]}</div>`);
+      if (h3m)      out.push(`<div style="font-size:14px;font-weight:600;color:#b0b0b0;margin:16px 0 8px;">${h3m[1]}</div>`);
+      else if (h2m) out.push(`<div style="font-size:15px;font-weight:700;color:#e0e0e0;border-bottom:2px solid #0066cc;padding-bottom:6px;margin:18px 0 10px;">${h2m[1]}</div>`);
+      else          out.push(`<div style="font-size:16px;font-weight:700;color:#ffffff;margin:20px 0 10px;">${h1m[1]}</div>`);
       continue;
     }
     
     // Horizontal rule
     if (/^---+$/.test(trimmed)) {
       closeList();
-      out.push('<hr style="border:none;border-top:2px solid #e2e8f0;margin:14px 0;">');
+      out.push('<hr style="border:none;border-top:1px solid #404040;margin:14px 0;">');
       continue;
     }
     
@@ -5911,23 +5911,23 @@ function parseMarkdown(text) {
     const quotem = trimmed.match(/^> (.+)$/);
     if (quotem) {
       closeList();
-      out.push(`<div style="border-left:3px solid #4A7763;background:#F4F7FA;padding:8px 12px;margin:8px 0;border-radius:4px;font-style:italic;color:#2C3E50;">${quotem[1]}</div>`);
+      out.push(`<div style="border-left:3px solid #0066cc;background:#1a1a1a;padding:10px 14px;margin:10px 0;border-radius:4px;font-style:italic;color:#b0b0b0;">${quotem[1]}</div>`);
       continue;
     }
     
     // Unordered list
     const ulm = trimmed.match(/^[-*•] (.+)$/);
     if (ulm) {
-      if (!inUL) { closeList(); out.push('<ul style="margin:8px 0;padding-left:20px;list-style-type:disc;">'); inUL = true; }
-      out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#334155;">${ulm[1]}</li>`);
+      if (!inUL) { closeList(); out.push('<ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">'); inUL = true; }
+      out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${ulm[1]}</li>`);
       continue;
     }
     
     // Ordered list
     const olm = trimmed.match(/^\d+\.\s(.+)$/);
     if (olm) {
-      if (!inOL) { closeList(); out.push('<ol style="margin:8px 0;padding-left:22px;">'); inOL = true; }
-      out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#334155;">${olm[1]}</li>`);
+      if (!inOL) { closeList(); out.push('<ol style="margin:8px 0;padding-left:22px;color:#b0b0b0;">'); inOL = true; }
+      out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${olm[1]}</li>`);
       continue;
     }
     
@@ -5940,7 +5940,7 @@ function parseMarkdown(text) {
     
     // Regular paragraph
     closeList();
-    out.push(`<p style="line-height:1.65;margin-bottom:8px;color:#475569;">${trimmed}</p>`);
+    out.push(`<p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">${trimmed}</p>`);
   }
   
   closeList();
