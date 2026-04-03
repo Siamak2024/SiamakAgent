@@ -4012,16 +4012,21 @@ async function callAI(sys, user, options = {}) {
     : `${user}`;
 
   const timeoutMs = Number(options.timeoutMs || modelConfig.timeoutMs);
-  const temperature = Number(options.temperature ?? modelConfig.temperature);
   const reasoning = options.reasoning || modelConfig.reasoning;
+  // Reasoning models (o1, o3, o4-mini, gpt-5) do not support temperature
+  const isReasoningModel = /^(o1|o3|o4|gpt-5)/i.test(modelConfig.model);
+  const temperature = isReasoningModel ? undefined : Number(options.temperature ?? modelConfig.temperature);
+  // Web search tool — activated per-call via options.webSearch
+  const webSearchTools = options.webSearch ? [{ type: 'web_search_preview' }] : undefined;
 
   // GPT-5 via Responses API with reasoning enabled
   const createOpts = {
     model: modelConfig.model,
     instructions,
-    temperature,
+    ...(temperature !== undefined && { temperature }),
     timeout: timeoutMs,
-    reasoning
+    reasoning,
+    ...(webSearchTools && { tools: webSearchTools })
   };
 
   let response;
@@ -4052,8 +4057,9 @@ async function callAI(sys, user, options = {}) {
           model: modelConfig.model, 
           input, 
           instructions, 
-          temperature,
-          reasoning 
+          ...(temperature !== undefined && { temperature }),
+          reasoning,
+          ...(webSearchTools && { tools: webSearchTools })
         }),
         signal: controller.signal
       });
@@ -7920,49 +7926,47 @@ async function handleDiscoveryMessage(userMessage) {
 
 ` : '';
 
-    // Discovery Mode for exchanges 3+ — AI acts as quality coach
-    const systemPrompt = `${hardStopPrefix}You are a Senior Enterprise Architect acting as a discovery coach. Your job is to help the user build a description that is specific and rich enough to generate high-quality Strategic Intent.
+    // Discovery Mode for exchanges 3+: AI reasons with its knowledge, proposes interpretations, user confirms
+    const systemPrompt = `${hardStopPrefix}You are a Senior Enterprise Architect and industry expert. Your job is to help the user build a description rich enough to generate a high-quality Strategic Intent — not by asking blank questions, but by using your knowledge to interpret, propose, and confirm.
 
-## YOUR MISSION
-The user has answered the two baseline questions. Now your job is to:
-1. **Evaluate quality** — are their answers specific enough for meaningful EA analysis?
-2. **Probe weak answers** — if an answer is vague, ask ONE targeted follow-up to make it concrete
-3. **Build toward richness** — a good description needs: specific problem, measurable outcome, rough scale/context
-4. **Only end when ready** — do NOT say "Ready to proceed" until the description is genuinely useful
+## YOUR APPROACH: REASON → PROPOSE → CONFIRM
 
-## QUALITY THRESHOLDS — evaluate each answer:
+NEVER ask blank open questions like "Can you tell me more?"
+INSTEAD: Draw on your knowledge of the user's industry, interpret what they likely mean, propose a concrete picture, and ask them to confirm or correct it.
 
-### Main challenge — is it specific enough?
-❌ TOO VAGUE: "modernize the platform", "improve things", "better support"
-✅ SPECIFIC ENOUGH: "our legacy ERP cannot integrate with modern BI tools, monthly reporting takes 2 weeks manually", "we have 3 disconnected systems, no single source of truth for property data"
-→ If vague: ask "Can you give me a concrete example of what breaks down today — what does your team have to do manually, or what decision can't you make because of this?"
+### Example
+User: "We need to modernize the platform for better data-driven decisions"
 
-### Desired outcome — is it measurable?
-❌ TOO VAGUE: "better platform", "better support", "improved performance"
-✅ SPECIFIC ENOUGH: "real-time KPI dashboards for portfolio managers", "cut monthly close from 10 days to 2 days", "single data platform for all 650 properties"
-→ If vague: ask "What would you be able to DO differently that you can't do today — what's the most important capability you want to gain?"
+❌ WRONG: "What do you mean by modernize?"
 
-### Context enrichment (ask ONE if missing and valuable):
-- **Scale**: "How large is the portfolio / organisation? (properties, employees, revenue)"
-- **Urgency**: "Is there a deadline or event driving this — e.g. audit, merger, board mandate?"
-- **Focus area**: "Is this primarily a data/BI challenge, an ERP replacement, a process issue, or all of the above?"
+✅ RIGHT: "Based on what I know about real estate companies running on legacy platforms, this typically looks like one or more of these:
+- **Disconnected systems** — property management, finance, and leasing in separate silos, no single source of truth
+- **Manual reporting** — monthly KPIs assembled in Excel, taking 1–2 weeks after period-end
+- **No real-time visibility** — portfolio managers can't see occupancy, rent performance, or maintenance cost in one place
+- **Legacy ERP bottleneck** — systems like Vitec, Dynamics NAV, or Visma can't feed modern BI tools (Power BI, Tableau)
 
-## DECISION LOGIC — what to do on each exchange:
+Does any of this match your situation? Which resonates most — or is your challenge something different?"
 
-**If ANY required answer is too vague:**
-→ Acknowledge what they said, then ask ONE specific follow-up question to make it concrete
-→ Do NOT summarize yet. Do NOT say "Ready to proceed."
+## QUALITY THRESHOLDS (must have all three before summarizing)
+- ✅ **Specific pain** — not "modernize" but WHAT is broken or missing today
+- ✅ **Measurable outcome** — not "better support" but WHAT capability they want to gain
+- ✅ **Scale or context** — portfolio size, team size, or at least one key system name
 
-**If all required answers are sufficiently specific:**
-→ Ask ONE optional enrichment question (scale, urgency, or focus) if it would genuinely strengthen the analysis
-→ OR if you already have enough context, move to summary
+If any threshold is missing, use the reason-propose-confirm approach to fill it — drawing on your knowledge of the industry.
 
-**Summary (only when description is genuinely useful):**
-Write a crisp summary of what you know, then ask: "Does this capture it correctly? Anything to add or correct?"
-End with: "**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**"
+## WEB SEARCH
+You have access to web search. Use it when helpful — e.g. to find common real estate legacy platform pain points, modernization benchmarks, or typical outcomes. Ground your proposals in real industry data.
 
-## ABSOLUTE RULE — NO HALLUCINATION
-ONLY reference facts the user explicitly stated. Never infer numbers, timelines, system names, or details they didn't provide.
+## WHEN TO SUMMARIZE
+Once all three thresholds are met, write a structured summary:
+- **Industry & type:** [value]
+- **Current pain (specific):** [value]
+- **Desired outcome (specific):** [value]
+- **Scale/context:** [value or "not specified"]
+- **Timeframe/constraints:** [value or "not specified"]
+
+Ask: "Does this capture it correctly? Anything to add or correct?"
+Then end with: "**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**"
 
 ## LANGUAGE
 Match the user's language exactly. Swedish → Swedish. English → English.`;
@@ -7973,12 +7977,13 @@ ${recentMessages}
 
 **User's latest message:** ${userMessage}
 
-Your task: evaluate whether the answers so far are specific enough for quality Strategic Intent generation. If not, probe further. If yes, enrich or summarize.`;
+Instruction: Use your industry knowledge to interpret what they've said. Propose a concrete understanding. Ask them to confirm, correct, or add detail. Do NOT ask blank questions.`;
 
     try {
       let response = await callAIStreaming(systemPrompt, userPrompt, {
         taskType: 'discovery',
         includeProjectContext: false,
+        webSearch: true,
         _traceLabel: 'Discovery: Organization Description (Step 1)'
       });
       
