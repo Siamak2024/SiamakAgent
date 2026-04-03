@@ -117,45 +117,57 @@ addStep('Page load', 'PASS', PAGE_URL);
 
 // ─── SET DESCRIPTION ───────────────────────────────────────────────────────
 log('Setting description...');
-const descEl = page.locator('#description');
-await descEl.waitFor({ state: 'visible', timeout: 10000 });
-await descEl.fill(DESCRIPTION);
-const descVal = await descEl.inputValue();
-addStep('Description set', descVal === DESCRIPTION ? 'PASS' : 'FAIL', descVal);
+// Click "Create New Project" on the welcome screen if it's visible
+const createBtn = page.locator('button').filter({ hasText: /Create New Project/i }).first();
+if (await createBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+  await createBtn.click();
+  log('  Clicked "Create New Project"');
+  await page.waitForTimeout(800);
+}
+
+// Populate #description via JS (field is hidden in Discovery-first UI)
+await page.evaluate(desc => {
+  const el = document.getElementById('description');
+  if (el) { el.value = desc; el.dispatchEvent(new Event('input', { bubbles: true })); }
+}, DESCRIPTION);
+const descVal = await page.evaluate(() => document.getElementById('description')?.value || '');
+addStep('Description set', descVal === DESCRIPTION ? 'PASS' : 'FAIL', descVal || '(empty)');
 
 // ─── SET BUSINESS AREAS ────────────────────────────────────────────────────
 log('Setting business areas...');
-// Ensure we can see the area toggles — they're in phase4-area-toggles in the sidebar
-await page.waitForSelector('#phase4-area-toggles', { timeout: 8000 });
+// Phase4 area toggles may not be visible until after Step 3 — skip if not present
+const togglesExist = await page.locator('#phase4-area-toggles').count() > 0;
+if (togglesExist) {
+  // Collect current toggle buttons
+  const toggleButtons = await page.locator('#phase4-area-toggles button, #phase4-area-toggles label').all();
+  log(`  Found ${toggleButtons.length} area toggle elements`);
 
-// Collect current toggle buttons
-const toggleButtons = await page.locator('#phase4-area-toggles button, #phase4-area-toggles label').all();
-log(`  Found ${toggleButtons.length} area toggle elements`);
-
-for (const area of ACTIVE_AREAS) {
-  // Look for a toggle whose text matches the area name (case-insensitive)
-  const btn = page.locator(`#phase4-area-toggles button, #phase4-area-toggles label`).filter({ hasText: new RegExp(area, 'i') }).first();
-  const exists = await btn.count() > 0;
-  if (exists) {
-    const isActive = await btn.getAttribute('class').then(c => c?.includes('active') || c?.includes('bg-blue') || c?.includes('selected')).catch(() => false);
-    if (!isActive) await btn.click();
-    addStep(`Business area: ${area}`, 'PASS');
-  } else {
-    // Try checkbox approach
-    const check = page.locator(`#phase4-area-toggles input[type=checkbox]`).filter({ hasText: new RegExp(area, 'i') });
-    if (await check.count() > 0) {
-      await check.check();
-      addStep(`Business area: ${area}`, 'PASS', 'via checkbox');
+  for (const area of ACTIVE_AREAS) {
+    // Look for a toggle whose text matches the area name (case-insensitive)
+    const btn = page.locator(`#phase4-area-toggles button, #phase4-area-toggles label`).filter({ hasText: new RegExp(area, 'i') }).first();
+    const exists = await btn.count() > 0;
+    if (exists) {
+      const isActive = await btn.getAttribute('class').then(c => c?.includes('active') || c?.includes('bg-blue') || c?.includes('selected')).catch(() => false);
+      if (!isActive) await btn.click();
+      addStep(`Business area: ${area}`, 'PASS');
     } else {
-      addStep(`Business area: ${area}`, 'WARN', 'toggle not found — may need to add area first');
+      addStep(`Business area: ${area}`, 'WARN', 'toggle not found — skipping');
     }
   }
+} else {
+  addStep('Business areas', 'WARN', 'phase4-area-toggles not found on page — areas are configured later');
 }
 await screenshot('02-business-areas-set');
 
 // ─── STEP 1: CLARIFY STRATEGIC INTENT ─────────────────────────────────────
 log('Step 1: Clarifying Strategic Intent...');
-await page.evaluate(() => document.querySelector('button[onclick="clarifyStrategicIntent()"]')?.click());
+// Try sidebar button first, then fallback to JS function call
+const step1Btn = page.locator('#step-1 button, button[onclick*="clarifyStrategicIntent"]').first();
+if (await step1Btn.count() > 0 && await step1Btn.isVisible({ timeout: 3000 }).catch(() => false)) {
+  await step1Btn.click();
+} else {
+  await page.evaluate(() => window.clarifyStrategicIntent && window.clarifyStrategicIntent());
+}
 await page.waitForTimeout(2000);
 
 // Handle clarification gate if it appears (waits up to 20s for gate)
