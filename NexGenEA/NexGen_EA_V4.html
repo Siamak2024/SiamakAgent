@@ -6316,8 +6316,15 @@ function escapeHtml(text) {
 
 function parseMarkdown(text) {
   if (!text) return '';
-  // Escape HTML first (XSS safety)
-  let t = escapeHtml(text);
+  // ── PRESERVE EMBEDDED HTML BLOCKS (action buttons, divs) ─────────────────
+  // Extract raw HTML elements before escaping so they render as live HTML.
+  const rawHtmlBlocks = [];
+  const textForParsing = text.replace(/<(div|button)\b[^>]*>[\s\S]*?<\/\1>/gi, (match) => {
+    rawHtmlBlocks.push(match);
+    return `%%HTMLBLOCK_${rawHtmlBlocks.length - 1}%%`;
+  });
+  // Escape HTML first (XSS safety — placeholders contain no special chars)
+  let t = escapeHtml(textForParsing);
   
   // ── TABLE DETECTION & RENDERING ────────────────────────────────────────────
   // Detect Markdown tables (| header | header |\n|---|---|\n| cell | cell |)
@@ -6445,13 +6452,25 @@ function parseMarkdown(text) {
       continue;
     }
     
+    // Raw HTML block placeholder — pass through unmodified (restored below)
+    if (/^%%HTMLBLOCK_\d+%%$/.test(trimmed)) {
+      closeList();
+      out.push(trimmed);
+      continue;
+    }
+
     // Regular paragraph
     closeList();
     out.push(`<p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">${trimmed}</p>`);
   }
   
   closeList();
-  return out.join('');
+  let _result = out.join('');
+  // Restore preserved HTML blocks
+  if (rawHtmlBlocks.length) {
+    _result = _result.replace(/%%HTMLBLOCK_(\d+)%%/g, (_, i) => rawHtmlBlocks[+i] || '');
+  }
+  return _result;
 }
 
 // ── Prompt Trace (Advicy AI) ──────────────────────────────────────────────
