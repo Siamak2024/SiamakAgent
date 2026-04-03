@@ -7711,6 +7711,69 @@ function getStepContextSummary(stepNum) {
   }
 }
 
+// ─── DISCOVERY AUTOPILOT HELPERS ───────────────────────────────────────────
+// Maps each completed step to the function that generates the next step's model.
+const _discoveryNextStepConfig = {
+  1: { label: 'Generate Business Model Canvas',  fn: 'generateBMC()',            icon: 'fa-th',                    desc: 'Step 2 — Business Model Canvas' },
+  2: { label: 'Generate Architecture',            fn: 'generateArchitecture()',   icon: 'fa-diagram-project',       desc: 'Step 3 — Capability Map' },
+  3: { label: 'Generate Operating Model',         fn: 'generateOperatingModel()', icon: 'fa-sitemap',               desc: 'Step 4 — Operating Model' },
+  4: { label: 'Analyse Gaps',                     fn: 'analyseGaps()',             icon: 'fa-triangle-exclamation',  desc: 'Step 5 — Gap Analysis' },
+  5: { label: 'Identify Value Pools',             fn: 'generateValuePools()',      icon: 'fa-gem',                   desc: 'Step 6 — Value Pools' },
+  6: { label: 'Generate Target Arch + Roadmap',   fn: 'generateRoadmap()',         icon: 'fa-road',                  desc: 'Step 7 — Target Architecture & Roadmap' },
+};
+
+/**
+ * Returns the "Proceed to next step" HTML card for Discovery Mode messages.
+ * Respects the SI-confirmation gate: Step 2 is hidden until Step 1 is confirmed.
+ */
+function _discoveryNextStepHtml(stepNum) {
+  const next = _discoveryNextStepConfig[stepNum];
+  if (!next) return ''; // Step 7 is the last — no further step
+  if (stepNum === 1 && !model.strategicIntentConfirmed) return ''; // Locked until SI confirmed
+  return `<div style="margin-top:14px;padding:10px 12px;background:linear-gradient(135deg,#f0f7ff,#e8f4f9);border:1px solid #bfdbfe;border-radius:8px;">
+  <div style="font-size:10px;font-weight:700;color:#1e40af;margin-bottom:4px;"><i class="fas fa-arrow-right" style="margin-right:4px;"></i>Redo att gå vidare?</div>
+  <div style="font-size:10px;color:#3b82f6;margin-bottom:8px;">${next.desc}</div>
+  <button onclick="${next.fn}" style="width:100%;padding:7px 10px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><i class="fas ${next.icon}"></i> ${next.label}</button>
+</div>`;
+}
+
+/**
+ * Returns a Discovery Mode expert persona for a given step, synced with the
+ * industry-calibrated Context Engine output (window._stepPrompts.step_X) when
+ * available, and falling back to curated hardcoded expert personas.
+ */
+function _getDiscoveryPersona(stepNum, stepName) {
+  // 1. Try to use the industry-calibrated persona from the Context Engine run
+  const sp = window._stepPrompts && window._stepPrompts[`step_${stepNum}`];
+  if (sp && typeof sp === 'string') {
+    // Extract the expert description — everything before the JSON/quality-gate instructions
+    const personaSection = sp.split(/Return ONLY valid JSON|Generic output is unacceptable/i)[0].trim();
+    if (personaSection.length > 60) return personaSection;
+  }
+  // 2. Hardcoded fallback personas (aligned with the generation prompt expertise)
+  const fallback = {
+    1: `You are a senior strategy advisor with 15+ years of experience advising C-suite executives. You deeply understand enterprise strategy, business transformation, and how to translate organisational goals into a structured strategic intent. You challenge vague ambitions and push for specificity on success metrics and constraints.`,
+    2: `You are an expert in Business Model Canvas design and strategic business development with 15+ years of experience advising senior leadership teams. You deeply understand the relationships between value propositions, customer segments, revenue streams, cost structures, and key activities — and how they must align with the organisation's strategic ambition. Your analysis is commercially sharp, specific, and challenges weak or generic elements.`,
+    3: `You are a senior Enterprise Architect with 15+ years of experience in capability architecture and digital transformation. You are an expert at analysing capability maps, value streams, system landscapes, and AI agents — and evaluating how well they address strategic themes and business model requirements. You challenge maturity ratings, identify missing capabilities, and flag strategic misalignments.`,
+    4: `You are an expert in Operating Model design and organisational transformation with 15+ years of experience. You analyse how an organisation's operating model — processes, resources, partners, channels, and cost structure — must evolve to deliver the strategic ambition. You identify structural contradictions, efficiency opportunities, and capability dependencies.`,
+    5: `You are a senior EA specialist in Gap Analysis and capability assessment with 15+ years of experience. You are an expert at identifying critical gaps between current state and target state, prioritising actions by strategic importance and business impact, and translating gaps into concrete transformation initiatives. You challenge severity ratings and find gaps that strategy implies but the analysis may have missed.`,
+    6: `You are an expert in transformation economics and value-driven EA with 15+ years of experience. You analyse value pools — where the greatest potential lies for cost reduction, revenue growth, risk mitigation, and customer experience improvement — and how they connect to specific capabilities and strategic themes. You challenge valuations and prioritisation.`,
+    7: `You are a senior transformation programme director and roadmap expert with 15+ years of experience delivering complex EA programmes. You analyse initiative sequencing, dependencies, phase structure, and phase-gate criteria — ensuring the roadmap is realistic, strategically sequenced, and financially grounded. You challenge Year 1 priorities and identify delivery risk.`,
+  };
+  return fallback[stepNum] || `You are a senior Enterprise Architect with 15+ years of experience. You are in Discovery Mode for ${stepName} (Step ${stepNum}).`;
+}
+
+// Next-step descriptions used to guide the AI in each step's Discovery Mode system prompt
+const _discoveryNextStepDescriptions = {
+  1: 'Step 2 (Business Model Canvas) maps how the organisation creates, delivers, and captures value. It translates the strategic ambition into a concrete business design.',
+  2: 'Step 3 (Capability Map) identifies the enterprise capabilities needed to execute the business model. It builds the architectural foundation for all subsequent analysis.',
+  3: 'Step 4 (Operating Model) designs how the organisation must operate to deliver the strategic ambition — processes, resources, partners, channels, and cost structure.',
+  4: 'Step 5 (Gap Analysis) compares current-state capabilities against what is needed, surfacing priority areas for transformation.',
+  5: 'Step 6 (Value Pools) identifies where the greatest transformation value lies — cost reduction, revenue growth, risk mitigation, and customer experience.',
+  6: 'Step 7 (Roadmap) sequences initiatives into a phased transformation programme with realistic phase gates and success criteria.',
+};
+// ─── END DISCOVERY AUTOPILOT HELPERS ───────────────────────────────────────
+
 function enterDiscoveryModeForStep(stepNum, stepName) {
   setAssistantMode('discovery', { step: stepNum, stepName });
   
@@ -7760,7 +7823,11 @@ ${contextSummary}
 \u2022 Identifiera luckor eller felaktigheter
 \u2022 N\u00e4r du vill g\u00f6ra \u00e4ndringar s\u00e4ger du till, s\u00e5 byter jag till Action Mode
 
-**Tips:** Vi har max 10-15 fr\u00e5gor totalt för att n\u00e5 Strategic Intent. Var koncis!`;
+${stepNum <= 1
+    ? `**Tips:** Klicka p\u00e5 **"Clarify Strategic Intent"** i v\u00e4nsterpanelen n\u00e4r du \u00e4r redo att generera strukturerad analys. Var koncis och specifik.`
+    : `**Tips:** Diskutera, st\u00e4ll fr\u00e5gor, eller be om korrigeringar. F\u00f6r att direkt uppdatera modellen \u2014 v\u00e4lj Action Mode. Du styr takten \u2014 AI:n \u00e4r din autopilot.`}
+
+${_discoveryNextStepHtml(stepNum)}`;
 
   addAssistantMessage(welcomeMsg, { mode: 'discovery', step: stepNum });
   
@@ -7915,17 +7982,8 @@ Remember: This is discovery mode. Ask helpful questions to build understanding, 
   // Build step-specific context using existing _buildStepContext
   const stepContext = _buildStepContext(stepNum);
 
-  // Step-specific expert personas — AI adopts the right expertise for each generated model
-  const _stepPersonas = {
-    2: `You are an expert in Business Model Canvas design and strategic business development with 15+ years of experience advising senior leadership teams. You deeply understand the relationships between value propositions, customer segments, revenue streams, cost structures, and key activities — and how they must align with the organisation's strategic ambition. Your analysis is commercially sharp, specific, and challenges weak or generic elements.`,
-    3: `You are a senior Enterprise Architect with 15+ years of experience in capability architecture and digital transformation. You are an expert at analysing capability maps, value streams, system landscapes, and AI agents — and evaluating how well they address strategic themes and business model requirements. You challenge maturity ratings, identify missing capabilities, and flag strategic misalignments.`,
-    4: `You are an expert in Operating Model design and organisational transformation with 15+ years of experience. You analyse how an organisation's operating model — processes, resources, partners, channels, and cost structure — must evolve to deliver the strategic ambition. You identify structural contradictions, efficiency opportunities, and capability dependencies.`,
-    5: `You are a senior EA specialist in Gap Analysis and capability assessment with 15+ years of experience. You are an expert at identifying critical gaps between current state and target state, prioritising actions by strategic importance and business impact, and translating gaps into concrete transformation initiatives. You challenge severity ratings and find gaps that strategy implies but the analysis may have missed.`,
-    6: `You are an expert in transformation economics and value-driven EA with 15+ years of experience. You analyse value pools — where the greatest potential lies for cost reduction, revenue growth, risk mitigation, and customer experience improvement — and how they connect to specific capabilities and strategic themes. You challenge valuations and prioritisation.`,
-    7: `You are a senior transformation programme director and roadmap expert with 15+ years of experience delivering complex EA programmes. You analyse initiative sequencing, dependencies, phase structure, and phase-gate criteria — ensuring the roadmap is realistic, strategically sequenced, and financially grounded. You challenge Year 1 priorities and identify delivery risk.`
-  };
-
-  const persona = _stepPersonas[stepNum] || `You are a senior Enterprise Architect with 15+ years of experience. You are in Discovery Mode for ${stepName} (Step ${stepNum}).`;
+  // Persona synced with generation prompt — uses industry-calibrated Context Engine output when available
+  const persona = _getDiscoveryPersona(stepNum, stepName);
 
   const systemPrompt = `${persona}
 
@@ -7945,6 +8003,7 @@ ${stepContext}
 - Be specific — reference concrete elements from the generated output by name
 - Challenge generic results — push for strategic precision
 - If the user proposes a change, confirm what will change and suggest: "Shall I apply this change? I'll switch to Action Mode."
+- **Next step awareness:** ${_discoveryNextStepDescriptions[stepNum] || 'This is the final step — focus on ensuring the result is complete, realistic, and actionable.'}  When the main uncertainties of the current step are resolved, proactively let the user know they are ready to proceed.
 
 **Formatting:**
 - Use ## for section headers
@@ -8119,8 +8178,14 @@ Generate the action JSON to fulfill this request.`;
 
 function returnToDiscoveryMode() {
   const prevContext = assistantContext;
-  setAssistantMode('discovery', { step: prevContext.step, stepName: prevContext.stepName });
-  addAssistantMessage(' \u00c4ndringen \u00e4r genomf\u00f6rd. Vill du diskutera n\u00e5got mer eller g\u00f6ra fler \u00e4ndringar?', { mode: 'discovery' });
+  const stepNum = prevContext.step;
+  setAssistantMode('discovery', { step: stepNum, stepName: prevContext.stepName });
+  const _nextHtml = _discoveryNextStepHtml(stepNum);
+  addAssistantMessage(
+    '\u2705 \u00c4ndringen \u00e4r genomf\u00f6rd. Vill du diskutera n\u00e5got mer eller g\u00f6ra fler \u00e4ndringar?' +
+    (_nextHtml ? '\n\n' + _nextHtml : ''),
+    { mode: 'discovery' }
+  );
   scrollToBottom();
 }
 
