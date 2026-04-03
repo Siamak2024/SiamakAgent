@@ -543,31 +543,6 @@
         <div id="step7-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
       </div>
 
-      <!-- Phase 4: Industry & Business Areas -->
-      <div class="mt-3 p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-        <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">Industry & Business Areas</div>
-        <div class="grid grid-cols-1 gap-2">
-          <div>
-            <label class="text-[10px] text-slate-600 font-semibold block mb-1">Industry Profile</label>
-            <select id="phase4-industry-select" class="w-full text-[11px] border rounded p-1.5" onchange="setIndustryProfile(this.value)">
-              <option value="generic">Generic</option>
-              <option value="startup">Startup</option>
-              <option value="domain-specific">domain-specific</option>
-              <option value="fintech">Fintech</option>
-              <option value="industry-specific">Industry-specific</option>
-              <option value="banking">Banking</option>
-              <option value="healthcare">Healthcare</option>
-              <option value="public-sector">Public Sector</option>
-              <option value="retail">Retail</option>
-              <option value="insurance">Insurance</option>
-            </select>
-          </div>
-          <div>
-            <div class="text-[10px] text-slate-600 font-semibold mb-1">Active Business Areas</div>
-            <div id="phase4-area-toggles" class="grid grid-cols-2 gap-1 text-[10px]"></div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -2153,7 +2128,28 @@ let model = {
   phase4Config: { industry: 'generic', activeBusinessAreas: ['general'] },
   scenarios: [],
   investments: [],
-  stepMeta: {}
+  stepMeta: {},
+  diagnosticProgress: {
+    currentStep: 1,
+    completedSteps: [],
+    industryProfile: null,       // e.g. 'Banking', 'Healthcare', 'Startup'
+    focusArea: null,              // e.g. 'GDPR', 'Finance', 'Cybersecurity'
+    contextData: {
+      step1_scope: null,          // Scope definition (max 5 bullets)
+      step2_currentState: null,   // AS-IS baseline
+      step3_problems: null,       // Prioritized problem list with impact
+      step4_maturity: null,       // Maturity assessment (1-5)
+      step5_outcomes: null,       // Target outcomes
+      step6_strategicIntent: null,// Strategic Intent (paragraph + bullets)
+      step7_targetArch: null      // EA Target Architecture Input
+    },
+    validationStatus: {
+      step1: false, step2: false, step3: false, step4: false,
+      step5: false, step6: false, step7: false
+    },
+    cxoSummaries: {},             // CxO summaries per step (for Board Report)
+    scenarioAnalysis: null        // Scenario engine output
+  }
 };
 let currentModelId = null;
 let currentModelName = 'Untitled Model';
@@ -3178,6 +3174,219 @@ function newModel() {
   
   // Show the new project modal
   openNewProjectModal();
+}
+
+// ── DIAGNOSTIC PROGRESS TRACKING (7-STEP EA DIAGNOSTIC) ──────────────────────
+
+function initDiagnosticProgress() {
+  model.diagnosticProgress = {
+    currentStep: 1,
+    completedSteps: [],
+    industryProfile: null,
+    focusArea: null,
+    contextData: {
+      step1_scope: null,
+      step2_currentState: null,
+      step3_problems: null,
+      step4_maturity: null,
+      step5_outcomes: null,
+      step6_strategicIntent: null,
+      step7_targetArch: null
+    },
+    validationStatus: {
+      step1: false, step2: false, step3: false, step4: false,
+      step5: false, step6: false, step7: false
+    },
+    cxoSummaries: {},
+    scenarioAnalysis: null
+  };
+}
+
+function updateDiagnosticStep(stepNum, data) {
+  if (!model.diagnosticProgress) initDiagnosticProgress();
+  
+  const stepKey = `step${stepNum}_${_getStepDataKey(stepNum)}`;
+  model.diagnosticProgress.contextData[stepKey] = data;
+  
+  // Mark as validated if data provided
+  if (data && data.length > 0) {
+    model.diagnosticProgress.validationStatus[`step${stepNum}`] = true;
+    
+    // Add to completed steps if not already there
+    if (!model.diagnosticProgress.completedSteps.includes(stepNum)) {
+      model.diagnosticProgress.completedSteps.push(stepNum);
+    }
+    
+    // Move to next step
+    if (stepNum < 7) {
+      model.diagnosticProgress.currentStep = stepNum + 1;
+    }
+  }
+  
+  console.log(`✓ Diagnostic Step ${stepNum} updated:`, data);
+}
+
+function _getStepDataKey(stepNum) {
+  const keyMap = {
+    1: 'scope',
+    2: 'currentState',
+    3: 'problems',
+    4: 'maturity',
+    5: 'outcomes',
+    6: 'strategicIntent',
+    7: 'targetArch'
+  };
+  return keyMap[stepNum] || 'unknown';
+}
+
+function validateStepCompletion(stepNum) {
+  if (!model.diagnosticProgress) return false;
+  return model.diagnosticProgress.validationStatus[`step${stepNum}`] === true;
+}
+
+function getDiagnosticProgress() {
+  if (!model.diagnosticProgress) initDiagnosticProgress();
+  return model.diagnosticProgress;
+}
+
+function setDiagnosticContext(industryProfile, focusArea) {
+  if (!model.diagnosticProgress) initDiagnosticProgress();
+  model.diagnosticProgress.industryProfile = industryProfile;
+  model.diagnosticProgress.focusArea = focusArea;
+  console.log(`✓ Diagnostic context set: ${industryProfile} / ${focusArea}`);
+}
+
+// ── AUTO CXO SUMMARY GENERATION ──────────────────────────────────────────────
+
+async function generateCxOSummaryForStep(stepNum, stepData) {
+  if (!model.diagnosticProgress) initDiagnosticProgress();
+  
+  const industryProfile = model.diagnosticProgress.industryProfile || 'generic';
+  const focusArea = model.diagnosticProgress.focusArea || 'general';
+  
+  const stepTitles = {
+    1: 'Context & Scope',
+    2: 'Current State Assessment',
+    3: 'Friction & Problems',
+    4: 'Maturity & Capability Assessment',
+    5: 'Target Outcomes',
+    6: 'Strategic Intent',
+    7: 'EA Target Architecture'
+  };
+  
+  const stepTitle = stepTitles[stepNum] || `Step ${stepNum}`;
+  
+  const systemPrompt = `You are a **Board Advisor** writing executive summaries for C-level executives.
+
+**Context:**
+- Industry: ${industryProfile}
+- Focus Area: ${focusArea}
+- Diagnostic Step: ${stepNum} - ${stepTitle}
+
+**Your task:**
+Generate a concise CxO summary (max 200 words) in business language following this structure:
+
+1. **Situation** (1-2 sentences: What was assessed)
+2. **Business Impact** (2-3 sentences: Why it matters, quantified if possible)
+3. **Key Findings** (3-4 bullet points: Critical insights)
+4. **Recommendations** (2-3 sentences: What should be done next)
+
+**Rules:**
+- Use business language, not technical jargon
+- Quantify impact where possible (time, cost, risk, revenue)
+- Focus on strategic implications
+- Be specific to ${industryProfile} and ${focusArea}
+- Keep it concise and actionable
+
+**Output format:**
+Use markdown with ## headers, bullet points, and **bold** for key terms.`;
+
+  const userPrompt = `**Step ${stepNum} Data:**
+${JSON.stringify(stepData, null, 2)}
+
+Generate CxO Summary in Swedish if the data is in Swedish, otherwise in English.`;
+
+  try {
+    const summary = await callAI(systemPrompt, userPrompt, {
+      taskType: 'analysis',
+      _traceLabel: `CxO Summary - Step ${stepNum}`
+    });
+    
+    // Save to model
+    model.diagnosticProgress.cxoSummaries[`step${stepNum}`] = {
+      title: stepTitle,
+      summary: summary,
+      timestamp: new Date().toISOString(),
+      step: stepNum
+    };
+    
+    console.log(`✓ CxO Summary generated for Step ${stepNum}`);
+    toast(`CxO Summary generated for ${stepTitle} ✓`);
+    
+    return summary;
+    
+  } catch (error) {
+    console.error(`Failed to generate CxO summary for step ${stepNum}:`, error);
+    return null;
+  }
+}
+
+async function generateScenarioAnalysis() {
+  if (!model.diagnosticProgress) return null;
+  
+  const industryProfile = model.diagnosticProgress.industryProfile || 'generic';
+  const focusArea = model.diagnosticProgress.focusArea || 'general';
+  
+  const systemPrompt = `You are a **Strategic Foresight Advisor** creating scenario analysis for C-level decision-making.
+
+**Context:**
+- Industry: ${industryProfile}
+- Focus Area: ${focusArea}
+- Strategic Intent: ${model.strategicIntent?.strategic_ambition || 'Not defined'}
+
+**Your task:**
+Generate 3 strategic scenarios (Best Case, Likely Case, Worst Case) with:
+
+1. **Scenario Name**
+2. **Probability** (%)
+3. **Timeline** (months to impact)
+4. **Business Impact** (Revenue, Cost, Risk)
+5. **Key Drivers** (3-4 factors)
+6. **Recommended Actions** (2-3 specific steps)
+
+Focus on ${industryProfile}-specific risks and ${focusArea}-specific opportunities.
+
+**Output format:**
+Create a table with columns: Scenario | Probability | Timeline | Impact | Actions
+Then add detailed narrative for each scenario (max 100 words each).`;
+
+  const contextData = Object.values(model.diagnosticProgress.contextData).filter(d => d !== null);
+  
+  const userPrompt = `**Diagnostic Context:**
+${JSON.stringify(contextData, null, 2)}
+
+Generate scenario analysis in Swedish if context is Swedish, otherwise English.`;
+
+  try {
+    const scenarios = await callAI(systemPrompt, userPrompt, {
+      taskType: 'analysis',
+      _traceLabel: 'Scenario Analysis'
+    });
+    
+    model.diagnosticProgress.scenarioAnalysis = {
+      content: scenarios,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('✓ Scenario analysis generated');
+    toast('Scenario Analysis generated ✓');
+    
+    return scenarios;
+    
+  } catch (error) {
+    console.error('Failed to generate scenario analysis:', error);
+    return null;
+  }
 }
 
 function saveModelToDB() {
@@ -4868,7 +5077,7 @@ function startArchitectWorkflow() {
   // Add welcome message from AI
   const welcomeMsg = `**Välkommen till EA Strategic Diagnostic 🎯**
 
-Jag är din **Senior Enterprise Architect och Management Consultant**.
+Jag är din **Senior Enterprise Architect, Management Consultant och Data Strategy Advisor**.
 
 Min uppgift är att guida dig genom en strukturerad **7-stegs diagnostikprocess** som leder till:
 ✓ Tydlig Strategic Intent
@@ -4881,11 +5090,15 @@ Min uppgift är att guida dig genom en strukturerad **7-stegs diagnostikprocess*
 
 Låt oss börja med att definiera ramarna:
 
-1. **Vilken typ av organisation är detta?**
-2. **Vilket affärsområde eller funktion fokuserar vi på?**
-3. **Är detta en problemsituation eller ett generellt förbättringsinitiativ?**
+1. **Industry Profile** - Vilken typ av organisation/bransch är detta?
+   (t.ex. Startup, Fintech, Banking, Healthcare, Public Sector, Retail, Insurance)
 
-**OBS:** Jag kommer att ställa EN fokuserad fråga i taget. Vi går inte vidare förrän vi har tillräcklig klarhet.`;
+2. **Focus Area** - Vilket område fokuserar vi på?
+   (t.ex. General, ERP, ESG, GDPR, Finance, ITSM, Cybersecurity)
+
+3. **Situation** - Är detta en problemsituation eller ett generellt förbättringsinitiativ?
+
+**OBS:** Jag kommer att anpassa ALL min kommunikation, alla frågor och analyser baserat på din bransch och fokusområde. Svara på första frågan!`;`;
 
   addMessage(welcomeMsg, 'ai');
   
@@ -5483,8 +5696,16 @@ async function generateFullReport() {
   const progress = document.getElementById('report-progress');
   const contentDiv = document.getElementById('report-content');
 
+  // Collect CxO summaries from diagnostic progress
+  const cxoSummaries = model.diagnosticProgress?.cxoSummaries || {};
+  const scenarioAnalysis = model.diagnosticProgress?.scenarioAnalysis?.content || null;
+  const industryProfile = model.diagnosticProgress?.industryProfile || 'generic';
+  const focusArea = model.diagnosticProgress?.focusArea || 'general';
+
   const dataPack = {
     org: document.getElementById('description').value,
+    industryProfile,
+    focusArea,
     kpis: {
       savings: document.getElementById('kpi-savings').textContent,
       risk: document.getElementById('kpi-risk').textContent,
@@ -5495,29 +5716,60 @@ async function generateFullReport() {
     },
     topGaps: model.capabilities.filter(c => c.strategicImportance==='high' && c.maturity<=2).map(c => c.name),
     topSavings: model.capabilities.sort((a,b) => (b.annualSavingsEstimate||0) - (a.annualSavingsEstimate||0)).slice(0,3).map(c => ({name:c.name, val:fmtMoney(c.annualSavingsEstimate)})),
-    roadmap: model.initiatives.slice(0,5).map(i => `${i.name} (${i.phase})`)
+    roadmap: model.initiatives.slice(0,5).map(i => `${i.name} (${i.phase})`),
+    cxoSummaries: Object.entries(cxoSummaries).map(([key, value]) => ({
+      step: value.step,
+      title: value.title,
+      summary: value.summary
+    })),
+    scenarioAnalysis
   };
 
   try {
-    progress.textContent = "Writing executive summary...";
+    progress.textContent = "Writing executive board report with diagnostic insights...";
     const reportBody = await callAI(
-      `You are a strategic Board Advisor.
-       Write a complete board report in ENGLISH based on the attached data.
-       Use a professional tone. Focus on Business Outcomes: Cost, Risk, Competitiveness, and Sustainability.
+      `You are a strategic Board Advisor writing for C-level executives.
+       Generate a complete board report in ENGLISH based on the provided data.
+       Use professional business language. Focus on Business Outcomes: Cost, Risk, Competitiveness, Sustainability.
 
-       STRUCTURE:
-       1. Title: Strategic Architecture Analysis & Transformation Plan
-       2. Organization & Background (Short)
-       3. Executive Summary (Board-level, 150-200 words): Explain why we are doing this and the expected outcomes.
-       4. Capability Mapping & Heatmap: Analyze capabilities and where savings potential is highest.
-       5. Dependency & Risk: Analyze technical debt and operational risk.
-       6. CFO View: Financial summary (ROI, Savings, CO2).
-       7. Operating Model & Roadmap: How we get there (quick wins).
-       8. Strategic Insights & Recommendation: What the board should decide.
+       **CONTEXT:**
+       - Industry: ${industryProfile}
+       - Focus Area: ${focusArea}
 
-       Use HTML tags for formatting: <h1 class="report-h1">, <h2 class="report-h2">, <h3 class="report-h3">, <p class="report-p">, and <div class="report-card"> for key insights.`,
-      `DATA: ${JSON.stringify(dataPack)}`,
-      { taskType: 'heavy', temperature: 0.2 }
+       **STRUCTURE:**
+       1. **Title:** Strategic Architecture Analysis & Transformation Plan
+       2. **Organization & Background** (Short paragraph)
+       3. **Executive Summary** (Board-level, 150-200 words): Strategic intent, expected outcomes, business impact
+       4. **Diagnostic Insights** (Aggregate CxO summaries from 7-step diagnostic):
+          - Present summaries as progressive story: Context → Current State → Problems → Maturity → Outcomes → Strategic Intent → Target Architecture
+          - Use headers for each diagnostic step
+       5. **Scenario Analysis:**
+          - Present 3 scenarios (Best/Likely/Worst Case) with probabilities, timelines, impacts, actions
+          - Format as table or structured sections
+       6. **Capability Mapping & Heat Analysis:**
+          - Top gaps, strategic importance, maturity levels
+          - Savings potential per capability area
+       7. **Dependency & Risk:**
+          - Technical debt, operational risk, integration complexity
+       8. **CFO View:**
+          - Financial summary: ROI, Cost Savings, CO2 reduction
+          - Investment requirements vs. savings timeline
+       9. **Operating Model & Roadmap:**
+          - Transformation phases, quick wins, Year 1 initiatives
+       10. **Strategic Recommendations:**
+           - What the board should decide (3-5 specific recommendations)
+           - Resource requirements and governance
+
+       **FORMATTING:**
+       - Use HTML5 semantic tags: <h1 class="report-h1">, <h2 class="report-h2">, <h3 class="report-h3">
+       - Paragraphs: <p class="report-p">
+       - Key insights: <div class="report-card">
+       - Tables: <table class="report-table">
+       - Lists: <ul class="report-list">
+
+       **TONE:** Direct, data-driven, commercially focused. No jargon unless industry-specific.`,
+      `**DATA PACK:**\n${JSON.stringify(dataPack, null, 2)}`,
+      { taskType: 'heavy', temperature: 0.25, _traceLabel: 'Board Report Generation' }
     );
 
     contentDiv.innerHTML = reportBody;
@@ -7273,44 +7525,103 @@ async function handleDiscoveryMessage(userMessage) {
   if (stepNum === 1 && !model.strategicIntent?.strategic_ambition) {
     showTypingIndicator();
     
-    // Structured EA diagnostic system prompt (7-step process)
+    // Structured EA diagnostic system prompt (7-step process with Context Adaptation Layer)
     const systemPrompt = `You are an expert AI assistant acting as a **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
 
 Your role is to **guide the user through a structured diagnostic and strategic process** to describe the current state of an organization or business unit, and transform that into **clear Strategic Intent and EA transformation input**, with strong focus on **AI and data-driven decision-making**.
 
-**MANDATORY PROCESS (DO NOT SKIP STEPS):**
+You MUST follow the process strictly. Do NOT skip steps. Do NOT jump ahead. Do NOT provide solutions too early.
 
-STEP 1 \u2013 CONTEXT & SCOPE: Define boundaries (org type, focus area, problem vs improvement)
-STEP 2 \u2013 CURRENT STATE: Build objective baseline (processes, systems, data, organization)
-STEP 3 \u2013 FRICTION & PROBLEMS: Identify pain points with business impact
-STEP 4 \u2013 MATURITY & CAPABILITY: Assess current maturity (1-5) and gaps
-STEP 5 \u2013 TARGET OUTCOMES: Define business-driven ambition (NOT technical solutions)
-STEP 6 \u2013 STRATEGIC INTENT: Synthesize into strategic direction (paragraph + bullets)
-STEP 7 \u2013 EA TARGET INPUT: Prepare transformation foundation (capabilities, principles, priorities)
+---
 
-**CORE PRINCIPLES:**
-\u2022 Ask ONE focused question at a time
-\u2022 Always validate and refine user input
-\u2022 Challenge vague or generic answers
-\u2022 Identify gaps, inconsistencies, missing data
-\u2022 Separate facts from assumptions
-\u2022 Think in three levels: Operational (what) \u2192 Tactical (why) \u2192 Strategic (what should change)
-\u2022 Never move forward until sufficient clarity is reached
-\u2022 Use clear headings, bullet points, simple professional language
+## CORE PRINCIPLES
 
-**QUALITY CONTROL:**
-\u2022 Highlight missing information
-\u2022 Flag unclear inputs
-\u2022 Identify contradictions
-\u2022 Push for clarity and precision
+* Be structured, concise, and fact-based
+* Ask ONE focused question at a time
+* Always validate and refine user input
+* Challenge vague or generic answers
+* Identify gaps, inconsistencies, and missing data
+* Separate facts from assumptions
+* Think in three levels: Operational (what is happening) → Tactical (why it happens) → Strategic (what should change)
+* Never move forward until sufficient clarity is reached
+* Continuously summarize and structure outputs
 
-**BEHAVIOR:**
-\u2022 Act as senior advisor, not passive assistant
-\u2022 Be direct and analytical
-\u2022 Force concrete answers with examples
-\u2022 End each interaction with short structured summary
+---
 
-When you reach STEP 6 and have generated Strategic Intent, format it as: "##STRATEGIC_INTENT_READY##" followed by the structured output, so the system can capture it.`;
+## CONTEXT ADAPTATION LAYER (MANDATORY)
+
+The user will provide:
+* **Industry Profile** (e.g. Startup, Fintech, Banking, Healthcare, Public Sector, Retail, Insurance)
+* **Focus Area** (e.g. General, ERP, ESG, GDPR, Finance, ITSM, Cybersecurity)
+
+You MUST adapt your behavior, questions, and outputs based on this context.
+
+**INDUSTRY-SPECIFIC ADAPTATION:**
+
+* **Banking/Insurance**: Emphasize compliance, auditability, risk, legacy core systems, data governance
+* **Healthcare**: Emphasize privacy, interoperability, patient data, regulatory compliance
+* **Public Sector**: Emphasize transparency, regulation, budget constraints, legacy complexity
+* **Startup/Fintech**: Emphasize scalability, speed, modular architecture, API-first, innovation
+* **Retail**: Emphasize customer data, omnichannel, demand forecasting, personalization
+
+**FOCUS AREA ADAPTATION:**
+
+* **ERP**: Process standardization, system dependencies, integrations
+* **ESG**: Data collection, reporting, traceability, compliance
+* **GDPR**: Personal data flows, storage, consent, risk exposure
+* **Finance**: Reporting, forecasting, decision support, data accuracy
+* **ITSM**: Service processes, incident/change/problem management
+* **Cybersecurity**: Risk exposure, controls, monitoring, incident response
+
+**ADAPTIVE QUESTIONING RULE:**
+Modify ALL questions to reflect both industry and focus area. Avoid generic questions. Ask domain-relevant follow-ups. Push for concrete examples.
+
+---
+
+## MANDATORY PROCESS FLOW:
+
+**STEP 1 – CONTEXT & SCOPE:** Confirm Industry Profile, Focus Area, org type, business unit, problem vs improvement → Output: Scope definition (max 5 bullets)
+
+**STEP 2 – CURRENT STATE:** Build objective baseline (processes, systems, data, organization) → Output: Structured EA baseline
+
+**STEP 3 – FRICTION & PROBLEMS:** Identify pain points with business impact (frequency, cost, risk, time, customer) → Output: Prioritized problem list
+
+**STEP 4 – MATURITY & CAPABILITY:** Assess maturity (1-5) across data, AI/analytics, processes, technology → Output: Maturity level + capability gaps
+
+**STEP 5 – TARGET OUTCOMES:** Define business ambition (NO technical solutions) → Output: Outcome statements
+
+**STEP 6 – STRATEGIC INTENT:** Synthesize into strategic direction → Output: Paragraph (5-6 lines) + 4-6 bullets (business ambition, transformation focus, target capabilities, role of data, role of AI)
+
+**STEP 7 – EA TARGET ARCHITECTURE INPUT:** Prepare transformation foundation → Output: Target capabilities, architecture principles (API-first, data-as-asset, AI-embedded), priority areas (data platform, integration, AI use cases, process automation)
+
+---
+
+## QUALITY CONTROL RULES
+
+You MUST:
+* Highlight missing information
+* Flag unclear inputs
+* Identify contradictions
+* Ask clarifying follow-ups
+
+You MUST NOT:
+* Jump to solutions before Step 5
+* Accept vague answers
+* Provide generic consulting output
+
+---
+
+## OUTPUT STYLE
+
+* Clear headings (use ## for sections)
+* Bullet points
+* Simple, professional language
+* No unnecessary verbosity
+* End each step with structured summary
+
+When you reach STEP 6 and have generated Strategic Intent, format it as: "##STRATEGIC_INTENT_READY##" followed by the structured output.
+
+**Remember:** Act as senior advisor (direct, analytical), not passive assistant. Guide step-by-step toward high-quality Strategic Intent.`;
     
     const userPrompt = `**Conversation history:**
 ${recentMessages}
@@ -7338,6 +7649,21 @@ Respond in Swedish if the user writes in Swedish.`;
       if (response.includes('##STRATEGIC_INTENT_READY##')) {
         const intentText = response.replace('##STRATEGIC_INTENT_READY##', '').trim();
         
+        // Extract Industry + Focus from conversation if present
+        const industryMatch = recentMessages.match(/industry[:\s]+(startup|fintech|banking|healthcare|public sector|retail|insurance)/i);
+        const focusMatch = recentMessages.match(/focus[:\s]+(general|erp|esg|gdpr|finance|itsm|cybersecurity)/i);
+        
+        if (industryMatch) setDiagnosticContext(industryMatch[1], focusMatch ? focusMatch[1] : 'general');
+        
+        // Update diagnostic progress with Strategic Intent
+        updateDiagnosticStep(6, intentText);
+        
+        // Generate CxO Summary for Step 6 (background)
+        generateCxOSummaryForStep(6, { strategicIntent: intentText }).catch(e => console.error('CxO summary failed:', e));
+        
+        // Generate Scenario Analysis (background)
+        generateScenarioAnalysis().catch(e => console.error('Scenario analysis failed:', e));
+        
         const confirmMsg = `${intentText}
 
 ---
@@ -7345,6 +7671,8 @@ Respond in Swedish if the user writes in Swedish.`;
 ## Fantastic! \ud83c\udfaf
 
 Jag har nu slutf\u00f6rt den strukturerade diagnostiken och skapat er **Strategic Intent**.
+
+**\u2713 CxO Summary** och **Scenario Analysis** genereras automatiskt i bakgrunden.
 
 Vill du spara detta och g\u00e5 vidare till **Action Mode** f\u00f6r att generera den kompletta EA-modellen?
 
