@@ -7729,6 +7729,62 @@ function getStepContextSummary(stepNum) {
 
 // ─── DISCOVERY AUTOPILOT HELPERS ───────────────────────────────────────────
 // Maps each completed step to the function that generates the next step's model.
+/**
+ * Extracts user-stated facts from the current discovery session to enrich generation prompts.
+ * Call inside each generate function to capture what the user clarified in chat.
+ */
+function _captureDiscoveryInsights() {
+  const allMessages = getActiveConversation()?.messages || [];
+  const lastWelcomeIdx = (() => {
+    for (let i = allMessages.length - 1; i >= 0; i--) {
+      const c = String(allMessages[i].content || '');
+      if (allMessages[i].role === 'assistant' && (c.includes('Discovery Mode') || c.includes('EA Strategic Diagnostic'))) return i;
+    }
+    return Math.max(0, allMessages.length - 20);
+  })();
+  const userStatements = allMessages.slice(lastWelcomeIdx)
+    .filter(m => m.role === 'user' && (m.content || '').trim().length > 8)
+    .map(m => m.content.trim())
+    .slice(-8);
+  if (!userStatements.length) return '';
+  return '\n\n**User-confirmed insights from discovery (treat as ground truth — override AI assumptions):**\n' +
+    userStatements.map(s => `• ${s}`).join('\n');
+}
+
+/**
+ * After a step generates output, produces a brief AI review and shows
+ * Proceed / Change / Regenerate buttons — mirrors GitHub Copilot inline review.
+ */
+async function _generateStepReviewSummary(stepNum, stepResult) {
+  const names = { 1: 'Strategic Intent', 2: 'Business Model Canvas', 3: 'Capability Map', 4: 'Operating Model', 5: 'Gap Analysis', 6: 'Value Pools', 7: 'Roadmap' };
+  const regenFns = { 2: 'generateBMC()', 3: 'generateArchitecture()', 4: 'generateOperatingModel()', 5: 'analyseGaps()', 6: 'generateValuePools()', 7: 'generateRoadmap()' };
+  const stepName = names[stepNum] || `Step ${stepNum}`;
+  const nextConfig = _discoveryNextStepConfig[stepNum];
+  try {
+    const resultStr = JSON.stringify(stepResult, null, 2).slice(0, 3000);
+    const review = await callAI(
+      'You are a critical EA reviewer. Be concise — no markdown headers.',
+      `AI just generated **${stepName}** for an EA engagement.\n\nResult:\n${resultStr}\n\nWrite a review in exactly 4 lines:\n✅ Built: [1 sentence]\n⚠️ Key assumption: [most critical assumption made]\n🔍 Weakest part: [what most needs user validation]\n📊 Confidence: [High/Medium/Low] — [one-line reason]`,
+      { taskType: 'lightweight', _traceLabel: `Step ${stepNum} Review` }
+    );
+    model.diagnosticProgress = model.diagnosticProgress || {};
+    model.diagnosticProgress.stepReviews = model.diagnosticProgress.stepReviews || {};
+    model.diagnosticProgress.stepReviews[stepNum] = { review, timestamp: Date.now() };
+    const proceedBtn = nextConfig
+      ? `<button class="mode-action-btn mode-action-btn--action" onclick="${nextConfig.fn}"><i class="fas ${nextConfig.icon}"></i> ${nextConfig.label}</button>`
+      : '';
+    const regenBtn = regenFns[stepNum]
+      ? `<button class="mode-action-btn mode-action-btn--secondary" onclick="${regenFns[stepNum]}"><i class="fas fa-rotate-right"></i> Regenerate</button>`
+      : '';
+    const changeBtn = `<button class="mode-action-btn mode-action-btn--secondary" onclick="switchToActionMode('')"><i class="fas fa-edit"></i> Change something</button>`;
+    const btnRow = `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">${proceedBtn}${changeBtn}${regenBtn}</div>`;
+    addAssistantMessage(`**AI Review — ${stepName}**\n\n${review}\n\n_Discuss in chat, or use the buttons below._\n\n${btnRow}`,
+      { mode: 'discovery', step: stepNum, isReview: true });
+  } catch (e) {
+    console.warn('Step review generation failed (non-fatal):', e.message);
+  }
+}
+
 const _discoveryNextStepConfig = {
   1: { label: 'Generate Business Model Canvas',  fn: 'generateBMC()',            icon: 'fa-th',                    desc: 'Step 2 — Business Model Canvas' },
   2: { label: 'Generate Architecture',            fn: 'generateArchitecture()',   icon: 'fa-diagram-project',       desc: 'Step 3 — Capability Map' },
@@ -7979,13 +8035,33 @@ Apply industry knowledge to enrich what they said. Propose a "minimum viable con
   }
   
   // STANDARD DISCOVERY MODE (for steps with existing results)
+  const isSv = /[åäöÅÄÖ]/.test(userMessage) || /[åäöÅÄÖ]/.test(recentMessages);
+
+  // ── PROCEED INTENT: skip AI, show exit card immediately ────────────────────
+  if (/\b(proceed|next step|let'?s go|go ahead|yes|ja|sure|sounds good|looks good|continue|gå vidare|kör|fortsätt|done|redo|klart|approved|move on)\b/i.test(userMessage)) {
+    const nextCard = _discoveryNextStepHtml(stepNum);
+    const msg = nextCard
+      ? (isSv ? `Bra! Nästa steg:\n\n${nextCard}` : `Ready! Next step:\n\n${nextCard}`)
+      : (isSv ? `Du är på det sista steget — alla steg är klara! 🎉` : `You're on the final step — all steps complete! 🎉`);
+    hideTypingIndicator();
+    addAssistantMessage(msg, { mode: 'discovery', step: stepNum });
+    scrollToBottom();
+    return;
+  }
+
+  // Hard-stop after 10 AI turns to prevent infinite loops
+  const forceStop = aiExchangeCount >= 10;
+  const hardStopPrefix = forceStop
+    ? `🛑 MANDATORY STOP — ${aiExchangeCount} exchanges. Write a 2–3 sentence status summary. State whether the user is ready to proceed. Ask NO further questions.\n\n`
+    : '';
+
   // Build step-specific context using existing _buildStepContext
   const stepContext = _buildStepContext(stepNum);
 
   // Persona synced with generation prompt — uses industry-calibrated Context Engine output when available
   const persona = _getDiscoveryPersona(stepNum, stepName);
 
-  const systemPrompt = `${persona}
+  const systemPrompt = `${hardStopPrefix}${persona}
 
 You are now in **Discovery Mode** for **${stepName}** (Step ${stepNum}).
 
@@ -8003,7 +8079,8 @@ ${stepContext}
 - Be specific — reference concrete elements from the generated output by name
 - Challenge generic results — push for strategic precision
 - If the user proposes a change, confirm what will change and suggest: "Shall I apply this change? I'll switch to Action Mode."
-- **Next step awareness:** ${_discoveryNextStepDescriptions[stepNum] || 'This is the final step — focus on ensuring the result is complete, realistic, and actionable.'}  When the main uncertainties of the current step are resolved, proactively let the user know they are ready to proceed.
+- **Next step awareness:** ${_discoveryNextStepDescriptions[stepNum] || 'This is the final step — focus on ensuring the result is complete, realistic, and actionable.'} When the main uncertainties of the current step are resolved, proactively let the user know they are ready to proceed.
+- **Always end your response with this exact footer:** > 💬 _Want to **change something**? Tell me — or type **"proceed"** when ready to move on._
 
 **Formatting:**
 - Use ## for section headers
@@ -8017,7 +8094,7 @@ Always respond in the same language the user writes in. Default to English.`;
   const userPrompt = `**Recent conversation:**
 ${recentMessages}
 
-**Anv\u00e4ndarens fr\u00e5ga:**
+**User's message:**
 ${userMessage}`;
 
   try {
@@ -8046,11 +8123,25 @@ ${userMessage}`;
     } else {
       // Message already displayed by streaming
     }
-    
+
+    // Always inject clear action exit buttons after every AI turn (prevents loop trap)
+    const nextCard = _discoveryNextStepHtml(stepNum);
+    const changeLabel = isSv ? 'Ändra något — Action Mode' : 'Change something — Action Mode';
+    const askLabel   = isSv ? 'Ställ en fråga' : 'Ask a question';
+    const exitHtml = `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+  <button class="mode-action-btn mode-action-btn--action" onclick="switchToActionMode('')">
+    <i class="fas fa-bolt"></i> ${changeLabel}
+  </button>
+  <button class="mode-action-btn mode-action-btn--secondary" onclick="document.getElementById('chat-input')?.focus()">
+    <i class="fas fa-comments"></i> ${askLabel}
+  </button>
+</div>${nextCard ? '\n' + nextCard : ''}`;
+    addAssistantMessage(exitHtml, { mode: 'discovery', step: stepNum, isActionButton: true });
+
   } catch (error) {
-    addAssistantMessage(`\u274c Ett fel uppstod: ${error.message}`, { mode: 'discovery', error: true });
+    addAssistantMessage(`❌ ${isSv ? 'Ett fel uppstod' : 'An error occurred'}: ${error.message}`, { mode: 'discovery', error: true });
   }
-  
+
   scrollToBottom();
 }
 
@@ -8109,32 +8200,36 @@ async function handleActionMessage(userMessage) {
   const modeInfo = getAssistantMode();
   const proposedChange = modeInfo.context.proposedChange || userMessage;
   
-  // Build current model context
+  // Build current model context — expanded to cover all relevant EA fields
   const modelContext = JSON.stringify({
     strategicIntent: model.strategicIntent,
     bmc: model.bmc,
-    capabilities: (model.capabilities || []).map(c => ({ id: c.id, name: c.name, domain: c.domain, maturity: c.maturity })),
+    capabilities: (model.capabilities || []).map(c => ({ id: c.id, name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance })),
     operatingModel: model.operatingModel,
+    valuePools: (model.valuePools || []).map(v => ({ name: v.name, driver: v.driver })),
+    initiatives: (model.initiatives || []).map(i => ({ id: i.id, name: i.name, phase: i.phase })),
     systems: (model.systems || []).map(s => ({ name: s.name, status: s.status }))
   }, null, 2);
-  
-  const systemPrompt = `Du \u00e4r en expert Enterprise Architect i **Action Mode**. Din uppgift \u00e4r att omvandla anv\u00e4ndarens \u00f6nskem\u00e5l till exakta EA-modell uppdateringar.
 
-**Tillg\u00e4ngliga actions:**
-- update_strategic_intent: { "action": "update_strategic_intent", "field": "strategic_ambition|strategic_themes|key_constraints|success_metrics", "value": "..." }
-- update_bmc: { "action": "update_bmc", "field": "value_proposition|customer_segments|key_activities|...", "value": "..." }
+  const systemPrompt = `You are an expert Enterprise Architect in **Action Mode**. Translate the user's request into a precise EA model update.
+
+**Available actions (return ONE JSON object):**
+- update_strategic_intent: { "action": "update_strategic_intent", "field": "strategic_ambition|strategic_themes|key_constraints|success_metrics|situation_narrative|burning_platform", "value": "..." }
+- update_bmc: { "action": "update_bmc", "field": "value_proposition|customer_segments|key_activities|key_resources|key_partners|channels|customer_relationships|cost_structure|revenue_streams", "value": "..." }
 - update_capability: { "action": "update_capability", "id": "...", "field": "name|maturity|strategicImportance|description", "value": "..." }
-- add_capability: { "action": "add_capability", "name": "...", "domain": "...", "maturity": 2, "strategicImportance": "high", "description": "..." }
+- add_capability: { "action": "add_capability", "name": "...", "domain": "Customer|Product|Operations|Risk|Finance|Technology|Support", "maturity": 2, "strategicImportance": "high|medium|low", "description": "..." }
 - remove_capability: { "action": "remove_capability", "id": "..." }
-- add_system: { "action": "add_system", "name": "...", "status": "active", "category": "core", "description": "..." }
+- add_system: { "action": "add_system", "name": "...", "status": "active|legacy|planned", "category": "core|supporting", "description": "..." }
+- update_initiative: { "action": "update_initiative", "id": "...", "field": "name|phase|priority|description", "value": "..." }
+- add_value_pool: { "action": "add_value_pool", "name": "...", "driver": "cost|revenue|risk|experience", "impact": "high|medium|low", "description": "..." }
 
-**Din process:**
-1. F\u00f6rst\u00e5 exakt vad anv\u00e4ndaren vill \u00e4ndra
-2. Generera r\u00e4tt JSON-action
-3. F\u00f6rklara vad som kommer att h\u00e4nda
-4. Embed JSON i \`\`\`json block
+**Your process:**
+1. Understand exactly what the user wants to change
+2. Generate the correct JSON action
+3. Briefly explain what will change (1–2 sentences)
+4. Embed JSON in a \`\`\`json block
 
-Return JSON + explanation in Swedish.`;
+Always respond in the same language as the user. Default to English.`;
 
   const userPrompt = `**Current EA Model:**
 \`\`\`json
@@ -8152,25 +8247,29 @@ Generate the action JSON to fulfill this request.`;
       _traceLabel: 'Action Mode'
     });
     
-    // Parse and execute command
+    // Parse command — store pending and ask user to confirm before applying
     const command = parseAssistantCommand(response);
     if (command && command.action) {
-      // Message already displayed by streaming
-      const context = buildConversationContext();
-      await executeAssistantCommand(command, userMessage, context);
-      
-      // Return to Discovery Mode after action
-      setTimeout(() => returnToDiscoveryMode(), 1000);
+      window._pendingActionCommand = command;
+      window._pendingActionUserMessage = userMessage;
+      const isSv = /[\u00e5\u00e4\u00f6\u00c5\u00c4\u00d6]/.test(userMessage);
+      const applyLabel  = isSv ? 'Tillämpa ändringen' : 'Apply change';
+      const cancelLabel = isSv ? 'Avbryt' : 'Cancel';
+      const confirmHtml = `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+  <button class="mode-action-btn mode-action-btn--action" onclick="_applyPendingAction()">
+    <i class="fas fa-check"></i> ${applyLabel}
+  </button>
+  <button class="mode-action-btn mode-action-btn--secondary" onclick="_cancelPendingAction()">
+    <i class="fas fa-times"></i> ${cancelLabel}
+  </button>
+</div>`;
+      addAssistantMessage(confirmHtml, { mode: 'action', hasPendingAction: true });
     } else {
-      // Streaming already showed response, append error note
-      const lastMsg = document.querySelector('.chat-message.assistant-message:last-child .message-text');
-      if (lastMsg) {
-        lastMsg.innerHTML += '<div class="mt-2 text-red-600">\u274c Kunde inte generera en giltig action. Vill du f\u00f6rtydliga?</div>';
-      }
+      addAssistantMessage('❌ Could not generate a valid action. Please rephrase your request.', { mode: 'action', error: true });
     }
     
   } catch (error) {
-    addAssistantMessage(`\u274c Action Mode error: ${error.message}`, { mode: 'action', error: true });
+    addAssistantMessage(`❌ Action Mode error: ${error.message}`, { mode: 'action', error: true });
   }
   
   scrollToBottom();
@@ -8181,12 +8280,72 @@ function returnToDiscoveryMode() {
   const stepNum = prevContext.step;
   setAssistantMode('discovery', { step: stepNum, stepName: prevContext.stepName });
   const _nextHtml = _discoveryNextStepHtml(stepNum);
+  const isSv = document.documentElement.lang === 'sv';
+  const msg = isSv
+    ? '✅ Ändringen är genomförd. Vill du diskutera något mer eller göra fler ändringar?'
+    : '✅ Change applied. Want to discuss anything else, or make more changes?';
+  addAssistantMessage(msg + (_nextHtml ? '\n\n' + _nextHtml : ''), { mode: 'discovery' });
+  scrollToBottom();
+}
+
+async function _applyPendingAction() {
+  const command = window._pendingActionCommand;
+  const userMessage = window._pendingActionUserMessage || '';
+  if (!command) return;
+
+  const oldValue = _getModelFieldSnapshot(command);
+  const context = buildConversationContext();
+  await executeAssistantCommand(command, userMessage, context);
+
+  const newValue = _getModelFieldSnapshot(command);
+  const isSv = /[\u00e5\u00e4\u00f6\u00c5\u00c4\u00d6]/.test(userMessage);
+  const fieldLabel = command.name || command.field || command.action;
+  const hasChanged = oldValue && oldValue !== newValue && oldValue !== '(none)';
+  const diffMsg = hasChanged
+    ? (isSv
+        ? `✅ **Genomfört!** Uppdaterat **${fieldLabel}**:\n\n_Från:_ ${String(oldValue).slice(0, 150)}\n_Till:_ ${String(newValue).slice(0, 200)}`
+        : `✅ **Applied!** Updated **${fieldLabel}**:\n\n_From:_ ${String(oldValue).slice(0, 150)}\n_To:_ ${String(newValue).slice(0, 200)}`)
+    : (isSv ? `✅ Ändringen genomförd.` : `✅ Change applied successfully.`);
+
+  addAssistantMessage(diffMsg, { mode: 'action' });
+  window._pendingActionCommand = null;
+  window._pendingActionUserMessage = null;
+  scrollToBottom();
+  setTimeout(() => returnToDiscoveryMode(), 800);
+}
+
+function _cancelPendingAction() {
+  window._pendingActionCommand = null;
+  window._pendingActionUserMessage = null;
+  const isSv = document.documentElement.lang === 'sv';
   addAssistantMessage(
-    '\u2705 \u00c4ndringen \u00e4r genomf\u00f6rd. Vill du diskutera n\u00e5got mer eller g\u00f6ra fler \u00e4ndringar?' +
-    (_nextHtml ? '\n\n' + _nextHtml : ''),
-    { mode: 'discovery' }
+    isSv ? '❌ Avbrutet — inga ändringar gjorda.' : '❌ Cancelled — no changes made.',
+    { mode: 'action' }
   );
   scrollToBottom();
+}
+
+function _getModelFieldSnapshot(command) {
+  if (!command) return '';
+  try {
+    const { action, field, id } = command;
+    if (action === 'update_strategic_intent') return JSON.stringify(model.strategicIntent?.[field] ?? '');
+    if (action === 'update_bmc')              return JSON.stringify(model.bmc?.[field] ?? '');
+    if (action === 'update_capability') {
+      const cap = (model.capabilities || []).find(c => c.id === id);
+      return JSON.stringify(cap?.[field] ?? '');
+    }
+    if (action === 'add_capability')   return '(none)';
+    if (action === 'remove_capability') {
+      const cap = (model.capabilities || []).find(c => c.id === id);
+      return cap ? cap.name : '(not found)';
+    }
+    if (action === 'update_initiative') {
+      const init = (model.initiatives || []).find(i => i.id === id);
+      return JSON.stringify(init?.[field] ?? '');
+    }
+    return '';
+  } catch { return ''; }
 }
 
 async function processUserMessage(userMessage) {
@@ -9551,7 +9710,7 @@ async function generateBMC() {
       : '';
     const raw = await callAI(
       sysBMC,
-      `${isRefineBMC ? 'Refine and improve' : 'Generate'} a Business Model Canvas (current AND target state) for this organisation:\n\n"${desc}"\n\n${intentCtx2}${existingBmcCtx}\n\nReturn JSON:\n{"current_state_bmc":{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]},"target_state_bmc":{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]},"model_shift_analysis":{"blocks_requiring_transformation":[""],"revenue_concentration_risk":"","new_revenue_streams_enabled":[""],"cost_lines_addressable":[""]},"_meta":{"assumptions":["key assumption driving this BMC"],"confidence":0.0,"dataSources":["strategic intent","company description"],"keyDrivers":["top BMC driver 1","top BMC driver 2"]}}`,
+      `${isRefineBMC ? 'Refine and improve' : 'Generate'} a Business Model Canvas (current AND target state) for this organisation:\n\n"${desc}"\n\n${intentCtx2}${existingBmcCtx}${_captureDiscoveryInsights()}\n\nReturn JSON:\n{"current_state_bmc":{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]},"target_state_bmc":{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]},"model_shift_analysis":{"blocks_requiring_transformation":[""],"revenue_concentration_risk":"","new_revenue_streams_enabled":[""],"cost_lines_addressable":[""]},"_meta":{"assumptions":["key assumption driving this BMC"],"confidence":0.0,"dataSources":["strategic intent","company description"],"keyDrivers":["top BMC driver 1","top BMC driver 2"]}}`,
       { taskType: 'heavy', temperature: 0.2, _traceLabel: isRefineBMC ? 'Step 2 — Refine BMC' : 'Step 2 — Business Model Canvas' }
     );
     const parsed = JSON.parse(extractJSON(raw));
@@ -9568,11 +9727,14 @@ async function generateBMC() {
     const shiftMsg = model.bmc_analysis
       ? `\n\n**Model Shift:** ${(model.bmc_analysis.blocks_requiring_transformation||[]).join(', ')} require transformation. Revenue risk: ${model.bmc_analysis.revenue_concentration_risk||'n/a'}`
       : '';
-    addAssistantMessage(`**Step 2 — Business Model Canvas generated**\n\nReview the full canvas in the **Op Model** tab → Business Model Canvas.`);
+    addAssistantMessage(`**Step 2 — Business Model Canvas generated ✓**\n\nReview in the **Op Model** tab → Business Model Canvas.`);
     const _panel = document.getElementById('ai-chat-panel');
     if (_panel && _panel.classList.contains('hidden')) toggleChatPanel();
     // Auto-enter Discovery Mode for Step 2 so user can discuss/analyse the BMC
     setTimeout(() => enterDiscoveryModeForStep(2, 'Business Model Canvas'), 300);
+    // Post-generation AI review summary (shows below welcome message)
+    const _bmcForReview = { bmc: model.bmc, bmc_current: model.bmc_current, bmc_analysis: model.bmc_analysis };
+    setTimeout(() => _generateStepReviewSummary(2, _bmcForReview), 900);
   } catch(e) { toast('Error generating BMC: ' + e.message, true); }
   spin('s2b', false);
   window._advisyPromptTrace = _prevTrace;
@@ -10472,7 +10634,7 @@ Cost structure: ${(model.bmc.cost_structure||[]).slice(0,3).join(' · ')}${model
     const sysArch = (window._stepPrompts && window._stepPrompts.step_3) ||
       'You are a senior enterprise architect. Return ONLY valid JSON, no markdown.';
     const raw1 = await callAI(sysArch,
-      `${isRefineArch ? 'Refine and extend' : 'Generate'} enterprise architecture for: "${desc}"${intentPrefix}${bmcPrefix}${existingArchCtx}
+      `${isRefineArch ? 'Refine and extend' : 'Generate'} enterprise architecture for: "${desc}"${intentPrefix}${bmcPrefix}${existingArchCtx}${_captureDiscoveryInsights()}
 Return JSON:
 {"valueStreams":[{"name":"","purpose":"one sentence — what this value stream delivers to the customer or business"}],"capabilities":[{"name":"","domain":"Customer|Product|Operations|Risk|Finance|Technology|Support","valueStream":"","maturity":3,"strategicImportance":"low|medium|high","operationalCriticality":3,"dependsOnCapabilities":[""],"strategic_rationale":"one sentence — why this capability is required by the strategic ambition or a specific strategic theme","maturity_rationale":"one sentence — why the AS-IS maturity is rated at this level — what is actually weak or missing today"}],"systems":[{"name":"","supportsCapability":"","criticality":"low|medium|high","status":"active|legacy|planned"}],"_meta":{"assumptions":["key assumption driving this architecture"],"confidence":0.0,"dataSources":["strategic intent","BMC","company description"],"keyDrivers":["top arch driver 1","top arch driver 2","top arch driver 3"]}}
 Rules:
@@ -10512,6 +10674,8 @@ Rules:
     toast(`Architecture ready ✓ — ${capCount} capabilities (${profile.mode} mode). Use "Enrich Financials" in CFO tab for AI estimates.`);
     // Auto-enter Discovery Mode for Step 3 so user can discuss/analyse the architecture
     setTimeout(() => enterDiscoveryModeForStep(3, 'Capability Map'), 300);
+    // Post-generation AI review summary
+    setTimeout(() => _generateStepReviewSummary(3, { capabilities: model.capabilities, valueStreams: model.valueStreams, systems: model.systems }), 900);
   } catch(e) {
     _setStep3Status('Error: ' + e.message, 'error');
     if (btnLabel) btnLabel.textContent = 'Generate Architecture';
@@ -10680,7 +10844,7 @@ STRATEGIC INTENT (must drive every section of the operating model):
       (window._stepPrompts && window._stepPrompts.step_4) || 'Return ONLY valid JSON. No markdown, no comments.',
       `Generate the TO-BE Operating Model Canvas for this organization. The operating model must be directly shaped by the Strategic Intent — every section must reflect the strategic direction.
 ${siBlock}${bmcBlock}
-Capability context (sample): ${JSON.stringify(capSample)}
+Capability context (sample): ${JSON.stringify(capSample)}${_captureDiscoveryInsights()}
 
 Rules:
 - If direction is COST-REDUCTION: key activities = process excellence + automation; cost structure = lean, fixed-to-variable shift; revenue streams = efficient delivery of existing products
@@ -10704,6 +10868,8 @@ Return JSON:
     if (_panelOM && _panelOM.classList.contains('hidden')) toggleChatPanel();
     // Auto-enter Discovery Mode for Step 4 so user can discuss/analyse the operating model
     setTimeout(() => enterDiscoveryModeForStep(4, 'Operating Model'), 300);
+    // Post-generation AI review summary
+    setTimeout(() => _generateStepReviewSummary(4, model.operatingModel), 900);
   } catch(e) { toast('Error: ' + e.message, true); }
   spin('s3', false);
   window._advisyPromptTrace = _prevTrace4;
@@ -10729,6 +10895,8 @@ async function analyseGaps() {
     toast('Gap analysis complete &#x2718;');
     // Auto-enter Discovery Mode for Step 5 so user can discuss/analyse the gap analysis
     setTimeout(() => enterDiscoveryModeForStep(5, 'Gap Analysis'), 300);
+    // Post-generation AI review summary
+    setTimeout(() => _generateStepReviewSummary(5, { gaps: String(model.gapAnalysisRaw || '').slice(0, 600) }), 900);
   } catch(e) { toast('Error: ' + e.message, true); }
   spin('s5', false);
 }
