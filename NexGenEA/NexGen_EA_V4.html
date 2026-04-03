@@ -6693,7 +6693,10 @@ async function sendMessage() {
   try {
     const response = await processUserMessage(content);
     hideTypingIndicator();
-    addAssistantMessage(response.content, response.metadata || null);
+    // Check if handler already displayed the message (discovery/action modes)
+    if (response && !response._handled) {
+      addAssistantMessage(response.content, response.metadata || null);
+    }
   } catch (e) {
     hideTypingIndicator();
     addAssistantMessage('I hit an error while processing your request: ' + e.message);
@@ -8104,13 +8107,13 @@ async function processUserMessage(userMessage) {
   const currentMode = getAssistantMode();
   if (currentMode.mode === 'discovery') {
     await handleDiscoveryMessage(userMessage);
-    return;
+    return { _handled: true };
   }
   
   // ── ACTION MODE ────────────────────────────────────────────────────────────
   if (currentMode.mode === 'action') {
     await handleActionMessage(userMessage);
-    return;
+    return { _handled: true };
   }
 
   // If a step-focused chat is active, route through step-specific handler
