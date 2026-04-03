@@ -8947,18 +8947,86 @@ async function handleMaturityAssessment(context) {
 
 async function handleGeneralQuestion(userMessage, context) {
   const si = model.strategicIntent;
-  const stepsCompleted = [
-    si ? `Step 1 (Strategic Intent): ambition="${si.strategic_ambition}", themes=${JSON.stringify(si.strategic_themes||[])}` : null,
-    model.bmc ? `Step 2 (Business Model Canvas): value_proposition="${model.bmc.value_proposition}"` : null,
-    (model.capabilities||[]).length ? `Step 3 (Capability Map): ${model.capabilities.length} capabilities, avg maturity ${((model.capabilities||[]).reduce((s,c)=>s+Number(c.maturity||0),0)/model.capabilities.length).toFixed(1)}` : null,
-    model.operatingModel?.valueProposition ? `Step 4 (Operating Model): value_proposition="${model.operatingModel.valueProposition}"` : null,
-    model.gapAnalysisDone ? 'Step 5 (Gap Analysis): completed' : null,
-    (model.valuePools||[]).length ? `Step 6 (Value Pools): ${model.valuePools.length} value pools` : null,
-    (model.targetArch||[]).length ? `Step 7 (Target Architecture & Roadmap): ${model.targetArch.length} capability uplifts, ${(model.initiatives||[]).length} initiatives` : null
-  ].filter(Boolean);
+  const caps = model.capabilities || [];
+  const bmc = model.bmc || {};
+  const om = model.operatingModel || {};
+  const vp = model.valuePools || [];
+  const initiatives = model.initiatives || [];
+  const targetArch = model.targetArch || [];
 
-  const stepsContext = stepsCompleted.length
-    ? `\n\nCompleted EA steps:\n${stepsCompleted.map(s => ' - ' + s).join('\n')}`
+  // Build rich step context from structured model data (independent of chat history; survives page refresh)
+  const stepDetails = [];
+
+  if (si) {
+    stepDetails.push(
+      `Step 1 — Strategic Intent:\n` +
+      `  ambition: ${si.strategic_ambition || 'not set'}\n` +
+      `  themes: ${(si.strategic_themes || []).join('; ') || 'none'}\n` +
+      `  constraints: ${(si.key_constraints || []).join('; ') || 'none'}\n` +
+      `  metrics: ${(si.success_metrics || []).join('; ') || 'none'}\n` +
+      `  timeframe: ${si.timeframe || 'not set'}`
+    );
+  }
+
+  if (bmc.value_proposition) {
+    stepDetails.push(
+      `Step 2 — Business Model Canvas (TO-BE):\n` +
+      `  value_proposition: ${bmc.value_proposition}\n` +
+      `  customer_segments: ${(bmc.customer_segments || []).join(', ') || 'none'}\n` +
+      `  key_activities: ${(bmc.key_activities || []).join(', ') || 'none'}\n` +
+      `  revenue_streams: ${(bmc.revenue_streams || []).join(', ') || 'none'}\n` +
+      `  key_partners: ${(bmc.key_partners || []).join(', ') || 'none'}`
+    );
+  }
+
+  if (caps.length) {
+    const avgMat = (caps.reduce((s, c) => s + Number(c.maturity || 0), 0) / caps.length).toFixed(1);
+    const capLines = caps.slice(0, 20).map(c => `  - ${c.name} [${c.domain}] maturity:${c.maturity}/5 importance:${c.strategicImportance}`).join('\n');
+    stepDetails.push(`Step 3 — Capability Map (${caps.length} capabilities, avg maturity ${avgMat}/5):\n${capLines}`);
+  }
+
+  if (om.valueProposition) {
+    stepDetails.push(
+      `Step 4 — Operating Model:\n` +
+      `  value_proposition: ${om.valueProposition}\n` +
+      `  key_activities: ${(om.keyActivities || []).join(', ') || 'none'}\n` +
+      `  key_resources: ${(om.keyResources || []).join(', ') || 'none'}\n` +
+      `  cost_structure: ${om.costStructure || 'not set'}\n` +
+      `  revenue_streams: ${(om.revenueStreams || []).join(', ') || 'none'}`
+    );
+  }
+
+  if (model.gapAnalysisDone && model.gapAnalysisRaw) {
+    const parsedGaps = parseGapAnalysisJson(model.gapAnalysisRaw);
+    if (parsedGaps) {
+      const gapLines = (parsedGaps.gapAnalysis || []).slice(0, 10)
+        .map(g => `  - [${g.severity}] ${g.title}: ${g.detail ? g.detail.slice(0, 80) : ''} (ref: ${g.capability_ref || '?'}, class: ${g.classification || '?'})`)
+        .join('\n');
+      stepDetails.push(
+        `Step 5 — Gap Analysis:\n` +
+        `  summary: ${parsedGaps.executiveSummary || 'completed'}\n` +
+        `  gaps (${(parsedGaps.gapAnalysis || []).length}):\n${gapLines}`
+      );
+    } else {
+      stepDetails.push(`Step 5 — Gap Analysis:\n  ${String(model.gapAnalysisRaw).slice(0, 600)}`);
+    }
+  } else if (model.gapAnalysisDone) {
+    stepDetails.push('Step 5 — Gap Analysis: completed');
+  }
+
+  if (vp.length) {
+    const vpLines = vp.map(v => `  - ${v.name || v.title || v.area || ''}: ${v.estimatedValue || v.value || ''} priority:${v.priority || v.rank || '?'}`).join('\n');
+    stepDetails.push(`Step 6 — Value Pools (${vp.length}):\n${vpLines}`);
+  }
+
+  if (targetArch.length || initiatives.length) {
+    const archLines = targetArch.slice(0, 12).map(t => `  - ${t.name} [${t.domain}] ${t.currentMaturity}→${t.targetMaturity} (${t.strategicImportance})`).join('\n');
+    const initLines = initiatives.slice(0, 10).map(i => `  - ${i.name || i.title} Phase ${i.phase} ${i.estimatedBusinessValue || ''} [${i.priority || ''}]`).join('\n');
+    stepDetails.push(`Step 7 — Target Architecture & Roadmap:\n  Capability uplifts (${targetArch.length}):\n${archLines}\n  Initiatives (${initiatives.length}):\n${initLines}`);
+  }
+
+  const stepsContext = stepDetails.length
+    ? `\n\nCompleted EA steps (full detail):\n${stepDetails.join('\n\n')}`
     : '\n\nNo EA steps completed yet.';
 
   const systemPrompt = (typeof AdvisyAI !== 'undefined')
@@ -8967,7 +9035,7 @@ async function handleGeneralQuestion(userMessage, context) {
 
   const response = await callAI(
     systemPrompt,
-    `Context: ${JSON.stringify(context)}${stepsContext}\n\nActive tab: ${context.activeView}\n\nUser question: ${userMessage}\n\nAnswer requirements:\n- Reference step outputs when relevant (e.g. "Based on your Step 1 ambition...")\n- Flag cross-step dependencies if the question touches multiple steps\n- Suggest concrete next actions within the platform\n- Be concise and commercially sharp`,
+    `Context: ${JSON.stringify(context)}${stepsContext}\n\nActive tab: ${context.activeView}\n\nUser question: ${userMessage}\n\nAnswer requirements:\n- Reference specific step outputs when relevant (e.g. "Based on your ambition to...", "Your gap analysis shows...")\n- Flag cross-step dependencies if the question touches multiple steps\n- Suggest concrete next actions within the platform\n- Be concise and commercially sharp`,
     { taskType: 'lightweight', temperature: 0.3, replyLanguage: context.preferredLanguage }
   );
   return {
