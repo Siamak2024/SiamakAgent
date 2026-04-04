@@ -44,6 +44,7 @@ class AzureOpenAIProxy {
    * @param {string}  [options.previous_response_id] - Chain to a previous response.
    * @param {boolean} [options.store]                - Persist response server-side.
    * @param {Object}  [options.text]                 - e.g. { format: { type: 'json_schema', ... } }
+   * @param {Object}  [options.response_format]      - Legacy: converted to text.format automatically
    * @param {Array}   [options.include]              - Extra items to include, e.g. ['reasoning.encrypted_content']
    * @param {number}  [options.timeout=30000]        - Request timeout in ms.
    * @returns {Promise<Object>} Responses API response object (includes output_text helper).
@@ -58,6 +59,9 @@ class AzureOpenAIProxy {
       previous_response_id,
       store,
       text,
+      response_format,
+      reasoning,
+      temperature,
       include,
       timeout = 30000
     } = options;
@@ -66,12 +70,22 @@ class AzureOpenAIProxy {
 
     const body = { model, input };
     if (instructions !== undefined)        body.instructions = instructions;
+    if (reasoning !== undefined)           body.reasoning = reasoning;
+    if (temperature !== undefined)         body.temperature = temperature;
     if (tools !== undefined)               body.tools = tools;
     if (tool_choice !== undefined)         body.tool_choice = tool_choice;
     if (parallel_tool_calls !== undefined) body.parallel_tool_calls = parallel_tool_calls;
     if (previous_response_id !== undefined) body.previous_response_id = previous_response_id;
     if (store !== undefined)               body.store = store;
-    if (text !== undefined)                body.text = text;
+    
+    // Merge text and response_format (Responses API uses text.format not response_format)
+    if (text !== undefined || response_format !== undefined) {
+      body.text = text || {};
+      if (response_format !== undefined) {
+        body.text.format = response_format;
+      }
+    }
+    
     if (include !== undefined)             body.include = include;
 
     const controller = new AbortController();

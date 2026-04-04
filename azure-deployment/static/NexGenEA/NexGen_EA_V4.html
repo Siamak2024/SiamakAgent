@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NextGen EA Platform - V4</title>
+<title>NextGen EA Platform - V5</title>
 <link rel="icon" href="data:,">
 <script>
   // Utility: Highlight a tab by name (e.g., 'exec', 'capmap')
@@ -87,6 +87,22 @@
 <script src="js/SimulationEngine.js"></script>
 <script src="js/FinancialEngine.js"></script>
 <script src="js/OptimizationEngine.js"></script>
+<!-- ── EA Step Engine (new modular AI architecture) ─────────────── -->
+<script src="js/AI/AITaskConfig.js"></script>
+<script src="js/AI/AIService.js"></script>
+<script src="js/AI/PromptBuilder.js"></script>
+<script src="js/AI/OutputValidator.js"></script>
+<script src="js/Steps/StepContext.js"></script>
+<script src="js/Steps/StepEngine.js"></script>
+<script src="js/Steps/Step0.js"></script>
+<script src="js/Steps/Step1.js"></script>
+<script src="js/Steps/Step2.js"></script>
+<script src="js/Steps/Step3.js"></script>
+<script src="js/Steps/Step4.js"></script>
+<script src="js/Steps/Step5.js"></script>
+<script src="js/Steps/Step6.js"></script>
+<script src="js/Steps/Step7.js"></script>
+<!-- ─────────────────────────────────────────────────────────────── -->
 <link rel="stylesheet" href="../css/ea-design-engine.css" />
 <link rel="stylesheet" href="../css/ea-nordic-theme.css" />
 </head>
@@ -98,7 +114,7 @@
     <div class="ea-brand-mark flex items-center justify-center font-bold text-sm">EA</div>
     <div>
       <div class="ea-brand-kicker">Enterprise Architecture Platform</div>
-      <div class="ea-brand-title flex items-center gap-2">NextGen EA Platform <span class="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">V4</span></div>
+      <div class="ea-brand-title flex items-center gap-2">NextGen EA Platform <span class="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">V5</span></div>
     </div>
   </div>
   <div class="flex items-center gap-2">
@@ -406,143 +422,134 @@
   <!-- LEFT PANEL -->
   <div class="ea-sidebar-panel flex flex-col gap-4">
     <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
-      <!-- Hidden description field - populated by Discovery Mode -->
-      <textarea id="description" class="hidden" placeholder="Organisation description (populated via Discovery Mode)"></textarea>
-      
+
+      <!-- hidden field — populated via chat when user describes their org -->
+      <textarea id="description" class="hidden"></textarea>
+      <!-- hidden spinner spans kept for spin() compatibility -->
+      <span id="s0"  class="spinner hidden"></span>
+      <span id="s1"  class="spinner hidden"></span>
+      <span id="s2b" class="spinner hidden"></span>
+      <span id="s3"  class="spinner hidden"></span>
+      <span id="s5"  class="spinner hidden"></span>
+      <span id="s6"  class="spinner hidden"></span>
+      <span id="s6v" class="spinner hidden"></span>
+      <span id="s7"  class="spinner hidden"></span>
+      <!-- hidden btn aliases kept for code that reads them by ID -->
+      <button id="btn-step2"  class="hidden" onclick="generateBMC()"></button>
+      <button id="btn-step3"  class="hidden" onclick="generateArchitecture()"></button>
+      <button id="btn-step4"  class="hidden" onclick="generateOperatingModel()"></button>
+      <button id="btn-step5"  class="hidden" onclick="analyseGaps()"></button>
+      <button id="btn-step6"  class="hidden" onclick="generateValuePools()"></button>
+      <button id="btn-step7a" class="hidden" onclick="generateTargetArch()"></button>
+      <button id="btn-step7b" class="hidden" onclick="generateRoadmap()"></button>
+      <span   id="btn-step3-label" class="hidden"></span>
+      <div    id="step3-status" class="hidden"></div>
+      <button id="btn-step1-confirm" class="hidden" onclick="confirmStrategicIntent()"></button>
+
+      <!-- Header -->
       <div class="flex items-center justify-between mb-3">
-        <div class="text-xs font-bold uppercase text-slate-400 tracking-wide">AI Workflow Steps</div>
-        <button type="button" onclick="startNewWorkflow()" class="text-[9px] font-semibold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded px-2 py-0.5 flex items-center gap-1" title="Clear all results and start a new EA workflow"><i class="fas fa-rotate-right"></i> New Workflow</button>
-      </div>
-      
-      <!-- STEP 1: Strategic Intent (non-negotiable start) -->
-      <div class="workflow-step-section workflow-step-badge--active" id="step-1">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="workflow-step-badge workflow-step-badge--active" id="badge-1">1</span>
-          <span class="text-[10px] font-bold text-slate-700">Strategic Intent</span>
-          <span id="step1-done" class="hidden ml-auto flex items-center gap-1">
-            <button type="button" onclick="enterDiscoveryModeForStep(1, 'Strategic Intent')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200" title="Discuss Step 1 with AI"><i class="fas fa-comments"></i> Discuss</button>
-            <i class="fas fa-check-circle text-xs text-green-600"></i>
-          </span>
-        </div>
-        <button type="button" onclick="clarifyStrategicIntent()" class="ea-btn ea-btn--primary w-full justify-center" title="Use AI to extract structured strategic intent from your description">
-          <span id="s0" class="spinner hidden"></span>
-          <span class="flex items-center gap-1.5"><i class="fas fa-bullseye"></i><span class="text-[10px]">Clarify Strategic Intent</span></span>
-        </button>
-        <button type="button" id="btn-step1-confirm" onclick="confirmStrategicIntent()" class="ea-btn ea-btn--primary w-full justify-center mt-1 hidden" title="Confirm the Strategic Intent and unlock the Business Model Canvas">
-          <span class="flex items-center gap-1.5"><i class="fas fa-check-circle"></i><span class="text-[10px]">Confirm Step 1 — Unlock BMC</span></span>
-        </button>
-        <div id="step1-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
+        <div class="text-xs font-bold uppercase text-slate-400 tracking-wide">Workflow Progress</div>
+        <button type="button" onclick="startNewWorkflow()" class="text-[9px] font-semibold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded px-2 py-0.5 flex items-center gap-1" title="Clear all results and start a new EA workflow"><i class="fas fa-rotate-right"></i> New</button>
       </div>
 
-      <!-- STEP 2: Business Model Canvas -->
-      <div class="mt-1 workflow-step-section workflow-step-locked" id="step-2">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="workflow-step-badge" id="badge-2">2</span>
-          <span class="text-[10px] font-bold text-slate-700">Business Model Canvas</span>
-          <span id="step2-done" class="hidden ml-auto flex items-center gap-1">
-            <button type="button" onclick="enterDiscoveryModeForStep(2, 'Business Model Canvas')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200" title="Discuss Step 2 with AI"><i class="fas fa-comments"></i> Discuss</button>
-            <i class="fas fa-check-circle text-xs text-green-600"></i>
-          </span>
-        </div>
-        <button onclick="generateBMC()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step2">
-          <span id="s2b" class="spinner hidden"></span>
-          <span class="flex items-center gap-1.5"><i class="fas fa-th"></i><span class="text-[10px]">Generate BMC</span></span>
-        </button>
-        <div id="step2-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
-      </div>
+      <!-- Single action button — always runs the next pending step -->
+      <button type="button" id="btn-continue-workflow" onclick="_runNextStep()"
+        class="ea-btn ea-btn--primary w-full justify-center mb-3"
+        title="Open AI chat and run the next workflow step">
+        <span class="flex items-center gap-1.5">
+          <i class="fas fa-play" id="continue-btn-icon"></i>
+          <span class="text-[10px]" id="continue-btn-label">Start Workflow</span>
+        </span>
+      </button>
 
-      <!-- STEP 3: Architecture & Capability Map -->
-      <div class="mt-1 workflow-step-section workflow-step-locked" id="step-3">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="workflow-step-badge" id="badge-3">3</span>
-          <span class="text-[10px] font-bold text-slate-700">Capability Map</span>
-          <span id="step3-done" class="hidden ml-auto flex items-center gap-1">
-            <button type="button" onclick="enterDiscoveryModeForStep(3, 'Capability Map')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200" title="Discuss Step 3 with AI"><i class="fas fa-comments"></i> Discuss</button>
-            <i class="fas fa-check-circle text-xs text-green-600"></i>
-          </span>
-        </div>
-        <button onclick="generateArchitecture()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step3">
-          <span id="s1" class="spinner hidden"></span>
-          <span class="flex items-center gap-1.5"><i class="fas fa-diagram-project"></i><span class="text-[10px]" id="btn-step3-label">Generate Architecture</span></span>
-        </button>
-        <div id="step3-status" class="text-[9px] mt-1 px-0.5 hidden"></div>
-        <div id="step3-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
-      </div>
+      <!-- Step progress list — status only, no trigger buttons -->
+      <div class="flex flex-col gap-0.5">
 
-      <!-- STEP 4: Operating Model -->
-      <div class="mt-1 workflow-step-section workflow-step-locked" id="step-4">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="workflow-step-badge" id="badge-4">4</span>
-          <span class="text-[10px] font-bold text-slate-700">Operating Model</span>
-          <span id="step4-done" class="hidden ml-auto flex items-center gap-1">
-            <button type="button" onclick="enterDiscoveryModeForStep(4, 'Operating Model')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200" title="Discuss Step 4 with AI"><i class="fas fa-comments"></i> Discuss</button>
-            <i class="fas fa-check-circle text-xs text-green-600"></i>
-          </span>
+        <div class="workflow-step-section workflow-step-badge--active" id="step-1">
+          <div class="flex items-center gap-2">
+            <span class="workflow-step-badge workflow-step-badge--active" id="badge-1">1</span>
+            <span class="text-[10px] font-semibold text-slate-700">Strategic Intent</span>
+            <span id="step1-done" class="hidden ml-auto flex items-center gap-1">
+              <button type="button" onclick="enterDiscoveryModeForStep(1,'Strategic Intent')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200"><i class="fas fa-comments"></i> Discuss</button>
+              <i class="fas fa-check-circle text-xs text-green-600"></i>
+            </span>
+          </div>
+          <div id="step1-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
         </div>
-        <button onclick="generateOperatingModel()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step4">
-          <span id="s3" class="spinner hidden"></span>
-          <span class="flex items-center gap-1.5"><i class="fas fa-sitemap"></i><span class="text-[10px]">Generate Operating Model</span></span>
-        </button>
-        <div id="step4-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
-      </div>
 
-      <!-- STEP 5: Gap Analysis -->
-      <div class="mt-1 workflow-step-section workflow-step-locked" id="step-5">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="workflow-step-badge" id="badge-5">5</span>
-          <span class="text-[10px] font-bold text-slate-700">Gap Analysis</span>
-          <span id="step5-done" class="hidden ml-auto flex items-center gap-1">
-            <button type="button" onclick="enterDiscoveryModeForStep(5, 'Gap Analysis')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200" title="Discuss Step 5 with AI"><i class="fas fa-comments"></i> Discuss</button>
-            <i class="fas fa-check-circle text-xs text-green-600"></i>
-          </span>
+        <div class="mt-0.5 workflow-step-section workflow-step-locked" id="step-2">
+          <div class="flex items-center gap-2">
+            <span class="workflow-step-badge" id="badge-2">2</span>
+            <span class="text-[10px] font-semibold text-slate-600">Business Model Canvas</span>
+            <span id="step2-done" class="hidden ml-auto flex items-center gap-1">
+              <button type="button" onclick="enterDiscoveryModeForStep(2,'Business Model Canvas')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200"><i class="fas fa-comments"></i> Discuss</button>
+              <i class="fas fa-check-circle text-xs text-green-600"></i>
+            </span>
+          </div>
+          <div id="step2-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
         </div>
-        <button onclick="analyseGaps()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step5">
-          <span id="s5" class="spinner hidden"></span>
-          <span class="flex items-center gap-1.5"><i class="fas fa-triangle-exclamation"></i><span class="text-[10px]">Analyse Gaps</span></span>
-        </button>
-        <div id="step5-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
-      </div>
 
-      <!-- STEP 6: Value Pools -->
-      <div class="mt-1 workflow-step-section workflow-step-locked" id="step-6">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="workflow-step-badge" id="badge-6">6</span>
-          <span class="text-[10px] font-bold text-slate-700">Value Pools</span>
-          <span id="step6-done" class="hidden ml-auto flex items-center gap-1">
-            <button type="button" onclick="enterDiscoveryModeForStep(6, 'Value Pools')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200" title="Discuss Step 6 with AI"><i class="fas fa-comments"></i> Discuss</button>
-            <i class="fas fa-check-circle text-xs text-green-600"></i>
-          </span>
+        <div class="mt-0.5 workflow-step-section workflow-step-locked" id="step-3">
+          <div class="flex items-center gap-2">
+            <span class="workflow-step-badge" id="badge-3">3</span>
+            <span class="text-[10px] font-semibold text-slate-600">Capability Map</span>
+            <span id="step3-done" class="hidden ml-auto flex items-center gap-1">
+              <button type="button" onclick="enterDiscoveryModeForStep(3,'Capability Map')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200"><i class="fas fa-comments"></i> Discuss</button>
+              <i class="fas fa-check-circle text-xs text-green-600"></i>
+            </span>
+          </div>
+          <div id="step3-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
         </div>
-        <button onclick="generateValuePools()" class="ea-btn ea-btn--secondary w-full justify-center" id="btn-step6">
-          <span id="s6v" class="spinner hidden"></span>
-          <span class="flex items-center gap-1.5"><i class="fas fa-gem"></i><span class="text-[10px]">Identify Value Pools</span></span>
-        </button>
-        <div id="step6-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
-      </div>
 
-      <!-- STEP 7: Target Architecture & Roadmap -->
-      <div class="mt-1 workflow-step-section workflow-step-locked" id="step-7">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="workflow-step-badge" id="badge-7">7</span>
-          <span class="text-[10px] font-bold text-slate-700">Target Arch &amp; Roadmap</span>
-          <span id="step7-done" class="hidden ml-auto flex items-center gap-1">
-            <button type="button" onclick="enterDiscoveryModeForStep(7, 'Target Architecture & Roadmap')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200" title="Discuss Step 7 with AI"><i class="fas fa-comments"></i> Discuss</button>
-            <i class="fas fa-check-circle text-xs text-green-600"></i>
-          </span>
+        <div class="mt-0.5 workflow-step-section workflow-step-locked" id="step-4">
+          <div class="flex items-center gap-2">
+            <span class="workflow-step-badge" id="badge-4">4</span>
+            <span class="text-[10px] font-semibold text-slate-600">Operating Model</span>
+            <span id="step4-done" class="hidden ml-auto flex items-center gap-1">
+              <button type="button" onclick="enterDiscoveryModeForStep(4,'Operating Model')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200"><i class="fas fa-comments"></i> Discuss</button>
+              <i class="fas fa-check-circle text-xs text-green-600"></i>
+            </span>
+          </div>
+          <div id="step4-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
         </div>
-        <div class="grid grid-cols-2 gap-1">
-          <button onclick="generateTargetArch()" class="ea-btn ea-btn--secondary ea-action-cluster-btn" id="btn-step7a">
-            <span id="s6" class="spinner hidden"></span>
-            <span class="flex items-center gap-1"><i class="fas fa-compass-drafting"></i><span class="text-[10px]">Target Arch</span></span>
-          </button>
-          <button onclick="generateRoadmap()" class="ea-btn ea-btn--secondary ea-action-cluster-btn" id="btn-step7b">
-            <span id="s7" class="spinner hidden"></span>
-            <span class="flex items-center gap-1"><i class="fas fa-road"></i><span class="text-[10px]">Roadmap</span></span>
-          </button>
-        </div>
-        <div id="step7-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
-      </div>
 
+        <div class="mt-0.5 workflow-step-section workflow-step-locked" id="step-5">
+          <div class="flex items-center gap-2">
+            <span class="workflow-step-badge" id="badge-5">5</span>
+            <span class="text-[10px] font-semibold text-slate-600">Gap Analysis</span>
+            <span id="step5-done" class="hidden ml-auto flex items-center gap-1">
+              <button type="button" onclick="enterDiscoveryModeForStep(5,'Gap Analysis')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200"><i class="fas fa-comments"></i> Discuss</button>
+              <i class="fas fa-check-circle text-xs text-green-600"></i>
+            </span>
+          </div>
+          <div id="step5-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
+        </div>
+
+        <div class="mt-0.5 workflow-step-section workflow-step-locked" id="step-6">
+          <div class="flex items-center gap-2">
+            <span class="workflow-step-badge" id="badge-6">6</span>
+            <span class="text-[10px] font-semibold text-slate-600">Value Pools</span>
+            <span id="step6-done" class="hidden ml-auto flex items-center gap-1">
+              <button type="button" onclick="enterDiscoveryModeForStep(6,'Value Pools')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200"><i class="fas fa-comments"></i> Discuss</button>
+              <i class="fas fa-check-circle text-xs text-green-600"></i>
+            </span>
+          </div>
+          <div id="step6-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
+        </div>
+
+        <div class="mt-0.5 workflow-step-section workflow-step-locked" id="step-7">
+          <div class="flex items-center gap-2">
+            <span class="workflow-step-badge" id="badge-7">7</span>
+            <span class="text-[10px] font-semibold text-slate-600">Target Arch &amp; Roadmap</span>
+            <span id="step7-done" class="hidden ml-auto flex items-center gap-1">
+              <button type="button" onclick="enterDiscoveryModeForStep(7,'Target Architecture & Roadmap')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200"><i class="fas fa-comments"></i> Discuss</button>
+              <i class="fas fa-check-circle text-xs text-green-600"></i>
+            </span>
+          </div>
+          <div id="step7-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
+        </div>
+
+      </div><!-- end step list -->
     </div>
   </div>
 
@@ -613,7 +620,7 @@
     </div>
 
     <!-- TAB CONTENT WRAPPER -->
-    <div class="ea-content-panel flex-1 overflow-y-auto" style="min-height:600px;">
+    <div class="ea-content-panel flex-1 overflow-y-auto">
 
       <!-- CAPABILITY MAP -->
 	  <!-- Benchmarking and survay -->
@@ -1150,7 +1157,7 @@
         <div id="intent-display-section" class="hidden mb-4">
           <!-- READ VIEW -->
           <div id="intent-view-card" class="intent-card">
-            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Strategic Intent — Step 1</div>
+            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Strategic Intent — Step 1</div>
             <div class="flex items-start justify-between gap-3 mb-3">
               <div>
                 <div id="intent-org-name" class="text-base font-black text-slate-900 mb-0.5"></div>
@@ -1165,20 +1172,20 @@
                 </button>
               </div>
             </div>
-            <div id="intent-ambition" class="text-[11px] text-slate-700 leading-relaxed mb-2 italic"></div>
-            <div id="intent-situation-narrative" class="hidden text-[10px] text-slate-600 leading-relaxed mb-3 border-t border-slate-200 pt-2"></div>
+            <div id="intent-ambition" class="bg-slate-800 text-white rounded-lg px-3 py-2.5 text-[12px] leading-relaxed mb-3 italic font-medium"></div>
+            <div id="intent-situation-narrative" class="hidden bg-slate-100 border border-slate-300 rounded-lg px-3 py-2 text-[11px] text-slate-900 leading-relaxed mb-3"></div>
             <div id="intent-themes-row" class="mb-2">
               <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Strategic Themes</div>
               <div id="intent-themes" class="flex flex-wrap gap-1"></div>
             </div>
             <div class="grid grid-cols-2 gap-3 mt-3">
               <div>
-                <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Key Constraints</div>
-                <ul id="intent-constraints" class="text-[10px] text-slate-700 space-y-0.5 list-disc list-inside"></ul>
+                <div class="text-[9px] font-bold text-slate-500 uppercase mb-1">Key Constraints</div>
+                <ul id="intent-constraints" class="text-[10px] text-slate-800 space-y-1 list-disc list-inside"></ul>
               </div>
               <div>
-                <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Success Metrics</div>
-                <ul id="intent-metrics" class="text-[10px] text-slate-700 space-y-0.5 list-disc list-inside"></ul>
+                <div class="text-[9px] font-bold text-slate-500 uppercase mb-1">Success Metrics</div>
+                <ul id="intent-metrics" class="text-[10px] text-slate-800 space-y-1 list-disc list-inside"></ul>
               </div>
             </div>
           </div>
@@ -1245,7 +1252,7 @@
         </div>
 
         <!-- Placeholder when intent not yet set -->
-        <div id="intent-placeholder" class="mb-4 rounded-xl border-2 border-dashed border-slate-200 p-4 text-center">
+        <div id="intent-placeholder" class="hidden mb-4 rounded-xl border-2 border-dashed border-slate-200 p-4 text-center">
           <div class="text-slate-400 text-xs mb-2"><i class="fas fa-bullseye text-slate-300 text-xl mb-2 block"></i>No Strategic Intent defined yet</div>
           <button onclick="clarifyStrategicIntent()" class="ea-btn ea-btn--primary text-[10px] px-3 py-1.5">
             <i class="fas fa-bullseye mr-1.5"></i>Clarify Strategic Intent (Step 1)
@@ -1253,10 +1260,8 @@
         </div>
 
         <!-- KPI placeholder — shown until Step 3 (Capability Mapping) is complete -->
-        <div id="exec-kpi-placeholder" class="mb-6 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center">
-          <i class="fas fa-chart-bar text-slate-300 text-2xl mb-2 block"></i>
-          <div class="text-xs font-semibold text-slate-400">Portfolio KPIs unlock after <span class="text-primary">Capability Mapping (Step 3)</span></div>
-          <div class="text-[10px] text-slate-400 mt-1">Strategic Alignment · AI Readiness Index · Technical Debt Risk</div>
+        <div id="exec-kpi-placeholder" class="hidden mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[11px] text-slate-500">
+          <i class="fas fa-lock-open mr-1.5 text-slate-400"></i>Portfolio KPIs (<strong>Strategic Alignment · AI Readiness · Technical Debt</strong>) unlock after <span class="font-semibold text-slate-700">Capability Mapping (Step 3)</span>.
         </div>
 
         <!-- KPI grid — hidden until capabilities are loaded -->
@@ -1476,13 +1481,7 @@
       <div id="tab-cfo" class="hidden">
         <div class="flex items-center justify-between mb-3">
           <div class="text-xs font-bold text-slate-600">CFO View — Financial Guardrails</div>
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] text-slate-400">Heuristic estimates shown — use AI Enrich for capability-specific analysis.</span>
-            <button id="btn-enrich-financials" onclick="enrichFinancialsAI()" class="ea-btn ea-btn--primary" style="font-size:10px;padding:4px 10px;" title="Run AI-detailed financial analysis per capability">
-              <span id="s-enrich" class="spinner hidden"></span>
-              <i class="fas fa-wand-magic-sparkles"></i> Enrich Financials (AI)
-            </button>
-          </div>
+          <div class="text-[10px] text-slate-400">Business value is AI-estimated based on FTE & Volume drivers.</div>
         </div>
 
         <div class="grid grid-cols-5 gap-3 mb-4" id="cfo-kpis">
@@ -2160,6 +2159,22 @@ let model = {
 let currentModelId = null;
 let currentModelName = 'Untitled Model';
 let currentTab = 'home';
+
+// ── Chat auto-save control (disabled during Step workflow) ──
+let enableChatAutoSave = false;  // Only save after completing a full step
+
+// ── EA STEP ENGINE FEATURE FLAG ───────────────────────────────────────────────
+// Set to false to fall back to the original step functions (safe rollback).
+window.USE_STEP_ENGINE = true; // V5: StepEngine is the only execution path
+
+// StepEngine step registry — populated on DOMContentLoaded once all Step*.js have loaded.
+function registerStepsWhenReady() {
+  if (typeof StepEngine === 'undefined' || typeof Step0 === 'undefined') return;
+  StepEngine.register([Step0, Step1, Step2, Step3, Step4, Step5, Step6, Step7]);
+  _updateContinueBtn();
+}
+document.addEventListener('DOMContentLoaded', registerStepsWhenReady);
+// ─────────────────────────────────────────────────────────────────────────────
 const AI_CONVERSATIONS_KEY = 'ea_ai_conversations';
 let aiConversationStore = { conversations: [], activeConversationId: null };
 const APP_LANGUAGE_KEY = 'ea_app_language';
@@ -2175,16 +2190,16 @@ const AI_MODEL_CONFIG = {
     temperature: 0.7,
     timeoutMs: 180000,
     reasoning: { summary: 'auto', effort: 'high' },
-    description: 'Deep reasoning for context-aware discussion of EA results'
+    description: 'Deep reasoning för kontext-medveten diskussion av EA resultat'
   },
   
-  // ⚡ ACTION MODE - Fast JSON generation, structured updates
+  // ⚡ ACTION MODE - Snabb JSON-generering, strukturerade uppdateringar
   action: {
     model: 'gpt-5',
     temperature: 0.2,
     timeoutMs: 120000,
     reasoning: { summary: 'auto', effort: 'medium' },
-    description: 'Exact JSON generation for updating the EA model'
+    description: 'Exakt JSON-generering för uppdatering av EA modell'
   },
   
   // 🏗️ HEAVY TASKS - Stor arkitekturgenerering (Step 3, 4, 7)
@@ -2193,7 +2208,7 @@ const AI_MODEL_CONFIG = {
     temperature: 0.3,
     timeoutMs: 240000,
     reasoning: { summary: 'auto', effort: 'high' },
-    description: 'Complex EA architecture generation with deep analysis'
+    description: 'Komplex EA arkitektur-generering med djup analys'
   },
   
   // 📊 ANALYSIS - Gap analysis, maturity assessment, benchmarking
@@ -2202,7 +2217,7 @@ const AI_MODEL_CONFIG = {
     temperature: 0.4,
     timeoutMs: 180000,
     reasoning: { summary: 'auto', effort: 'high' },
-    description: 'Strategic analysis and insights generation'
+    description: 'Strategisk analys och insights-generering'
   },
   
   // 💬 GENERAL - Standard chat, Q&A
@@ -2211,7 +2226,7 @@ const AI_MODEL_CONFIG = {
     temperature: 0.6,
     timeoutMs: 120000,
     reasoning: { summary: 'auto', effort: 'medium' },
-    description: 'General EA advisory and questions'
+    description: 'Allmän EA-rådgivning och frågor'
   },
   
   // 🪶 LIGHTWEIGHT - Simple translations, quick lookups
@@ -2226,7 +2241,7 @@ const AI_MODEL_CONFIG = {
 
 // ── ASSISTANT MODE MANAGEMENT ────────────────────────────────────────────────
 let assistantMode = 'general'; // 'discovery' | 'action' | 'general'
-let assistantContext = {}; // Holds context for the active mode
+let assistantContext = {}; // Håller kontext för aktivt läge
 
 function setAssistantMode(mode, context = {}) {
   assistantMode = mode;
@@ -2273,26 +2288,26 @@ function updateChatPlaceholder() {
   if (!input) return;
   switch (assistantMode) {
     case 'discovery':
-      input.placeholder = 'Discuss the result, ask questions, suggest improvements...';
+      input.placeholder = 'Diskutera resultatet, ställ frågor, föreslå förbättringar...';
       break;
     case 'action':
-      input.placeholder = 'Describe the change you want to make...';
+      input.placeholder = 'Beskriv ändringen du vill göra...';
       break;
     case 'general':
     default:
-      input.placeholder = 'Ask Advicy Agent about your EA...';
+      input.placeholder = 'Fråga Advicy Agent om din EA...';
       break;
   }
 }
 
 const UI_TRANSLATIONS = {
   sv: {
-    'Generate Architecture': 'Generate Architecture',
+    'Generate Architecture': 'Generera arkitektur',
     'Capability Map': 'Kapabilitetskarta',
     'Op Model': 'Operativ modell',
     'Gap Analysis': 'Gap-analys',
     'Target Arch': 'Malaritektur',
-    'Generate Transformation Roadmap': 'Generate Transformation Roadmap',
+    'Generate Transformation Roadmap': 'Generera transformationsplan',
     'Executive': 'Ledning',
     'Benchmark': 'Benchmark',
     'Data': 'Data',
@@ -2695,7 +2710,7 @@ function onHeaderLanguageChange(nextLanguage) {
 
 // Initialize DataManager, SyncEngine, and FileManager on page load
 window.addEventListener('DOMContentLoaded', () => {
-  console.log('🚀 NextGen EA V4 initializing...');
+  console.log('🚀 NextGen EA V5 initializing...');
 
   // Seed AdvisyAI with any pre-filled description text on load
   if (typeof AdvisyAI !== 'undefined') {
@@ -2746,6 +2761,50 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   loadLastModel();
   setupDescriptionField();
+  
+  // ── CLEAR CHAT HISTORY COMPLETELY (localStorage + DOM + store) ────────────
+  // This must happen BEFORE initChatPanel() which loads from localStorage
+  const AI_CONVERSATIONS_KEY = 'ea_ai_conversations';
+  localStorage.removeItem(AI_CONVERSATIONS_KEY);
+  aiConversationStore = { conversations: [], activeConversationId: null };
+  
+  const chatMessages = document.getElementById('chat-messages');
+  if (chatMessages) chatMessages.innerHTML = '';
+  
+  console.log('✅ Chat history cleared completely (localStorage + DOM + store)');
+  
+  // ── Check for partially completed step and offer recovery ──
+  if (window.model && window.model.steps) {
+    const inProgressSteps = Object.keys(window.model.steps).filter(stepId => {
+      const step = window.model.steps[stepId];
+      return step.status === 'in-progress' && (step.completedTasks || []).length > 0;
+    });
+    
+    if (inProgressSteps.length > 0) {
+      const stepId = inProgressSteps[0];
+      const step = window.model.steps[stepId];
+      console.log(`🔄 Found incomplete step: ${stepId} (${step.completedTasks.length} tasks completed)`);
+      
+      // Show recovery notification
+      setTimeout(() => {
+        if (confirm(`⚠️ You have an incomplete ${stepId} workflow with ${step.completedTasks.length} answers saved.\n\nWould you like to continue where you left off?`)) {
+          // Resume from where user left off
+          if (typeof StepEngine !== 'undefined') {
+            StepEngine.run(stepId).catch(err => {
+              console.error('Failed to resume step:', err);
+            });
+          }
+        } else {
+          // Reset step status to allow fresh start
+          step.status = 'not-started';
+          step.completedTasks = [];
+          step.answers = {};
+          if (typeof autoSaveCurrentModel === 'function') autoSaveCurrentModel();
+        }
+      }, 1000);
+    }
+  }
+  
   ensurePhase4Fields();
   renderPhase4ControlsFromModel();
   renderActionBar();
@@ -2762,7 +2821,7 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('beforeunload', (e) => {
     if (window.hasUnsavedChanges && currentModelId) {
       e.preventDefault();
-      e.returnValue = 'You have unsaved changes. Are you sure you want to leave the page?';
+      e.returnValue = 'Du har osparade ändringar. Vill du verkligen lämna sidan?';
       return e.returnValue;
     }
   });
@@ -3158,14 +3217,14 @@ function createNewProject() {
     conversations: [newConv],
     activeConversationId: newConv.id
   };
-  saveConversationHistory();
+  if (enableChatAutoSave) saveConversationHistory();
   
   // Prepare project data with chat history
   const projectData = {
     model: emptyModel,
     chatHistory: aiConversationStore,
     savedAt: new Date().toISOString(),
-    version: '4.0'
+    version: '5.0'
   };
   
   // Save to DataManager (if available)
@@ -3310,24 +3369,6 @@ function getDiagnosticProgress() {
   return model.diagnosticProgress;
 }
 
-function updateDiscoveryProgressUI(currentStep, completedSteps, totalSteps) {
-  // Update progress in chat assistant badge/panel if visible
-  const assistantBadge = document.querySelector('.ea-assistant-mode-badge');
-  if (assistantBadge) {
-    const progressText = assistantBadge.querySelector('.progress-text');
-    if (!progressText) {
-      const newProgress = document.createElement('div');
-      newProgress.className = 'progress-text';
-      newProgress.style.cssText = 'font-size: 9px; color: #64748b; margin-top: 2px;';
-      assistantBadge.appendChild(newProgress);
-    }
-    const progressElem = assistantBadge.querySelector('.progress-text');
-    if (progressElem) {
-      progressElem.textContent = `Step ${currentStep}/7 · ${completedSteps} completed`;
-    }
-  }
-}
-
 function setDiagnosticContext(industryProfile, focusArea) {
   if (!model.diagnosticProgress) initDiagnosticProgress();
   model.diagnosticProgress.industryProfile = industryProfile;
@@ -3383,7 +3424,7 @@ Use markdown with ## headers, bullet points, and **bold** for key terms.`;
   const userPrompt = `**Step ${stepNum} Data:**
 ${JSON.stringify(stepData, null, 2)}
 
-Generate CxO Summary in the same language as the input data. Default to English.`;
+Generate CxO Summary in Swedish if the data is in Swedish, otherwise in English.`;
 
   try {
     const summary = await callAI(systemPrompt, userPrompt, {
@@ -3444,7 +3485,7 @@ Then add detailed narrative for each scenario (max 100 words each).`;
   const userPrompt = `**Diagnostic Context:**
 ${JSON.stringify(contextData, null, 2)}
 
-Generate scenario analysis in English unless the surrounding data is clearly in another language.`;
+Generate scenario analysis in Swedish if context is Swedish, otherwise English.`;
 
   try {
     const scenarios = await callAI(systemPrompt, userPrompt, {
@@ -3493,7 +3534,7 @@ function saveModelToDB(promptForName = true, autoSave = false) {
     model: model,
     chatHistory: aiConversationStore,
     savedAt: new Date().toISOString(),
-    version: '4.0'
+    version: '5.0'
   };
   
   if (currentModelId) {
@@ -3655,7 +3696,7 @@ function _loadEntry(id, source) {
     if (projectData.model && projectData.chatHistory) {
       model = projectData.model;
       aiConversationStore = projectData.chatHistory;
-      saveConversationHistory(); // Persist to localStorage
+      if (enableChatAutoSave) saveConversationHistory(); // Persist to localStorage
     } else {
       model = projectData;
     }
@@ -3669,7 +3710,7 @@ function _loadEntry(id, source) {
     if (saved.data && saved.data.model && saved.data.chatHistory) {
       model = saved.data.model;
       aiConversationStore = saved.data.chatHistory;
-      saveConversationHistory(); // Persist to localStorage
+      if (enableChatAutoSave) saveConversationHistory(); // Persist to localStorage
     } else {
       // Legacy format (just model data)
       model = saved.data;
@@ -3734,7 +3775,7 @@ function clearChatHistory() {
   const activeConv = getActiveConversation();
   if (activeConv) {
     activeConv.messages = [];
-    saveConversationHistory();
+    if (enableChatAutoSave) saveConversationHistory();
   }
   
   const chatMessages = document.getElementById('chat-messages');
@@ -3758,7 +3799,7 @@ function startNewChat() {
   
   aiConversationStore.conversations.push(newConv);
   aiConversationStore.activeConversationId = newConv.id;
-  saveConversationHistory();
+  if (enableChatAutoSave) saveConversationHistory();
   
   const chatMessages = document.getElementById('chat-messages');
   if (chatMessages) chatMessages.innerHTML = '';
@@ -3777,7 +3818,7 @@ function trimChatHistory(maxMessages = 50) {
     const systemMessages = activeConv.messages.filter(m => m.role === 'system');
     const otherMessages = activeConv.messages.filter(m => m.role !== 'system').slice(-maxMessages);
     activeConv.messages = [...systemMessages, ...otherMessages];
-    saveConversationHistory();
+    if (enableChatAutoSave) saveConversationHistory();
     console.log(`✓ Chat trimmed: ${oldCount} → ${activeConv.messages.length} messages`);
     return oldCount - activeConv.messages.length;
   }
@@ -4016,8 +4057,6 @@ async function callAI(sys, user, options = {}) {
   // Reasoning models (o1, o3, o4-mini, gpt-5) do not support temperature
   const isReasoningModel = /^(o1|o3|o4|gpt-5)/i.test(modelConfig.model);
   const temperature = isReasoningModel ? undefined : Number(options.temperature ?? modelConfig.temperature);
-  // Web search tool — activated per-call via options.webSearch
-  const webSearchTools = options.webSearch ? [{ type: 'web_search_preview' }] : undefined;
 
   // GPT-5 via Responses API with reasoning enabled
   const createOpts = {
@@ -4025,8 +4064,7 @@ async function callAI(sys, user, options = {}) {
     instructions,
     ...(temperature !== undefined && { temperature }),
     timeout: timeoutMs,
-    reasoning,
-    ...(webSearchTools && { tools: webSearchTools })
+    reasoning
   };
 
   let response;
@@ -4058,8 +4096,7 @@ async function callAI(sys, user, options = {}) {
           input, 
           instructions, 
           ...(temperature !== undefined && { temperature }),
-          reasoning,
-          ...(webSearchTools && { tools: webSearchTools })
+          reasoning 
         }),
         signal: controller.signal
       });
@@ -4098,43 +4135,6 @@ async function callAI(sys, user, options = {}) {
 
   return response?.output_text || '';
 }
-
-// ── PROGRESSIVE REVEAL (simulated streaming using Responses API with GPT-5) ──────────────────────────
-async function callAIStreaming(sys, user, options = {}) {
-  // Start streaming UI
-  startStreamingMessage();
-  
-  try {
-    // Get full response from Responses API (GPT-5)
-    const fullText = await callAI(sys, user, options);
-    
-    // Progressive reveal: show text word-by-word for reading experience
-    const words = fullText.split(' ');
-    let revealed = '';
-    
-    for (let i = 0; i < words.length; i++) {
-      revealed += (i > 0 ? ' ' : '') + words[i];
-      updateStreamingMessage(words[i] + (i < words.length - 1 ? ' ' : ''));
-      
-      // Small delay between words for streaming effect (30ms = fast, readable pace)
-      if (i < words.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 30));
-      }
-    }
-    
-    finalizeStreamingMessage();
-    return fullText;
-    
-  } catch (error) {
-    // Clean up streaming UI on error
-    if (streamingMessageDiv) {
-      streamingMessageDiv.remove();
-      streamingMessageDiv = null;
-    }
-    throw error;
-  }
-}
-
 function extractJSON(text) {
   const m = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (m) return m[1].trim();
@@ -4317,7 +4317,7 @@ function mergeMasterDataFields(values, fillOnlyEmpty = false) {
 async function populateMasterDataFromDescription(openSettings = true, fillOnlyEmpty = false) {
   ensurePhase4Fields();
 
-  const description = String(document.getElementById('description')?.value || '').trim();
+  const description = synthesiseDescription();
   if (!description) {
     toast('Describe your organisation first', true);
     return false;
@@ -5304,7 +5304,7 @@ function openToolkitFromHeader(btn) {
 // Workflow Path Navigation
 function startArchitectWorkflow() {
   // Open AI sidebar in Discovery mode instead of showing left panel
-  setAssistantMode('discovery', { step: 1, stepName: 'Describe your organisation' });
+  setAssistantMode('discovery', { step: 1, stepName: 'Beskriv din organisation' });
   
   // Open chat panel
   const panel = document.getElementById('ai-chat-panel');
@@ -5314,52 +5314,48 @@ function startArchitectWorkflow() {
     _updateSidebarToggleIcon(true);
   }
   
-  // Reset per-session exchange counter — used by handleDiscoveryMessage to
-  // bypass the AI on the first two exchanges (preventing hallucinated summaries).
-  window._discoveryStep1ExchangeCount = 0;
-
   // Clear chat history for fresh start
   const chatMessages = document.getElementById('chat-messages');
   if (chatMessages) chatMessages.innerHTML = '';
   
   // Add welcome message from AI
-  const welcomeMsg = `**Welcome to EA Strategic Diagnostic**
+  const welcomeMsg = `**Välkommen till EA Strategic Diagnostic**
 
-I am your **Senior Enterprise Architect, Management Consultant and Data Strategy Advisor**.
+Jag är din **Senior Enterprise Architect, Management Consultant och Data Strategy Advisor**.
 
-My role is to guide you through a structured **7-step diagnostic process** leading to:
-• A clear Strategic Intent
+Min uppgift är att guida dig genom en strukturerad **7-stegs diagnostikprocess** som leder till:
+• Tydlig Strategic Intent
 • EA Transformation Foundation
-• Data- and AI-driven target architecture
+• Data- och AI-driven målarkitektur
 
 ---
 
-## STEP 1: CONTEXT & SCOPE
+## STEG 1: KONTEXT & OMFATTNING
 
-Let's start by defining the frame:
+Låt oss börja med att definiera ramarna:
 
-1. **Industry Profile** — What type of organisation or industry is this?
-   (e.g. Startup, Fintech, Banking, Healthcare, Public Sector, Real Estate, Insurance)
+1. **Industry Profile** - Vilken typ av organisation/bransch är detta?
+   (t.ex. Startup, Fintech, Banking, Healthcare, Public Sector, Retail, Insurance)
 
-2. **Focus Area** — What area are we focusing on?
-   (e.g. General, ERP, ESG, GDPR, Finance, ITSM, Cybersecurity)
+2. **Focus Area** - Vilket område fokuserar vi på?
+   (t.ex. General, ERP, ESG, GDPR, Finance, ITSM, Cybersecurity)
 
-3. **Situation** — Is this a problem to solve or a general improvement initiative?
+3. **Situation** - Är detta en problemsituation eller ett generellt förbättringsinitiativ?
 
-**Note:** I will tailor ALL my communication, questions and analysis to your industry and focus area. Answer the first question to get started!`;
+**OBS:** Jag kommer att anpassa ALL min kommunikation, alla frågor och analyser baserat på din bransch och fokusområde. Svara på första frågan!`;
 
-  addAssistantMessage(welcomeMsg);
+  addMessage(welcomeMsg, 'ai');
   
   // Focus on chat input
   setTimeout(() => {
     const input = document.getElementById('chat-input');
     if (input) {
       input.focus();
-      input.placeholder = 'Answer the questions step by step...';
+      input.placeholder = 'Svara på frågorna steg för steg...';
     }
   }, 300);
   
-  toast('AI Discovery Mode activated — describe your organisation in the chat');
+  toast('AI Discovery Mode aktiverad - beskriv din organisation i chatten');
 }
 
 function startWorkshopFlow() {
@@ -5413,53 +5409,53 @@ async function generateCxOSummary(context, contextData) {
     return;
   }
 
-  // Show loading modal  
+  // Remove any existing modal
+  const existing = document.getElementById('cxo-summary-modal');
+  if (existing) existing.remove();
+
+  // Build modal with inline styles so Nordic theme CSS can't override critical layout
   const modal = document.createElement('div');
   modal.id = 'cxo-summary-modal';
-  modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
+  modal.setAttribute('style', 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;');
   modal.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden">
-      <div class="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700">
-        <div class="flex items-center gap-3">
-          <i class="fas fa-file-powerpoint text-2xl text-white"></i>
+    <div style="background:#fff;border-radius:16px;box-shadow:0 25px 60px rgba(0,0,0,0.35);width:100%;max-width:860px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;background:linear-gradient(135deg,#1e3a5f 0%,#2c5282 100%);flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <i class="fas fa-file-chart-line" style="font-size:20px;color:#fff;"></i>
           <div>
-            <h3 class="text-xl font-bold text-white">Executive Summary</h3>
-            <p class="text-sm text-blue-100">${context}</p>
+            <div style="font-size:16px;font-weight:700;color:#fff;">Executive Summary</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:1px;">${context}</div>
           </div>
         </div>
-        <button onclick="closeCxOModal()" class="text-white/80 hover:text-white text-2xl">&times;</button>
+        <button onclick="closeCxOModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:8px;width:36px;height:36px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Close">&times;</button>
       </div>
-      <div class="p-6 overflow-y-auto" style="max-height: calc(85vh - 180px);">
-        <div class="flex items-center justify-center py-12">
-          <div class="text-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p class="text-slate-600">Generating executive summary...</p>
+      <div id="cxo-modal-body" style="flex:1;overflow-y:auto;padding:24px;">
+        <div style="display:flex;align-items:center;justify-content:center;padding:48px 0;">
+          <div style="text-align:center;">
+            <div class="animate-spin rounded-full" style="width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#2c5282;border-radius:50%;margin:0 auto 12px;"></div>
+            <div style="font-size:13px;color:#64748b;">Generating executive summary…</div>
           </div>
         </div>
       </div>
-      <div class="p-4 border-t bg-slate-50 flex justify-between items-center">
-        <div class="text-sm text-slate-500">AI-generated content - review before sharing</div>
-        <div class="flex gap-2">
-          <button onclick="exportCxOSummary('pdf')" class="ea-btn ea-btn--ghost" disabled>
-            <i class="fas fa-file-pdf mr-2"></i>Export PDF
-          </button>
-          <button onclick="exportCxOSummary('pptx')" class="ea-btn ea-btn--ghost" disabled>
-            <i class="fas fa-file-powerpoint mr-2"></i>Export PowerPoint
-          </button>
-          <button onclick="copyCxOSummary()" class="ea-btn ea-btn--secondary" disabled>
-            <i class="fas fa-copy mr-2"></i>Copy Text
-          </button>
+      <div style="padding:12px 24px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+        <div style="font-size:11px;color:#94a3b8;">AI-generated — review before sharing</div>
+        <div style="display:flex;gap:8px;">
+          <button id="cxo-copy-btn" onclick="copyCxOSummary()" disabled class="ea-btn ea-btn--secondary" style="opacity:0.4;"><i class="fas fa-copy mr-2"></i>Copy Text</button>
+          <button onclick="closeCxOModal()" class="ea-btn ea-btn--ghost"><i class="fas fa-times mr-1.5"></i>Close</button>
         </div>
       </div>
     </div>
   `;
+  // Close on backdrop click
+  modal.addEventListener('click', e => { if (e.target === modal) closeCxOModal(); });
+  // Close on Escape
+  modal._escHandler = e => { if (e.key === 'Escape') closeCxOModal(); };
+  document.addEventListener('keydown', modal._escHandler);
   document.body.appendChild(modal);
 
   try {
-    // Prepare context-specific data
     let summaryData = contextData || extractContextData(context);
     
-    // Generate AI summary
     const prompt = `You are a CxO advisory consultant preparing an executive summary for the board.
     
 Context: ${context}
@@ -5482,17 +5478,12 @@ ${JSON.stringify(summaryData, null, 2)}`;
       prompt
     );
 
-    // Update modal with generated content
     updateCxOModalContent(narrative, summaryData);
     
   } catch (error) {
     console.error('CxO Summary generation failed:', error);
-    modal.querySelector('.p-6').innerHTML = `
-      <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-        <i class="fas fa-exclamation-triangle mr-2"></i>
-        Failed to generate summary. Please check your API key and try again.
-      </div>
-    `;
+    const body = document.getElementById('cxo-modal-body');
+    if (body) body.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;color:#991b1b;font-size:13px;"><i class="fas fa-exclamation-triangle" style="margin-right:8px;"></i>Failed to generate summary. Please check your API key and try again.</div>`;
   }
 }
 
@@ -5567,17 +5558,17 @@ function updateCxOModalContent(narrative, data) {
 
 function closeCxOModal() {
   const modal = document.getElementById('cxo-summary-modal');
-  if (modal) modal.remove();
+  if (modal) {
+    if (modal._escHandler) document.removeEventListener('keydown', modal._escHandler);
+    modal.remove();
+  }
 }
 
 function copyCxOSummary() {
-  const content = document.querySelector('.ea-cxo-summary-content');
-  if (!content) return;
-  
-  const text = content.innerText;
-  navigator.clipboard.writeText(text).then(() => {
-    toast('Summary copied to clipboard ✓');
-  });
+  const body = document.getElementById('cxo-modal-body');
+  if (!body) return;
+  const text = body.innerText;
+  navigator.clipboard.writeText(text).then(() => { toast('Summary copied to clipboard ✓'); });
 }
 
 function exportCxOSummary(format) {
@@ -6167,7 +6158,7 @@ function clearActiveConversationHistory() {
   const conversation = getActiveConversation();
   conversation.messages = [];
   conversation.lastUpdate = Date.now();
-  saveConversationHistory();
+  if (enableChatAutoSave) saveConversationHistory();
   renderActiveConversation();
   addAssistantMessage('Chat history cleared. What would you like to work on next?');
   clearUnreadCount();
@@ -6228,7 +6219,7 @@ function createConversation(title) {
   };
   aiConversationStore.conversations.push(conversation);
   aiConversationStore.activeConversationId = conversation.id;
-  saveConversationHistory();
+  if (enableChatAutoSave) saveConversationHistory();
   return conversation;
 }
 
@@ -6241,12 +6232,56 @@ function getActiveConversation() {
   return conversation;
 }
 
+/**
+ * Returns the description field value, synthesising it from the active Discovery
+ * chat session if the textarea is empty. Writes the result back to the textarea
+ * so subsequent functions can read it too. Returns '' if nothing found.
+ */
+function synthesiseDescription() {
+  let desc = document.getElementById('description').value.trim();
+  if (desc) return desc;
+
+  const conversation = getActiveConversation();
+  const msgs = conversation.messages || [];
+  const lastWelcomeIdx = (() => {
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === 'assistant' && /describe your organisation|beskriv din organisation|tell me about|welcome/i.test(msgs[i].content)) return i;
+    }
+    return 0;
+  })();
+  const sessionMsgs = msgs.slice(lastWelcomeIdx);
+  const lastAiSummary = [...sessionMsgs].reverse().find(m =>
+    m.role === 'assistant' &&
+    !(m.metadata && m.metadata.isActionButton) &&
+    m.content && m.content.trim().length > 80 &&
+    !/^❌|^🔄/.test(m.content.trim())
+  );
+  const userMsgs = sessionMsgs
+    .filter(m => m.role === 'user' && m.content && m.content.trim().length > 20
+      && !/^\s*(proceed|yes|ja|sure|ok|go ahead|gå vidare|kör|fortsätt|done|redo|klart|sounds good|looks good)\s*$/i.test(m.content.trim()))
+    .map(m => m.content.trim());
+
+  if (lastAiSummary) {
+    const cleaned = lastAiSummary.content
+      .replace(/>\s*💬[\s\S]*/g, '')
+      .replace(/\*\*Ready to proceed[\s\S]*/gi, '')
+      .trim();
+    const userContext = userMsgs.length ? `Original user input:\n${userMsgs.join('\n')}\n\nAI-enriched context:\n` : '';
+    desc = userContext + cleaned;
+  } else if (userMsgs.length) {
+    desc = userMsgs.join('\n\n');
+  }
+
+  if (desc) document.getElementById('description').value = desc;
+  return desc;
+}
+
 function syncConversationWithCurrentModel() {
   const conversation = getActiveConversation();
   conversation.linkedModelId = currentModelId || 'unsaved';
   conversation.title = currentModelName || conversation.title;
   conversation.lastUpdate = Date.now();
-  saveConversationHistory();
+  if (enableChatAutoSave) saveConversationHistory();
 
   if (!hasExistingConversation()) {
     addAssistantMessage(getDefaultEaAssistantWelcome());
@@ -6269,20 +6304,46 @@ function loadConversationHistory() {
 }
 
 function saveConversationHistory() {
-  localStorage.setItem(AI_CONVERSATIONS_KEY, JSON.stringify(aiConversationStore));
+  const MAX_ATTEMPTS = 5;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      localStorage.setItem(AI_CONVERSATIONS_KEY, JSON.stringify(aiConversationStore));
+      return; // success
+    } catch (e) {
+      if (e.name !== 'QuotaExceededError' && e.name !== 'NS_ERROR_DOM_QUOTA_REACHED') throw e;
+      // Storage full — trim the oldest messages from the active conversation and retry
+      const conv = aiConversationStore.conversations.find(c => c.id === aiConversationStore.activeConversationId);
+      if (!conv || !conv.messages || conv.messages.length < 20) break; // nothing safe to trim
+      // Remove the oldest 10 non-user messages (large AI responses)
+      let removed = 0;
+      conv.messages = conv.messages.filter(m => {
+        if (removed >= 10 || m.role === 'user') return true;
+        removed++;
+        return false;
+      });
+      console.warn(`saveConversationHistory: quota exceeded, trimmed ${removed} old messages (attempt ${attempt + 1})`);
+    }
+  }
+  console.error('saveConversationHistory: could not persist after trimming — localStorage quota exhausted');
 }
 
 function addMessageToConversation(role, content, metadata = null) {
   const conversation = getActiveConversation();
+  // Cap assistant messages at 10 000 chars to avoid blowing localStorage quota.
+  // The actual structured data lives in model.* — the chat copy is display-only.
+  const MAX_CHAT_CHARS = 10000;
+  const storedContent = (role === 'assistant' && typeof content === 'string' && content.length > MAX_CHAT_CHARS)
+    ? content.slice(0, MAX_CHAT_CHARS) + '\n\n_[message truncated for storage — full data saved in model]_'
+    : content;
   conversation.messages.push({
     id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
     role,
-    content,
+    content: storedContent,
     timestamp: Date.now(),
     metadata
   });
   conversation.lastUpdate = Date.now();
-  saveConversationHistory();
+  if (enableChatAutoSave) saveConversationHistory();
 }
 
 function renderActiveConversation() {
@@ -6316,8 +6377,15 @@ function escapeHtml(text) {
 
 function parseMarkdown(text) {
   if (!text) return '';
-  // Escape HTML first (XSS safety)
-  let t = escapeHtml(text);
+  // ── PRESERVE EMBEDDED HTML BLOCKS (action buttons, divs) ─────────────────
+  // Extract raw HTML elements before escaping so they render as live HTML.
+  const rawHtmlBlocks = [];
+  const textForParsing = text.replace(/<(div|button)\b[^>]*>[\s\S]*?<\/\1>/gi, (match) => {
+    rawHtmlBlocks.push(match);
+    return `%%HTMLBLOCK_${rawHtmlBlocks.length - 1}%%`;
+  });
+  // Escape HTML first (XSS safety — placeholders contain no special chars)
+  let t = escapeHtml(textForParsing);
   
   // ── TABLE DETECTION & RENDERING ────────────────────────────────────────────
   // Detect Markdown tables (| header | header |\n|---|---|\n| cell | cell |)
@@ -6445,27 +6513,31 @@ function parseMarkdown(text) {
       continue;
     }
     
+    // Raw HTML block placeholder — pass through unmodified (restored below)
+    if (/^%%HTMLBLOCK_\d+%%$/.test(trimmed)) {
+      closeList();
+      out.push(trimmed);
+      continue;
+    }
+
     // Regular paragraph
     closeList();
     out.push(`<p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">${trimmed}</p>`);
   }
   
   closeList();
-  return out.join('');
+  let _result = out.join('');
+  // Restore preserved HTML blocks
+  if (rawHtmlBlocks.length) {
+    _result = _result.replace(/%%HTMLBLOCK_(\d+)%%/g, (_, i) => rawHtmlBlocks[+i] || '');
+  }
+  return _result;
 }
 
 // ── Prompt Trace (Advicy AI) ──────────────────────────────────────────────
 window._advisyPromptTrace = false;
 
-function togglePromptTrace() {
-  window._advisyPromptTrace = !window._advisyPromptTrace;
-  const btn = document.getElementById('prompt-trace-toggle');
-  if (btn) {
-    btn.style.opacity = window._advisyPromptTrace ? '1' : '0.5';
-    btn.title = window._advisyPromptTrace ? 'Prompt trace ON — click to disable' : 'Show prompt trace';
-  }
-  console.log('[AdvisyAI] Prompt trace:', window._advisyPromptTrace ? 'ON' : 'OFF');
-}
+function togglePromptTrace() { /* no-op — prompt trace disabled in AdvicyAI */ }
 
 /**
  * Thinking Card — shows the model's reasoning/thinking summary (GPT-5 reasoning output)
@@ -6511,6 +6583,8 @@ function renderThinkingCard(label, thinkingText) {
 }
 
 function renderPromptTrace(label, sys, user) {
+  // System prompts and raw AI prompt traces are not shown in AdvicyAI chat.
+  return;
   const messagesContainer = document.getElementById('chat-messages');
   if (!messagesContainer) return;
   const traceId = 'pt-' + Date.now();
@@ -6756,6 +6830,15 @@ async function sendMessage() {
   if (!input) return;
   const content = input.value.trim();
   if (!content) return;
+
+  // If there's an active QuestionCard, route message to it instead
+  if (input.dataset.activeQuestionCard) {
+    const cardId = input.dataset.activeQuestionCard;
+    if (typeof _qcSubmit === 'function') {
+      _qcSubmit(cardId);
+      return;
+    }
+  }
 
   addUserMessage(content);
   input.value = '';
@@ -7417,7 +7500,7 @@ async function executeAssistantCommand(command, userMessage, context) {
     const capabilityName = (command.capabilityName || '').replace(/[.,;:!?]+$/, '').trim();
     if (!capabilityName) {
       return {
-        content: 'I could not parse the capability name. Try: "Add Customer Relationship Management under Customer".',
+        content: 'I could not parse the capability name. Try: "Lägg till Customer Relationship Management under Customer".',
         metadata: null
       };
     }
@@ -7706,145 +7789,26 @@ function getStepContextSummary(stepNum) {
   
   switch (stepNum) {
     case 1:
-      if (!si) return 'Step 1 has not been completed yet.';
-      return `**Strategic Ambition:** ${si.strategic_ambition || 'not defined'}\\n**Themes:** ${(si.strategic_themes || []).join(', ') || 'none'}\\n**Success Metrics:** ${(si.success_metrics || []).join(', ') || 'none'}`;
+      if (!si) return 'Step 1 \u00e4r inte genomf\u00f6rt \u00e4n.';
+      return `**Strategic Ambition:** ${si.strategic_ambition || 'ej definierad'}\\n**Teman:** ${(si.strategic_themes || []).join(', ') || 'inga'}\\n**Success Metrics:** ${(si.success_metrics || []).join(', ') || 'inga'}`;
     case 2:
-      if (!model.bmc) return 'Step 2 has not been completed yet.';
-      return `**Value Proposition:** ${model.bmc.value_proposition || 'not defined'}\\n**Customer Segments:** ${(model.bmc.customer_segments || []).join(', ') || 'none'}`;
+      if (!model.bmc) return 'Step 2 \u00e4r inte genomf\u00f6rt \u00e4n.';
+      return `**Value Proposition:** ${model.bmc.value_proposition || 'ej definierad'}\\n**Customer Segments:** ${(model.bmc.customer_segments || []).join(', ') || 'inga'}`;
     case 3:
-      return `**Capabilities generated:** ${capCount}\\n**Systems:** ${sysCount}\\n**Avg Maturity:** ${capCount ? (model.capabilities.reduce((s,c)=>s+(c.maturity||0),0)/capCount).toFixed(1) : 0}/5`;
+      return `**Capabilities genererade:** ${capCount}\\n**System:** ${sysCount}\\n**Avg Maturity:** ${capCount ? (model.capabilities.reduce((s,c)=>s+(c.maturity||0),0)/capCount).toFixed(1) : 0}/5`;
     case 4:
-      if (!model.operatingModel?.valueProposition) return 'Step 4 has not been completed yet.';
-      return `**Operating Model VP:** ${model.operatingModel.valueProposition}\\n**Key Activities:** ${(model.operatingModel.keyActivities||[]).length} defined`;
+      if (!model.operatingModel?.valueProposition) return 'Step 4 \u00e4r inte genomf\u00f6rt \u00e4n.';
+      return `**Operating Model VP:** ${model.operatingModel.valueProposition}\\n**Key Activities:** ${(model.operatingModel.keyActivities||[]).length} definierade`;
     case 5:
-      return `**Gap Analysis:** ${(model.gapAnalysis?.gaps||[]).length || 0} gaps identified`;
+      return `**Gap Analysis:** ${(model.gapAnalysis?.gaps||[]).length || 0} gaps identifierade`;
     case 6:
-      return `**Value Pools:** ${(model.valuePools||[]).length} pools identified`;
+      return `**Value Pools:** ${(model.valuePools||[]).length} pools identifierade`;
     case 7:
-      return `**Target Architecture:** ${(model.targetArch||[]).length} uplifts\\n**Initiatives:** ${(model.initiatives||[]).length} defined`;
+      return `**Target Architecture:** ${(model.targetArch||[]).length} uplifts\\n**Initiatives:** ${(model.initiatives||[]).length} definierade`;
     default:
-      return 'Loading context...';
+      return 'Kontextinformation laddas...';
   }
 }
-
-// ─── DISCOVERY AUTOPILOT HELPERS ───────────────────────────────────────────
-// Maps each completed step to the function that generates the next step's model.
-/**
- * Extracts user-stated facts from the current discovery session to enrich generation prompts.
- * Call inside each generate function to capture what the user clarified in chat.
- */
-function _captureDiscoveryInsights() {
-  const allMessages = getActiveConversation()?.messages || [];
-  const lastWelcomeIdx = (() => {
-    for (let i = allMessages.length - 1; i >= 0; i--) {
-      const c = String(allMessages[i].content || '');
-      if (allMessages[i].role === 'assistant' && (c.includes('Discovery Mode') || c.includes('EA Strategic Diagnostic'))) return i;
-    }
-    return Math.max(0, allMessages.length - 20);
-  })();
-  const userStatements = allMessages.slice(lastWelcomeIdx)
-    .filter(m => m.role === 'user' && (m.content || '').trim().length > 8)
-    .map(m => m.content.trim())
-    .slice(-8);
-  if (!userStatements.length) return '';
-  return '\n\n**User-confirmed insights from discovery (treat as ground truth — override AI assumptions):**\n' +
-    userStatements.map(s => `• ${s}`).join('\n');
-}
-
-/**
- * After a step generates output, produces a brief AI review and shows
- * Proceed / Change / Regenerate buttons — mirrors GitHub Copilot inline review.
- */
-async function _generateStepReviewSummary(stepNum, stepResult) {
-  const names = { 1: 'Strategic Intent', 2: 'Business Model Canvas', 3: 'Capability Map', 4: 'Operating Model', 5: 'Gap Analysis', 6: 'Value Pools', 7: 'Roadmap' };
-  const regenFns = { 2: 'generateBMC()', 3: 'generateArchitecture()', 4: 'generateOperatingModel()', 5: 'analyseGaps()', 6: 'generateValuePools()', 7: 'generateRoadmap()' };
-  const stepName = names[stepNum] || `Step ${stepNum}`;
-  const nextConfig = _discoveryNextStepConfig[stepNum];
-  try {
-    const resultStr = JSON.stringify(stepResult, null, 2).slice(0, 3000);
-    const review = await callAI(
-      'You are a critical EA reviewer. Be concise — no markdown headers.',
-      `AI just generated **${stepName}** for an EA engagement.\n\nResult:\n${resultStr}\n\nWrite a review in exactly 4 lines:\n✅ Built: [1 sentence]\n⚠️ Key assumption: [most critical assumption made]\n🔍 Weakest part: [what most needs user validation]\n📊 Confidence: [High/Medium/Low] — [one-line reason]`,
-      { taskType: 'lightweight', _traceLabel: `Step ${stepNum} Review` }
-    );
-    model.diagnosticProgress = model.diagnosticProgress || {};
-    model.diagnosticProgress.stepReviews = model.diagnosticProgress.stepReviews || {};
-    model.diagnosticProgress.stepReviews[stepNum] = { review, timestamp: Date.now() };
-    const proceedBtn = nextConfig
-      ? `<button class="mode-action-btn mode-action-btn--action" onclick="${nextConfig.fn}"><i class="fas ${nextConfig.icon}"></i> ${nextConfig.label}</button>`
-      : '';
-    const regenBtn = regenFns[stepNum]
-      ? `<button class="mode-action-btn mode-action-btn--secondary" onclick="${regenFns[stepNum]}"><i class="fas fa-rotate-right"></i> Regenerate</button>`
-      : '';
-    const changeBtn = `<button class="mode-action-btn mode-action-btn--secondary" onclick="switchToActionMode('')"><i class="fas fa-edit"></i> Change something</button>`;
-    const btnRow = `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">${proceedBtn}${changeBtn}${regenBtn}</div>`;
-    addAssistantMessage(`**AI Review — ${stepName}**\n\n${review}\n\n_Discuss in chat, or use the buttons below._\n\n${btnRow}`,
-      { mode: 'discovery', step: stepNum, isReview: true });
-  } catch (e) {
-    console.warn('Step review generation failed (non-fatal):', e.message);
-  }
-}
-
-const _discoveryNextStepConfig = {
-  1: { label: 'Generate Business Model Canvas',  fn: 'generateBMC()',            icon: 'fa-th',                    desc: 'Step 2 — Business Model Canvas' },
-  2: { label: 'Generate Architecture',            fn: 'generateArchitecture()',   icon: 'fa-diagram-project',       desc: 'Step 3 — Capability Map' },
-  3: { label: 'Generate Operating Model',         fn: 'generateOperatingModel()', icon: 'fa-sitemap',               desc: 'Step 4 — Operating Model' },
-  4: { label: 'Analyse Gaps',                     fn: 'analyseGaps()',             icon: 'fa-triangle-exclamation',  desc: 'Step 5 — Gap Analysis' },
-  5: { label: 'Identify Value Pools',             fn: 'generateValuePools()',      icon: 'fa-gem',                   desc: 'Step 6 — Value Pools' },
-  6: { label: 'Generate Target Arch + Roadmap',   fn: 'generateRoadmap()',         icon: 'fa-road',                  desc: 'Step 7 — Target Architecture & Roadmap' },
-};
-
-/**
- * Returns the "Proceed to next step" HTML card for Discovery Mode messages.
- * Respects the SI-confirmation gate: Step 2 is hidden until Step 1 is confirmed.
- */
-function _discoveryNextStepHtml(stepNum) {
-  const next = _discoveryNextStepConfig[stepNum];
-  if (!next) return ''; // Step 7 is the last — no further step
-  if (stepNum === 1 && !model.strategicIntentConfirmed) return ''; // Locked until SI confirmed
-  return `<div style="margin-top:14px;padding:10px 12px;background:linear-gradient(135deg,#f0f7ff,#e8f4f9);border:1px solid #bfdbfe;border-radius:8px;">
-  <div style="font-size:10px;font-weight:700;color:#1e40af;margin-bottom:4px;"><i class="fas fa-arrow-right" style="margin-right:4px;"></i>Ready to proceed?</div>
-  <div style="font-size:10px;color:#3b82f6;margin-bottom:8px;">${next.desc}</div>
-  <button onclick="${next.fn}" style="width:100%;padding:7px 10px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><i class="fas ${next.icon}"></i> ${next.label}</button>
-</div>`;
-}
-
-/**
- * Returns a Discovery Mode expert persona for a given step, synced with the
- * industry-calibrated Context Engine output (window._stepPrompts.step_X) when
- * available, and falling back to curated hardcoded expert personas.
- */
-function _getDiscoveryPersona(stepNum, stepName) {
-  // 1. Try to use the industry-calibrated persona from the Context Engine run
-  const sp = window._stepPrompts && window._stepPrompts[`step_${stepNum}`];
-  if (sp && typeof sp === 'string') {
-    // Extract the expert description — everything before the JSON/quality-gate instructions
-    const personaSection = sp.split(/Return ONLY valid JSON|Generic output is unacceptable/i)[0].trim();
-    if (personaSection.length > 60) return personaSection;
-  }
-  // 2. Hardcoded fallback personas (aligned with the generation prompt expertise)
-  const fallback = {
-    1: `You are a senior strategy advisor with 15+ years of experience advising C-suite executives. You deeply understand enterprise strategy, business transformation, and how to translate organisational goals into a structured strategic intent. You challenge vague ambitions and push for specificity on success metrics and constraints.`,
-    2: `You are an expert in Business Model Canvas design and strategic business development with 15+ years of experience advising senior leadership teams. You deeply understand the relationships between value propositions, customer segments, revenue streams, cost structures, and key activities — and how they must align with the organisation's strategic ambition. Your analysis is commercially sharp, specific, and challenges weak or generic elements.`,
-    3: `You are a senior Enterprise Architect with 15+ years of experience in capability architecture and digital transformation. You are an expert at analysing capability maps, value streams, system landscapes, and AI agents — and evaluating how well they address strategic themes and business model requirements. You challenge maturity ratings, identify missing capabilities, and flag strategic misalignments.`,
-    4: `You are an expert in Operating Model design and organisational transformation with 15+ years of experience. You analyse how an organisation's operating model — processes, resources, partners, channels, and cost structure — must evolve to deliver the strategic ambition. You identify structural contradictions, efficiency opportunities, and capability dependencies.`,
-    5: `You are a senior EA specialist in Gap Analysis and capability assessment with 15+ years of experience. You are an expert at identifying critical gaps between current state and target state, prioritising actions by strategic importance and business impact, and translating gaps into concrete transformation initiatives. You challenge severity ratings and find gaps that strategy implies but the analysis may have missed.`,
-    6: `You are an expert in transformation economics and value-driven EA with 15+ years of experience. You analyse value pools — where the greatest potential lies for cost reduction, revenue growth, risk mitigation, and customer experience improvement — and how they connect to specific capabilities and strategic themes. You challenge valuations and prioritisation.`,
-    7: `You are a senior transformation programme director and roadmap expert with 15+ years of experience delivering complex EA programmes. You analyse initiative sequencing, dependencies, phase structure, and phase-gate criteria — ensuring the roadmap is realistic, strategically sequenced, and financially grounded. You challenge Year 1 priorities and identify delivery risk.`,
-  };
-  return fallback[stepNum] || `You are a senior Enterprise Architect with 15+ years of experience. You are in Discovery Mode for ${stepName} (Step ${stepNum}).`;
-}
-
-// Next-step descriptions used to guide the AI in each step's Discovery Mode system prompt
-const _discoveryNextStepDescriptions = {
-  1: 'Step 2 (Business Model Canvas) maps how the organisation creates, delivers, and captures value. It translates the strategic ambition into a concrete business design.',
-  2: 'Step 3 (Capability Map) identifies the enterprise capabilities needed to execute the business model. It builds the architectural foundation for all subsequent analysis.',
-  3: 'Step 4 (Operating Model) designs how the organisation must operate to deliver the strategic ambition — processes, resources, partners, channels, and cost structure.',
-  4: 'Step 5 (Gap Analysis) compares current-state capabilities against what is needed, surfacing priority areas for transformation.',
-  5: 'Step 6 (Value Pools) identifies where the greatest transformation value lies — cost reduction, revenue growth, risk mitigation, and customer experience.',
-  6: 'Step 7 (Roadmap) sequences initiatives into a phased transformation programme with realistic phase gates and success criteria.',
-};
-// ─── END DISCOVERY AUTOPILOT HELPERS ───────────────────────────────────────
 
 function enterDiscoveryModeForStep(stepNum, stepName) {
   setAssistantMode('discovery', { step: stepNum, stepName });
@@ -7860,51 +7824,20 @@ function enterDiscoveryModeForStep(stepNum, stepName) {
   // Get context summary for this step
   const contextSummary = getStepContextSummary(stepNum);
   
-  // Get progress and calculate completion percentage
-  const progress = getDiagnosticProgress();
-  const completedSteps = progress.completedSteps.length;
-  const totalSteps = 7;
-  const progressPercent = Math.round((completedSteps / totalSteps) * 100);
-  
   const welcomeMsg = `**Discovery Mode: ${stepName}**
-
-<div class="ea-progress-tracker" style="margin: 16px 0; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-    <span style="font-size: 11px; font-weight: 600; color: #64748b;">Step ${stepNum} of ${totalSteps}</span>
-    <span style="font-size: 11px; font-weight: 700; color: #3b82f6;">${progressPercent}% Complete</span>
-  </div>
-  <div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
-    <div style="height: 100%; background: linear-gradient(90deg, #3b82f6, #2563eb); width: ${progressPercent}%; transition: width 0.3s ease;"></div>
-  </div>
-  <div style="display: flex; gap: 4px; margin-top: 8px;">
-    ${Array.from({length: totalSteps}, (_, i) => {
-      const step = i + 1;
-      const isCompleted = progress.completedSteps.includes(step);
-      const isCurrent = step === stepNum;
-      return `<div style="flex: 1; height: 4px; background: ${isCompleted ? '#22c55e' : isCurrent ? '#3b82f6' : '#e2e8f0'}; border-radius: 2px;"></div>`;
-    }).join('')}
-  </div>
-</div>
 
 ${contextSummary}
 
-**How can I help you?**
-\u2022 Discuss and refine the results
-\u2022 Explain why something was generated
-\u2022 Suggest improvements
-\u2022 Identify gaps or inaccuracies
-\u2022 When you want to make changes, let me know and I will switch to Action Mode
+**Vad kan jag hj\u00e4lpa dig med?**
+\u2022 Diskutera och f\u00f6rfina resultatet
+\u2022 F\u00f6rklara varf\u00f6r n\u00e5got genererats
+\u2022 F\u00f6resl\u00e5 f\u00f6rb\u00e4ttringar
+\u2022 Identifiera luckor eller felaktigheter
+\u2022 N\u00e4r du vill g\u00f6ra \u00e4ndringar s\u00e4ger du till, s\u00e5 byter jag till Action Mode
 
-${stepNum <= 1
-    ? `**Tips:** Click **"Clarify Strategic Intent"** in the left panel when you are ready to generate structured analysis. Be concise and specific.`
-    : `**Tips:** Discuss, ask questions, or request corrections. To update the model directly — select Action Mode. You set the pace — the AI is your autopilot.`}
-
-${_discoveryNextStepHtml(stepNum)}`;
+**Tips:** St\u00e4ll \u00f6ppna fr\u00e5gor som "Varf\u00f6r valde du dessa capabilities?" eller "Hur kan vi f\u00f6rb\u00e4ttra BMC f\u00f6r v\u00e5rt specifika m\u00e5l?"`;
 
   addAssistantMessage(welcomeMsg, { mode: 'discovery', step: stepNum });
-  
-  // Update progress tracker in left panel if exists
-  updateDiscoveryProgressUI(stepNum, completedSteps, totalSteps);
   scrollToBottom();
   
   const input = document.getElementById('chat-input');
@@ -7915,193 +7848,251 @@ async function handleDiscoveryMessage(userMessage) {
   const modeInfo = getAssistantMode();
   const stepNum = modeInfo.context.step;
   const stepName = modeInfo.context.stepName;
-
-  // Scope all message history to the CURRENT session only.
-  // The welcome message (containing "EA Strategic Diagnostic") marks the start of each session.
-  // This prevents old conversation data from previous sessions/projects bleeding into the prompt.
-  const allMessages = getActiveConversation()?.messages || [];
-  const lastWelcomeIdx = (() => {
-    for (let i = allMessages.length - 1; i >= 0; i--) {
-      if (allMessages[i].role === 'assistant' &&
-          String(allMessages[i].content || '').includes('EA Strategic Diagnostic')) {
-        return i;
-      }
-    }
-    return 0;
-  })();
-  const sessionMessages = allMessages.slice(lastWelcomeIdx);
-
-  // Count AI turns in the current session to enforce hard exit from Step 1 loop
-  const aiExchangeCount = sessionMessages.filter(m => m.role === 'assistant').length;
-
-  // Build conversation history — last 10 messages from current session only
-  const recentMessages = sessionMessages
-    .slice(-10)
+  
+  // Build conversation history
+  const recentMessages = (getActiveConversation()?.messages || [])
+    .slice(-6)
     .map(m => `${m.role}: ${m.content}`)
-    .join('\n');
-
+    .join('\\n');
+  
   // SPECIAL HANDLING FOR STEP 1: Organization Description (Initial workflow start)
   if (stepNum === 1 && !model.strategicIntent?.strategic_ambition) {
     showTypingIndicator();
+    
+    // Structured EA diagnostic system prompt (7-step process with Context Adaptation Layer)
+    const systemPrompt = `You are an expert AI assistant acting as a **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
 
-    // Use module-level counter (reset by initDiscoveryMode) — completely independent of
-    // localStorage history, which was causing old session messages to inflate the count.
-    if (typeof window._discoveryStep1ExchangeCount !== 'number') window._discoveryStep1ExchangeCount = 0;
-    window._discoveryStep1ExchangeCount++;
-    const exchangeNum = window._discoveryStep1ExchangeCount;
-    const isSv = /[åäöÅÄÖ]/.test(userMessage) || /[åäöÅÄÖ]/.test(recentMessages);
+Your role is to **guide the user through a structured diagnostic and strategic process** to describe the current state of an organization or business unit, and transform that into **clear Strategic Intent and EA transformation input**, with strong focus on **AI and data-driven decision-making**.
 
-    // ── PROCEED INTENT: user explicitly wants to move on — offer clear exit immediately ──
-    if (exchangeNum >= 2 && /\b(proceed|next step|let'?s go|go ahead|yes|ja|sure|sounds good|looks good|continue|gå vidare|kör|fortsätt|done|redo|klart)\b/i.test(userMessage)) {
-      hideTypingIndicator();
-      const confirmMsg = isSv
-        ? `Perfekt! Klicka på **"Clarify Strategic Intent"** i vänstra panelen — eller använd knappen nedan.\n\n<button class="mode-action-btn mode-action-btn--action" onclick="clarifyStrategicIntent()"><i class="fas fa-arrow-right"></i> Gå vidare nu</button>`
-        : `Ready! Click **"Clarify Strategic Intent"** in the left panel — or use the button below.\n\n<button class="mode-action-btn mode-action-btn--action" onclick="clarifyStrategicIntent()"><i class="fas fa-arrow-right"></i> Proceed now</button>`;
-      addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1 });
-      scrollToBottom();
-      return;
-    }
+You MUST follow the process strictly. Do NOT skip steps. Do NOT jump ahead. Do NOT provide solutions too early.
 
-    // Hard-stop: after enough exchanges, force a final summary and exit
-    const forceStop = aiExchangeCount >= 8;
-    const hardStopPrefix = forceStop ? `🛑 MANDATORY STOP — ${aiExchangeCount} AI messages have been sent. You MUST now: write a final 3–5 sentence summary using ONLY what the user explicitly stated (mark unknowns as "not specified"), then end with: "**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**" Do NOT ask any further questions.\n\n` : '';
+---
 
-    // Unified AI approach for ALL exchanges — Propose Minimum Viable Context
-    const systemPrompt = `${hardStopPrefix}You are a Senior Enterprise Architect acting as a discovery consultant. Help the user build a short, clear description of their situation — good enough to generate a meaningful Strategic Intent.
+## CORE PRINCIPLES
 
-## YOUR METHOD: PROPOSE MINIMUM VIABLE CONTEXT
-When a user gives vague input, do NOT ask blank questions. Instead:
-1. Apply your industry knowledge to enrich their description with what is typically true
-2. Write a short "minimum viable context" paragraph (2–4 sentences) upgrading their vague input
-3. Identify the ONE most critical missing piece
-4. Ask ONE focused question to fill that gap
+* Be structured, concise, and fact-based
+* Ask ONE focused question at a time
+* Always validate and refine user input
+* Challenge vague or generic answers
+* Identify gaps, inconsistencies, and missing data
+* Separate facts from assumptions
+* Think in three levels: Operational (what is happening) → Tactical (why it happens) → Strategic (what should change)
+* Never move forward until sufficient clarity is reached
+* Continuously summarize and structure outputs
 
-## MINIMUM VIABLE CONTEXT covers:
-- What kind of organisation (industry, type, rough scale if known)
-- Core problem/pressure (why change is needed — specific, not generic)
-- What is blocking progress (constraints)
-- What they want to achieve (business outcome)
+---
 
-## RULES
-- Max 6–8 lines total. Never produce architecture plans or vendor lists.
-- Do NOT assume country from language. English ≠ UK/US/AU. Ask if geography is relevant and unknown.
-- Ask ONE question per exchange — the most critical missing piece.
-- Do NOT say "Ready to proceed" until: specific pain + desired outcome + rough scale/context are all confirmed.
+## CONTEXT ADAPTATION LAYER (MANDATORY)
 
-## WHEN ALL GAPS ARE FILLED
-Write a clean 3–5 sentence summary, ask "Does this capture it correctly?", then end your message with:
-"**Ready to proceed — click 'Clarify Strategic Intent' in the left panel to generate the analysis.**"
+The user will provide:
+* **Industry Profile** (e.g. Startup, Fintech, Banking, Healthcare, Public Sector, Retail, Insurance)
+* **Focus Area** (e.g. General, ERP, ESG, GDPR, Finance, ITSM, Cybersecurity)
 
-## ALWAYS END EVERY RESPONSE WITH THIS EXACT FOOTER LINE:
-> 💬 _Want to **add or change** something? Tell me — or say **"proceed"** when ready._
+You MUST adapt your behavior, questions, and outputs based on this context.
 
-## LANGUAGE: Match user's language exactly. Swedish → Swedish. Finnish → Finnish. Danish → Danish.`;
+**INDUSTRY-SPECIFIC ADAPTATION:**
 
-    const userPrompt = `**Discovery session — exchange #${exchangeNum} (${aiExchangeCount} AI turns so far):**
+* **Banking/Insurance**: Emphasize compliance, auditability, risk, legacy core systems, data governance
+* **Healthcare**: Emphasize privacy, interoperability, patient data, regulatory compliance
+* **Public Sector**: Emphasize transparency, regulation, budget constraints, legacy complexity
+* **Startup/Fintech**: Emphasize scalability, speed, modular architecture, API-first, innovation
+* **Retail**: Emphasize customer data, omnichannel, demand forecasting, personalization
+
+**FOCUS AREA ADAPTATION:**
+
+* **ERP**: Process standardization, system dependencies, integrations
+* **ESG**: Data collection, reporting, traceability, compliance
+* **GDPR**: Personal data flows, storage, consent, risk exposure
+* **Finance**: Reporting, forecasting, decision support, data accuracy
+* **ITSM**: Service processes, incident/change/problem management
+* **Cybersecurity**: Risk exposure, controls, monitoring, incident response
+
+**ADAPTIVE QUESTIONING RULE:**
+Modify ALL questions to reflect both industry and focus area. Avoid generic questions. Ask domain-relevant follow-ups. Push for concrete examples.
+
+---
+
+## MANDATORY PROCESS FLOW:
+
+**STEP 1 – CONTEXT & SCOPE:** Confirm Industry Profile, Focus Area, org type, business unit, problem vs improvement → Output: Scope definition (max 5 bullets)
+
+**STEP 2 – CURRENT STATE:** Build objective baseline (processes, systems, data, organization) → Output: Structured EA baseline
+
+**STEP 3 – FRICTION & PROBLEMS:** Identify pain points with business impact (frequency, cost, risk, time, customer) → Output: Prioritized problem list
+
+**STEP 4 – MATURITY & CAPABILITY:** Assess maturity (1-5) across data, AI/analytics, processes, technology → Output: Maturity level + capability gaps
+
+**STEP 5 – TARGET OUTCOMES:** Define business ambition (NO technical solutions) → Output: Outcome statements
+
+**STEP 6 – STRATEGIC INTENT:** Synthesize into strategic direction → Output: Paragraph (5-6 lines) + 4-6 bullets (business ambition, transformation focus, target capabilities, role of data, role of AI)
+
+**STEP 7 – EA TARGET ARCHITECTURE INPUT:** Prepare transformation foundation → Output: Target capabilities, architecture principles (API-first, data-as-asset, AI-embedded), priority areas (data platform, integration, AI use cases, process automation)
+
+---
+
+## QUALITY CONTROL RULES
+
+You MUST:
+* Highlight missing information
+* Flag unclear inputs
+* Identify contradictions
+* Ask clarifying follow-ups
+
+You MUST NOT:
+* Jump to solutions before Step 5
+* Accept vague answers
+* Provide generic consulting output
+
+---
+
+## OUTPUT STYLE
+
+* Clear headings (use ## for sections)
+* Bullet points
+* Simple, professional language
+* No unnecessary verbosity
+* End each step with structured summary
+
+When you reach STEP 6 and have generated Strategic Intent, format it as: "##STRATEGIC_INTENT_READY##" followed by the structured output.
+
+**Remember:** Act as senior advisor (direct, analytical), not passive assistant. Guide step-by-step toward high-quality Strategic Intent.`;
+    
+    const userPrompt = `**Conversation history:**
 ${recentMessages}
-**User's latest message:** ${userMessage}
 
-Apply industry knowledge to enrich what they said. Propose a "minimum viable context" paragraph. Ask ONE focused question. Max 6–8 lines. End with the footer line.`;
+**User message:**
+${userMessage}
 
+Remember: Ask ONE focused question at a time. Progress systematically through the 7 steps. When you reach STEP 6 and have synthesized Strategic Intent, format it as:
+
+##STRATEGIC_INTENT_READY##
+[Strategic Intent paragraph]
+[Bullet points]
+
+Respond in Swedish if the user writes in Swedish.`;
+    
     try {
-      const response = await callAIStreaming(systemPrompt, userPrompt, {
+      const response = await callAI(systemPrompt, userPrompt, {
         taskType: 'discovery',
-        includeProjectContext: false,
-        webSearch: false,
-        _traceLabel: 'Discovery: Organization Description (Step 1)'
+        _traceLabel: 'Discovery: EA Diagnostic (Step 1)'
       });
+      
+      hideTypingIndicator();
+      
+      // Check if AI has reached STEP 6 and generated Strategic Intent
+      if (response.includes('##STRATEGIC_INTENT_READY##')) {
+        const intentText = response.replace('##STRATEGIC_INTENT_READY##', '').trim();
+        
+        // Extract Industry + Focus from conversation if present
+        const industryMatch = recentMessages.match(/industry[:\s]+(startup|fintech|banking|healthcare|public sector|retail|insurance)/i);
+        const focusMatch = recentMessages.match(/focus[:\s]+(general|erp|esg|gdpr|finance|itsm|cybersecurity)/i);
+        
+        if (industryMatch) setDiagnosticContext(industryMatch[1], focusMatch ? focusMatch[1] : 'general');
+        
+        // Update diagnostic progress with Strategic Intent
+        updateDiagnosticStep(6, intentText);
+        
+        // Generate CxO Summary for Step 6 (background)
+        generateCxOSummaryForStep(6, { strategicIntent: intentText }).catch(e => console.error('CxO summary failed:', e));
+        
+        // Generate Scenario Analysis (background)
+        generateScenarioAnalysis().catch(e => console.error('Scenario analysis failed:', e));
+        
+        const confirmMsg = `${intentText}
 
-      // Always render clear action buttons after every AI turn — prevents loop trap
-      const proceedLabel = isSv ? 'Gå vidare till nästa steg' : 'Proceed to next step';
-      const adjustLabel  = isSv ? 'Lägg till / justera' : 'Add or adjust';
-      const exitHtml = `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-  <button class="mode-action-btn mode-action-btn--action" onclick="clarifyStrategicIntent()">
-    <i class="fas fa-arrow-right"></i> ${proceedLabel}
-  </button>
-  <button class="mode-action-btn mode-action-btn--secondary" onclick="document.getElementById('chat-input')?.focus()">
-    <i class="fas fa-edit"></i> ${adjustLabel}
-  </button>
-</div>`;
-      addAssistantMessage(exitHtml, { mode: 'discovery', step: 1, isActionButton: true });
+---
 
-      window.hasUnsavedChanges = true;
+## Fantastic!
+
+Jag har nu slutf\u00f6rt den strukturerade diagnostiken och skapat er **Strategic Intent**.
+
+**CxO Summary** och **Scenario Analysis** genereras automatiskt i bakgrunden.
+
+Vill du spara detta och g\u00e5 vidare till **Action Mode** f\u00f6r att generera den kompletta EA-modellen?
+
+<button class="mode-action-btn mode-action-btn--action" onclick="saveOrgDescriptionAndProceed(\`${intentText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+  <i class="fas fa-check-circle"></i>
+  Ja, spara & generera EA-modell
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-edit"></i>
+  Nej, jag vill justera Strategic Intent
+</button>`;
+        
+        addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1, offersAction: true });
+        
+        // Auto-save or prompt to save if no project exists
+        if (!currentModelId) {
+          setTimeout(() => {
+            if (confirm('Strategic Intent \u00e4r klar! Vill du spara detta som ett projekt?')) {
+              saveModelToDB(true, false);
+            }
+          }, 1500);
+        } else {
+          saveModelToDB(false, true);
+          console.log('\u2713 Auto-saved Strategic Intent to current project');
+        }
+      } else {
+        // Continue the structured diagnostic conversation
+        addAssistantMessage(response, { mode: 'discovery', step: 1 });
+        window.hasUnsavedChanges = true;
+      }
+      
       scrollToBottom();
-
+      
     } catch (error) {
-      addAssistantMessage(`❌ An error occurred: ${error.message}`, { mode: 'discovery', error: true });
+      hideTypingIndicator();
+      addAssistantMessage(`\u274c Ett fel uppstod: ${error.message}`, { mode: 'discovery', error: true });
     }
-
+    
     return; // Exit early for Step 1 special handling
   }
   
   // STANDARD DISCOVERY MODE (for steps with existing results)
-  const isSv = /[åäöÅÄÖ]/.test(userMessage) || /[åäöÅÄÖ]/.test(recentMessages);
-
-  // ── PROCEED INTENT: skip AI, show exit card immediately ────────────────────
-  if (/\b(proceed|next step|let'?s go|go ahead|yes|ja|sure|sounds good|looks good|continue|gå vidare|kör|fortsätt|done|redo|klart|approved|move on)\b/i.test(userMessage)) {
-    const nextCard = _discoveryNextStepHtml(stepNum);
-    const msg = nextCard
-      ? (isSv ? `Bra! Nästa steg:\n\n${nextCard}` : `Ready! Next step:\n\n${nextCard}`)
-      : (isSv ? `Du är på det sista steget — alla steg är klara! 🎉` : `You're on the final step — all steps complete! 🎉`);
-    hideTypingIndicator();
-    addAssistantMessage(msg, { mode: 'discovery', step: stepNum });
-    scrollToBottom();
-    return;
-  }
-
-  // Hard-stop after 10 AI turns to prevent infinite loops
-  const forceStop = aiExchangeCount >= 10;
-  const hardStopPrefix = forceStop
-    ? `🛑 MANDATORY STOP — ${aiExchangeCount} exchanges. Write a 2–3 sentence status summary. State whether the user is ready to proceed. Ask NO further questions.\n\n`
-    : '';
-
   // Build step-specific context using existing _buildStepContext
   const stepContext = _buildStepContext(stepNum);
+  
+  const systemPrompt = `Du \u00e4r en expert Enterprise Architect med 15+ \u00e5rs erfarenhet. Du befinner dig i **Discovery Mode** f\u00f6r **${stepName}** (Step ${stepNum}).
 
-  // Persona synced with generation prompt — uses industry-calibrated Context Engine output when available
-  const persona = _getDiscoveryPersona(stepNum, stepName);
+**Din roll:**
+- Diskutera och analysera resultatet fr\u00e5n Step ${stepNum}
+- F\u00f6rklara varf\u00f6r vissa val gjordes
+- Identifiera f\u00f6rb\u00e4ttringsm\u00f6jligheter
+- St\u00e4ll kritiska fr\u00e5gor som utmanar resultatet
+- Om anv\u00e4ndaren vill g\u00f6ra \u00e4ndringar, f\u00f6resl\u00e5 att byta till Action Mode
 
-  const systemPrompt = `${hardStopPrefix}${persona}
-
-You are now in **Discovery Mode** for **${stepName}** (Step ${stepNum}).
-
-**Your role:**
-- Discuss and critically analyse the Step ${stepNum} result from your expert perspective
-- Explain why certain choices were made and challenge weak reasoning
-- Identify improvement opportunities and strategic misalignments
-- Ask sharp, specific questions that challenge generic or incomplete output
-- If the user wants to make changes, suggest switching to Action Mode
-
-**Current Step ${stepNum} context:**
+**Aktuell Step ${stepNum} kontext:**
 ${stepContext}
 
-**Guiding principles:**
-- Be specific — reference concrete elements from the generated output by name
-- Challenge generic results — push for strategic precision
-- If the user proposes a change, confirm what will change and suggest: "Shall I apply this change? I'll switch to Action Mode."
-- **Next step awareness:** ${_discoveryNextStepDescriptions[stepNum] || 'This is the final step — focus on ensuring the result is complete, realistic, and actionable.'} When the main uncertainties of the current step are resolved, proactively let the user know they are ready to proceed.
-- **Always end your response with this exact footer:** > 💬 _Want to **change something**? Tell me — or type **"proceed"** when ready to move on._
+**Viktiga principer:**
+- Var specifik - referera till konkreta element i resultatet
+- Utmana generiska svar - push f\u00f6r strategisk tydlighet
+- Om anv\u00e4ndaren f\u00f6resl\u00e5r en \u00e4ndring, bekr\u00e4fta vad som ska \u00e4ndras och f\u00f6resl\u00e5: "Vill du att jag applicerar denna \u00e4ndring? Jag byter d\u00e5 till Action Mode."
 
-**Formatting:**
-- Use ## for section headers
-- Use **bold** for key concepts
-- Bullet lists with - item
-- Leave blank lines between sections
-- Tables where appropriate (| header | header |)
+**Formatering:**
+- Anv\u00e4nd ## f\u00f6r rubriker
+- Anv\u00e4nd **fetstil** f\u00f6r viktiga begrepp
+- Listor med - item
+- L\u00e4mna blankrader mellan stycken
+- Tabeller d\u00e4r det \u00e4r l\u00e4mpligt (| header | header |)
 
-Always respond in the same language the user writes in. Default to English.`;
+Svara p\u00e5 svenska om anv\u00e4ndaren skriver svenska.`;
 
-  const userPrompt = `**Recent conversation:**
+  const userPrompt = `**Senaste konversation:**
 ${recentMessages}
 
-**User's message:**
+**Anv\u00e4ndarens fr\u00e5ga:**
 ${userMessage}`;
 
+  showTypingIndicator();
+  
   try {
-    const response = await callAIStreaming(systemPrompt, userPrompt, { 
+    const response = await callAI(systemPrompt, userPrompt, { 
       taskType: 'discovery',
       _traceLabel: `Discovery: ${stepName}`
     });
+    
+    hideTypingIndicator();
     
     // Check if user wants to make changes
     const wantsAction = /\u00e4ndra|uppdatera|l\u00e4gg till|ta bort|f\u00f6rb\u00e4ttra|justera|fixa|modify|update|add|remove|change/i.test(userMessage);
@@ -8112,7 +8103,7 @@ ${userMessage}`;
 
 <button class="mode-action-btn mode-action-btn--action" onclick="switchToActionMode('${userMessage.replace(/'/g, "\\'")}')">
   <i class="fas fa-bolt"></i>
-  Switch to Action Mode & Apply
+  Byt till Action Mode & Applicera
 </button>
 <button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
   <i class="fas fa-comments"></i>
@@ -8121,27 +8112,14 @@ ${userMessage}`;
       
       addAssistantMessage(actionPrompt, { mode: 'discovery', step: stepNum, offersAction: true });
     } else {
-      // Message already displayed by streaming
+      addAssistantMessage(response, { mode: 'discovery', step: stepNum });
     }
-
-    // Always inject clear action exit buttons after every AI turn (prevents loop trap)
-    const nextCard = _discoveryNextStepHtml(stepNum);
-    const changeLabel = isSv ? 'Ändra något — Action Mode' : 'Change something — Action Mode';
-    const askLabel   = isSv ? 'Ställ en fråga' : 'Ask a question';
-    const exitHtml = `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-  <button class="mode-action-btn mode-action-btn--action" onclick="switchToActionMode('')">
-    <i class="fas fa-bolt"></i> ${changeLabel}
-  </button>
-  <button class="mode-action-btn mode-action-btn--secondary" onclick="document.getElementById('chat-input')?.focus()">
-    <i class="fas fa-comments"></i> ${askLabel}
-  </button>
-</div>${nextCard ? '\n' + nextCard : ''}`;
-    addAssistantMessage(exitHtml, { mode: 'discovery', step: stepNum, isActionButton: true });
-
+    
   } catch (error) {
-    addAssistantMessage(`❌ ${isSv ? 'Ett fel uppstod' : 'An error occurred'}: ${error.message}`, { mode: 'discovery', error: true });
+    hideTypingIndicator();
+    addAssistantMessage(`\u274c Ett fel uppstod: ${error.message}`, { mode: 'discovery', error: true });
   }
-
+  
   scrollToBottom();
 }
 
@@ -8150,8 +8128,8 @@ function switchToActionMode(proposedChange) {
   setAssistantMode('action', { ...currentContext, proposedChange });
   
   const msg = proposedChange 
-    ? `**Action Mode activated \u26a1**\\n\\nPreparing to apply: "${proposedChange}"\\n\\nConfirm or adjust the change and I will update the EA model.`
-    : `**Action Mode activated \u26a1**\\n\\nDescribe the change you want to make to the EA model and I will apply it directly.`;
+    ? `**Action Mode aktiverat \u26a1**\\n\\nJag f\u00f6rbereder att applicera: "${proposedChange}"\\n\\nBekr\u00e4fta eller justera \u00e4ndringen, s\u00e5 uppdaterar jag EA-modellen.`
+    : `**Action Mode aktiverat \u26a1**\\n\\nBeskriv vilken \u00e4ndring du vill g\u00f6ra i EA-modellen, s\u00e5 applicerar jag den direkt.`;
   
   addAssistantMessage(msg, { mode: 'action' });
   scrollToBottom();
@@ -8173,63 +8151,59 @@ function saveOrgDescriptionAndProceed(description) {
   setAssistantMode('general', {});
   
   // Show confirmation message
-  addAssistantMessage(`**Organisation description saved!**
+  addAssistantMessage(`**Organisationsbeskrivning sparad!**
 
-The description has been saved and we can proceed.
+Beskrivningen \u00e4r nu sparad och vi kan g\u00e5 vidare.
 
-## Next step: Clarify Strategic Intent
+## Nästa steg: Starta arbetsflödet
 
-I will now analyse your organisation and extract the strategic intent. Click the "**Clarify Strategic Intent**" button in the left panel to continue.`, 
+Jag har nu analyserat er organisation. Klicka på **"Start Workflow"** i vänstra panelen för att fortsätta.`, 
     { mode: 'general' });
   
   scrollToBottom();
   
-  // Highlight the "Clarify Strategic Intent" button in left panel
+  // Highlight the continue button in left panel
   setTimeout(() => {
-    const clarifyBtn = document.querySelector('button[onclick="clarifyStrategicIntent()"]');
-    if (clarifyBtn) {
-      clarifyBtn.classList.add('pulse');
-      clarifyBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const continueBtn = document.getElementById('btn-continue-workflow');
+    if (continueBtn) {
+      continueBtn.classList.add('pulse');
+      continueBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, 500);
   
-  toast('Organisation description saved! Proceed to Step 2');
+  toast('Organisationsbeskrivning sparad! Gå vidare till Step 2');
 }
 
 async function handleActionMessage(userMessage) {
   const modeInfo = getAssistantMode();
   const proposedChange = modeInfo.context.proposedChange || userMessage;
   
-  // Build current model context — expanded to cover all relevant EA fields
+  // Build current model context
   const modelContext = JSON.stringify({
     strategicIntent: model.strategicIntent,
     bmc: model.bmc,
-    capabilities: (model.capabilities || []).map(c => ({ id: c.id, name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance })),
+    capabilities: (model.capabilities || []).map(c => ({ id: c.id, name: c.name, domain: c.domain, maturity: c.maturity })),
     operatingModel: model.operatingModel,
-    valuePools: (model.valuePools || []).map(v => ({ name: v.name, driver: v.driver })),
-    initiatives: (model.initiatives || []).map(i => ({ id: i.id, name: i.name, phase: i.phase })),
     systems: (model.systems || []).map(s => ({ name: s.name, status: s.status }))
   }, null, 2);
+  
+  const systemPrompt = `Du \u00e4r en expert Enterprise Architect i **Action Mode**. Din uppgift \u00e4r att omvandla anv\u00e4ndarens \u00f6nskem\u00e5l till exakta EA-modell uppdateringar.
 
-  const systemPrompt = `You are an expert Enterprise Architect in **Action Mode**. Translate the user's request into a precise EA model update.
-
-**Available actions (return ONE JSON object):**
-- update_strategic_intent: { "action": "update_strategic_intent", "field": "strategic_ambition|strategic_themes|key_constraints|success_metrics|situation_narrative|burning_platform", "value": "..." }
-- update_bmc: { "action": "update_bmc", "field": "value_proposition|customer_segments|key_activities|key_resources|key_partners|channels|customer_relationships|cost_structure|revenue_streams", "value": "..." }
+**Tillg\u00e4ngliga actions:**
+- update_strategic_intent: { "action": "update_strategic_intent", "field": "strategic_ambition|strategic_themes|key_constraints|success_metrics", "value": "..." }
+- update_bmc: { "action": "update_bmc", "field": "value_proposition|customer_segments|key_activities|...", "value": "..." }
 - update_capability: { "action": "update_capability", "id": "...", "field": "name|maturity|strategicImportance|description", "value": "..." }
-- add_capability: { "action": "add_capability", "name": "...", "domain": "Customer|Product|Operations|Risk|Finance|Technology|Support", "maturity": 2, "strategicImportance": "high|medium|low", "description": "..." }
+- add_capability: { "action": "add_capability", "name": "...", "domain": "...", "maturity": 2, "strategicImportance": "high", "description": "..." }
 - remove_capability: { "action": "remove_capability", "id": "..." }
-- add_system: { "action": "add_system", "name": "...", "status": "active|legacy|planned", "category": "core|supporting", "description": "..." }
-- update_initiative: { "action": "update_initiative", "id": "...", "field": "name|phase|priority|description", "value": "..." }
-- add_value_pool: { "action": "add_value_pool", "name": "...", "driver": "cost|revenue|risk|experience", "impact": "high|medium|low", "description": "..." }
+- add_system: { "action": "add_system", "name": "...", "status": "active", "category": "core", "description": "..." }
 
-**Your process:**
-1. Understand exactly what the user wants to change
-2. Generate the correct JSON action
-3. Briefly explain what will change (1–2 sentences)
-4. Embed JSON in a \`\`\`json block
+**Din process:**
+1. F\u00f6rst\u00e5 exakt vad anv\u00e4ndaren vill \u00e4ndra
+2. Generera r\u00e4tt JSON-action
+3. F\u00f6rklara vad som kommer att h\u00e4nda
+4. Embed JSON i \`\`\`json block
 
-Always respond in the same language as the user. Default to English.`;
+Return JSON + explanation in Swedish.`;
 
   const userPrompt = `**Current EA Model:**
 \`\`\`json
@@ -8241,35 +8215,32 @@ ${modelContext}
 
 Generate the action JSON to fulfill this request.`;
 
+  showTypingIndicator();
+  
   try {
-    const response = await callAIStreaming(systemPrompt, userPrompt, { 
+    const response = await callAI(systemPrompt, userPrompt, { 
       taskType: 'action',
       _traceLabel: 'Action Mode'
     });
     
-    // Parse command — store pending and ask user to confirm before applying
+    hideTypingIndicator();
+    
+    // Parse and execute command
     const command = parseAssistantCommand(response);
     if (command && command.action) {
-      window._pendingActionCommand = command;
-      window._pendingActionUserMessage = userMessage;
-      const isSv = /[\u00e5\u00e4\u00f6\u00c5\u00c4\u00d6]/.test(userMessage);
-      const applyLabel  = isSv ? 'Tillämpa ändringen' : 'Apply change';
-      const cancelLabel = isSv ? 'Avbryt' : 'Cancel';
-      const confirmHtml = `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-  <button class="mode-action-btn mode-action-btn--action" onclick="_applyPendingAction()">
-    <i class="fas fa-check"></i> ${applyLabel}
-  </button>
-  <button class="mode-action-btn mode-action-btn--secondary" onclick="_cancelPendingAction()">
-    <i class="fas fa-times"></i> ${cancelLabel}
-  </button>
-</div>`;
-      addAssistantMessage(confirmHtml, { mode: 'action', hasPendingAction: true });
+      addAssistantMessage(response, { mode: 'action', hasCommand: true });
+      const context = buildConversationContext();
+      await executeAssistantCommand(command, userMessage, context);
+      
+      // Return to Discovery Mode after action
+      setTimeout(() => returnToDiscoveryMode(), 1000);
     } else {
-      addAssistantMessage('❌ Could not generate a valid action. Please rephrase your request.', { mode: 'action', error: true });
+      addAssistantMessage(response + '\\n\\n\u274c Kunde inte generera en giltig action. Vill du f\u00f6rtydliga?', { mode: 'action', error: true });
     }
     
   } catch (error) {
-    addAssistantMessage(`❌ Action Mode error: ${error.message}`, { mode: 'action', error: true });
+    hideTypingIndicator();
+    addAssistantMessage(`\u274c Action Mode error: ${error.message}`, { mode: 'action', error: true });
   }
   
   scrollToBottom();
@@ -8277,75 +8248,9 @@ Generate the action JSON to fulfill this request.`;
 
 function returnToDiscoveryMode() {
   const prevContext = assistantContext;
-  const stepNum = prevContext.step;
-  setAssistantMode('discovery', { step: stepNum, stepName: prevContext.stepName });
-  const _nextHtml = _discoveryNextStepHtml(stepNum);
-  const isSv = document.documentElement.lang === 'sv';
-  const msg = isSv
-    ? '✅ Ändringen är genomförd. Vill du diskutera något mer eller göra fler ändringar?'
-    : '✅ Change applied. Want to discuss anything else, or make more changes?';
-  addAssistantMessage(msg + (_nextHtml ? '\n\n' + _nextHtml : ''), { mode: 'discovery' });
+  setAssistantMode('discovery', { step: prevContext.step, stepName: prevContext.stepName });
+  addAssistantMessage(' \u00c4ndringen \u00e4r genomf\u00f6rd. Vill du diskutera n\u00e5got mer eller g\u00f6ra fler \u00e4ndringar?', { mode: 'discovery' });
   scrollToBottom();
-}
-
-async function _applyPendingAction() {
-  const command = window._pendingActionCommand;
-  const userMessage = window._pendingActionUserMessage || '';
-  if (!command) return;
-
-  const oldValue = _getModelFieldSnapshot(command);
-  const context = buildConversationContext();
-  await executeAssistantCommand(command, userMessage, context);
-
-  const newValue = _getModelFieldSnapshot(command);
-  const isSv = /[\u00e5\u00e4\u00f6\u00c5\u00c4\u00d6]/.test(userMessage);
-  const fieldLabel = command.name || command.field || command.action;
-  const hasChanged = oldValue && oldValue !== newValue && oldValue !== '(none)';
-  const diffMsg = hasChanged
-    ? (isSv
-        ? `✅ **Genomfört!** Uppdaterat **${fieldLabel}**:\n\n_Från:_ ${String(oldValue).slice(0, 150)}\n_Till:_ ${String(newValue).slice(0, 200)}`
-        : `✅ **Applied!** Updated **${fieldLabel}**:\n\n_From:_ ${String(oldValue).slice(0, 150)}\n_To:_ ${String(newValue).slice(0, 200)}`)
-    : (isSv ? `✅ Ändringen genomförd.` : `✅ Change applied successfully.`);
-
-  addAssistantMessage(diffMsg, { mode: 'action' });
-  window._pendingActionCommand = null;
-  window._pendingActionUserMessage = null;
-  scrollToBottom();
-  setTimeout(() => returnToDiscoveryMode(), 800);
-}
-
-function _cancelPendingAction() {
-  window._pendingActionCommand = null;
-  window._pendingActionUserMessage = null;
-  const isSv = document.documentElement.lang === 'sv';
-  addAssistantMessage(
-    isSv ? '❌ Avbrutet — inga ändringar gjorda.' : '❌ Cancelled — no changes made.',
-    { mode: 'action' }
-  );
-  scrollToBottom();
-}
-
-function _getModelFieldSnapshot(command) {
-  if (!command) return '';
-  try {
-    const { action, field, id } = command;
-    if (action === 'update_strategic_intent') return JSON.stringify(model.strategicIntent?.[field] ?? '');
-    if (action === 'update_bmc')              return JSON.stringify(model.bmc?.[field] ?? '');
-    if (action === 'update_capability') {
-      const cap = (model.capabilities || []).find(c => c.id === id);
-      return JSON.stringify(cap?.[field] ?? '');
-    }
-    if (action === 'add_capability')   return '(none)';
-    if (action === 'remove_capability') {
-      const cap = (model.capabilities || []).find(c => c.id === id);
-      return cap ? cap.name : '(not found)';
-    }
-    if (action === 'update_initiative') {
-      const init = (model.initiatives || []).find(i => i.id === id);
-      return JSON.stringify(init?.[field] ?? '');
-    }
-    return '';
-  } catch { return ''; }
 }
 
 async function processUserMessage(userMessage) {
@@ -8865,18 +8770,86 @@ async function handleMaturityAssessment(context) {
 
 async function handleGeneralQuestion(userMessage, context) {
   const si = model.strategicIntent;
-  const stepsCompleted = [
-    si ? `Step 1 (Strategic Intent): ambition="${si.strategic_ambition}", themes=${JSON.stringify(si.strategic_themes||[])}` : null,
-    model.bmc ? `Step 2 (Business Model Canvas): value_proposition="${model.bmc.value_proposition}"` : null,
-    (model.capabilities||[]).length ? `Step 3 (Capability Map): ${model.capabilities.length} capabilities, avg maturity ${((model.capabilities||[]).reduce((s,c)=>s+Number(c.maturity||0),0)/model.capabilities.length).toFixed(1)}` : null,
-    model.operatingModel?.valueProposition ? `Step 4 (Operating Model): value_proposition="${model.operatingModel.valueProposition}"` : null,
-    model.gapAnalysisDone ? 'Step 5 (Gap Analysis): completed' : null,
-    (model.valuePools||[]).length ? `Step 6 (Value Pools): ${model.valuePools.length} value pools` : null,
-    (model.targetArch||[]).length ? `Step 7 (Target Architecture & Roadmap): ${model.targetArch.length} capability uplifts, ${(model.initiatives||[]).length} initiatives` : null
-  ].filter(Boolean);
+  const caps = model.capabilities || [];
+  const bmc = model.bmc || {};
+  const om = model.operatingModel || {};
+  const vp = model.valuePools || [];
+  const initiatives = model.initiatives || [];
+  const targetArch = model.targetArch || [];
 
-  const stepsContext = stepsCompleted.length
-    ? `\n\nCompleted EA steps:\n${stepsCompleted.map(s => ' - ' + s).join('\n')}`
+  // Build rich step context from structured model data (independent of chat history; survives page refresh)
+  const stepDetails = [];
+
+  if (si) {
+    stepDetails.push(
+      `Step 1 — Strategic Intent:\n` +
+      `  ambition: ${si.strategic_ambition || 'not set'}\n` +
+      `  themes: ${(si.strategic_themes || []).join('; ') || 'none'}\n` +
+      `  constraints: ${(si.key_constraints || []).join('; ') || 'none'}\n` +
+      `  metrics: ${(si.success_metrics || []).join('; ') || 'none'}\n` +
+      `  timeframe: ${si.timeframe || 'not set'}`
+    );
+  }
+
+  if (bmc.value_proposition) {
+    stepDetails.push(
+      `Step 2 — Business Model Canvas (TO-BE):\n` +
+      `  value_proposition: ${bmc.value_proposition}\n` +
+      `  customer_segments: ${(bmc.customer_segments || []).join(', ') || 'none'}\n` +
+      `  key_activities: ${(bmc.key_activities || []).join(', ') || 'none'}\n` +
+      `  revenue_streams: ${(bmc.revenue_streams || []).join(', ') || 'none'}\n` +
+      `  key_partners: ${(bmc.key_partners || []).join(', ') || 'none'}`
+    );
+  }
+
+  if (caps.length) {
+    const avgMat = (caps.reduce((s, c) => s + Number(c.maturity || 0), 0) / caps.length).toFixed(1);
+    const capLines = caps.slice(0, 20).map(c => `  - ${c.name} [${c.domain}] maturity:${c.maturity}/5 importance:${c.strategicImportance}`).join('\n');
+    stepDetails.push(`Step 3 — Capability Map (${caps.length} capabilities, avg maturity ${avgMat}/5):\n${capLines}`);
+  }
+
+  if (om.valueProposition) {
+    stepDetails.push(
+      `Step 4 — Operating Model:\n` +
+      `  value_proposition: ${om.valueProposition}\n` +
+      `  key_activities: ${(om.keyActivities || []).join(', ') || 'none'}\n` +
+      `  key_resources: ${(om.keyResources || []).join(', ') || 'none'}\n` +
+      `  cost_structure: ${om.costStructure || 'not set'}\n` +
+      `  revenue_streams: ${(om.revenueStreams || []).join(', ') || 'none'}`
+    );
+  }
+
+  if (model.gapAnalysisDone && model.gapAnalysisRaw) {
+    const parsedGaps = parseGapAnalysisJson(model.gapAnalysisRaw);
+    if (parsedGaps) {
+      const gapLines = (parsedGaps.gapAnalysis || []).slice(0, 10)
+        .map(g => `  - [${g.severity}] ${g.title}: ${g.detail ? g.detail.slice(0, 80) : ''} (ref: ${g.capability_ref || '?'}, class: ${g.classification || '?'})`)
+        .join('\n');
+      stepDetails.push(
+        `Step 5 — Gap Analysis:\n` +
+        `  summary: ${parsedGaps.executiveSummary || 'completed'}\n` +
+        `  gaps (${(parsedGaps.gapAnalysis || []).length}):\n${gapLines}`
+      );
+    } else {
+      stepDetails.push(`Step 5 — Gap Analysis:\n  ${String(model.gapAnalysisRaw).slice(0, 600)}`);
+    }
+  } else if (model.gapAnalysisDone) {
+    stepDetails.push('Step 5 — Gap Analysis: completed');
+  }
+
+  if (vp.length) {
+    const vpLines = vp.map(v => `  - ${v.name || v.title || v.area || ''}: ${v.estimatedValue || v.value || ''} priority:${v.priority || v.rank || '?'}`).join('\n');
+    stepDetails.push(`Step 6 — Value Pools (${vp.length}):\n${vpLines}`);
+  }
+
+  if (targetArch.length || initiatives.length) {
+    const archLines = targetArch.slice(0, 12).map(t => `  - ${t.name} [${t.domain}] ${t.currentMaturity}→${t.targetMaturity} (${t.strategicImportance})`).join('\n');
+    const initLines = initiatives.slice(0, 10).map(i => `  - ${i.name || i.title} Phase ${i.phase} ${i.estimatedBusinessValue || ''} [${i.priority || ''}]`).join('\n');
+    stepDetails.push(`Step 7 — Target Architecture & Roadmap:\n  Capability uplifts (${targetArch.length}):\n${archLines}\n  Initiatives (${initiatives.length}):\n${initLines}`);
+  }
+
+  const stepsContext = stepDetails.length
+    ? `\n\nCompleted EA steps (full detail):\n${stepDetails.join('\n\n')}`
     : '\n\nNo EA steps completed yet.';
 
   const systemPrompt = (typeof AdvisyAI !== 'undefined')
@@ -8885,7 +8858,7 @@ async function handleGeneralQuestion(userMessage, context) {
 
   const response = await callAI(
     systemPrompt,
-    `Context: ${JSON.stringify(context)}${stepsContext}\n\nActive tab: ${context.activeView}\n\nUser question: ${userMessage}\n\nAnswer requirements:\n- Reference step outputs when relevant (e.g. "Based on your Step 1 ambition...")\n- Flag cross-step dependencies if the question touches multiple steps\n- Suggest concrete next actions within the platform\n- Be concise and commercially sharp`,
+    `Context: ${JSON.stringify(context)}${stepsContext}\n\nActive tab: ${context.activeView}\n\nUser question: ${userMessage}\n\nAnswer requirements:\n- Reference specific step outputs when relevant (e.g. "Based on your ambition to...", "Your gap analysis shows...")\n- Flag cross-step dependencies if the question touches multiple steps\n- Suggest concrete next actions within the platform\n- Be concise and commercially sharp`,
     { taskType: 'lightweight', temperature: 0.3, replyLanguage: context.preferredLanguage }
   );
   return {
@@ -9211,6 +9184,59 @@ function ensureBusinessFields() {
   
 
 // ── STEP 1: CLARIFY STRATEGIC INTENT ─────────────────────────────────────────
+
+// ── Workflow continue button ──────────────────────────────────────────────────
+function _runNextStep() {
+  const order = ['step1','step2','step3','step4','step5','step6','step7'];
+  const bridges = {
+    step1: clarifyStrategicIntent,
+    step2: generateBMC,
+    step3: generateArchitecture,
+    step4: generateOperatingModel,
+    step5: analyseGaps,
+    step6: generateValuePools,
+    step7: generateRoadmap
+  };
+  for (const id of order) {
+    if (!_isStepDone(id)) { bridges[id](); return; }
+  }
+  // All complete
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel && panel.classList.contains('hidden') && typeof toggleChatPanel === 'function') toggleChatPanel();
+  if (typeof addAssistantMessage === 'function') {
+    addAssistantMessage('🎯 **All 7 steps complete!** Your EA model is fully generated.\n\nReview the **Executive**, **Roadmap**, and **Target Arch** tabs — or click **Discuss** next to any step to refine with AI.');
+  }
+}
+
+function _isStepDone(stepId) {
+  if (window.model?.steps?.[stepId]?.status === 'completed') return true;
+  const m = window.model || {};
+  return !!({ step1: m.strategicIntentConfirmed, step2: m.bmc || m.bmcCurrent,
+    step3: m.capabilities?.length, step4: m.operatingModel,
+    step5: m.gapAnalysisDone || m.gapAnalysis, step6: m.valuePools?.length,
+    step7: m.targetArchDone || m.targetArch || m.roadmap }[stepId]);
+}
+
+function _updateContinueBtn() {
+  const btn   = document.getElementById('btn-continue-workflow');
+  const icon  = document.getElementById('continue-btn-icon');
+  const label = document.getElementById('continue-btn-label');
+  if (!btn || !label) return;
+  const names = { step1:'Strategic Intent', step2:'Business Model Canvas',
+    step3:'Capability Map', step4:'Operating Model', step5:'Gap Analysis',
+    step6:'Value Pools', step7:'Target Arch & Roadmap' };
+  const next = ['step1','step2','step3','step4','step5','step6','step7'].find(id => !_isStepDone(id));
+  if (!next) {
+    if (icon) icon.className = 'fas fa-check-circle';
+    label.textContent = 'All Steps Complete';
+    btn.disabled = true; btn.style.opacity = '0.6';
+  } else {
+    if (icon) icon.className = 'fas fa-play';
+    label.textContent = next === 'step1' ? 'Start Workflow' : `Continue → ${names[next]}`;
+    btn.disabled = false; btn.style.opacity = '1';
+  }
+}
+
 function startNewWorkflow() {
   const hasData = model.strategicIntent || model.bmc || (model.capabilities||[]).length || model.operatingModel || model.targetArch;
   if (hasData && !confirm('This will clear all generated results and start a fresh workflow. Continue?')) return;
@@ -9548,7 +9574,87 @@ function _showClarificationGate(hypothesis, questions) {
 }
 
 async function clarifyStrategicIntent() {
-  const desc = document.getElementById('description').value.trim();
+  // ── Ensure chat panel is open ──
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel && panel.classList.contains('hidden') && typeof toggleChatPanel === 'function') {
+    toggleChatPanel();
+    // Small delay to let chat panel animate open before showing content
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+
+  // ── Get or request description via chat ──
+  let desc = (document.getElementById('description')?.value || '').trim();
+
+  if (!desc) {
+    desc = await QuestionCard.show({
+      taskId:     'org_description_entry',
+      title:      'Step 1 — Strategic Intent',
+      question:   'To begin, tell me about your organisation.\n\nDescribe: **what it does**, the **main challenge** you want to address, and **what needs to change**.',
+      options:    [],
+      guidance:   'Example: "We are a Nordic retail bank with 500 staff. Loan decisioning takes 5 days due to three legacy core banking systems. We need same-day digital onboarding."',
+      allowSkip:  false,
+      taskIndex:  0,
+      totalTasks: 10
+    });
+    const descEl = document.getElementById('description');
+    if (descEl) descEl.value = desc;
+    if (typeof AdvisyAI !== 'undefined' && AdvisyAI.updateDescriptionContext) {
+      AdvisyAI.updateDescriptionContext(desc);
+    }
+  }
+
+  return StepEngine.run('step1', { initialPrompt: desc }, window.model);
+
+  // If the description field is empty, synthesize it from the Discovery Mode
+  // conversation — the user provided context via chat rather than the text area.
+  if (!desc) {
+    const conversation = getActiveConversation();
+    const msgs = conversation.messages || [];
+
+    // Find the start of the current session (last welcome/reset message)
+    const lastWelcomeIdx = (() => {
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        if (msgs[i].role === 'assistant' && /describe your organisation|beskriv din organisation|tell me about|welcome/i.test(msgs[i].content)) return i;
+      }
+      return 0;
+    })();
+    const sessionMsgs = msgs.slice(lastWelcomeIdx);
+
+    // Prefer the AI's last enriched-context synthesis — that is what the user approved
+    // by clicking "Proceed". Exclude action-button-only messages (isActionButton flag)
+    // and very short messages (< 80 chars = unlikely to be a real synthesis).
+    const lastAiSummary = [...sessionMsgs]
+      .reverse()
+      .find(m =>
+        m.role === 'assistant' &&
+        !(m.metadata && m.metadata.isActionButton) &&
+        m.content && m.content.trim().length > 80 &&
+        !/^❌|^🔄/.test(m.content.trim()) // skip error / streaming-start messages
+      );
+
+    // Also collect user messages as supplementary context
+    const userMsgs = sessionMsgs
+      .filter(m => m.role === 'user' && m.content && m.content.trim().length > 20
+        && !/^\s*(proceed|yes|ja|sure|ok|go ahead|gå vidare|kör|fortsätt|done|redo|klart|sounds good|looks good)\s*$/i.test(m.content.trim()))
+      .map(m => m.content.trim());
+
+    if (lastAiSummary) {
+      // Use the AI’s enriched synthesis as the primary description.
+      // Strip markdown action footers (— the “> 💬 _Want to…” line and anything after it)
+      const cleaned = lastAiSummary.content
+        .replace(/>\s*💬[\s\S]*/g, '')
+        .replace(/\*\*Ready to proceed[\s\S]*/gi, '')
+        .trim();
+      // Prepend raw user input as a heading so the upstream prompt builder has both
+      const userContext = userMsgs.length ? `Original user input:\n${userMsgs.join('\n')}\n\nAI-enriched context:\n` : '';
+      desc = userContext + cleaned;
+      document.getElementById('description').value = desc;
+    } else if (userMsgs.length) {
+      desc = userMsgs.join('\n\n');
+      document.getElementById('description').value = desc;
+    }
+  }
+
   if (!desc) { toast('Describe your organisation first', true); return; }
 
   // Refinement mode: Strategic Intent already exists — user clicked Refresh after editing
@@ -9563,8 +9669,6 @@ async function clarifyStrategicIntent() {
 
   // Feed description to AdvisyAI context + auto-enable prompt trace for this run
   if (typeof AdvisyAI !== 'undefined') AdvisyAI.updateDescriptionContext(desc);
-  const _prevTrace = window._advisyPromptTrace;
-  window._advisyPromptTrace = true; // always show trace for workflow steps
 
   // Open sidebar early so the user sees the optimiser running before the spinner hides it
   const _earlyPanel = document.getElementById('ai-chat-panel');
@@ -9649,9 +9753,7 @@ async function clarifyStrategicIntent() {
     // Open sidebar if not already open
     const _panel = document.getElementById('ai-chat-panel');
     if (_panel && _panel.classList.contains('hidden')) toggleChatPanel();
-  } catch(e) { toast('Error clarifying intent: ' + e.message, true); }
-  spin('s0', false);
-  window._advisyPromptTrace = _prevTrace;
+  } catch (_e) { /* legacy */ }
 }
 
 function confirmStrategicIntent() {
@@ -9679,15 +9781,15 @@ function confirmStrategicIntent() {
 
 // ── STEP 2: GENERATE BUSINESS MODEL CANVAS ───────────────────────────────────
 async function generateBMC() {
-  const desc = document.getElementById('description').value.trim();
+  return StepEngine.run('step2', window.model);
+}
+async function _v5LegacyBMC(_desc) { const desc = _desc; // V5 legacy — never called
   if (!model.strategicIntent && !desc) { toast('Complete Step 1 first', true); return; }
   if (!model.strategicIntentConfirmed) {
     toast('Confirm the Strategic Intent first — click "✓ Confirm Step 1" in the workflow panel', true);
     addAssistantMessage('**Step 2 is locked.** Please review the Strategic Intent and click **Confirm Step 1** in the left panel to unlock the Business Model Canvas.');
     return;
   }
-  const _prevTrace = window._advisyPromptTrace;
-  window._advisyPromptTrace = true;
   spin('s2b', true);
   try {
     const _si2 = model.strategicIntent;
@@ -9710,7 +9812,7 @@ async function generateBMC() {
       : '';
     const raw = await callAI(
       sysBMC,
-      `${isRefineBMC ? 'Refine and improve' : 'Generate'} a Business Model Canvas (current AND target state) for this organisation:\n\n"${desc}"\n\n${intentCtx2}${existingBmcCtx}${_captureDiscoveryInsights()}\n\nReturn JSON:\n{"current_state_bmc":{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]},"target_state_bmc":{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]},"model_shift_analysis":{"blocks_requiring_transformation":[""],"revenue_concentration_risk":"","new_revenue_streams_enabled":[""],"cost_lines_addressable":[""]},"_meta":{"assumptions":["key assumption driving this BMC"],"confidence":0.0,"dataSources":["strategic intent","company description"],"keyDrivers":["top BMC driver 1","top BMC driver 2"]}}`,
+      `${isRefineBMC ? 'Refine and improve' : 'Generate'} a Business Model Canvas (current AND target state) for this organisation:\n\n"${desc}"\n\n${intentCtx2}${existingBmcCtx}\n\nReturn JSON:\n{"current_state_bmc":{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]},"target_state_bmc":{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]},"model_shift_analysis":{"blocks_requiring_transformation":[""],"revenue_concentration_risk":"","new_revenue_streams_enabled":[""],"cost_lines_addressable":[""]},"_meta":{"assumptions":["key assumption driving this BMC"],"confidence":0.0,"dataSources":["strategic intent","company description"],"keyDrivers":["top BMC driver 1","top BMC driver 2"]}}`,
       { taskType: 'heavy', temperature: 0.2, _traceLabel: isRefineBMC ? 'Step 2 — Refine BMC' : 'Step 2 — Business Model Canvas' }
     );
     const parsed = JSON.parse(extractJSON(raw));
@@ -9727,18 +9829,11 @@ async function generateBMC() {
     const shiftMsg = model.bmc_analysis
       ? `\n\n**Model Shift:** ${(model.bmc_analysis.blocks_requiring_transformation||[]).join(', ')} require transformation. Revenue risk: ${model.bmc_analysis.revenue_concentration_risk||'n/a'}`
       : '';
-    addAssistantMessage(`**Step 2 — Business Model Canvas generated ✓**\n\nReview in the **Op Model** tab → Business Model Canvas.`);
+    addAssistantMessage(`**Step 2 — Business Model Canvas generated**\n\nReview the full canvas in the **Op Model** tab → Business Model Canvas.`);
     const _panel = document.getElementById('ai-chat-panel');
     if (_panel && _panel.classList.contains('hidden')) toggleChatPanel();
-    // Auto-enter Discovery Mode for Step 2 so user can discuss/analyse the BMC
-    setTimeout(() => enterDiscoveryModeForStep(2, 'Business Model Canvas'), 300);
-    // Post-generation AI review summary (shows below welcome message)
-    const _bmcForReview = { bmc: model.bmc, bmc_current: model.bmc_current, bmc_analysis: model.bmc_analysis };
-    setTimeout(() => _generateStepReviewSummary(2, _bmcForReview), 900);
-  } catch(e) { toast('Error generating BMC: ' + e.message, true); }
-  spin('s2b', false);
-  window._advisyPromptTrace = _prevTrace;
-}
+  } catch (_e) { /* legacy */ }
+} // end _v5LegacyBMC
 
 function renderBMCPanel() {
   const bmc = model.bmc;
@@ -10027,36 +10122,11 @@ function _buildStepContext(stepNum) {
 
 // ── STEP 6: IDENTIFY VALUE POOLS ─────────────────────────────────────────────
 async function generateValuePools() {
-  if (!model.capabilities.length) { toast('Complete Step 3 (Architecture) first', true); return; }
-  const _prevTrace = window._advisyPromptTrace;
-  window._advisyPromptTrace = true;
-  spin('s6v', true);
-  try {
-    const _ctx6 = _buildStepContext(6);
-    const raw = await callAI(
-      (window._stepPrompts && window._stepPrompts.step_6) || 'You are a transformation value architect. Return ONLY valid JSON, no markdown.',
-      `Identify the top value pools for this enterprise architecture.\n\nFull engagement context (Steps 1–5 completed before this step):\n${_ctx6}\n\nAll capabilities: ${JSON.stringify(model.capabilities.map(c=>({name:c.name,domain:c.domain,strategicImportance:c.strategicImportance,maturity:c.maturity})))}\n\nRules:\n- Every value pool must reference a named capability from the list above\n- Quantify impact against the strategic ambition and success metrics\n- Prioritise pools that directly close the identified priority gaps\n- Anchor revenue/cost pools to the BMC revenue streams and cost structure above\n\nReturn JSON:\n{"valuePools":[{"name":"","description":"","value_driver":"cost|revenue|risk|experience","potential_impact":"high|medium|low","enabling_capabilities":[""],"time_horizon":"short|medium|long","linked_strategic_theme":"","estimated_annual_value_eur":0}],"_meta":{"assumptions":["key assumption driving value pool selection"],"confidence":0.0,"dataSources":["capability map","strategic intent","BMC"],"keyDrivers":["top value driver 1","top value driver 2"]}}`,
-      { taskType: 'heavy', temperature: 0.2, _traceLabel: 'Step 6 — Value Pools' }
-    );
-    const _vpParsed = JSON.parse(extractJSON(raw));
-    if (_vpParsed._meta) { model.stepMeta = model.stepMeta || {}; model.stepMeta[6] = _vpParsed._meta; }
-    model.valuePools = Array.isArray(_vpParsed) ? _vpParsed : (_vpParsed.valuePools || []);
-    updateWorkflowStepStates();
-    renderValuePoolsPanel();
-    toast('Value Pools identified &#x2714;');
-    const pools = model.valuePools || [];
-    if (pools.length) {
-      const summary = pools.map(p=>`• **${p.name}** (${p.value_driver}, ${p.time_horizon}): ${p.description}`).join('\n');
-      addAssistantMessage(`**Step 6 — Value Pools identified**\n\n${pools.length} value pools generated. Review them in the **Op Model** tab.`);
-      const _panel = document.getElementById('ai-chat-panel');
-      if (_panel && _panel.classList.contains('hidden')) toggleChatPanel();
-      // Auto-enter Discovery Mode for Step 6 so user can discuss/analyse the value pools
-      setTimeout(() => enterDiscoveryModeForStep(6, 'Value Pools'), 300);
-    }
-  } catch(e) { toast('Error identifying value pools: ' + e.message, true); }
-  spin('s6v', false);
-  window._advisyPromptTrace = _prevTrace;
+  return StepEngine.run('step6', window.model);
 }
+
+async function _v5LegacyVP_dead() { let _discard = `\n\nAll capabilities: ${JSON.stringify(model.capabilities.map(c=>({name:c.name,domain:c.domain,strategicImportance:c.strategicImportance,maturity:c.maturity})))}\n\nRules:\n- Every value pool must reference a named capability from the list above\n- Quantify impact against the strategic ambition and success metrics\n- Prioritise pools that directly close the identified priority gaps\n- Anchor revenue/cost pools to the BMC revenue streams and cost structure above\n\nReturn JSON:\n{"valuePools":[{"name":"","description":"","value_driver":"cost|revenue|risk|experience","potential_impact":"high|medium|low","enabling_capabilities":[""],"time_horizon":"short|medium|long","linked_strategic_theme":"","estimated_annual_value_eur":0}],"_meta":{"assumptions":["key assumption driving value pool selection"],"confidence":0.0,"dataSources":["capability map","strategic intent","BMC"],"keyDrivers":["top value driver 1","top value driver 2"]}}`; // close template literal
+} // end _v5LegacyVP_dead
 
 function renderValuePoolsPanel() {
   const pools = model.valuePools || [];
@@ -10288,7 +10358,7 @@ function renderStrategicIntentSection() {
   // Situation narrative — shown inline beneath the ambition
   const narrativeEl = document.getElementById('intent-situation-narrative');
   if (narrativeEl) {
-    narrativeEl.innerHTML = parseMarkdown(intent.situation_narrative || '');
+    narrativeEl.textContent = intent.situation_narrative || '';
     narrativeEl.classList.toggle('hidden', !intent.situation_narrative);
   }
 
@@ -10388,67 +10458,8 @@ function updateWorkflowStepStates() {
     stepEl.classList.toggle('step-complete', isDone);
     if (isDone) renderStepRationale(i);
   }
-  updateTabCompletionBadges();
-}
-
-function updateTabCompletionBadges() {
-  const caps = (model.capabilities||[]).length > 0;
-  const hasBmc = !!(model.bmc || Object.keys(model.operatingModel||{}).length > 0);
-  const hasScenarios = !!(model.scenarios && model.scenarios.length > 0);
-
-  // tabStates[name] = { unlocked: bool, done: bool, reason: string }
-  const tabStates = {
-    home:       { unlocked: true,                                              done: caps,                               reason: '' },
-    exec:       { unlocked: !!model.strategicIntent,                           done: !!model.strategicIntent,            reason: 'Complete Step 1 — Clarify Strategic Intent' },
-    phase4:     { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
-    bench:      { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
-    survey:     { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
-    layers:     { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
-    capmap:     { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
-    heatmap:    { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
-    graph:      { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
-    impact:     { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
-    cfo:        { unlocked: caps,                                              done: caps,                               reason: 'Complete Step 3 — Generate Architecture' },
-    gap:        { unlocked: !!model.gapAnalysisDone,                          done: !!model.gapAnalysisDone,            reason: 'Complete Step 5 — Analyse Gaps' },
-    maturity:   { unlocked: caps,                                              done: !!model.gapAnalysisDone || caps,    reason: 'Complete Step 3 — Generate Architecture' },
-    opmodel:    { unlocked: hasBmc,                                            done: hasBmc,                             reason: 'Complete Step 2 — Generate Business Model Canvas' },
-    targetarch: { unlocked: !!(model.targetArchDone || (model.valuePools && model.valuePools.length > 0)), done: !!model.targetArchDone, reason: 'Complete Step 7 — Target Arch & Roadmap' },
-    roadmapvis: { unlocked: !!(model.targetArchDone || (model.initiatives && model.initiatives.length > 0)), done: !!model.targetArchDone, reason: 'Complete Step 7 — Target Arch & Roadmap' },
-    toolkits:   { unlocked: true,                                              done: false,                              reason: '' },
-    scenarios:  { unlocked: caps,                                              done: hasScenarios,                       reason: 'Complete Step 3 — Generate Architecture' },
-    financials: { unlocked: hasScenarios,                                      done: hasScenarios,                       reason: 'Create at least one Scenario first' },
-    optimisation:{ unlocked: caps,                                             done: caps,                               reason: 'Complete Step 3 — Generate Architecture' }
-  };
-
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    const onclick = btn.getAttribute('onclick') || '';
-    const match = onclick.match(/showTab\('([^']+)'/);
-    if (!match) return;
-    const tabName = match[1];
-    const state = tabStates[tabName];
-    if (!state) return; // unknown tab — leave as-is
-
-    // Lock / unlock visual
-    if (state.unlocked) {
-      btn.classList.remove('tab-btn--locked');
-      btn.removeAttribute('disabled');
-      btn.removeAttribute('data-tab-locked-reason');
-    } else {
-      btn.classList.add('tab-btn--locked');
-      btn.setAttribute('disabled', 'disabled');
-      btn.setAttribute('data-tab-locked-reason', state.reason);
-    }
-
-    // Done badge (green checkmark)
-    let badge = btn.querySelector('.tab-done-badge');
-    if (!badge) {
-      badge = document.createElement('span');
-      badge.className = 'tab-done-badge';
-      badge.innerHTML = '<i class="fas fa-check"></i>';
-      btn.appendChild(badge);
-    }
-    badge.style.display = state.done ? '' : 'none';
-  });
+  // updateTabCompletionBadges removed - legacy function not implemented in V5
+  _updateContinueBtn();
 }
 
 // ── WHY THIS? — STEP RATIONALE CARD ────
@@ -10566,6 +10577,7 @@ function getArchitectureGenerationProfile() {
       valueStreams: '3-4',
       capabilities: '10-12',
       systems: '5-7',
+      aiAgents: '2-3',
       timeoutMs: 90000,
       temperature: 0.15
     };
@@ -10577,6 +10589,7 @@ function getArchitectureGenerationProfile() {
       valueStreams: '5-6',
       capabilities: '16-20',
       systems: '8-12',
+      aiAgents: '4-6',
       timeoutMs: 180000,
       temperature: 0.2
     };
@@ -10587,13 +10600,16 @@ function getArchitectureGenerationProfile() {
     valueStreams: '4-6',
     capabilities: '14-18',
     systems: '6-10',
+    aiAgents: '3-5',
     timeoutMs: 150000,
     temperature: 0.2
   };
 }
 
 async function generateArchitecture() {
-  const desc = document.getElementById('description').value.trim();
+  return StepEngine.run('step3', window.model);
+}
+async function _v5LegacyArch(_d) { const desc = _d; // V5 legacy — never called
   if (!desc) { toast('Describe your organisation first', true); return; }
   const profile = getArchitectureGenerationProfile();
   const isRefineArch = model.capabilities.length > 0;
@@ -10627,23 +10643,19 @@ Cost structure: ${(model.bmc.cost_structure||[]).slice(0,3).join(' · ')}${model
   spin('s1', true);
   const btnLabel = document.getElementById('btn-step3-label');
   if (btnLabel) btnLabel.textContent = isRefineArch ? 'Refining structure...' : 'Generating structure...';
-  _setStep3Status('⏳ Generating capability architecture...', 'active');
+  _setStep3Status('⏳ Step 1/3 — Building architecture structure...', 'active');
+  _showCFOSkeleton();
+  _showBenchSkeleton();
 
   try {
     // ── CALL 1: STRUCTURE ─────────────────────────────────────────────
     const sysArch = (window._stepPrompts && window._stepPrompts.step_3) ||
       'You are a senior enterprise architect. Return ONLY valid JSON, no markdown.';
     const raw1 = await callAI(sysArch,
-      `${isRefineArch ? 'Refine and extend' : 'Generate'} enterprise architecture for: "${desc}"${intentPrefix}${bmcPrefix}${existingArchCtx}${_captureDiscoveryInsights()}
+      `${isRefineArch ? 'Refine and extend' : 'Generate'} enterprise architecture for: "${desc}"${intentPrefix}${bmcPrefix}${existingArchCtx}
 Return JSON:
-{"valueStreams":[{"name":"","purpose":"one sentence — what this value stream delivers to the customer or business"}],"capabilities":[{"name":"","domain":"Customer|Product|Operations|Risk|Finance|Technology|Support","valueStream":"","maturity":3,"strategicImportance":"low|medium|high","operationalCriticality":3,"dependsOnCapabilities":[""],"strategic_rationale":"one sentence — why this capability is required by the strategic ambition or a specific strategic theme","maturity_rationale":"one sentence — why the AS-IS maturity is rated at this level — what is actually weak or missing today"}],"systems":[{"name":"","supportsCapability":"","criticality":"low|medium|high","status":"active|legacy|planned"}],"_meta":{"assumptions":["key assumption driving this architecture"],"confidence":0.0,"dataSources":["strategic intent","BMC","company description"],"keyDrivers":["top arch driver 1","top arch driver 2","top arch driver 3"]}}
-Rules:
-- ${profile.valueStreams} value streams with distinct purposes aligned to the strategic ambition
-- ${profile.capabilities} capabilities, each mapped to a value stream by exact name
-- ${profile.systems} systems — mark legacy systems clearly as status:'legacy'
-- strategic_rationale must reference a named strategic theme or the strategic ambition directly — never be generic
-- maturity_rationale must describe a concrete observable weakness, not a generic statement
-- dependsOnCapabilities: list exact names of other capabilities in this list that must exist first`,
+{"valueStreams":[{"name":""}],"capabilities":[{"name":"","domain":"Customer|Product|Operations|Risk|Finance|Technology|Support","valueStream":"","maturity":3,"strategicImportance":"low|medium|high","operationalCriticality":3,"dependsOnCapabilities":[""]}],"systems":[{"name":"","supportsCapability":"","criticality":"low|medium|high"}],"dataDomains":[{"name":""}],"aiAgents":[{"name":"","supportsCapability":"","criticality":"low|medium|high"}],"_meta":{"assumptions":["key assumption driving this architecture"],"confidence":0.0,"dataSources":["strategic intent","BMC","company description"],"keyDrivers":["top arch driver 1","top arch driver 2","top arch driver 3"]}}
+Rules: ${profile.valueStreams} value streams, ${profile.capabilities} capabilities (each must have valueStream matching one generated value stream name), ${profile.systems} systems, ${profile.aiAgents} AI agents. dependsOnCapabilities must list exact names of other capabilities in this list.`,
       { taskType: 'heavy', temperature: profile.temperature, timeoutMs: profile.timeoutMs });
 
     const struct = JSON.parse(extractJSON(raw1));
@@ -10660,45 +10672,21 @@ Rules:
     showTab('capmap', findTabButton('capmap'));
 
     const capCount = (model.capabilities||[]).length;
-    updateWorkflowStepStates();
-    updateWorkflowProgress([1, 2, 3]); // Mark Steps 1-3 as completed
+    _setStep3Status(`Structure ready (${capCount} capabilities) — enriching financials & benchmark...`, 'active');
+    if (btnLabel) btnLabel.textContent = 'Enriching data...';
+    toast(`Architecture structure ready ✓ (${profile.mode} mode) — enriching financials & benchmark...`);
 
-    // Apply heuristic financials immediately — click "Enrich Financials (AI)" in CFO tab for AI-detailed estimates
-    _applyHeuristicFinancials();
-    computeDerivedFinancials();
-    renderLayers(); // Refresh layer cards with financial badges
-    renderCFO();
+    // ── CALLS 2 + 3: PARALLEL ─────────────────────────────────────────
+    const industry = model.phase4Config?.industry || 'generic';
+    const [financialsResult, benchmarkResult] = await Promise.allSettled([
+      _enrichCapabilityFinancials(desc, _si3, model.capabilities),
+      _generateAIBenchmark(desc, _si3, industry)
+    ]);
 
-    _setStep3Status(`Done — ${capCount} capabilities ready`, 'done');
-    if (btnLabel) btnLabel.textContent = isRefineArch ? 'Re-generate Architecture' : 'Generate Architecture';
-    toast(`Architecture ready ✓ — ${capCount} capabilities (${profile.mode} mode). Use "Enrich Financials" in CFO tab for AI estimates.`);
-    // Auto-enter Discovery Mode for Step 3 so user can discuss/analyse the architecture
-    setTimeout(() => enterDiscoveryModeForStep(3, 'Capability Map'), 300);
-    // Post-generation AI review summary
-    setTimeout(() => _generateStepReviewSummary(3, { capabilities: model.capabilities, valueStreams: model.valueStreams, systems: model.systems }), 900);
-  } catch(e) {
-    _setStep3Status('Error: ' + e.message, 'error');
-    if (btnLabel) btnLabel.textContent = 'Generate Architecture';
-    toast('Error: ' + e.message, true);
-  }
-  spin('s1', false);
-}
-
-async function enrichFinancialsAI() {
-  if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
-  const btn = document.getElementById('btn-enrich-financials');
-  const s = document.getElementById('s-enrich');
-  if (btn) btn.disabled = true;
-  if (s) s.classList.remove('hidden');
-  _showCFOSkeleton();
-  toast('Running AI financial analysis — estimating per-capability ROI, risk and savings...');
-  try {
-    const desc = document.getElementById('description').value.trim();
-    const si = model.strategicIntent || {};
-    const financial = await _enrichCapabilityFinancials(desc, si, model.capabilities);
-    if (Array.isArray(financial)) {
+    // Apply financial enrichment
+    if (financialsResult.status === 'fulfilled' && Array.isArray(financialsResult.value)) {
       const finMap = {};
-      financial.forEach(f => { if (f.name) finMap[f.name.toLowerCase()] = f; });
+      financialsResult.value.forEach(f => { if (f.name) finMap[f.name.toLowerCase()] = f; });
       model.capabilities = model.capabilities.map(c => {
         const f = finMap[c.name.toLowerCase()];
         if (!f) return c;
@@ -10709,17 +10697,29 @@ async function enrichFinancialsAI() {
           revenueExposure: f.revenueExposure, regulatoryExposure: f.regulatoryExposure,
           confidence: f.confidence, assumptions: f.assumptions };
       });
-      computeDerivedFinancials();
-      renderLayers();
-      renderCFO();
-      model.financialsEnriched = true;
-      toast('Financial analysis enriched with AI estimates ✓');
-      addAssistantMessage('**CFO Financial Analysis enriched** ✓\n\nCapability-specific AI estimates have replaced heuristic values. Review in the **CFO** tab.\n\n_Use "Recalculate" to adjust assumptions (FTE cost, risk factor, investment multiplier)._');
+    } else {
+      _applyHeuristicFinancials();
     }
-  } catch(e) { toast('Error enriching financials: ' + e.message, true); _applyHeuristicFinancials(); renderCFO(); }
-  if (btn) btn.disabled = false;
-  if (s) s.classList.add('hidden');
-}
+    computeDerivedFinancials();
+    renderLayers(); // Refresh layer cards with financial badges
+    renderCFO();
+
+    // Apply AI benchmark
+    if (benchmarkResult.status === 'fulfilled' && benchmarkResult.value) {
+      model.aiBenchmark = benchmarkResult.value;
+    }
+    renderBenchmarking();
+
+    // Narrative fires last (uses financials)
+    generateNarrative();
+    updateWorkflowStepStates();
+    updateWorkflowProgress([1, 2, 3]); // Mark Steps 1-3 as completed
+
+    _setStep3Status(`Done — ${capCount} capabilities · financials & benchmark ready`, 'done');
+    if (btnLabel) btnLabel.textContent = isRefineArch ? 'Re-generate Architecture' : 'Generate Architecture';
+    toast('Architecture complete ✓ (' + profile.mode + ' mode)');
+  } catch (_e) { /* legacy */ }
+} // end _v5LegacyArch
 
 function computeDerivedFinancials() {
   const fteCost = Number(document.getElementById('assume-fte')?.value || 90000);
@@ -10813,9 +10813,11 @@ Rules: 12-20 capabilities total. Every new or evolved capability must link to a 
 
 // ── OPERATING MODEL ────
 async function generateOperatingModel() {
+  return StepEngine.run('step4', window.model);
+}
+
+async function _generateOperatingModelLegacy() {
   if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
-  const _prevTrace4 = window._advisyPromptTrace;
-  window._advisyPromptTrace = true;
   spin('s3', true);
   try {
     const si = model.strategicIntent || {};
@@ -10844,7 +10846,7 @@ STRATEGIC INTENT (must drive every section of the operating model):
       (window._stepPrompts && window._stepPrompts.step_4) || 'Return ONLY valid JSON. No markdown, no comments.',
       `Generate the TO-BE Operating Model Canvas for this organization. The operating model must be directly shaped by the Strategic Intent — every section must reflect the strategic direction.
 ${siBlock}${bmcBlock}
-Capability context (sample): ${JSON.stringify(capSample)}${_captureDiscoveryInsights()}
+Capability context (sample): ${JSON.stringify(capSample)}
 
 Rules:
 - If direction is COST-REDUCTION: key activities = process excellence + automation; cost structure = lean, fixed-to-variable shift; revenue streams = efficient delivery of existing products
@@ -10866,14 +10868,11 @@ Return JSON:
     addAssistantMessage(`**Step 4 — Operating Model generated**\n\nReview the full model in the **Op Model** tab.`);
     const _panelOM = document.getElementById('ai-chat-panel');
     if (_panelOM && _panelOM.classList.contains('hidden')) toggleChatPanel();
-    // Auto-enter Discovery Mode for Step 4 so user can discuss/analyse the operating model
-    setTimeout(() => enterDiscoveryModeForStep(4, 'Operating Model'), 300);
-    // Post-generation AI review summary
-    setTimeout(() => _generateStepReviewSummary(4, model.operatingModel), 900);
   } catch(e) { toast('Error: ' + e.message, true); }
   spin('s3', false);
-  window._advisyPromptTrace = _prevTrace4;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function analyseMaturity() {
   if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
@@ -10882,23 +10881,7 @@ function analyseMaturity() {
 }
 
 async function analyseGaps() {
-  if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
-  spin('s5', true);
-  try {
-    const raw = await requestDynamicGapAnalysis({ source: 'gap_button', activeTab: currentTab });
-    document.getElementById('insights').innerHTML = formatGapAnalysisOutput(raw);
-    model.gapAnalysisDone = true;
-    model.gapAnalysisRaw = raw;
-    autoSaveCurrentModel();
-    updateWorkflowStepStates();
-    updateWorkflowProgress([1, 2, 3, 4, 5]); // Mark Steps 1-5 as completed
-    toast('Gap analysis complete &#x2718;');
-    // Auto-enter Discovery Mode for Step 5 so user can discuss/analyse the gap analysis
-    setTimeout(() => enterDiscoveryModeForStep(5, 'Gap Analysis'), 300);
-    // Post-generation AI review summary
-    setTimeout(() => _generateStepReviewSummary(5, { gaps: String(model.gapAnalysisRaw || '').slice(0, 600) }), 900);
-  } catch(e) { toast('Error: ' + e.message, true); }
-  spin('s5', false);
+  return StepEngine.run('step5', window.model);
 }
 
 function formatGapAnalysisOutput(rawText) {
@@ -11088,8 +11071,6 @@ function formatGapAnalysisOutput(rawText) {
 
 async function generateTargetArch() {
   if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
-  const _prevTrace7 = window._advisyPromptTrace;
-  window._advisyPromptTrace = true;
   spin('s6', true);
   try {
     const si = model.strategicIntent || {};
@@ -11110,9 +11091,8 @@ Prioritization rules based on strategic direction:
     : 'VALUE-CREATION: Prioritize customer experience, innovation, data, and partner ecosystem capabilities. Set high target maturity for capabilities linked to strategic themes. Allow high investment in differentiating capabilities.'}
 ` : '';
 
-    const [taResult, agentResult] = await Promise.allSettled([
-      callAI('Return ONLY valid JSON array, no markdown.',
-        `Based on this architecture and strategic intent, define the Target Architecture.
+    const raw = await callAI('Return ONLY valid JSON array, no markdown.',
+      `Based on this architecture and strategic intent, define the Target Architecture.
 
 ${siBlock}
 Capabilities to analyze: ${JSON.stringify(model.capabilities)}
@@ -11130,30 +11110,8 @@ Return JSON array (ALL capabilities):
   "enabler": "Platform|AI|Process|Data|People",
   "strategicThemeLink": "Which strategic theme drives this uplift, or null"
 }]`,
-        { taskType: 'heavy', temperature: 0.2 }),
-      callAI('You are a senior AI architect. Return ONLY valid JSON array, no markdown.',
-        `Define the TARGET STATE AI agents for this organisation based on the strategy and capability map.
-
-${siBlock}
-Capabilities: ${JSON.stringify(model.capabilities.map(c=>({name:c.name, domain:c.domain, maturity:c.maturity, strategicImportance:c.strategicImportance})))}
-
-Rules:
-- Generate 3-6 AI agents that are grounded in the strategic direction and this specific industry
-- Each agent must support a specific named capability from the list above
-- Be practical: RPA bots, ML models, NLP assistants, recommendation engines, decisioning systems
-- Only include agents that deliver clear, measurable business value
-
-Return JSON array:
-[{"name":"","supportsCapability":"","criticality":"low|medium|high","agentType":"RPA|ML|NLP|Recommendation|Decisioning|Analytics","businessValue":"one sentence — what business outcome this agent delivers"}]`,
-        { taskType: 'heavy', temperature: 0.2 })
-    ]);
-    model.targetArch = JSON.parse(extractJSON(taResult.status === 'fulfilled' ? taResult.value : '[]'));
-    if (agentResult.status === 'fulfilled') {
-      try {
-        model.aiAgents = JSON.parse(extractJSON(agentResult.value));
-        renderLayers(); // refresh AI agents layer
-      } catch(e) { console.warn('aiAgents parse failed', e); }
-    }
+      { taskType: 'heavy', temperature: 0.2 });
+    model.targetArch = JSON.parse(extractJSON(raw));
     model.targetArchDone = true;
     renderTargetArchVisual();
     updateWorkflowStepStates();
@@ -11166,7 +11124,6 @@ Return JSON array:
     if (_panelTA && _panelTA.classList.contains('hidden')) toggleChatPanel();
   } catch(e) { toast('Error: ' + e.message, true); }
   spin('s6', false);
-  window._advisyPromptTrace = _prevTrace7;
 }
 
 function renderTargetArchVisual() {
@@ -11264,10 +11221,9 @@ function renderTargetArchVisual() {
 }
 
 async function generateRoadmap() {
-  if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
-  const _prevTrace8 = window._advisyPromptTrace;
-  window._advisyPromptTrace = true;
-  spin('s7', true);
+  return StepEngine.run('step7', window.model);
+}
+async function _v5LegacyRoadmap() { /* V5 — never called */
   try {
     const si = model.strategicIntent || {};
     const isCostreduction = /cost|efficien|lean|optim|save|reduc/i.test(si.strategic_ambition || '');
@@ -11364,12 +11320,8 @@ Return JSON:
     addAssistantMessage(`**Step 7b — Transformation Roadmap generated**\n\n${highPri.length} high-priority initiatives. Review all in the **Roadmap** tab.`);
     const _panelRD = document.getElementById('ai-chat-panel');
     if (_panelRD && _panelRD.classList.contains('hidden')) toggleChatPanel();
-    // Auto-enter Discovery Mode for Step 7 so user can discuss/analyse the roadmap
-    setTimeout(() => enterDiscoveryModeForStep(7, 'Target Architecture & Roadmap'), 300);
-  } catch(e) { toast('Error: ' + e.message, true); }
-  spin('s7', false);
-  window._advisyPromptTrace = _prevTrace8;
-}
+  } catch (_e) { /* legacy */ }
+} // end _v5LegacyRoadmap
 
 function renderRoadmapVisual() {
   const container = document.getElementById('roadmapvis-content');
@@ -14037,16 +13989,21 @@ function runPortfolioOptimisation() {
   <div id="chat-header">
     <div id="chat-header-title">
       <i class="fas fa-robot"></i>
-      <span id="chat-title-text">Advicy Agent</span>
+      <span id="chat-title-text">AdvicyAI</span>
       <!-- Mode Badge -->
       <span id="assistant-mode-badge" class="hidden mode-general">General</span>
     </div>
     <div id="chat-controls">
-      <button id="prompt-trace-toggle" onclick="togglePromptTrace()" title="Enable Prompt Trace (show prompts sent to AI)" style="font-size:13px;opacity:0.45;transition:opacity .2s,background .2s,color .2s;border-radius:5px;">Trace</button>
       <button id="new-chat" onclick="startNewConversationChat()" title="New conversation">+</button>
       <button id="clear-chat" onclick="clearActiveConversationHistory()" title="Clear history">&#x21BA;</button>
       <button id="close-chat" onclick="closeChatPanel()" title="Close sidebar">&times;</button>
     </div>
+  </div>
+  <!-- Step Engine task-progress banner (shown during multi-task runs) -->
+  <div id="step-engine-progress" style="display:none; padding:6px 12px; background:#f0f4f8; border-bottom:1px solid #d6dee5; font-size:11px; color:#4a5568; align-items:center; gap:8px;">
+    <span id="step-engine-spinner" style="animation:spin 1s linear infinite; display:inline-block;">⏳</span>
+    <span id="step-engine-progress-text">Processing…</span>
+    <span id="step-engine-progress-count" style="margin-left:auto; color:#718096;"></span>
   </div>
   <div id="chat-messages"></div>
   <div id="chat-input-container">

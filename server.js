@@ -51,6 +51,9 @@ app.post('/api/openai/chat', async (req, res) => {
   try {
     const fetch = (await import('node-fetch')).default;
 
+    // Debug: Log incoming request body
+    console.log('[Server] Incoming request body:', JSON.stringify(req.body, null, 2));
+
     // Detect request format:
     // Responses API uses { input, instructions, model, ... }
     // Chat Completions uses { messages, model, ... }
@@ -58,6 +61,19 @@ app.post('/api/openai/chat', async (req, res) => {
     const targetUrl = isResponsesAPI
       ? 'https://api.openai.com/v1/responses'
       : 'https://api.openai.com/v1/chat/completions';
+
+    // Transform request body for Responses API
+    let requestBody = { ...req.body };
+    if (isResponsesAPI && requestBody.response_format !== undefined) {
+      // Responses API moved response_format to text.format
+      requestBody.text = requestBody.text || {};
+      requestBody.text.format = requestBody.response_format;
+      delete requestBody.response_format;
+    }
+
+    // Debug: Log what we're sending to OpenAI
+    console.log('[Server] Sending to OpenAI:', JSON.stringify(requestBody, null, 2));
+    console.log('[Server] Target URL:', targetUrl);
 
     // Give the upstream OpenAI call up to 5 minutes before forcing a server-side abort
     const upstreamController = new AbortController();
@@ -69,7 +85,7 @@ app.post('/api/openai/chat', async (req, res) => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify(requestBody),
       signal: upstreamController.signal
     });
     clearTimeout(upstreamTimer);
