@@ -41,7 +41,7 @@ app.get('/api/config/openai-key', (req, res) => {
   res.json({ apiKey });
 });
 
-// Proxy OpenAI Responses API requests (keeps API key secure on server)
+// Proxy OpenAI Chat Completions API requests (keeps API key secure on server)
 app.post('/api/openai/chat', async (req, res) => {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -55,20 +55,29 @@ app.post('/api/openai/chat', async (req, res) => {
     console.log('[Server] Incoming request body:', JSON.stringify(req.body, null, 2));
 
     // Detect request format:
-    // Responses API uses { input, instructions, model, ... }
     // Chat Completions uses { messages, model, ... }
+    // Legacy Responses API uses { input, instructions, model, ... }
     const isResponsesAPI = req.body.input !== undefined && req.body.messages === undefined;
-    const targetUrl = isResponsesAPI
-      ? 'https://api.openai.com/v1/responses'
-      : 'https://api.openai.com/v1/chat/completions';
-
-    // Transform request body for Responses API
+    
+    let targetUrl = 'https://api.openai.com/v1/chat/completions';
     let requestBody = { ...req.body };
-    if (isResponsesAPI && requestBody.response_format !== undefined) {
-      // Responses API moved response_format to text.format
-      requestBody.text = requestBody.text || {};
-      requestBody.text.format = requestBody.response_format;
-      delete requestBody.response_format;
+
+    // Transform Responses API format to Chat Completions format
+    if (isResponsesAPI) {
+      const { input, instructions, ...rest } = requestBody;
+      requestBody = {
+        ...rest,
+        messages: [
+          ...(instructions ? [{ role: 'system', content: instructions }] : []),
+          { role: 'user', content: input }
+        ]
+      };
+      
+      // Handle response_format conversion
+      if (requestBody.text?.format) {
+        requestBody.response_format = requestBody.text.format;
+        delete requestBody.text;
+      }
     }
 
     // Debug: Log what we're sending to OpenAI
@@ -93,14 +102,27 @@ app.post('/api/openai/chat', async (req, res) => {
     const data = await response.json();
 
     if (!response.ok) {
+      console.error('[Server] OpenAI API Error:', data);
       return res.status(response.status).json(data);
     }
 
-    // Normalise response: always expose output_text for Responses API callers
-    if (isResponsesAPI && data.output && !data.output_text) {
-      const textItem = (data.output || []).find(o => o.type === 'message');
-      const textContent = textItem?.content?.find(c => c.type === 'output_text' || c.type === 'text');
-      data.output_text = textContent?.text || '';
+    // Transform Chat Completions response back to Responses API format if needed
+    if (isResponsesAPI) {
+      const message = data.choices?.[0]?.message;
+      const transformedData = {
+        id: data.id,
+        model: data.model,
+        output: [{
+          type: 'message',
+          content: [{
+            type: 'text',
+            text: message?.content || ''
+          }]
+        }],
+        output_text: message?.content || '',
+        usage: data.usage
+      };
+      return res.json(transformedData);
     }
 
     res.json(data);

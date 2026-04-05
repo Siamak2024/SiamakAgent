@@ -51,7 +51,7 @@ class AzureOpenAIProxy {
    */
   static async create(input, options = {}) {
     const {
-      model = 'gpt-5',
+      model = 'gpt-4o',
       instructions,
       tools,
       tool_choice,
