@@ -335,12 +335,155 @@ Include 8-12 initiatives total. executive_roadmap_summary: 3 sentences Board-lev
   },
 
   applyOutput: (output, model) => {
+    // ── BUG-7 FIX: Build legacy model.initiatives from new roadmap schema ──
+    // renderRoadmapVisual() and renderInitiatives() read model.initiatives
+    // (old flat array). Step7 now sets model.roadmap = { waves: [...] }.
+    // We convert waves[].initiatives[] to the legacy flat array so the render
+    // functions work without modification.
+    const horizonToPhase = {
+      'Foundation (0-6m)': 'Year 1 - Foundation',
+      'Build (6-18m)':     'Year 2 - Expansion',
+      'Scale (18-36m)':    'Year 3 - Optimisation'
+    };
+    const effortToValue = { S: 'low', M: 'medium', L: 'high', XL: 'high' };
+    const legacyInitiatives = [];
+    (output.roadmap?.waves || []).forEach(wave => {
+      const phase = horizonToPhase[wave.horizon] || wave.name || 'Year 1 - Foundation';
+      (wave.initiatives || []).forEach(init => {
+        legacyInitiatives.push({
+          name:                  init.title || init.id || 'Initiative',
+          impactsCapability:     (init.closes_gap || []).length > 0
+                                   ? (init.closes_gap[0] || init.type || '')
+                                   : (init.type || ''),
+          phase:                 phase,
+          estimatedBusinessValue: (init.enables_pool || []).length > 0
+                                   ? 'high'
+                                   : (effortToValue[init.effort] || 'medium'),
+          complexity:            init.risk === 'HIGH'   ? 'high'
+                                 : init.risk === 'MEDIUM' ? 'medium' : 'low',
+          priority:              init.risk === 'HIGH'   ? 'high'
+                                 : init.risk === 'MEDIUM' ? 'medium' : 'low',
+          description:           init.success_criteria || '',
+          strategicThemeLink:    null,
+          depends_on:            init.dependencies || [],
+          start_month:           1,
+          duration_months:       init.effort === 'S' ? 2
+                                 : init.effort === 'M' ? 4
+                                 : init.effort === 'L' ? 6 : 9,
+          success_criteria:      init.success_criteria || '',
+          risk: { description: `${init.risk || 'MEDIUM'}`, mitigation: '' }
+        });
+      });
+    });
+
+    // ── BUG-8 FIX: Build legacy model.targetArch flat array for renderTargetArchVisual ──
+    // renderTargetArchVisual() expects an array of
+    //   { name, domain, currentMaturity, targetMaturity, strategicImportance, action, enabler }
+    // Step7 writes model.targetArch as an object { business_architecture, data_architecture, ... }.
+    // We derive the flat array from model.capabilities (Step3 output) which has all
+    // current_maturity / target_maturity values, enriched with Step7 intent.
+    const caps = model.capabilities || [];
+    const archObj = output.targetArch || {};
+    let legacyTargetArch = [];
+
+    if (caps.length > 0) {
+      const domainKeywords = {
+        Customer:   /customer|tenant|client|renter|occupant|lease/i,
+        Finance:    /financ|cost|revenue|budget|account|billing|payment/i,
+        Technology: /tech|system|digital|data|platform|software|api|cloud|it\b/i,
+        Risk:       /risk|compliance|security|govern|audit|legal|regulation/i,
+        Operations: /operat|process|maintenance|facilit|propert|asset|manage/i,
+        Support:    /hr|human.*resource|people|train|support|service.*desk/i
+      };
+      const inferDomain = (cap) => {
+        const text = (cap.name + ' ' + (cap.description || '')).toLowerCase();
+        for (const [domain, re] of Object.entries(domainKeywords)) {
+          if (re.test(text)) return domain;
+        }
+        return 'Operations';
+      };
+
+      // Get L1 domains with their maturity from Step3 capabilities
+      const l1Caps = caps.filter(c => c.level === 1 || !c.level);
+      const capList = l1Caps.length > 0 ? l1Caps : caps;
+
+      legacyTargetArch = capList.map(cap => ({
+        name:                 cap.name,
+        domain:               cap.domain || inferDomain(cap),
+        currentMaturity:      cap.current_maturity || cap.maturity || 2,
+        targetMaturity:       cap.target_maturity
+                               || Math.min(5, (cap.current_maturity || cap.maturity || 2) + 1),
+        strategicImportance:  (cap.strategic_importance || 'SUPPORT')
+                               .toLowerCase()
+                               .replace('core', 'high')
+                               .replace('support', 'medium')
+                               .replace('commodity', 'low'),
+        action:               (cap.quick_wins || []).slice(0, 1).join('') || '',
+        enabler:              archObj.technology_architecture?.infrastructure || ''
+      }));
+    }
+    // ── END BUG-7 + BUG-8 FIX ──────────────────────────────────────────────
+
     return {
       ...model,
-      targetArch: output.targetArch,
-      archDecisions: output.archDecisions,
+      targetArch:     legacyTargetArch,   // Legacy flat array for renderTargetArchVisual
+      targetArchData: output.targetArch,  // Rich new format preserved
+      archDecisions:  output.archDecisions,
       archPrinciples: output.archPrinciples,
-      roadmap: output.roadmap
+      roadmap:        output.roadmap,
+      initiatives:    legacyInitiatives,  // Legacy flat array for renderRoadmapVisual/renderInitiatives
+      targetArchDone: true,               // Unlocks targetarch + roadmapvis tabs in updateTabLockStates()
+
+      // ── Populate Architecture Layers (valueStreams / systems / aiAgents) ──
+      // These were never set by Steps 1-6. Step7 knows the full arch so we
+      // derive them here so the Layers tab is populated after autopilot.
+      valueStreams: (() => {
+        // Existing user-entered streams take priority
+        if ((model.valueStreams || []).length > 0) return model.valueStreams;
+        // Derive from L1 domain names in model.capabilities (level=1 items set by Step3)
+        const l1Names = (model.capabilities || [])
+          .filter(c => c.level === 1)
+          .map(c => c.domain || c.name)
+          .filter(Boolean);
+        // Also try l1_domains from capabilityMap directly
+        const mapNames = (model.capabilityMap?.l1_domains || []).map(d => d.name).filter(Boolean);
+        const domainNames = l1Names.length > 0 ? l1Names : mapNames;
+        const fromBiz  = (output.targetArch?.business_architecture?.process_redesign_priorities || []).slice(0, 4);
+        const sources  = fromBiz.length ? fromBiz : domainNames;
+        return sources.map(name => ({ name, description: '' }));
+      })(),
+
+      systems: (() => {
+        if ((model.systems || []).length > 0) return model.systems;
+        // Current systems from Step4 operating model
+        const currentSys = (model.operatingModel?.current?.applications?.core_systems || []);
+        // New platforms from Step7 target arch
+        const newPlatforms = (output.targetArch?.technology_architecture?.key_platforms || []);
+        // New capabilities from Step7 app arch
+        const newCaps = (output.targetArch?.application_architecture?.new_capabilities_needed || []);
+        const decommission = new Set((output.targetArch?.application_architecture?.decommission_list || []).map(s => s.toLowerCase()));
+        const all = [...new Set([...currentSys, ...newPlatforms, ...newCaps])].filter(Boolean);
+        return all.map(name => ({
+          name,
+          status:      decommission.has(name.toLowerCase()) ? 'decommission' : 'active',
+          category:    newPlatforms.includes(name) ? 'target' : 'core',
+          description: ''
+        }));
+      })(),
+
+      aiAgents: (() => {
+        if ((model.aiAgents || []).length > 0) return model.aiAgents;
+        // No explicit AI agent schema in Step7; derive from strategic options or tech arch
+        const techArch = output.targetArch?.technology_architecture || {};
+        // Some AI models return ai_agents or ai_capabilities
+        const explicit = techArch.ai_agents || techArch.ai_capabilities || [];
+        if (explicit.length) {
+          return explicit.map(a => typeof a === 'string'
+            ? { name: a, purpose: '', capabilities: '', triggerConditions: '' }
+            : a);
+        }
+        return model.aiAgents || [];
+      })()
     };
   },
 

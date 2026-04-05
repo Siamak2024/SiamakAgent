@@ -5424,6 +5424,12 @@ function showTab(name, btn) {
   if (name === 'scenarios') setTimeout(renderDecisionScenarios, 50);
   if (name === 'financials') setTimeout(renderFinancials, 50);
   if (name === 'optimisation') setTimeout(renderOptimisation, 50);
+  // ── BUG-9 FIX: Add missing auto-renders for Step4-7 tabs ──
+  if (name === 'opmodel')    setTimeout(renderOperatingModel, 50);
+  if (name === 'targetarch') setTimeout(renderTargetArchVisual, 50);
+  if (name === 'roadmapvis') { setTimeout(renderRoadmapVisual, 50); setTimeout(renderInitiatives, 80); }
+  if (name === 'gap')        setTimeout(renderGapContent, 50);
+  // ── END BUG-9 FIX ──────────────────────────────────────────
 }
 
 // Example: Call highlightTab('exec', true) when Step 1 is completed
@@ -8849,10 +8855,27 @@ Generate Strategic Intent now.`;
     
     // Parse the JSON response
     const strategicIntent = JSON.parse(response.rawOutput.trim());
-    
+
+    // ── BUG-10 FIX: Normalize schema for StepEngine compatibility ──────────
+    // Autopilot generates 'strategic_constraints' but Steps 2-7 read 'key_constraints'.
+    // Also bridge other standard fields that downstream steps expect.
+    strategicIntent.key_constraints        = strategicIntent.key_constraints
+                                              || strategicIntent.strategic_constraints || [];
+    strategicIntent.burning_platform       = strategicIntent.burning_platform
+                                              || (strategicIntent.key_constraints || []).slice(0, 2).join('. ') || '';
+    strategicIntent.investigation_scope    = strategicIntent.investigation_scope
+                                              || strategicIntent.strategic_themes || [];
+    strategicIntent.expected_outcomes      = strategicIntent.expected_outcomes
+                                              || strategicIntent.success_metrics || [];
+    strategicIntent.situation_narrative    = strategicIntent.situation_narrative
+                                              || strategicIntent.strategic_ambition || '';
+    strategicIntent.industry               = strategicIntent.industry || ctx.industry || '';
+    strategicIntent.timeframe              = strategicIntent.timeframe || '3-5 years';
+    // ── END BUG-10 FIX ─────────────────────────────────────────────────────
+
     // Save to model
     model.strategicIntent = strategicIntent;
-    model.strategicIntentConfirmed = false; // User needs to review
+    model.strategicIntentConfirmed = false; // User sees quality review in standard autopilot
     model.description = actualCompanyDesc; // Save user's actual description
     
     // Format for display
@@ -9066,6 +9089,24 @@ This uses the same integrated StepEngine as Standard mode, ensuring all steps bu
     // STEP 1: Strategic Intent
     if (!window._autopilotState.completedSteps.includes(1)) {
       await generateAutopilotStrategicIntent();
+
+      // ── BUG-1 FIX: Mark step1 as completed so StepEngine dependency checks pass ──
+      // generateAutopilotStrategicIntent() sets strategicIntentConfirmed=false for the
+      // quality-review UX. But StepEngine._validateDependencies('step2') needs either
+      // model.steps.step1.status==='completed' OR !!strategicIntentConfirmed.
+      // In full autopilot we skip the user review step, so we mark it confirmed here.
+      window.model.strategicIntentConfirmed = true;
+      if (!window.model.steps) window.model.steps = {};
+      window.model.steps.step1 = {
+        id: 'step1',
+        name: 'Strategic Intent',
+        status: 'completed',
+        startedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString(),
+        output: window.model.strategicIntent
+      };
+      // ── END BUG-1 FIX ──────────────────────────────────────────────────────
+
       window._autopilotState.completedSteps.push(1);
     }
     
@@ -13755,9 +13796,6 @@ function renderCapMap() {
   ensurePhase4Fields();
   syncAreaFilterSelectors();
   const capmapState = window._capmapState || 'asis';
-  const sourceCaps = (capmapState === 'tobe' && (model.capabilities_tobe || []).length)
-    ? model.capabilities_tobe
-    : model.capabilities;
 
   // Update label and toggle buttons
   const lbl = document.getElementById('capmap-state-label');
@@ -13767,29 +13805,102 @@ function renderCapMap() {
   document.getElementById('capmap-btn-asis')?.classList.toggle('active', capmapState === 'asis');
   document.getElementById('capmap-btn-tobe')?.classList.toggle('active', capmapState === 'tobe');
 
-  const domains = ["Customer","Product","Operations","Risk","Finance","Technology","Support"];
+  const capGrid = document.getElementById('cap-grid');
+  const emptyEl = document.getElementById('capmap-empty');
+  if (!capGrid) return;
+
   const areaFilter = document.getElementById('capmap-area-filter')?.value || 'all';
-  const filteredCaps = sourceCaps.filter(c => capabilityHasBusinessArea(c, areaFilter));
+  const noTobeData = capmapState === 'tobe' && !(model.capabilities_tobe || []).length;
+
+  // ── Dynamic mode: build columns from actual AI-generated l1_domains ──
+  // Prefer TO-BE capabilityMap when in tobe mode, else AS-IS
+  const capMapData = (capmapState === 'tobe' && model.capabilityMap_tobe?.l1_domains?.length)
+    ? model.capabilityMap_tobe
+    : model.capabilityMap;
+  const l1Domains = capMapData?.l1_domains || [];
+
+  // Also try to get l1_domains from model.capabilities (level=1 items with children)
+  const fallbackDomains = (l1Domains.length === 0 && (model.capabilities || []).some(c => c.level === 1 && (c.children || []).length > 0))
+    ? (model.capabilities || []).filter(c => c.level === 1).map(c => ({
+        id: c.id,
+        name: c.name,
+        strategic_importance: c.strategic_importance || 'SUPPORT',
+        l2_capabilities: c.children || []
+      }))
+    : [];
+
+  const domainsToRender = l1Domains.length > 0 ? l1Domains : fallbackDomains;
+
+  if (domainsToRender.length > 0) {
+    // Build rating lookup from capabilityAssessment
+    const ratings = model.capabilityAssessment?.capability_ratings || [];
+    const ratingMap = Object.fromEntries(ratings.map(r => [r.capability_id, r]));
+
+    let hasAny = false;
+    const cols = domainsToRender.map(domain => {
+      const l2caps = domain.l2_capabilities || [];
+      const importanceBorderClass = domain.strategic_importance === 'CORE'
+        ? 'border-b-2 border-blue-400'
+        : domain.strategic_importance === 'COMMODITY'
+        ? 'border-b-2 border-slate-200'
+        : 'border-b-2 border-slate-300';
+
+      const capsHtml = l2caps.map(cap => {
+        const rating = ratingMap[cap.id] || {};
+        const mat = rating.current_maturity || 1;
+        const changeTag = cap.changeType && capmapState === 'tobe'
+          ? `<span class="ml-1 text-[8px] font-bold uppercase opacity-60">${cap.changeType}</span>` : '';
+        const tooltip = `${domain.strategic_importance || 'SUPPORT'} domain${cap.description ? ' — ' + cap.description : ''}`;
+        hasAny = true;
+        return `<div class="m${mat} p-1.5 rounded text-[9px] font-bold shadow-sm mb-1 cursor-pointer hover:opacity-80" title="${tooltip}">${cap.name}${changeTag}</div>`;
+      }).join('');
+
+      return `<div class="min-w-[100px] flex-1">
+        <div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1 pb-1 ${importanceBorderClass}" title="${domain.strategic_importance || 'SUPPORT'}: ${domain.name}">${domain.name}</div>
+        <div id="dom-${domain.id}">${capsHtml || '<div class="text-slate-200 text-[9px]">—</div>'}</div>
+      </div>`;
+    }).join('');
+
+    capGrid.className = 'flex gap-2 overflow-x-auto';
+    capGrid.innerHTML = cols;
+
+    if (emptyEl) {
+      emptyEl.textContent = noTobeData ? 'Click "Generate TO-BE" to create the target capability map from your strategy' : '';
+      emptyEl.style.display = (hasAny && !noTobeData) ? 'none' : 'block';
+      if (!hasAny && !noTobeData) emptyEl.textContent = 'Generate architecture to populate the capability map';
+    }
+    return;
+  }
+
+  // ── Legacy fallback: fixed 7-column layout by c.domain ──
+  const fixedDomains = ["Customer","Product","Operations","Risk","Finance","Technology","Support"];
+  const sourceCaps = (capmapState === 'tobe' && (model.capabilities_tobe || []).length)
+    ? model.capabilities_tobe : model.capabilities;
+  const filteredCaps = (sourceCaps || []).filter(c => capabilityHasBusinessArea(c, areaFilter));
+
+  capGrid.className = 'grid grid-cols-7 gap-2';
+  capGrid.innerHTML = fixedDomains.map(d =>
+    `<div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">${d === 'Technology' ? 'Tech' : d}</div><div id="dom-${d}"></div></div>`
+  ).join('');
+
   let hasAny = false;
-  domains.forEach(d => {
+  fixedDomains.forEach(d => {
     const caps = filteredCaps.filter(c => c.domain === d);
     if (caps.length) hasAny = true;
     const domEl = document.getElementById('dom-' + d);
     if (!domEl) return;
     domEl.innerHTML = caps.map(c => {
       const changeTag = c.changeType && capmapState === 'tobe'
-        ? `<span class="ml-1 text-[8px] font-bold uppercase opacity-60">${c.changeType}</span>`
-        : '';
-      return `<div class="m${c.maturity} p-1.5 rounded text-[9px] font-bold shadow-sm mb-1 cursor-pointer hover:opacity-80" title="${c.strategicImportance || ''} importance${c.changeRationale ? ' — ' + c.changeRationale : ''}${((model.stepMeta||{})[3]?.keyDrivers||[]).find(d=>d.toLowerCase().includes(c.name.toLowerCase().split(' ')[0])) ? ' · ' + ((model.stepMeta||{})[3].keyDrivers||[]).find(d=>d.toLowerCase().includes(c.name.toLowerCase().split(' ')[0])) : ''}">${c.name}${changeTag}</div>`;
+        ? `<span class="ml-1 text-[8px] font-bold uppercase opacity-60">${c.changeType}</span>` : '';
+      return `<div class="m${c.maturity || 1} p-1.5 rounded text-[9px] font-bold shadow-sm mb-1 cursor-pointer hover:opacity-80" title="${c.strategicImportance || ''}">${c.name}${changeTag}</div>`;
     }).join('');
   });
-  const empty = document.getElementById('capmap-empty');
-  if (empty) {
-    const noTobeData = capmapState === 'tobe' && !(model.capabilities_tobe || []).length;
-    empty.textContent = noTobeData
+
+  if (emptyEl) {
+    emptyEl.textContent = noTobeData
       ? 'Click "Generate TO-BE" to create the target capability map from your strategy'
       : (hasAny ? '' : (areaFilter === 'all' ? 'Generate architecture to populate the capability map' : `No capabilities tagged for ${areaFilter.toUpperCase()}`));
-    empty.style.display = (hasAny && !noTobeData) ? 'none' : 'block';
+    emptyEl.style.display = (hasAny && !noTobeData) ? 'none' : 'block';
   }
 }
 
@@ -14295,15 +14406,72 @@ function runImpactSim() {
 
 function renderOperatingModel() {
   const om = model.operatingModel;
-  if (!om || !om.valueProposition) return;
-  const cell = (title, content) => `
-    <div class="omcell">
+  if (!om) return;
+  const target = document.getElementById('opmodel-content');
+  if (!target) return;
+
+  const cell = (title, content) => {
+    const items = Array.isArray(content) ? content
+      : (content && typeof content === 'object' ? Object.values(content).filter(v => typeof v === 'string') : [content || '']);
+    return `<div class="omcell">
       <div class="omcell-title">${title}</div>
-      <div class="omcell-body">${Array.isArray(content) ? content.map(i => `<div>&bull; ${i}</div>`).join('') : content}</div>
+      <div class="omcell-body">${items.length ? items.map(i => `<div>&bull; ${i}</div>`).join('') : '<span class="text-slate-400 text-xs">Not available</span>'}</div>
     </div>`;
-  document.getElementById('opmodel-content').innerHTML = `
+  };
+
+  // ── Value Proposition header (from BMC Step2) ─────────────────────────
+  const bmc = model.bmc || {};
+  const vp  = bmc.value_proposition || bmc.value_propositions?.[0] || '';
+  const segs = Array.isArray(bmc.customer_segments) ? bmc.customer_segments.slice(0,3) : [];
+  const vpBanner = vp
+    ? `<div class="omcell" style="margin-bottom:12px;border-top:3px solid #10b981;background:#f0fdf4">
+        <div class="omcell-title" style="color:#065f46">💡 Value Proposition (from Business Model)</div>
+        <div class="omcell-body">
+          <div style="font-size:12px;color:#047857;font-weight:600;margin-bottom:6px">${vp}</div>
+          ${segs.length ? `<div style="font-size:10px;color:#065f46">Segments: ${segs.join(' · ')}</div>` : ''}
+        </div>
+      </div>`
+    : '';
+
+  // ── BUG-6 FIX: Handle new Step4 schema { current: {...}, target: {...} } ──
+  if (om.target && (om.target.people || om.target.organisation || om.target.processes || om.target.applications || om.target.technology || om.target.data)) {
+    // New schema from StepEngine Step4
+    const cur = om.current || {};
+    const tgt = om.target || {};
+    const dimCard = (label, cur, tgt, fields) => {
+      const curLines = fields.map(f => cur[f] ? `${f.replace(/_/g,' ')}: ${Array.isArray(cur[f]) ? cur[f].slice(0,2).join(', ') : cur[f]}` : null).filter(Boolean);
+      const tgtLines = fields.map(f => tgt[f] ? `${f.replace(/_/g,' ')}: ${Array.isArray(tgt[f]) ? tgt[f].slice(0,2).join(', ') : tgt[f]}` : null).filter(Boolean);
+      return `<div class="omcell" style="border-top:3px solid #6366f1">
+        <div class="omcell-title">${label}</div>
+        <div class="omcell-body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:6px">CURRENT</div>${curLines.map(l=>`<div style="font-size:11px;color:#475569">&bull; ${l}</div>`).join('') || '<span style="color:#94a3b8;font-size:11px">Mapped</span>'}</div>
+          <div><div style="font-size:10px;font-weight:700;color:#6366f1;margin-bottom:6px">TARGET</div>${tgtLines.map(l=>`<div style="font-size:11px;color:#1e40af">&bull; ${l}</div>`).join('') || '<span style="color:#94a3b8;font-size:11px">Designed</span>'}</div>
+        </div>
+      </div>`;
+    };
+    target.innerHTML = vpBanner + `
+      <div style="margin-bottom:8px" class="text-xs font-bold text-slate-600">Operating Model — Current vs Target</div>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        ${dimCard('🏢 Organisation',  cur.organisation, tgt.organisation,  ['structure','governance_model','decision_making'])}
+        ${dimCard('👥 People',        cur.people,       tgt.people,        ['workforce_model','culture_indicators'])}
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        ${dimCard('⚙️ Processes',     cur.processes,    tgt.processes,     ['automation_level','core_processes'])}
+        ${dimCard('📊 Data',          cur.data,         tgt.data,          ['data_maturity','governance'])}
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        ${dimCard('💻 Applications',  cur.applications, tgt.applications,  ['integration_model','technical_debt_level'])}
+        ${dimCard('☁️ Technology',    cur.technology,   tgt.technology,    ['infrastructure','cloud_maturity'])}
+      </div>
+      ${(tgt.transformation_principles||[]).length ? `<div class="omcell" style="margin-top:12px"><div class="omcell-title">🎯 Transformation Principles</div><div class="omcell-body">${(tgt.transformation_principles||[]).map(p=>`<div>&bull; ${p}</div>`).join('')}</div></div>` : ''}`;
+    return;
+  }
+
+  // Legacy flat schema (old format)
+  if (!om.valueProposition && !om.people) { target.innerHTML = '<div class="text-slate-400 text-xs text-center py-16">Operating Model not yet generated</div>'; return; }
+  target.innerHTML = vpBanner + `
     <div class="grid grid-cols-2 gap-3 mb-3">
-      ${cell('Value Proposition', om.valueProposition)}
+      ${cell('Value Proposition', om.valueProposition || '')}
       ${cell('Customer Segments', om.customerSegments||[])}
     </div>
     <div class="grid grid-cols-4 gap-3 mb-3">
@@ -14354,6 +14522,12 @@ function renderInitiatives() {
   const listEl = document.getElementById('initiatives');
   if (!countEl || !listEl) return;
 
+  if (!model.initiatives || !model.initiatives.length) {
+    listEl.innerHTML = '<div class="text-slate-400 text-xs text-center py-8">Generate Transformation Roadmap to see initiatives</div>';
+    if (countEl) countEl.textContent = '0 initiatives';
+    return;
+  }
+
   const scored = model.initiatives.map(i => {
     const bv = {high:3,medium:2,low:1}[i.estimatedBusinessValue]||1;
     const cx = {low:3,medium:2,high:1}[i.complexity]||1;
@@ -14377,6 +14551,62 @@ function renderInitiatives() {
     </div>`).join('');
 }
 
+
+// ══ BUG-11 FIX: renderGapContent – reads model.priorityGaps (Step5 new schema) ══════════
+function renderGapContent() {
+  const el = document.getElementById('insights');
+  if (!el) return;
+  const gaps = (model.priorityGaps && model.priorityGaps.length)
+    ? model.priorityGaps
+    : ((model.gapAnalysis && model.gapAnalysis.gaps && model.gapAnalysis.gaps.length)
+        ? model.gapAnalysis.gaps
+        : null);
+  if (!gaps || !gaps.length) {
+    if (!model.capabilities) {
+      el.innerHTML = '<div class="text-slate-400 text-xs text-center py-10">Run EA Analysis to generate gap analysis</div>';
+    } else {
+      el.innerHTML = '<div class="text-slate-400 text-xs text-center py-10">Gap Analysis not yet generated. Continue to Step 5.</div>';
+    }
+    return;
+  }
+  const sev = { critical:'bg-red-100 text-red-800 border-red-300', high:'bg-orange-100 text-orange-800 border-orange-300', medium:'bg-yellow-100 text-yellow-800 border-yellow-300', low:'bg-green-100 text-green-800 border-green-300' };
+  el.innerHTML = gaps.map(g => {
+    const severity = (g.severity || g.gap_severity || 'medium').toLowerCase();
+    const cls = sev[severity] || sev.medium;
+    const title = g.capability_area || g.area || g.name || 'Gap';
+    const from = g.currentMaturity || g.current_maturity || '?';
+    const to   = g.targetMaturity  || g.target_maturity  || '?';
+    const desc = g.gap_description || g.description || '';
+    const actions = g.recommended_actions || g.actions || [];
+    return `<div class="rounded-lg border p-3 mb-3 ${cls}">
+      <div class="flex items-center justify-between mb-1">
+        <span class="font-bold text-sm">${title}</span>
+        <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${cls}">${severity}</span>
+      </div>
+      ${from !== '?' ? `<div class="text-xs mb-1 opacity-75">Maturity: ${from} → ${to}</div>` : ''}
+      ${desc ? `<div class="text-xs mb-2 leading-relaxed">${desc}</div>` : ''}
+      ${actions.length ? `<div class="text-xs font-semibold mb-1">Recommended Actions:</div><ul class="text-xs list-disc ml-4">${actions.map(a=>`<li>${a}</li>`).join('')}</ul>` : ''}
+    </div>`;
+  }).join('');
+  // Also render quick wins if available
+  const wins = model.quickWins || model.gapAnalysis?.quick_wins || [];
+  if (wins.length) {
+    const qwEl = document.getElementById('quick-wins-list') || document.getElementById('quick-wins');
+    if (qwEl) qwEl.innerHTML = wins.map(w=>`<div class="text-xs bg-green-50 border border-green-200 rounded p-2 mb-2">✅ ${typeof w==='string'?w:(w.action||w.name||JSON.stringify(w))}</div>`).join('');
+  }
+}
+
+// ══ BUG-4 FIX: Render wrapper functions called by Step onComplete() hooks ═══════════════
+function renderBMCSection()            { if (typeof renderBMCCanvas === 'function') renderBMCCanvas(); if (typeof renderBMCPanel === 'function') renderBMCPanel(); }
+function renderCapabilitySection()     { if (typeof renderCapMap === 'function') renderCapMap(); if (typeof renderHeatmap === 'function') renderHeatmap(); }
+function renderBenchmarkSection()      { if (typeof renderBenchmarking === 'function') renderBenchmarking(); }
+function renderOperatingModelSection() { renderOperatingModel(); }
+function renderGapAnalysisSection()    { renderGapContent(); }
+function renderQuickWinsSection()      { renderGapContent(); }
+function renderValuePoolsSection()     { if (typeof renderValuePoolsPanel === 'function') renderValuePoolsPanel(); }
+function renderTargetArchSection()     { if (typeof renderTargetArchVisual === 'function') renderTargetArchVisual(); }
+function renderRoadmapSection()        { if (typeof renderRoadmapVisual === 'function') renderRoadmapVisual(); if (typeof renderInitiatives === 'function') renderInitiatives(); }
+// ══ END BUG-4 FIX ════════════════════════════════════════════════════════════════════════
 
 function renderExecSummary() {
   const placeholder = document.getElementById('exec-kpi-placeholder');

@@ -212,12 +212,16 @@ executive_benchmark_summary: 2-3 sentences for the Board.`;
     const capabilities = [];
     domains.forEach((domain) => {
       const domainRating = ratingMap[domain.id] || {};
+      const domMaturity = domainRating.current_maturity || 1;
       capabilities.push({
         id: domain.id,
         name: domain.name,
         description: domain.description,
         level: 1,
+        domain: domain.name,                                          // for renderLayers / valueStreams derivation
+        maturity: domMaturity,                                         // for renderLayers maturity badge
         strategic_importance: domain.strategic_importance,
+        strategicImportance: (domain.strategic_importance || 'SUPPORT').toLowerCase(),
         current_maturity: domainRating.current_maturity || null,
         target_maturity: domainRating.target_maturity || null,
         gap: domainRating.gap || null,
@@ -230,6 +234,9 @@ executive_benchmark_summary: 2-3 sentences for the Board.`;
             name: cap.name,
             description: cap.description,
             level: 2,
+            domain: domain.name,                                       // which L1 domain this belongs to
+            maturity: capRating.current_maturity || 1,                 // maturity for colour class
+            strategicImportance: (domain.strategic_importance || 'SUPPORT').toLowerCase(),
             current_maturity: capRating.current_maturity || null,
             target_maturity: capRating.target_maturity || null,
             gap: capRating.gap || null

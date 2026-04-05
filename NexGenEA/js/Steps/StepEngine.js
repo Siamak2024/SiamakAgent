@@ -29,6 +29,7 @@ const StepEngine = (() => {
     step4:  () => typeof Step4  !== 'undefined' ? Step4  : null,
     step5:  () => typeof Step5  !== 'undefined' ? Step5  : null,
     step6:  () => typeof Step6  !== 'undefined' ? Step6  : null,
+    step7:  () => typeof Step7  !== 'undefined' ? Step7  : null,  // ← FIX: was missing, caused "Step module step7 is not loaded"
     step7a: () => typeof Step7  !== 'undefined' ? Step7.targetArch : null,
     step7b: () => typeof Step7  !== 'undefined' ? Step7.roadmap    : null
   };
@@ -325,6 +326,26 @@ const StepEngine = (() => {
         options: typeof taskDef.options === 'function' ? taskDef.options(ctx) : (taskDef.options || []),
         guidance: taskDef.guidance || ''
       };
+    }
+
+    // ── AUTOPILOT MODE: Auto-answer question tasks with first/recommended option ──
+    // In autopilot mode there is no user to type an answer, so we select the first
+    // (recommended) option automatically and notify the user via chat.
+    if (window._autopilotState?.running) {
+      const autoAnswer = (questionData.options && questionData.options.length > 0)
+        ? questionData.options[0]
+        : 'Confirm';
+      console.log(`[StepEngine] Autopilot auto-answering "${taskDef.taskId}" with: "${autoAnswer}"`);
+      if (typeof addAssistantMessage === 'function') {
+        addAssistantMessage(
+          `⚡ **Autopilot:** Auto-selected for *${taskDef.title}*: "${autoAnswer}"`,
+          { mode: 'autopilot' }
+        );
+      }
+      const output = taskDef.wrapAnswer
+        ? taskDef.wrapAnswer(autoAnswer, ctx)
+        : { [taskDef.taskId]: autoAnswer, userAnswer: autoAnswer };
+      return { taskId: taskDef.taskId, output, aiResult: null };
     }
 
     // Show question card in chat, await answer

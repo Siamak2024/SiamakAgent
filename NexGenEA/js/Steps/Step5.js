@@ -234,7 +234,8 @@ Generate 5-7 concrete 90-day quick wins. Each must have a named owner_role and m
       ...model,
       gapAnalysis: output.gapAnalysis,
       priorityGaps: output.priorityGaps,
-      quickWins: output.quickWins
+      quickWins: output.quickWins,
+      gapAnalysisDone: true  // ← Unlocks the Gap tab in updateTabLockStates()
     };
   },
 
