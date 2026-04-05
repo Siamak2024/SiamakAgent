@@ -206,7 +206,11 @@ recommended_portfolio: the most coherent combination of options. Express total_i
         `**Step 6 — Value Pools complete**\n\n` +
         `${count} value pools identified.\n` +
         `Recommended portfolio: **${portfolio.expected_value || 'see analysis'}**\n\n` +
-        `Step 7 (Target Architecture & Roadmap) is now unlocked.`
+        `**Next:** Ready to generate Target Architecture & Roadmap? Click below or use the **Continue** button in the sidebar.\n\n` +
+        `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step7', window.model); } else { console.error('StepEngine not available'); }">\n` +
+        `  <i class="fas fa-arrow-right"></i>\n` +
+        `  Start Step 7: Target Architecture & Roadmap\n` +
+        `</button>`
       );
     }
   }

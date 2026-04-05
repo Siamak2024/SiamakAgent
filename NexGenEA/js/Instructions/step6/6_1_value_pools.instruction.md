@@ -37,6 +37,21 @@ A value pool is a coherent cluster of business value that:
 
 ## Output Format
 
+**DATA CONTRACT:** See `VALUE_POOLS_DATA_CONTRACT.md` for core schema used by Autopilot mode.
+
+**CRITICAL:** Autopilot mode REQUIRES quantified values in `€X M/K` format. Standard mode uses qualitative HIGH/MEDIUM/LOW.
+
+**Standard Mode Schema:** Qualitative assessment for workshop environments where exact numbers aren't available:
+- `value_potential` → HIGH/MEDIUM/LOW (directional only)
+- `time_horizon` → Short/Medium/Long (not specific quarters)
+- `value_narrative`, `risks_if_missed` → executive storytelling
+
+**Autopilot Mode Schema:** Quantified business case for automated generation:
+- `estimatedValue` → MUST be "€X.X M annually" format
+- `timeToValue` → Specific timeframes (0-6mo, 6-18mo, 18-36mo)
+- `enablers` → Links to gap remediation actions with costs
+- `assumptions` → Evidence-based benchmarks
+
 Return ONLY valid JSON. No markdown, no prose.
 
 ```json

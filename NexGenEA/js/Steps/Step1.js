@@ -431,7 +431,12 @@ Does this capture the right direction? Select "Confirm" to proceed, or choose "N
         `**Step 1 — Strategic Intent complete**\n\n` +
         `**Ambition:** ${si.strategic_ambition || ''}\n` +
         `**Themes:** ${(si.strategic_themes || []).join(' · ')}\n\n` +
-        `Review the full document in the **Executive** tab. Step 2 (Business Model Canvas) is now unlocked.`
+        `Review the full document in the **Executive** tab.\n\n` +
+        `**Next:** Ready to design your Business Model Canvas? Click below or use the **Continue** button in the sidebar.\n\n` +
+        `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step2', window.model); } else { console.error('StepEngine not available'); }">\n` +
+        `  <i class="fas fa-arrow-right"></i>\n` +
+        `  Start Step 2: Business Model Canvas\n` +
+        `</button>`
       );
     }
 

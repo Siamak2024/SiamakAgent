@@ -97,6 +97,35 @@ const OutputValidator = (() => {
   }
 
   /**
+   * Normalize data to match schema (auto-coerce types).
+   * Defensive fix: Convert strings to single-item arrays when schema expects array.
+   * 
+   * @param {any}    obj    - The parsed output to normalize
+   * @param {object} schema - Schema definition
+   * @returns {any} - Normalized object
+   */
+  function normalize(obj, schema) {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    const normalized = { ...obj };
+    
+    for (const [key, spec] of Object.entries(schema)) {
+      const value = normalized[key];
+      const isArray = Array.isArray(spec);
+      
+      // Auto-coerce: If schema expects array but we got string, wrap it
+      if (isArray && value !== undefined && value !== null && !Array.isArray(value)) {
+        console.warn(
+          `[OutputValidator] Auto-coercing "${key}" from ${typeof value} to array: ["${String(value).slice(0, 50)}..."]`
+        );
+        normalized[key] = [value];
+      }
+    }
+    
+    return normalized;
+  }
+
+  /**
    * Assert validation passes, throw if not (strict mode).
    * Used in StepEngine when strict = true on a task.
    *
@@ -105,7 +134,10 @@ const OutputValidator = (() => {
    * @param {string} taskId - For error message context
    */
   function assert(obj, schema, taskId) {
-    const result = validate(obj, schema);
+    // Auto-normalize before validation (defensive fix for AI output inconsistencies)
+    const normalized = normalize(obj, schema);
+    
+    const result = validate(normalized, schema);
     if (!result.ok) {
       throw new Error(
         `[OutputValidator] Task "${taskId}" output failed validation:\n` +
@@ -117,6 +149,9 @@ const OutputValidator = (() => {
         `[OutputValidator] Task "${taskId}" warnings:\n${result.warnings.join('\n')}`
       );
     }
+    
+    // Return normalized object so caller gets coerced data
+    return normalized;
   }
 
   /**
@@ -150,6 +185,6 @@ const OutputValidator = (() => {
     }
   }
 
-  return { validate, assert, extractJSON, parseJSON };
+  return { validate, assert, normalize, extractJSON, parseJSON };
 
 })();

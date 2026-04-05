@@ -29,6 +29,16 @@ You are an Enterprise Architecture expert conducting a detailed gap analysis. Id
 
 ## Output Format
 
+**DATA CONTRACT:** See `GAP_ANALYSIS_DATA_CONTRACT.md` for core schema used by Autopilot mode.
+
+**Standard Mode Extensions:** This interactive mode captures additional gap context:
+- `gap_id`, `current_state`, `required_state`, `gap_description` → detailed gap characterization
+- `impact_score` (1-5), `effort_score` (1-5) → portfolio prioritization
+- `interdependencies`, `enablers`, `inhibitors` → dependency planning
+- `gap_clusters` → thematic grouping for programme management
+
+**NOTE:** Core fields align with contract: `capability`, `domain`, `root_cause`, `business_impact`
+
 Return ONLY valid JSON. No markdown, no prose.
 
 ```json

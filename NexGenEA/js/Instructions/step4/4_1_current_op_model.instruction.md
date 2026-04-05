@@ -50,6 +50,18 @@ You are an Enterprise Architecture expert specialising in operating model design
 
 ## Output Format
 
+**DATA CONTRACT:** See `OPERATING_MODEL_DATA_CONTRACT.md` for core 5-dimension schema used by Autopilot mode.
+
+**Standard Mode Extensions:** This interactive mode uses 6 dimensions (adds "People" as separate from "Organization"):
+- **People** → workforce model, key roles, skill gaps, culture indicators
+- **Organisation** → structure, governance, decision-making
+- **Processes** → core processes, automation, maturity, inefficiencies
+- **Data** → data domains, maturity, quality, governance
+- **Applications** → core systems, integration, technical debt
+- **Technology** → infrastructure, cloud maturity, security
+
+**Autopilot Mode:** Uses 5 dimensions (merges People into Organization, adds Governance as separate dimension)
+
 Return ONLY valid JSON. No markdown, no prose.
 
 ```json

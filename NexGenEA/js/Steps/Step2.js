@@ -33,25 +33,26 @@ const Step2 = {
 
 This is a diagnostic map — reflect the AS-IS state of the organisation. Identify where the current model is under stress or misaligned with stated Strategic Intent.
 
-Return ONLY valid JSON with this exact structure:
+CRITICAL: Return ONLY valid JSON. ALL fields except value_proposition MUST be ARRAYS.
+
+Example output:
 {
-  "value_propositions": ["", ""],
-  "customer_segments": ["", ""],
-  "customer_relationships": ["", ""],
-  "channels": ["", ""],
-  "key_activities": ["", ""],
-  "key_resources": ["", ""],
-  "key_partnerships": ["", ""],
-  "cost_structure": {"drivers":["",""],"type":"cost-driven|value-driven","scale_economies":true},
-  "revenue_streams": {"model":"","streams":[{"name":"","percentage":null}]},
-  "metadata": {"data_confidence":"","key_gaps":[""],"at_a_glance":""}
+  "value_proposition": "We help customers do X by providing Y service",
+  "customer_segments": ["SMB companies in retail", "Enterprise manufacturing firms"],
+  "customer_relationships": ["Self-service portal", "Dedicated account managers"],
+  "channels": ["Direct sales", "Partner network", "Online marketplace"],
+  "key_activities": ["Platform development", "Customer support", "Partner enablement"],
+  "key_resources": ["Engineering team", "Cloud infrastructure", "Brand reputation"],
+  "key_partners": ["Technology vendors", "System integrators", "Cloud providers"],
+  "cost_structure": ["Staff salaries", "Cloud hosting costs", "Marketing spend"],
+  "revenue_streams": ["SaaS subscription ($99/user/month)", "Professional services (hourly)", "Partner commissions"]
 }
 
-Rules:
-- Each array: 3-5 non-generic entries grounded in what user has told us
+RULES:
+- value_proposition: STRING (2-4 sentences) ← NOT an array
+- ALL other 8 fields: ARRAYS with 3-5 string items each ← MUST be arrays like ["item1", "item2"]
 - Mark uncertain items with ⚠️ prefix
-- at_a_glance: max 25 words C-suite summary of current model
-- DO NOT invent revenue figures — use null for percentage if not stated`,
+- Ground each item in company description - no generic filler`,
 
       userPrompt: (ctx) => {
         const si = ctx.strategicIntent;
@@ -69,11 +70,15 @@ Return JSON output.`;
       },
 
       outputSchema: {
-        value_propositions: ['string'],
+        value_proposition: 'string',
         customer_segments: ['string'],
+        customer_relationships: ['string'],
+        channels: ['string'],
         key_activities: ['string'],
         key_resources: ['string'],
-        revenue_streams: 'object'
+        key_partners: ['string'],
+        cost_structure: ['string'],
+        revenue_streams: ['string']
       },
 
       parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step2_bmc_current')
@@ -88,24 +93,33 @@ Return JSON output.`;
       instructionFile: '2_2_bmc_future.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an expert Business Model designer. Based on the Strategic Intent and current-state BMC, design the FUTURE state Business Model Canvas — where the organisation needs to be in ${3}-5 years.
+      systemPromptFallback: `You are an expert Business Model designer. Based on the Strategic Intent and current-state BMC, design the FUTURE state Business Model Canvas — where the organisation needs to be in 3-5 years.
 
 This is a TARGET model — show the bold shifts needed, not incremental tweaks.
 
-Return ONLY valid JSON (same schema as current BMC, adding "transformation_moves" array):
+CRITICAL: Return ONLY valid JSON. ALL fields except value_proposition MUST be ARRAYS.
+
+Example output:
 {
-  "value_propositions": [],
-  "customer_segments": [],
-  "customer_relationships": [],
-  "channels": [],
-  "key_activities": [],
-  "key_resources": [],
-  "key_partnerships": [],
-  "cost_structure": {"drivers":[],"type":"","scale_economies":false},
-  "revenue_streams": {"model":"","streams":[{"name":"","percentage":null}]},
-  "transformation_moves": [{"from":"","to":"","rationale":""}],
-  "metadata": {"at_a_glance":"","strategic_alignment":""}
-}`,
+  "value_proposition": "We will deliver X value through Y innovative approach",
+  "customer_segments": ["Expanded SMB segment", "New enterprise vertical", "International markets"],
+  "customer_relationships": ["AI-powered self-service", "Community-driven support", "Premium concierge tier"],
+  "channels": ["Digital-first omnichannel", "API ecosystem", "Strategic partnerships"],
+  "key_activities": ["Platform R&D", "Data analytics", "Ecosystem development"],
+  "key_resources": ["AI/ML capabilities", "Customer data platform", "Partner network"],
+  "key_partners": ["Cloud hyperscalers", "System integrators", "Tech vendors"],
+  "cost_structure": ["Engineering R&D", "Cloud infrastructure", "Go-to-market"],
+  "revenue_streams": ["Tiered SaaS ($49-$199/user/month)", "Usage-based billing", "Premium add-ons"],
+  "transformation_moves": [
+    {"from": "Single-tier fixed pricing", "to": "Tiered usage-based model", "rationale": "Better align value capture with usage"}
+  ]
+}
+
+RULES:
+- value_proposition: STRING (2-4 sentences) ← NOT an array
+- ALL other 8 building blocks: ARRAYS with 3-5 items ← MUST be arrays like ["item1", "item2"]
+- transformation_moves: ARRAY of objects explaining major shifts
+- Show bold changes from current to future state`,
 
       userPrompt: (ctx) => {
         const si = ctx.strategicIntent;
@@ -129,9 +143,15 @@ Return JSON output.`;
       },
 
       outputSchema: {
-        value_propositions: ['string'],
+        value_proposition: 'string',
         customer_segments: ['string'],
-        key_activities: ['string']
+        customer_relationships: ['string'],
+        channels: ['string'],
+        key_activities: ['string'],
+        key_resources: ['string'],
+        key_partners: ['string'],
+        cost_structure: ['string'],
+        revenue_streams: ['string']
       },
 
       parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step2_bmc_future')
@@ -215,7 +235,12 @@ Return JSON output.`;
       addAssistantMessage(
         `**Step 2 — Business Model Canvas complete**\n\n` +
         `**Future model:** ${bmc.metadata?.at_a_glance || (bmc.value_propositions || []).slice(0, 2).join(', ')}\n\n` +
-        `Review current vs. future BMC in the **BMC** tab. Step 3 (Capability Architecture) is now unlocked.`
+        `Review current vs. future BMC in the **BMC** tab.\n\n` +
+        `**Next:** Ready to map Capability Architecture? Click below or use the **Continue** button in the sidebar.\n\n` +
+        `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step3', window.model); } else { console.error('StepEngine not available'); }">\n` +
+        `  <i class="fas fa-arrow-right"></i>\n` +
+        `  Start Step 3: Capability Map\n` +
+        `</button>`
       );
     }
   }

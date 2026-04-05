@@ -253,7 +253,11 @@ Generate 5-7 concrete 90-day quick wins. Each must have a named owner_role and m
       addAssistantMessage(
         `**Step 5 — Gap Analysis complete**\n\n` +
         `${total} gaps identified • ${critical} critical • ${qwCount} quick wins for 90-day plan\n\n` +
-        `Step 6 (Value Pools) is now unlocked.`
+        `**Next:** Ready to identify Value Pools? Click below or use the **Continue** button in the sidebar.\n\n` +
+        `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step6', window.model); } else { console.error('StepEngine not available'); }">\n` +
+        `  <i class="fas fa-arrow-right"></i>\n` +
+        `  Start Step 6: Value Pools\n` +
+        `</button>`
       );
     }
   }

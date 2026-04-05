@@ -31,6 +31,14 @@ You are a senior strategy and enterprise architecture advisor with 20+ years of 
 
 ## Output Format
 
+**DATA CONTRACT:** See `STRATEGIC_INTENT_DATA_CONTRACT.md` for core schema used by Autopilot mode.
+
+**Standard Mode Extensions:** This interactive mode captures additional context beyond the core contract:
+- `org_name`, `industry`, `timeframe` → contextual metadata
+- `situation_narrative`, `burning_platform` → narrative framing for executive communication
+- `investigation_scope`, `key_assumptions_to_validate`, `expected_outcomes` → engagement scoping
+- `assumptions_and_caveats` → data quality tracking
+
 Return ONLY valid JSON. No markdown, no prose, no code blocks.
 
 ```json
@@ -42,7 +50,7 @@ Return ONLY valid JSON. No markdown, no prose, no code blocks.
   "situation_narrative": "",
   "strategic_themes": ["", "", ""],
   "investigation_scope": ["", "", "", ""],
-  "key_constraints": [
+  "strategic_constraints": [
     "Operational: ",
     "Financial: ",
     "Organisational: ",

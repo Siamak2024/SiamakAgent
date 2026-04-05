@@ -33,6 +33,17 @@ You are a Transformation Planning expert building a realistic, dependency-aware 
 
 ## Output Format
 
+**DATA CONTRACT:** See `ROADMAP_DATA_CONTRACT.md` for core schema used by Autopilot mode.
+
+**Standard Mode Extensions:** This interactive mode provides richer programme management metadata:
+- `effort` → S/M/L/XL sizing (Autopilot uses specific budgets from Gap Analysis)
+- `owner_role` → Accountable role (not in Autopilot schema)
+- `success_criteria` → Per-initiative outcomes (Autopilot uses wave-level objectives)
+- `risk` → Initiative risk scoring (Autopilot derives from priority)
+- `roadmap_assumptions`, `executive_roadmap_summary` → Narrative framing
+
+**Core alignment:** Both modes use `initiatives` array, `dependencies`, `waves` structure linking to gaps/value pools.
+
 Return ONLY valid JSON. No markdown, no prose.
 
 ```json

@@ -561,6 +561,7 @@
         <div class="ea-tab-group__buttons">
           <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" data-tab="home" onclick="showTab('home',this)" title="Enterprise Dashboard — management overview after Step 3"><span class="flex flex-col items-center leading-tight"><i class="fas fa-table-cells-large"></i><span class="text-[9px]">Dashboard</span></span></button>
           <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('exec',this)" title="Executive Summary"><span class="flex flex-col items-center leading-tight"><i class="fas fa-gauge-high"></i><span class="text-[9px]">Executive</span></span></button>
+          <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('bmc',this)" title="Business Model Canvas"><span class="flex flex-col items-center leading-tight"><i class="fas fa-table-columns"></i><span class="text-[9px]">BMC</span></span></button>
           <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('phase4',this)" title="Industry &amp; Area Benchmark — compares capability portfolio to industry baselines per business area"><span class="flex flex-col items-center leading-tight"><i class="fas fa-chart-pie"></i><span class="text-[9px]">Industry</span></span></button>
           <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('bench',this)" title="Benchmarking"><span class="flex flex-col items-center leading-tight"><i class="fas fa-scale-balanced"></i><span class="text-[9px]">Benchmark</span></span></button>
           <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('survey',this)" title="Data Collection"><span class="flex flex-col items-center leading-tight"><i class="fas fa-clipboard-list"></i><span class="text-[9px]">Data</span></span></button>
@@ -621,6 +622,142 @@
 
     <!-- TAB CONTENT WRAPPER -->
     <div class="ea-content-panel flex-1 overflow-y-auto">
+
+      <!-- BUSINESS MODEL CANVAS -->
+      <div id="tab-bmc" class="hidden">
+        <style>
+          .bmc-canvas-outer {
+            background: white;
+            border: 2px solid #1e293b;
+            border-radius: 8px;
+            overflow: hidden;
+          }
+          .bmc-canvas-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.5fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+          }
+          .bmc-cell {
+            border: 1px solid #1e293b;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            min-height: 180px;
+            background: white;
+          }
+          .bmc-cell-header {
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: var(--ea-primary);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
+          .bmc-cell-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            background: var(--ea-primary);
+            color: white;
+            border-radius: 50%;
+            font-size: 0.65rem;
+            font-weight: 800;
+          }
+          .bmc-cell-icon {
+            font-size: 0.9rem;
+            color: var(--ea-accent);
+          }
+          .bmc-cell-subtitle {
+            font-size: 0.65rem;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            line-height: 1.4;
+          }
+          .bmc-cell-content {
+            flex: 1;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            font-size: 0.8rem;
+            padding: 8px;
+            color: #334155;
+            line-height: 1.6;
+          }
+          .bmc-bottom-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-top: 2px solid #1e293b;
+          }
+          .bmc-bottom-cell {
+            border-right: 1px solid #1e293b;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            min-height: 150px;
+          }
+          .bmc-bottom-cell:last-child { border-right: none; }
+          .bmc-meta-bar {
+            display: flex;
+            align-items: stretch;
+            border-bottom: 2px solid #1e293b;
+          }
+          .bmc-title-section {
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            min-width: 280px;
+            border-right: 2px solid #1e293b;
+          }
+          .bmc-meta-fields {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            flex: 1;
+          }
+          .bmc-meta-field {
+            border-right: 1px solid #1e293b;
+            padding: 8px 12px;
+          }
+          .bmc-meta-field:last-child { border-right: none; }
+          .bmc-meta-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748b;
+            margin-bottom: 3px;
+          }
+          .bmc-meta-value {
+            font-size: 0.8rem;
+            color: #1e293b;
+            font-weight: 500;
+          }
+          .bmc-empty-state {
+            padding: 40px;
+            text-align: center;
+            color: #94a3b8;
+          }
+        </style>
+
+        <div class="ea-section-heading">
+          <div>
+            <h2>Business Model Canvas</h2>
+            <p>Affärsmodell • Värdeerbjudande • Intäktslogik • Grund för kapabilitets- & Wardley-mapping</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="startBMCGeneration()" class="ea-btn ea-btn--primary">
+              <i class="fas fa-robot"></i><span>Generate BMC</span>
+            </button>
+            <button onclick="generateCxOSummary('bmc')" class="ea-btn ea-btn--cxo">
+              <i class="fas fa-file-powerpoint"></i><span>CxO Summary</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="bmc-canvas-container"></div>
+      </div>
 
       <!-- CAPABILITY MAP -->
 	  <!-- Benchmarking and survay -->
@@ -2156,6 +2293,10 @@ let model = {
     scenarioAnalysis: null        // Scenario engine output
   }
 };
+
+// Make model accessible globally for compatibility
+window.model = model;
+
 let currentModelId = null;
 let currentModelName = 'Untitled Model';
 let currentTab = 'home';
@@ -2189,7 +2330,6 @@ const AI_MODEL_CONFIG = {
     model: 'gpt-5',
     temperature: 0.7,
     timeoutMs: 180000,
-    reasoning: { summary: 'auto', effort: 'high' },
     description: 'Deep reasoning för kontext-medveten diskussion av EA resultat'
   },
   
@@ -2198,7 +2338,6 @@ const AI_MODEL_CONFIG = {
     model: 'gpt-5',
     temperature: 0.2,
     timeoutMs: 120000,
-    reasoning: { summary: 'auto', effort: 'medium' },
     description: 'Exakt JSON-generering för uppdatering av EA modell'
   },
   
@@ -2207,7 +2346,6 @@ const AI_MODEL_CONFIG = {
     model: 'gpt-5',
     temperature: 0.3,
     timeoutMs: 240000,
-    reasoning: { summary: 'auto', effort: 'high' },
     description: 'Komplex EA arkitektur-generering med djup analys'
   },
   
@@ -2216,7 +2354,6 @@ const AI_MODEL_CONFIG = {
     model: 'gpt-5',
     temperature: 0.4,
     timeoutMs: 180000,
-    reasoning: { summary: 'auto', effort: 'high' },
     description: 'Strategisk analys och insights-generering'
   },
   
@@ -2225,7 +2362,6 @@ const AI_MODEL_CONFIG = {
     model: 'gpt-5',
     temperature: 0.6,
     timeoutMs: 120000,
-    reasoning: { summary: 'auto', effort: 'medium' },
     description: 'Allmän EA-rådgivning och frågor'
   },
   
@@ -2234,7 +2370,6 @@ const AI_MODEL_CONFIG = {
     model: 'gpt-5',
     temperature: 0.3,
     timeoutMs: 60000,
-    reasoning: { summary: 'auto', effort: 'low' },
     description: 'Snabba enkla uppgifter'
   }
 };
@@ -2763,6 +2898,11 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   loadLastModel();
   setupDescriptionField();
+  
+  // Initialize tab lock states after model loads
+  setTimeout(() => {
+    updateTabLockStates();
+  }, 100);
   
   // ── CLEAR CHAT HISTORY COMPLETELY (localStorage + DOM + store) ────────────
   // This must happen BEFORE initChatPanel() which loads from localStorage
@@ -3426,7 +3566,7 @@ Use markdown with ## headers, bullet points, and **bold** for key terms.`;
   const userPrompt = `**Step ${stepNum} Data:**
 ${JSON.stringify(stepData, null, 2)}
 
-Generate CxO Summary in Swedish if the data is in Swedish, otherwise in English.`;
+Generate CxO Summary.`;
 
   try {
     const summary = await callAI(systemPrompt, userPrompt, {
@@ -3487,7 +3627,7 @@ Then add detailed narrative for each scenario (max 100 words each).`;
   const userPrompt = `**Diagnostic Context:**
 ${JSON.stringify(contextData, null, 2)}
 
-Generate scenario analysis in Swedish if context is Swedish, otherwise English.`;
+Generate scenario analysis.`;
 
   try {
     const scenarios = await callAI(systemPrompt, userPrompt, {
@@ -4120,20 +4260,20 @@ async function callAI(sys, user, options = {}) {
     }
   }
 
-  // Thinking card — render reasoning summary always (if model returned reasoning)
-  if (response?.output) {
-    const thinkingParts = [];
-    for (const item of (response.output || [])) {
-      if (item.type === 'reasoning' && Array.isArray(item.summary)) {
-        thinkingParts.push(...item.summary.map(s => s.text || '').filter(Boolean));
-      }
-    }
-    if (thinkingParts.length) {
-      const panel = document.getElementById('ai-chat-panel');
-      if (panel && panel.classList.contains('hidden')) toggleChatPanel();
-      renderThinkingCard(options._traceLabel || options.taskType || taskType, thinkingParts.join('\n\n'));
-    }
-  }
+  // Thinking card — DISABLED: thinking process should not be visible to users
+  // if (response?.output) {
+  //   const thinkingParts = [];
+  //   for (const item of (response.output || [])) {
+  //     if (item.type === 'reasoning' && Array.isArray(item.summary)) {
+  //       thinkingParts.push(...item.summary.map(s => s.text || '').filter(Boolean));
+  //     }
+  //   }
+  //   if (thinkingParts.length) {
+  //     const panel = document.getElementById('ai-chat-panel');
+  //     if (panel && panel.classList.contains('hidden')) toggleChatPanel();
+  //     renderThinkingCard(options._traceLabel || options.taskType || taskType, thinkingParts.join('\n\n'));
+  //   }
+  // }
 
   return response?.output_text || '';
 }
@@ -5242,8 +5382,17 @@ function showTab(name, btn) {
     toast('\uD83D\uDD12 ' + reason, true);
     return;
   }
+  
+  // Guard: check if tab exists to prevent crashes
+  const targetTab = document.getElementById('tab-' + name);
+  if (!targetTab) {
+    console.error('Tab not found:', name);
+    toast('⚠️ Tab "' + name + '" does not exist', true);
+    return;
+  }
+  
   document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
-  document.getElementById('tab-' + name).classList.remove('hidden');
+  targetTab.classList.remove('hidden');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (resolvedBtn0) resolvedBtn0.classList.add('active');
   const _cp = document.querySelector('.ea-content-panel');
@@ -5256,6 +5405,7 @@ function showTab(name, btn) {
   });
   currentTab = name;
   if (typeof AdvisyAI !== 'undefined') AdvisyAI.setActiveView(name);
+  if (name === 'bmc') setTimeout(renderBMCCanvas, 50);
   if (name === 'phase4') setTimeout(renderPhase4Dashboard, 50);
   if (name === 'layers') setTimeout(renderLayers, 50);
   if (name === 'capmap') setTimeout(renderCapMap, 50);
@@ -7948,7 +8098,7 @@ After Q7, synthesize Strategic Intent and mark with ##STRATEGIC_INTENT_READY##
 Context so far:
 ${recentMessages}
 
-Respond in the user's language (Swedish if they write Swedish).`;
+Respond in English.`;
     
     const userPrompt = userMessage;
     
@@ -8146,7 +8296,8 @@ function startGuidedWorkflow() {
   }
   
   // Switch to workflow tab
-  switchMainTab('workflow');
+  // Remove workflow tab navigation (doesn't exist)
+  // Just run Step 2 directly
   
   // Start Step 1
   setTimeout(() => {
@@ -8167,23 +8318,26 @@ function confirmStrategicIntentFromChat(intentText) {
   const paragraph = lines.filter(l => !/^[-•*#]/.test(l.trim())).join(' ').slice(0, 500);
   
   // Save to model
-  window.model.strategicIntent = {
+  model.strategicIntent = {
     strategic_ambition: paragraph,
     strategic_themes: bullets.slice(0, 4),
     success_metrics: bullets.slice(4, 7) || ['Revenue growth', 'Customer satisfaction'],
     strategic_constraints: ['Budget constraints', 'Timeline: 12-24 months']
   };
-  window.model.strategicIntentConfirmed = true;
+  model.strategicIntentConfirmed = true;
   
   // Save to database
   saveModelToDB(false, true);
+  
+  // Render Strategic Intent in Executive tab
+  renderStrategicIntentSection();
   
   // Show success message
   addAssistantMessage(`✅ **Strategic Intent sparad!**
 
 Ni kan nu fortsätta till nästa steg i arbetflödet.
 
-<button class="mode-action-btn mode-action-btn--action" onclick="switchMainTab('workflow'); setTimeout(() => StepEngine.run('step2'), 300);">
+<button class="mode-action-btn mode-action-btn--action" onclick="startBMCGeneration();">
   <i class="fas fa-arrow-right"></i>
   Fortsätt till Step 2: Business Model Canvas
 </button>`, { mode: 'general' });
@@ -8235,8 +8389,7 @@ Besvara 3 snabba frågor så skapar AI ett första realistiskt utkast:
 
   addAssistantMessage(autopilotMsg, { mode: 'autopilot', step: 1, offersAction: true });
   
-  // Show autopilot progress tracker
-  showAutopilotProgressTracker();
+  // Progress tracking via left sidebar only
   scrollToBottom();
 }
 
@@ -8251,7 +8404,6 @@ function setAutopilotRegion(region) {
   }
   
   addUserMessage(region);
-  updateAutopilotProgress(1, 'Region vald');
   
   // Next question: Industry/Sector
   const industryMsg = `**2. Bransch/Sektor:**
@@ -8280,7 +8432,6 @@ function setAutopilotIndustry(industry) {
   
   addUserMessage(industry);
   updateAutopilotProgress(2, 'Bransch vald');
-  
   // Next question: Detail level
   const detailMsg = `**3. Initial detaljnivå:**
 
@@ -8300,7 +8451,6 @@ async function setAutopilotDetailLevel(level) {
   addUserMessage(levelText + ' detaljnivå');
   updateAutopilotProgress(3, 'Detaljnivå vald');
   
-  // Ask if user wants full autopilot or just Step 1
   const flowChoice = `## Välj Autopilot-omfattning
 
 **3 frågor besvarade!** Nu kan AI generera:
@@ -8453,15 +8603,15 @@ function closeAutopilotTracker() {
   }
 }
 
+// Base system prompt from instruction file: NexGenEA/js/Instructions/step1/1_0_strategic_intent_autopilot.instruction.md
 async function generateAutopilotStrategicIntent() {
   const ctx = window._autopilotState?.context || {};
   
-  updateAutopilotProgress(1, 'Genererar Strategic Intent...');
-  addAssistantMessage(`⚡ Genererar Strategic Intent baserat på:\n- Region: **${ctx.region}**\n- Bransch: **${ctx.industry}**\n- Detaljnivå: **${ctx.detailLevel}**\n\nVänligen vänta...`, { mode: 'autopilot' });
+  addAssistantMessage(`⚡ Generating Strategic Intent based on:\n- Region: **${ctx.region}**\n- Industry: **${ctx.industry}**\n- Detail Level: **${ctx.detailLevel}**\n\nPlease wait...`, { mode: 'autopilot' });
   showTypingIndicator();
   
   // Get company description from model or create placeholder
-  const companyDesc = window.model?.description || 
+  const companyDesc = model?.description || 
     `Ett ${ctx.industry}-företag verksamt i ${ctx.region} som genomgår digital transformation och EA-modernisering.`;
   
   const systemPrompt = `You are a Senior Enterprise Architect with 20+ years of experience in ${ctx.industry} sector.
@@ -8540,9 +8690,9 @@ Generate Strategic Intent now.`;
     const strategicIntent = JSON.parse(response.rawOutput.trim());
     
     // Save to model
-    window.model.strategicIntent = strategicIntent;
-    window.model.strategicIntentConfirmed = false; // User needs to review
-    window.model.description = companyDesc; // Update if was placeholder
+    model.strategicIntent = strategicIntent;
+    model.strategicIntentConfirmed = false; // User needs to review
+    model.description = companyDesc; // Update if was placeholder
     
     // Format for display
     const displayMsg = `## ✅ Strategic Intent - Första Utkast
@@ -8567,7 +8717,7 @@ Detta är ett AI-genererat utkast baserat på ${ctx.industry} i ${ctx.region}. *
 
 <button class="mode-action-btn mode-action-btn--action" onclick="openStrategicIntentTab();">
   <i class="fas fa-edit"></i>
-  Öppna Strategic Intent-fliken för att granska/redigera
+  Visa i Ledning-fliken (Executive)
 </button>
 <button class="mode-action-btn mode-action-btn--primary" onclick="confirmAutopilotAndContinue();" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none;">
   <i class="fas fa-check-circle"></i>
@@ -8583,28 +8733,33 @@ Detta är ett AI-genererat utkast baserat på ${ctx.industry} i ${ctx.region}. *
     // Save to database (draft mode)
     saveModelToDB(false, true);
     
-    // Mark step 1 as complete
-    markAutopilotStepComplete(1);
+    // Render Strategic Intent in the Executive tab
+    renderStrategicIntentSection();
     
-    // Store in autopilot state
+    // Store in autopilot state and mark as complete
     if (window._autopilotState) {
       window._autopilotState.generatedData.strategicIntent = strategicIntent;
       window._autopilotState.completedSteps.push(1);
     }
+    
+    // Update left sidebar to show completion
+    updateWorkflowStepStates();
     
     toast('✓ Strategic Intent-utkast skapat! Granska innan du går vidare.');
     scrollToBottom();
     
   } catch (error) {
     hideTypingIndicator();
-    updateAutopilotProgress(1, 'Ett fel uppstod');
     addAssistantMessage(`❌ Ett fel uppstod vid generering: ${error.message}\n\nFörsök igen eller välj Guided Workflow istället.`, { mode: 'autopilot', error: true });
   }
 }
 
 function openStrategicIntentTab() {
-  // Switch to Strategic Intent tab
-  switchMainTab('strategic-intent');
+  // Render the Strategic Intent content first
+  renderStrategicIntentSection();
+  
+  // Switch to Executive tab (which displays Strategic Intent)
+  showTab('exec');
   
   // Close chat panel
   const panel = document.getElementById('ai-chat-panel');
@@ -8613,12 +8768,33 @@ function openStrategicIntentTab() {
     document.body.classList.remove('chat-sidebar-open');
   }
   
-  toast('Granska och redigera Strategic Intent i fliken');
+  toast('✅ Strategic Intent visas i Executive-fliken');
+}
+
+// Helper function to start BMC generation via chat
+function startBMCGeneration() {
+  // Open the chat panel
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel) {
+    panel.classList.remove('hidden');
+    document.body.classList.add('chat-sidebar-open');
+  }
+  
+  // Give UI time to render, then start Step 2
+  setTimeout(() => {
+    if (typeof StepEngine !== 'undefined' && StepEngine.run) {
+      StepEngine.run('step2', window.model);
+      toast('🚀 Starting Business Model Canvas generation...');
+    } else {
+      console.error('StepEngine not available');
+      toast('❌ Error: StepEngine not loaded.  Please refresh the page.', true);
+    }
+  }, 300);
 }
 
 function confirmAutopilotAndContinue() {
   // Mark as confirmed
-  window.model.strategicIntentConfirmed = true;
+  model.strategicIntentConfirmed = true;
   
   // Save to database
   saveModelToDB(false, true);
@@ -8627,7 +8803,7 @@ function confirmAutopilotAndContinue() {
 
 Ni går nu vidare till **Step 2: Business Model Canvas**.
 
-<button class="mode-action-btn mode-action-btn--action" onclick="switchMainTab('workflow'); setTimeout(() => StepEngine.run('step2'), 300);">
+<button class="mode-action-btn mode-action-btn--action" onclick="startBMCGeneration();">
   <i class="fas fa-arrow-right"></i>
   Starta Step 2: BMC
 </button>`, { mode: 'general' });
@@ -8648,129 +8824,24 @@ function regenerateAutopilot() {
 // ── FULL AUTOPILOT FLOW - All 7 Steps ────
 async function runFullAutopilotFlow() {
   const ctx = window._autopilotState?.context || {};
+  
+  addAssistantMessage(`🚀 **Autopilot Mode: Full EA Framework Generation**
 
-// ── QUICK PATH FLOWS ─────────────────────────────────────────────────────
-// Quick Path Overview: Steps 1-2 only (Strategic Intent + BMC)
-async function runQuickPathOverview(answers) {
-  addAssistantMessage(`Generating **Strategic Intent** and **Business Model Canvas** for **${answers.industry}** with focus on **${answers.challenge}**...`);
-  
-  const quickContext = {
-    industry: answers.industry,
-    challenge: answers.challenge,
-    region: 'Sweden', // default
-    detailLevel: 'medium'
-  };
-  
-  window._autopilotState = { active: true, currentStep: 0, completedSteps: [], context: quickContext, generatedData: {} };
-  showAutopilotProgressTracker();
-  
-  try {
-    await generateAutopilotStrategicIntent();
-    await delay(1000);
-    await generateAutopilotBMC();
-    
-    addAssistantMessage(`## ✅ Overview Complete!\n\n` +
-      `I've generated:\n` +
-      `- **Step 1:** Strategic Intent\n` +
-      `- **Step 2:** Business Model Canvas\n\n` +
-      `**Next steps:**\n` +
-      `1. Review the strategy tab\n` +
-      `2. Generate capability map if you want deeper analysis\n` +
-      `3. Export or share with your team\n\n` +
-      `What would you like to do next?`);
-    
-    closeAutopilotTracker();
-    window._autopilotState = null;
-    
-  } catch (error) {
-    addAssistantMessage(`Error during generation: ${error.message}`);
-  }
-}
-
-// Quick Path Capability: Steps 1-5 (Strategic Intent through Gap Analysis)
-async function runQuickPathCapability(answers) {
-  addAssistantMessage(`Generating full **capability analysis** (Steps 1-5) for **${answers.industry}** focused on **${answers.challenge}**...`);
-  
-  const quickContext = {
-    industry: answers.industry,
-    challenge: answers.challenge,
-    region: 'Sweden',
-    detailLevel: 'high'
-  };
-  
-  window._autopilotState = { active: true, currentStep: 0, completedSteps: [], context: quickContext, generatedData: {}, running: true };
-  showAutopilotProgressTracker();
-  
-  try {
-    await generateAutopilotStrategicIntent();
-    await delay(1000);
-    if (!window._autopilotState.running) return;
-    
-    await generateAutopilotBMC();
-    await delay(1000);
-    if (!window._autopilotState.running) return;
-    
-    await generateAutopilotCapabilityMap();
-    await delay(1000);
-    if (!window._autopilotState.running) return;
-    
-    await generateAutopilotOperatingModel();
-    await delay(1000);
-    if (!window._autopilotState.running) return;
-    
-    await generateAutopilotGapAnalysis();
-    
-    addAssistantMessage(`## ✅ Capability Analysis Complete!\n\n` +
-      `I've generated:\n` +
-      `- **Step 1:** Strategic Intent\n` +
-      `- **Step 2:** Business Model Canvas\n` +
-      `- **Step 3:** Capability Map (${model.capabilities?.length || 0} capabilities)\n` +
-      `- **Step 4:** Operating Model\n` +
-      `- **Step 5:** Gap Analysis\n\n` +
-      `**Key insights:**\n` +
-      `- You have ${(model.capabilities || []).filter(c => c.strategicImportance === 'high').length} high-priority capabilities\n` +
-      `- Average maturity: ${((model.capabilities || []).reduce((s, c) => s + c.maturity, 0) / (model.capabilities?.length || 1)).toFixed(1)}/5\n\n` +
-      `Want to continue with **Value Pools** and **Roadmap** (Steps 6-7)?`);
-    
-    closeAutopilotTracker();
-    window._autopilotState = null;
-    
-  } catch (error) {
-    window._autopilotState.running = false;
-    addAssistantMessage(`Error during generation: ${error.message}`);
-  }
-}
-
-// Quick Path Complete: All 7 steps
-async function runQuickPathComplete(answers) {
-  const quickContext = {
-    industry: answers.industry,
-    challenge: answers.challenge,
-    region: 'Sweden',
-    detailLevel: 'high'
-  };
-  
-  window._autopilotState = { active: true, currentStep: 0, completedSteps: [], context: quickContext, generatedData: {}, running: true };
-  showAutopilotProgressTracker();
-  
-  addAssistantMessage(`🚀 Generating **complete architecture** (all 7 steps) for **${answers.industry}** with focus on **${answers.challenge}**...\n\nThis will take 2-3 minutes.`);
-  
-  // Reuse full autopilot flow
-  await runFullAutopilotFlow();
-}
-
-// ── FULL AUTOPILOT FLOW - All 7 Steps ────
-async function runFullAutopilotFlow() {
-  const ctx = window._autopilotState?.context || {};
-  
-  addAssistantMessage(`🚀 **Full Autopilot Activated!**
-
-I will now generate all 7 EA model steps based on:
+I will generate all 7 steps based on:
 - **Region:** ${ctx.region}
 - **Industry:** ${ctx.industry}
 - **Detail Level:** ${ctx.detailLevel}
 
-This will take 2-3 minutes. You can follow progress in the tracker on the right.
+This uses the same integrated StepEngine as Standard mode, ensuring all steps build on each other and Strategic Intent.
+
+**Progress:**
+1. ⏳ Strategic Intent
+2. ⏳ Business Model Canvas
+3. ⏳ Capability Map
+4. ⏳ Operating Model
+5. ⏳ Gap Analysis
+6. ⏳ Value Pools
+7. ⏳ Transformation Roadmap
 
 <button class="mode-action-btn mode-action-btn--secondary" onclick="stopAutopilot();">
   <i class="fas fa-stop-circle"></i>
@@ -8784,77 +8855,114 @@ This will take 2-3 minutes. You can follow progress in the tracker on the right.
   window._autopilotState.running = true;
   
   try {
+    // CRITICAL: Use StepEngine for all steps to ensure proper context integration
+    // Each step builds on previous outputs via StepContext.build()
+    
     // STEP 1: Strategic Intent
     if (!window._autopilotState.completedSteps.includes(1)) {
       await generateAutopilotStrategicIntent();
-      await delay(1500); // Pause for user to see progress
+      window._autopilotState.completedSteps.push(1);
     }
     
-    // STEP 2: Business Model Canvas
+    // STEP 2: Business Model Canvas (uses Strategic Intent from Step 1)
     if (window._autopilotState.running && !window._autopilotState.completedSteps.includes(2)) {
-      await generateAutopilotBMC();
-      await delay(1500);
+      addAssistantMessage('⏳ **Step 2:** Generating Business Model Canvas...', { mode: 'autopilot' });
+      await StepEngine.run('step2', window.model);
+      window._autopilotState.completedSteps.push(2);
+      addAssistantMessage('✅ **Step 2 complete:** Business Model Canvas', { mode: 'autopilot' });
     }
     
-    // STEP 3: Capability Map
+    // STEP 3: Capability Map (uses Strategic Intent + BMC)
     if (window._autopilotState.running && !window._autopilotState.completedSteps.includes(3)) {
-      await generateAutopilotCapabilityMap();
-      await delay(1500);
+      addAssistantMessage('⏳ **Step 3:** Generating Capability Map...', { mode: 'autopilot' });
+      await StepEngine.run('step3', window.model);
+      window._autopilotState.completedSteps.push(3);
+      addAssistantMessage('✅ **Step 3 complete:** Capability Map', { mode: 'autopilot' });
     }
     
-    // STEP 4: Operating Model
+    // STEP 4: Operating Model (uses Strategic Intent + BMC + Capabilities)
     if (window._autopilotState.running && !window._autopilotState.completedSteps.includes(4)) {
-      await generateAutopilotOperatingModel();
-      await delay(1500);
+      addAssistantMessage('⏳ **Step 4:** Designing Target Operating Model...', { mode: 'autopilot' });
+      await StepEngine.run('step4', window.model);
+      window._autopilotState.completedSteps.push(4);
+      addAssistantMessage('✅ **Step 4 complete:** Operating Model', { mode: 'autopilot' });
     }
     
-    // STEP 5: Gap Analysis
+    // STEP 5: Gap Analysis (uses all previous outputs)
     if (window._autopilotState.running && !window._autopilotState.completedSteps.includes(5)) {
-      await generateAutopilotGapAnalysis();
-      await delay(1500);
+      addAssistantMessage('⏳ **Step 5:** Performing Gap Analysis...', { mode: 'autopilot' });
+      await StepEngine.run('step5', window.model);
+      window._autopilotState.completedSteps.push(5);
+      addAssistantMessage('✅ **Step 5 complete:** Gap Analysis', { mode: 'autopilot' });
     }
     
-    // STEP 6: Value Pools
+    // STEP 6: Value Pools (uses Strategic Intent + Gaps + BMC)
     if (window._autopilotState.running && !window._autopilotState.completedSteps.includes(6)) {
-      await generateAutopilotValuePools();
-      await delay(1500);
+      addAssistantMessage('⏳ **Step 6:** Identifying Value Pools...', { mode: 'autopilot' });
+      await StepEngine.run('step6', window.model);
+      window._autopilotState.completedSteps.push(6);
+      addAssistantMessage('✅ **Step 6 complete:** Value Pools & Strategic Options', { mode: 'autopilot' });
     }
     
-    // STEP 7: Transformation Roadmap
+    // STEP 7: Transformation Roadmap (uses ALL previous outputs + Strategic Intent)
     if (window._autopilotState.running && !window._autopilotState.completedSteps.includes(7)) {
-      await generateAutopilotRoadmap();
+      addAssistantMessage('⏳ **Step 7:** Creating Transformation Roadmap...', { mode: 'autopilot' });
+      await StepEngine.run('step7', window.model);
+      window._autopilotState.completedSteps.push(7);
+      addAssistantMessage('✅ **Step 7 complete:** Target Architecture & Roadmap', { mode: 'autopilot' });
     }
     
-    // All steps complete
+    // Autopilot complete - all 7 steps
     if (window._autopilotState.running) {
-      addAssistantMessage(`## 🎉 Autopilot Complete!
+      addAssistantMessage(`## 🎉 Autopilot Complete - Full EA Framework Generated!
 
-All 7 steps have been generated. The model is now complete and saved in the database.
+All 7 steps are now complete and fully integrated:
+1. ✅ Strategic Intent
+2. ✅ Business Model Canvas
+3. ✅ Capability Map
+4. ✅ Operating Model  
+5. ✅ Gap Analysis
+6. ✅ Value Pools
+7. ✅ **Target Architecture & Transformation Roadmap**
 
-**Next steps:**
-1. Review each tab and fine-tune as needed
-2. Export the model to PDF/JSON
-3. Share with your team for workshop discussion
+**Key Integration Points:**
+- All outputs trace back to your Strategic Intent (ambition, themes, outcomes)
+- BMC transformation moves inform Operating Model design
+- Capability gaps drive Gap Analysis and Value Pools
+- Target Architecture reflects your strategic themes and operating model
+- Roadmap initiatives address priority gaps and value pools
 
-<button class="mode-action-btn mode-action-btn--primary" onclick="closeAutopilotTracker(); switchMainTab('dashboard');">
-  <i class="fas fa-chart-line"></i>
+**What you can do now:**
+1. 🔍 **Review each step** in the left sidebar tabs
+2. 📊 **View Dashboard** to see enterprise-wide analytics
+3. 💾 **Export results** as PDF or JSON
+4. 🔄 **Refine** any step using the "Discuss" button
+
+<button class="mode-action-btn mode-action-btn--primary" onclick="showTab('home', null);">
+  <i class="fas fa-table-cells-large"></i>
   View Enterprise Dashboard
 </button>
-<button class="mode-action-btn mode-action-btn--action" onclick="exportModel('pdf');">
-  <i class="fas fa-file-pdf"></i>
-  Export to PDF
+
+<button class="mode-action-btn mode-action-btn--secondary" onclick="showTab('step7', null);">
+  <i class="fas fa-road"></i>
+  View Transformation Roadmap
 </button>`, { mode: 'general' });
       
       window._autopilotState.running = false;
       window._autopilotState.active = false;
       
-      toast('✓ Autopilot complete! All 7 steps generated.');
+      toast('✓ Full EA Framework generated! All 7 steps integrated.');
+      
+      // Update workflow progress
+      if (typeof updateWorkflowProgress === 'function') {
+        updateWorkflowProgress([1, 2, 3, 4, 5, 6, 7]);
+      }
     }
     
   } catch (error) {
     window._autopilotState.running = false;
-    addAssistantMessage(`❌ Autopilot stoppades på grund av ett fel:\n\n${error.message}\n\nDel-resultaten är sparade. Du kan fortsätta manuellt från här.`, { mode: 'autopilot', error: true });
-    updateAutopilotProgress(window._autopilotState.currentStep, 'Fel uppstod');
+    addAssistantMessage(`❌ Autopilot stopped due to an error in Step ${window._autopilotState.completedSteps.length + 1}:\n\n${error.message}\n\nPartial results are saved. You can review what was generated and continue manually from here.`, { mode: 'autopilot', error: true });
+    console.error('[Autopilot] Error:', error);
   }
 }
 
@@ -8862,8 +8970,8 @@ function stopAutopilot() {
   if (window._autopilotState) {
     window._autopilotState.running = false;
   }
-  addAssistantMessage('⏸️ Autopilot stoppad. Alla genererade steg är sparade. Vill du fortsätta manuellt?', { mode: 'general' });
-  toast('Autopilot stoppad');
+  addAssistantMessage('⏸️ Autopilot stopped. All generated steps are saved. Would you like to continue manually?', { mode: 'general' });
+  toast('Autopilot stopped');
 }
 
 function delay(ms) {
@@ -8874,41 +8982,97 @@ function delay(ms) {
 
 async function generateAutopilotBMC() {
   const ctx = window._autopilotState?.context || {};
-  const strategicIntent = window.model?.strategicIntent;
+  const strategicIntent = model?.strategicIntent;
   
   updateAutopilotProgress(2, 'Genererar Business Model Canvas...');
   
-  const systemPrompt = `You are a Business Model expert specializing in ${ctx.industry} sector.
+  const strategicAmbition = strategicIntent?.strategic_ambition || '';
+  const themes = (strategicIntent?.strategic_themes || []).join(', ');
+  const constraints = (strategicIntent?.key_constraints || []).join(', ');
+  
+  // Base system prompt from instruction file: NexGenEA/js/Instructions/step2/2_0_bmc_autopilot.instruction.md
+  const systemPrompt = `You are a Business Model expert generating a complete Business Model Canvas aligned with Strategic Intent in AUTOPILOT mode.
 
-**TASK:** Generate a complete Business Model Canvas aligned with the Strategic Intent.
+**Context:** Industry: ${ctx.industry} | Region: ${ctx.region} | Detail level: ${ctx.detailLevel}
 
-**Context:**
-- Industry: ${ctx.industry}
-- Region: ${ctx.region}
-- Strategic Intent: ${JSON.stringify(strategicIntent, null, 2)}
+**Strategic Context:**
+- Ambition: ${strategicAmbition}
+- Themes: ${themes}
+- Constraints: ${constraints}
 
-**CRITICAL RULES:**
-1. All elements must be REALISTIC and specific to ${ctx.industry}
-2. Align with the strategic themes and ambition
-3. Include concrete examples (real systems, partner names, revenue models common in ${ctx.industry})
-4. Detail level: ${ctx.detailLevel}
+---
 
-**Output Format (JSON):**
+## CRITICAL RULES
+
+### 1. VALUE PROPOSITION (MANDATORY)
+**Format:** String (2-4 sentences) — NOT an array
+**Requirements:**
+- MUST be a complete, compelling statement describing unique value delivered to customers
+- MUST directly reflect the strategic ambition: "${strategicAmbition}"
+- MUST explain what customer problem is solved and how
+- Follow this pattern: "We help [customer segment] achieve [outcome] by providing [solution]. Unlike [traditional approach], our [differentiator] enables [benefit]. This directly supports [strategic theme]."
+- NEVER leave empty or use placeholder text
+
+### 2. INDUSTRY REALISM
+All elements must be:
+- Specific to ${ctx.industry} in ${ctx.region}
+- Use real technology names, partner types, and business models common in ${ctx.industry}
+- Grounded in realistic constraints: ${constraints}
+- Appropriate to detail level: ${ctx.detailLevel}
+
+### 3. STRATEGIC ALIGNMENT
+Every BMC element should trace to strategic themes: ${themes}
+
+### 4. COMPLETENESS
+- ALL fields must be populated — NO empty arrays or placeholder strings
+- Minimum content: value_proposition (2-4 sentences), customer_segments (2-4), channels (3-5), customer_relationships (2-3), revenue_streams (2-4 with pricing models), key_resources (3-5), key_activities (3-5), key_partners (2-4), cost_structure (3-5)
+
+---
+
+## VALUE PROPOSITION EXAMPLES BY INDUSTRY
+
+**Financial Services:**
+"We help mid-market enterprises achieve real-time financial visibility and regulatory compliance by providing an AI-powered integrated finance platform. Unlike fragmented legacy systems that require manual reconciliation, our automated data fabric eliminates duplicate entry and reduces month-end close from 15 days to 3 days. This directly supports our digital transformation and operational excellence themes."
+
+**Healthcare:**
+"We help regional hospitals deliver coordinated patient care across the continuum by providing a unified care management platform. Unlike siloed EHR systems that fragment patient data, our interoperable network enables secure data sharing across 50+ provider organizations, reducing duplicate testing by 40%. This directly supports our patient outcomes and care integration ambitions."
+
+**Manufacturing:**
+"We help industrial equipment manufacturers transition to outcome-based service models by providing IoT-enabled predictive maintenance solutions. Unlike reactive service contracts, our real-time asset monitoring predicts failures 72 hours in advance, increasing uptime from 82% to 96%. This directly supports our servitization and recurring revenue strategic themes."
+
+**Retail:**
+"We help fashion-conscious millennials discover sustainable clothing that matches their style by providing a personalized AI stylist and secondhand marketplace. Unlike fast fashion that contributes to waste, our circular model extends garment lifecycles by 3x while reducing customer acquisition costs through community-driven growth. This directly supports our sustainability and customer experience ambitions."
+
+---
+
+## OUTPUT FORMAT (JSON only)
+
 {
-  "value_proposition": ["prop 1", "prop 2", "prop 3"],
-  "customer_segments": ["segment 1", "segment 2"],
-  "channels": ["channel 1", "channel 2", "channel 3"],
-  "customer_relationships": ["relationship 1", "relationship 2"],
-  "revenue_streams": ["stream 1 with pricing model", "stream 2 with pricing model"],
-  "key_resources": ["resource 1", "resource 2", "resource 3"],
-  "key_activities": ["activity 1", "activity 2", "activity 3"],
-  "key_partners": ["partner 1", "partner 2"],
-  "cost_structure": ["cost 1", "cost 2", "cost 3"]
+  "value_proposition": "REQUIRED: 2-4 sentence string following pattern above",
+  "customer_segments": ["segment 1 with characteristics", "segment 2", "segment 3"],
+  "channels": ["specific channel 1", "channel 2", "channel 3", "channel 4"],
+  "customer_relationships": ["relationship type 1", "type 2", "type 3"],
+  "revenue_streams": ["stream 1 with pricing model", "stream 2", "stream 3"],
+  "key_resources": ["critical resource 1", "resource 2", "resource 3", "resource 4"],
+  "key_activities": ["core activity 1", "activity 2", "activity 3", "activity 4"],
+  "key_partners": ["partner type 1", "partner 2", "partner 3"],
+  "cost_structure": ["cost category 1", "cost 2", "cost 3", "cost 4"]
 }
 
-Return ONLY valid JSON.`;
+Return ONLY valid JSON. No markdown, no comments.`;
 
-  const userPrompt = `Generate BMC for ${ctx.industry} company in ${ctx.region}.`;
+  const userPrompt = `Generate a complete Business Model Canvas for this ${ctx.industry} organization in ${ctx.region}.
+
+**Strategic Ambition:** "${strategicAmbition}"
+**Strategic Themes:** ${themes}
+
+The Value Proposition MUST:
+- Be a single coherent 2-4 sentence string (NOT an array)
+- Clearly explain how we deliver on the strategic ambition
+- Use the industry example pattern as a template
+- Be specific to ${ctx.industry} with realistic details
+
+All BMC elements must be industry-realistic and aligned with the strategic themes above.`;
   
   try {
     const response = await AIService.call({
@@ -8920,7 +9084,7 @@ Return ONLY valid JSON.`;
     });
     
     const bmc = JSON.parse(response.rawOutput.trim());
-    window.model.bmc = bmc;
+    model.bmc = bmc;
     window._autopilotState.generatedData.bmc = bmc;
     window._autopilotState.completedSteps.push(2);
     
@@ -8933,10 +9097,11 @@ Return ONLY valid JSON.`;
   }
 }
 
+// Base system prompt from instruction file: NexGenEA/js/Instructions/step3/3_0_capability_map_autopilot.instruction.md
 async function generateAutopilotCapabilityMap() {
   const ctx = window._autopilotState?.context || {};
-  const strategicIntent = window.model?.strategicIntent;
-  const bmc = window.model?.bmc;
+  const strategicIntent = model?.strategicIntent;
+  const bmc = model?.bmc;
   
   updateAutopilotProgress(3, 'Genererar Capability Map...');
   
@@ -8984,7 +9149,7 @@ Return ONLY valid JSON.`;
     });
     
     const data = JSON.parse(response.rawOutput.trim());
-    window.model.capabilities = data.capabilities || [];
+    model.capabilities = data.capabilities || [];
     window._autopilotState.generatedData.capabilities = data.capabilities;
     window._autopilotState.completedSteps.push(3);
     
@@ -8997,9 +9162,10 @@ Return ONLY valid JSON.`;
   }
 }
 
+// Base system prompt from instruction file: NexGenEA/js/Instructions/step4/4_0_operating_model_autopilot.instruction.md
 async function generateAutopilotOperatingModel() {
   const ctx = window._autopilotState?.context || {};
-  const capabilities = window.model?.capabilities || [];
+  const capabilities = model?.capabilities || [];
   
   updateAutopilotProgress(4, 'Genererar Operating Model...');
   
@@ -9034,7 +9200,7 @@ Return ONLY valid JSON.`;
     });
     
     const opModel = JSON.parse(response.rawOutput.trim());
-    window.model.operatingModel = opModel;
+    model.operatingModel = opModel;
     window._autopilotState.generatedData.operatingModel = opModel;
     window._autopilotState.completedSteps.push(4);
     
@@ -9047,9 +9213,10 @@ Return ONLY valid JSON.`;
   }
 }
 
+// Base system prompt from instruction file: NexGenEA/js/Instructions/step5/5_0_gap_analysis_autopilot.instruction.md
 async function generateAutopilotGapAnalysis() {
   const ctx = window._autopilotState?.context || {};
-  const capabilities = window.model?.capabilities || [];
+  const capabilities = model?.capabilities || [];
   
   updateAutopilotProgress(5, 'Genererar Gap Analysis...');
   
@@ -9090,7 +9257,7 @@ Return ONLY valid JSON with top 8-10 gaps.`;
     });
     
     const gapData = JSON.parse(response.rawOutput.trim());
-    window.model.gapAnalysis = gapData;
+    model.gapAnalysis = gapData;
     window._autopilotState.generatedData.gapAnalysis = gapData;
     window._autopilotState.completedSteps.push(5);
     
@@ -9103,10 +9270,11 @@ Return ONLY valid JSON with top 8-10 gaps.`;
   }
 }
 
+// Base system prompt from instruction file: NexGenEA/js/Instructions/step6/6_0_value_pools_autopilot.instruction.md
 async function generateAutopilotValuePools() {
   const ctx = window._autopilotState?.context || {};
-  const bmc = window.model?.bmc;
-  const gaps = window.model?.gapAnalysis?.gaps || [];
+  const bmc = model?.bmc;
+  const gaps = model?.gapAnalysis?.gaps || [];
   
   updateAutopilotProgress(6, 'Genererar Value Pools...');
   
@@ -9146,7 +9314,7 @@ Return ONLY valid JSON with 5-7 value pools.`;
     });
     
     const valuePools = JSON.parse(response.rawOutput.trim());
-    window.model.valuePools = valuePools;
+    model.valuePools = valuePools;
     window._autopilotState.generatedData.valuePools = valuePools;
     window._autopilotState.completedSteps.push(6);
     
@@ -9159,10 +9327,11 @@ Return ONLY valid JSON with 5-7 value pools.`;
   }
 }
 
+// Base system prompt from instruction file: NexGenEA/js/Instructions/step7/7_0_roadmap_autopilot.instruction.md
 async function generateAutopilotRoadmap() {
   const ctx = window._autopilotState?.context || {};
-  const gaps = window.model?.gapAnalysis?.gaps || [];
-  const valuePools = window.model?.valuePools?.valuePools || [];
+  const gaps = model?.gapAnalysis?.gaps || [];
+  const valuePools = model?.valuePools?.valuePools || [];
   
   updateAutopilotProgress(7, 'Genererar Transformation Roadmap...');
   
@@ -9211,7 +9380,7 @@ Return ONLY valid JSON with 8-12 initiatives across 4-6 quarters.`;
     });
     
     const roadmap = JSON.parse(response.rawOutput.trim());
-    window.model.roadmap = roadmap;
+    model.roadmap = roadmap;
     window._autopilotState.generatedData.roadmap = roadmap;
     window._autopilotState.completedSteps.push(7);
     
@@ -9253,7 +9422,7 @@ async function handleActionMessage(userMessage) {
 3. F\u00f6rklara vad som kommer att h\u00e4nda
 4. Embed JSON i \`\`\`json block
 
-Return JSON + explanation in Swedish.`;
+Return JSON + explanation.`;
 
   const userPrompt = `**Current EA Model:**
 \`\`\`json
@@ -9307,153 +9476,6 @@ async function processUserMessage(userMessage) {
   const context = buildConversationContext();
   context.preferredLanguage = resolveResponseLanguage(userMessage);
 
-  // ── WORKFLOW PREFERENCE CHECK (for new users) ─────────────────────────────
-  // If user is completely new and hasn't chosen a workflow method yet, ask them first
-  const isNewUser = !model.strategicIntent && !model.bmc && (!model.capabilities || model.capabilities.length === 0);
-  const conversation = getActiveConversation();
-  const messageCount = (conversation.messages || []).length;
-  
-  // Check if we're waiting for workflow preference answer
-  if (window._waitingForWorkflowPreference) {
-    const lower = userMessage.toLowerCase();
-    
-    // Autopilot - runs all 7 steps automatically
-    if (/autopilot|auto pilot|auto-pilot|automatisk|allt på en gång|kör allt/i.test(lower)) {
-      delete window._waitingForWorkflowPreference;
-      // Ask 3 questions then run autopilot
-      await askAutopilotQuestions();
-      return { _handled: true };
-    }
-    
-    // Quick Path - ask focused questions and generate what's needed
-    if (/quick|snabb|fast|focused|fokuserad|minimalist/i.test(lower)) {
-      delete window._waitingForWorkflowPreference;
-      window._userWorkflowPreference = 'quick';
-      return { 
-        content: 'Great! I'll keep it focused and ask only essential questions.\n\nTo get started, tell me briefly:\n\n' +
-                 '**What industry/domain is your organization in?**\n\n' +
-                 '(I'll then ask 2-3 targeted questions to generate the most relevant architecture model)',
-        metadata: null 
-      };
-    }
-    
-    // Custom Q&A - conversational, no automatic generation
-    if (/custom|questions|q&a|qa|conversation|samtala|frågor|dialogue|dialog/i.test(lower)) {
-      delete window._waitingForWorkflowPreference;
-      window._userWorkflowPreference = 'custom';
-      return { 
-        content: 'Perfect! I'll guide you with questions and suggestions.\n\n' +
-                 'What would you like to explore first?\n\n' +
-                 '• Business model design\n' +
-                 '• Capability mapping\n' +
-                 '• Operating model\n' +
-                 '• Gap analysis\n' +
-                 '• Value pools & prioritization\n' +
-                 '• Something else?',
-        metadata: null 
-      };
-    }
-    
-    // Still waiting - they didn't give a clear answer
-    return {
-      content: 'Please choose one of the three options:\n\n' +
-               '1. **Autopilot** - I generate all 7 steps automatically (fastest, ~5 min)\n' +
-               '2. **Quick Path** - I ask 3-5 focused questions first (balanced, ~15 min)\n' +
-               '3. **Custom Q&A** - We discuss and build step-by-step together (flexible)\n\n' +
-               'Reply with: **autopilot**, **quick**, or **custom**',
-      metadata: null
-    };
-  }
-  
-  // If brand new user (first 1-2 messages) and no workflow chosen yet -> ask now
-  if (isNewUser && messageCount <= 2 && !window._userWorkflowPreference) {
-    window._waitingForWorkflowPreference = true;
-    return {
-      content: '👋 Welcome to NextGen EA Platform!\n\n' +
-               'I can help you build your enterprise architecture in 3 different ways:\n\n' +
-               '**1. Autopilot Mode** 🚀\n' +
-               '   → I ask 3 quick questions, then automatically generate all 7 steps\n' +
-               '   → Best for: Quick testing, demo, or when you trust AI to build the baseline\n' +
-               '   → Time: ~5 minutes total\n\n' +
-               '**2. Quick Path** ⚡\n' +
-               '   → I ask 3-5 focused questions and generate only what you need\n' +
-               '   → Best for: Specific use cases, focused analysis\n' +
-               '   → Time: ~15-20 minutes\n\n' +
-               '**3. Custom Q&A** 💬\n' +
-               '   → We discuss step-by-step, I suggest options and answer questions\n' +
-               '   → Best for: Learning, exploration, highly customized needs\n' +
-               '   → Time: flexible\n\n' +
-               'Which approach would you prefer?\n\n' +
-               'Reply with: **autopilot**, **quick**, or **custom**',
-      metadata: null
-    };
-  }
-
-  // ── QUICK PATH WORKFLOW ────────────────────────────────────────────────────
-  // If user chose Quick Path, guide them through 3-5 focused questions
-  if (window._userWorkflowPreference === 'quick' && !window._quickPathQuestionsAsked) {
-    window._quickPathQuestionsAsked = true;
-    window._quickPathAnswers = { industry: userMessage }; // Store first answer
-    return {
-      content: `Great! You're working in **${userMessage}**.\n\n` +
-               '**Question 2 of 3:**\n\n' +
-               'What is the main business challenge or goal you want to address?\n\n' +
-               '(e.g., "modernize legacy systems", "improve customer experience", "reduce operational costs", "scale for growth")',
-      metadata: null
-    };
-  }
-
-  // Quick Path - question 2 answered
-  if (window._userWorkflowPreference === 'quick' && window._quickPathQuestionsAsked && !window._quickPathAnswers.challenge) {
-    window._quickPathAnswers.challenge = userMessage;
-    return {
-      content: `Got it: **${userMessage}**\n\n` +
-               '**Question 3 of 3:**\n\n' +
-               'What level of detail do you need right now?\n\n' +
-               '• **High-level overview** (strategic ambition + business model)\n' +
-               '• **Capability analysis** (full capability map + gap analysis)\n' +
-               '• **Complete architecture** (all 7 steps including roadmap)\n\n' +
-               'Reply with: **overview**, **capability**, or **complete**',
-      metadata: null
-    };
-  }
-
-  // Quick Path - question 3 answered, now generate
-  if (window._userWorkflowPreference === 'quick' && window._quickPathAnswers?.challenge && !window._quickPathAnswers.scope) {
-    const lower = userMessage.toLowerCase();
-    const scope = /overview|high-level|strategisk|översikt/i.test(lower) ? 'overview'
-                : /capability|capabilit|förmågor|gap/i.test(lower) ? 'capability'
-                : /complete|alla|all 7|komplett|roadmap/i.test(lower) ? 'complete'
-                : 'capability'; // default to capability if unclear
-    
-    window._quickPathAnswers.scope = scope;
-    
-    addAssistantMessage(`Perfect! I'll generate a **${scope}** architecture for your **${window._quickPathAnswers.industry}** use case focused on **${window._quickPathAnswers.challenge}**.\n\nStarting generation...`);
-    
-    // Generate based on scope
-    if (scope === 'overview') {
-      // Generate Steps 1-2 only
-      setTimeout(async () => {
-        await runQuickPathOverview(window._quickPathAnswers);
-      }, 500);
-    } else if (scope === 'capability') {
-      // Generate Steps 1-5
-      setTimeout(async () => {
-        await runQuickPathCapability(window._quickPathAnswers);
-      }, 500);
-    } else {
-      // Generate all 7 steps (same as autopilot but with context)
-      setTimeout(async () => {
-        await runQuickPathComplete(window._quickPathAnswers);
-      }, 500);
-    }
-    
-    delete window._quickPathQuestionsAsked;
-    delete window._quickPathAnswers;
-    
-    return { _handled: true };
-  }
-
   // ── DISCOVERY MODE ─────────────────────────────────────────────────────────
   const currentMode = getAssistantMode();
   if (currentMode.mode === 'discovery') {
@@ -9466,6 +9488,8 @@ async function processUserMessage(userMessage) {
     await handleActionMessage(userMessage);
     return { _handled: true };
   }
+
+  // WORKFLOW CHOICE - removed blocker, Discovery Mode tab already has these options
 
   // If a step-focused chat is active, route through step-specific handler
   if (window._stepChatContext) {
@@ -9943,6 +9967,47 @@ async function handleGeneralQuestion(userMessage, context) {
   const initiatives = model.initiatives || [];
   const targetArch = model.targetArch || [];
 
+  // ── NEW USER WORKFLOW CHOICE ──────────────────────────────────────────────────
+  // Show workflow options for new users UNLESS they're making a direct generation request
+  const hasAnySteps = si || caps.length || bmc.value_proposition || om.valueProposition || vp.length || initiatives.length || targetArch.length || model.gapAnalysisDone;
+  const messageCount = (context.chatHistory || []).length;
+  const isDirectGenerationRequest = /\b(generate|create|build|make|show me|add|generer|skapa)\b.*\b(architecture|bmc|canvas|capability|cap map|operating model|gaps?|maturity|arkitektur|förmåga)/i.test(userMessage);
+  
+  if (!hasAnySteps && messageCount < 2 && !isDirectGenerationRequest) {
+    return {
+      content: `## Welcome! Choose how to build your Enterprise Architecture:
+
+**🚀 Autopilot** (Fastest - 5 min)
+- Answer 3 quick questions  
+- AI generates all 7 EA steps automatically
+- Best for: Quick start, demos, testing
+
+**📋 Standard Workflow** (Recommended - 15-30 min)
+- Step-by-step guidance with focused questions
+- More control over each component
+- Best for: Production models, detailed planning
+
+**💬 Free Chat** (Flexible)
+- Direct commands like "generate architecture for retail company"
+- Best for: Experienced EA users
+
+---
+
+<button class="mode-action-btn mode-action-btn--primary" onclick="startAutopilotMode()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+  <i class="fas fa-magic"></i> Start Autopilot
+</button>
+<button class="mode-action-btn mode-action-btn--action" onclick="addUserMessage('I want standard workflow'); sendMessage();" style="background: #4A7763; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-left: 8px;">
+  <i class="fas fa-route"></i> Standard Workflow  
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="addUserMessage('I want free chat mode'); sendMessage();" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-left: 8px;">
+  <i class="fas fa-comments"></i> Free Chat
+</button>
+
+*Or just type a command directly, like "generate architecture for a retail company"*`,
+      metadata: { requiresChoice: true }
+    };
+  }
+
   // Build rich step context from structured model data (independent of chat history; survives page refresh)
   const stepDetails = [];
 
@@ -10018,19 +10083,11 @@ async function handleGeneralQuestion(userMessage, context) {
     ? `\n\nCompleted EA steps (full detail):\n${stepDetails.join('\n\n')}`
     : '\n\nNo EA steps completed yet.';
 
-  // Adjust response style based on workflow preference (custom = concise questions, no autopilot suggestions)
-  const isCustomWorkflow = window._userWorkflowPreference === 'custom';
-  const isQuickWorkflow = window._userWorkflowPreference === 'quick';
-
   const systemPrompt = (typeof AdvisyAI !== 'undefined')
     ? AdvisyAI.buildSystemPrompt({ userText: userMessage })
-    : (isCustomWorkflow 
-        ? `You are Advicy AI, an enterprise architecture advisor. Guide users through EA with CONCISE questions and options — not long explanations.\n\nRules for custom mode:\n- Ask ONE focused question at a time\n- Provide 2-4 clear options when relevant\n- Keep responses under 150 words\n- Never generate full steps without explicit user request\n- Reference existing step data briefly when helpful\n\nFormatting: Use ## for headers, "- " for bullets, blank lines between sections.`
-        : `You are Advicy AI, a senior enterprise architecture and business strategy advisor. You guide users through a 7-step EA framework: (1) Strategic Intent, (2) Business Model Canvas, (3) Capability Map, (4) Operating Model, (5) Gap Analysis, (6) Value Pools, (7) Target Architecture & Roadmap.\n\nYou have full awareness of the user's completed steps and their outputs. When answering, always orient guidance toward the strategic ambition captured in Step 1. Reference specific step outputs when relevant, flag cross-step dependencies, and suggest next actions that are correctly sequenced in the EA workflow.\n\nFormatting rules: Write for a C-level audience. Use ## for section headers, bullet points starting with "- " for lists, leave a blank line between each section, and keep sentences concise and commercially focused.`);
+    : `You are Advicy AI, a senior enterprise architecture and business strategy advisor. You guide users through a 7-step EA framework: (1) Strategic Intent, (2) Business Model Canvas, (3) Capability Map, (4) Operating Model, (5) Gap Analysis, (6) Value Pools, (7) Target Architecture & Roadmap.\n\nYou have full awareness of the user's completed steps and their outputs. When answering, always orient guidance toward the strategic ambition captured in Step 1. Reference specific step outputs when relevant, flag cross-step dependencies, and suggest next actions that are correctly sequenced in the EA workflow.\n\nFormatting rules: Write for a C-level audience. Use ## for section headers, bullet points starting with "- " for lists, leave a blank line between each section, and keep sentences concise and commercially focused.`;
 
-  const answerRequirements = isCustomWorkflow
-    ? '\n- Ask ONE clear question or provide 2-4 options\n- Keep response under 150 words\n- Reference step data only if directly relevant\n- Do not generate full steps unprompted'
-    : '\n- Reference specific step outputs when relevant (e.g. "Based on your ambition to...", "Your gap analysis shows...")\n- Flag cross-step dependencies if the question touches multiple steps\n- Suggest concrete next actions within the platform\n- Be concise and commercially sharp';
+  const answerRequirements = '\n- Reference specific step outputs when relevant (e.g. "Based on your ambition to...", "Your gap analysis shows...")\n- Flag cross-step dependencies if the question touches multiple steps\n- Suggest concrete next actions within the platform\n- Be concise and commercially sharp';
 
   const response = await callAI(
     systemPrompt,
@@ -11616,13 +11673,28 @@ function updateWorkflowStepStates() {
     model.valuePools && model.valuePools.length > 0,
     !!model.targetArchDone
   ];
+  
+  // Map steps to their viewable tabs
+  const stepTabs = [
+    null, // Step 1: Strategic Intent (shown in sidebar, no tab)
+    model.bmc ? ['bmc'] : [], // Step 2: BMC
+    model.capabilities.length > 0 ? ['layers', 'capmap', 'heatmap', 'graph'] : [], // Step 3: Architecture
+    Object.keys(model.operatingModel||{}).length > 0 ? ['opmodel'] : [], // Step 4: Operating Model
+    model.gapAnalysisDone ? ['gap', 'maturity'] : [], // Step 5: Gap & Maturity
+    (model.valuePools && model.valuePools.length > 0) ? ['valuepools'] : [], // Step 6: Value Pools
+    model.targetArchDone ? ['targetarch', 'roadmapvis'] : [] // Step 7: Target & Roadmap
+  ];
+  
   for (let i = 1; i <= 7; i++) {
     const stepEl = document.getElementById('step-' + i);
     const badge = document.getElementById('badge-' + i);
     const doneIcon = document.getElementById('step' + i + '-done');
+    const rationaleEl = document.getElementById('step' + i + '-rationale');
     if (!stepEl) continue;
+    
     const isDone = done[i - 1];
     const isUnlocked = i === 1 || (i === 2 ? (!!model.strategicIntent && !!model.strategicIntentConfirmed) : done[i - 2]);
+    
     if (badge) {
       badge.className = 'workflow-step-badge' + (isDone ? ' workflow-step-badge--done' : isUnlocked ? ' workflow-step-badge--active' : '');
       if (isDone) badge.innerHTML = '<i class="fas fa-check text-[8px]"></i>';
@@ -11632,10 +11704,148 @@ function updateWorkflowStepStates() {
     else stepEl.classList.add('workflow-step-locked');
     if (doneIcon) doneIcon.classList.toggle('hidden', !isDone);
     stepEl.classList.toggle('step-complete', isDone);
+    
+    // Show available tabs for completed steps
+    if (isDone && stepTabs[i - 1] && stepTabs[i - 1].length > 0) {
+      const tabs = stepTabs[i - 1];
+      const tabLabels = {
+        'bmc': 'BMC',
+        'layers': 'Layers',
+        'capmap': 'Cap Map',
+        'heatmap': 'Heatmap',
+        'graph': 'Graph',
+        'opmodel': 'Op Model',
+        'gap': 'Gap',
+        'maturity': 'Maturity',
+        'valuepools': 'Value Pools',
+        'targetarch': 'Target',
+        'roadmapvis': 'Roadmap'
+      };
+      
+      // Create or update tab buttons section
+      let tabsContainer = stepEl.querySelector('.step-tabs-container');
+      if (!tabsContainer) {
+        tabsContainer = document.createElement('div');
+        tabsContainer.className = 'step-tabs-container';
+        tabsContainer.style.cssText = 'margin-top: 6px; display: flex; flex-wrap: wrap; gap: 3px;';
+        stepEl.appendChild(tabsContainer);
+      }
+      
+      tabsContainer.innerHTML = tabs.map(tab => `
+        <button 
+          onclick="showTab('${tab}', findTabButton('${tab}'))" 
+          class="text-[8px] px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold transition-colors"
+          title="Open ${tabLabels[tab]} tab"
+        >
+          <i class="fas fa-eye mr-0.5"></i> ${tabLabels[tab]}
+        </button>
+      `).join('');
+    }
+    
     if (isDone) renderStepRationale(i);
   }
   // updateTabCompletionBadges removed - legacy function not implemented in V5
   _updateContinueBtn();
+  
+  // Update tab lock states based on content availability
+  updateTabLockStates();
+}
+
+// ── UPDATE TAB LOCK STATES ────────────────────────────────────────────────────
+// Locks/unlocks tabs based on content availability and highlights tabs with generated content
+function updateTabLockStates() {
+  // Define which tabs are always available (no content required)
+  const alwaysAvailable = ['home'];
+  
+  // Map content checks to tab names
+  const contentChecks = {
+    'exec': () => !!model.strategicIntent,
+    'bmc': () => !!model.bmc,
+    'layers': () => model.capabilities.length > 0 || model.systems.length > 0 || model.valueStreams.length > 0,
+    'capmap': () => model.capabilities.length > 0,
+    'heatmap': () => model.capabilities.length > 0,
+    'graph': () => model.capabilities.length > 0,
+    'opmodel': () => Object.keys(model.operatingModel||{}).length > 0,
+    'gap': () => !!model.gapAnalysisDone,
+    'maturity': () => model.capabilities.length > 0,
+    'targetarch': () => !!model.targetArchDone,
+    'roadmapvis': () => !!model.targetArchDone,
+    'phase4': () => model.capabilities.length > 0,
+    'bench': () => model.capabilities.length > 0,
+    'survey': () => model.capabilities.length > 0,
+    'cfo': () => model.capabilities.length > 0,
+    'impact': () => model.capabilities.length > 0,
+    'toolkits': () => true, // Always available
+    'scenarios': () => model.capabilities.length > 0,
+    'financials': () => model.capabilities.length > 0 && model.targetArchDone,
+    'optimisation': () => model.capabilities.length > 0 && model.targetArchDone
+  };
+  
+  // Get all tab buttons
+  const allTabButtons = document.querySelectorAll('.tab-btn');
+  
+  allTabButtons.forEach(btn => {
+    // Extract tab name from onclick attribute
+    const onclickAttr = btn.getAttribute('onclick');
+    if (!onclickAttr) return;
+    
+    const match = onclickAttr.match(/showTab\(['"]([^'"]+)['"]/);
+    if (!match) return;
+    
+    const tabName = match[1];
+    
+    // Check if tab should be available
+    const isAlwaysAvailable = alwaysAvailable.includes(tabName);
+    const hasContent = contentChecks[tabName] ? contentChecks[tabName]() : false;
+    const shouldBeAvailable = isAlwaysAvailable || hasContent;
+    
+    // Update lock state
+    if (shouldBeAvailable) {
+      // Unlock tab
+      btn.classList.remove('tab-btn--locked');
+      btn.removeAttribute('data-tab-locked-reason');
+      
+      // Highlight tabs with generated content (not always-available tabs)
+      if (hasContent && !isAlwaysAvailable) {
+        btn.classList.add('tab-btn--highlight');
+        btn.title = btn.title.replace(' (locked)', '') + ' ✓';
+      }
+    } else {
+      // Lock tab
+      btn.classList.add('tab-btn--locked');
+      btn.classList.remove('tab-btn--highlight');
+      
+      // Set lock reason based on tab type
+      let lockReason = 'Content not yet generated';
+      if (['exec', 'bmc'].includes(tabName)) {
+        lockReason = 'Complete Step 1 & 2 to unlock';
+      } else if (['layers', 'capmap', 'heatmap', 'graph', 'maturity', 'phase4', 'bench', 'survey', 'cfo', 'impact'].includes(tabName)) {
+        lockReason = 'Generate architecture (Step 3) to unlock';
+      } else if (tabName === 'opmodel') {
+        lockReason = 'Complete Operating Model (Step 4) to unlock';
+      } else if (tabName === 'gap') {
+        lockReason = 'Complete Gap Analysis (Step 5) to unlock';
+      } else if (['targetarch', 'roadmapvis'].includes(tabName)) {
+        lockReason = 'Generate Target Architecture (Step 7) to unlock';
+      } else if (['financials', 'optimisation'].includes(tabName)) {
+        lockReason = 'Complete architecture & target state to unlock';
+      }
+      
+      btn.setAttribute('data-tab-locked-reason', lockReason);
+      btn.title = btn.title.replace(' ✓', '').replace(' (locked)', '') + ' (locked)';
+    }
+  });
+  
+  // Special handling: Home tab should show enterprise dashboard only after Step 3
+  const homeBtn = document.querySelector(".tab-btn[onclick*=\"showTab('home'\"]");
+  if (homeBtn && model.capabilities.length > 0) {
+    homeBtn.classList.add('tab-btn--highlight');
+  }
+}
+
+// Helper function to find tab button
+function findTabButton(tabId) {
+  return document.querySelector(`.tab-btn[onclick*="showTab('${tabId}'"]`);
 }
 
 // ── WHY THIS? — STEP RATIONALE CARD ────
@@ -11659,6 +11869,204 @@ function renderStepRationale(stepNum) {
       ${sources.length ? `<div style="font-size:8px;color:#64748b;margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Sources: ${sources.join(' · ')}</div>` : ''}
       ${assumptions.map(a => `<div style="font-size:9px;color:#475569;margin-bottom:2px;">&#8226; ${a}</div>`).join('')}
       ${keyDrivers.map(d => `<div style="font-size:9px;color:#6366f1;margin-bottom:2px;">&#8594; ${d}</div>`).join('')}
+    </div>`;
+}
+
+// ── RENDER BUSINESS MODEL CANVAS ─────────────────────────────────────────────
+function renderBMCCanvas() {
+  const container = document.getElementById('bmc-canvas-container');
+  if (!container) return;
+
+  const bmc = model.bmc || {};
+  
+  // Check if BMC has any data
+  const hasData = bmc.customer_segments || bmc.value_proposition || bmc.channels || 
+                  bmc.customer_relationships || bmc.revenue_streams || bmc.key_resources ||
+                  bmc.key_activities || bmc.key_partners || bmc.cost_structure;
+
+  if (!hasData) {
+    container.innerHTML = `
+      <div class="bmc-empty-state">
+        <div style="font-size:3rem;margin-bottom:1rem;opacity:0.3;">
+          <i class="fas fa-table-columns"></i>
+        </div>
+        <div style="font-size:1rem;font-weight:700;color:#64748b;margin-bottom:0.5rem;">
+          No Business Model Canvas Data
+        </div>
+        <div style="font-size:0.85rem;color:#94a3b8;margin-bottom:1.5rem;">
+          Generate your BMC using the AI assistant to see it visualized here
+        </div>
+        <button onclick="startBMCGeneration()" class="ea-btn ea-btn--primary">
+          <i class="fas fa-robot"></i><span>Generate BMC</span>
+        </button>
+      </div>`;
+    return;
+  }
+
+  // Extract metadata
+  const orgName = model.strategicIntent?.org_name || bmc.designed_for || 'Organisation';
+  const designer = bmc.designed_by || '';
+  const date = bmc.date || new Date().toISOString().split('T')[0];
+  const version = bmc.version || 'v1.0';
+
+  container.innerHTML = `
+    <div class="bmc-canvas-outer">
+      <!-- Meta Bar -->
+      <div class="bmc-meta-bar">
+        <div class="bmc-title-section">
+          <h2 style="font-size:1.1rem;font-weight:900;color:var(--ea-primary);margin:0;">
+            The Business Model Canvas
+          </h2>
+          <span style="margin-left:0.75rem;font-size:0.65rem;font-weight:700;padding:3px 8px;border-radius:12px;background:#f1f5f9;color:#475569;">
+            AS IS
+          </span>
+        </div>
+        <div class="bmc-meta-fields">
+          <div class="bmc-meta-field">
+            <div class="bmc-meta-label">Designed for</div>
+            <div class="bmc-meta-value">${orgName}</div>
+          </div>
+          <div class="bmc-meta-field">
+            <div class="bmc-meta-label">Designed by</div>
+            <div class="bmc-meta-value">${designer || '—'}</div>
+          </div>
+          <div class="bmc-meta-field">
+            <div class="bmc-meta-label">Date</div>
+            <div class="bmc-meta-value">${date}</div>
+          </div>
+          <div class="bmc-meta-field">
+            <div class="bmc-meta-label">Version</div>
+            <div class="bmc-meta-value">${version}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main 5-column grid (top 2 rows) -->
+      <div class="bmc-canvas-grid">
+        <!-- Key Partners (rows 1-2) -->
+        <div class="bmc-cell" style="grid-row:1/span 2;border-left:none;border-top:none;">
+          <div class="bmc-cell-header">
+            <span class="bmc-cell-num">8</span>
+            <i class="fas fa-link bmc-cell-icon"></i>
+            Key Partners
+          </div>
+          <div class="bmc-cell-subtitle">Vilka är våra nyckelpartners? Vilka resurser förvärvar vi från partners?</div>
+          <div class="bmc-cell-content">${bmc.key_partners || '—'}</div>
+        </div>
+
+        <!-- Key Activities (row 1) -->
+        <div class="bmc-cell" style="grid-row:1;border-top:none;">
+          <div class="bmc-cell-header">
+            <span class="bmc-cell-num">7</span>
+            <i class="fas fa-check-square bmc-cell-icon"></i>
+            Key Activities
+          </div>
+          <div class="bmc-cell-subtitle">Vilka nyckelaktiviteter kräver våra värdeerbjudanden?</div>
+          <div class="bmc-cell-content">${bmc.key_activities || '—'}</div>
+        </div>
+
+        <!-- Value Propositions (rows 1-2) -->
+        <div class="bmc-cell" style="grid-row:1/span 2;border-top:none;">
+          <div class="bmc-cell-header">
+            <span class="bmc-cell-num">2</span>
+            <i class="fas fa-gift bmc-cell-icon"></i>
+            Value Propositions
+          </div>
+          <div class="bmc-cell-subtitle">Vilket värde levererar vi? Vilket kundproblem löser vi?</div>
+          <div class="bmc-cell-content">${bmc.value_proposition || '—'}</div>
+        </div>
+
+        <!-- Customer Relationships (row 1) -->
+        <div class="bmc-cell" style="grid-row:1;border-top:none;">
+          <div class="bmc-cell-header">
+            <span class="bmc-cell-num">4</span>
+            <i class="fas fa-heart bmc-cell-icon"></i>
+            Customer Relationships
+          </div>
+          <div class="bmc-cell-subtitle">Vilken typ av relation förväntar sig varje kundsegment?</div>
+          <div class="bmc-cell-content">${bmc.customer_relationships || '—'}</div>
+        </div>
+
+        <!-- Customer Segments (rows 1-2) -->
+        <div class="bmc-cell" style="grid-row:1/span 2;border-top:none;border-right:none;">
+          <div class="bmc-cell-header">
+            <span class="bmc-cell-num">1</span>
+            <i class="fas fa-users bmc-cell-icon"></i>
+            Customer Segments
+          </div>
+          <div class="bmc-cell-subtitle">För vem skapar vi värde? Vilka är våra viktigaste kunder?</div>
+          <div class="bmc-cell-content">${bmc.customer_segments || '—'}</div>
+        </div>
+
+        <!-- Key Resources (row 2) -->
+        <div class="bmc-cell" style="grid-row:2;">
+          <div class="bmc-cell-header">
+            <span class="bmc-cell-num">6</span>
+            <i class="fas fa-industry bmc-cell-icon"></i>
+            Key Resources
+          </div>
+          <div class="bmc-cell-subtitle">Vilka nyckelresurser kräver våra värdeerbjudanden?</div>
+          <div class="bmc-cell-content">${bmc.key_resources || '—'}</div>
+        </div>
+
+        <!-- Channels (row 2) -->
+        <div class="bmc-cell" style="grid-row:2;border-right:none;">
+          <div class="bmc-cell-header">
+            <span class="bmc-cell-num">3</span>
+            <i class="fas fa-truck bmc-cell-icon"></i>
+            Channels
+          </div>
+          <div class="bmc-cell-subtitle">Genom vilka kanaler vill våra kundsegment nås?</div>
+          <div class="bmc-cell-content">${bmc.channels || '—'}</div>
+        </div>
+      </div>
+
+      <!-- Bottom row: Cost Structure + Revenue Streams -->
+      <div class="bmc-bottom-row">
+        <div class="bmc-bottom-cell">
+          <div class="bmc-cell-header">
+            <span class="bmc-cell-num">9</span>
+            <i class="fas fa-tag bmc-cell-icon"></i>
+            Cost Structure
+          </div>
+          <div class="bmc-cell-subtitle">Vilka är de viktigaste kostnaderna i vår affärsmodell?</div>
+          <div class="bmc-cell-content" style="flex:1;">${bmc.cost_structure || '—'}</div>
+        </div>
+        <div class="bmc-bottom-cell">
+          <div class="bmc-cell-header">
+            <span class="bmc-cell-num">5</span>
+            <i class="fas fa-dollar-sign bmc-cell-icon"></i>
+            Revenue Streams
+          </div>
+          <div class="bmc-cell-subtitle">För vilket värde är kunderna verkligen villiga att betala?</div>
+          <div class="bmc-cell-content" style="flex:1;">${bmc.revenue_streams || '—'}</div>
+        </div>
+      </div>
+
+      <!-- KPI Section (if exists) -->
+      ${bmc.goal || bmc.driver || bmc.regulatory ? `
+      <div style="border-top:2px solid #1e293b;padding:16px;">
+        <div style="font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+          <i class="fas fa-chart-line"></i> Nyckelmått & Affärsdrivare
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;">
+          ${bmc.goal ? `
+          <div style="background:#f8fafc;border-radius:8px;padding:10px;border:1px solid #e2e8f0;">
+            <div style="font-size:0.65rem;font-weight:700;color:#64748b;margin-bottom:4px;">Strategiskt mål</div>
+            <div style="font-size:0.8rem;color:#334155;line-height:1.5;">${bmc.goal}</div>
+          </div>` : ''}
+          ${bmc.driver ? `
+          <div style="background:#f8fafc;border-radius:8px;padding:10px;border:1px solid #e2e8f0;">
+            <div style="font-size:0.65rem;font-weight:700;color:#64748b;margin-bottom:4px;">Primär affärsdriver</div>
+            <div style="font-size:0.8rem;color:#334155;line-height:1.5;">${bmc.driver}</div>
+          </div>` : ''}
+          ${bmc.regulatory ? `
+          <div style="background:#f8fafc;border-radius:8px;padding:10px;border:1px solid #e2e8f0;">
+            <div style="font-size:0.65rem;font-weight:700;color:#64748b;margin-bottom:4px;">Regulatorik / ESG</div>
+            <div style="font-size:0.8rem;color:#334155;line-height:1.5;">${bmc.regulatory}</div>
+          </div>` : ''}
+        </div>
+      </div>` : ''}
     </div>`;
 }
 

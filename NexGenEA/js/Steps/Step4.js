@@ -216,7 +216,11 @@ Produce the delta. change_readiness.score: 0.0-1.0. executive_summary: 2-3 sente
       addAssistantMessage(
         `**Step 4 — Operating Model complete**\n\n` +
         `Change readiness: **${ready ? (ready * 100).toFixed(0) + '%' : 'scored'}**\n\n` +
-        `Step 5 (Gap Analysis) is now unlocked.`
+        `**Next:** Ready to analyze capability gaps? Click below or use the **Continue** button in the sidebar.\n\n` +
+        `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step5', window.model); } else { console.error('StepEngine not available'); }">\n` +
+        `  <i class="fas fa-arrow-right"></i>\n` +
+        `  Start Step 5: Gap Analysis\n` +
+        `</button>`
       );
     }
   }

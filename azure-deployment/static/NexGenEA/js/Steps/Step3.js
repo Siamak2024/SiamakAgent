@@ -258,7 +258,11 @@ executive_benchmark_summary: 2-3 sentences for the Board.`;
         `**Step 3 — Capability Architecture complete**\n\n` +
         `${model.capabilities?.length || 0} capabilities mapped across ${model.capabilityMap?.l1_domains?.length || 0} domains.\n` +
         `Overall maturity: **${overall ? overall.toFixed(1) + '/5' : 'assessed'}**\n\n` +
-        `Step 4 (Operating Model) is now unlocked.`
+        `**Next:** Ready to design Operating Model? Click below or use the **Continue** button in the sidebar.\n\n` +
+        `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step4', window.model); } else { console.error('StepEngine not available'); }">\n` +
+        `  <i class="fas fa-arrow-right"></i>\n` +
+        `  Start Step 4: Operating Model\n` +
+        `</button>`
       );
     }
   }

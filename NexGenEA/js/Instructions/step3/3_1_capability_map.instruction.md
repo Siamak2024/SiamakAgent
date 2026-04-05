@@ -35,6 +35,13 @@ You are a Business Capability Mapping expert following BIZBOK and TOGAF principl
 
 ## Output Format
 
+**DATA CONTRACT:** See `CAPABILITY_MAP_DATA_CONTRACT.md` for core flat schema used by Autopilot mode.
+
+**Standard Mode Extensions:** This interactive mode uses hierarchical structure for easier workshop navigation:
+- Hierarchical format: `l1_domains` → `l2_capabilities` → `l3_capabilities`
+- `strategic_importance` at domain level (CORE/SUPPORT/COMMODITY)
+- After final synthesis, convert to flat array matching data contract for rendering
+
 Return ONLY valid JSON. No markdown, no prose.
 
 ```json
@@ -64,3 +71,5 @@ Return ONLY valid JSON. No markdown, no prose.
   }
 }
 ```
+
+**NOTE:** Final output must be converted to flat `capabilities` array matching CAPABILITY_MAP_DATA_CONTRACT.md before saving to model.

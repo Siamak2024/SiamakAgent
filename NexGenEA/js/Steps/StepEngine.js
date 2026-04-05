@@ -225,6 +225,7 @@ const StepEngine = (() => {
     }
     if (typeof autoSaveCurrentModel === 'function')  autoSaveCurrentModel();
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
+    if (typeof _updateContinueBtn === 'function') _updateContinueBtn(); // Update Continue button to show next step
     if (stepModule.onComplete) stepModule.onComplete(newModel);
 
     // ── Enable chat auto-save after step completion ───────────────────────
@@ -293,13 +294,13 @@ const StepEngine = (() => {
     }
 
     // Parse output
-    const parsed = taskDef.parseOutput
+    let parsed = taskDef.parseOutput
       ? taskDef.parseOutput(aiResult.rawOutput)
       : OutputValidator.parseJSON(aiResult.rawOutput, taskDef.taskId);
 
-    // Validate schema
+    // Validate schema (and auto-normalize types like string→array)
     if (taskDef.outputSchema && typeof OutputValidator !== 'undefined') {
-      OutputValidator.assert(parsed, taskDef.outputSchema, taskDef.taskId);
+      parsed = OutputValidator.assert(parsed, taskDef.outputSchema, taskDef.taskId);
     }
 
     // Hide thinking indicator
