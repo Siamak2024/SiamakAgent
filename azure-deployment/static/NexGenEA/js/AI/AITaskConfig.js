@@ -16,7 +16,6 @@ const AITaskConfig = (() => {
       model: 'gpt-4o',
       temperature: 0.7,
       timeoutMs: 180000,
-      reasoning: { summary: 'auto', effort: 'high' },
       description: 'Deep reasoning for context-aware EA result discussion'
     },
 
@@ -25,7 +24,6 @@ const AITaskConfig = (() => {
       model: 'gpt-4o',
       temperature: 0.2,
       timeoutMs: 120000,
-      reasoning: { summary: 'auto', effort: 'medium' },
       description: 'Precise JSON generation for EA model updates'
     },
 
@@ -34,7 +32,6 @@ const AITaskConfig = (() => {
       model: 'gpt-4o',
       temperature: 0.3,
       timeoutMs: 240000,
-      reasoning: { summary: 'auto', effort: 'high' },
       description: 'Complex EA architecture generation with deep analysis'
     },
 
@@ -43,7 +40,6 @@ const AITaskConfig = (() => {
       model: 'gpt-4o',
       temperature: 0.4,
       timeoutMs: 180000,
-      reasoning: { summary: 'auto', effort: 'high' },
       description: 'Strategic analysis and insight generation'
     },
 
@@ -52,7 +48,6 @@ const AITaskConfig = (() => {
       model: 'gpt-4o',
       temperature: 0.6,
       timeoutMs: 120000,
-      reasoning: { summary: 'auto', effort: 'medium' },
       description: 'General EA advisory and conversational questions'
     },
 
@@ -61,7 +56,6 @@ const AITaskConfig = (() => {
       model: 'gpt-4o',
       temperature: 0.3,
       timeoutMs: 60000,
-      reasoning: { summary: 'auto', effort: 'low' },
       description: 'Quick, simple tasks and classifications'
     }
 

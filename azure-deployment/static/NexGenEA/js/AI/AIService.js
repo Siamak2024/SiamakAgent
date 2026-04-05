@@ -153,7 +153,7 @@ const AIService = (() => {
 
   // ── Direct OpenAI Chat Completions API call ──────────────────────────────
   async function _callDirectAPI(input, createOpts, apiKey, timeoutMs) {
-    const { instructions, model, temperature, response_format, reasoning, ...otherOpts } = createOpts;
+    const { instructions, model, temperature, response_format, reasoning, timeout, ...otherOpts } = createOpts;
     
     // Build messages array for Chat Completions API
     const messages = [
@@ -161,12 +161,14 @@ const AIService = (() => {
       { role: 'user', content: input }
     ];
 
+    // Only include parameters supported by Chat Completions API
+    // Note: timeout and reasoning are NOT valid API parameters
     const requestBody = {
       model,
       messages,
       ...(temperature !== undefined && { temperature }),
-      ...(response_format && { response_format }),
-      ...otherOpts
+      ...(response_format && { response_format })
+      // otherOpts intentionally excluded to avoid unsupported params
     };
 
     const controller = new AbortController();

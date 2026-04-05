@@ -2533,7 +2533,9 @@ function detectMessageLanguage(text) {
 }
 
 function resolveResponseLanguage(userMessage) {
-  return detectMessageLanguage(userMessage) || getAppLanguage();
+  // AI responds in the same language the user writes in
+  // Default to English if language cannot be detected from message
+  return detectMessageLanguage(userMessage) || 'en';
 }
 
 function getUiTranslationCacheKey(language) {
@@ -6144,20 +6146,8 @@ function closeChatPanel() {
 }
 
 function getDefaultEaAssistantWelcome() {
-  // Use Swedish if browser language is Swedish or user previously used Swedish
-  const userLang = getUserPreferredLanguage();
-  
-  if (userLang === 'sv') {
-    return "👋 **Hej! Jag är din NextGen EA-assistent** och jag är kontextmedveten om vyn du arbetar i.\n\n" +
-      "Du kan skriva naturligt eller köra kommandon, till exempel:\n" +
-      "- Generera arkitektur för en branschspecifik organisation\n" +
-      "- Uppdatera roadmap\n" +
-      "- Uppdatera capability map\n" +
-      "- Uppdatera operating model\n" +
-      "- Uppdatera målarkitektur\n\n" +
-      "Vad vill du göra nu?";
-  }
-  
+  // Default welcome message in English
+  // AI will automatically respond in the same language the user writes in
   return "Hi! I am your NextGen EA Assistant, and I am context-aware of the view you are working in.\n\n" +
     "You can write naturally or run commands, for example:\n" +
     "- Generate architecture for a Industry-specific organization\n" +
@@ -6169,21 +6159,8 @@ function getDefaultEaAssistantWelcome() {
 }
 
 function getUserPreferredLanguage() {
-  try {
-    // Check localStorage first
-    const stored = localStorage.getItem('ea_preferred_language');
-    if (stored) return stored;
-  } catch (e) {
-    // Ignore localStorage errors (tracking prevention)
-  }
-  
-  // Fallback to browser language
-  const browserLang = navigator.language || navigator.userLanguage || '';
-  if (browserLang.toLowerCase().startsWith('sv')) return 'sv';
-  
-  // Default to Swedish for Nordic/European users (safer default for Advicy platform)
-  // Most Advicy users are Swedish-speaking
-  return 'sv';
+  // Default to English - AI will respond in the same language the user writes in
+  return 'en';
 }
 
 function clearActiveConversationHistory() {
@@ -9236,9 +9213,6 @@ async function processUserMessage(userMessage) {
       return { content: 'Returned to general EA Assistant mode. What would you like to work on?', metadata: null };
     }
     const stepResult = await handleStepFocusedMessage(userMessage, context, window._stepChatContext);
-    if (stepResult?.content) {
-      stepResult.content = await maybeTranslateAssistantContent(stepResult.content, context.preferredLanguage);
-    }
     return stepResult;
   }
 
@@ -9267,7 +9241,6 @@ async function processUserMessage(userMessage) {
   if (window._pendingRecommendations) {
     if (/\b(yes|apply|ja|ok\b|confirm|proceed|sure|do it|go ahead)\b/i.test(userMessage)) {
       const result = applyAIRecommendations(window._pendingRecommendations);
-      if (result.content) result.content = await maybeTranslateAssistantContent(result.content, context.preferredLanguage);
       return result;
     }
     if (/\b(no|skip|cancel|ignore|nej|avbryt|nope|don't)\b/i.test(userMessage)) {
@@ -9280,9 +9253,6 @@ async function processUserMessage(userMessage) {
   if (command) {
     const commandResult = await executeAssistantCommand(command, userMessage, context);
     if (commandResult) {
-      if (commandResult.content) {
-        commandResult.content = await maybeTranslateAssistantContent(commandResult.content, context.preferredLanguage);
-      }
       return commandResult;
     }
   }
@@ -9313,47 +9283,7 @@ async function processUserMessage(userMessage) {
       break;
   }
 
-  if (result?.content) {
-    result.content = await maybeTranslateAssistantContent(result.content, context.preferredLanguage);
-  }
   return result;
-}
-
-async function maybeTranslateAssistantContent(content, targetLanguage) {
-  const lang = normalizeLanguageCode(targetLanguage || 'en');
-  if (!content || lang === 'en') return content;
-
-  // Skip translation if content already appears to be in target language
-  // Check for Swedish characters if target is Swedish
-  if (lang === 'sv') {
-    // More comprehensive Swedish detection
-    if (/[åäöÅÄÖé]/.test(content)) {
-      return content; // Contains Swedish characters
-    }
-    // Check for common Swedish words
-    if (/\b(och|eller|är|vara|för|att|med|från|till|vid|som|det|den|ett|en|av|har|kan|ska|vill|göra|Hej|Välkommen)\b/i.test(content)) {
-      return content; // Contains Swedish words
-    }
-  }
-  
-  // Skip translation for very short content (likely UI elements already translated)
-  if (content.length < 50) return content;
-
-  try {
-    return await callAI(
-      'You are a precise translation assistant. Translate the text to the target language while preserving markdown formatting, bullet structure, bold markers, and numbers. Return only the translated text.',
-      `Target language: ${lang}\n\nText:\n${content}`,
-      {
-        taskType: 'lightweight',
-        temperature: 0,
-        includeProjectContext: false,
-        replyLanguage: lang,
-        silentOnNoKey: true
-      }
-    );
-  } catch (_) {
-    return content;
-  }
 }
 
 async function handleGenerateArchitecture(userMessage, context) {
