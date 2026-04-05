@@ -189,7 +189,8 @@ recommended_portfolio: the most coherent combination of options. Express total_i
       ...model,
       valuePools: output.valuePools,
       strategicOptions: output.strategicOptions,
-      recommendedPortfolio: output.recommendedPortfolio
+      recommendedPortfolio: output.recommendedPortfolio,
+      valuepoolsDone: true
     };
   },
 

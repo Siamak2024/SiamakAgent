@@ -706,6 +706,161 @@ if (vsOldCode.found && !vsUsesLevel1.found) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// TEST 24: Value Pools Tab — dedicated tab-valuepools div exists
+// REGRESSION: No dedicated tab div existed → renderValuePoolsPanel() injected
+// into tab-targetarch (wrong) or tab-insights (doesn't exist) → pools invisible
+// ────────────────────────────────────────────────────────────────────────────
+console.log(`\n${BOLD}[TEST 24]${RESET} Value Pools Tab — dedicated tab div exists`);
+
+const hasValuePoolsTabDiv   = html.includes('id="tab-valuepools"');
+const hasValuePoolsContent  = html.includes('id="valuepools-content"');
+const hasValuePoolsNavBtn   = html.includes("showTab('valuepools'");
+const vpPanelInjectsTarget  = grepLine(html, /tab-targetarch.*tab-insights|getElementById.*tab-targetarch.*valueOf|sec = document\.createElement.*valuepools/);
+const vpPanelUsesVPContent  = grepLine(html, /getElementById\(['"]valuepools-content['"]\)/);
+
+if (!hasValuePoolsTabDiv) {
+  BUG(24, 'CRITICAL',
+    'No id="tab-valuepools" div exists in HTML. renderValuePoolsPanel() has nowhere to render. ' +
+    'Value Pools tab is completely invisible to the user.',
+    'NexGen_EA_V4.html',
+    'Add <div id="tab-valuepools" class="hidden"> section after tab-gap in the right panel.'
+  );
+} else {
+  OK('id="tab-valuepools" div exists — Value Pools has a dedicated tab container');
+}
+
+if (!hasValuePoolsContent) {
+  BUG('24b', 'CRITICAL',
+    'No id="valuepools-content" container inside tab-valuepools. ' +
+    'renderValuePoolsPanel() cannot find target element and silently returns.',
+    'NexGen_EA_V4.html (tab-valuepools)',
+    'Add <div id="valuepools-content"> inside the tab-valuepools div.'
+  );
+} else {
+  OK('id="valuepools-content" container exists — renderValuePoolsPanel() has render target');
+}
+
+if (!hasValuePoolsNavBtn) {
+  BUG('24c', 'CRITICAL',
+    'No tab navigation button with showTab(\'valuepools\'). Users cannot navigate to Value Pools tab.',
+    'NexGen_EA_V4.html (tab nav)',
+    'Add a tab-btn button with onclick="showTab(\'valuepools\',this)" in the Analysis tab group.'
+  );
+} else {
+  OK('Tab nav button for valuepools exists — users can click to open Value Pools tab');
+}
+
+if (!vpPanelUsesVPContent.found) {
+  BUG('24d', 'CRITICAL',
+    'renderValuePoolsPanel() does NOT use getElementById("valuepools-content"). ' +
+    'It may still try to inject into tab-targetarch (wrong) or tab-insights (missing).',
+    'NexGen_EA_V4.html (renderValuePoolsPanel)',
+    'Rewrite renderValuePoolsPanel() to render into document.getElementById("valuepools-content").'
+  );
+} else {
+  OK('renderValuePoolsPanel() renders into valuepools-content — correct dedicated container');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TEST 25: Value Pools Tab — in updateTabLockStates() and showTab() auto-render
+// ────────────────────────────────────────────────────────────────────────────
+console.log(`\n${BOLD}[TEST 25]${RESET} Value Pools — lock state and showTab auto-render`);
+
+const vpInLockStates  = grepLine(html, /'valuepools'.*valuePools|valuepools.*contentChecks/);
+const vpAutoRender    = grepLine(html, /name.*===.*'valuepools'.*renderValuePoolsPanel|valuepools.*renderValuePoolsPanel/);
+
+if (!vpInLockStates.found) {
+  BUG(25, 'MODERATE',
+    'updateTabLockStates() has no entry for "valuepools" tab. ' +
+    'The tab button will never get the highlight/lock treatment — stays grey after Step6 runs.',
+    'NexGen_EA_V4.html (updateTabLockStates contentChecks)',
+    'Add \'valuepools\': () => { const vp = model.valuePools; return Array.isArray(vp) ? vp.length > 0 : ((vp?.valuePools||[]).length > 0); }, to contentChecks.'
+  );
+} else {
+  OK('updateTabLockStates() includes valuepools content check — tab highlights after Step 6');
+}
+
+if (!vpAutoRender.found) {
+  BUG('25b', 'MODERATE',
+    'showTab() has no auto-render for "valuepools". Navigating to Value Pools tab after Autopilot ' +
+    'shows empty placeholder instead of pools. User must manually re-trigger render.',
+    'NexGen_EA_V4.html (showTab)',
+    'Add: if (name === \'valuepools\') setTimeout(renderValuePoolsPanel, 50); to showTab().'
+  );
+} else {
+  OK('showTab() auto-renders valuepools — navigating to tab shows content immediately');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TEST 26: Value Pools Schema Normalization
+// REGRESSION: generateAutopilotValuePools() set model.valuePools = {valuePools:[...]}
+// renderValuePoolsPanel() read model.valuePools as array → empty (object is truthy but not array)
+// ────────────────────────────────────────────────────────────────────────────
+console.log(`\n${BOLD}[TEST 26]${RESET} Value Pools schema normalization — autopilot vs StepEngine`);
+
+const step6Content = steps.find(s => s.name === 'Step6.js')?.content || '';
+const step6SetsVpDone = grepLine(step6Content, /valuepoolsDone\s*:\s*true/);
+const vpNormalizeInRender  = grepLine(html, /Array\.isArray.*valuePools\).*?\?|valuePools\.valuePools.*value_pools/);
+const vpNormalizeInAutopilot = grepLine(html, /vpArray.*=.*Array\.isArray|normalize.*valuePools|rawData\.valuePools.*rawData\.value_pools/);
+const vpOldAutopilotSet = grepLine(html, /const valuePools = JSON\.parse\(response\.rawOutput.*\);\s*model\.valuePools = valuePools/);
+
+if (vpOldAutopilotSet.found) {
+  BUG(26, 'CRITICAL',
+    'generateAutopilotValuePools() sets model.valuePools = JSON.parse(rawOutput) directly. ' +
+    'AI returns {valuePools:[...]} — so model.valuePools is an OBJECT, not array. ' +
+    'renderValuePoolsPanel() does model.valuePools || [] — gets empty array. ' +
+    'model?.valuePools?.valuePools in roadmap generator also breaks.',
+    'NexGen_EA_V4.html (generateAutopilotValuePools)',
+    'Normalize: const rawData = JSON.parse(rawOutput); model.valuePools = rawData.valuePools || rawData.value_pools || (Array.isArray(rawData) ? rawData : []);'
+  );
+} else if (!vpNormalizeInRender.found && !vpNormalizeInAutopilot.found) {
+  WARN('Value Pools schema normalization not found — verify model.valuePools is always an array');
+} else {
+  OK('Value Pools schema normalized — model.valuePools always an array (handles autopilot + StepEngine)');
+}
+
+if (!step6SetsVpDone.found) {
+  BUG('26b', 'MODERATE',
+    'Step6.applyOutput() does not set model.valuepoolsDone = true. ' +
+    'updateTabLockStates() check may rely on this flag to unlock the valuepools tab button.',
+    'NexGenEA/js/Steps/Step6.js (applyOutput)',
+    'Add valuepoolsDone: true to the return object of applyOutput().'
+  );
+} else {
+  OK('Step6.applyOutput sets valuepoolsDone = true — Value Pools tab unlocks after Step 6');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TEST 27: Value Pools rendering — field name normalization
+// REGRESSION: Old renderValuePoolsPanel() expected p.value_driver, p.potential_impact,
+// p.enabling_capabilities. New Step6 returns p.value_potential, p.linked_capabilities.
+// Autopilot legacy returns p.estimatedValue, p.enablers, p.confidence.
+// ────────────────────────────────────────────────────────────────────────────
+console.log(`\n${BOLD}[TEST 27]${RESET} Value Pools rendering — field normalization`);
+
+const vpRenderBlock = (() => {
+  const start = html.indexOf('function renderValuePoolsPanel()');
+  return html.slice(start, start + 4000);
+})();
+
+const vpNormsLinkedCaps = /linked_capabilities|enablers/.test(vpRenderBlock);
+const vpNormsValuePotential = /value_potential|potential_impact/.test(vpRenderBlock);
+const vpNormsEstimatedValue = /estimatedValue|estimated_value_text/.test(vpRenderBlock);
+
+if (!vpNormsLinkedCaps || !vpNormsValuePotential || !vpNormsEstimatedValue) {
+  BUG(27, 'MODERATE',
+    'renderValuePoolsPanel() does not handle all field name variants. ' +
+    'StepEngine Step6 uses: value_potential, linked_capabilities. ' +
+    'Autopilot legacy uses: estimatedValue, enablers, confidence. ' +
+    'Missing normalization = empty labels in rendered pool cards.',
+    'NexGen_EA_V4.html (renderValuePoolsPanel normPool)',
+    'Add normPool() helper that normalizes all alternate field names before rendering.'
+  );
+} else {
+  OK('renderValuePoolsPanel() normalizes all field variants — pool cards show correct content');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // SUMMARY
 // ────────────────────────────────────────────────────────────────────────────
 console.log(`\n${BOLD}${CYAN}═══════════════════════════════════════════════════════════${RESET}`);

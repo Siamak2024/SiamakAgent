@@ -584,6 +584,7 @@
       <div class="ea-tab-group">
         <div class="ea-tab-group__buttons">
           <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('gap',this)" title="Gap Analysis"><span class="flex flex-col items-center leading-tight"><i class="fas fa-triangle-exclamation"></i><span class="text-[9px]">Gap</span></span></button>
+          <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('valuepools',this)" title="Value Pools &amp; Strategic Options — Step 6"><span class="flex flex-col items-center leading-tight"><i class="fas fa-coins"></i><span class="text-[9px]">Value Pools</span></span></button>
           <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('maturity',this)" title="Maturity Dashboard"><span class="flex flex-col items-center leading-tight"><i class="fas fa-chart-line"></i><span class="text-[9px]">Maturity</span></span></button>
           <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('opmodel',this)" title="Operating Model"><span class="flex flex-col items-center leading-tight"><i class="fas fa-sitemap"></i><span class="text-[9px]">Op Model</span></span></button>
         </div>
@@ -1711,6 +1712,25 @@
         </div>
         <div id="insights" class="ea-summary-list">
           <div class="text-slate-400 italic text-center py-6 text-[11px]">Run Gap Analysis to generate prioritized findings</div>
+        </div>
+      </div>
+
+      <!-- VALUE POOLS & STRATEGIC OPTIONS (Step 6) -->
+      <div id="tab-valuepools" class="hidden">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <div class="text-xs font-bold text-slate-600">Value Pools &amp; Strategic Options</div>
+            <div class="text-[10px] text-slate-400">Value clusters unlocked by capability uplift — Step 6</div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="generateCxOSummary('Value Pools')" class="ea-btn ea-btn--cxo">
+              <i class="fas fa-file-powerpoint"></i><span>Generate CxO Summary</span>
+            </button>
+            <button onclick="generateValuePools()" class="ea-btn ea-btn--secondary"><i class="fas fa-coins"></i><span>Run Value Analysis</span></button>
+          </div>
+        </div>
+        <div id="valuepools-content">
+          <div class="text-slate-400 italic text-center py-6 text-[11px]">Complete Gap Analysis (Step 5) then run Value Pools (Step 6)</div>
         </div>
       </div>
 
@@ -5424,6 +5444,7 @@ function showTab(name, btn) {
   if (name === 'scenarios') setTimeout(renderDecisionScenarios, 50);
   if (name === 'financials') setTimeout(renderFinancials, 50);
   if (name === 'optimisation') setTimeout(renderOptimisation, 50);
+  if (name === 'valuepools') setTimeout(renderValuePoolsPanel, 50);
   // ── BUG-9 FIX: Add missing auto-renders for Step4-7 tabs ──
   if (name === 'opmodel')    setTimeout(renderOperatingModel, 50);
   if (name === 'targetarch') setTimeout(renderTargetArchVisual, 50);
@@ -9536,9 +9557,13 @@ Return ONLY valid JSON with 5-7 value pools.`;
       expectsJson: true
     });
     
-    const valuePools = JSON.parse(response.rawOutput.trim());
-    model.valuePools = valuePools;
-    window._autopilotState.generatedData.valuePools = valuePools;
+    const rawData = JSON.parse(response.rawOutput.trim());
+    // Normalize: AI may return {valuePools:[...]} or {value_pools:[...]} or array directly
+    const vpArray = Array.isArray(rawData)
+      ? rawData
+      : (rawData.valuePools || rawData.value_pools || []);
+    model.valuePools = vpArray;  // Always store as array
+    window._autopilotState.generatedData.valuePools = vpArray;
     window._autopilotState.completedSteps.push(6);
     
     saveModelToDB(false, true);
@@ -9554,7 +9579,9 @@ Return ONLY valid JSON with 5-7 value pools.`;
 async function generateAutopilotRoadmap() {
   const ctx = window._autopilotState?.context || {};
   const gaps = model?.gapAnalysis?.gaps || [];
-  const valuePools = model?.valuePools?.valuePools || [];
+  const valuePools = Array.isArray(model.valuePools)
+    ? model.valuePools
+    : (model?.valuePools?.valuePools || model?.valuePools?.value_pools || []);
   
   updateAutopilotProgress(7, 'Genererar Transformation Roadmap...');
   
@@ -11626,40 +11653,133 @@ async function _v5LegacyVP_dead() { let _discard = `\n\nAll capabilities: ${JSON
 } // end _v5LegacyVP_dead
 
 function renderValuePoolsPanel() {
-  const pools = model.valuePools || [];
-  if (!pools.length) return;
-  const driverColor = {cost:'bg-amber-100 text-amber-700', revenue:'bg-green-100 text-green-700', risk:'bg-red-100 text-red-700', experience:'bg-blue-100 text-blue-700'};
-  const horizonColor = {short:'text-green-600', medium:'text-amber-600', long:'text-slate-500'};
-  const targetEl = document.getElementById('tab-targetarch') || document.getElementById('tab-insights');
-  if (!targetEl) return;
-  let sec = document.getElementById('valuepools-section');
-  if (!sec) {
-    sec = document.createElement('div');
-    sec.id = 'valuepools-section';
-    targetEl.insertAdjacentElement('afterbegin', sec);
+  // ── Schema normalization ──────────────────────────────────────────────────
+  // model.valuePools can be:
+  //   (A) Array<pool>          — set by Step6.applyOutput (StepEngine mode)
+  //   (B) {valuePools:[...]}   — set by generateAutopilotValuePools() legacy
+  //   (C) {value_pools:[...]}  — AI returns snake_case variant
+  const raw = model.valuePools;
+  const pools = Array.isArray(raw)
+    ? raw
+    : (raw?.valuePools || raw?.value_pools || []);
+
+  // Normalize each pool's field names to support both StepEngine and autopilot schemas
+  const normPool = (p) => ({
+    name: p.name || '',
+    description: p.description || p.value_narrative || '',
+    value_driver: p.value_driver || _vpCategoryToDriver(p.category) || 'revenue',
+    potential_impact: p.potential_impact || p.value_potential?.toLowerCase() || 'medium',
+    time_horizon: p.time_horizon || _vpTimeNorm(p.timeToValue) || 'medium',
+    linked_strategic_theme: p.linked_strategic_theme || p.category || '',
+    estimated_annual_value_eur: p.estimated_annual_value_eur || null,
+    estimated_value_text: p.estimatedValue || null,
+    enabling_capabilities: p.enabling_capabilities || p.linked_capabilities || p.enablers || [],
+    risks_if_missed: p.risks_if_missed || '',
+    linked_gaps: p.linked_gaps || []
+  });
+
+  // Helpers for field normalization
+  function _vpCategoryToDriver(cat) {
+    if (!cat) return null;
+    const c = cat.toLowerCase();
+    if (c.includes('cost') || c.includes('efficiency') || c.includes('operational')) return 'cost';
+    if (c.includes('revenue') || c.includes('growth')) return 'revenue';
+    if (c.includes('risk')) return 'risk';
+    if (c.includes('experience') || c.includes('customer')) return 'experience';
+    return 'revenue';
   }
-  sec.innerHTML = `
+  function _vpTimeNorm(t) {
+    if (!t) return null;
+    const s = String(t).toLowerCase();
+    if (s.includes('short') || /0-12|0–12|month/.test(s)) return 'short';
+    if (s.includes('long') || /24\+|24m\+/.test(s)) return 'long';
+    return 'medium';
+  }
+
+  const targetEl = document.getElementById('valuepools-content');
+  if (!targetEl) return;
+
+  if (!pools.length) {
+    targetEl.innerHTML = '<div class="text-slate-400 italic text-center py-6 text-[11px]">Complete Gap Analysis (Step 5) then run Value Pools (Step 6)</div>';
+    return;
+  }
+
+  const normalized = pools.map(normPool);
+  const driverColor = {
+    cost: 'bg-amber-100 text-amber-700',
+    revenue: 'bg-green-100 text-green-700',
+    risk: 'bg-red-100 text-red-700',
+    experience: 'bg-blue-100 text-blue-700'
+  };
+  const horizonColor = { short: 'text-green-600', medium: 'text-amber-600', long: 'text-slate-500' };
+
+  // Strategic options complement
+  const options = model.strategicOptions || [];
+  const portfolio = model.recommendedPortfolio || {};
+
+  let poolsHtml = normalized.map(p => {
+    const valText = p.estimated_annual_value_eur
+      ? `€${Number(p.estimated_annual_value_eur).toLocaleString()}/yr`
+      : (p.estimated_value_text || '');
+    return `
+      <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+        <div class="flex items-start justify-between gap-2 mb-1">
+          <div class="text-[11px] font-bold text-slate-800">${p.name}</div>
+          <div class="flex gap-1.5 flex-shrink-0 flex-wrap justify-end">
+            <span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${driverColor[p.value_driver] || 'bg-slate-100 text-slate-600'}">${p.value_driver}</span>
+            <span class="text-[9px] font-semibold ${horizonColor[p.time_horizon] || 'text-slate-500'}">${p.time_horizon}</span>
+            ${p.potential_impact === 'high' || p.potential_impact === 'HIGH' ? '<span class="text-[9px] font-bold text-emerald-600">High impact</span>' : ''}
+            ${valText ? `<span class="text-[9px] font-semibold text-slate-500">${valText}</span>` : ''}
+          </div>
+        </div>
+        ${p.linked_strategic_theme ? `<div class="text-[9px] text-indigo-600 font-semibold mb-1"><i class="fas fa-link mr-0.5"></i>${p.linked_strategic_theme}</div>` : ''}
+        <div class="text-[10px] text-slate-600 mb-1.5">${p.description}</div>
+        ${p.risks_if_missed ? `<div class="text-[9px] text-red-500 mb-1.5"><i class="fas fa-exclamation-circle mr-0.5"></i>${p.risks_if_missed}</div>` : ''}
+        <div class="flex flex-wrap gap-1">${(p.enabling_capabilities).map(c => `<span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">${c}</span>`).join('')}</div>
+        ${p.linked_gaps.length ? `<div class="text-[9px] text-slate-400 mt-1">Gaps: ${p.linked_gaps.join(', ')}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  let portfolioHtml = '';
+  if (portfolio.rationale || portfolio.expected_value) {
+    portfolioHtml = `
+      <div class="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+        <div class="text-[10px] font-bold text-indigo-700 uppercase mb-1">Recommended Portfolio</div>
+        ${portfolio.rationale ? `<div class="text-[10px] text-indigo-700 mb-1">${portfolio.rationale}</div>` : ''}
+        ${portfolio.expected_value ? `<div class="text-[10px] font-semibold text-indigo-600">Expected value: ${portfolio.expected_value}</div>` : ''}
+        ${portfolio.total_investment_band ? `<div class="text-[9px] text-indigo-500">Investment: ${portfolio.total_investment_band}</div>` : ''}
+      </div>`;
+  }
+
+  let optionsHtml = '';
+  if (options.length) {
+    const recommended = options.filter(o => o.recommended);
+    if (recommended.length) {
+      optionsHtml = `
+        <div class="mt-4">
+          <div class="text-[10px] font-bold text-slate-500 uppercase mb-2">Recommended Strategic Options</div>
+          <div class="grid grid-cols-1 gap-2">
+            ${recommended.map(o => `
+              <div class="bg-white border-l-4 border-emerald-400 border border-slate-200 rounded-xl p-3 shadow-sm">
+                <div class="flex items-center justify-between gap-2 mb-0.5">
+                  <div class="text-[11px] font-bold text-slate-800">${o.name || ''}</div>
+                  <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${o.investment_level === 'HIGH' ? 'bg-red-100 text-red-700' : o.investment_level === 'LOW' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">${o.investment_level || ''}</span>
+                </div>
+                <div class="text-[10px] text-slate-600 mb-1">${o.approach || ''}</div>
+                ${o.time_to_value ? `<div class="text-[9px] text-slate-500">Time to value: ${o.time_to_value}</div>` : ''}
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }
+  }
+
+  targetEl.innerHTML = `
     <div class="mb-4">
-      <div class="text-[10px] font-bold text-slate-500 uppercase mb-2">Value Pools &mdash; Step 6</div>
-      <div class="grid grid-cols-1 gap-2">
-        ${pools.map(p=>`
-          <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
-            <div class="flex items-start justify-between gap-2 mb-1">
-              <div class="text-[11px] font-bold text-slate-800">${p.name||''}</div>
-              <div class="flex gap-1.5 flex-shrink-0 flex-wrap justify-end">
-                <span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${driverColor[p.value_driver]||'bg-slate-100 text-slate-600'}">${p.value_driver||''}</span>
-                <span class="text-[9px] font-semibold ${horizonColor[p.time_horizon]||'text-slate-500'}">${p.time_horizon||''}</span>
-                ${p.potential_impact === 'high' ? '<span class="text-[9px] font-bold text-emerald-600">High impact</span>' : ''}
-                ${p.estimated_annual_value_eur ? `<span class="text-[9px] font-semibold text-slate-500">&euro;${Number(p.estimated_annual_value_eur).toLocaleString()}/yr</span>` : ''}
-              </div>
-            </div>
-            ${p.linked_strategic_theme ? `<div class="text-[9px] text-indigo-600 font-semibold mb-1"><i class="fas fa-link mr-0.5"></i>${p.linked_strategic_theme}</div>` : ''}
-            <div class="text-[10px] text-slate-600 mb-1.5">${p.description||''}</div>
-            <div class="flex flex-wrap gap-1">${(p.enabling_capabilities||[]).map(c=>`<span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">${c}</span>`).join('')}</div>
-          </div>`).join('')}
-      </div>
+      ${portfolioHtml}
+      <div class="text-[10px] font-bold text-slate-500 uppercase mb-2">Value Pools (${normalized.length})</div>
+      <div class="grid grid-cols-1 gap-2">${poolsHtml}</div>
+      ${optionsHtml}
     </div>`;
-  showTab(targetEl.id.replace('tab-',''), null);
 }
 
 // ── RENDER STRATEGIC INTENT SECTION (EXEC TAB) ───────────────────────────────
@@ -12031,6 +12151,7 @@ function updateTabLockStates() {
     'graph': () => model.capabilities.length > 0,
     'opmodel': () => Object.keys(model.operatingModel||{}).length > 0,
     'gap': () => !!model.gapAnalysisDone,
+    'valuepools': () => { const vp = model.valuePools; return Array.isArray(vp) ? vp.length > 0 : ((vp?.valuePools||vp?.value_pools||[]).length > 0); },
     'maturity': () => model.capabilities.length > 0,
     'targetarch': () => !!model.targetArchDone,
     'roadmapvis': () => !!model.targetArchDone,
@@ -12089,6 +12210,8 @@ function updateTabLockStates() {
         lockReason = 'Complete Operating Model (Step 4) to unlock';
       } else if (tabName === 'gap') {
         lockReason = 'Complete Gap Analysis (Step 5) to unlock';
+      } else if (tabName === 'valuepools') {
+        lockReason = 'Complete Value Pools analysis (Step 6) to unlock';
       } else if (['targetarch', 'roadmapvis'].includes(tabName)) {
         lockReason = 'Generate Target Architecture (Step 7) to unlock';
       } else if (['financials', 'optimisation'].includes(tabName)) {
