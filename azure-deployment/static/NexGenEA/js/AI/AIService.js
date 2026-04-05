@@ -151,24 +151,28 @@ const AIService = (() => {
     };
   }
 
-  // ── Direct OpenAI Responses API call ─────────────────────────────────────
+  // ── Direct OpenAI Chat Completions API call ──────────────────────────────
   async function _callDirectAPI(input, createOpts, apiKey, timeoutMs) {
-    // Transform response_format to text.format for Responses API
-    const requestBody = { ...createOpts, input };
+    const { instructions, model, temperature, response_format, reasoning, ...otherOpts } = createOpts;
     
-    // Remove client-side parameters that OpenAI doesn't accept
-    delete requestBody.timeout;
-    
-    if (requestBody.response_format !== undefined) {
-      requestBody.text = requestBody.text || {};
-      requestBody.text.format = requestBody.response_format;
-      delete requestBody.response_format;
-    }
+    // Build messages array for Chat Completions API
+    const messages = [
+      ...(instructions ? [{ role: 'system', content: instructions }] : []),
+      { role: 'user', content: input }
+    ];
+
+    const requestBody = {
+      model,
+      messages,
+      ...(temperature !== undefined && { temperature }),
+      ...(response_format && { response_format }),
+      ...otherOpts
+    };
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch('https://api.openai.com/v1/responses', {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -180,13 +184,15 @@ const AIService = (() => {
       clearTimeout(timer);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Direct API error');
-      // Normalise output_text from raw response structure
-      if (!data.output_text && data.output) {
-        const textItem = (data.output || []).find(o => o.type === 'message');
-        const textContent = textItem?.content?.find(c => c.type === 'output_text' || c.type === 'text');
-        data.output_text = textContent?.text || '';
-      }
-      return data;
+      
+      // Transform Chat Completions response to match expected format
+      const message = data.choices?.[0]?.message;
+      return {
+        id: data.id,
+        model: data.model,
+        output_text: message?.content || '',
+        usage: data.usage
+      };
     } catch (err) {
       clearTimeout(timer);
       throw err;

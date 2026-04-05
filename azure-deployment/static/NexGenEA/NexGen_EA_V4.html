@@ -7879,7 +7879,7 @@ AI fyller då i ett första utkast som ni kan justera innan ni går vidare.
 Systematisk process där AI ställer EN fråga i taget med konkreta svarsalternativ. Säkerställer fullständighet och branschanpassning.
 
 ### 💬 Fri Chat (Flexibelt)
-Diskutera fritt med AI:n som ställer földfrågor. Passar när ni redan har tydlig bild av er situation.
+Diskutera fritt med AI:n som ställer följdfrågor. Passar när ni redan har tydlig bild av er situation.
 
 ---
 
@@ -7907,187 +7907,86 @@ Diskutera fritt med AI:n som ställer földfrågor. Passar när ni redan har tyd
     // Simplified ONE-question-at-a-time system prompt
     const systemPrompt = `You are a Senior Enterprise Architect guiding Strategic Intent creation.
 
-Your role is to **guide the user through a structured diagnostic and strategic process** to describe the current state of an organization or business unit, and transform that into **clear Strategic Intent and EA transformation input**, with strong focus on **AI and data-driven decision-making**.
+**CRITICAL: Ask ONLY ONE question at a time with 4-5 specific options.**
 
-You MUST follow the process strictly. Do NOT skip steps. Do NOT jump ahead. Do NOT provide solutions too early.
+**Progression:**
+Q1 → Industry/sector + organization type
+Q2 → Main business pain/trigger right now
+Q3 → Scale (revenue range, employees, geographic presence)
+Q4 → Strategic ambition in next 12-24 months
+Q5 → Key constraints (budget, timeline, regulatory)
+Q6 → Success metrics (what will you measure?)
+Q7 → Decision-makers and their priorities
 
----
+**Return format (JSON):**
+{
+  "question": "Your focused question",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Brief context why this matters (1 sentence)"
+}
 
-## CORE PRINCIPLES
+After Q7, synthesize Strategic Intent and mark with ##STRATEGIC_INTENT_READY##
 
-* Be structured, concise, and fact-based
-* Ask ONE focused question at a time
-* Always validate and refine user input
-* Challenge vague or generic answers
-* Identify gaps, inconsistencies, and missing data
-* Separate facts from assumptions
-* Think in three levels: Operational (what is happening) → Tactical (why it happens) → Strategic (what should change)
-* Never move forward until sufficient clarity is reached
-* Continuously summarize and structure outputs
-
----
-
-## CONTEXT ADAPTATION LAYER (MANDATORY)
-
-The user will provide:
-* **Industry Profile** (e.g. Startup, Fintech, Banking, Healthcare, Public Sector, Retail, Insurance)
-* **Focus Area** (e.g. General, ERP, ESG, GDPR, Finance, ITSM, Cybersecurity)
-
-You MUST adapt your behavior, questions, and outputs based on this context.
-
-**INDUSTRY-SPECIFIC ADAPTATION:**
-
-* **Banking/Insurance**: Emphasize compliance, auditability, risk, legacy core systems, data governance
-* **Healthcare**: Emphasize privacy, interoperability, patient data, regulatory compliance
-* **Public Sector**: Emphasize transparency, regulation, budget constraints, legacy complexity
-* **Startup/Fintech**: Emphasize scalability, speed, modular architecture, API-first, innovation
-* **Retail**: Emphasize customer data, omnichannel, demand forecasting, personalization
-
-**FOCUS AREA ADAPTATION:**
-
-* **ERP**: Process standardization, system dependencies, integrations
-* **ESG**: Data collection, reporting, traceability, compliance
-* **GDPR**: Personal data flows, storage, consent, risk exposure
-* **Finance**: Reporting, forecasting, decision support, data accuracy
-* **ITSM**: Service processes, incident/change/problem management
-* **Cybersecurity**: Risk exposure, controls, monitoring, incident response
-
-**ADAPTIVE QUESTIONING RULE:**
-Modify ALL questions to reflect both industry and focus area. Avoid generic questions. Ask domain-relevant follow-ups. Push for concrete examples.
-
----
-
-## MANDATORY PROCESS FLOW:
-
-**STEP 1 – CONTEXT & SCOPE:** Confirm Industry Profile, Focus Area, org type, business unit, problem vs improvement → Output: Scope definition (max 5 bullets)
-
-**STEP 2 – CURRENT STATE:** Build objective baseline (processes, systems, data, organization) → Output: Structured EA baseline
-
-**STEP 3 – FRICTION & PROBLEMS:** Identify pain points with business impact (frequency, cost, risk, time, customer) → Output: Prioritized problem list
-
-**STEP 4 – MATURITY & CAPABILITY:** Assess maturity (1-5) across data, AI/analytics, processes, technology → Output: Maturity level + capability gaps
-
-**STEP 5 – TARGET OUTCOMES:** Define business ambition (NO technical solutions) → Output: Outcome statements
-
-**STEP 6 – STRATEGIC INTENT:** Synthesize into strategic direction → Output: Paragraph (5-6 lines) + 4-6 bullets (business ambition, transformation focus, target capabilities, role of data, role of AI)
-
-**STEP 7 – EA TARGET ARCHITECTURE INPUT:** Prepare transformation foundation → Output: Target capabilities, architecture principles (API-first, data-as-asset, AI-embedded), priority areas (data platform, integration, AI use cases, process automation)
-
----
-
-## QUALITY CONTROL RULES
-
-You MUST:
-* Highlight missing information
-* Flag unclear inputs
-* Identify contradictions
-* Ask clarifying follow-ups
-
-You MUST NOT:
-* Jump to solutions before Step 5
-* Accept vague answers
-* Provide generic consulting output
-
----
-
-## OUTPUT STYLE
-
-* Clear headings (use ## for sections)
-* Bullet points
-* Simple, professional language
-* No unnecessary verbosity
-* End each step with structured summary
-
-When you reach STEP 6 and have generated Strategic Intent, format it as: "##STRATEGIC_INTENT_READY##" followed by the structured output.
-
-**Remember:** Act as senior advisor (direct, analytical), not passive assistant. Guide step-by-step toward high-quality Strategic Intent.`;
-    
-    const userPrompt = `**Conversation history:**
+Context so far:
 ${recentMessages}
 
-**User message:**
-${userMessage}
-
-Remember: Ask ONE focused question at a time. Progress systematically through the 7 steps. When you reach STEP 6 and have synthesized Strategic Intent, format it as:
-
-##STRATEGIC_INTENT_READY##
-[Strategic Intent paragraph]
-[Bullet points]
-
-Respond in Swedish if the user writes in Swedish.`;
+Respond in the user's language (Swedish if they write Swedish).`;
+    
+    const userPrompt = userMessage;
     
     try {
-      const response = await callAI(systemPrompt, userPrompt, {
-        taskType: 'discovery',
-        _traceLabel: 'Discovery: EA Diagnostic (Step 1)'
+      const response = await AIService.call({
+        taskId: 'discovery_step1_chat',
+        taskType: 'general',
+        systemPrompt,
+        userPrompt,
+        expectsJson: !recentMessages.includes('##STRATEGIC_INTENT_READY##'),
+        replyLanguage: userMessage.match(/[åäöÅÄÖ]/) ? 'sv' : 'en'
       });
       
       hideTypingIndicator();
       
-      // Check if AI has reached STEP 6 and generated Strategic Intent
-      if (response.includes('##STRATEGIC_INTENT_READY##')) {
-        const intentText = response.replace('##STRATEGIC_INTENT_READY##', '').trim();
-        
-        // Extract Industry + Focus from conversation if present
-        const industryMatch = recentMessages.match(/industry[:\s]+(startup|fintech|banking|healthcare|public sector|retail|insurance)/i);
-        const focusMatch = recentMessages.match(/focus[:\s]+(general|erp|esg|gdpr|finance|itsm|cybersecurity)/i);
-        
-        if (industryMatch) setDiagnosticContext(industryMatch[1], focusMatch ? focusMatch[1] : 'general');
-        
-        // Update diagnostic progress with Strategic Intent
-        updateDiagnosticStep(6, intentText);
-        
-        // Generate CxO Summary for Step 6 (background)
-        generateCxOSummaryForStep(6, { strategicIntent: intentText }).catch(e => console.error('CxO summary failed:', e));
-        
-        // Generate Scenario Analysis (background)
-        generateScenarioAnalysis().catch(e => console.error('Scenario analysis failed:', e));
+      // Check if Strategic Intent is ready
+      if (response.rawOutput.includes('##STRATEGIC_INTENT_READY##')) {
+        const intentText = response.rawOutput.replace('##STRATEGIC_INTENT_READY##', '').trim();
         
         const confirmMsg = `${intentText}
 
 ---
 
-## Fantastic!
+## ✅ Strategic Intent klar!
 
-Jag har nu slutf\u00f6rt den strukturerade diagnostiken och skapat er **Strategic Intent**.
+Vill du spara detta och gå vidare?
 
-**CxO Summary** och **Scenario Analysis** genereras automatiskt i bakgrunden.
-
-Vill du spara detta och g\u00e5 vidare till **Action Mode** f\u00f6r att generera den kompletta EA-modellen?
-
-<button class="mode-action-btn mode-action-btn--action" onclick="saveOrgDescriptionAndProceed(\`${intentText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+<button class="mode-action-btn mode-action-btn--action" onclick="confirmStrategicIntentFromChat(\`${intentText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
   <i class="fas fa-check-circle"></i>
-  Ja, spara & generera EA-modell
+  Ja, spara & fortsätt
 </button>
 <button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
   <i class="fas fa-edit"></i>
-  Nej, jag vill justera Strategic Intent
+  Nej, justera först
 </button>`;
         
         addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1, offersAction: true });
-        
-        // Auto-save or prompt to save if no project exists
-        if (!currentModelId) {
-          setTimeout(() => {
-            if (confirm('Strategic Intent \u00e4r klar! Vill du spara detta som ett projekt?')) {
-              saveModelToDB(true, false);
-            }
-          }, 1500);
-        } else {
-          saveModelToDB(false, true);
-          console.log('\u2713 Auto-saved Strategic Intent to current project');
-        }
       } else {
-        // Continue the structured diagnostic conversation
-        addAssistantMessage(response, { mode: 'discovery', step: 1 });
-        window.hasUnsavedChanges = true;
+        // Parse question JSON and format
+        try {
+          const q = JSON.parse(response.rawOutput.trim());
+          let msg = `## ${q.question}\n\n`;
+          if (q.hint) msg += `*${q.hint}*\n\n`;
+          msg += `**Välj ett alternativ eller beskriv med egna ord:**\n`;
+          q.options.forEach((opt, i) => msg += `${i + 1}. ${opt}\n`);
+          addAssistantMessage(msg, { mode: 'discovery', step: 1 });
+        } catch (parseErr) {
+          addAssistantMessage(response.rawOutput, { mode: 'discovery', step: 1 });
+        }
       }
       
       scrollToBottom();
       
     } catch (error) {
       hideTypingIndicator();
-      addAssistantMessage(`\u274c Ett fel uppstod: ${error.message}`, { mode: 'discovery', error: true });
+      addAssistantMessage(`❌ Ett fel uppstod: ${error.message}\n\nTips: Använd **Guided Workflow** för bästa resultat.`, { mode: 'discovery', error: true });
     }
     
     return; // Exit early for Step 1 special handling
@@ -8282,6 +8181,15 @@ Ni kan nu fortsätta till nästa steg i arbetflödet.
 // AUTOPILOT MODE - Quick Strategic Intent generation with minimal input
 // ============================================================================
 
+// Autopilot state tracker
+window._autopilotState = {
+  active: false,
+  currentStep: 0,
+  completedSteps: [],
+  context: {},
+  generatedData: {}
+};
+
 async function startAutopilotMode() {
   // Initialize autopilot state
   window._autopilotState = {
@@ -8292,11 +8200,10 @@ async function startAutopilotMode() {
     generatedData: {}
   };
   
-  // Show progress tracker
-  showAutopilotProgressTracker();
-  
   // Show the autopilot questionnaire
-  const autopilotMsg = `## 🚀 Autopilot - Snabb Strategic Intent
+  const autopilotMsg = `## 🚀 Autopilot - Snabb EA-modellgenerering
+
+**Autopilot-läge** genererar en komplett EA-modell (alla 7 steg) baserat på minimal input. Perfekt för test, demo och snabb prototypning.
 
 Besvara 3 snabba frågor så skapar AI ett första realistiskt utkast:
 
@@ -8309,6 +8216,9 @@ Besvara 3 snabba frågor så skapar AI ett första realistiskt utkast:
 <button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotRegion('Annat')">✏️ Annat...</button>`;
 
   addAssistantMessage(autopilotMsg, { mode: 'autopilot', step: 1, offersAction: true });
+  
+  // Show autopilot progress tracker
+  showAutopilotProgressTracker();
   scrollToBottom();
 }
 
@@ -8528,6 +8438,7 @@ function closeAutopilotTracker() {
 async function generateAutopilotStrategicIntent() {
   const ctx = window._autopilotState?.context || {};
   
+  updateAutopilotProgress(1, 'Genererar Strategic Intent...');
   addAssistantMessage(`⚡ Genererar Strategic Intent baserat på:\n- Region: **${ctx.region}**\n- Bransch: **${ctx.industry}**\n- Detaljnivå: **${ctx.detailLevel}**\n\nVänligen vänta...`, { mode: 'autopilot' });
   showTypingIndicator();
   
