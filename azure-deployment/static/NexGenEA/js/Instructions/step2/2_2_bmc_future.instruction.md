@@ -28,7 +28,7 @@ You are an expert Business Model designer and enterprise architect. Design the F
 Example output showing exact format required:
 ```json
 {
-  "value_proposition": "We will deliver X value to customers through Y innovative capabilities",
+  "value_propositions": ["We will deliver AI-driven insights that transform decision-making", "We enable proactive value chain optimization"],
   "customer_segments": ["Expanded SMB market", "New enterprise segment", "International markets"],
   "customer_relationships": ["AI-powered self-service", "Dedicated success teams", "Community forums"],
   "channels": ["Digital-first omnichannel", "Partner ecosystem", "API marketplace"],
@@ -41,8 +41,7 @@ Example output showing exact format required:
 ```
 
 **RULES:**
-- `value_proposition` is a STRING (2-4 sentences) — NOT an array
-- ALL other 8 fields are ARRAYS of strings — each array must have 3-5 items like ["item1", "item2", "item3"]
-- Do NOT return strings for array fields — arrays must use bracket notation: ["value1", "value2"]
+- ALL 9 fields are ARRAYS with 2-5 string items each — MUST be arrays like ["item1", "item2"]
+- Do NOT return single strings — arrays must use bracket notation: ["value1", "value2"]
   
 Return ONLY valid JSON. No markdown wrapper, no explanation text.

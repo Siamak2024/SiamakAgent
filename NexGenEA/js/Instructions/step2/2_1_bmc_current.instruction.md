@@ -41,14 +41,13 @@ You are an expert Business Model designer and enterprise architect. Map the CURR
 **DATA CONTRACT:** See `BMC_DATA_CONTRACT.md` for authoritative schema. Use simple arrays and strings ONLY.
 
 **CRITICAL SCHEMA RULES:**
-- `value_proposition` is a STRING (2-4 sentences) — NOT an array
-- All other 8 fields are ARRAYS of strings — NOT objects, NOT single strings
-- No nested objects
+- ALL 9 BMC fields are ARRAYS of strings
+- No nested objects, no single strings
 
 **Example:**
 ```json
 {
-  "value_proposition": "We provide X service to help customers achieve Y outcome through Z approach",
+  "value_propositions": ["We help SMB retailers achieve faster inventory turns", "We enable enterprises to reduce supply chain costs"],
   "customer_segments": ["SMB retail companies", "Enterprise manufacturers", "Mid-market distributors"],
   "customer_relationships": ["Self-service portal", "Dedicated account teams", "Email support"],
   "channels": ["Direct sales", "Partner network", "Online marketplace"],

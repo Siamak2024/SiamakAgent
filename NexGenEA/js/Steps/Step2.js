@@ -33,11 +33,11 @@ const Step2 = {
 
 This is a diagnostic map — reflect the AS-IS state of the organisation. Identify where the current model is under stress or misaligned with stated Strategic Intent.
 
-CRITICAL: Return ONLY valid JSON. ALL fields except value_proposition MUST be ARRAYS.
+CRITICAL: Return ONLY valid JSON. ALL fields MUST be ARRAYS.
 
 Example output:
 {
-  "value_proposition": "We help customers do X by providing Y service",
+  "value_propositions": ["We help SMB retailers achieve X", "We enable enterprises to do Y"],
   "customer_segments": ["SMB companies in retail", "Enterprise manufacturing firms"],
   "customer_relationships": ["Self-service portal", "Dedicated account managers"],
   "channels": ["Direct sales", "Partner network", "Online marketplace"],
@@ -49,8 +49,7 @@ Example output:
 }
 
 RULES:
-- value_proposition: STRING (2-4 sentences) ← NOT an array
-- ALL other 8 fields: ARRAYS with 3-5 string items each ← MUST be arrays like ["item1", "item2"]
+- ALL 9 fields are ARRAYS with 2-5 string items each ← MUST be arrays like ["item1", "item2"]
 - Mark uncertain items with ⚠️ prefix
 - Ground each item in company description - no generic filler`,
 
@@ -70,7 +69,7 @@ Return JSON output.`;
       },
 
       outputSchema: {
-        value_proposition: 'string',
+        value_propositions: ['string'],
         customer_segments: ['string'],
         customer_relationships: ['string'],
         channels: ['string'],
@@ -97,11 +96,11 @@ Return JSON output.`;
 
 This is a TARGET model — show the bold shifts needed, not incremental tweaks.
 
-CRITICAL: Return ONLY valid JSON. ALL fields except value_proposition MUST be ARRAYS.
+CRITICAL: Return ONLY valid JSON. ALL fields MUST be ARRAYS.
 
 Example output:
 {
-  "value_proposition": "We will deliver X value through Y innovative approach",
+  "value_propositions": ["We will deliver X value through Y innovation", "We enable Z transformation"],
   "customer_segments": ["Expanded SMB segment", "New enterprise vertical", "International markets"],
   "customer_relationships": ["AI-powered self-service", "Community-driven support", "Premium concierge tier"],
   "channels": ["Digital-first omnichannel", "API ecosystem", "Strategic partnerships"],
@@ -116,8 +115,7 @@ Example output:
 }
 
 RULES:
-- value_proposition: STRING (2-4 sentences) ← NOT an array
-- ALL other 8 building blocks: ARRAYS with 3-5 items ← MUST be arrays like ["item1", "item2"]
+- ALL 9 building blocks are ARRAYS with 2-5 items ← MUST be arrays like ["item1", "item2"]
 - transformation_moves: ARRAY of objects explaining major shifts
 - Show bold changes from current to future state`,
 
@@ -133,9 +131,9 @@ Strategic Intent:
 - Success metrics: ${(si.success_metrics || []).slice(0, 4).join('; ')}
 
 Current BMC summary:
-- Value props: ${(current.value_propositions || []).join('; ')}
-- Revenue: ${current.revenue_streams?.model || 'not specified'}
-- Key pressures: ${(current.metadata?.key_gaps || []).join('; ')}
+- Value propositions: ${(current.value_propositions || []).join('; ')}
+- Customer segments: ${(current.customer_segments || []).join(', ')}
+- Revenue streams: ${(current.revenue_streams || []).join('; ')}
 
 Design the FUTURE state BMC. Show bold shifts — not just refining the current model. Include transformation_moves to explain each major change.
 
@@ -143,7 +141,7 @@ Return JSON output.`;
       },
 
       outputSchema: {
-        value_proposition: 'string',
+        value_propositions: ['string'],
         customer_segments: ['string'],
         customer_relationships: ['string'],
         channels: ['string'],
@@ -185,10 +183,10 @@ Return ONLY valid JSON:
         return `Strategic ambition: "${si.strategic_ambition || ''}"
 
 Current BMC:
-${JSON.stringify({ vp: current.value_propositions, rev: current.revenue_streams?.model, acts: current.key_activities }, null, 2)}
+${JSON.stringify({ vp: current.value_propositions, segments: current.customer_segments, revenue: current.revenue_streams, activities: current.key_activities }, null, 2)}
 
 Future BMC:
-${JSON.stringify({ vp: future.value_propositions, rev: future.revenue_streams?.model, moves: future.transformation_moves }, null, 2)}
+${JSON.stringify({ vp: future.value_propositions, segments: future.customer_segments, revenue: future.revenue_streams, moves: future.transformation_moves }, null, 2)}
 
 Produce the delta analysis. executive_summary: 2-3 sentences for the Board.
 
