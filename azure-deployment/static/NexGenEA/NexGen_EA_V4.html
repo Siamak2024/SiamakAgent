@@ -8648,19 +8648,133 @@ function regenerateAutopilot() {
 // ── FULL AUTOPILOT FLOW - All 7 Steps ────
 async function runFullAutopilotFlow() {
   const ctx = window._autopilotState?.context || {};
+
+// ── QUICK PATH FLOWS ─────────────────────────────────────────────────────
+// Quick Path Overview: Steps 1-2 only (Strategic Intent + BMC)
+async function runQuickPathOverview(answers) {
+  addAssistantMessage(`Generating **Strategic Intent** and **Business Model Canvas** for **${answers.industry}** with focus on **${answers.challenge}**...`);
   
-  addAssistantMessage(`🚀 **Full Autopilot aktiverat!**
+  const quickContext = {
+    industry: answers.industry,
+    challenge: answers.challenge,
+    region: 'Sweden', // default
+    detailLevel: 'medium'
+  };
+  
+  window._autopilotState = { active: true, currentStep: 0, completedSteps: [], context: quickContext, generatedData: {} };
+  showAutopilotProgressTracker();
+  
+  try {
+    await generateAutopilotStrategicIntent();
+    await delay(1000);
+    await generateAutopilotBMC();
+    
+    addAssistantMessage(`## ✅ Overview Complete!\n\n` +
+      `I've generated:\n` +
+      `- **Step 1:** Strategic Intent\n` +
+      `- **Step 2:** Business Model Canvas\n\n` +
+      `**Next steps:**\n` +
+      `1. Review the strategy tab\n` +
+      `2. Generate capability map if you want deeper analysis\n` +
+      `3. Export or share with your team\n\n` +
+      `What would you like to do next?`);
+    
+    closeAutopilotTracker();
+    window._autopilotState = null;
+    
+  } catch (error) {
+    addAssistantMessage(`Error during generation: ${error.message}`);
+  }
+}
 
-Jag kommer nu att generera alla 7 steg i EA-modellen baserat på:
+// Quick Path Capability: Steps 1-5 (Strategic Intent through Gap Analysis)
+async function runQuickPathCapability(answers) {
+  addAssistantMessage(`Generating full **capability analysis** (Steps 1-5) for **${answers.industry}** focused on **${answers.challenge}**...`);
+  
+  const quickContext = {
+    industry: answers.industry,
+    challenge: answers.challenge,
+    region: 'Sweden',
+    detailLevel: 'high'
+  };
+  
+  window._autopilotState = { active: true, currentStep: 0, completedSteps: [], context: quickContext, generatedData: {}, running: true };
+  showAutopilotProgressTracker();
+  
+  try {
+    await generateAutopilotStrategicIntent();
+    await delay(1000);
+    if (!window._autopilotState.running) return;
+    
+    await generateAutopilotBMC();
+    await delay(1000);
+    if (!window._autopilotState.running) return;
+    
+    await generateAutopilotCapabilityMap();
+    await delay(1000);
+    if (!window._autopilotState.running) return;
+    
+    await generateAutopilotOperatingModel();
+    await delay(1000);
+    if (!window._autopilotState.running) return;
+    
+    await generateAutopilotGapAnalysis();
+    
+    addAssistantMessage(`## ✅ Capability Analysis Complete!\n\n` +
+      `I've generated:\n` +
+      `- **Step 1:** Strategic Intent\n` +
+      `- **Step 2:** Business Model Canvas\n` +
+      `- **Step 3:** Capability Map (${model.capabilities?.length || 0} capabilities)\n` +
+      `- **Step 4:** Operating Model\n` +
+      `- **Step 5:** Gap Analysis\n\n` +
+      `**Key insights:**\n` +
+      `- You have ${(model.capabilities || []).filter(c => c.strategicImportance === 'high').length} high-priority capabilities\n` +
+      `- Average maturity: ${((model.capabilities || []).reduce((s, c) => s + c.maturity, 0) / (model.capabilities?.length || 1)).toFixed(1)}/5\n\n` +
+      `Want to continue with **Value Pools** and **Roadmap** (Steps 6-7)?`);
+    
+    closeAutopilotTracker();
+    window._autopilotState = null;
+    
+  } catch (error) {
+    window._autopilotState.running = false;
+    addAssistantMessage(`Error during generation: ${error.message}`);
+  }
+}
+
+// Quick Path Complete: All 7 steps
+async function runQuickPathComplete(answers) {
+  const quickContext = {
+    industry: answers.industry,
+    challenge: answers.challenge,
+    region: 'Sweden',
+    detailLevel: 'high'
+  };
+  
+  window._autopilotState = { active: true, currentStep: 0, completedSteps: [], context: quickContext, generatedData: {}, running: true };
+  showAutopilotProgressTracker();
+  
+  addAssistantMessage(`🚀 Generating **complete architecture** (all 7 steps) for **${answers.industry}** with focus on **${answers.challenge}**...\n\nThis will take 2-3 minutes.`);
+  
+  // Reuse full autopilot flow
+  await runFullAutopilotFlow();
+}
+
+// ── FULL AUTOPILOT FLOW - All 7 Steps ────
+async function runFullAutopilotFlow() {
+  const ctx = window._autopilotState?.context || {};
+  
+  addAssistantMessage(`🚀 **Full Autopilot Activated!**
+
+I will now generate all 7 EA model steps based on:
 - **Region:** ${ctx.region}
-- **Bransch:** ${ctx.industry}
-- **Detaljnivå:** ${ctx.detailLevel}
+- **Industry:** ${ctx.industry}
+- **Detail Level:** ${ctx.detailLevel}
 
-Detta kan ta 2-3 minuter. Du kan följa progressen i spåraren till höger.
+This will take 2-3 minutes. You can follow progress in the tracker on the right.
 
 <button class="mode-action-btn mode-action-btn--secondary" onclick="stopAutopilot();">
   <i class="fas fa-stop-circle"></i>
-  Stoppa Autopilot
+  Stop Autopilot
 </button>`, { mode: 'autopilot' });
 
   // Mark autopilot as running
@@ -8713,28 +8827,28 @@ Detta kan ta 2-3 minuter. Du kan följa progressen i spåraren till höger.
     
     // All steps complete
     if (window._autopilotState.running) {
-      addAssistantMessage(`## 🎉 Autopilot klar!
+      addAssistantMessage(`## 🎉 Autopilot Complete!
 
-Alla 7 steg har genererats. Modellen är nu komplett och sparad i databasen.
+All 7 steps have been generated. The model is now complete and saved in the database.
 
-**Nästa steg:**
-1. Granska varje flik och finjustera vid behov
-2. Exportera modellen till PDF/JSON
-3. Dela med teamet för workshop-diskussion
+**Next steps:**
+1. Review each tab and fine-tune as needed
+2. Export the model to PDF/JSON
+3. Share with your team for workshop discussion
 
 <button class="mode-action-btn mode-action-btn--primary" onclick="closeAutopilotTracker(); switchMainTab('dashboard');">
   <i class="fas fa-chart-line"></i>
-  Visa Enterprise Dashboard
+  View Enterprise Dashboard
 </button>
 <button class="mode-action-btn mode-action-btn--action" onclick="exportModel('pdf');">
   <i class="fas fa-file-pdf"></i>
-  Exportera till PDF
+  Export to PDF
 </button>`, { mode: 'general' });
       
       window._autopilotState.running = false;
       window._autopilotState.active = false;
       
-      toast('✓ Autopilot komplett! Alla 7 steg genererade.');
+      toast('✓ Autopilot complete! All 7 steps generated.');
     }
     
   } catch (error) {
@@ -9192,6 +9306,153 @@ function returnToDiscoveryMode() {
 async function processUserMessage(userMessage) {
   const context = buildConversationContext();
   context.preferredLanguage = resolveResponseLanguage(userMessage);
+
+  // ── WORKFLOW PREFERENCE CHECK (for new users) ─────────────────────────────
+  // If user is completely new and hasn't chosen a workflow method yet, ask them first
+  const isNewUser = !model.strategicIntent && !model.bmc && (!model.capabilities || model.capabilities.length === 0);
+  const conversation = getActiveConversation();
+  const messageCount = (conversation.messages || []).length;
+  
+  // Check if we're waiting for workflow preference answer
+  if (window._waitingForWorkflowPreference) {
+    const lower = userMessage.toLowerCase();
+    
+    // Autopilot - runs all 7 steps automatically
+    if (/autopilot|auto pilot|auto-pilot|automatisk|allt på en gång|kör allt/i.test(lower)) {
+      delete window._waitingForWorkflowPreference;
+      // Ask 3 questions then run autopilot
+      await askAutopilotQuestions();
+      return { _handled: true };
+    }
+    
+    // Quick Path - ask focused questions and generate what's needed
+    if (/quick|snabb|fast|focused|fokuserad|minimalist/i.test(lower)) {
+      delete window._waitingForWorkflowPreference;
+      window._userWorkflowPreference = 'quick';
+      return { 
+        content: 'Great! I'll keep it focused and ask only essential questions.\n\nTo get started, tell me briefly:\n\n' +
+                 '**What industry/domain is your organization in?**\n\n' +
+                 '(I'll then ask 2-3 targeted questions to generate the most relevant architecture model)',
+        metadata: null 
+      };
+    }
+    
+    // Custom Q&A - conversational, no automatic generation
+    if (/custom|questions|q&a|qa|conversation|samtala|frågor|dialogue|dialog/i.test(lower)) {
+      delete window._waitingForWorkflowPreference;
+      window._userWorkflowPreference = 'custom';
+      return { 
+        content: 'Perfect! I'll guide you with questions and suggestions.\n\n' +
+                 'What would you like to explore first?\n\n' +
+                 '• Business model design\n' +
+                 '• Capability mapping\n' +
+                 '• Operating model\n' +
+                 '• Gap analysis\n' +
+                 '• Value pools & prioritization\n' +
+                 '• Something else?',
+        metadata: null 
+      };
+    }
+    
+    // Still waiting - they didn't give a clear answer
+    return {
+      content: 'Please choose one of the three options:\n\n' +
+               '1. **Autopilot** - I generate all 7 steps automatically (fastest, ~5 min)\n' +
+               '2. **Quick Path** - I ask 3-5 focused questions first (balanced, ~15 min)\n' +
+               '3. **Custom Q&A** - We discuss and build step-by-step together (flexible)\n\n' +
+               'Reply with: **autopilot**, **quick**, or **custom**',
+      metadata: null
+    };
+  }
+  
+  // If brand new user (first 1-2 messages) and no workflow chosen yet -> ask now
+  if (isNewUser && messageCount <= 2 && !window._userWorkflowPreference) {
+    window._waitingForWorkflowPreference = true;
+    return {
+      content: '👋 Welcome to NextGen EA Platform!\n\n' +
+               'I can help you build your enterprise architecture in 3 different ways:\n\n' +
+               '**1. Autopilot Mode** 🚀\n' +
+               '   → I ask 3 quick questions, then automatically generate all 7 steps\n' +
+               '   → Best for: Quick testing, demo, or when you trust AI to build the baseline\n' +
+               '   → Time: ~5 minutes total\n\n' +
+               '**2. Quick Path** ⚡\n' +
+               '   → I ask 3-5 focused questions and generate only what you need\n' +
+               '   → Best for: Specific use cases, focused analysis\n' +
+               '   → Time: ~15-20 minutes\n\n' +
+               '**3. Custom Q&A** 💬\n' +
+               '   → We discuss step-by-step, I suggest options and answer questions\n' +
+               '   → Best for: Learning, exploration, highly customized needs\n' +
+               '   → Time: flexible\n\n' +
+               'Which approach would you prefer?\n\n' +
+               'Reply with: **autopilot**, **quick**, or **custom**',
+      metadata: null
+    };
+  }
+
+  // ── QUICK PATH WORKFLOW ────────────────────────────────────────────────────
+  // If user chose Quick Path, guide them through 3-5 focused questions
+  if (window._userWorkflowPreference === 'quick' && !window._quickPathQuestionsAsked) {
+    window._quickPathQuestionsAsked = true;
+    window._quickPathAnswers = { industry: userMessage }; // Store first answer
+    return {
+      content: `Great! You're working in **${userMessage}**.\n\n` +
+               '**Question 2 of 3:**\n\n' +
+               'What is the main business challenge or goal you want to address?\n\n' +
+               '(e.g., "modernize legacy systems", "improve customer experience", "reduce operational costs", "scale for growth")',
+      metadata: null
+    };
+  }
+
+  // Quick Path - question 2 answered
+  if (window._userWorkflowPreference === 'quick' && window._quickPathQuestionsAsked && !window._quickPathAnswers.challenge) {
+    window._quickPathAnswers.challenge = userMessage;
+    return {
+      content: `Got it: **${userMessage}**\n\n` +
+               '**Question 3 of 3:**\n\n' +
+               'What level of detail do you need right now?\n\n' +
+               '• **High-level overview** (strategic ambition + business model)\n' +
+               '• **Capability analysis** (full capability map + gap analysis)\n' +
+               '• **Complete architecture** (all 7 steps including roadmap)\n\n' +
+               'Reply with: **overview**, **capability**, or **complete**',
+      metadata: null
+    };
+  }
+
+  // Quick Path - question 3 answered, now generate
+  if (window._userWorkflowPreference === 'quick' && window._quickPathAnswers?.challenge && !window._quickPathAnswers.scope) {
+    const lower = userMessage.toLowerCase();
+    const scope = /overview|high-level|strategisk|översikt/i.test(lower) ? 'overview'
+                : /capability|capabilit|förmågor|gap/i.test(lower) ? 'capability'
+                : /complete|alla|all 7|komplett|roadmap/i.test(lower) ? 'complete'
+                : 'capability'; // default to capability if unclear
+    
+    window._quickPathAnswers.scope = scope;
+    
+    addAssistantMessage(`Perfect! I'll generate a **${scope}** architecture for your **${window._quickPathAnswers.industry}** use case focused on **${window._quickPathAnswers.challenge}**.\n\nStarting generation...`);
+    
+    // Generate based on scope
+    if (scope === 'overview') {
+      // Generate Steps 1-2 only
+      setTimeout(async () => {
+        await runQuickPathOverview(window._quickPathAnswers);
+      }, 500);
+    } else if (scope === 'capability') {
+      // Generate Steps 1-5
+      setTimeout(async () => {
+        await runQuickPathCapability(window._quickPathAnswers);
+      }, 500);
+    } else {
+      // Generate all 7 steps (same as autopilot but with context)
+      setTimeout(async () => {
+        await runQuickPathComplete(window._quickPathAnswers);
+      }, 500);
+    }
+    
+    delete window._quickPathQuestionsAsked;
+    delete window._quickPathAnswers;
+    
+    return { _handled: true };
+  }
 
   // ── DISCOVERY MODE ─────────────────────────────────────────────────────────
   const currentMode = getAssistantMode();
@@ -9757,13 +10018,23 @@ async function handleGeneralQuestion(userMessage, context) {
     ? `\n\nCompleted EA steps (full detail):\n${stepDetails.join('\n\n')}`
     : '\n\nNo EA steps completed yet.';
 
+  // Adjust response style based on workflow preference (custom = concise questions, no autopilot suggestions)
+  const isCustomWorkflow = window._userWorkflowPreference === 'custom';
+  const isQuickWorkflow = window._userWorkflowPreference === 'quick';
+
   const systemPrompt = (typeof AdvisyAI !== 'undefined')
     ? AdvisyAI.buildSystemPrompt({ userText: userMessage })
-    : `You are Advicy AI, a senior enterprise architecture and business strategy advisor. You guide users through a 7-step EA framework: (1) Strategic Intent, (2) Business Model Canvas, (3) Capability Map, (4) Operating Model, (5) Gap Analysis, (6) Value Pools, (7) Target Architecture & Roadmap.\n\nYou have full awareness of the user's completed steps and their outputs. When answering, always orient guidance toward the strategic ambition captured in Step 1. Reference specific step outputs when relevant, flag cross-step dependencies, and suggest next actions that are correctly sequenced in the EA workflow.\n\nFormatting rules: Write for a C-level audience. Use ## for section headers, bullet points starting with "- " for lists, leave a blank line between each section, and keep sentences concise and commercially focused.`;
+    : (isCustomWorkflow 
+        ? `You are Advicy AI, an enterprise architecture advisor. Guide users through EA with CONCISE questions and options — not long explanations.\n\nRules for custom mode:\n- Ask ONE focused question at a time\n- Provide 2-4 clear options when relevant\n- Keep responses under 150 words\n- Never generate full steps without explicit user request\n- Reference existing step data briefly when helpful\n\nFormatting: Use ## for headers, "- " for bullets, blank lines between sections.`
+        : `You are Advicy AI, a senior enterprise architecture and business strategy advisor. You guide users through a 7-step EA framework: (1) Strategic Intent, (2) Business Model Canvas, (3) Capability Map, (4) Operating Model, (5) Gap Analysis, (6) Value Pools, (7) Target Architecture & Roadmap.\n\nYou have full awareness of the user's completed steps and their outputs. When answering, always orient guidance toward the strategic ambition captured in Step 1. Reference specific step outputs when relevant, flag cross-step dependencies, and suggest next actions that are correctly sequenced in the EA workflow.\n\nFormatting rules: Write for a C-level audience. Use ## for section headers, bullet points starting with "- " for lists, leave a blank line between each section, and keep sentences concise and commercially focused.`);
+
+  const answerRequirements = isCustomWorkflow
+    ? '\n- Ask ONE clear question or provide 2-4 options\n- Keep response under 150 words\n- Reference step data only if directly relevant\n- Do not generate full steps unprompted'
+    : '\n- Reference specific step outputs when relevant (e.g. "Based on your ambition to...", "Your gap analysis shows...")\n- Flag cross-step dependencies if the question touches multiple steps\n- Suggest concrete next actions within the platform\n- Be concise and commercially sharp';
 
   const response = await callAI(
     systemPrompt,
-    `Context: ${JSON.stringify(context)}${stepsContext}\n\nActive tab: ${context.activeView}\n\nUser question: ${userMessage}\n\nAnswer requirements:\n- Reference specific step outputs when relevant (e.g. "Based on your ambition to...", "Your gap analysis shows...")\n- Flag cross-step dependencies if the question touches multiple steps\n- Suggest concrete next actions within the platform\n- Be concise and commercially sharp`,
+    `Context: ${JSON.stringify(context)}${stepsContext}\n\nActive tab: ${context.activeView}\n\nUser question: ${userMessage}\n\nAnswer requirements:${answerRequirements}`,
     { taskType: 'lightweight', temperature: 0.3, replyLanguage: context.preferredLanguage }
   );
   return {
