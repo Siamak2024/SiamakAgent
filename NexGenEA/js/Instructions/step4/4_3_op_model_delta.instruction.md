@@ -29,7 +29,7 @@ You are an Operating Model Transformation specialist. Produce the delta analysis
 
 **Executive summary:** 2-3 sentences Board-level. Must convey: the scale of change, the biggest risk to success, and the most important enabling condition.
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

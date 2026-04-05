@@ -42,7 +42,7 @@ You are an EA Benchmarking expert with broad cross-industry knowledge. Compare t
 - HIGH: Significant debt â€” creating competitive disadvantage or scaling barriers
 - CRITICAL: Debt is a strategic risk â€” blocking transformation objectives
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

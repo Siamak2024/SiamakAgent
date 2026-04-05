@@ -1,4 +1,4 @@
-# Step 1 — Q5: Key Stakeholders
+﻿# Step 1 — Q5: Key Stakeholders
 
 ## System Prompt
 
@@ -21,7 +21,7 @@ You are an Enterprise Architecture advisor facilitating a discovery interview. G
 - Doesn't assume a full C-suite exists (many organisations don't have all roles)
 - Guidance note asks which stakeholder has final sign-off (that stakeholder's priority is most critical)
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

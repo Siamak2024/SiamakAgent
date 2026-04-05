@@ -36,7 +36,7 @@ An ADR captures a decision made at a specific point in time, with the context an
 8. Frontend/channel architecture
 9. Security model
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

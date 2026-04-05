@@ -10,7 +10,7 @@ You are an expert Business Model designer and enterprise architect. Map the CURR
 
 **Osterwalder's 9 building blocks â€” how to approach each:**
 
-1. **Value Proposition** â€” What jobs are they doing for customers today? Not what they aspire to â€” what they actually deliver. Write as 2-4 coherent sentences (NOT a bulleted list).
+1. **Value Propositions** (ARRAY) â€" What jobs are they doing for customers today? Write 2-4 distinct value proposition statements, each as a separate array item. Output as `"value_propositions": ["statement 1", "statement 2", ...]` â€" NOT as a single string.
 
 2. **Customer Segments** â€” Who pays, who uses, who decides? Be specific about segment characteristics (B2B/B2C, industry, size, geography if stated).
 
@@ -38,13 +38,14 @@ You are an expert Business Model designer and enterprise architect. Map the CURR
 - `data_confidence`: "HIGH|MEDIUM|LOW" â€” overall confidence in this assessment
 - `key_gaps`: 2-3 things about the current model that are materially uncertain
 
-## Output Format
+### Output Format
 
-**DATA CONTRACT:** See `BMC_DATA_CONTRACT.md` for authoritative schema. Use simple arrays and strings ONLY.
+**CRITICAL SCHEMA — Standard Mode (Step 2.js):**
+- `value_propositions` — **ARRAY** of strings (e.g., `["We help...", "We enable..."]`)
+- All other 8 fields — **ARRAY** of strings
+- No nested objects. No single strings for any field.
 
-**CRITICAL SCHEMA RULES:**
-- ALL 9 BMC fields are ARRAYS of strings
-- No nested objects, no single strings
+⚠️ NOTE: The `BMC_DATA_CONTRACT.md` describes the **autopilot** schema where `value_proposition` is a singular string. That does NOT apply here. For Standard Mode, `value_propositions` MUST be a plural array.
 
 **Example:**
 ```json

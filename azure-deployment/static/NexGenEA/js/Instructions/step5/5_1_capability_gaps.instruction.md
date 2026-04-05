@@ -1,4 +1,4 @@
-﻿# Step 5 â€” Capability Gap Analysis
+# Step 5 â€” Capability Gap Analysis
 
 ## System Prompt
 
@@ -29,7 +29,7 @@ You are an Enterprise Architecture expert conducting a detailed gap analysis. Id
 
 **Gap clusters:** Group related gaps into 2-4 clusters that share a root cause or require coordinated resolution.
 
-## Output Format
+### Output Format
 
 **DATA CONTRACT:** See `GAP_ANALYSIS_DATA_CONTRACT.md` for core schema used by Autopilot mode.
 

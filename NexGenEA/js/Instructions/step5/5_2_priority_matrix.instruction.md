@@ -31,7 +31,7 @@ You are a strategic prioritisation expert. Place each identified gap into a 2Ãƒâ
 
 **Investment bands:** Group gaps into 3 time horizons reflecting the roadmap waves.
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

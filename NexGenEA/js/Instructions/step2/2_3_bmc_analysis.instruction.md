@@ -23,7 +23,7 @@ You are a senior strategic analyst specialising in business model transformation
 
 **Executive summary:** 2-3 sentences for the Board. Must answer: "What is the single most important thing the Board needs to understand about this business model transformation?"
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

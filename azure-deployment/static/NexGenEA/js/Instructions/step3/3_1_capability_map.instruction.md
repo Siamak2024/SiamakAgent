@@ -35,9 +35,11 @@ You are a Business Capability Mapping expert following BIZBOK and TOGAF principl
 - âŒ System names as capabilities ("SAP Management" â€” that's an asset, not a capability)
 - âŒ More than 8 L1 domains (it becomes unmanageable and loses strategic signal)
 
-## Output Format
+### Output Format
 
-**DATA CONTRACT:** See `CAPABILITY_MAP_DATA_CONTRACT.md` for core flat schema used by Autopilot mode.
+**CRITICAL:** Return JSON with the `l1_domains` structure below. The field `l1_domains` is REQUIRED and MUST be present in the output.
+
+**DATA CONTRACT NOTE:** The flat `capabilities` array in `CAPABILITY_MAP_DATA_CONTRACT.md` is for Autopilot mode. Standard mode uses hierarchical `l1_domains` as shown below.
 
 **Standard Mode Extensions:** This interactive mode uses hierarchical structure for easier workshop navigation:
 - Hierarchical format: `l1_domains` â†’ `l2_capabilities` â†’ `l3_capabilities`

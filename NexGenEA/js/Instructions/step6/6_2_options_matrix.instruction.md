@@ -28,7 +28,7 @@ You are a Strategic Portfolio advisor. For each identified value pool, generate 
 - total_investment_band: a range descriptor ("Moderate investment programme", "Significant multi-year transformation investment")
 - expected_value: directional description of combined value when portfolio is executed
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

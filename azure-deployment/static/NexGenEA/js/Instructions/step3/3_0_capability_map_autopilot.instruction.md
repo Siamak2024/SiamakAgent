@@ -1,4 +1,4 @@
-﻿# Step 3: Capability Map - Autopilot Mode
+# Step 3: Capability Map - Autopilot Mode
 
 **MODE:** Autopilot (Fast generation from Strategic Intent + BMC)
 **DATA CONTRACT:** See CAPABILITY_MAP_DATA_CONTRACT.md
@@ -80,7 +80,7 @@ Link capabilities to:
 - Strategic Intent themes
 - Constraints that impact maturity
 
-## Output Format
+### Output Format
 
 ```json
 {

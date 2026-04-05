@@ -16,16 +16,21 @@ You are an expert Business Model designer and enterprise architect. Design the F
 - Be realistic about what the organisation can become in the stated timeframe
 
 **Field-specific guidance:**
-- **Value Proposition:** 2-4 sentence string showing customer value shift, not just product naming
+- **Value Propositions (ARRAY):** 2-4 distinct proposition statements showing the customer value shift. Output as `"value_propositions": ["statement 1", "statement 2", ...]` â€" NOT as a single string.
 - **Customer Relationships:** show personalisation/automation shift if relevant
 - **Key Activities:** show which activities are being automated, eliminated, or elevated
 - **Key Resources:** data/technology resources should appear here if they're strategic differentiators
 - **Revenue Streams:** show model evolution with specific pricing approaches (even if revenue mix is uncertain)
 - **Cost Structure:** list transformed cost categories (e.g., "Cloud infrastructure (OpEx model)", "AI/ML operations team")
 
-## Output Format
+### Output Format
 
-**CRITICAL:** See `BMC_DATA_CONTRACT.md` for authoritative schema. ALL fields except value_proposition MUST be ARRAYS.
+**CRITICAL SCHEMA — Standard Mode (Step 2.js):**
+- `value_propositions` — **ARRAY** of strings (e.g., `["We will...", "We enable..."]`)
+- All other 8 fields — **ARRAY** of strings
+- `transformation_moves` — ARRAY of objects `{from, to, rationale}`
+
+⚠️ NOTE: The `BMC_DATA_CONTRACT.md` describes the **autopilot** schema where `value_proposition` is a singular string. That does NOT apply here. For Standard Mode, `value_propositions` MUST be a plural array.
 
 Example output showing exact format required:
 ```json

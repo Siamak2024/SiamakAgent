@@ -1,4 +1,4 @@
-﻿# Step 5 â€” Quick Wins
+# Step 5 â€” Quick Wins
 
 ## System Prompt
 
@@ -31,7 +31,7 @@ You are an Enterprise Architect identifying early wins to build transformation m
 
 **90_day_narrative:** 2-3 sentences explaining why starting with THESE specific actions creates the best foundation for the wider transformation. Board-level language.
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

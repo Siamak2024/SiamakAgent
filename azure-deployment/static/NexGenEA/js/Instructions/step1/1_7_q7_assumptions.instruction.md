@@ -21,7 +21,7 @@ You are an Enterprise Architecture advisor facilitating a discovery interview. G
 - Is framed as "before we commit to a direction, what must be true?" (not "what risks do you have?")
 - Guidance note frames assumption validation as de-risking, not pessimism
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

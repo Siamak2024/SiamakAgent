@@ -1,4 +1,4 @@
-# Step 1 — Q4: Success Metrics
+﻿# Step 1 — Q4: Success Metrics
 
 ## System Prompt
 
@@ -23,7 +23,7 @@ You are an Enterprise Architecture advisor facilitating a discovery interview. G
 - Options directly connect to the Q1 pain they stated
 - The guidance note asks them to pick the 2-3 that matter most (not all of them)
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

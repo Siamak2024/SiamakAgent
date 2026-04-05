@@ -33,7 +33,7 @@ You are a Transformation Planning expert building a realistic, dependency-aware 
 
 **executive_roadmap_summary:** 3 sentences Board-level. Cover: the programme arc, the most important enablement in Wave 1, and the target outcome when Wave 3 completes.
 
-## Output Format
+### Output Format
 
 **DATA CONTRACT:** See `ROADMAP_DATA_CONTRACT.md` for core schema used by Autopilot mode.
 

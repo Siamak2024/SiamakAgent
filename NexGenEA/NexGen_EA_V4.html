@@ -8451,24 +8451,20 @@ async function setAutopilotDetailLevel(level) {
   addUserMessage(levelText + ' detaljnivå');
   updateAutopilotProgress(3, 'Detaljnivå vald');
   
-  const flowChoice = `## Välj Autopilot-omfattning
+  // NEW: Ask for company description (4th question)
+  const companyDescMsg = `**4. Beskriv ditt företag/organisation:**
 
-**3 frågor besvarade!** Nu kan AI generera:
+Ge en kort beskrivning av din verksamhet (2-5 meningar). T.ex.:
+- Vad gör ni? Vilka är era huvudsakliga produkter/tjänster?
+- Vilka är era största utmaningar just nu?
+- Finns det specifika mål eller initiativ ni fokuserar på?
 
-**⚡ Endast Step 1 (Strategic Intent)** - Snabbt utkast som du kan granska och justera.
+*Exempel: "Vi är en fastighetsförvaltare med 800 lägenheter i Stockholm och Göteborg. Fokus är ESG-rapportering och digitalisering av hyresgästkommunikation. Stor utmaning är att ersätta vårt gamla fastighetssystem."*
 
-**🚀 Full Autopilot (Alla 7 steg)** - Generera komplett EA-modell från början till slut. Perfekt för test/demo!
-
-<button class="mode-action-btn mode-action-btn--action" onclick="generateAutopilotStrategicIntent()">
-  <i class="fas fa-file-alt"></i>
-  Endast Step 1 - Strategic Intent
-</button>
-<button class="mode-action-btn mode-action-btn--primary" onclick="runFullAutopilotFlow()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
-  <i class="fas fa-rocket"></i>
-  Full Autopilot - Alla 7 steg (Test/Demo)
-</button>`;
+**Skriv din beskrivning i chatten nedan** ⬇️`;
   
-  addAssistantMessage(flowChoice, { mode: 'autopilot', offersAction: true });
+  addAssistantMessage(companyDescMsg, { mode: 'autopilot', awaitingInput: true });
+  window._autopilotState.awaitingCompanyDescription = true;
   scrollToBottom();
 }
 
@@ -8603,16 +8599,205 @@ function closeAutopilotTracker() {
   }
 }
 
+// Quality Review for Strategic Intent
+function generateStrategicIntentQualityReview(strategicIntent, ctx) {
+  const themes = strategicIntent.strategic_themes || [];
+  const metrics = strategicIntent.success_metrics || [];
+  const constraints = strategicIntent.strategic_constraints || [];
+  const ambition = strategicIntent.strategic_ambition || '';
+  
+  // Calculate completeness score
+  let score = 0;
+  const checks = [];
+  
+  // Ambition quality (0-20 points)
+  if (ambition.split('.').length >= 3) {
+    score += 20;
+    checks.push('✅ Comprehensive ambition (3+ sentences)');
+  } else if (ambition.split('.').length >= 2) {
+    score += 10;
+    checks.push('⚠️ Ambition could be more detailed (add transformation context)');
+  } else {
+    checks.push('❌ Ambition too brief - add current challenge, vision, and target state');
+  }
+  
+  // Themes quality (0-25 points)
+  if (themes.length >= 5) {
+    score += 25;
+    checks.push(`✅ Good coverage with ${themes.length} strategic themes`);
+  } else if (themes.length >= 4) {
+    score += 15;
+    checks.push(`⚠️ ${themes.length} themes - consider adding 1-2 more (operations, skills, innovation)`);
+  } else {
+    checks.push(`❌ Only ${themes.length} themes - need 5-6 for comprehensive strategy`);
+  }
+  
+  // Metrics quality (0-30 points)
+  const metricsWithNumbers = metrics.filter(m => /\d+/.test(m));
+  const metricsWithDates = metrics.filter(m => /20\d{2}|Q\d/.test(m));
+  if (metrics.length >= 5 && metricsWithNumbers.length >= 5 && metricsWithDates.length >= 4) {
+    score += 30;
+    checks.push(`✅ Well-quantified metrics (${metrics.length} metrics with targets and dates)`);
+  } else if (metrics.length >= 4) {
+    score += 20;
+    checks.push(`⚠️ ${metrics.length} metrics - add 1-2 more dimensions (quality, compliance, growth)`);
+    } else {
+    checks.push(`❌ Only ${metrics.length} metrics - need 5-6 covering customer, cost, time, quality, compliance`);
+  }
+  
+  // Constraints quality (0-25 points)
+  const constraintsWithSpecifics = constraints.filter(c => /\d+|20\d{2}|€|SEK|\$/.test(c));
+  if (constraints.length >= 4 && constraintsWithSpecifics.length >= 3) {
+    score += 25;
+    checks.push(`✅ Realistic constraints (${constraints.length} with specifics)`);
+  } else if (constraints.length >= 3) {
+    score += 15;
+    checks.push(`⚠️ ${constraints.length} constraints - add resource/skill gaps or organizational barriers`);
+  } else {
+    checks.push(`❌ Only ${constraints.length} constraints - need 4-5 (legacy tech, regulatory, budget, skills, org)`);
+  }
+  
+  const scoreEmoji = score >= 85 ? '🌟' : score >= 70 ? '✅' : score >= 50 ? '⚠️' : '❌';
+  const scoreLabel = score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 50 ? 'Needs Improvement' : 'Incomplete';
+  
+  // Generate refinement questions
+  const refinementQuestions = [];
+  
+  if (ambition.split('.').length < 3) {
+    refinementQuestions.push({
+      section: 'Strategic Ambition',
+      question: `What is the **current challenge or pain point** driving this transformation in your ${ctx.industry || 'industry'}?`,
+      placeholder: `e.g., "High operational costs", "Customer churn", "Regulatory pressure"...`
+    });
+  }
+  
+  if (themes.length < 5) {
+    const missingAreas = [];
+    const themesText = themes.join(' ').toLowerCase();
+    if (!themesText.includes('skill') && !themesText.includes('workforce') && !themesText.includes('upskill')) {
+      missingAreas.push('workforce/skills development');
+    }
+    if (!themesText.includes('operational') && !themesText.includes('efficiency') && !themesText.includes('process')) {
+      missingAreas.push('operational excellence');
+    }
+    if (!themesText.includes('innovation') && !themesText.includes('new') && !themesText.includes('competitive')) {
+      missingAreas.push('innovation/differentiation');
+    }
+    
+    refinementQuestions.push({
+      section: 'Strategic Themes',
+      question: `You have ${themes.length} themes. Consider adding themes related to: ${missingAreas.join(', ')}. What initiatives are planned in these areas?`,
+      placeholder: `e.g., "Training program for 50 staff on new tools by Q2 2025"...`
+    });
+  }
+  
+  if (metrics.length < 5) {
+    const missingMetrics = [];
+    const metricsText = metrics.join(' ').toLowerCase();
+if (!metricsText.includes('nps') && !metricsText.includes('satisfaction') && !metricsText.includes('customer')) {
+      missingMetrics.push('customer satisfaction/NPS');
+    }
+    if (!metricsText.includes('time') && !metricsText.includes('speed') && !metricsText.includes('cycle')) {
+      missingMetrics.push('process speed/time-to-market');
+    }
+    if (!metricsText.includes('compliance') && !metricsText.includes('risk') && !metricsText.includes('audit')) {
+      missingMetrics.push('compliance/risk reduction');
+    }
+    
+    refinementQuestions.push({
+      section: 'Success Metrics',
+      question: `You have ${metrics.length} metrics. What are your targets for: ${missingMetrics.join(', ')}?`,
+      placeholder: `e.g., "Reduce processing time from 14 days to 5 days by Q2 2026"...`
+    });
+  }
+  
+  if (constraints.length < 4) {
+    const missingConstraints = [];
+    const constraintsText = constraints.join(' ').toLowerCase();
+    if (!constraintsText.includes('legacy') && !constraintsText.includes('system') && !constraintsText.includes('erp')) {
+      missingConstraints.push('legacy systems (name, age, cost)');
+    }
+    if (!constraintsText.includes('budget') && !constraintsText.includes('€') && !constraintsText.includes('sek')) {
+      missingConstraints.push('budget limitations (specific amount)');
+    }
+    if (!constraintsText.includes('skill') && !constraintsText.includes('resource') && !constraintsText.includes('headcount')) {
+      missingConstraints.push('skills/resource gaps (specifics)');
+    }
+    
+    refinementQuestions.push({
+      section: 'Strategic Constraints',
+      question: `You have ${constraints.length} constraints. Consider adding: ${missingConstraints.join(', ')}. What are the key barriers?`,
+      placeholder: `e.g., "Use legacy ERP from 2012 with €500K annual maintenance cost"...`
+    });
+  }
+  
+  // Build quality review message
+  let reviewMsg = `---
+
+## 📊 Quality Review: ${scoreEmoji} ${score}/100 (${scoreLabel})
+
+${checks.map(c => c).join('\n')}
+
+`;
+  
+  if (refinementQuestions.length > 0) {
+    reviewMsg += `\n### 🎯 Refinement Questions
+
+To improve your Strategic Intent to "Excellent" level, please provide additional context:
+
+${refinementQuestions.map((q, i) => `**${i + 1}. ${q.section}**
+${q.question}
+${q.placeholder}
+`).join('\n')}
+
+**How to improve:**
+<button class="mode-action-btn mode-action-btn--action" onclick="improveStrategicIntentWithAI();">
+  <i class="fas fa-magic"></i>
+  Answer questions with AI help
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="openStrategicIntentTab();">
+  <i class="fas fa-edit"></i>
+  Edit manually in Executive tab
+</button>
+
+`;
+  }
+  
+  reviewMsg += `---
+
+## ⏭️ Next Steps
+
+<button class="mode-action-btn mode-action-btn--primary" onclick="confirmAutopilotAndContinue();" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none;">
+  <i class="fas fa-check-circle"></i>
+  ${score >= 70 ? 'Looks Good - Continue to Step 2 (BMC)' : 'Skip Review - Continue to Step 2 (Testing)'}
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="regenerateAutopilotStrategicIntent();">
+  <i class="fas fa-redo"></i>
+  Regenerate with more detail
+</button>`;
+  
+  return reviewMsg;
+}
+
 // Base system prompt from instruction file: NexGenEA/js/Instructions/step1/1_0_strategic_intent_autopilot.instruction.md
 async function generateAutopilotStrategicIntent() {
   const ctx = window._autopilotState?.context || {};
   
-  addAssistantMessage(`⚡ Generating Strategic Intent based on:\n- Region: **${ctx.region}**\n- Industry: **${ctx.industry}**\n- Detail Level: **${ctx.detailLevel}**\n\nPlease wait...`, { mode: 'autopilot' });
+  addAssistantMessage(`⚡ Generating Strategic Intent based on:\n- Region: **${ctx.region}**\n- Industry: **${ctx.industry}**\n- Detail Level: **${ctx.detailLevel}**\n- Company: "${ctx.companyDescription?.substring(0, 60)}..."\n\nPlease wait...`, { mode: 'autopilot' });
   showTypingIndicator();
   
-  // Get company description from model or create placeholder
-  const companyDesc = model?.description || 
+  // Get company description from autopilot context (user's input), then model, then placeholder
+  const companyDesc = ctx.companyDescription || model?.description || 
     `Ett ${ctx.industry}-företag verksamt i ${ctx.region} som genomgår digital transformation och EA-modernisering.`;
+  
+  // Use user's description for generation (not placeholder)
+  const actualCompanyDesc = ctx.companyDescription || model?.description || '';
+  
+  if (!actualCompanyDesc) {
+    hideTypingIndicator();
+    addAssistantMessage('❌ Ingen företagsbeskrivning angiven. Vänligen beskriv ditt företag först, eller starta om Autopilot och svara på alla 4 frågorna.', { mode: 'autopilot' });
+    return;
+  }
   
   const systemPrompt = `You are a Senior Enterprise Architect with 20+ years of experience in ${ctx.industry} sector.
 
@@ -8626,47 +8811,23 @@ async function generateAutopilotStrategicIntent() {
 5. Strategic ambition must reflect ${ctx.region} market maturity and regulatory environment
 
 **Detail Level:** ${ctx.detailLevel}
-- low: High-level strategic direction only (3-4 bullets)
-- medium: Balanced - key themes, metrics, and constraints (5-6 bullets)
-- high: Comprehensive - detailed themes, quantified metrics, specific constraints (7-8 bullets)
+- low: High-level strategic direction only (3-4 themes, 3 metrics)
+- medium: Balanced — key themes, quantified metrics, and constraints (5-6 themes, 4-5 metrics)
+- high: Comprehensive — detailed themes, quantified metrics, specific constraints (7-8 themes, 6+ metrics)
+
+**CRITICAL: Derive EVERYTHING from the company description below. Do NOT use generic industry templates. The themes, metrics, constraints and ambition must reflect what THIS specific company described, not what a typical company in this industry usually does.**
 
 **Output Format (JSON):**
 {
-  "strategic_ambition": "2-3 sentence executive summary of strategic direction",
-  "strategic_themes": ["theme 1", "theme 2", "theme 3", "theme 4"],
-  "success_metrics": ["metric 1 with target", "metric 2 with target", "metric 3 with target"],
-  "strategic_constraints": ["constraint 1", "constraint 2"]
+  "strategic_ambition": "2-3 sentence executive summary of strategic direction — grounded in the company's actual stated challenges and goals",
+  "strategic_themes": ["theme derived from company description", "..."],
+  "success_metrics": ["metric with specific target derived from company context", "..."],
+  "strategic_constraints": ["constraint explicitly or implicitly mentioned in company description", "..."]
 }
-
-**Industry-Specific Guidance:**
-
-**Fastighet (Real Estate):**
-- Themes: Tenant lifecycle digitization, ESG/Taxonomy compliance, PropTech integration, CAFM/IWMS modernization
-- Metrics: NOI per sqm, tenant NPS, vacancy rate, CO2 reduction %, digitization rate
-- Systems: Vitec, Momentum, Hogia, or similar property management platforms
-- Constraints: EU Taxonomy, BREEAM, rent regulations, outsourced FM
-
-**Finans/Bank:**
-- Themes: Open banking, AI-driven risk, cloud migration, regulatory compliance, customer experience
-- Metrics: Cost-to-income ratio, digital adoption %, NPS, regulatory compliance score
-- Systems: Core banking, trading platforms, risk engines, CRM
-- Constraints: GDPR, PSD2, Basel III/IV, legacy core system migration risk
-
-**Offentlig sektor:**
-- Themes: Citizen services digitization, data transparency, interoperability, cost efficiency
-- Metrics: Citizen satisfaction, process automation %, cost per service, compliance
-- Systems: Case management, HR/payroll, procurement, GIS, portals
-- Constraints: Public procurement rules, budget cycles, legacy vendor lock-in
-
-**Handel/Retail:**
-- Themes: Omnichannel, personalization, supply chain visibility, sustainability
-- Metrics: Conversion rate, basket size, inventory turnover, customer lifetime value
-- Systems: POS, e-commerce, OMS, WMS, CRM, loyalty platforms
-- Constraints: Margin pressure, seasonal demand, last-mile delivery complexity
 
 Return ONLY valid JSON.`;
 
-  const userPrompt = `Company context: ${companyDesc}
+  const userPrompt = `Company context: ${actualCompanyDesc}
 
 Region: ${ctx.region}
 Industry: ${ctx.industry}
@@ -8692,7 +8853,7 @@ Generate Strategic Intent now.`;
     // Save to model
     model.strategicIntent = strategicIntent;
     model.strategicIntentConfirmed = false; // User needs to review
-    model.description = companyDesc; // Update if was placeholder
+    model.description = actualCompanyDesc; // Save user's actual description
     
     // Format for display
     const displayMsg = `## ✅ Strategic Intent - Första Utkast
@@ -8707,28 +8868,13 @@ ${strategicIntent.strategic_themes.map((t, i) => `${i + 1}. ${t}`).join('\n')}
 ${strategicIntent.success_metrics.map((m, i) => `• ${m}`).join('\n')}
 
 **Begränsningar:**
-${strategicIntent.strategic_constraints.map((c, i) => `• ${c}`).join('\n')}
-
----
-
-## Nästa Steg
-
-Detta är ett AI-genererat utkast baserat på ${ctx.industry} i ${ctx.region}. **Granska och justera** innan du går vidare.
-
-<button class="mode-action-btn mode-action-btn--action" onclick="openStrategicIntentTab();">
-  <i class="fas fa-edit"></i>
-  Visa i Ledning-fliken (Executive)
-</button>
-<button class="mode-action-btn mode-action-btn--primary" onclick="confirmAutopilotAndContinue();" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none;">
-  <i class="fas fa-check-circle"></i>
-  Godkänn & Fortsätt till Step 2 (BMC)
-</button>
-<button class="mode-action-btn mode-action-btn--secondary" onclick="regenerateAutopilot();">
-  <i class="fas fa-redo"></i>
-  Regenerera med andra antaganden
-</button>`;
+${strategicIntent.strategic_constraints.map((c, i) => `• ${c}`).join('\n')}`;
     
-    addAssistantMessage(displayMsg, { mode: 'autopilot', offersAction: true });
+    addAssistantMessage(displayMsg, { mode: 'autopilot' });
+    
+    // Generate quality review and refinement questions
+    const qualityReview = generateStrategicIntentQualityReview(strategicIntent, ctx);
+    addAssistantMessage(qualityReview, { mode: 'autopilot', offersAction: true });
     
     // Save to database (draft mode)
     saveModelToDB(false, true);
@@ -8745,13 +8891,72 @@ Detta är ett AI-genererat utkast baserat på ${ctx.industry} i ${ctx.region}. *
     // Update left sidebar to show completion
     updateWorkflowStepStates();
     
-    toast('✓ Strategic Intent-utkast skapat! Granska innan du går vidare.');
+    toast('✓ Strategic Intent-utkast skapat! Granska kvalitetsrapporten.');
     scrollToBottom();
     
   } catch (error) {
     hideTypingIndicator();
     addAssistantMessage(`❌ Ett fel uppstod vid generering: ${error.message}\n\nFörsök igen eller välj Guided Workflow istället.`, { mode: 'autopilot', error: true });
   }
+}
+
+// Improve Strategic Intent with AI guidance
+async function improveStrategicIntentWithAI() {
+  const ctx = window._autopilotState?.context || {};
+  const industry = ctx.industry || 'your industry';
+  
+  addAssistantMessage(`🤔 I'll help you refine your Strategic Intent with industry-specific guidance.
+
+Please answer the refinement questions above **one at a time**. I'll use GPT-5 to generate contextual suggestions based on your ${industry} context.
+
+**Simply type your answer** to any question, like:
+- "Our main challenge is..."
+- "We want to add a theme about..."
+- "Our current NPS is X and target is Y..."
+
+Or type **"generate suggestions"** and I'll use AI to propose specific improvements based on your company description.
+
+Type your refinement or "done" when satisfied.`);
+  
+  window._refiningStrategicIntent = true;
+  scrollToBottom();
+}
+
+// Regenerate Strategic Intent with more detail
+async function regenerateAutopilotStrategicIntent() {
+  const ctx = window._autopilotState?.context || {};
+  
+  addAssistantMessage(`🔄 I'll regenerate with **maximum detail and realism** using GPT-5's industry knowledge.
+
+**Optional:** Provide any additional context to improve generation quality:
+- Specific systems you currently use
+- Current performance metrics (costs, NPS, processing times, etc.)
+- Regulatory deadlines or compliance requirements
+- Strategic priorities for the next 2-3 years
+
+Type your additional context below, or click "Regenerate Now" to proceed with current information.
+
+<button class="mode-action-btn mode-action-btn--primary" onclick="executeAutopilotRegeneration();" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+  <i class="fas fa-redo"></i>
+  Regenerate Now
+</button>`);
+  
+  window._awaitingRegenerationContext = true;
+  scrollToBottom();
+}
+
+// Execute regeneration
+async function executeAutopilotRegeneration() {
+  window._awaitingRegenerationContext = false;
+  
+  // Ask AI to regenerate with explicit instruction for more detail
+  const ctx = window._autopilotState?.context || {};
+  ctx.regenerationRequested = true; // Flag for AI to generate even more detail
+  
+  addAssistantMessage('⏳ Regenerating with maximum detail level...', { mode: 'autopilot' });
+  
+  // Re-run generation
+  await generateAutopilotStrategicIntent();
 }
 
 function openStrategicIntentTab() {
@@ -9013,12 +9218,8 @@ async function generateAutopilotBMC() {
 - Follow this pattern: "We help [customer segment] achieve [outcome] by providing [solution]. Unlike [traditional approach], our [differentiator] enables [benefit]. This directly supports [strategic theme]."
 - NEVER leave empty or use placeholder text
 
-### 2. INDUSTRY REALISM
-All elements must be:
-- Specific to ${ctx.industry} in ${ctx.region}
-- Use real technology names, partner types, and business models common in ${ctx.industry}
-- Grounded in realistic constraints: ${constraints}
-- Appropriate to detail level: ${ctx.detailLevel}
+### 2. CONTEXT GROUNDING
+All elements MUST be derived from the company description and strategic context provided in the user prompt — NOT from generic ${ctx.industry} templates. Generate content unique to THIS specific organisation's situation.
 
 ### 3. STRATEGIC ALIGNMENT
 Every BMC element should trace to strategic themes: ${themes}
@@ -9026,22 +9227,6 @@ Every BMC element should trace to strategic themes: ${themes}
 ### 4. COMPLETENESS
 - ALL fields must be populated — NO empty arrays or placeholder strings
 - Minimum content: value_proposition (2-4 sentences), customer_segments (2-4), channels (3-5), customer_relationships (2-3), revenue_streams (2-4 with pricing models), key_resources (3-5), key_activities (3-5), key_partners (2-4), cost_structure (3-5)
-
----
-
-## VALUE PROPOSITION EXAMPLES BY INDUSTRY
-
-**Financial Services:**
-"We help mid-market enterprises achieve real-time financial visibility and regulatory compliance by providing an AI-powered integrated finance platform. Unlike fragmented legacy systems that require manual reconciliation, our automated data fabric eliminates duplicate entry and reduces month-end close from 15 days to 3 days. This directly supports our digital transformation and operational excellence themes."
-
-**Healthcare:**
-"We help regional hospitals deliver coordinated patient care across the continuum by providing a unified care management platform. Unlike siloed EHR systems that fragment patient data, our interoperable network enables secure data sharing across 50+ provider organizations, reducing duplicate testing by 40%. This directly supports our patient outcomes and care integration ambitions."
-
-**Manufacturing:**
-"We help industrial equipment manufacturers transition to outcome-based service models by providing IoT-enabled predictive maintenance solutions. Unlike reactive service contracts, our real-time asset monitoring predicts failures 72 hours in advance, increasing uptime from 82% to 96%. This directly supports our servitization and recurring revenue strategic themes."
-
-**Retail:**
-"We help fashion-conscious millennials discover sustainable clothing that matches their style by providing a personalized AI stylist and secondhand marketplace. Unlike fast fashion that contributes to waste, our circular model extends garment lifecycles by 3x while reducing customer acquisition costs through community-driven growth. This directly supports our sustainability and customer experience ambitions."
 
 ---
 
@@ -9061,18 +9246,15 @@ Every BMC element should trace to strategic themes: ${themes}
 
 Return ONLY valid JSON. No markdown, no comments.`;
 
-  const userPrompt = `Generate a complete Business Model Canvas for this ${ctx.industry} organization in ${ctx.region}.
+  const userPrompt = `Company: "${ctx.companyDescription || model?.description || ''}"
 
-**Strategic Ambition:** "${strategicAmbition}"
-**Strategic Themes:** ${themes}
+Strategic Ambition: "${strategicAmbition}"
+Strategic Themes: ${themes}
+Constraints: ${constraints}
 
-The Value Proposition MUST:
-- Be a single coherent 2-4 sentence string (NOT an array)
-- Clearly explain how we deliver on the strategic ambition
-- Use the industry example pattern as a template
-- Be specific to ${ctx.industry} with realistic details
+Generate a complete Business Model Canvas grounded in THIS company's actual context above. Every element — value proposition, segments, channels, activities — must reflect what this specific company does, not a generic ${ctx.industry} template.
 
-All BMC elements must be industry-realistic and aligned with the strategic themes above.`;
+The Value Proposition MUST be a single coherent 2-4 sentence string (NOT an array).`;
   
   try {
     const response = await AIService.call({
@@ -9475,6 +9657,47 @@ function returnToDiscoveryMode() {
 async function processUserMessage(userMessage) {
   const context = buildConversationContext();
   context.preferredLanguage = resolveResponseLanguage(userMessage);
+
+  // ── AUTOPILOT COMPANY DESCRIPTION INPUT ───────────────────────────────────
+  if (window._autopilotState?.awaitingCompanyDescription) {
+    window._autopilotState.awaitingCompanyDescription = false;
+    window._autopilotState.context.companyDescription = userMessage.trim();
+    
+    // Save to model
+    if (!model.description || model.description.includes('genomgår digital transformation')) {
+      model.description = userMessage.trim();
+    }
+    
+    updateAutopilotProgress(4, 'Företagsbeskrivning mottagen');
+    
+    // Now show flow choice buttons
+    const flowChoice = `## ✅ Företagsbeskrivning mottagen!
+
+**Autopilot-kontext komplett:**
+- Region: **${window._autopilotState.context.region}**
+- Bransch: **${window._autopilotState.context.industry}**
+- Detaljnivå: **${window._autopilotState.context.detailLevel}**
+- Beskrivning: "${userMessage.substring(0, 80)}${userMessage.length > 80 ? '...' : ''}"
+
+Nu kan AI generera:
+
+**⚡ Endast Step 1 (Strategic Intent)** - Snabbt utkast som du kan granska och justera.
+
+**🚀 Full Autopilot (Alla 7 steg)** - Generera komplett EA-modell från början till slut. Perfekt för test/demo!
+
+<button class="mode-action-btn mode-action-btn--action" onclick="generateAutopilotStrategicIntent()">
+  <i class="fas fa-file-alt"></i>
+  Endast Step 1 - Strategic Intent
+</button>
+<button class="mode-action-btn mode-action-btn--primary" onclick="runFullAutopilotFlow()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+  <i class="fas fa-rocket"></i>
+  Full Autopilot - Alla 7 steg (Test/Demo)
+</button>`;
+    
+    addAssistantMessage(flowChoice, { mode: 'autopilot', offersAction: true });
+    scrollToBottom();
+    return { _handled: true };
+  }
 
   // ── DISCOVERY MODE ─────────────────────────────────────────────────────────
   const currentMode = getAssistantMode();

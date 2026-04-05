@@ -1,4 +1,4 @@
-﻿# Step 5: Gap Analysis - Autopilot Mode
+# Step 5: Gap Analysis - Autopilot Mode
 
 **MODE:** Autopilot (Fast generation from Capabilities + Strategic Intent)
 **DATA CONTRACT:** See GAP_ANALYSIS_DATA_CONTRACT.md
@@ -78,7 +78,7 @@ Link gaps to Strategic Intent metrics — use the actual metrics from Step 1:
 - Budget estimate based on industry benchmarks for this type of initiative at this scale
 - Link to Operating Model platforms where relevant
 
-## Output Format
+### Output Format
 
 ```json
 {

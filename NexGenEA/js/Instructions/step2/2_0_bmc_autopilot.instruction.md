@@ -81,7 +81,7 @@ If no metrics are provided, use directional language rather than invented number
 
 ---
 
-## OUTPUT FORMAT
+### Output Format
 
 Return ONLY valid JSON. No markdown fences, no comments, no prose.
 

@@ -33,7 +33,7 @@ The most important design decisions you made â€” the "why" behind the targe
 
 Same 6-block output schema as current operating model, plus `transformation_principles[]` array.
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

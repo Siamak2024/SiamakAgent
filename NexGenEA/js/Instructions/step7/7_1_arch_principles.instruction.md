@@ -31,7 +31,7 @@ You are a Chief Architect defining the architecture principles that will govern 
 
 **Architecture style:** Concise label for the target architecture approach
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

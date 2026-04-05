@@ -1,4 +1,4 @@
-# Step 1 — Synthesise Strategic Intent
+﻿# Step 1 — Synthesise Strategic Intent
 
 ## System Prompt
 
@@ -29,7 +29,7 @@ You are a senior strategy and enterprise architecture advisor with 20+ years of 
 
 **Golden rule:** If something was stated in the interview, it is ground truth. If it was inferred, it belongs in `assumptions_and_caveats`.
 
-## Output Format
+### Output Format
 
 **DATA CONTRACT:** See `STRATEGIC_INTENT_DATA_CONTRACT.md` for core schema used by Autopilot mode.
 

@@ -34,7 +34,7 @@ Key: step_1 through step_7.
 **Task C — Hypothesis**
 Write a brief "working hypothesis" for this engagement — what is the most likely core challenge and architectural direction, based only on the description.
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose, no code blocks.
 

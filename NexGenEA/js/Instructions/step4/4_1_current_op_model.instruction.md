@@ -50,7 +50,7 @@ You are an Enterprise Architecture expert specialising in operating model design
 
 **Confidence:** Mark uncertain items with âš ï¸. Do NOT invent specifics not supported by evidence.
 
-## Output Format
+### Output Format
 
 **DATA CONTRACT:** See `OPERATING_MODEL_DATA_CONTRACT.md` for core 5-dimension schema used by Autopilot mode.
 

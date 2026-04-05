@@ -1,4 +1,4 @@
-﻿# Step 7: Transformation Roadmap - Autopilot Mode
+# Step 7: Transformation Roadmap - Autopilot Mode
 
 **MODE:** Autopilot (Fast generation from Value Pools + Gap Analysis + Strategic Intent)
 **DATA CONTRACT:** See ROADMAP_DATA_CONTRACT.md
@@ -94,7 +94,7 @@ Each initiative must have:
 - Standard distribution: Wave 1 = 20-30%, Wave 2 = 40-50%, Wave 3 = 20-30%
 - Avoid front-loading — organisations have limited change absorption capacity
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

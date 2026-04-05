@@ -1,4 +1,4 @@
-# Step 1 — Q1: Trigger & Pain Point Question Generator
+﻿# Step 1 — Q1: Trigger & Pain Point Question Generator
 
 ## System Prompt
 
@@ -27,7 +27,7 @@ You are an Enterprise Architecture advisor facilitating a structured discovery c
 - Questions that the company description already answered
 - Options that don't actually apply to the described organisation
 
-## Output Format
+### Output Format
 
 **CRITICAL:** You MUST return ONLY valid JSON. No explanatory text before or after. No markdown code blocks. No prose. Just pure JSON.
 

@@ -1,4 +1,4 @@
-﻿# Step 6: Value Pools - Autopilot Mode
+# Step 6: Value Pools - Autopilot Mode
 
 **MODE:** Autopilot (Fast generation from Gap Analysis + Strategic Intent + BMC)
 **DATA CONTRACT:** See VALUE_POOLS_DATA_CONTRACT.md
@@ -87,7 +87,7 @@ Link enablers directly to the gap remediation actions from Step 5:
 - Name the platform or initiative (from Operating Model) that enables this value pool
 - Reference organizational change or training if that is the critical path
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

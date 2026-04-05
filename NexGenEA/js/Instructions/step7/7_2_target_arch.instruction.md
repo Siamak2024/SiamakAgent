@@ -39,7 +39,7 @@ You are a Senior Enterprise Architect designing the complete target state archit
 **metadata.at_a_glance:** Max 25 words â€” what is the target architecture in plain language for a CEO?
 **metadata.architecture_style:** 4-6 word label
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

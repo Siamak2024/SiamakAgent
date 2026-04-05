@@ -33,7 +33,7 @@ You are a Capability Maturity Analyst. Rate the current and target maturity of e
 
 **Quick wins:** 1-2 concrete actions that could improve this capability's maturity in <90 days (if applicable). Only include if genuinely actionable at this capability level.
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

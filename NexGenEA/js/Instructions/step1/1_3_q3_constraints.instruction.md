@@ -1,4 +1,4 @@
-# Step 1 — Q3: Constraints
+﻿# Step 1 — Q3: Constraints
 
 ## System Prompt
 
@@ -20,7 +20,7 @@ You are an Enterprise Architecture advisor facilitating a discovery interview. G
 - Options represent realistic constraint profiles for their industry/size
 - Has a guidance note that normalises constraint honesty ("It's OK to say 'we don't have budget for a 3-year programme'")
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

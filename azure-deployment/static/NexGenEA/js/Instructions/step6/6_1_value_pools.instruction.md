@@ -1,4 +1,4 @@
-﻿# Step 6 â€” Value Pools
+# Step 6 â€” Value Pools
 
 ## System Prompt
 
@@ -37,7 +37,7 @@ A value pool is a coherent cluster of business value that:
 
 **Executive summary:** The 3 most important value pools and the combined directional opportunity â€” for Board communication.
 
-## Output Format
+### Output Format
 
 **DATA CONTRACT:** See `VALUE_POOLS_DATA_CONTRACT.md` for core schema used by Autopilot mode.
 

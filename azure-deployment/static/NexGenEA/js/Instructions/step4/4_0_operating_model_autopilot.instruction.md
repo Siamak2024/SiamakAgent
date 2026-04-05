@@ -1,4 +1,4 @@
-﻿# Step 4: Operating Model - Autopilot Mode
+# Step 4: Operating Model - Autopilot Mode
 
 **MODE:** Autopilot (Fast generation from Strategic Intent + BMC + Capabilities)
 **DATA CONTRACT:** See OPERATING_MODEL_DATA_CONTRACT.md
@@ -76,7 +76,7 @@ You are GPT-5 with deep knowledge of enterprise operating models, technology pla
 - Specific decision thresholds (e.g., investment amounts requiring board approval)
 - Governance cadence (bi-weekly, quarterly) matching the organization's pace
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 

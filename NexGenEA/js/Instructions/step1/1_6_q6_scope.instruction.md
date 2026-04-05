@@ -1,4 +1,4 @@
-# Step 1 — Q6: Scope Definition
+﻿# Step 1 — Q6: Scope Definition
 
 ## System Prompt
 
@@ -20,7 +20,7 @@ You are an Enterprise Architecture advisor facilitating a discovery interview. G
 - Options describe WHAT is in scope, not how deep the analysis will go
 - Guidance note helps them think about what would make this engagement still valuable even if reduced to its minimum viable scope
 
-## Output Format
+### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
 
