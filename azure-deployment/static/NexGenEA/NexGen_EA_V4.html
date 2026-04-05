@@ -6144,6 +6144,20 @@ function closeChatPanel() {
 }
 
 function getDefaultEaAssistantWelcome() {
+  // Use Swedish if browser language is Swedish or user previously used Swedish
+  const userLang = getUserPreferredLanguage();
+  
+  if (userLang === 'sv') {
+    return "👋 **Hej! Jag är din NextGen EA-assistent** och jag är kontextmedveten om vyn du arbetar i.\n\n" +
+      "Du kan skriva naturligt eller köra kommandon, till exempel:\n" +
+      "- Generera arkitektur för en branschspecifik organisation\n" +
+      "- Uppdatera roadmap\n" +
+      "- Uppdatera capability map\n" +
+      "- Uppdatera operating model\n" +
+      "- Uppdatera målarkitektur\n\n" +
+      "Vad vill du göra nu?";
+  }
+  
   return "Hi! I am your NextGen EA Assistant, and I am context-aware of the view you are working in.\n\n" +
     "You can write naturally or run commands, for example:\n" +
     "- Generate architecture for a Industry-specific organization\n" +
@@ -6152,6 +6166,24 @@ function getDefaultEaAssistantWelcome() {
     "- Update operating model\n" +
     "- Update target architecture\n\n" +
     "What would you like to do now?";
+}
+
+function getUserPreferredLanguage() {
+  try {
+    // Check localStorage first
+    const stored = localStorage.getItem('ea_preferred_language');
+    if (stored) return stored;
+  } catch (e) {
+    // Ignore localStorage errors (tracking prevention)
+  }
+  
+  // Fallback to browser language
+  const browserLang = navigator.language || navigator.userLanguage || '';
+  if (browserLang.toLowerCase().startsWith('sv')) return 'sv';
+  
+  // Default to Swedish for Nordic/European users (safer default for Advicy platform)
+  // Most Advicy users are Swedish-speaking
+  return 'sv';
 }
 
 function clearActiveConversationHistory() {
@@ -6796,6 +6828,15 @@ function addUserMessage(content, metadata = null) {
 function addAssistantMessage(content, metadata = null) {
   addMessageToConversation('assistant', content, metadata);
   renderMessage(content, false, Date.now(), metadata, true);
+  
+  // Store language preference if Swedish content detected
+  if (/[åäöÅÄÖ]/.test(content)) {
+    try {
+      localStorage.setItem('ea_preferred_language', 'sv');
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+  }
 }
 
 function scrollToBottom() {
@@ -9284,8 +9325,15 @@ async function maybeTranslateAssistantContent(content, targetLanguage) {
 
   // Skip translation if content already appears to be in target language
   // Check for Swedish characters if target is Swedish
-  if (lang === 'sv' && /[åäöÅÄÖ]|\b(och|är|för|att|med|från|till|som|det|en|av)\b/.test(content)) {
-    return content; // Already in Swedish
+  if (lang === 'sv') {
+    // More comprehensive Swedish detection
+    if (/[åäöÅÄÖé]/.test(content)) {
+      return content; // Contains Swedish characters
+    }
+    // Check for common Swedish words
+    if (/\b(och|eller|är|vara|för|att|med|från|till|vid|som|det|den|ett|en|av|har|kan|ska|vill|göra|Hej|Välkommen)\b/i.test(content)) {
+      return content; // Contains Swedish words
+    }
   }
   
   // Skip translation for very short content (likely UI elements already translated)
