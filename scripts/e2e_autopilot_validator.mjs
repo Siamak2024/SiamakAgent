@@ -861,6 +861,155 @@ if (!vpNormsLinkedCaps || !vpNormsValuePotential || !vpNormsEstimatedValue) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// TEST 28: Architecture Layers — valueStreams seeded from Step3 L1 domains
+// REGRESSION: valueStreams was only populated by Step7; layers tab showed empty
+// VÄRDEFLÖDEN until all 7 steps ran.  Step3.applyOutput() should now derive
+// valueStreams from capabilityMap.l1_domains immediately after Step 3 completes.
+// ────────────────────────────────────────────────────────────────────────────
+console.log(`\n${BOLD}[TEST 28]${RESET} Architecture Layers — Step3 seeds valueStreams from L1 domains`);
+
+const step3ApplyBlock = (() => {
+  const start = step3Content.indexOf('applyOutput:');
+  return step3Content.slice(start, start + 600);
+})();
+
+const step3SeedsVS = /valueStreams.*derivedVS|derivedVS.*valueStreams|l1_domains.*map.*name.*description/.test(step3ApplyBlock);
+
+if (!step3SeedsVS) {
+  BUG(28, 'MODERATE',
+    'Step3.applyOutput() does not seed model.valueStreams from l1_domains. ' +
+    'Architecture Layers VÄRDEFLÖDEN section stays empty until Step 7 runs.',
+    'NexGenEA/js/Steps/Step3.js (applyOutput)',
+    'Add: derivedVS = capabilityMap.l1_domains.map(d => ({name:d.name,description:""})); valueStreams: derivedVS'
+  );
+} else {
+  OK('Step3.applyOutput() seeds valueStreams from L1 domains — layers tab shows Value Streams after Step 3');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TEST 29: Architecture Layers — systems seeded from Step4 operating model
+// REGRESSION: systems was only populated by Step7; SYSTEM section in Architecture
+// Layers showed empty until all 7 steps ran.  Step4.applyOutput() should now
+// derive systems from operatingModel.current.applications.core_systems.
+// ────────────────────────────────────────────────────────────────────────────
+console.log(`\n${BOLD}[TEST 29]${RESET} Architecture Layers — Step4 seeds systems from core_systems`);
+
+const step4Content = fs.readFileSync(path.join(ROOT, 'NexGenEA/js/Steps/Step4.js'), 'utf8');
+const step4ApplyBlock = (() => {
+  const start = step4Content.indexOf('applyOutput:');
+  return step4Content.slice(start, start + 600);
+})();
+
+const step4SeedsSys = /systems.*derivedSystems|derivedSystems.*systems/s.test(step4ApplyBlock) ||
+  (/core_systems/.test(step4ApplyBlock) && /derivedSystems|coreSysList\.map/.test(step4ApplyBlock));
+
+if (!step4SeedsSys) {
+  BUG(29, 'MODERATE',
+    'Step4.applyOutput() does not seed model.systems from operatingModel.current.applications.core_systems. ' +
+    'Architecture Layers SYSTEM section stays empty until Step 7 runs.',
+    'NexGenEA/js/Steps/Step4.js (applyOutput)',
+    'Add: derivedSystems = operatingModel.current.applications.core_systems.map(name => ({name, status:"active"}))'
+  );
+} else {
+  OK('Step4.applyOutput() seeds systems from core_systems — layers tab shows Systems after Step 4');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TEST 30: Value Proposition rendering — CSS dark-theme override
+// REGRESSION: parseMarkdown() renders paragraphs as color:#e0e0e0 (designed for
+// dark chat background). When used in BMC panel (light #f8fdfb background), the
+// VP text becomes almost invisible (grey on light green).
+// Fix: .bmc-block-text p { color: #1e293b !important; } in ea-nordic-theme.css
+// ────────────────────────────────────────────────────────────────────────────
+console.log(`\n${BOLD}[TEST 30]${RESET} Value Proposition — CSS override for dark-theme paragraph colors`);
+
+const cssContent = fs.readFileSync(path.join(ROOT, 'css/ea-nordic-theme.css'), 'utf8');
+const bmcTextCssOverride = /\.bmc-block-text\s+p\s*\{[^}]*color\s*:\s*#1e293b/.test(cssContent);
+
+if (!bmcTextCssOverride) {
+  BUG(30, 'MODERATE',
+    'ea-nordic-theme.css missing .bmc-block-text p { color: #1e293b !important; } override. ' +
+    'parseMarkdown() applies color:#e0e0e0 to paragraphs (dark chat theme). ' +
+    'On the light #f8fdfb BMC VP background, VP text appears invisible/grey.',
+    'css/ea-nordic-theme.css',
+    'Add: .bmc-block-text p { color: #1e293b !important; margin-bottom: 6px; }'
+  );
+} else {
+  OK('ea-nordic-theme.css has .bmc-block-text p color override — VP text visible on light background');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TEST 31: Value Proposition — array joined with newlines not spaces
+// REGRESSION: Step2 normalizeBmc() joined value_propositions[] with ' ' (space),
+// creating a run-on paragraph without line breaks.  Should use '\n\n' so each
+// proposition renders as a separate paragraph via parseMarkdown.
+// ────────────────────────────────────────────────────────────────────────────
+console.log(`\n${BOLD}[TEST 31]${RESET} Value Proposition — array joined with \\n\\n paragraph breaks`);
+
+const vpJoinNewlines = step2Content.includes("value_propositions.join('\\n\\n')") ||
+  step2Content.includes('value_propositions.join("\\n\\n")');
+
+if (!vpJoinNewlines) {
+  BUG(31, 'MODERATE',
+    'Step2.synthesize() normalizeBmc() joins value_propositions[] with space not newlines. ' +
+    'VP renders as one long run-on paragraph without breaks.',
+    'NexGenEA/js/Steps/Step2.js (normalizeBmc)',
+    "Change: r.value_propositions.join(' ') → r.value_propositions.join('\\n\\n')"
+  );
+} else {
+  OK('Step2 normalizeBmc() joins value_propositions with \\n\\n — each proposition is a separate paragraph');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TEST 32: Capability Map TO-BE — uses target_maturity for color coding
+// REGRESSION: renderCapMap() always used rating.current_maturity for color class
+// (m1-m5). In TO-BE (Måläge) mode this shows current low-maturity red colors,
+// making AS-IS and TO-BE look identical. Should use target_maturity in TO-BE.
+// ────────────────────────────────────────────────────────────────────────────
+console.log(`\n${BOLD}[TEST 32]${RESET} Capability Map TO-BE — uses target_maturity for color coding`);
+
+const capMapBlock = (() => {
+  const start = html.indexOf('const capsHtml = l2caps.map(cap =>');
+  return html.slice(start, start + 500);
+})();
+
+const tobeUsesTargetMat = /capmapState.*tobe.*target_maturity|target_maturity.*capmapState/.test(capMapBlock);
+
+if (!tobeUsesTargetMat) {
+  BUG(32, 'MODERATE',
+    'renderCapMap() uses current_maturity for m1-m5 color class even in TO-BE mode. ' +
+    'AS-IS and TO-BE views look identical (both show low-maturity red tiles).',
+    'NexGen_EA_V4.html (renderCapMap capsHtml)',
+    "const mat = (capmapState==='tobe' && rating.target_maturity) ? rating.target_maturity : (rating.current_maturity||1)"
+  );
+} else {
+  OK('renderCapMap() uses target_maturity in TO-BE mode — capability tiles show target state colors');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// TEST 33: Capability Map TO-BE — Step7 builds capabilityMap_tobe
+// REGRESSION: model.capabilityMap_tobe was never populated; renderCapMap fell
+// back to model.capabilityMap for both AS-IS and TO-BE, showing same data.
+// Step7.applyOutput() should build capabilityMap_tobe with changeType tags.
+// ────────────────────────────────────────────────────────────────────────────
+console.log(`\n${BOLD}[TEST 33]${RESET} Capability Map TO-BE — Step7 builds capabilityMap_tobe`);
+
+const step7ContentForTest33 = step7Content; // already declared above
+const step7TobeMap = /capabilityMap_tobe\s*:/.test(step7ContentForTest33);
+const step7ChangeType = /changeType.*TRANSFORM|TRANSFORM.*changeType/.test(step7ContentForTest33);
+
+if (!step7TobeMap || !step7ChangeType) {
+  BUG(33, 'MODERATE',
+    'Step7.applyOutput() does not build capabilityMap_tobe. ' +
+    'TO-BE capability map falls back to AS-IS data with no change tags.',
+    'NexGenEA/js/Steps/Step7.js (applyOutput)',
+    'Add capabilityMap_tobe built from baseDomains + target maturity + changeType (TRANSFORM/IMPROVE/SUSTAIN)'
+  );
+} else {
+  OK('Step7.applyOutput() builds capabilityMap_tobe with changeType tags — TO-BE view shows target state');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // SUMMARY
 // ────────────────────────────────────────────────────────────────────────────
 console.log(`\n${BOLD}${CYAN}═══════════════════════════════════════════════════════════${RESET}`);

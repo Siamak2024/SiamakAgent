@@ -483,6 +483,42 @@ Include 8-12 initiatives total. executive_roadmap_summary: 3 sentences Board-lev
             : a);
         }
         return model.aiAgents || [];
+      })(),
+
+      // ── capabilityMap_tobe: TO-BE capability map for renderCapMap() TO-BE mode ──
+      // Built from the AS-IS capabilityMap + target maturity scores from
+      // capabilityAssessment.  Each L2 capability gets a changeType tag and
+      // the target_maturity field so renderCapMap can colour by target state.
+      capabilityMap_tobe: (() => {
+        const baseDomains = model.capabilityMap?.l1_domains || [];
+        if (!baseDomains.length) return null;
+        const ratings = model.capabilityAssessment?.capability_ratings || [];
+        const ratingById = Object.fromEntries(ratings.map(r => [r.capability_id, r]));
+        // Step7 target arch may describe domain-level changes
+        const archCapDomains = output.targetArch?.business_architecture?.capability_domains || [];
+        const archByName = Object.fromEntries(
+          archCapDomains.map(d => [(d.domain || '').toLowerCase(), d])
+        );
+        return {
+          l1_domains: baseDomains.map(domain => {
+            const archDom = archByName[domain.name?.toLowerCase()] || {};
+            return {
+              ...domain,
+              description: archDom.target_state || domain.description || '',
+              l2_capabilities: (domain.l2_capabilities || []).map(cap => {
+                const r = ratingById[cap.id] || {};
+                const cur = r.current_maturity || cap.current_maturity || 1;
+                const tgt = r.target_maturity  || cap.target_maturity  || Math.min(5, cur + 1);
+                const gap = tgt - cur;
+                const changeType = gap >= 2 ? 'TRANSFORM'
+                                 : gap === 1 ? 'IMPROVE'
+                                 : gap === 0 ? 'SUSTAIN'
+                                 : 'CONSOLIDATE';
+                return { ...cap, changeType, target_maturity: tgt, current_maturity: cur };
+              })
+            };
+          })
+        };
       })()
     };
   },

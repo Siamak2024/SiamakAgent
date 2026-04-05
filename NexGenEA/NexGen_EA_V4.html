@@ -13970,7 +13970,10 @@ function renderCapMap() {
 
       const capsHtml = l2caps.map(cap => {
         const rating = ratingMap[cap.id] || {};
-        const mat = rating.current_maturity || 1;
+        // In TO-BE mode use target maturity for color — shows improvement from current state
+        const mat = (capmapState === 'tobe' && rating.target_maturity)
+          ? rating.target_maturity
+          : (rating.current_maturity || cap.target_maturity || cap.current_maturity || 1);
         const changeTag = cap.changeType && capmapState === 'tobe'
           ? `<span class="ml-1 text-[8px] font-bold uppercase opacity-60">${cap.changeType}</span>` : '';
         const tooltip = `${domain.strategic_importance || 'SUPPORT'} domain${cap.description ? ' — ' + cap.description : ''}`;

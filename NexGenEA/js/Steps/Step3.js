@@ -254,12 +254,19 @@ executive_benchmark_summary: 2-3 sentences for the Board.`;
   },
 
   applyOutput: (output, model) => {
+    // Seed valueStreams from L1 domain names so Architecture Layers tab is
+    // populated immediately after Step 3 (Step 7 will overwrite with richer data).
+    const existingVS = (model.valueStreams || []).length > 0;
+    const derivedVS = existingVS
+      ? model.valueStreams
+      : (output.capabilityMap?.l1_domains || []).map(d => ({ name: d.name, description: '' }));
     return {
       ...model,
       capabilities: output.capabilities,
       archBenchmark: output.archBenchmark,
       capabilityMap: output.capabilityMap,
-      capabilityAssessment: output.capabilityAssessment
+      capabilityAssessment: output.capabilityAssessment,
+      valueStreams: derivedVS
     };
   },
 

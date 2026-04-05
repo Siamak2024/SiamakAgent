@@ -197,10 +197,18 @@ Produce the delta. change_readiness.score: 0.0-1.0. executive_summary: 2-3 sente
   },
 
   applyOutput: (output, model) => {
+    // Seed systems from current operating model core_systems so Architecture Layers
+    // tab is populated after Step 4 (Step 7 will enrich with target platforms).
+    const existingSys = (model.systems || []).length > 0;
+    const coreSysList = output.operatingModel?.current?.applications?.core_systems || [];
+    const derivedSystems = existingSys
+      ? model.systems
+      : coreSysList.map(name => ({ name, status: 'active', category: 'core', description: '' }));
     return {
       ...model,
       operatingModel: output.operatingModel,
-      operatingModelDelta: output.operatingModelDelta
+      operatingModelDelta: output.operatingModelDelta,
+      systems: derivedSystems
     };
   },
 

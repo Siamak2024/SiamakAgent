@@ -212,7 +212,7 @@ Return JSON output.`;
       const r = { ...bmc };
       if (!r.value_proposition && r.value_propositions) {
         r.value_proposition = Array.isArray(r.value_propositions)
-          ? r.value_propositions.join(' ')
+          ? r.value_propositions.join('\n\n')
           : String(r.value_propositions);
       }
       return r;
