@@ -205,9 +205,21 @@ Return JSON output.`;
   ],
 
   synthesize: (ctx) => {
+    // Bridge: normalize value_propositions (plural array) → value_proposition (singular string)
+    // renderBMCPanel reads b.value_proposition (singular), so we must always set it.
+    const normalizeBmc = (bmc) => {
+      if (!bmc) return {};
+      const r = { ...bmc };
+      if (!r.value_proposition && r.value_propositions) {
+        r.value_proposition = Array.isArray(r.value_propositions)
+          ? r.value_propositions.join(' ')
+          : String(r.value_propositions);
+      }
+      return r;
+    };
     return {
-      bmc: ctx.answers?.step2_bmc_future || {},
-      bmcCurrent: ctx.answers?.step2_bmc_current || {},
+      bmc: normalizeBmc(ctx.answers?.step2_bmc_future),
+      bmcCurrent: normalizeBmc(ctx.answers?.step2_bmc_current),
       bmcAnalysis: ctx.answers?.step2_bmc_analysis || {}
     };
   },
@@ -216,8 +228,11 @@ Return JSON output.`;
     return {
       ...model,
       bmc: output.bmc,
+      // Set BOTH spellings so renderBMCPanel (bmc_current underscore) and legacy code both work
+      bmc_current: output.bmcCurrent,
       bmcCurrent: output.bmcCurrent,
-      bmcAnalysis: output.bmcAnalysis
+      bmcAnalysis: output.bmcAnalysis,
+      bmc_analysis: output.bmcAnalysis
     };
   },
 

@@ -79,7 +79,19 @@ Inspection scope above should appear as capabilities — not just be referenced.
         l1_domains: ['object']
       },
 
-      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step3_capability_map')
+      parseOutput: (raw) => {
+        const parsed = OutputValidator.parseJSON(raw, 'step3_capability_map');
+        if (!parsed) return parsed;
+        // Defensive normalization: AI may use alternate field names for the domains array
+        if (!parsed.l1_domains || parsed.l1_domains.length === 0) {
+          const alt = parsed.domains || parsed.capability_domains || parsed.capabilityDomains
+            || parsed.businessDomains || parsed.business_domains;
+          if (Array.isArray(alt) && alt.length > 0) {
+            parsed.l1_domains = alt;
+          }
+        }
+        return parsed;
+      }
     },
 
     // ── Task 3.2: Maturity Assessment ─────────────────────────────────────
