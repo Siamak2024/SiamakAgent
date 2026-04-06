@@ -102,6 +102,14 @@
 <script src="js/Steps/Step5.js"></script>
 <script src="js/Steps/Step6.js"></script>
 <script src="js/Steps/Step7.js"></script>
+<!-- ── Parallel Analytics Workflows ──────────────────────────── -->
+<script src="js/Analytics/AnalyticsContextBuilder.js"></script>
+<script src="js/Analytics/TabContext.js"></script>
+<script src="js/Analytics/AnalyticsWorkflowEngine.js"></script>
+<script src="js/Analytics/Tabs/Decision.js"></script>
+<script src="js/Analytics/Tabs/Financial.js"></script>
+<script src="js/Analytics/Tabs/Scenarios.js"></script>
+<script src="js/Analytics/Tabs/Optimize.js"></script>
 <!-- ─────────────────────────────────────────────────────────────── -->
 <link rel="stylesheet" href="../css/ea-design-engine.css" />
 <link rel="stylesheet" href="../css/ea-nordic-theme.css" />
@@ -613,6 +621,16 @@
           <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('optimisation',this)" title="Portfolio optimisation — best initiatives under budget constraints"><span class="flex flex-col items-center leading-tight"><i class="fas fa-sliders"></i><span class="text-[9px]">Optimise</span></span></button>
         </div>
         <div class="ea-tab-group__label">Decision Intelligence</div>
+      </div>
+
+      <div class="ea-tab-group">
+        <div class="ea-tab-group__buttons">
+          <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('analytics-di',this)" title="Decision Intelligence Analytics — AI-driven capability priorities &amp; sequencing"><span class="flex flex-col items-center leading-tight"><i class="fas fa-brain"></i><span class="text-[9px]">DI</span></span></button>
+          <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('analytics-financial',this)" title="Financial Analytics — ROI, value pool modelling, multi-scenario CBA"><span class="flex flex-col items-center leading-tight"><i class="fas fa-chart-bar"></i><span class="text-[9px]">Financial</span></span></button>
+          <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('analytics-scenarios',this)" title="Scenario Analytics — disruption modelling, dependency impact, resilience"><span class="flex flex-col items-center leading-tight"><i class="fas fa-shuffle"></i><span class="text-[9px]">Scenarios</span></span></button>
+          <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('analytics-optimize',this)" title="Optimize Analytics — alternative roadmap generation, trade-off analysis"><span class="flex flex-col items-center leading-tight"><i class="fas fa-circle-nodes"></i><span class="text-[9px]">Optimize</span></span></button>
+        </div>
+        <div class="ea-tab-group__label">Analytics</div>
       </div>
     </div>
 
@@ -1707,7 +1725,18 @@
             <button onclick="generateCxOSummary('Gap Analysis')" class="ea-btn ea-btn--cxo">
               <i class="fas fa-file-powerpoint"></i><span>Generate CxO Summary</span>
             </button>
+            <button onclick="enterGapEditMode()" class="text-[10px] text-slate-500 hover:text-slate-700 border border-slate-200 rounded-lg px-2 py-1 transition-colors" title="Edit gaps manually"><i class="fas fa-pen mr-1"></i>Edit</button>
             <button onclick="analyseGaps()" class="ea-btn ea-btn--secondary"><i class="fas fa-triangle-exclamation"></i><span>Run Gap Analysis</span></button>
+          </div>
+        </div>
+        <!-- GAP EDIT FORM (hidden by default) -->
+        <div id="gap-edit-form" class="hidden intent-card mb-4">
+          <div class="text-[10px] font-bold text-slate-700 uppercase mb-3"><i class="fas fa-pen mr-1.5"></i>Edit Gap Analysis</div>
+          <div id="gap-edit-list" class="space-y-3 mb-3"></div>
+          <button onclick="addGapEditRow()" class="text-[10px] text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg px-2 py-1 mb-3"><i class="fas fa-plus mr-1"></i>Add Gap</button>
+          <div class="flex gap-2">
+            <button onclick="saveGapEdits()" class="ea-btn ea-btn--primary flex-1 justify-center"><i class="fas fa-save mr-1.5"></i><span class="text-sm">Save Changes</span></button>
+            <button onclick="cancelGapEdit()" class="ea-btn ea-btn--ghost flex-1 justify-center"><span class="text-sm">Cancel</span></button>
           </div>
         </div>
         <div id="insights" class="ea-summary-list">
@@ -1726,7 +1755,18 @@
             <button onclick="generateCxOSummary('Value Pools')" class="ea-btn ea-btn--cxo">
               <i class="fas fa-file-powerpoint"></i><span>Generate CxO Summary</span>
             </button>
+            <button onclick="enterValuePoolEditMode()" class="text-[10px] text-slate-500 hover:text-slate-700 border border-slate-200 rounded-lg px-2 py-1 transition-colors" title="Edit value pools manually"><i class="fas fa-pen mr-1"></i>Edit</button>
             <button onclick="generateValuePools()" class="ea-btn ea-btn--secondary"><i class="fas fa-coins"></i><span>Run Value Analysis</span></button>
+          </div>
+        </div>
+        <!-- VALUE POOL EDIT FORM (hidden by default) -->
+        <div id="vp-edit-form" class="hidden intent-card mb-4">
+          <div class="text-[10px] font-bold text-slate-700 uppercase mb-3"><i class="fas fa-pen mr-1.5"></i>Edit Value Pools</div>
+          <div id="vp-edit-list" class="space-y-3 mb-3"></div>
+          <button onclick="addValuePoolEditRow()" class="text-[10px] text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg px-2 py-1 mb-3"><i class="fas fa-plus mr-1"></i>Add Value Pool</button>
+          <div class="flex gap-2">
+            <button onclick="saveValuePoolEdits()" class="ea-btn ea-btn--primary flex-1 justify-center"><i class="fas fa-save mr-1.5"></i><span class="text-sm">Save Changes</span></button>
+            <button onclick="cancelValuePoolEdit()" class="ea-btn ea-btn--ghost flex-1 justify-center"><span class="text-sm">Cancel</span></button>
           </div>
         </div>
         <div id="valuepools-content">
@@ -1765,10 +1805,21 @@
       <div id="tab-roadmapvis" class="hidden">
         <div class="flex items-center justify-between mb-4">
           <div class="text-xs font-bold text-slate-600">Transformation Roadmap — Visual Timeline</div>
-          <div class="flex gap-2 text-[10px]">
-            <span class="px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold">High</span>
-            <span class="px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 font-bold">Medium</span>
-            <span class="px-2 py-0.5 rounded bg-green-100 text-green-700 font-bold">Low</span>
+          <div class="flex gap-2 items-center">
+            <button onclick="enterInitiativeEditMode()" class="text-[10px] text-slate-500 hover:text-slate-700 border border-slate-200 rounded-lg px-2 py-1 transition-colors" title="Edit initiatives manually"><i class="fas fa-pen mr-1"></i>Edit</button>
+            <span class="px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold text-[10px]">High</span>
+            <span class="px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 font-bold text-[10px]">Medium</span>
+            <span class="px-2 py-0.5 rounded bg-green-100 text-green-700 font-bold text-[10px]">Low</span>
+          </div>
+        </div>
+        <!-- INITIATIVE EDIT FORM (hidden by default) -->
+        <div id="initiative-edit-form" class="hidden intent-card mb-4">
+          <div class="text-[10px] font-bold text-slate-700 uppercase mb-3"><i class="fas fa-pen mr-1.5"></i>Edit Initiatives &amp; Roadmap</div>
+          <div id="initiative-edit-list" class="space-y-3 mb-3"></div>
+          <button onclick="addInitiativeEditRow()" class="text-[10px] text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg px-2 py-1 mb-3"><i class="fas fa-plus mr-1"></i>Add Initiative</button>
+          <div class="flex gap-2">
+            <button onclick="saveInitiativeEdits()" class="ea-btn ea-btn--primary flex-1 justify-center"><i class="fas fa-save mr-1.5"></i><span class="text-sm">Save Changes</span></button>
+            <button onclick="cancelInitiativeEdit()" class="ea-btn ea-btn--ghost flex-1 justify-center"><span class="text-sm">Cancel</span></button>
           </div>
         </div>
         <div id="roadmapvis-content">
@@ -1894,6 +1945,202 @@
           <div id="opt-explanation-text" class="text-[11px] text-blue-800"></div>
         </div>
       </div>
+
+      <!-- ═══════════════════════════════════════════════════════════════════
+           PARALLEL ANALYTICS WORKFLOWS — 4 INDEPENDENT AI ANALYSIS TABS
+           These tabs always read from the shared EA model context and run
+           asynchronously via AnalyticsWorkflowEngine.
+      ════════════════════════════════════════════════════════════════════════ -->
+
+      <!-- ANALYTICS: DECISION INTELLIGENCE -->
+      <div id="tab-analytics-di" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="text-sm font-bold text-slate-800">Decision Intelligence Analytics</div>
+            <div class="text-[10px] text-slate-500">AI-driven capability health scoring, quick wins, strategic gap analysis, sequencing &amp; executive briefing</div>
+          </div>
+          <button onclick="runAnalyticsTab('decision-intelligence')" id="analytics-di-run-btn" class="ea-btn ea-btn--primary">
+            <i class="fas fa-brain"></i><span>Run Analysis</span>
+          </button>
+        </div>
+        <!-- Context status -->
+        <div id="analytics-di-context" class="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
+          <div class="text-[10px] font-bold text-slate-600 mb-1">EA Context Status</div>
+          <div id="analytics-di-context-text" class="text-[10px] text-slate-500">Loading context…</div>
+        </div>
+        <!-- Progress -->
+        <div id="analytics-di-progress" class="hidden mb-4">
+          <div class="bg-white border border-slate-200 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-[11px] font-bold text-slate-700" id="analytics-di-task-label">Starting…</div>
+              <div class="text-[10px] text-slate-500" id="analytics-di-task-count">0 / 5 tasks</div>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2">
+              <div id="analytics-di-progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Results -->
+        <div id="analytics-di-results" class="hidden"></div>
+      </div>
+
+      <!-- ANALYTICS: FINANCIAL -->
+      <div id="tab-analytics-financial" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="text-sm font-bold text-slate-800">Financial Analytics</div>
+            <div class="text-[10px] text-slate-500">Capability cost estimation, value pool modelling, multi-scenario financial model, and CBA</div>
+          </div>
+          <button onclick="runAnalyticsTab('financial')" id="analytics-financial-run-btn" class="ea-btn ea-btn--primary">
+            <i class="fas fa-chart-bar"></i><span>Run Analysis</span>
+          </button>
+        </div>
+        <!-- Optional inputs -->
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4 grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[10px] font-bold text-slate-600 block mb-1">Annual Budget Cap (optional, $k)</label>
+            <input type="number" id="analytics-financial-budget" placeholder="e.g. 5000" min="0"
+              class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white" />
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-600 block mb-1">Planning Horizon</label>
+            <select id="analytics-financial-horizon" class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white">
+              <option value="2 years">2 years</option>
+              <option value="3 years" selected>3 years</option>
+              <option value="5 years">5 years</option>
+            </select>
+          </div>
+        </div>
+        <!-- Progress -->
+        <div id="analytics-financial-progress" class="hidden mb-4">
+          <div class="bg-white border border-slate-200 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-[11px] font-bold text-slate-700" id="analytics-financial-task-label">Starting…</div>
+              <div class="text-[10px] text-slate-500" id="analytics-financial-task-count">0 / 6 tasks</div>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2">
+              <div id="analytics-financial-progress-bar" class="bg-emerald-500 h-2 rounded-full transition-all duration-500" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Results -->
+        <div id="analytics-financial-results" class="hidden"></div>
+      </div>
+
+      <!-- ANALYTICS: SCENARIOS -->
+      <div id="tab-analytics-scenarios" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="text-sm font-bold text-slate-800">Scenario Analytics</div>
+            <div class="text-[10px] text-slate-500">Stress-test the EA roadmap against disruptions and model resilience strategies</div>
+          </div>
+          <button onclick="runAnalyticsTab('scenarios')" id="analytics-scenarios-run-btn" class="ea-btn ea-btn--primary">
+            <i class="fas fa-shuffle"></i><span>Run Analysis</span>
+          </button>
+        </div>
+        <!-- Scenario inputs -->
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4 grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[10px] font-bold text-slate-600 block mb-1">Scenario Type</label>
+            <select id="analytics-scenarios-type" class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white">
+              <option value="budget-cut">Budget Cut</option>
+              <option value="capability-failure">Capability Failure</option>
+              <option value="timeline-compression">Timeline Compression</option>
+              <option value="resource-reduction">Resource Reduction</option>
+              <option value="regulatory-change">Regulatory Change</option>
+              <option value="market-disruption">Market Disruption</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-600 block mb-1">Magnitude</label>
+            <input type="text" id="analytics-scenarios-magnitude" placeholder="e.g. 30%" value="30%"
+              class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white" />
+          </div>
+          <div class="col-span-2">
+            <label class="text-[10px] font-bold text-slate-600 block mb-1">Capability ID (required for Capability Failure)</label>
+            <input type="text" id="analytics-scenarios-capid" placeholder="e.g. cap-3 — leave blank for other types"
+              class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white" />
+          </div>
+        </div>
+        <!-- Progress -->
+        <div id="analytics-scenarios-progress" class="hidden mb-4">
+          <div class="bg-white border border-slate-200 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-[11px] font-bold text-slate-700" id="analytics-scenarios-task-label">Starting…</div>
+              <div class="text-[10px] text-slate-500" id="analytics-scenarios-task-count">0 / 6 tasks</div>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2">
+              <div id="analytics-scenarios-progress-bar" class="bg-amber-500 h-2 rounded-full transition-all duration-500" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Results -->
+        <div id="analytics-scenarios-results" class="hidden"></div>
+      </div>
+
+      <!-- ANALYTICS: OPTIMIZE -->
+      <div id="tab-analytics-optimize" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="text-sm font-bold text-slate-800">Optimize Analytics</div>
+            <div class="text-[10px] text-slate-500">Generate alternative roadmaps, score trade-offs, and get an AI-recommended delivery strategy</div>
+          </div>
+          <button onclick="runAnalyticsTab('optimize')" id="analytics-optimize-run-btn" class="ea-btn ea-btn--primary">
+            <i class="fas fa-circle-nodes"></i><span>Run Analysis</span>
+          </button>
+        </div>
+        <!-- Optimization criteria weights -->
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
+          <div class="text-[10px] font-bold text-slate-600 mb-2">Optimization Weights (optional — use 0–100, will be normalised)</div>
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="text-[9px] text-slate-500 block">Strategic Alignment</label>
+              <input type="number" id="opt-w-strategy" min="0" max="100" placeholder="30"
+                class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1 bg-white" />
+            </div>
+            <div>
+              <label class="text-[9px] text-slate-500 block">Speed</label>
+              <input type="number" id="opt-w-speed" min="0" max="100" placeholder="20"
+                class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1 bg-white" />
+            </div>
+            <div>
+              <label class="text-[9px] text-slate-500 block">Cost Efficiency</label>
+              <input type="number" id="opt-w-cost" min="0" max="100" placeholder="20"
+                class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1 bg-white" />
+            </div>
+            <div>
+              <label class="text-[9px] text-slate-500 block">Risk Minimisation</label>
+              <input type="number" id="opt-w-risk" min="0" max="100" placeholder="15"
+                class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1 bg-white" />
+            </div>
+            <div>
+              <label class="text-[9px] text-slate-500 block">Interdependency</label>
+              <input type="number" id="opt-w-dependency" min="0" max="100" placeholder="10"
+                class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1 bg-white" />
+            </div>
+            <div>
+              <label class="text-[9px] text-slate-500 block">Feasibility</label>
+              <input type="number" id="opt-w-feasibility" min="0" max="100" placeholder="5"
+                class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1 bg-white" />
+            </div>
+          </div>
+        </div>
+        <!-- Progress -->
+        <div id="analytics-optimize-progress" class="hidden mb-4">
+          <div class="bg-white border border-slate-200 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-[11px] font-bold text-slate-700" id="analytics-optimize-task-label">Starting…</div>
+              <div class="text-[10px] text-slate-500" id="analytics-optimize-task-count">0 / 5 tasks</div>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2">
+              <div id="analytics-optimize-progress-bar" class="bg-purple-500 h-2 rounded-full transition-all duration-500" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Results -->
+        <div id="analytics-optimize-results" class="hidden"></div>
+      </div>
+      <!-- END PARALLEL ANALYTICS WORKFLOWS ══════════════════════════════════ -->
 
       <!-- TOOLKITS (V3 Integration) -->
       <div id="tab-toolkits" class="hidden">
@@ -5446,6 +5693,11 @@ function showTab(name, btn) {
   if (name === 'financials') setTimeout(renderFinancials, 50);
   if (name === 'optimisation') setTimeout(renderOptimisation, 50);
   if (name === 'valuepools') setTimeout(renderValuePoolsPanel, 50);
+  // ── Analytics tabs: refresh context status on tab open ────────────────
+  if (name === 'analytics-di')        setTimeout(() => _refreshAnalyticsContext('decision-intelligence'), 50);
+  if (name === 'analytics-financial') setTimeout(() => _refreshAnalyticsContext('financial'), 50);
+  if (name === 'analytics-scenarios') setTimeout(() => _refreshAnalyticsContext('scenarios'), 50);
+  if (name === 'analytics-optimize')  setTimeout(() => _refreshAnalyticsContext('optimize'), 50);
   // ── BUG-9 FIX: Add missing auto-renders for Step4-7 tabs ──
   if (name === 'opmodel')    setTimeout(renderOperatingModel, 50);
   if (name === 'targetarch') setTimeout(renderTargetArchVisual, 50);
@@ -5467,6 +5719,250 @@ function showTab(name, btn) {
 // highlightTab('exec', false);
 // highlightTab('capmap', false);
 // ...
+
+// ══════════════════════════════════════════════════════════════════════
+// PARALLEL ANALYTICS WORKFLOWS — runAnalyticsTab + helpers
+// ══════════════════════════════════════════════════════════════════════
+
+const _ANALYTICS_TAB_KEYS = {
+  'decision-intelligence': 'di',
+  'financial':             'financial',
+  'scenarios':             'scenarios',
+  'optimize':              'optimize'
+};
+
+/** Refresh the context-status badge for an analytics tab. */
+function _refreshAnalyticsContext(tabId) {
+  const key = _ANALYTICS_TAB_KEYS[tabId];
+  if (!key || typeof AnalyticsContextBuilder === 'undefined') return;
+  const ctx = AnalyticsContextBuilder.buildContext(window.model || {});
+  const pct = ctx.workflowStatus?.completionPercentage || 0;
+  const steps = Object.entries(ctx.workflowStatus || {})
+    .filter(([k, v]) => k.startsWith('step') && v)
+    .map(([k]) => k.replace('step', 'S').replace('_completed', ''))
+    .join(', ');
+  const el = document.getElementById('analytics-di-context-text');
+  if (el && tabId === 'decision-intelligence') {
+    el.textContent = `Workflow ${pct}% complete. Steps done: ${steps || 'none'}.`;
+  }
+}
+
+/** Collect user input for a specific analytics tab. */
+function _getAnalyticsUserInput(tabId) {
+  if (tabId === 'financial') {
+    return {
+      budgetK:  parseFloat(document.getElementById('analytics-financial-budget')?.value || '0') || undefined,
+      horizon:  document.getElementById('analytics-financial-horizon')?.value || '3 years'
+    };
+  }
+  if (tabId === 'scenarios') {
+    const type   = document.getElementById('analytics-scenarios-type')?.value || 'budget-cut';
+    const mag    = document.getElementById('analytics-scenarios-magnitude')?.value || '30%';
+    const capId  = document.getElementById('analytics-scenarios-capid')?.value?.trim() || undefined;
+    return { scenarioType: type, magnitude: mag, capabilityId: capId };
+  }
+  if (tabId === 'optimize') {
+    const raw = {
+      strategy:   parseFloat(document.getElementById('opt-w-strategy')?.value  || '0'),
+      speed:      parseFloat(document.getElementById('opt-w-speed')?.value     || '0'),
+      cost:       parseFloat(document.getElementById('opt-w-cost')?.value      || '0'),
+      risk:       parseFloat(document.getElementById('opt-w-risk')?.value      || '0'),
+      dependency: parseFloat(document.getElementById('opt-w-dependency')?.value|| '0'),
+      feasibility:parseFloat(document.getElementById('opt-w-feasibility')?.value||'0')
+    };
+    const total = Object.values(raw).reduce((s, v) => s + (v || 0), 0);
+    const weights = total > 0
+      ? Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, (v || 0) / total]))
+      : {};
+    return { weights };
+  }
+  return {};
+}
+
+/** Render analytics results into the results panel. */
+function _renderAnalyticsResults(tabId, result) {
+  const key     = _ANALYTICS_TAB_KEYS[tabId];
+  const el      = document.getElementById('analytics-' + key + '-results');
+  if (!el) return;
+
+  const output  = result.output || {};
+  const warns   = result.warnings || [];
+
+  let html = '<div class="space-y-4">';
+
+  // ── Status bar ────────────────────────────────────────────────────
+  html += `<div class="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3">
+    <i class="fas fa-circle-check text-green-600 text-lg"></i>
+    <div>
+      <div class="text-[11px] font-bold text-green-800">Analysis complete — ${result.metadata?.totalTasks || 0} tasks</div>
+      <div class="text-[10px] text-green-700">${Math.round((result.metadata?.durationMs || 0) / 1000)}s · ${new Date(result.completedAt).toLocaleTimeString()}</div>
+    </div>
+  </div>`;
+
+  // ── Warnings ──────────────────────────────────────────────────────
+  if (warns.length) {
+    html += `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+      <div class="text-[10px] font-bold text-amber-700 mb-1">Warnings (${warns.length})</div>
+      <ul class="text-[10px] text-amber-700 space-y-0.5">` +
+      warns.map(w => `<li><i class="fas fa-triangle-exclamation mr-1"></i>${w}</li>`).join('') +
+      '</ul></div>';
+  }
+
+  // ── Tab-specific output rendering ─────────────────────────────────
+  if (tabId === 'decision-intelligence') {
+    if (output.executiveSummary) {
+      html += _analyticsCard('Executive Summary', `<p class="text-[11px] text-slate-700">${output.executiveSummary}</p>`);
+    }
+    if (output.topPriorities?.length) {
+      html += _analyticsCard('Top Priorities', '<div class="space-y-2">' +
+        output.topPriorities.map(p =>
+          `<div class="p-2 bg-blue-50 rounded-lg"><div class="text-[11px] font-bold text-blue-800">${p.name || ''}</div><div class="text-[10px] text-blue-700">${p.why || ''} — ${p.timeline || ''}</div></div>`
+        ).join('') + '</div>');
+    }
+    if (output.quickWins?.length) {
+      html += _analyticsCard('Quick Wins (' + output.quickWins.length + ')', '<div class="space-y-1">' +
+        output.quickWins.slice(0, 5).map(w =>
+          `<div class="p-2 bg-green-50 rounded-lg flex gap-2"><span class="inline-block w-12 text-[9px] font-bold text-green-700 uppercase">${w.riskLevel || 'low'}</span><span class="text-[10px] text-green-800">${w.action || ''} <span class="text-slate-500">(${w.timeline || ''})</span></span></div>`
+        ).join('') + '</div>');
+    }
+    if (output.recommendations?.length) {
+      html += _analyticsCard('Recommendations', '<ol class="list-decimal pl-4 space-y-1">' +
+        output.recommendations.map(r => `<li class="text-[11px] text-slate-700">${r}</li>`).join('') + '</ol>');
+    }
+  }
+
+  if (tabId === 'financial') {
+    const fi6 = result.taskResults?.['fi-6']?.output || output;
+    if (fi6.executiveSummary) {
+      html += _analyticsCard('Financial Executive Summary', `<p class="text-[11px] text-slate-700">${fi6.executiveSummary}</p>`);
+    }
+    const metrics = [
+      { label: 'Investment Required', val: fi6.investmentRequired != null ? `$${(fi6.investmentRequired/1000).toFixed(1)}M` : '—' },
+      { label: 'Expected Return',     val: fi6.expectedReturn     != null ? `$${(fi6.expectedReturn/1000).toFixed(1)}M` : '—' },
+      { label: 'ROI',                 val: fi6.roiPct             != null ? `${fi6.roiPct}%` : '—' },
+      { label: 'Payback Period',      val: fi6.paybackMonths      != null ? `${fi6.paybackMonths} months` : '—' }
+    ];
+    html += _analyticsCard('Key Metrics', '<div class="grid grid-cols-4 gap-3">' +
+      metrics.map(m =>
+        `<div class="bg-slate-50 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-500">${m.label}</div><div class="text-sm font-bold text-slate-800">${m.val}</div></div>`
+      ).join('') + '</div>');
+    if (fi6.nextSteps?.length) {
+      html += _analyticsCard('Next Steps', '<ol class="list-decimal pl-4 space-y-1">' +
+        fi6.nextSteps.map(s => `<li class="text-[11px] text-slate-700">${s}</li>`).join('') + '</ol>');
+    }
+  }
+
+  if (tabId === 'scenarios') {
+    const sc6 = result.taskResults?.['sc-6']?.output || {};
+    const sc5 = result.taskResults?.['sc-5']?.output || {};
+    if (output.scenarioName) {
+      html += _analyticsCard('Scenario: ' + output.scenarioName,
+        `<div class="grid grid-cols-3 gap-3">
+          <div class="bg-amber-50 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-500">Severity</div><div class="text-sm font-bold text-amber-700">${output.impactSeverity || '—'}/100</div></div>
+          <div class="bg-slate-50 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-500">Timeline Delta</div><div class="text-sm font-bold text-slate-800">+${output.timelineDeltaMonths || 0} months</div></div>
+          <div class="bg-red-50 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-500">Value Lost</div><div class="text-sm font-bold text-red-700">$${((output.valueLostK||0)/1000).toFixed(1)}M</div></div>
+        </div>`);
+    }
+    if (sc6.mitigationActions?.length) {
+      html += _analyticsCard('Mitigation Actions (' + sc6.mitigationActions.length + ')', '<div class="space-y-1">' +
+        sc6.mitigationActions.slice(0, 5).map(a =>
+          `<div class="p-2 bg-slate-50 rounded-lg"><span class="inline-block mr-2 text-[9px] font-bold uppercase ${a.priority === 'high' ? 'text-red-600' : a.priority === 'medium' ? 'text-amber-600' : 'text-green-600'}">${a.priority}</span><span class="text-[10px] text-slate-700">${a.action}</span></div>`
+        ).join('') + '</div>');
+    }
+    if (sc6.recommendation) {
+      html += _analyticsCard('Recommendation', `<p class="text-[11px] text-slate-700">${sc6.recommendation}</p>`);
+    }
+  }
+
+  if (tabId === 'optimize') {
+    const op5 = result.taskResults?.['op-5']?.output || output;
+    if (op5.recommendedAlternativeName) {
+      html += _analyticsCard('Recommended: ' + op5.recommendedAlternativeName,
+        `<p class="text-[11px] text-slate-700 mb-2">${op5.rationale || ''}</p>
+         <div class="text-[10px] font-bold text-slate-600 mb-1">Key Advantages</div>
+         <ul class="list-disc pl-4 space-y-0.5">` +
+        (op5.keyAdvantages || []).map(a => `<li class="text-[10px] text-slate-700">${a}</li>`).join('') +
+        '</ul>');
+    }
+    if (op5.suggestedAdaptations?.length) {
+      html += _analyticsCard('Suggested Adaptations', '<ol class="list-decimal pl-4 space-y-1">' +
+        op5.suggestedAdaptations.map(a => `<li class="text-[10px] text-slate-700">${a}</li>`).join('') + '</ol>');
+    }
+    if (op5.nextSteps?.length) {
+      html += _analyticsCard('Next Steps', '<ol class="list-decimal pl-4 space-y-1">' +
+        op5.nextSteps.map(s => `<li class="text-[11px] text-slate-700">${s}</li>`).join('') + '</ol>');
+    }
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+  el.classList.remove('hidden');
+}
+
+function _analyticsCard(title, body) {
+  return `<div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+    <div class="p-3 bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-700 uppercase tracking-wide">${title}</div>
+    <div class="p-4">${body}</div>
+  </div>`;
+}
+
+/** Public entry point — called by each analytics tab's Run button. */
+async function runAnalyticsTab(tabId) {
+  const key = _ANALYTICS_TAB_KEYS[tabId];
+  if (!key) { console.error('Unknown analytics tab:', tabId); return; }
+
+  if (typeof AnalyticsWorkflowEngine === 'undefined') {
+    toast('Analytics engine not loaded yet. Please refresh the page.', true);
+    return;
+  }
+
+  const runBtn    = document.getElementById('analytics-' + key + '-run-btn');
+  const progressEl = document.getElementById('analytics-' + key + '-progress');
+  const barEl     = document.getElementById('analytics-' + key + '-progress-bar');
+  const labelEl   = document.getElementById('analytics-' + key + '-task-label');
+  const countEl   = document.getElementById('analytics-' + key + '-task-count');
+  const resultsEl  = document.getElementById('analytics-' + key + '-results');
+
+  if (runBtn) { runBtn.disabled = true; runBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Running…</span>'; }
+  if (progressEl) progressEl.classList.remove('hidden');
+  if (resultsEl)  resultsEl.classList.add('hidden');
+
+  AnalyticsWorkflowEngine.onProgress(({ taskId, completedTasks, totalTasks, progress, title }) => {
+    if (barEl)  barEl.style.width = progress + '%';
+    if (labelEl) labelEl.textContent = title || taskId;
+    if (countEl) countEl.textContent = completedTasks + ' / ' + totalTasks + ' tasks';
+  });
+
+  const userInput = _getAnalyticsUserInput(tabId);
+
+  try {
+    const result = await AnalyticsWorkflowEngine.run(tabId, userInput, window.model || {});
+    if (result.status === 'success' || result.status === 'partial') {
+      _renderAnalyticsResults(tabId, result);
+      // Persist back into model
+      if (window.model) {
+        if (!window.model.analytics) window.model.analytics = {};
+        window.model.analytics[tabId] = { latestResult: result, lastRunAt: new Date().toISOString() };
+      }
+    } else {
+      if (resultsEl) {
+        resultsEl.innerHTML = '<div class="bg-red-50 border border-red-200 rounded-xl p-4 text-[11px] text-red-700"><i class="fas fa-circle-xmark mr-2"></i>Analysis failed: ' + (result.error || 'Unknown error') + '</div>';
+        resultsEl.classList.remove('hidden');
+      }
+    }
+  } catch (err) {
+    console.error('Analytics tab error:', err);
+    if (resultsEl) {
+      resultsEl.innerHTML = '<div class="bg-red-50 border border-red-200 rounded-xl p-4 text-[11px] text-red-700"><i class="fas fa-circle-xmark mr-2"></i>' + err.message + '</div>';
+      resultsEl.classList.remove('hidden');
+    }
+  } finally {
+    if (runBtn) { runBtn.disabled = false; runBtn.innerHTML = '<i class="fas fa-rotate-right"></i><span>Re-run</span>'; }
+    if (barEl)  barEl.style.width = '100%';
+  }
+}
+
+// ══ END PARALLEL ANALYTICS WORKFLOWS ══════════════════════════════════
 
 function openHomeFromHeader(btn) {
   const homeBtn = document.querySelector('.tab-btn[data-tab="home"]');
@@ -11847,6 +12343,314 @@ function cancelIntentEdit() {
   document.getElementById('intent-edit-form')?.classList.add('hidden');
   document.getElementById('intent-view-card')?.classList.remove('hidden');
   renderStrategicIntentSection();
+}
+
+// ─── STEP 5: GAP ANALYSIS MANUAL EDIT ─────────────────────────────────────────
+function _gapEditRowHtml(g, i) {
+  const cap  = (g.capability || g.capability_area || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const desc = (g.gap_description || g.description || '').replace(/</g, '&lt;');
+  const prio = g.priority || g.severity || 'medium';
+  const impact = g.impact_score || g.impact || '';
+  const effort = g.effort_score || g.effort || '';
+  return `<div class="bg-white border border-slate-200 rounded-xl p-3" data-gap-idx="${i}">
+    <div class="flex gap-2 mb-2 items-end">
+      <div class="flex-1">
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Capability / Gap Title</label>
+        <input id="gec-cap-${i}" type="text" value="${cap}"
+          class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Priority</label>
+        <select id="gec-prio-${i}" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400">
+          <option value="critical" ${prio==='critical'?'selected':''}>Critical</option>
+          <option value="high" ${prio==='high'?'selected':''}>High</option>
+          <option value="medium" ${prio==='medium'?'selected':''}>Medium</option>
+          <option value="low" ${prio==='low'?'selected':''}>Low</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Impact (1-5)</label>
+        <input id="gec-impact-${i}" type="number" min="1" max="5" value="${impact}"
+          class="w-14 border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Effort (1-5)</label>
+        <input id="gec-effort-${i}" type="number" min="1" max="5" value="${effort}"
+          class="w-14 border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <button onclick="removeGapEditRow(${i})" class="text-[9px] text-red-400 hover:text-red-600 px-1" title="Remove gap"><i class="fas fa-trash"></i></button>
+    </div>
+    <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Description</label>
+    <textarea id="gec-desc-${i}" rows="2"
+      class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400 resize-y">${desc}</textarea>
+  </div>`;
+}
+
+let _gapEditData = [];
+
+function enterGapEditMode() {
+  _gapEditData = JSON.parse(JSON.stringify(
+    (model.priorityGaps?.length ? model.priorityGaps : (model.gapAnalysis?.gaps || []))
+  ));
+  _refreshGapEditList();
+  document.getElementById('insights')?.classList.add('hidden');
+  document.getElementById('gap-edit-form')?.classList.remove('hidden');
+}
+
+function _refreshGapEditList() {
+  const el = document.getElementById('gap-edit-list');
+  if (el) el.innerHTML = _gapEditData.map((g, i) => _gapEditRowHtml(g, i)).join('');
+}
+
+function addGapEditRow() {
+  _gapEditData.push({ capability: '', gap_description: '', priority: 'medium', impact_score: 3, effort_score: 3 });
+  _refreshGapEditList();
+}
+
+function removeGapEditRow(i) {
+  _gapEditData.splice(i, 1);
+  _refreshGapEditList();
+}
+
+function saveGapEdits() {
+  const saved = _gapEditData.map((g, i) => {
+    const cap    = document.getElementById('gec-cap-' + i)?.value.trim() || g.capability || '';
+    const prio   = document.getElementById('gec-prio-' + i)?.value || g.priority || 'medium';
+    const desc   = document.getElementById('gec-desc-' + i)?.value.trim() || g.gap_description || '';
+    const impact = parseInt(document.getElementById('gec-impact-' + i)?.value) || g.impact_score || 3;
+    const effort = parseInt(document.getElementById('gec-effort-' + i)?.value) || g.effort_score || 3;
+    return { ...g, capability: cap, capability_area: cap, priority: prio, severity: prio,
+             gap_description: desc, description: desc, impact_score: impact, effort_score: effort };
+  });
+  if (model.gapAnalysis) model.gapAnalysis.gaps = saved;
+  model.priorityGaps = saved;
+  cancelGapEdit();
+  autoSaveCurrentModel();
+  toast('Gap Analysis updated ✓');
+  addAssistantMessage('**Gap Analysis updated manually.** Your edits have been saved. Re-running Step 5 will overwrite these manual changes.');
+}
+
+function cancelGapEdit() {
+  document.getElementById('gap-edit-form')?.classList.add('hidden');
+  document.getElementById('insights')?.classList.remove('hidden');
+  if (typeof renderGapContent === 'function') renderGapContent();
+}
+
+// ─── STEP 6: VALUE POOLS MANUAL EDIT ──────────────────────────────────────────
+function _vpEditRowHtml(p, i) {
+  const name  = (p.name || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const desc  = (p.description || '').replace(/</g, '&lt;');
+  const theme = (p.linked_strategic_theme || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const risks = (p.risks_if_missed || '').replace(/</g, '&lt;');
+  const eur   = p.estimated_annual_value_eur || '';
+  const driver = p.value_driver || 'revenue';
+  const impact = p.potential_impact || 'medium';
+  const horizon = p.time_horizon || 'medium';
+  return `<div class="bg-white border border-slate-200 rounded-xl p-3" data-vp-idx="${i}">
+    <div class="flex gap-2 mb-2 items-end">
+      <div class="flex-1">
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Value Pool Name</label>
+        <input id="vpc-name-${i}" type="text" value="${name}"
+          class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Driver</label>
+        <select id="vpc-driver-${i}" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400">
+          <option value="revenue" ${driver==='revenue'?'selected':''}>Revenue</option>
+          <option value="cost" ${driver==='cost'?'selected':''}>Cost</option>
+          <option value="risk" ${driver==='risk'?'selected':''}>Risk</option>
+          <option value="experience" ${driver==='experience'?'selected':''}>Experience</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Impact</label>
+        <select id="vpc-impact-${i}" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400">
+          <option value="high" ${impact==='high'?'selected':''}>High</option>
+          <option value="medium" ${impact==='medium'?'selected':''}>Medium</option>
+          <option value="low" ${impact==='low'?'selected':''}>Low</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Horizon</label>
+        <select id="vpc-horizon-${i}" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400">
+          <option value="short" ${horizon==='short'?'selected':''}>Short</option>
+          <option value="medium" ${horizon==='medium'?'selected':''}>Medium</option>
+          <option value="long" ${horizon==='long'?'selected':''}>Long</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">EUR/yr</label>
+        <input id="vpc-eur-${i}" type="number" min="0" value="${eur}"
+          class="w-24 border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <button onclick="removeValuePoolEditRow(${i})" class="text-[9px] text-red-400 hover:text-red-600 px-1" title="Remove"><i class="fas fa-trash"></i></button>
+    </div>
+    <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Description</label>
+    <textarea id="vpc-desc-${i}" rows="2"
+      class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400 resize-y mb-2">${desc}</textarea>
+    <div class="flex gap-2">
+      <div class="flex-1">
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Strategic Theme</label>
+        <input id="vpc-theme-${i}" type="text" value="${theme}"
+          class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <div class="flex-1">
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Risks if Missed</label>
+        <input id="vpc-risks-${i}" type="text" value="${risks}"
+          class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+    </div>
+  </div>`;
+}
+
+let _vpEditData = [];
+
+function enterValuePoolEditMode() {
+  _vpEditData = JSON.parse(JSON.stringify(model.valuePools || []));
+  _refreshVpEditList();
+  document.getElementById('valuepools-content')?.classList.add('hidden');
+  document.getElementById('vp-edit-form')?.classList.remove('hidden');
+}
+
+function _refreshVpEditList() {
+  const el = document.getElementById('vp-edit-list');
+  if (el) el.innerHTML = _vpEditData.map((p, i) => _vpEditRowHtml(p, i)).join('');
+}
+
+function addValuePoolEditRow() {
+  _vpEditData.push({ name: '', description: '', value_driver: 'revenue', potential_impact: 'medium', time_horizon: 'medium', estimated_annual_value_eur: 0, enabling_capabilities: [], risks_if_missed: '', linked_strategic_theme: '' });
+  _refreshVpEditList();
+}
+
+function removeValuePoolEditRow(i) {
+  _vpEditData.splice(i, 1);
+  _refreshVpEditList();
+}
+
+function saveValuePoolEdits() {
+  const saved = _vpEditData.map((p, i) => ({
+    ...p,
+    name:   document.getElementById('vpc-name-' + i)?.value.trim() || p.name || '',
+    description: document.getElementById('vpc-desc-' + i)?.value.trim() || p.description || '',
+    value_driver: document.getElementById('vpc-driver-' + i)?.value || p.value_driver || 'revenue',
+    potential_impact: document.getElementById('vpc-impact-' + i)?.value || p.potential_impact || 'medium',
+    time_horizon: document.getElementById('vpc-horizon-' + i)?.value || p.time_horizon || 'medium',
+    estimated_annual_value_eur: parseFloat(document.getElementById('vpc-eur-' + i)?.value) || p.estimated_annual_value_eur || 0,
+    linked_strategic_theme: document.getElementById('vpc-theme-' + i)?.value.trim() || p.linked_strategic_theme || '',
+    risks_if_missed: document.getElementById('vpc-risks-' + i)?.value.trim() || p.risks_if_missed || ''
+  }));
+  model.valuePools = saved;
+  cancelValuePoolEdit();
+  autoSaveCurrentModel();
+  toast('Value Pools updated ✓');
+  addAssistantMessage('**Value Pools updated manually.** Changes saved. Re-running Step 6 will overwrite these manual edits.');
+}
+
+function cancelValuePoolEdit() {
+  document.getElementById('vp-edit-form')?.classList.add('hidden');
+  document.getElementById('valuepools-content')?.classList.remove('hidden');
+  if (typeof renderValuePoolsPanel === 'function') renderValuePoolsPanel();
+}
+
+// ─── STEP 7: INITIATIVES / ROADMAP MANUAL EDIT ────────────────────────────────
+function _initiativeEditRowHtml(ini, i) {
+  const name  = (ini.name || ini.title || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const phase = (ini.phase || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const cap   = (ini.impactsCapability || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const prio  = ini.priority || 'medium';
+  const bv    = ini.estimatedBusinessValue || 'medium';
+  const cx    = ini.complexity || 'medium';
+  return `<div class="bg-white border border-slate-200 rounded-xl p-3" data-ini-idx="${i}">
+    <div class="flex gap-2 mb-2 items-end">
+      <div class="flex-1">
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Initiative Name</label>
+        <input id="iec-name-${i}" type="text" value="${name}"
+          class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Phase / Wave</label>
+        <input id="iec-phase-${i}" type="text" value="${phase}" placeholder="e.g. Year 1 Q1-Q2"
+          class="w-28 border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Priority</label>
+        <select id="iec-prio-${i}" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400">
+          <option value="high" ${prio==='high'?'selected':''}>High</option>
+          <option value="medium" ${prio==='medium'?'selected':''}>Medium</option>
+          <option value="low" ${prio==='low'?'selected':''}>Low</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Biz Value</label>
+        <select id="iec-bv-${i}" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400">
+          <option value="high" ${bv==='high'?'selected':''}>High</option>
+          <option value="medium" ${bv==='medium'?'selected':''}>Medium</option>
+          <option value="low" ${bv==='low'?'selected':''}>Low</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Complexity</label>
+        <select id="iec-cx-${i}" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400">
+          <option value="high" ${cx==='high'?'selected':''}>High</option>
+          <option value="medium" ${cx==='medium'?'selected':''}>Medium</option>
+          <option value="low" ${cx==='low'?'selected':''}>Low</option>
+        </select>
+      </div>
+      <button onclick="removeInitiativeEditRow(${i})" class="text-[9px] text-red-400 hover:text-red-600 px-1" title="Remove"><i class="fas fa-trash"></i></button>
+    </div>
+    <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Impacts Capability</label>
+    <input id="iec-cap-${i}" type="text" value="${cap}" placeholder="e.g. Digital Customer Engagement"
+      class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+  </div>`;
+}
+
+let _initiativeEditData = [];
+
+function enterInitiativeEditMode() {
+  _initiativeEditData = JSON.parse(JSON.stringify(model.initiatives || []));
+  _refreshInitiativeEditList();
+  document.getElementById('roadmapvis-content')?.classList.add('hidden');
+  document.getElementById('initiative-edit-form')?.classList.remove('hidden');
+}
+
+function _refreshInitiativeEditList() {
+  const el = document.getElementById('initiative-edit-list');
+  if (el) el.innerHTML = _initiativeEditData.map((ini, i) => _initiativeEditRowHtml(ini, i)).join('');
+}
+
+function addInitiativeEditRow() {
+  _initiativeEditData.push({ name: '', phase: '', priority: 'medium', estimatedBusinessValue: 'medium', complexity: 'medium', impactsCapability: '' });
+  _refreshInitiativeEditList();
+}
+
+function removeInitiativeEditRow(i) {
+  _initiativeEditData.splice(i, 1);
+  _refreshInitiativeEditList();
+}
+
+function saveInitiativeEdits() {
+  const saved = _initiativeEditData.map((ini, i) => ({
+    ...ini,
+    name:   document.getElementById('iec-name-' + i)?.value.trim() || ini.name || '',
+    title:  document.getElementById('iec-name-' + i)?.value.trim() || ini.title || '',
+    phase:  document.getElementById('iec-phase-' + i)?.value.trim() || ini.phase || '',
+    priority: document.getElementById('iec-prio-' + i)?.value || ini.priority || 'medium',
+    estimatedBusinessValue: document.getElementById('iec-bv-' + i)?.value || ini.estimatedBusinessValue || 'medium',
+    complexity: document.getElementById('iec-cx-' + i)?.value || ini.complexity || 'medium',
+    impactsCapability: document.getElementById('iec-cap-' + i)?.value.trim() || ini.impactsCapability || ''
+  }));
+  model.initiatives = saved;
+  cancelInitiativeEdit();
+  autoSaveCurrentModel();
+  toast('Roadmap updated ✓');
+  addAssistantMessage('**Roadmap initiatives updated manually.** Changes saved. Re-running Step 7 will overwrite these manual edits.');
+}
+
+function cancelInitiativeEdit() {
+  document.getElementById('initiative-edit-form')?.classList.add('hidden');
+  document.getElementById('roadmapvis-content')?.classList.remove('hidden');
+  if (typeof renderInitiatives === 'function') renderInitiatives();
+  if (typeof renderRoadmapVisual === 'function') renderRoadmapVisual();
 }
 
 function _renderKeyAssumptionsSection(intent, displayEl) {
