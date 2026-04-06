@@ -2,45 +2,88 @@
 
 **Purpose:** Define the EXACT JSON structure for Operating Model (Step 4) in NexGen EA V4.  
 **Status:** Authoritative — all instruction files MUST conform to this schema.  
-**Last Updated:** 2026-04-05
+**Last Updated:** 2026-04-06
 
 ---
 
 ## Core Principle
 
-Operating Model is a **structured object** with 5 key dimensions stored in `model.operatingModel`.  
-Each dimension contains descriptive strings and arrays — NO deep nesting.
+Operating Model is a **6-building-block blueprint** stored in `model.operatingModel`.  
+It is distinct from the BMC (which describes WHAT the business does and for WHOM).  
+The Operating Model describes HOW the organisation delivers value — process, capability, people, systems, governance.
+
+`model.operatingModel` always has the shape:
+```json
+{ "current": { ...6-block schema... }, "target": { ...6-block schema + transformation_principles... } }
+```
+
+`model.operatingModelDelta` holds the delta/transition analysis (Step 4.3).
 
 ---
 
-## Primary Schema (model.operatingModel)
+## 6-Building-Block Schema (Current & Target)
+
+Both `current` and `target` use the same 6-block schema.  
+`target` additionally includes `transformation_principles[]`.
 
 ```json
 {
-  "governance": {
-    "structure": "String — Governance model description",
-    "decisionRights": "String — How decisions are made",
-    "kpis": ["KPI 1", "KPI 2", "KPI 3"]
+  "value_delivery": {
+    "value_streams": ["3–5 core end-to-end value streams"],
+    "customer_journeys": ["Key customer journey descriptions"],
+    "channels": ["Delivery channels used to reach customers"]
   },
-  "organization": {
-    "structure": "String — Org structure approach",
-    "roles": ["Role 1", "Role 2", "Role 3"],
-    "culture": "String — Cultural characteristics"
+  "capability_model": [
+    {
+      "name": "Capability Name (Verb + Object)",
+      "purpose": "Why this capability matters (1 sentence)",
+      "group": "Commercial|Operations|Support|Digital",
+      "maturity": "High|Medium|Low",
+      "strategic_priority": "High|Medium|Low"
+    }
+  ],
+  "process_model": [
+    {
+      "name": "Core Process Name",
+      "linked_capability": "Capability Name this process supports",
+      "is_bottleneck": false,
+      "description": "Brief description of the process"
+    }
+  ],
+  "organisation_governance": {
+    "key_roles": ["Role title: brief responsibility"],
+    "capability_ownership": [
+      { "capability": "Capability Name", "owner": "Role or team" }
+    ],
+    "governance_model": "Centralized|Decentralized|Federated",
+    "decision_making": "1-sentence description of how key decisions are made"
   },
-  "processes": {
-    "coreProcesses": ["Process 1", "Process 2", "Process 3"],
-    "maturity": "String — Overall process maturity level"
+  "application_data_landscape": {
+    "core_systems": [
+      {
+        "name": "System or Platform Name",
+        "supports_capability": "Capability Name",
+        "status": "active|gap|redundant"
+      }
+    ],
+    "gaps_overlaps": ["Description of a major system gap or overlap"]
   },
-  "data": {
-    "strategy": "String — Data strategy approach",
-    "governance": "String — Data governance model",
-    "platforms": ["Platform 1", "Platform 2"]
-  },
-  "technology": {
-    "architecture": "String — Architecture approach (e.g., cloud-first, hybrid)",
-    "platforms": ["Platform 1", "Platform 2", "Platform 3"],
-    "investmentFocus": "String — Where tech investment is focused"
+  "operating_model_principles": [
+    "Principle statement (5–7 total, e.g. 'Digital-first customer interaction')"
+  ],
+  "metadata": {
+    "at_a_glance": "1-sentence summary of this operating model state",
+    "model_archetype": "e.g. Fragmented traditional | Federated digital-first | Centralised shared services"
   }
+}
+```
+
+### Target operating model adds:
+```json
+{
+  "transformation_principles": [
+    "The 'why' behind a key design decision, e.g. 'API-first to enable ecosystem participation'"
+  ]
 }
 ```
 
@@ -48,105 +91,91 @@ Each dimension contains descriptive strings and arrays — NO deep nesting.
 
 ## Field Specifications
 
-### governance (OBJECT - REQUIRED)
-Defines how the organization is governed and measured.
+### 1. value_delivery (OBJECT - REQUIRED)
+Describes how value flows end-to-end.
+- **value_streams** (array, 3–5): Core flows from input to customer value
+- **customer_journeys** (array): Key journeys experienced by the customer
+- **channels** (array): Delivery channels (digital, physical, partner, etc.)
 
-**Sub-fields:**
-- **structure** (string): Governance model (e.g., "Federated", "Centralized", "Hybrid")
-  - Example: "Federated governance with central architecture authority and domain-autonomous execution"
-- **decisionRights** (string): Decision-making framework
-  - Example: "RACI-based decision matrix; strategic decisions at board level, architectural decisions at EA forum, implementation decisions domain-autonomous"
-- **kpis** (array): Key performance indicators tracked
-  - Example: `["Cost-to-income ratio", "System uptime 99.9%", "Time-to-market for new products"]`
+### 2. capability_model (ARRAY of objects - REQUIRED, 6–10 items)
+Business capabilities required to operate. 1–2 levels only (no deep hierarchy).
+- **name**: [Verb][Object] format, e.g. "Manage Customer Relationships"
+- **purpose**: Why this capability is needed
+- **group**: Logical grouping — Commercial, Operations, Support, or Digital
+- **maturity**: Current maturity (High/Medium/Low)
+- **strategic_priority**: How critical to the strategy (High/Medium/Low)
 
-### organization (OBJECT - REQUIRED)
-Defines organizational structure and culture.
+### 3. process_model (ARRAY of objects - REQUIRED, 5–7 items)
+How work gets done — mapped to capabilities.
+- **name**: Descriptive process name
+- **linked_capability**: Which capability this process enables
+- **is_bottleneck**: Boolean — is this a known friction point?
+- **description**: 1-sentence description
 
-**Sub-fields:**
-- **structure** (string): Org design approach
-  - Example: "Matrix organization with functional centers of excellence and cross-functional product teams"
-- **roles** (array): Key roles in the operating model
-  - Example: `["Product Owner", "Solution Architect", "DevOps Engineer", "Data Steward", "Scrum Master"]`
-- **culture** (string): Cultural characteristics and values
-  - Example: "Agile mindset with continuous improvement focus; data-driven decision-making; customer-centric design thinking"
+### 4. organisation_governance (OBJECT - REQUIRED)
+Who does what and how decisions are made.
+- **key_roles** (array): Specific role titles with brief responsibilities
+- **capability_ownership** (array): Who owns each capability
+- **governance_model**: Centralized / Decentralized / Federated
+- **decision_making**: 1-sentence description
 
-### processes (OBJECT - REQUIRED)
-Defines core business processes.
+### 5. application_data_landscape (OBJECT - REQUIRED)
+Systems and data supporting the business model.
+- **core_systems** (array): Named platforms — include status (active/gap/redundant)
+- **gaps_overlaps** (array): Where the landscape has holes or redundancy
 
-**Sub-fields:**
-- **coreProcesses** (array): 5-8 core end-to-end processes
-  - Example: `["Customer Onboarding", "Product Development", "Order Fulfillment", "Service Delivery", "Financial Close"]`
-- **maturity** (string): Overall process maturity assessment
-  - Example: "Mixed maturity: Customer processes at Level 3 (Defined), back-office at Level 2 (Repeatable), target state Level 4 (Managed) across all domains"
-
-### data (OBJECT - REQUIRED)
-Defines data and information management approach.
-
-**Sub-fields:**
-- **strategy** (string): Data strategy summary
-  - Example: "Data-as-a-product with domain-driven data ownership; master data centralized, operational data federated; API-first integration"
-- **governance** (string): Data governance approach
-  - Example: "Central data governance board sets standards; domain data stewards enforce quality; automated data lineage and catalog"
-- **platforms** (array): Key data platforms
-  - Example: `["Snowflake (data warehouse)", "Databricks (analytics)", "Collibra (data catalog)", "Talend (integration)"]`
-
-### technology (OBJECT - REQUIRED)
-Defines technology architecture and platforms.
-
-**Sub-fields:**
-- **architecture** (string): Architectural approach
-  - Example: "Cloud-first hybrid architecture; Azure as primary cloud; on-prem for latency-sensitive workloads; microservices for new builds, API layer for legacy"
-- **platforms** (array): Key technology platforms (5-10)
-  - Example: `["Microsoft 365", "Salesforce CRM", "SAP S/4HANA", "Azure Kubernetes Service", "ServiceNow ITSM"]`
-- **investmentFocus** (string): Where tech investment is concentrated
-  - Example: "60% on cloud migration and modernization, 25% on data platform, 15% on security and compliance infrastructure"
+### 6. operating_model_principles (ARRAY of strings - REQUIRED, 5–7)
+Guiding principles that govern how the organisation operates.
+Examples: "Standardize core, differentiate edge", "Data as a shared asset"
 
 ---
 
-## Autopilot vs Legacy Generation
+## Difference from BMC
 
-### Autopilot (generateAutopilotOperatingModel)
-- Generates from Capability Map context
-- Simple 5-dimension structure above
-- Industry-realistic platform names and approaches
-- NO detailed process models or org charts
-
-### Legacy (Step 4 via detailed operating model generator)
-- May include additional dimensions (locations, vendors, sourcing strategy)
-- Can reference specific TOGAF/COBIT frameworks
-- More detailed governance structures
+| BMC | Operating Model |
+|-----|----------------|
+| WHAT is the business? | HOW does the business operate? |
+| Value Proposition, Channels, Customer Segments | Value Streams, Capabilities, Processes |
+| Revenue Streams, Cost Structure | Governance, Systems, Principles |
+| Strategic positioning | Operational blueprint |
 
 ---
 
-## Industry-Specific Guidance
+## Delta Schema (model.operatingModelDelta)
 
-### Financial Services
-- **Governance:** Heavy regulatory focus (Basel, GDPR, PSD2); compliance as key KPI
-- **Organization:** Risk-aware culture; separate teams for regulated vs non-regulated activities
-- **Processes:** Core banking, trading, risk management, regulatory reporting
-- **Data:** Strong data lineage requirements; BCBS 239 compliance
-- **Technology:** Hybrid cloud (regulatory constraints on data location); core banking modernization focus
+```json
+{
+  "dimension_gaps": [
+    {
+      "dimension": "One of the 6 building blocks",
+      "current_state": "Brief current description",
+      "target_state": "Brief target description",
+      "gap_severity": "HIGH|MEDIUM|LOW",
+      "transition_complexity": "HIGH|MEDIUM|LOW",
+      "recommended_pattern": "e.g. Phased migration, Big-bang cutover"
+    }
+  ],
+  "cross_cutting_themes": ["Themes spanning multiple blocks"],
+  "dependency_chain": ["Ordered list of what must happen first"],
+  "change_readiness": {
+    "score": 0.5,
+    "factors": ["What drives score up/down"],
+    "risks": ["Top 3 specific risks"]
+  },
+  "executive_summary": "2-3 sentences Board-level summary"
+}
+```
 
-### Real Estate
-- **Governance:** Property-level P&L ownership; centralized procurement
-- **Organization:** Regional property managers; shared services for finance/IT
-- **Processes:** Tenant lifecycle, maintenance operations, ESG reporting
-- **Data:** Property/tenant master data; IoT data from buildings
-- **Technology:** PropTech platforms (IWMS, tenant portals, IoT); facility management systems
+---
 
-### Public Sector
-- **Governance:** Political oversight; public transparency requirements
-- **Organization:** Department-based; cross-department initiatives complex
-- **Processes:** Citizen services, case management, procurement (LOU compliance)
-- **Data:** Open data requirements; strict privacy for citizen data
-- **Technology:** On-prem legacy; slow cloud adoption; vendor lock-in issues
+## Validation Rules
 
-### Retail
-- **Governance:** Category/channel P&L; fast decision cycles
-- **Organization:** Merchandising, ops, e-commerce as separate domains
-- **Processes:** Merchandising, supply chain, omnichannel fulfillment
-- **Data:** Customer 360 focus; inventory visibility critical
-- **Technology:** E-commerce platform, POS, OMS, WMS; personalization engines
+- `capability_model` MUST have 6–10 items
+- `process_model` MUST have 5–7 items
+- `operating_model_principles` MUST have 5–7 items
+- All `capability_model[].name` MUST follow [Verb][Object] convention
+- `application_data_landscape.core_systems[].status` MUST be one of: active, gap, redundant
+- `metadata.at_a_glance` MUST be present and non-empty
 
 ---
 

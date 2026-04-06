@@ -28,48 +28,29 @@ const Step4 = {
       instructionFile: '4_1_current_op_model.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an Enterprise Architecture expert. Map the CURRENT state operating model using the 6-block POLDAT/TOGAF-inspired framework:
-People, Organisation, Locations, Data, Applications, Technology.
+      systemPromptFallback: `You are an Enterprise Architecture expert. Map the CURRENT state operating model using the 6-building-block framework.
 
 Return ONLY valid JSON:
 {
-  "people": {
-    "workforce_model": "internal|hybrid|outsourced|gig",
-    "key_roles": [""],
-    "skill_gaps": [""],
-    "culture_indicators": [""]
+  "value_delivery": { "value_streams": [], "customer_journeys": [], "channels": [] },
+  "capability_model": [
+    { "name": "", "purpose": "", "group": "Commercial|Operations|Support|Digital", "maturity": "High|Medium|Low", "strategic_priority": "High|Medium|Low" }
+  ],
+  "process_model": [
+    { "name": "", "linked_capability": "", "is_bottleneck": false, "description": "" }
+  ],
+  "organisation_governance": {
+    "key_roles": [],
+    "capability_ownership": [{ "capability": "", "owner": "" }],
+    "governance_model": "Centralized|Decentralized|Federated",
+    "decision_making": ""
   },
-  "organisation": {
-    "structure": "functional|divisional|matrix|flat|federated",
-    "governance_model": "",
-    "decision_making": "centralised|decentralised|federated",
-    "pain_points": [""]
+  "application_data_landscape": {
+    "core_systems": [{ "name": "", "supports_capability": "", "status": "active|gap|redundant" }],
+    "gaps_overlaps": []
   },
-  "processes": {
-    "core_processes": [""],
-    "automation_level": "LOW|MEDIUM|HIGH",
-    "process_maturity": 1,
-    "key_inefficiencies": [""]
-  },
-  "data": {
-    "data_domains": [""],
-    "data_maturity": "siloed|consolidated|managed|analytics-driven",
-    "quality_issues": [""],
-    "governance": "ad-hoc|emerging|defined|managed"
-  },
-  "applications": {
-    "core_systems": [""],
-    "integration_model": "point-to-point|hub-spoke|event-driven|API-mesh",
-    "technical_debt_level": "LOW|MEDIUM|HIGH|CRITICAL",
-    "shadow_it_risk": "LOW|MEDIUM|HIGH"
-  },
-  "technology": {
-    "infrastructure": "on-premise|cloud|hybrid|multi-cloud",
-    "cloud_maturity": "NOT_STARTED|EXPERIMENTING|SCALING|CLOUD_NATIVE",
-    "security_posture": "BASIC|DEVELOPING|DEFINED|ADVANCED",
-    "key_constraints": [""]
-  },
-  "metadata": {"at_a_glance":"","model_archetype":""}
+  "operating_model_principles": [],
+  "metadata": { "at_a_glance": "", "model_archetype": "" }
 }`,
 
       userPrompt: (ctx) => {
@@ -86,12 +67,12 @@ Map the CURRENT operating model. Derive from what the user has told us — mark 
       },
 
       outputSchema: {
-        people: 'object',
-        organisation: 'object',
-        processes: 'object',
-        data: 'object',
-        applications: 'object',
-        technology: 'object'
+        value_delivery: 'object',
+        capability_model: ['object'],
+        process_model: ['object'],
+        organisation_governance: 'object',
+        application_data_landscape: 'object',
+        operating_model_principles: ['string']
       },
 
       parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step4_current_op_model')
@@ -106,39 +87,43 @@ Map the CURRENT operating model. Derive from what the user has told us — mark 
       instructionFile: '4_2_target_op_model.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an Enterprise Architecture expert. Design the TARGET operating model that will deliver the Strategic Intent. Use the same 6-block structure as the current model.
-Add "transformation_principles" — the guiding design decisions behind model changes.
+      systemPromptFallback: `You are an Enterprise Architecture expert. Design the TARGET operating model using the 6-building-block framework.
+Add "transformation_principles" (3-5 items) explaining the "why" behind key design changes.
 
-Return ONLY valid JSON with same 6-block schema + transformation_principles + metadata.at_a_glance.`,
+Return ONLY valid JSON with same 6-block schema + transformation_principles[] + metadata.`,
 
       userPrompt: (ctx) => {
         const si = ctx.strategicIntent;
         const current = ctx.answers?.step4_current_op_model || {};
         const bmc = ctx.bmc || {};
+        const curSummary = current.metadata?.at_a_glance || '';
+        const curArch = current.metadata?.model_archetype || '';
+        const bottlenecks = (current.process_model || []).filter(p => p.is_bottleneck).map(p => p.name).join(', ');
+        const lowCaps = (current.capability_model || []).filter(c => c.maturity === 'Low' && c.strategic_priority === 'High').map(c => c.name).join(', ');
         return `Strategic Intent:
 - Ambition: ${si.strategic_ambition || ''}
 - Themes: ${(si.strategic_themes || []).join(' | ')}
 - Outcomes: ${(si.expected_outcomes || []).join('; ')}
 
-Current model snapshot:
-- Workforce: ${current.people?.workforce_model || ''}
-- Tech debt: ${current.applications?.technical_debt_level || ''}
-- Data maturity: ${current.data?.data_maturity || ''}
-- Integration: ${current.applications?.integration_model || ''}
+Current Operating Model:
+- Archetype: ${curArch || 'unknown'}
+- Summary: ${curSummary || 'see current state'}
+- Process bottlenecks: ${bottlenecks || 'none identified'}
+- High-priority low-maturity capabilities: ${lowCaps || 'none identified'}
 
 Future BMC value props: ${(bmc.value_propositions || []).join('; ')}
-Future BMC transformation moves: ${(bmc.transformation_moves || []).map(m => m.from + '→' + m.to).join('; ')}
 
-Design the TARGET operating model. Show bold shifts. Include transformation_principles (the "why" behind design choices).`;
+Design the TARGET operating model (6 building blocks). Address the bottlenecks and low-maturity priorities. Include transformation_principles (the "why" behind your design choices).`;
       },
 
       outputSchema: {
-        people: 'object',
-        organisation: 'object',
-        processes: 'object',
-        data: 'object',
-        applications: 'object',
-        technology: 'object'
+        value_delivery: 'object',
+        capability_model: ['object'],
+        process_model: ['object'],
+        organisation_governance: 'object',
+        application_data_landscape: 'object',
+        operating_model_principles: ['string'],
+        transformation_principles: ['string']
       },
 
       parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step4_target_op_model')
@@ -167,13 +152,17 @@ Return ONLY valid JSON:
         const current = ctx.answers?.step4_current_op_model || {};
         const target = ctx.answers?.step4_target_op_model || {};
         const si = ctx.strategicIntent;
+        const curArch   = current.metadata?.model_archetype || 'unknown';
+        const tgtArch   = target.metadata?.model_archetype || 'unknown';
+        const principles = (target.transformation_principles || []).join('; ');
         return `Strategic ambition: "${si.strategic_ambition || ''}"
 Timeframe: ${si.timeframe || '3-5 years'}
 
-Current: ${JSON.stringify({ org: current.organisation?.structure, tech: current.technology?.cloud_maturity, data: current.data?.data_maturity }, null, 2)}
-Target: ${JSON.stringify({ org: target.organisation?.structure, tech: target.technology?.cloud_maturity, data: target.data?.data_maturity }, null, 2)}
+Current archetype: "${curArch}"  →  Target archetype: "${tgtArch}"
+Transformation principles: ${principles || 'see target model'}
 
-Produce the delta. change_readiness.score: 0.0-1.0. executive_summary: 2-3 sentences Board-level.`;
+Compare the 6 building blocks (Value Delivery / Capability Model / Process Model / Organisation & Governance / Application & Data Landscape / Operating Model Principles).
+change_readiness.score: 0.0-1.0. executive_summary: 2-3 sentences Board-level.`;
       },
 
       outputSchema: {
@@ -197,13 +186,17 @@ Produce the delta. change_readiness.score: 0.0-1.0. executive_summary: 2-3 sente
   },
 
   applyOutput: (output, model) => {
-    // Seed systems from current operating model core_systems so Architecture Layers
-    // tab is populated after Step 4 (Step 7 will enrich with target platforms).
+    // Seed systems from operating model so Architecture Layers tab is populated after Step 4.
+    // Supports new 6-block schema (application_data_landscape) and old schema (applications.core_systems).
     const existingSys = (model.systems || []).length > 0;
-    const coreSysList = output.operatingModel?.current?.applications?.core_systems || [];
+    const newSchemaList  = output.operatingModel?.current?.application_data_landscape?.core_systems || [];
+    const oldSchemaList  = output.operatingModel?.current?.applications?.core_systems || [];
+    const srcList = newSchemaList.length ? newSchemaList : oldSchemaList;
     const derivedSystems = existingSys
       ? model.systems
-      : coreSysList.map(name => ({ name, status: 'active', category: 'core', description: '' }));
+      : srcList.map(s => typeof s === 'string'
+          ? { name: s, status: 'active', category: 'core', description: '' }
+          : { name: s.name || '', status: s.status || 'active', category: 'core', description: s.supports_capability || '' });
     return {
       ...model,
       operatingModel: output.operatingModel,

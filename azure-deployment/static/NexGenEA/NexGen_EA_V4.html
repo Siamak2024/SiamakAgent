@@ -14536,16 +14536,7 @@ function renderOperatingModel() {
   const target = document.getElementById('opmodel-content');
   if (!target) return;
 
-  const cell = (title, content) => {
-    const items = Array.isArray(content) ? content
-      : (content && typeof content === 'object' ? Object.values(content).filter(v => typeof v === 'string') : [content || '']);
-    return `<div class="omcell">
-      <div class="omcell-title">${title}</div>
-      <div class="omcell-body">${items.length ? items.map(i => `<div>&bull; ${i}</div>`).join('') : '<span class="text-slate-400 text-xs">Not available</span>'}</div>
-    </div>`;
-  };
-
-  // ── Value Proposition header (from BMC Step2) ─────────────────────────
+  // ── Value Proposition banner (from BMC Step 2) ─────────────────────────
   const bmc = model.bmc || {};
   const vp  = bmc.value_proposition || bmc.value_propositions?.[0] || '';
   const segs = Array.isArray(bmc.customer_segments) ? bmc.customer_segments.slice(0,3) : [];
@@ -14559,57 +14550,204 @@ function renderOperatingModel() {
       </div>`
     : '';
 
-  // ── BUG-6 FIX: Handle new Step4 schema { current: {...}, target: {...} } ──
-  if (om.target && (om.target.people || om.target.organisation || om.target.processes || om.target.applications || om.target.technology || om.target.data)) {
-    // New schema from StepEngine Step4
-    const cur = om.current || {};
-    const tgt = om.target || {};
-    const dimCard = (label, cur, tgt, fields) => {
-      const curLines = fields.map(f => cur[f] ? `${f.replace(/_/g,' ')}: ${Array.isArray(cur[f]) ? cur[f].slice(0,2).join(', ') : cur[f]}` : null).filter(Boolean);
-      const tgtLines = fields.map(f => tgt[f] ? `${f.replace(/_/g,' ')}: ${Array.isArray(tgt[f]) ? tgt[f].slice(0,2).join(', ') : tgt[f]}` : null).filter(Boolean);
+  // ── 6-Block renderer ───────────────────────────────────────────────────
+  const has6Blocks = (data) => !!(data && (data.value_delivery || data.capability_model || data.process_model || data.organisation_governance || data.application_data_landscape));
+
+  const matBg  = { High:'#dcfce7', Medium:'#fef9c3', Low:'#fee2e2' };
+  const matTxt = { High:'#166534', Medium:'#854d0e', Low:'#991b1b' };
+  const priTxt = { High:'#dc2626', Medium:'#d97706', Low:'#94a3b8' };
+
+  const renderOmBlocks = (state, mode) => {
+    if (!state || !has6Blocks(state)) return `<div class="text-slate-400 text-xs text-center py-8">${mode} not yet generated</div>`;
+
+    const vd   = state.value_delivery            || {};
+    const caps = Array.isArray(state.capability_model)          ? state.capability_model          : [];
+    const procs= Array.isArray(state.process_model)             ? state.process_model             : [];
+    const og   = state.organisation_governance   || {};
+    const adl  = state.application_data_landscape|| {};
+    const prin = Array.isArray(state.operating_model_principles)? state.operating_model_principles: [];
+    const trPrin= Array.isArray(state.transformation_principles)? state.transformation_principles : [];
+
+    const b1 = `<div class="omcell" style="border-top:3px solid #10b981;margin-bottom:10px">
+      <div class="omcell-title">🚀 1. Value Delivery Model</div>
+      <div class="omcell-body" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px">VALUE STREAMS</div>
+          ${(vd.value_streams||[]).map(s=>`<div style="font-size:11px;color:#1e293b;margin-bottom:2px">&bull; ${s}</div>`).join('')||'<span style="color:#94a3b8;font-size:11px">—</span>'}
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px">CUSTOMER JOURNEYS</div>
+          ${(vd.customer_journeys||[]).map(j=>`<div style="font-size:11px;color:#1e293b;margin-bottom:2px">&bull; ${j}</div>`).join('')||'<span style="color:#94a3b8;font-size:11px">—</span>'}
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px">CHANNELS</div>
+          ${(vd.channels||[]).map(c=>`<div style="font-size:11px;color:#1e293b;margin-bottom:2px">&bull; ${c}</div>`).join('')||'<span style="color:#94a3b8;font-size:11px">—</span>'}
+        </div>
+      </div>
+    </div>`;
+
+    const b2 = `<div class="omcell" style="border-top:3px solid #6366f1;margin-bottom:10px">
+      <div class="omcell-title">⚡ 2. Capability Model (L1–L2)</div>
+      <div class="omcell-body">
+        ${caps.length ? `<table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead><tr style="background:#f1f5f9">
+            <th style="text-align:left;padding:4px 8px;color:#475569;font-weight:700;font-size:10px">CAPABILITY</th>
+            <th style="text-align:left;padding:4px 8px;color:#475569;font-weight:700;font-size:10px">GROUP</th>
+            <th style="text-align:center;padding:4px 8px;color:#475569;font-weight:700;font-size:10px">MATURITY</th>
+            <th style="text-align:center;padding:4px 8px;color:#475569;font-weight:700;font-size:10px">PRIORITY</th>
+          </tr></thead>
+          <tbody>${caps.map(c=>`<tr style="border-top:1px solid #f1f5f9">
+            <td style="padding:4px 8px;font-weight:600;color:#1e293b">${c.name||''}</td>
+            <td style="padding:4px 8px;color:#64748b;font-size:10px">${c.group||''}</td>
+            <td style="padding:4px 8px;text-align:center"><span style="background:${matBg[c.maturity]||'#f1f5f9'};color:${matTxt[c.maturity]||'#64748b'};border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700">${c.maturity||'—'}</span></td>
+            <td style="padding:4px 8px;text-align:center;font-size:10px;font-weight:700;color:${priTxt[c.strategic_priority]||'#94a3b8'}">${c.strategic_priority||'—'}</td>
+          </tr>`).join('')}</tbody>
+        </table>` : '<span style="color:#94a3b8;font-size:11px">No capabilities defined</span>'}
+      </div>
+    </div>`;
+
+    const b3 = `<div class="omcell" style="border-top:3px solid #f59e0b;margin-bottom:10px">
+      <div class="omcell-title">⚙️ 3. Process Model</div>
+      <div class="omcell-body">
+        ${procs.length ? procs.map(p=>`<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f8fafc">
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:600;color:#1e293b">${p.name||''} ${p.is_bottleneck?'<span style="background:#fef2f2;color:#ef4444;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700">BOTTLENECK</span>':''}</div>
+            ${p.linked_capability?`<div style="font-size:10px;color:#6366f1;margin-top:1px">→ ${p.linked_capability}</div>`:''}
+            ${p.description?`<div style="font-size:10px;color:#64748b;margin-top:2px">${p.description}</div>`:''}
+          </div>
+        </div>`).join('') : '<span style="color:#94a3b8;font-size:11px">No processes defined</span>'}
+      </div>
+    </div>`;
+
+    const b4 = `<div class="omcell" style="border-top:3px solid #8b5cf6">
+      <div class="omcell-title">🏢 4. Organisation &amp; Governance</div>
+      <div class="omcell-body">
+        ${og.governance_model?`<div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">MODEL</div><div style="font-size:11px;color:#1e293b;margin-bottom:8px">${og.governance_model}</div>`:''}
+        ${og.decision_making?`<div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">DECISION-MAKING</div><div style="font-size:11px;color:#1e293b;margin-bottom:8px">${og.decision_making}</div>`:''}
+        ${(og.key_roles||[]).length?`<div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">KEY ROLES</div>${(og.key_roles||[]).map(r=>`<div style="font-size:11px;color:#475569;margin-bottom:2px">&bull; ${r}</div>`).join('')}`:''}
+        ${(og.capability_ownership||[]).length?`<div style="font-size:10px;font-weight:700;color:#64748b;margin-top:8px;margin-bottom:3px">OWNERSHIP</div>${(og.capability_ownership||[]).slice(0,5).map(o=>`<div style="font-size:10px;color:#64748b;margin-bottom:1px"><span style="color:#1e293b;font-weight:600">${o.capability}</span> → ${o.owner}</div>`).join('')}`:''}
+      </div>
+    </div>`;
+
+    const b5 = `<div class="omcell" style="border-top:3px solid #0ea5e9">
+      <div class="omcell-title">💻 5. Application &amp; Data Landscape</div>
+      <div class="omcell-body">
+        ${(adl.core_systems||[]).length?`<div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px">CORE SYSTEMS</div>
+          ${(adl.core_systems||[]).map(s=>{
+            const nm=(typeof s==='string'?s:s.name||'');
+            const cap=(typeof s==='object'&&s.supports_capability)?` <span style="color:#6366f1;font-size:10px">→ ${s.supports_capability}</span>`:'';
+            const st=(typeof s==='object'&&s.status)?s.status:'active';
+            const stBadge=st==='gap'?'<span style="background:#fef2f2;color:#ef4444;border-radius:3px;padding:0 4px;font-size:9px;font-weight:700">GAP</span>':st==='redundant'?'<span style="background:#fef9c3;color:#854d0e;border-radius:3px;padding:0 4px;font-size:9px;font-weight:700">REDUNDANT</span>':'';
+            return `<div style="font-size:11px;color:#1e293b;margin-bottom:3px">&bull; <b>${nm}</b>${cap} ${stBadge}</div>`;
+          }).join('')}`:''}
+        ${(adl.gaps_overlaps||[]).length?`<div style="font-size:10px;font-weight:700;color:#64748b;margin-top:8px;margin-bottom:3px">GAPS / OVERLAPS</div>${(adl.gaps_overlaps||[]).map(g=>`<div style="font-size:10px;color:#dc2626;margin-bottom:2px">&bull; ${g}</div>`).join('')}`:''}
+      </div>
+    </div>`;
+
+    const b6 = prin.length ? `<div class="omcell" style="border-top:3px solid #10b981;margin-top:10px">
+      <div class="omcell-title">🎯 6. Operating Model Principles</div>
+      <div class="omcell-body" style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        ${prin.map(p=>`<div style="font-size:11px;color:#1e293b;padding:3px 0">&bull; <i>${p}</i></div>`).join('')}
+      </div>
+    </div>` : '';
+
+    const bTP = trPrin.length ? `<div class="omcell" style="margin-top:10px;border-top:3px solid #6366f1;background:#f5f3ff">
+      <div class="omcell-title" style="color:#4f46e5">✨ Transformation Principles</div>
+      <div class="omcell-body">${trPrin.map(p=>`<div style="font-size:11px;color:#3730a3;margin-bottom:4px">&bull; ${p}</div>`).join('')}</div>
+    </div>` : '';
+
+    return b1 + b2 + `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">${b3}${b4}</div>` + b5 + b6 + bTP;
+  };
+
+  // ── Delta view ─────────────────────────────────────────────────────────
+  const renderDeltaView = (delta) => {
+    if (!delta || !delta.dimension_gaps) return '<div class="text-slate-400 text-xs text-center py-8">Delta analysis not yet generated</div>';
+    const sevCls = { HIGH:'background:#fef2f2;color:#991b1b;border-color:#fca5a5', MEDIUM:'background:#fef9c3;color:#854d0e;border-color:#fde047', LOW:'background:#f0fdf4;color:#166534;border-color:#86efac' };
+    const ready = delta.change_readiness;
+    const pct = ready ? Math.round(ready.score * 100) : null;
+    const pctColor = pct >= 70 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#ef4444';
+    return `
+      ${ready ? `<div class="omcell" style="border-top:3px solid ${pctColor};margin-bottom:10px">
+        <div class="omcell-title">📊 Change Readiness: <span style="color:${pctColor}">${pct}%</span></div>
+        <div class="omcell-body">
+          ${delta.executive_summary ? `<div style="font-size:12px;color:#1e293b;margin-bottom:8px;font-style:italic">${delta.executive_summary}</div>` : ''}
+          ${(ready.risks||[]).length ? `<div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px">TOP RISKS</div>${(ready.risks||[]).map(r=>`<div style="font-size:11px;color:#dc2626;margin-bottom:2px">&bull; ${r}</div>`).join('')}` : ''}
+        </div>
+      </div>` : ''}
+      <div class="omcell" style="border-top:3px solid #6366f1;margin-bottom:10px">
+        <div class="omcell-title">⚡ Dimension Gaps</div>
+        <div class="omcell-body">
+          ${(delta.dimension_gaps||[]).map(g=>{
+            const cls = sevCls[g.gap_severity] || sevCls.MEDIUM;
+            return `<div style="border:1px solid;border-radius:6px;padding:8px;margin-bottom:8px;${cls}">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <span style="font-size:11px;font-weight:700">${g.dimension}</span>
+                <span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;${cls}">${g.gap_severity}</span>
+              </div>
+              <div style="font-size:10px;margin-bottom:2px"><b>Current:</b> ${g.current_state||''}</div>
+              <div style="font-size:10px;margin-bottom:2px"><b>Target:</b> ${g.target_state||''}</div>
+              ${g.recommended_pattern?`<div style="font-size:10px;color:#6366f1;margin-top:4px">Pattern: ${g.recommended_pattern}</div>`:''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      ${(delta.dependency_chain||[]).length ? `<div class="omcell" style="border-top:3px solid #f59e0b">
+        <div class="omcell-title">🔗 Dependency Chain</div>
+        <div class="omcell-body">${(delta.dependency_chain||[]).map((d,i)=>`<div style="font-size:11px;color:#1e293b;margin-bottom:4px"><span style="font-weight:700;color:#d97706">${i+1}.</span> ${d}</div>`).join('')}</div>
+      </div>` : ''}`;
+  };
+
+  // ── Schema detection ───────────────────────────────────────────────────
+  const cur = om.current || {};
+  const tgt = om.target  || {};
+  const delta = model.operatingModelDelta || {};
+
+  if (has6Blocks(cur) || has6Blocks(tgt)) {
+    const tab = window._omTab || 'current';
+    target.innerHTML = vpBanner + `
+      <div style="display:flex;gap:6px;margin-bottom:12px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">
+        <button onclick="window._omTab='current'; renderOperatingModel()" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;${tab==='current'?'background:#6366f1;color:white':'background:#f1f5f9;color:#64748b'}">AS-IS Current</button>
+        <button onclick="window._omTab='target'; renderOperatingModel()" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;${tab==='target'?'background:#6366f1;color:white':'background:#f1f5f9;color:#64748b'}">TO-BE Target</button>
+        ${(delta.dimension_gaps||[]).length ? `<button onclick="window._omTab='delta'; renderOperatingModel()" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;${tab==='delta'?'background:#6366f1;color:white':'background:#f1f5f9;color:#64748b'}">Delta</button>` : ''}
+      </div>
+      ${tab==='target' ? renderOmBlocks(tgt,'TO-BE Target') : tab==='delta' ? renderDeltaView(delta) : renderOmBlocks(cur,'AS-IS Current')}`;
+    return;
+  }
+
+  // ── Legacy schema: old 6-dimension (people/organisation/processes/data/applications/technology) ──
+  if (tgt && (tgt.people || tgt.organisation || tgt.processes || tgt.applications || tgt.technology || tgt.data)) {
+    const cur2 = om.current || {};
+    const tgt2 = om.target  || {};
+    const dimCard = (label, c, t, fields) => {
+      const curLines = fields.map(f => c[f] ? `${f.replace(/_/g,' ')}: ${Array.isArray(c[f]) ? c[f].slice(0,2).join(', ') : c[f]}` : null).filter(Boolean);
+      const tgtLines = fields.map(f => t[f] ? `${f.replace(/_/g,' ')}: ${Array.isArray(t[f]) ? t[f].slice(0,2).join(', ') : t[f]}` : null).filter(Boolean);
       return `<div class="omcell" style="border-top:3px solid #6366f1">
         <div class="omcell-title">${label}</div>
         <div class="omcell-body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div><div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:6px">CURRENT</div>${curLines.map(l=>`<div style="font-size:11px;color:#475569">&bull; ${l}</div>`).join('') || '<span style="color:#94a3b8;font-size:11px">Mapped</span>'}</div>
-          <div><div style="font-size:10px;font-weight:700;color:#6366f1;margin-bottom:6px">TARGET</div>${tgtLines.map(l=>`<div style="font-size:11px;color:#1e40af">&bull; ${l}</div>`).join('') || '<span style="color:#94a3b8;font-size:11px">Designed</span>'}</div>
+          <div><div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:6px">CURRENT</div>${curLines.map(l=>`<div style="font-size:11px;color:#475569">&bull; ${l}</div>`).join('')||'<span style="color:#94a3b8;font-size:11px">Mapped</span>'}</div>
+          <div><div style="font-size:10px;font-weight:700;color:#6366f1;margin-bottom:6px">TARGET</div>${tgtLines.map(l=>`<div style="font-size:11px;color:#1e40af">&bull; ${l}</div>`).join('')||'<span style="color:#94a3b8;font-size:11px">Designed</span>'}</div>
         </div>
       </div>`;
     };
     target.innerHTML = vpBanner + `
       <div style="margin-bottom:8px" class="text-xs font-bold text-slate-600">Operating Model — Current vs Target</div>
       <div class="grid grid-cols-2 gap-3 mb-3">
-        ${dimCard('🏢 Organisation',  cur.organisation, tgt.organisation,  ['structure','governance_model','decision_making'])}
-        ${dimCard('👥 People',        cur.people,       tgt.people,        ['workforce_model','culture_indicators'])}
+        ${dimCard('🏢 Organisation',  cur2.organisation, tgt2.organisation,  ['structure','governance_model','decision_making'])}
+        ${dimCard('👥 People',        cur2.people,       tgt2.people,        ['workforce_model','culture_indicators'])}
       </div>
       <div class="grid grid-cols-2 gap-3 mb-3">
-        ${dimCard('⚙️ Processes',     cur.processes,    tgt.processes,     ['automation_level','core_processes'])}
-        ${dimCard('📊 Data',          cur.data,         tgt.data,          ['data_maturity','governance'])}
+        ${dimCard('⚙️ Processes',     cur2.processes,    tgt2.processes,     ['automation_level','core_processes'])}
+        ${dimCard('📊 Data',          cur2.data,         tgt2.data,          ['data_maturity','governance'])}
       </div>
       <div class="grid grid-cols-2 gap-3">
-        ${dimCard('💻 Applications',  cur.applications, tgt.applications,  ['integration_model','technical_debt_level'])}
-        ${dimCard('☁️ Technology',    cur.technology,   tgt.technology,    ['infrastructure','cloud_maturity'])}
+        ${dimCard('💻 Applications',  cur2.applications, tgt2.applications,  ['integration_model','technical_debt_level'])}
+        ${dimCard('☁️ Technology',    cur2.technology,   tgt2.technology,    ['infrastructure','cloud_maturity'])}
       </div>
-      ${(tgt.transformation_principles||[]).length ? `<div class="omcell" style="margin-top:12px"><div class="omcell-title">🎯 Transformation Principles</div><div class="omcell-body">${(tgt.transformation_principles||[]).map(p=>`<div>&bull; ${p}</div>`).join('')}</div></div>` : ''}`;
+      ${(tgt2.transformation_principles||[]).length ? `<div class="omcell" style="margin-top:12px"><div class="omcell-title">🎯 Transformation Principles</div><div class="omcell-body">${(tgt2.transformation_principles||[]).map(p=>`<div>&bull; ${p}</div>`).join('')}</div></div>` : ''}`;
     return;
   }
 
-  // Legacy flat schema (old format)
-  if (!om.valueProposition && !om.people) { target.innerHTML = '<div class="text-slate-400 text-xs text-center py-16">Operating Model not yet generated</div>'; return; }
-  target.innerHTML = vpBanner + `
-    <div class="grid grid-cols-2 gap-3 mb-3">
-      ${cell('Value Proposition', om.valueProposition || '')}
-      ${cell('Customer Segments', om.customerSegments||[])}
-    </div>
-    <div class="grid grid-cols-4 gap-3 mb-3">
-      ${cell('Key Activities', om.keyActivities||[])}
-      ${cell('Key Resources', om.keyResources||[])}
-      ${cell('Key Partners', om.keyPartners||[])}
-      ${cell('Channels', om.channels||[])}
-    </div>
-    <div class="grid grid-cols-2 gap-3">
-      ${cell('Cost Structure', om.costStructure||[])}
-      ${cell('Revenue Streams', om.revenueStreams||[])}
-    </div>`;
+  target.innerHTML = vpBanner + '<div class="text-slate-400 text-xs text-center py-16">Operating Model not yet generated</div>';
 }
 
 function renderMaturityDashboard() {
