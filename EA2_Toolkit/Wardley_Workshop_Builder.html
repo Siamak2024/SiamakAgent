@@ -1000,7 +1000,7 @@ async function aiLookupIndustry() {
     const btn = document.getElementById('btn-lookup-industry');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner spinner"></i>'; }
     try {
-        const res = await fetch('/api/openai/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'gpt-5', messages: [{ role: 'system', content: 'Du är en expert på bolagsanalys. Svara med exakt 2–5 ord på svenska – bara branschnamnet, inga meningar.' }, { role: 'user', content: 'Vad är bransch/sektor för "' + org + '"? Svara med max 5 ord, bara branschnamnet på svenska. Exempel: "Fastighet – Bostäder", "SaaS – HR-tech", "Finans – Kreditgivning", "Offentlig sektor – Utbildning".' }], temperature: 0.2 }) });
+        const res = await fetch('/api/openai/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'gpt-5', messages: [{ role: 'system', content: 'Du är en expert på bolagsanalys. Svara med exakt 2–5 ord på svenska – bara branschnamnet, inga meningar.' }, { role: 'user', content: 'Vad är bransch/sektor för "' + org + '"? Svara med max 5 ord, bara branschnamnet på svenska. Exempel: "Fastighet – Bostäder", "SaaS – HR-tech", "Finans – Kreditgivning", "Offentlig sektor – Utbildning".' }] }) });
         const data = await res.json();
         if (data.error) throw new Error(data.error.message);
         const ind = data.choices[0].message.content.trim().replace(/^["']|["']$/g, '');
@@ -1020,8 +1020,7 @@ async function callAI(sys, usr, onSuccess, btnId, btnLabel) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: 'gpt-5',
-                messages: [{ role: 'system', content: sys }, { role: 'user', content: usr }],
-                temperature: 0.5
+                messages: [{ role: 'system', content: sys }, { role: 'user', content: usr }]
             })
         });
         const data = await res.json();

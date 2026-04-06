@@ -641,7 +641,7 @@ async function aiLookupIndustry(){
   const btn=document.getElementById('btn-lookup-industry');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner spinner"></i>';}
   try{
-    const res=await fetch('/api/openai/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'gpt-5',messages:[{role:'system',content:'Du är en expert pa bolagsanalys. Svara med exakt 2-5 ord pa svenska - bara branschnamnet, inga meningar.'},{role:'user',content:'Vad är bransch/sektor för "'+org+'"? Svara med max 5 ord, bara branschnamnet pa svenska. Exempel: "Fastighet - Bostader", "SaaS - HR-tech", "Finans - Kreditgivning", "Offentlig sektor - Utbildning".'}],temperature:0.2})});
+    const res=await fetch('/api/openai/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'gpt-5',messages:[{role:'system',content:'Du är en expert pa bolagsanalys. Svara med exakt 2-5 ord pa svenska - bara branschnamnet, inga meningar.'},{role:'user',content:'Vad är bransch/sektor för "'+org+'"? Svara med max 5 ord, bara branschnamnet pa svenska. Exempel: "Fastighet - Bostader", "SaaS - HR-tech", "Finans - Kreditgivning", "Offentlig sektor - Utbildning".'}]})});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const ind=data.choices[0].message.content.trim().replace(/^["']|["']$/g,'');
@@ -662,7 +662,7 @@ async function aiLookupScope(){
   const btn=document.getElementById('btn-lookup-scope');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner spinner"></i> Analyserar...';}
   try{
-    const res=await fetch('/api/openai/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'gpt-5',messages:[{role:'system',content:'Du är en expert pa värdekedjeanalys och organisationsstruktur. Svara med valid JSON utan markdown-block eller förklaringar.'},{role:'user',content:'Organisation: "'+org+'" | Bransch: "'+industry+'"\n\nFöresla 4-6 relevanta analysscopes för en värdekedjeanalys för detta bolag. Täck både helhetsanalys och viktiga funktioner/processer för branschen.\n\nSvara med EXAKT denna JSON:\n{"scopes":["Hela bolaget","Funktionsområde 1","Funktionsområde 2","Procesområde 1",...]}\n\nExempel fastighet: ["Hela bolaget","Fastighetsförvaltning","Uthyrning & Leasing","Underhall & Teknisk förvaltning","Hyresgästtjänster","IT & Digitalisering"]\nExempel tech: ["Hela bolaget","Produktutveckling","Kundanskaffning","Customer Success","Drift & Infrastructure","R&D"]\nExempel retail: ["Hela bolaget","Inköp & Supply Chain","Lagerhantering","Butiksdrift","E-handel","Kundservice"]'}],temperature:0.3})});
+    const res=await fetch('/api/openai/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'gpt-5',messages:[{role:'system',content:'Du är en expert pa värdekedjeanalys och organisationsstruktur. Svara med valid JSON utan markdown-block eller förklaringar.'},{role:'user',content:'Organisation: "'+org+'" | Bransch: "'+industry+'"\n\nFöresla 4-6 relevanta analysscopes för en värdekedjeanalys för detta bolag. Täck både helhetsanalys och viktiga funktioner/processer för branschen.\n\nSvara med EXAKT denna JSON:\n{"scopes":["Hela bolaget","Funktionsområde 1","Funktionsområde 2","Procesområde 1",...]}\n\nExempel fastighet: ["Hela bolaget","Fastighetsförvaltning","Uthyrning & Leasing","Underhall & Teknisk förvaltning","Hyresgästtjänster","IT & Digitalisering"]\nExempel tech: ["Hela bolaget","Produktutveckling","Kundanskaffning","Customer Success","Drift & Infrastructure","R&D"]\nExempel retail: ["Hela bolaget","Inköp & Supply Chain","Lagerhantering","Butiksdrift","E-handel","Kundservice"]'}]})});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const respText=data.choices[0].message.content.trim().replace(/```[\w]*\n?/g,'');
@@ -686,7 +686,7 @@ async function callAI(sys,usr,onSuccess,btnId,btnLabel){
   if(!key){toast('Lagg till OpenAI API-nyckel');openApiModal();return;}
   if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner spinner"></i> Analyserar...';}
   try{
-    const res=await fetch('/api/openai/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'gpt-5',messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.45})});
+    const res=await fetch('/api/openai/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'gpt-5',messages:[{role:'system',content:sys},{role:'user',content:usr}]})});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     onSuccess(data.choices[0].message.content);
