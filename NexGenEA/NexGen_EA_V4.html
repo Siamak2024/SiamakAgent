@@ -12969,11 +12969,11 @@ function updateTabLockStates() {
     'scenarios': () => model.capabilities.length > 0,
     'financials': () => model.capabilities.length > 0 && model.targetArchDone,
     'optimisation': () => model.capabilities.length > 0 && model.targetArchDone,
-    // Analytics tabs — available after roadmap/target arch (Step 7)
-    'analytics-di': () => model.capabilities.length > 0 && model.targetArchDone,
-    'analytics-financial': () => model.capabilities.length > 0 && model.targetArchDone,
-    'analytics-scenarios': () => model.capabilities.length > 0 && model.targetArchDone,
-    'analytics-optimize': () => model.capabilities.length > 0 && model.targetArchDone
+    // Analytics tabs — progressively available as data is generated
+    'analytics-di': () => model.capabilities.length > 0, // Decision Intelligence: needs capabilities (Step 3+)
+    'analytics-financial': () => model.capabilities.length > 0 && (model.valuePools?.length > 0 || model.gapAnalysisDone), // Financial: needs value pools or gaps (Step 5+)
+    'analytics-scenarios': () => model.capabilities.length > 0, // Scenarios: needs capabilities (Step 3+)
+    'analytics-optimize': () => model.capabilities.length > 0 && (model.initiatives?.length > 0 || model.targetArchDone) // Optimize: needs initiatives (Step 7+)
   };
   
   // Get all tab buttons
@@ -13026,8 +13026,14 @@ function updateTabLockStates() {
         lockReason = 'Generate Target Architecture (Step 7) to unlock';
       } else if (['financials', 'optimisation'].includes(tabName)) {
         lockReason = 'Complete architecture & target state to unlock';
-      } else if (['analytics-di', 'analytics-financial', 'analytics-scenarios', 'analytics-optimize'].includes(tabName)) {
-        lockReason = 'Complete 7-step EA workflow (esp. Roadmap) to unlock Analytics';
+      } else if (tabName === 'analytics-di') {
+        lockReason = 'Generate Capability Map (Step 3) to unlock Decision Intelligence';
+      } else if (tabName === 'analytics-financial') {
+        lockReason = 'Complete Gap Analysis or Value Pools (Step 5+) to unlock Financial Analytics';
+      } else if (tabName === 'analytics-scenarios') {
+        lockReason = 'Generate Capability Map (Step 3) to unlock Scenario Analytics';
+      } else if (tabName === 'analytics-optimize') {
+        lockReason = 'Generate Roadmap (Step 7) to unlock Optimization Analytics';
       }
       
       btn.setAttribute('data-tab-locked-reason', lockReason);
