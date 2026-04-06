@@ -156,7 +156,13 @@ const StepContext = (() => {
   // ── Helpers ───────────────────────────────────────────────────────────────
   function _getDescription() {
     const el = document.getElementById('description');
-    return (el && el.value) ? el.value.trim() : '';
+    const domVal = (el && el.value) ? el.value.trim() : '';
+    // Fallback: autopilot stores description in model.description / _autopilotState.context
+    if (domVal) return domVal;
+    const autopilotDesc = (typeof window !== 'undefined') && window._autopilotState?.context?.companyDescription;
+    if (autopilotDesc) return autopilotDesc;
+    const modelDesc = (typeof model !== 'undefined') ? model?.description : (typeof window !== 'undefined' ? window.model?.description : '');
+    return modelDesc || '';
   }
 
   function _getLanguage() {

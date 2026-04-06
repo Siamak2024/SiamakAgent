@@ -3366,6 +3366,7 @@ function createNewProject() {
   currentModelId = projectId;
   currentModelName = projectName;
   model = emptyModel;
+  window.model = model; // keep window.model in sync with let model (StepEngine uses window.model)
   
   // Initialize new conversation for this project
   const newConv = {
@@ -3899,7 +3900,7 @@ function _loadEntry(id, source) {
   const cxoSection = document.getElementById('cxo-narrative-section');
   if (cxoSection) cxoSection.classList.remove('hidden');
   if (model.initiatives?.length) { try { renderInitiatives(); renderRoadmapVisual(); } catch(e) { console.warn('renderRoadmap', e); } }
-  if (model.operatingModel?.valueProposition) { try { renderOperatingModel(); } catch(e) { console.warn('renderOM', e); } }
+  if (model.operatingModel && (model.operatingModel?.valueProposition || model.operatingModel?.current?.value_delivery || model.operatingModel?.target?.value_delivery)) { try { renderOperatingModel(); } catch(e) { console.warn('renderOM', e); } }
   if (model.gapAnalysisRaw) {
     const insightsEl = document.getElementById('insights');
     if (insightsEl) insightsEl.innerHTML = formatGapAnalysisOutput(model.gapAnalysisRaw);

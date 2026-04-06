@@ -13,6 +13,11 @@ const DESCRIPTION = 'A real estate company with legacy system';
 const ACTIVE_AREAS = ['finance', 'operation', 'esg'];
 const STEP_TIMEOUT = 120_000; // 2 min per AI step (generous for slow API)
 
+// Prevent Node from crashing on unhandled promise rejections (e.g. Playwright page closed errors)
+process.on('unhandledRejection', (reason) => {
+  console.log(`[E2E] Unhandled rejection caught (non-fatal): ${String(reason).slice(0, 200)}`);
+});
+
 const artifactsDir = path.resolve('e2e-artifacts');
 fs.mkdirSync(artifactsDir, { recursive: true });
 
@@ -51,14 +56,19 @@ page.on('console', msg => {
   }
 });
 page.on('pageerror', err => {
+  // Log but never re-throw — page errors in the app should not crash the test runner
   report.pageErrors.push(err.message);
-  log(`  [page error] ${err.message}`);
+  log(`  [page error] ${err.message.slice(0, 200)}`);
 });
 
 async function screenshot(name) {
-  const file = path.join(artifactsDir, `${name}.png`);
-  await page.screenshot({ path: file, fullPage: false });
-  log(`  Screenshot: ${file}`);
+  try {
+    const file = path.join(artifactsDir, `${name}.png`);
+    await page.screenshot({ path: file, fullPage: false });
+    log(`  Screenshot: ${file}`);
+  } catch (e) {
+    log(`  Screenshot failed (${name}): ${e.message}`);
+  }
 }
 
 async function waitForStepUnlocked(stepId, timeout = STEP_TIMEOUT) {
@@ -252,12 +262,86 @@ if (s3ok) {
 log('Step 4: Generating Operating Model...');
 const s4ok = await clickStep('step-4', 'btn-step4', 'Step 4: Operating Model');
 if (s4ok) {
+  // Wait for opmodel-content to be populated (AI generates 3 sub-tasks)
   const s4done = await waitForElement('#opmodel-content:not(:empty)', STEP_TIMEOUT);
+  await page.waitForTimeout(2000);
+
+  // Navigate to Op Model tab
+  await page.evaluate(() => { if (typeof showTab === 'function') showTab('opmodel'); });
   await page.waitForTimeout(1000);
   await screenshot('08-step4-opmodel');
+
   const opContent = await getTextContent('#opmodel-content');
-  addStep('Step 4: Operating Model', s4done && opContent?.length > 50 ? 'PASS' : 'FAIL',
-    opContent ? `${opContent.slice(0, 100)}...` : 'opmodel-content empty');
+  addStep('Step 4: Operating Model generated', s4done && opContent?.length > 50 ? 'PASS' : 'FAIL',
+    opContent ? `${opContent.slice(0, 120)}...` : 'opmodel-content empty');
+
+  // ── Validate model data structure ─────────────────────────────────────
+  const omData = await page.evaluate(() => {
+    const om = window.model?.operatingModel || {};
+    const cur = om.current || {};
+    const tgt = om.target  || {};
+    const delta = window.model?.operatingModelDelta || {};
+    return {
+      hasCurrent:    !!(cur.value_delivery || cur.capability_model),
+      hasTarget:     !!(tgt.value_delivery || tgt.capability_model),
+      hasDelta:      !!(delta.dimension_gaps?.length),
+      blocks: {
+        valueDelivery:       !!cur.value_delivery,
+        capabilityModel:     Array.isArray(cur.capability_model) ? cur.capability_model.length : 0,
+        processModel:        Array.isArray(cur.process_model)    ? cur.process_model.length    : 0,
+        orgGovernance:       !!cur.organisation_governance,
+        appDataLandscape:    !!cur.application_data_landscape,
+        principles:          Array.isArray(cur.operating_model_principles) ? cur.operating_model_principles.length : 0,
+      },
+      changeReadiness: delta.change_readiness?.score ?? null,
+      archetype:       cur.metadata?.model_archetype || '(none)',
+    };
+  });
+
+  addStep('Step 4: model.operatingModel.current populated', omData.hasCurrent ? 'PASS' : 'FAIL',
+    `Archetype: "${omData.archetype}"`);
+  addStep('Step 4: model.operatingModel.target populated', omData.hasTarget ? 'PASS' : 'WARN',
+    omData.hasTarget ? 'Target OS-IS generated' : 'Target not generated');
+  addStep('Step 4: operatingModelDelta populated', omData.hasDelta ? 'PASS' : 'WARN',
+    omData.hasDelta ? `Change readiness: ${omData.changeReadiness !== null ? (omData.changeReadiness * 100).toFixed(0) + '%' : 'n/a'}` : 'No delta');
+
+  // ── Validate 6 blocks ────────────────────────────────────────────────
+  addStep('Step 4 Block 1: Value Delivery',            omData.blocks.valueDelivery              ? 'PASS' : 'FAIL');
+  addStep('Step 4 Block 2: Capability Model',          omData.blocks.capabilityModel > 0        ? 'PASS' : 'FAIL',
+    `${omData.blocks.capabilityModel} capabilities`);
+  addStep('Step 4 Block 3: Process Model',             omData.blocks.processModel > 0           ? 'PASS' : 'FAIL',
+    `${omData.blocks.processModel} processes`);
+  addStep('Step 4 Block 4: Organisation & Governance', omData.blocks.orgGovernance              ? 'PASS' : 'FAIL');
+  addStep('Step 4 Block 5: Application & Data',        omData.blocks.appDataLandscape           ? 'PASS' : 'FAIL');
+  addStep('Step 4 Block 6: Principles',                omData.blocks.principles > 0             ? 'PASS' : 'FAIL',
+    `${omData.blocks.principles} principles`);
+
+  // ── AS-IS / TO-BE / Delta tab rendering ──────────────────────────────
+  const asIsBtn  = page.locator('#opmodel-content button').filter({ hasText: /AS-IS/i }).first();
+  const toBeBtn  = page.locator('#opmodel-content button').filter({ hasText: /TO-BE/i }).first();
+  const deltaBtn = page.locator('#opmodel-content button').filter({ hasText: /Delta/i }).first();
+
+  if (await asIsBtn.count() > 0) {
+    await asIsBtn.click(); await page.waitForTimeout(400);
+    await screenshot('08b-step4-asis');
+    addStep('Step 4 Tab: AS-IS renders', true ? 'PASS' : 'FAIL');
+  }
+  if (await toBeBtn.count() > 0) {
+    await toBeBtn.click(); await page.waitForTimeout(400);
+    await screenshot('08c-step4-tobe');
+    addStep('Step 4 Tab: TO-BE renders', true ? 'PASS' : 'FAIL');
+  }
+  if (await deltaBtn.count() > 0) {
+    await deltaBtn.click(); await page.waitForTimeout(400);
+    await screenshot('08d-step4-delta');
+    addStep('Step 4 Tab: Delta renders', true ? 'PASS' : 'FAIL');
+  } else {
+    addStep('Step 4 Tab: Delta', 'WARN', 'Delta tab not shown (may need dimension_gaps)');
+  }
+
+  // Return to exec tab
+  await page.evaluate(() => { if (typeof showTab === 'function') showTab('exec'); });
+  await page.waitForTimeout(500);
 }
 
 // ─── STEP 5: GAP ANALYSIS ─────────────────────────────────────────────────

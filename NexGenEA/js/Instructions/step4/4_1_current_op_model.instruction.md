@@ -58,6 +58,8 @@ The Operating Model describes HOW the organisation delivers that value - process
 ## Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
+CRITICAL: Do NOT wrap the output in a "current", "operating_model", or any other parent key.
+The JSON root object MUST start directly with "value_delivery".
 
 ```json
 {

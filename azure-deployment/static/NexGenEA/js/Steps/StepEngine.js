@@ -388,10 +388,18 @@ const StepEngine = (() => {
   // Backward compat: check old model flags until all steps are migrated
   function _checkLegacyFlag(depId, model) {
     switch (depId) {
-      case 'step1':  return !!model.strategicIntentConfirmed;
-      case 'step2':  return !!(model.bmc);
+      case 'step1':  return !!(model.strategicIntentConfirmed ||
+                              model.strategicIntent?.strategic_ambition ||
+                              model.strategicIntent?.burning_platform ||
+                              // Implicit: if BMC or capabilities exist, step1 was done in a prior flow
+                              model.bmc ||
+                              model.capabilities?.length);
+      case 'step2':  return !!(model.bmc?.value_propositions?.length ||
+                              model.bmc?.value_proposition ||
+                              model.bmc);
       case 'step3':  return !!(model.capabilities?.length);
-      case 'step4':  return !!(model.operatingModel?.valueProposition);
+      case 'step4':  return !!(model.operatingModel?.current?.value_delivery ||
+                              model.operatingModel?.valueProposition);
       case 'step5':  return !!model.gapAnalysisDone;
       case 'step6':  return !!(model.valuePools?.length);
       case 'step7a': return !!model.targetArchDone;

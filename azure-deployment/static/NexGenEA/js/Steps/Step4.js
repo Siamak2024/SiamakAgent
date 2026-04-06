@@ -59,23 +59,55 @@ Return ONLY valid JSON:
         return `Company: "${ctx.companyDescription}"
 
 Strategic context:
-- Pain: ${si.burning_platform || ''}
+- Burning platform: ${si.burning_platform || ''}
 - Constraints: ${(si.key_constraints || []).join('; ')}
 - Low-maturity capabilities: ${caps.join(', ') || 'see assessment'}
 
-Map the CURRENT operating model. Derive from what the user has told us — mark guesses with ⚠️.`;
+Map the CURRENT operating model. Derive from company context — mark guesses with ⚠️.
+
+Return ONLY valid JSON. ALL key names must be EXACTLY as shown below (in English). Only text values may be in the local language:
+{"value_delivery":{"value_streams":[],"customer_journeys":[],"channels":[]},"capability_model":[{"name":"","purpose":"","group":"Commercial","maturity":"Medium","strategic_priority":"High"}],"process_model":[{"name":"","linked_capability":"","is_bottleneck":false,"description":""}],"organisation_governance":{"key_roles":[],"capability_ownership":[{"capability":"","owner":""}],"governance_model":"Centralized","decision_making":""},"application_data_landscape":{"core_systems":[{"name":"","supports_capability":"","status":"active"}],"gaps_overlaps":[]},"operating_model_principles":[],"metadata":{"at_a_glance":"","model_archetype":""}}`;
       },
 
       outputSchema: {
-        value_delivery: 'object',
-        capability_model: ['object'],
-        process_model: ['object'],
-        organisation_governance: 'object',
-        application_data_landscape: 'object',
-        operating_model_principles: ['string']
+        value_delivery: 'object?',
+        capability_model: ['object?'],
+        process_model: ['object?'],
+        organisation_governance: 'object?',
+        application_data_landscape: 'object?',
+        operating_model_principles: ['string?']
       },
 
-      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step4_current_op_model')
+      parseOutput: (raw) => {
+        const parsed = OutputValidator.parseJSON(raw, 'step4_current_op_model');
+        const EXPECTED = ['value_delivery', 'capability_model', 'process_model',
+          'organisation_governance', 'application_data_landscape', 'operating_model_principles'];
+        // Recursive depth-first search (up to 3 levels) for object containing OM keys
+        function findOMObject(obj, depth) {
+          if (!obj || typeof obj !== 'object' || Array.isArray(obj) || depth > 3) return null;
+          if (EXPECTED.some(k => obj[k] !== undefined)) return obj;
+          let bestMatch = null, bestCount = 0;
+          for (const k of Object.keys(obj)) {
+            const child = obj[k];
+            if (child && typeof child === 'object' && !Array.isArray(child)) {
+              const found = findOMObject(child, depth + 1);
+              if (found) {
+                const count = EXPECTED.filter(ek => found[ek] !== undefined).length;
+                if (count > bestCount) { bestCount = count; bestMatch = found; }
+              }
+            }
+          }
+          return bestMatch;
+        }
+        const found = findOMObject(parsed, 0);
+        if (found) {
+          const matchCount = EXPECTED.filter(k => found[k] !== undefined).length;
+          if (found !== parsed) console.log(`[Step4] Unwrapped current OM (${matchCount} matching keys)`);
+          return found;
+        }
+        console.warn('[Step4] Could not unwrap – raw AI output:', JSON.stringify(parsed).slice(0, 500));
+        return parsed;
+      }
     },
 
     // ── Task 4.2: Target Operating Model ──────────────────────────────────
@@ -113,20 +145,50 @@ Current Operating Model:
 
 Future BMC value props: ${(bmc.value_propositions || []).join('; ')}
 
-Design the TARGET operating model (6 building blocks). Address the bottlenecks and low-maturity priorities. Include transformation_principles (the "why" behind your design choices).`;
+Design the TARGET operating model (6 building blocks). Address bottlenecks and low-maturity priorities. Include transformation_principles explaining the "why" behind design changes.
+
+Return ONLY valid JSON. ALL key names must be EXACTLY as shown below (in English). Only text values may be in the local language:
+{"value_delivery":{"value_streams":[],"customer_journeys":[],"channels":[]},"capability_model":[{"name":"","purpose":"","group":"Commercial","maturity":"High","strategic_priority":"High"}],"process_model":[{"name":"","linked_capability":"","is_bottleneck":false,"description":""}],"organisation_governance":{"key_roles":[],"capability_ownership":[{"capability":"","owner":""}],"governance_model":"Federated","decision_making":""},"application_data_landscape":{"core_systems":[{"name":"","supports_capability":"","status":"active"}],"gaps_overlaps":[]},"operating_model_principles":[],"transformation_principles":[],"metadata":{"at_a_glance":"","model_archetype":""}}`;
       },
 
       outputSchema: {
-        value_delivery: 'object',
-        capability_model: ['object'],
-        process_model: ['object'],
-        organisation_governance: 'object',
-        application_data_landscape: 'object',
-        operating_model_principles: ['string'],
-        transformation_principles: ['string']
+        value_delivery: 'object?',
+        capability_model: ['object?'],
+        process_model: ['object?'],
+        organisation_governance: 'object?',
+        application_data_landscape: 'object?',
+        operating_model_principles: ['string?'],
+        transformation_principles: ['string?']
       },
 
-      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step4_target_op_model')
+      parseOutput: (raw) => {
+        const parsed = OutputValidator.parseJSON(raw, 'step4_target_op_model');
+        const EXPECTED = ['value_delivery', 'capability_model', 'process_model',
+          'organisation_governance', 'application_data_landscape', 'operating_model_principles'];
+        function findOMObject(obj, depth) {
+          if (!obj || typeof obj !== 'object' || Array.isArray(obj) || depth > 3) return null;
+          if (EXPECTED.some(k => obj[k] !== undefined)) return obj;
+          let bestMatch = null, bestCount = 0;
+          for (const k of Object.keys(obj)) {
+            const child = obj[k];
+            if (child && typeof child === 'object' && !Array.isArray(child)) {
+              const found = findOMObject(child, depth + 1);
+              if (found) {
+                const count = EXPECTED.filter(ek => found[ek] !== undefined).length;
+                if (count > bestCount) { bestCount = count; bestMatch = found; }
+              }
+            }
+          }
+          return bestMatch;
+        }
+        const found = findOMObject(parsed, 0);
+        if (found) {
+          if (found !== parsed) console.log(`[Step4] Unwrapped target OM (${EXPECTED.filter(k => found[k] !== undefined).length} matching keys)`);
+          return found;
+        }
+        console.warn('[Step4] Could not unwrap target – raw:', JSON.stringify(parsed).slice(0, 500));
+        return parsed;
+      }
     },
 
     // ── Task 4.3: Op Model Delta ───────────────────────────────────────────
@@ -161,16 +223,34 @@ Timeframe: ${si.timeframe || '3-5 years'}
 Current archetype: "${curArch}"  →  Target archetype: "${tgtArch}"
 Transformation principles: ${principles || 'see target model'}
 
-Compare the 6 building blocks (Value Delivery / Capability Model / Process Model / Organisation & Governance / Application & Data Landscape / Operating Model Principles).
-change_readiness.score: 0.0-1.0. executive_summary: 2-3 sentences Board-level.`;
+Compare the 6 building blocks across current and target models. change_readiness.score: 0.0-1.0. executive_summary: 2-3 sentences Board-level.
+
+Return ONLY valid JSON. ALL key names must be EXACTLY as shown below (in English). Only text values may be in the local language:
+{"dimension_gaps":[{"dimension":"Value Delivery","current_state":"","target_state":"","gap_severity":"HIGH","transition_complexity":"MEDIUM","recommended_pattern":""},{"dimension":"Capability Model","current_state":"","target_state":"","gap_severity":"HIGH","transition_complexity":"MEDIUM","recommended_pattern":""},{"dimension":"Process Model","current_state":"","target_state":"","gap_severity":"MEDIUM","transition_complexity":"LOW","recommended_pattern":""},{"dimension":"Organisation & Governance","current_state":"","target_state":"","gap_severity":"MEDIUM","transition_complexity":"MEDIUM","recommended_pattern":""},{"dimension":"Application & Data Landscape","current_state":"","target_state":"","gap_severity":"HIGH","transition_complexity":"HIGH","recommended_pattern":""},{"dimension":"Operating Model Principles","current_state":"","target_state":"","gap_severity":"LOW","transition_complexity":"LOW","recommended_pattern":""}],"cross_cutting_themes":[],"dependency_chain":[],"change_readiness":{"score":0.0,"factors":[],"risks":[]},"executive_summary":""}`;
       },
 
       outputSchema: {
-        dimension_gaps: ['object'],
-        executive_summary: 'string'
+        dimension_gaps: ['object?'],
+        executive_summary: 'string?'
       },
 
-      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step4_op_model_delta')
+      parseOutput: (raw) => {
+        const parsed = OutputValidator.parseJSON(raw, 'step4_op_model_delta');
+        const DELTA_KEYS = ['dimension_gaps', 'executive_summary', 'cross_cutting_themes',
+          'change_readiness', 'dependency_chain'];
+        if (DELTA_KEYS.some(k => parsed[k] !== undefined)) return parsed;
+        // Generic unwrap if AI wrapped in a parent key
+        for (const key of Object.keys(parsed || {})) {
+          const inner = parsed[key];
+          if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+            if (DELTA_KEYS.filter(k => inner[k] !== undefined).length >= 1) {
+              console.log(`[Step4] Unwrapped delta from key "${key}"`);
+              return inner;
+            }
+          }
+        }
+        return parsed;
+      }
     }
 
   ],

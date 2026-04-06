@@ -47,9 +47,11 @@ const OutputValidator = (() => {
 
   function _checkField(obj, key, spec, errors, warnings) {
     const value    = obj[key];
-    const optional = typeof spec === 'string' && spec.endsWith('?');
-    const baseType = typeof spec === 'string' ? spec.replace('?', '') : null;
     const isArray  = Array.isArray(spec);
+    // A spec is optional if it's a string ending in '?' OR an array whose item spec ends in '?'
+    const optional = (typeof spec === 'string' && spec.endsWith('?')) ||
+                     (isArray && typeof spec[0] === 'string' && spec[0].endsWith('?'));
+    const baseType = typeof spec === 'string' ? spec.replace('?', '') : null;
 
     // Missing field
     if (value === undefined || value === null || value === '') {
