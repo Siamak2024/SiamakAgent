@@ -7180,7 +7180,7 @@ function synthesiseDescription() {
     m.role === 'assistant' &&
     !(m.metadata && m.metadata.isActionButton) &&
     m.content && m.content.trim().length > 80 &&
-    !/^?|^??/.test(m.content.trim())
+    !/^(🔄|🤖)/.test(m.content.trim())
   );
   const userMsgs = sessionMsgs
     .filter(m => m.role === 'user' && m.content && m.content.trim().length > 20
@@ -7189,7 +7189,7 @@ function synthesiseDescription() {
 
   if (lastAiSummary) {
     const cleaned = lastAiSummary.content
-      .replace(/>\s*??[\s\S]*/g, '')
+      .replace(/>\s*[\s\S]*/g, '')
       .replace(/\*\*Ready to proceed[\s\S]*/gi, '')
       .trim();
     const userContext = userMsgs.length ? `Original user input:\n${userMsgs.join('\n')}\n\nAI-enriched context:\n` : '';
@@ -18540,9 +18540,18 @@ function resolveAPQCModal(result) {
   }
 }
 
-// Initialize APQC integration on page load
+// Initialize APQC integration on page load - wait for dataManager to be ready
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(initializeAPQCIntegration, 500);
+  // Poll until dataManager is available (max 5 seconds)
+  let attempts = 0;
+  const tryInit = () => {
+    if (typeof dataManager !== 'undefined' && dataManager) {
+      initializeAPQCIntegration();
+    } else if (attempts++ < 10) {
+      setTimeout(tryInit, 500);
+    }
+  };
+  setTimeout(tryInit, 500);
 });
 
 </script>
