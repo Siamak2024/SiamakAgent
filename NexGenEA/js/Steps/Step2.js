@@ -122,13 +122,20 @@ RULES:
       userPrompt: (ctx) => {
         const si = ctx.strategicIntent;
         const current = ctx.answers?.step2_bmc_current || {};
+        
+        // ── Phase 2.1: Include AI transformation themes from Strategic Intent ──
+        const aiThemes = (si.ai_transformation_themes || []);
+        const aiContext = aiThemes.length > 0
+          ? `\n\nAI Transformation Themes (from Strategic Intent):\n${aiThemes.map((t, i) => `${i+1}. ${t}`).join('\n')}\n\nIncorporate these AI ambitions into the future BMC where relevant (key activities, resources, relationships, revenue).`
+          : '';
+        
         return `Company: "${ctx.companyDescription}"
 
 Strategic Intent:
 - Ambition: ${si.strategic_ambition || ''}
 - Themes: ${(si.strategic_themes || []).join(' | ')}
 - Expected outcomes: ${(si.expected_outcomes || []).join('; ')}
-- Success metrics: ${(si.success_metrics || []).slice(0, 4).join('; ')}
+- Success metrics: ${(si.success_metrics || []).slice(0, 4).join('; ')}${aiContext}
 
 Current BMC summary:
 - Value propositions: ${(current.value_propositions || []).join('; ')}
@@ -149,7 +156,8 @@ Return JSON output.`;
         key_resources: ['string'],
         key_partners: ['string'],
         cost_structure: ['string'],
-        revenue_streams: ['string']
+        revenue_streams: ['string'],
+        ai_transformation: 'object'  // Phase 2.1: AI-enabled BMC elements
       },
 
       parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step2_bmc_future')

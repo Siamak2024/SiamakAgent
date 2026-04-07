@@ -26,7 +26,16 @@ You are an Enterprise Architecture expert conducting a detailed gap analysis. Id
 - Every success metric from Step 1 must have at least 1 gap that, if closed, would improve it
 - Don't create gaps for COMMODITY capabilities unless they're specifically blocking the transformation
 - Every gap with impact_score â‰¥ 4 must be on the critical_path_gaps list
-
+**AI-Enabled Gap Detection (Phase 2.4):**
+- Mark gaps as `ai_enabled_gap: true` if:
+  - The capability has `ai_enabled: true` from Step 3
+  - Closing the gap involves AI/ML/automation implementation
+  - References Strategic Intent ai_transformation_themes
+  - Linked to BMC ai_enabled_activities
+- Examples:
+  - ✅ `ai_enabled_gap: true`: "Predictive Demand Forecasting" (AI capability), "Automated Fraud Detection" (ML model)
+  - ❌ `ai_enabled_gap: false`: "Employee Onboarding Process" (no AI), "Manual Reporting" (process only)
+- AI-enabled gaps should be HIGH priority if AI transformation is a strategic theme
 **Gap clusters:** Group related gaps into 2-4 clusters that share a root cause or require coordinated resolution.
 
 ### Output Format
@@ -59,7 +68,8 @@ Return ONLY valid JSON. No markdown, no prose.
       "effort_score": 3,
       "interdependencies": [],
       "enablers": [],
-      "inhibitors": []
+      "inhibitors": [],
+      "ai_enabled_gap": false
     }
   ],
   "gap_clusters": [

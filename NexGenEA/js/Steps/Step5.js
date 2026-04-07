@@ -61,10 +61,21 @@ Generate 8-15 gaps covering People, Process, Data, Application, Technology, Gove
       userPrompt: (ctx) => {
         const caps = (ctx.capabilities || []).filter(c => c.gap && c.gap > 0)
           .sort((a, b) => (b.gap || 0) - (a.gap || 0)).slice(0, 10)
-          .map(c => `${c.name}: current=${c.current_maturity}, target=${c.target_maturity}, gap=${c.gap}`);
+          .map(c => `${c.name}: current=${c.current_maturity}, target=${c.target_maturity}, gap=${c.gap}${c.ai_enabled ? ' [AI-enabled]' : ''}`);
 
         const opDelta = ctx.operatingModelDelta?.dimension_gaps || [];
         const si = ctx.strategicIntent;
+        
+        // ── Phase 2.4: Include AI transformation context ──
+        const aiThemes = (si.ai_transformation_themes || []);
+        const aiCapabilities = (ctx.capabilities || []).filter(c => c.ai_enabled).map(c => c.name);
+        
+        const aiContext = (aiThemes.length > 0 || aiCapabilities.length > 0)
+          ? `\n\nAI Transformation Context:\n` +
+            (aiThemes.length > 0 ? `- Strategic AI themes: ${aiThemes.join('; ')}\n` : '') +
+            (aiCapabilities.length > 0 ? `- AI-enabled capabilities: ${aiCapabilities.slice(0, 7).join(', ')}\n` : '') +
+            `Mark gaps as ai_enabled_gap: true if the capability is AI-enabled or closing the gap involves AI/ML/automation implementation.`
+          : '';
 
         return `Strategic ambition: "${si.strategic_ambition || ''}"
 Success metrics: ${(si.success_metrics || []).join('; ')}
@@ -75,7 +86,7 @@ ${caps.join('\n') || 'see capability assessment'}
 Operating model dimension gaps:
 ${opDelta.slice(0, 5).map(g => `${g.dimension}: ${g.gap_severity} severity`).join('\n') || 'none'}
 
-BMC delta gaps: ${(ctx.bmcAnalysis?.critical_gaps || []).map(g => `${g.block}: ${g.gap}`).join('; ') || 'none'}
+BMC delta gaps: ${(ctx.bmcAnalysis?.critical_gaps || []).map(g => `${g.block}: ${g.gap}`).join('; ') || 'none'}${aiContext}
 
 Produce 8-15 gaps. Every gap must trace to a success metric or strategic theme.`;
       },

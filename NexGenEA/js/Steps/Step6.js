@@ -57,9 +57,23 @@ Generate 5-8 value pools. Every pool must link to at least one gap or capability
       userPrompt: (ctx) => {
         const si = ctx.strategicIntent;
         const priorityGaps = (ctx.priorityGaps || []).slice(0, 8).map(g =>
-          `${g.gap_id} ${g.capability} (${g.priority}): ${g.gap_description || ''}`
+          `${g.gap_id} ${g.capability} (${g.priority})${g.ai_enabled_gap ? ' [AI-enabled]' : ''}: ${g.gap_description || ''}`
         );
         const bmc = ctx.bmc || {};
+        
+        // ── Phase 2.5: Include AI transformation context ──
+        const aiThemes = (si.ai_transformation_themes || []);
+        const aiCapabilities = (ctx.capabilities || []).filter(c => c.ai_enabled).map(c => c.name);
+        const aiGaps = (ctx.priorityGaps || []).filter(g => g.ai_enabled_gap).map(g => g.capability);
+        
+        const aiContext = (aiThemes.length > 0 || aiCapabilities.length > 0 || aiGaps.length > 0)
+          ? `\n\nAI Transformation Value Context:\n` +
+            (aiThemes.length > 0 ? `- Strategic AI themes: ${aiThemes.join('; ')}\n` : '') +
+            (aiCapabilities.length > 0 ? `- AI-enabled capabilities: ${aiCapabilities.slice(0, 5).join(', ')}\n` : '') +
+            (aiGaps.length > 0 ? `- AI capability gaps to close: ${aiGaps.slice(0, 5).join(', ')}\n` : '') +
+            `Mark value pools as ai_enabled_value: true if they are generated/enhanced by AI/ML/automation (predictive analytics, intelligent automation, personalization, optimization).`
+          : '';
+        
         return `Company: "${ctx.companyDescription.slice(0, 300)}"
 
 Strategic themes: ${(si.strategic_themes || []).join(' | ')}
@@ -68,7 +82,7 @@ Expected outcomes: ${(si.expected_outcomes || []).join('; ')}
 Priority gaps:
 ${priorityGaps.join('\n') || 'see gap analysis'}
 
-Future BMC opportunities: ${(ctx.bmcAnalysis?.strategic_opportunities || []).map(o => o.opportunity).join('; ')}
+Future BMC opportunities: ${(ctx.bmcAnalysis?.strategic_opportunities || []).map(o => o.opportunity).join('; ')}${aiContext}
 
 Identify 5-8 value pools. For each: what value becomes accessible if we close these gaps? Use directional sizing (no invented numbers). executive_summary: 2-3 sentences Board-level.`;
       },

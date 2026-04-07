@@ -266,7 +266,35 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
       parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step1_q7_assumptions'),
       wrapAnswer: (answer) => ({ q7_assumptions: answer })
     },
+    // ── Task 1.7b: Q7b — AI & Automation Transformation Role ────────────────────
+    {
+      taskId: 'step1_q7b_ai_role',
+      title: 'AI & Automation transformation',
+      type: 'question',
+      generateQuestion: true,
+      taskType: 'general',
+      instructionFile: '1_7b_ai_role.instruction.md',
+      expectsJson: true,
 
+      systemPromptFallback: `You are an Enterprise Architecture advisor. Ask about the role AI and automation will play in achieving the strategic ambition. Return ONLY valid JSON: { "question": "", "options": [], "guidance": "" }`,
+
+      userPrompt: (ctx) => {
+        const desc = ctx.companyDescription.slice(0, 300);
+        const q1 = ctx.answers?.step1_q1_trigger?.q1_trigger || 'digital transformation';
+        const q2 = ctx.answers?.step1_q2_scale?.q2_scale || '';
+        return `Company: "${desc}"
+Strategic trigger: ${q1}
+Scale/ambition: ${q2}
+Generate Question 7b: What role will AI and automation play in achieving your strategic ambition?
+Provide 4-5 realistic AI/automation use cases for their industry, plus "No AI plans yet" option.
+
+Return JSON with format: { "question": "string", "options": ["string"], "guidance": "string" }`;
+      },
+
+      outputSchema: { question: 'string', options: ['string'] },
+      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step1_q7b_ai_role'),
+      wrapAnswer: (answer) => ({ q7b_ai_role: answer })
+    },
     // ── Task 1.8: Synthesise Strategic Intent ─────────────────────────────
     {
       taskId: 'step1_synthesize',
@@ -283,12 +311,13 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
           : `You are a senior strategy advisor with 15+ years of cross-industry experience. Translate the company description and interview answers into a structured Strategic Intent brief for a Senior Enterprise Architect. C-level tone. Do NOT invent specifics not stated — mark unknowns as [to be confirmed].`;
 
         return basePrompt + `\n\nOutput requirements — Return ONLY valid JSON (no markdown, no explanation):
-{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","situation_narrative":"","strategic_themes":["","",""],"investigation_scope":["","","","",""],"key_constraints":["","","","",""],"success_metrics":["","","","","",""],"key_assumptions_to_validate":["","","","","",""],"expected_outcomes":["","",""],"burning_platform":"","assumptions_and_caveats":[""]}
+{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","situation_narrative":"","strategic_themes":["","",""],"ai_transformation_themes":["",""],"investigation_scope":["","","","",""],"key_constraints":["","","","",""],"success_metrics":["","","","","",""],"key_assumptions_to_validate":["","","","","",""],"expected_outcomes":["","",""],"burning_platform":"","assumptions_and_caveats":[""]}
 
 Rules:
 - strategic_ambition: 1 sentence, executive tone, no invented numbers
 - situation_narrative: 2-3 sentences, grounded in what user stated
 - strategic_themes: exactly 3, plain English, max 8 words each
+- ai_transformation_themes: 2-4 AI/automation use cases from Q7b (or empty array [] if "No AI plans")
 - key_constraints: exactly 5, one each for Operational|Financial|Organisational|Technical|External prefixed with label
 - success_metrics: 5-6, use "Reduction in / Improvement in / Increase in" framing
 - key_assumptions_to_validate: 5-8 engagement assumptions (strategic, not data gaps)
@@ -305,7 +334,8 @@ Rules:
           answers.step1_q4_metrics?.q4_metrics    ? `Q4 (Success Metrics): ${answers.step1_q4_metrics.q4_metrics}` : null,
           answers.step1_q5_stakeholders?.q5_stakeholders ? `Q5 (Stakeholders): ${answers.step1_q5_stakeholders.q5_stakeholders}` : null,
           answers.step1_q6_scope?.q6_scope        ? `Q6 (Scope): ${answers.step1_q6_scope.q6_scope}` : null,
-          answers.step1_q7_assumptions?.q7_assumptions ? `Q7 (Assumptions): ${answers.step1_q7_assumptions.q7_assumptions}` : null
+          answers.step1_q7_assumptions?.q7_assumptions ? `Q7 (Assumptions): ${answers.step1_q7_assumptions.q7_assumptions}` : null,
+          answers.step1_q7b_ai_role?.q7b_ai_role  ? `Q7b (AI Transformation): ${answers.step1_q7b_ai_role.q7b_ai_role}` : null
         ].filter(Boolean).join('\n');
 
         return `Company description: "${ctx.companyDescription}"

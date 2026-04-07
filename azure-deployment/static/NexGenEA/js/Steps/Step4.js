@@ -132,6 +132,23 @@ Return ONLY valid JSON with same 6-block schema + transformation_principles[] + 
         const curArch = current.metadata?.model_archetype || '';
         const bottlenecks = (current.process_model || []).filter(p => p.is_bottleneck).map(p => p.name).join(', ');
         const lowCaps = (current.capability_model || []).filter(c => c.maturity === 'Low' && c.strategic_priority === 'High').map(c => c.name).join(', ');
+        
+        // ── Phase 2.3: Include AI transformation context ──
+        const aiThemes = (si.ai_transformation_themes || []);
+        const aiActivities = (bmc.ai_transformation?.ai_enabled_activities || []);
+        const aiCapabilities = (ctx.capabilities || []).filter(c => c.ai_enabled).map(c => c.name);
+        
+        const aiContext = (aiThemes.length > 0 || aiActivities.length > 0 || aiCapabilities.length > 0)
+          ? `\n\nAI Transformation Context:\n` +
+            (aiThemes.length > 0 ? `- Strategic AI themes: ${aiThemes.join('; ')}\n` : '') +
+            (aiActivities.length > 0 ? `- BMC AI activities: ${aiActivities.join(', ')}\n` : '') +
+            (aiCapabilities.length > 0 ? `- AI-enabled capabilities: ${aiCapabilities.slice(0, 5).join(', ')}\n` : '') +
+            `Mark processes as ai_enabled: true if they use AI/ML/automation.\n` +
+            `Mark systems as is_ai_platform: true if they are ML/AI platforms (e.g., Azure ML, Databricks, UiPath, Salesforce Einstein).\n` +
+            `Include AI governance roles in key_roles if AI transformation is significant.\n` +
+            `Populate ai_transformation_indicators section with ai_enabled_processes, ai_platforms, ai_governance_roles, and ai_readiness_assessment.`
+          : '';
+        
         return `Strategic Intent:
 - Ambition: ${si.strategic_ambition || ''}
 - Themes: ${(si.strategic_themes || []).join(' | ')}
@@ -143,12 +160,12 @@ Current Operating Model:
 - Process bottlenecks: ${bottlenecks || 'none identified'}
 - High-priority low-maturity capabilities: ${lowCaps || 'none identified'}
 
-Future BMC value props: ${(bmc.value_propositions || []).join('; ')}
+Future BMC value props: ${(bmc.value_propositions || []).join('; ')}${aiContext}
 
 Design the TARGET operating model (6 building blocks). Address bottlenecks and low-maturity priorities. Include transformation_principles explaining the "why" behind design changes.
 
 Return ONLY valid JSON. ALL key names must be EXACTLY as shown below (in English). Only text values may be in the local language:
-{"value_delivery":{"value_streams":[],"customer_journeys":[],"channels":[]},"capability_model":[{"name":"","purpose":"","group":"Commercial","maturity":"High","strategic_priority":"High"}],"process_model":[{"name":"","linked_capability":"","is_bottleneck":false,"description":""}],"organisation_governance":{"key_roles":[],"capability_ownership":[{"capability":"","owner":""}],"governance_model":"Federated","decision_making":""},"application_data_landscape":{"core_systems":[{"name":"","supports_capability":"","status":"active"}],"gaps_overlaps":[]},"operating_model_principles":[],"transformation_principles":[],"metadata":{"at_a_glance":"","model_archetype":""}}`;
+{"value_delivery":{"value_streams":[],"customer_journeys":[],"channels":[]},"capability_model":[{"name":"","purpose":"","group":"Commercial","maturity":"High","strategic_priority":"High"}],"process_model":[{"name":"","linked_capability":"","is_bottleneck":false,"description":"","ai_enabled":false}],"organisation_governance":{"key_roles":[],"capability_ownership":[{"capability":"","owner":""}],"governance_model":"Federated","decision_making":""},"application_data_landscape":{"core_systems":[{"name":"","supports_capability":"","status":"active","is_ai_platform":false}],"gaps_overlaps":[]},"operating_model_principles":[],"transformation_principles":[],"metadata":{"at_a_glance":"","model_archetype":""},"ai_transformation_indicators":{"ai_enabled_processes":[],"ai_platforms":[],"ai_governance_roles":[],"ai_readiness_assessment":""}}`;
       },
 
       outputSchema: {

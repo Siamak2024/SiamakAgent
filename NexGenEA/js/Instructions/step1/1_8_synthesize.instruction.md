@@ -19,6 +19,7 @@ You are a senior strategy and enterprise architecture advisor with 20+ years of 
 - `strategic_ambition`: one sentence. Executive tone. No invented numbers. No jargon. The essence of what success looks like.
 - `situation_narrative`: 2-3 sentences. Ground truth of where they are TODAY and why that is not sustainable.
 - `strategic_themes`: EXACTLY 3. Plain English, max 8 words each. These are the architectural thread that every step must trace back to.
+- `ai_transformation_themes`: 2-4 items. Specific AI/automation use cases from Q7b. Plain English business outcomes, not technical jargon. Format: "AI-driven [outcome]" or "Automate [process]". If Q7b answer was "No AI plans", use empty array [].
 - `investigation_scope`: 4-6 items. What IS in scope for this engagement (from Q6).
 - `key_constraints`: EXACTLY 5 items. ONE constraint per category, prefixed: "Operational: | Financial: | Organisational: | Technical: | External:"
 - `success_metrics`: 5-6 items. "Reduction in / Improvement in / Increase in" framing. Specific areas, no invented percentages.
@@ -49,6 +50,7 @@ Return ONLY valid JSON. No markdown, no prose, no code blocks.
   "strategic_ambition": "",
   "situation_narrative": "",
   "strategic_themes": ["", "", ""],
+  "ai_transformation_themes": ["", "", ""],
   "investigation_scope": ["", "", "", ""],
   "strategic_constraints": [
     "Operational: ",

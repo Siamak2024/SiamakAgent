@@ -24,7 +24,8 @@ Each gap represents current vs target maturity for a capability.
       "targetMaturity": 4,
       "gap": 2,
       "priority": "high",
-      "reasoning": "String — Why this gap matters and what needs to change"
+      "reasoning": "String — Why this gap matters and what needs to change",
+      "ai_enabled_gap": false
     },
     {
       "capability": "Data Analytics",
@@ -32,7 +33,8 @@ Each gap represents current vs target maturity for a capability.
       "targetMaturity": 5,
       "gap": 4,
       "priority": "critical",
-      "reasoning": "..."
+      "reasoning": "...",
+      "ai_enabled_gap": false
     }
   ]
 }
@@ -92,6 +94,22 @@ Each gap object contains:
   3. What needs to change (key interventions)
 - **Example:** "Customer onboarding is manual and paper-based, taking 14 days on average. Digital competitors complete onboarding in 24 hours, putting us at risk of customer churn. Need to implement digital identity verification, automated document processing, and self-service portal to reach target state."
 - **Must be SPECIFIC:** Reference actual systems, processes, timeframes, competitors
+
+#### ai_enabled_gap (BOOLEAN - OPTIONAL, Phase 2.4)
+- **Type:** Boolean, default false
+- **Purpose:** Flag gaps related to AI-enabled capabilities for prioritization and architecture planning
+- **Criteria:** Set to `true` if:
+  - The capability has `ai_enabled: true` in Step 3 Capability Map
+  - Closing the gap involves AI/ML implementation (e.g., predictive analytics, automated decision-making, intelligent automation)
+  - References Strategic Intent ai_transformation_themes or BMC ai_enabled_activities
+- **Examples:**
+  - ✅ `true`: "Predictive Demand Forecasting" gap (AI-enabled capability), "Automated Claims Processing" gap (requires ML model)
+  - ❌ `false`: "Manual Invoice Approval" gap (no AI), "Employee Onboarding" gap (process improvement, not AI)
+- **Usage:**
+  - High priority for AI transformation strategies
+  - Informs Step 6 Value Pools (AI-enabled value)
+  - Informs Step 7 Architecture (which gaps need AI agent layers)
+  - Enables AI initiative grouping in roadmap
 
 ---
 

@@ -22,7 +22,15 @@ You are an expert Business Model designer and enterprise architect. Design the F
 - **Key Resources:** data/technology resources should appear here if they're strategic differentiators
 - **Revenue Streams:** show model evolution with specific pricing approaches (even if revenue mix is uncertain)
 - **Cost Structure:** list transformed cost categories (e.g., "Cloud infrastructure (OpEx model)", "AI/ML operations team")
+**AI Transformation Considerations (Phase 2.1):**
+If Strategic Intent includes `ai_transformation_themes`, incorporate AI implications into the BMC:
+- **Key Activities:** Which activities will use AI/automation? (e.g., "Predictive demand forecasting", "AI-powered customer support")
+- **Key Resources:** What AI capabilities are needed? (e.g., "Machine learning platform", "Customer behavior data lake", "AI/ML engineering team")
+- **Customer Relationships:** How will AI enhance relationships? (e.g., "Chatbot-first onboarding", "Predictive personalization", "Proactive recommendations")
+- **Revenue Streams:** Can AI enable new revenue models? (e.g., "AI-as-a-Service tier", "Usage-based analytics", "Premium AI features")
+- **Cost Structure:** AI-related costs? (e.g., "ML infrastructure", "AI talent", "Data operations")
 
+Return ai_transformation field ONLY if Strategic Intent mentioned AI plans. If "No AI plans" was selected in Step 1, omit this field entirely.
 ### Output Format
 
 **CRITICAL SCHEMA — Standard Mode (Step 2.js):**
@@ -39,11 +47,17 @@ Example output showing exact format required:
   "customer_segments": ["Expanded SMB market", "New enterprise segment", "International markets"],
   "customer_relationships": ["AI-powered self-service", "Dedicated success teams", "Community forums"],
   "channels": ["Digital-first omnichannel", "Partner ecosystem", "API marketplace"],
-  "key_activities": ["Platform R&D", "Data analytics", "Ecosystem development"],
-  "key_resources": ["AI/ML capabilities", "Customer data platform", "Global partner network"],
+  "key_activities": ["Platform R&D", "Data analytics", "Ecosystem development", "Predictive modeling"],
+  "key_resources": ["AI/ML capabilities", "Customer data platform", "Global partner network", "ML engineering team"],
   "key_partners": ["Cloud providers", "System integrators", "Technology vendors"],
   "cost_structure": ["Engineering R&D (40%)", "Cloud infrastructure (25%)", "GTM (20%)", "Operations (15%)"],
-  "revenue_streams": ["Tiered SaaS ($49-$199/user/month)", "Usage-based pricing", "Premium add-ons"]
+  "revenue_streams": ["Tiered SaaS ($49-$199/user/month)", "Usage-based pricing", "Premium add-ons"],
+  "ai_transformation": {
+    "ai_enabled_activities": ["Predictive modeling", "Automated customer insights"],
+    "ai_enabled_resources": ["AI/ML capabilities", "Customer data platform", "ML engineering team"],
+    "ai_powered_relationships": ["AI-powered self-service"],
+    "ai_revenue_enablers": ["Usage-based pricing", "Premium AI features"]
+  }
 }
 ```
 

@@ -22,10 +22,88 @@ You are a Chief Architect defining the architecture principles that will govern 
 4. Security: by-design approach
 5. Application portfolio: build vs buy vs SaaS
 6. Modularity: component design and coupling
-7. AI/Automation: where and how to automate
+7. **AI/Automation: where and how to automate (MANDATORY — see requirements below)**
 8. Governance: how architectural decisions are made
 9. Reuse: platform services before custom build
 10. Resilience: failure mode design
+
+---
+
+## 🤖 AI & AUTOMATION PRINCIPLES (MANDATORY)
+
+**CRITICAL REQUIREMENT:** Every target architecture MUST include 1-2 principles specifically addressing AI and automation transformation. This is non-negotiable.
+
+**Why this matters:** Technology enables transformation. Organizations that treat AI as "nice to have" miss competitive advantages. Your role as Chief Architect is to identify where AI creates strategic value and where it's unnecessary overhead.
+
+**What AI/Automation principles must address:**
+
+1. **AI Adoption Strategy**
+   - Where will AI be a competitive differentiator vs. commodity?
+   - Example: "AI-First for Customer Experience, Buy for Back-Office" — build custom AI for differentiated customer journeys, buy SaaS AI for routine tasks like invoice processing
+
+2. **AI Governance & Ethics**
+   - Who decides which processes get automated? What ethical guardrails exist?
+   - Example: "Human-in-Loop for High-Stakes Decisions" — AI recommends, humans approve for credit decisions, medical diagnoses, hiring
+
+3. **Data Foundation for AI**
+   - What data quality/platform investments are AI prerequisites?
+   - Example: "Unified Customer Data Platform Before AI Scale" — consolidate customer data before deploying personalization AI
+
+4. **AI Operating Model**
+   - Centralized AI CoE or federated domain-owned models?
+   - Example: "Federated AI Ownership with Centralized MLOps" — business domains own AI use cases, central platform team provides infrastructure
+
+5. **Build vs. Buy for AI**
+   - When to build custom models vs. buy pre-trained AI services?
+   - Example: "Cloud AI Services by Default" — use Azure AI/AWS AI services unless strategic differentiation requires custom models
+
+6. **Skills & Change Management**
+   - How will the organization develop AI capabilities?
+   - Example: "Upskill Existing Teams Before Hiring AI Experts" — train current analysts on AI tools before recruiting data scientists
+
+**Tone:** Be opinionated. Make binary choices. "AI everywhere" is not a principle — it's a platitude. Force trade-offs: "We will automate [X] so humans can focus on [Y]."
+
+**Examples of strong AI principles:**
+
+**❌ WEAK (too generic):**
+- Name: "Leverage AI"
+- Statement: "We will use AI to improve our business."
+- Rationale: "AI is the future."
+→ **Problem:** No trade-offs, no specific guidance, could apply to any company
+
+**✅ STRONG (specific, opinionated):**
+- Name: "AI-Augmented Advisors, Not AI Replacement"
+- Statement: "We will deploy AI to enhance human advisors' capabilities (next-best-action suggestions, risk alerts, data synthesis), not to replace advisor relationships, because trusted human relationships are our competitive moat."
+- Rationale: "Strategic Intent emphasizes 'trusted advisor' positioning. Customer research shows high-net-worth clients distrust fully automated financial advice. AI handles data complexity; humans handle empathy and judgment."
+- Implications:
+  - All AI systems must provide explainable recommendations that advisors can discuss with clients
+  - No fully automated investment decisions above €50,000 threshold
+  - AI training budget allocated to advisor teams, not just IT
+- Anti-patterns:
+  - "Lights-out" automated wealth management platforms
+  - AI models that don't explain their reasoning to advisors
+  - Hiring data scientists without upskilling existing advisors
+
+**✅ STRONG (build vs. buy clarity):**
+- Name: "Cloud AI Services for Commodity, Custom Models for Differentiation"
+- Statement: "We will use cloud-native AI services (Azure Cognitive Services, AWS Rekognition) for commoditized tasks (OCR, basic NLP, image recognition), and invest in custom ML models only for strategic differentiators (fraud detection algorithms, customer lifetime value prediction), because speed-to-market matters more than perfect customization for non-core capabilities."
+- Rationale: "Gap analysis identified 18-month lag in AI adoption vs. competitors. Building custom models for everything would take 3+ years. Cloud AI services can deploy in weeks."
+- Implications:
+  - Procurement policy mandates "cloud AI first" evaluation before custom ML projects
+  - Document processing uses Azure Form Recognizer, not custom OCR model
+  - Customer churn prediction model is custom-built (core competitive capability)
+- Anti-patterns:
+  - Building custom NLP from scratch when Azure OpenAI exists
+  - Buying expensive AI vendor solutions for strategic algorithms we should own
+
+---
+
+**VALIDATION CHECKLIST (before submitting output):**
+- [ ] At least 1 AI/Automation principle included?
+- [ ] AI principle makes trade-offs explicit (not "AI everywhere")?
+- [ ] AI principle grounded in Strategic Intent from Step 1?
+- [ ] Implications are concrete enough that an architect could enforce them?
+- [ ] Anti-patterns clearly state what NOT to do?
 
 **Governing pattern:** Name the overall architectural style (e.g. "Composable Enterprise", "Data Mesh + API Platform", "Cloud-Native Microservices")
 

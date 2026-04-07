@@ -33,6 +33,19 @@ You are a Capability Maturity Analyst. Rate the current and target maturity of e
 
 **Quick wins:** 1-2 concrete actions that could improve this capability's maturity in <90 days (if applicable). Only include if genuinely actionable at this capability level.
 
+**AI-Enabled Capability Assessment (Phase 2.2):**
+For each capability, determine if it will leverage AI/automation:
+- Check if capability name references AI/ML/automation (e.g., "Predictive", "Intelligent", "Automated")
+- Check if it appears in BMC `ai_enabled_activities` or `ai_enabled_resources` from Step 2
+- Check if it aligns with `ai_transformation_themes` from Strategic Intent
+- If YES to any above: set `ai_enabled: true`
+- If capability involves data analytics, ML models, or requires intelligent automation: set `ai_enabled: true`
+- Otherwise: set `ai_enabled: false`
+
+**Examples:**
+- ✅ `ai_enabled: true`: "Predictive Demand Forecasting", "Intelligent Customer Routing", "Automated Compliance Reporting", "Recommendation Engine"
+- ❌ `ai_enabled: false`: "Manage Payroll", "Facility Maintenance", "Contract Administration" (unless explicitly using AI)
+
 ### Output Format
 
 Return ONLY valid JSON. No markdown, no prose.
@@ -49,7 +62,8 @@ Return ONLY valid JSON. No markdown, no prose.
       "strategic_importance": "CORE|SUPPORT|COMMODITY",
       "investment_priority": "HIGH|MEDIUM|LOW",
       "key_gaps": [],
-      "quick_wins": []
+      "quick_wins": [],
+      "ai_enabled": false
     }
   ],
   "overall_maturity": 2.1,

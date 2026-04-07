@@ -262,6 +262,19 @@ Return ONLY valid JSON:
         const pools = (ctx.valuePools || []).map(p => `${p.id} ${p.name} (${p.time_horizon})`);
         const qw = (ctx.quickWins || []).slice(0, 5).map(q => `${q.id} ${q.title}`);
         const archStyle = ctx.answers?.step7_target_arch?.metadata?.architecture_style || '';
+        
+        // Phase 2.6: AI Transformation Context
+        const aiThemes = (si.ai_transformation_themes || []).join(', ');
+        const aiCapabilities = (ctx.capabilities || [])
+          .filter(cap => cap.ai_enabled)
+          .map(cap => cap.capability_name || cap.name);
+        const aiGaps = (ctx.priorityGaps || [])
+          .filter(gap => gap.ai_enabled_gap)
+          .map(g => `${g.gap_id} ${g.capability} [AI-enabled]`);
+        const aiValuePools = (ctx.valuePools || [])
+          .filter(pool => pool.ai_enabled_value)
+          .map(p => `${p.id} ${p.name} (${p.time_horizon}) [AI-enabled]`);
+        
         return `Strategic ambition: "${si.strategic_ambition || ''}"
 Timeframe: ${si.timeframe || '3-5 years'}
 Constraints: ${(si.key_constraints || []).join('; ')}
@@ -269,15 +282,26 @@ Constraints: ${(si.key_constraints || []).join('; ')}
 Priority gaps to close:
 ${priorityGaps.join('\n')}
 
+${aiGaps.length > 0 ? `AI-enabled gaps (require AI/ML/automation initiatives):
+${aiGaps.join('\n')}
+` : ''}
 Value pools by horizon:
 ${pools.join('\n')}
 
+${aiValuePools.length > 0 ? `AI-enabled value pools (quantify AI transformation ROI):
+${aiValuePools.join('\n')}
+` : ''}
 Quick wins (must appear in Wave 1):
 ${qw.join('\n') || 'see quick wins list'}
 
 Target architecture style: ${archStyle}
 Recommended options: ${(ctx.strategicOptions || []).filter(o => o.selected || o.recommended).map(o => o.name).join(', ')}
 
+${aiThemes ? `AI Transformation Context:
+Strategic Intent AI themes: ${aiThemes}
+AI-enabled capabilities from Step 3: ${aiCapabilities.slice(0, 5).join(', ')}
+Mark initiatives as ai_enabled_initiative: true if they implement AI transformation (see instruction file for criteria).
+` : ''}
 Build a 3-wave roadmap:
 - W1 Foundation (0-6m): Foundation + quick wins
 - W2 Build (6-18m): Core capability delivery
@@ -478,9 +502,60 @@ Include 8-12 initiatives total. executive_roadmap_summary: 3 sentences Board-lev
         // Some AI models return ai_agents or ai_capabilities
         const explicit = techArch.ai_agents || techArch.ai_capabilities || [];
         if (explicit.length) {
-          return explicit.map(a => typeof a === 'string'
-            ? { name: a, purpose: '', capabilities: '', triggerConditions: '' }
-            : a);
+          // Enrich AI agents with Phase 1.1 schema fields if not present
+          return explicit.map(a => {
+            const baseAgent = typeof a === 'string'
+              ? { name: a, purpose: '', capabilities: '', triggerConditions: '' }
+              : a;
+            
+            // Infer agent_type from name/purpose if not specified
+            if (!baseAgent.agent_type) {
+              const text = (baseAgent.name + ' ' + baseAgent.purpose).toLowerCase();
+              if (text.includes('nlp') || text.includes('natural language') || text.includes('text analys')) {
+                baseAgent.agent_type = 'NLP';
+              } else if (text.includes('vision') || text.includes('image') || text.includes('ocr')) {
+                baseAgent.agent_type = 'Computer Vision';
+              } else if (text.includes('rpa') || text.includes('robot') || text.includes('automation')) {
+                baseAgent.agent_type = 'RPA';
+              } else if (text.includes('predict') || text.includes('forecast') || text.includes('ml')) {
+                baseAgent.agent_type = 'Predictive';
+              } else if (text.includes('chat') || text.includes('conversational') || text.includes('dialogue')) {
+                baseAgent.agent_type = 'Conversational';
+              } else if (text.includes('document') || text.includes('processing')) {
+                baseAgent.agent_type = 'Document Processing';
+              } else if (text.includes('decision') || text.includes('recommend')) {
+                baseAgent.agent_type = 'Decision Support';
+              } else {
+                baseAgent.agent_type = 'AI'; // Generic fallback
+              }
+            }
+            
+            // Set is_proposed based on whether this is new or existing
+            if (baseAgent.is_proposed === undefined) {
+              baseAgent.is_proposed = true; // Default to proposed for target architecture
+            }
+            
+            // Set maturity_level if not present (1-5 scale)
+            if (!baseAgent.maturity_level) {
+              baseAgent.maturity_level = baseAgent.is_proposed ? 1 : 3; // Proposed=1, Existing=3
+            }
+            
+            // Link to capabilities if not already linked
+            if (!baseAgent.linked_capabilities) {
+              // Try to find capabilities mentioned in purpose or capabilities fields
+              const caps = model.capabilities || [];
+              const linked = caps
+                .filter(cap => {
+                  const searchText = (baseAgent.purpose + ' ' + baseAgent.capabilities).toLowerCase();
+                  return searchText.includes(cap.name.toLowerCase());
+                })
+                .map(cap => cap.id)
+                .slice(0, 5); // Limit to 5 links
+              baseAgent.linked_capabilities = linked;
+            }
+            
+            return baseAgent;
+          });
         }
         return model.aiAgents || [];
       })(),

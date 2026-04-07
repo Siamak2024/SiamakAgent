@@ -128,12 +128,28 @@ Return ONLY valid JSON:
       userPrompt: (ctx) => {
         const domains = (ctx.answers?.step3_capability_map?.l1_domains || []);
         const si = ctx.strategicIntent;
+        const bmc = ctx.bmc;
+        
+        // ── Phase 2.2: Include AI transformation context ──
+        const aiThemes = (si.ai_transformation_themes || []);
+        const aiActivities = (bmc.ai_transformation?.ai_enabled_activities || []);
+        const aiResources = (bmc.ai_transformation?.ai_enabled_resources || []);
+        
+        const aiContext = (aiThemes.length > 0 || aiActivities.length > 0)
+          ? `\n\nAI Transformation Context:\n` +
+            (aiThemes.length > 0 ? `- Strategic themes: ${aiThemes.join('; ')}\n` : '') +
+            (aiActivities.length > 0 ? `- BMC AI activities: ${aiActivities.join(', ')}\n` : '') +
+            (aiResources.length > 0 ? `- BMC AI resources: ${aiResources.join(', ')}\n` : '') +
+            `Mark capabilities as ai_enabled: true if they align with these AI transformation plans.`
+          : '';
+        
         const capList = domains.map(d =>
           `${d.id} ${d.name} (${d.strategic_importance}): ${(d.l2_capabilities || []).map(c => c.name).join(', ')}`
         ).join('\n');
+        
         return `Company: "${ctx.companyDescription.slice(0, 300)}"
 Scale/current systems: ${si.key_constraints?.find(c => /technical/i.test(c)) || 'not stated'}
-Pain points: ${si.burning_platform || ''}
+Pain points: ${si.burning_platform || ''}${aiContext}
 
 Capabilities to rate:
 ${capList}
@@ -227,6 +243,7 @@ executive_benchmark_summary: 2-3 sentences for the Board.`;
         gap: domainRating.gap || null,
         investment_priority: domainRating.investment_priority || null,
         quick_wins: domainRating.quick_wins || [],
+        ai_enabled: domainRating.ai_enabled || false,                  // Phase 2.2: AI capability flag
         children: (domain.l2_capabilities || []).map(cap => {
           const capRating = ratingMap[cap.id] || {};
           return {
@@ -239,7 +256,8 @@ executive_benchmark_summary: 2-3 sentences for the Board.`;
             strategicImportance: (domain.strategic_importance || 'SUPPORT').toLowerCase(),
             current_maturity: capRating.current_maturity || null,
             target_maturity: capRating.target_maturity || null,
-            gap: capRating.gap || null
+            gap: capRating.gap || null,
+            ai_enabled: capRating.ai_enabled || false                  // Phase 2.2: AI capability flag
           };
         })
       });

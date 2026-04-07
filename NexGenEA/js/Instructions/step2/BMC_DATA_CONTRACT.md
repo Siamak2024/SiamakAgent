@@ -26,7 +26,13 @@ This is the TARGET STATE (TO-BE) model used by the application:
   "key_resources": ["Array of strings"],
   "key_partners": ["Array of strings"],
   "cost_structure": ["Array of strings — NOT an object"],
-  "revenue_streams": ["Array of strings — NOT an object"]
+  "revenue_streams": ["Array of strings — NOT an object"],
+  "ai_transformation": {
+    "ai_enabled_activities": ["Array of activity names that will use AI/automation"],
+    "ai_enabled_resources": ["Array of AI/ML resources (data, models, platforms)"],
+    "ai_powered_relationships": ["Array of customer relationship approaches using AI"],
+    "ai_revenue_enablers": ["Array of revenue streams enabled/enhanced by AI"]
+  }
 }
 ```
 
@@ -43,6 +49,18 @@ This is the TARGET STATE (TO-BE) model used by the application:
 - **Type:** Array of strings
 - **Rendered as:** `<ul><li>` list
 - **Empty state:** `[]` or missing (shows "Not yet defined")
+
+#### ai_transformation (OBJECT — Phase 2.1)
+- **Type:** Object with 4 array fields
+- **Purpose:** Track which BMC elements leverage AI/automation from Strategic Intent
+- **Fields:**
+  - `ai_enabled_activities`: Subset of `key_activities` that will use AI (e.g., ["Predictive analytics", "Automated customer support"])
+  - `ai_enabled_resources`: AI/ML capabilities in `key_resources` (e.g., ["Machine learning platform", "Customer data lake"])
+  - `ai_powered_relationships`: Customer relationship approaches using AI (e.g., ["Chatbot onboarding", "Predictive recommendations"])
+  - `ai_revenue_enablers`: Revenue streams enabled by AI (e.g., ["AI-as-a-Service tier", "Usage-based analytics pricing"])
+- **Empty state:** `null` or missing (if no AI transformation planned)
+- **Source:** References `ai_transformation_themes` from Step 1 Strategic Intent
+- **Used by:** Step 3 (capability AI marking), Step 5 (gap analysis), Step 7 (architecture design)
 
 ---
 

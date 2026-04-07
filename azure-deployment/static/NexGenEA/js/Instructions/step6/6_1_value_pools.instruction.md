@@ -36,7 +36,16 @@ A value pool is a coherent cluster of business value that:
 **risks_if_missed:** 1 sentence â€” what competitive or operational downside occurs if this pool is left uncaptured?
 
 **Executive summary:** The 3 most important value pools and the combined directional opportunity â€” for Board communication.
-
+**AI-Enabled Value Pool Detection (Phase 2.5):**
+- Mark value pools as `ai_enabled_value: true` if they:
+  - Are enabled by AI-enabled capabilities from Step 3 (ai_enabled: true)
+  - Include AI/ML platforms or automation tools in enablers (Azure ML, UiPath, DataRobot, predictive analytics)
+  - Reference Strategic Intent ai_transformation_themes or BMC ai_enabled_activities
+  - Create value through AI use cases: predictive analytics, intelligent automation, personalization, optimization, anomaly detection
+- Examples:
+  - ✅ `ai_enabled_value: true`: "AI-Driven Personalization Revenue" (ML recommendations boost conversion), "RPA Process Cost Savings" (automation reduces FTEs), "Predictive Maintenance Uptime" (ML forecasting prevents failures)
+  - ❌ `ai_enabled_value: false`: "Cloud Migration TCO Reduction" (infrastructure, not AI), "API Ecosystem Revenue" (integration, not AI)
+- AI-enabled value pools should be sized with AI ROI benchmarks (productivity gains, personalization lift, automation FTE savings)
 ### Output Format
 
 **DATA CONTRACT:** See `VALUE_POOLS_DATA_CONTRACT.md` for core schema used by Autopilot mode.
@@ -69,7 +78,8 @@ Return ONLY valid JSON. No markdown, no prose.
       "linked_gaps": [],
       "linked_capabilities": [],
       "value_narrative": "",
-      "risks_if_missed": ""
+      "risks_if_missed": "",
+      "ai_enabled_value": false
     }
   ],
   "total_addressable_value": "",

@@ -28,7 +28,8 @@ Stored as `model.roadmap` or `model.transformationRoadmap` (depends on implement
       "valuePool": "€5M annually",
       "dependencies": ["init_005 (API Gateway)"],
       "capabilities": ["Customer Data Management", "Customer Analytics"],
-      "status": "not-started"
+      "status": "not-started",
+      "ai_enabled_initiative": false
     },
     {
       "id": "init_002",
@@ -40,7 +41,8 @@ Stored as `model.roadmap` or `model.transformationRoadmap` (depends on implement
       "valuePool": "€3M annually (infrastructure cost)",
       "dependencies": ["init_001", "init_004"],
       "capabilities": ["Core Transaction Processing", "Data Integration"],
-      "status": "not-started"
+      "status": "not-started",
+      "ai_enabled_initiative": false
     }
   ],
   "waves": [
@@ -141,6 +143,32 @@ Each initiative object contains:
 - **Type:** Enum
 - **Allowed values:** `not-started`, `planning`, `in-progress`, `completed`, `on-hold`
 - **Default:** `not-started` for new roadmaps
+
+#### ai_enabled_initiative (BOOLEAN - OPTIONAL)
+- **Added:** Phase 2.6 (2026-04-05)
+- **Type:** Boolean
+- **Default:** `false`
+- **Purpose:** Flag initiatives that implement/enable AI transformation
+- **Criteria** (mark `true` if ANY apply):
+  1. **Initiative enables AI-enabled capabilities** from Step 3 (e.g., implements ML model, RPA, intelligent automation)
+  2. **Initiative closes AI-enabled gaps** from Step 5 (e.g., addresses predictive analytics gap marked ai_enabled_gap: true)
+  3. **Initiative delivers AI-enabled value pools** from Step 6 (e.g., generates AI-driven revenue marked ai_enabled_value: true)
+  4. **Initiative implements AI platforms/systems** from Step 4 (e.g., deploys Azure ML, Databricks, UiPath marked is_ai_platform: true)
+  5. **Initiative name/description contains AI transformation themes** from Strategic Intent ai_transformation_themes (e.g., "predictive maintenance", "intelligent automation")
+- **Examples:**
+  - ✅ `true`: "Customer Churn Prediction Model Implementation" (ML capability from Step 3)
+  - ✅ `true`: "RPA Deployment for Invoice Processing" (automation gap closure from Step 5)
+  - ✅ `true`: "Azure ML Platform Setup" (AI system from Step 4)
+  - ✅ `true`: "AI-Driven Personalization Engine" (AI value pool from Step 6)
+  - ❌ `false`: "ERP System Upgrade" (no AI component)
+  - ❌ `false`: "Cloud Infrastructure Migration" (enabler, not AI-specific)
+  - ❌ `false`: "API Gateway Deployment" (integration layer, not AI)
+- **Usage:**
+  - Enables AI initiative grouping/filtering in roadmap visualization (Phase 1.5 enhancement)
+  - Quantifies AI transformation investment vs. traditional modernization
+  - Prioritizes AI roadmap vs. broader digital transformation
+  - Validates AI strategy execution vs. ambition (Strategic Intent ai_transformation_themes)
+  - Tracks AI initiative distribution across waves (ensure balanced delivery)
 
 ---
 

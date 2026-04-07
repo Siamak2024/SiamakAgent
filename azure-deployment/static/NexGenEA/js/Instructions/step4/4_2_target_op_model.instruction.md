@@ -38,6 +38,12 @@ The Operating Model describes HOW the organisation will deliver that value - pro
 **Block 3 - Process Model:** How will work get done in the target state?
 - 5-7 core processes; address bottlenecks identified in current state
 - Flag automation opportunities (is_bottleneck: false in target = bottleneck is resolved)
+- **ai_enabled (Phase 2.3)**: Mark processes as ai_enabled: true if they:
+  - Use ML models for decision-making (predictive routing, risk scoring, demand forecasting)
+  - Are automated via RPA/intelligent automation
+  - Support AI-enabled capabilities from Step 3
+  - Align with BMC ai_enabled_activities or Strategic Intent ai_transformation_themes
+  - Examples: ✅ "Predictive Demand Planning", "Automated Claims Processing", "Intelligent Customer Routing" | ❌ "Manual Invoice Approval", "Monthly Financial Close"
 
 **Block 4 - Organisation and Governance:** Who does what in the future state?
 - Include new roles required by the transformation (e.g. CDO, Product Owners, Data Stewards)
@@ -48,6 +54,12 @@ The Operating Model describes HOW the organisation will deliver that value - pro
 - core_systems: Named target platforms (specific product names matched to industry/region/size)
 - status: "gap" for systems that need to be acquired, "active" for existing systems kept
 - gaps_overlaps: Planned consolidations or decommissions
+- **is_ai_platform (Phase 2.3)**: Mark systems as is_ai_platform: true if they:
+  - Are ML/AI-specific platforms (Azure ML, AWS SageMaker, Databricks, DataRobot, Google Vertex AI)
+  - Have embedded AI capabilities (Salesforce Einstein, SAP AI Business Services, Microsoft Dynamics 365 AI)
+  - Support AI/ML workloads (Snowflake with ML, BigQuery ML, Azure Synapse Analytics)
+  - Are RPA platforms (UiPath, Automation Anywhere, Blue Prism)
+  - Examples: ✅ "Azure Machine Learning", "Salesforce Einstein", "UiPath", "Databricks Lakehouse" | ❌ "SAP ERP", "Microsoft 365", "PostgreSQL"
 
 **Block 6 - Operating Model Principles:** What rules will govern the future organisation?
 - 5-7 forward-looking principles
@@ -56,6 +68,35 @@ The Operating Model describes HOW the organisation will deliver that value - pro
 **transformation_principles:** (additional field for target only)
 - 3-5 design decisions that explain WHY the target is shaped as it is
 - Examples: "API-first integration to enable ecosystem participation"
+
+---
+
+## AI Transformation Integration (Phase 2.3)
+
+After defining the 6 building blocks, populate the `ai_transformation_indicators` section:
+
+```json
+"ai_transformation_indicators": {
+  "ai_enabled_processes": ["List process names from process_model where ai_enabled: true"],
+  "ai_platforms": ["List platform names from core_systems where is_ai_platform: true"],
+  "ai_governance_roles": ["Extract AI oversight roles from key_roles, e.g. 'Chief AI Officer', 'AI Ethics Board', 'ML Model Risk Manager'"],
+  "ai_readiness_assessment": "1-2 sentence assessment of AI maturity: data infrastructure quality + AI skills availability + governance maturity + change readiness"
+}
+```
+
+**AI Readiness Assessment Guidance:**
+- Strong readiness: Cloud data platform in place, AI strategy defined, dedicated AI team, governance framework established
+- Moderate readiness: Data infrastructure exists but fragmented, some AI skills, governance in development
+- Low readiness: Legacy data systems, limited AI expertise, no formal governance, high change resistance
+- Examples:
+  - ✅ "Strong cloud data foundation (Azure Synapse) and centralized data governance; limited AI expertise (3 data scientists) requires hiring and upskilling"
+  - ✅ "Moderate AI readiness: data in cloud but siloed across departments; AI Centre of Excellence established 2025 but lacks formal model governance framework"
+  - ❌ "Good AI capabilities" (too vague)
+
+**Integration with Strategic Context:**
+- Review Strategic Intent ai_transformation_themes to guide which processes/systems should be AI-enabled
+- Cross-reference BMC ai_enabled_activities to ensure alignment between business model and operating model
+- Reference Step 3 capability ai_enabled flags to ensure AI-enabled capabilities are supported by AI-enabled processes and platforms
 
 ---
 
@@ -93,7 +134,8 @@ Return ONLY valid JSON. No markdown, no prose.
       "name": "",
       "linked_capability": "",
       "is_bottleneck": false,
-      "description": ""
+      "description": "",
+      "ai_enabled": false
     }
   ],
   "organisation_governance": {
@@ -106,7 +148,7 @@ Return ONLY valid JSON. No markdown, no prose.
   },
   "application_data_landscape": {
     "core_systems": [
-      { "name": "", "supports_capability": "", "status": "active|gap|redundant" }
+      { "name": "", "supports_capability": "", "status": "active|gap|redundant", "is_ai_platform": false }
     ],
     "gaps_overlaps": []
   },
@@ -115,6 +157,12 @@ Return ONLY valid JSON. No markdown, no prose.
   "metadata": {
     "at_a_glance": "",
     "model_archetype": ""
+  },
+  "ai_transformation_indicators": {
+    "ai_enabled_processes": [],
+    "ai_platforms": [],
+    "ai_governance_roles": [],
+    "ai_readiness_assessment": ""
   }
 }
 ```

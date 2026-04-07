@@ -23,15 +23,17 @@ Each capability is a flat object (NO deep nesting beyond L2/L3 hierarchy in sepa
     "domain": "Customer",
     "maturity": 3,
     "strategicImportance": "high",
-    "description": "Brief capability description (1-2 sentences)"
+    "description": "Brief capability description (1-2 sentences)",
+    "ai_enabled": false
   },
   {
     "id": "cap_002",
-    "name": "Product Development",
+    "name": "Predictive Demand Forecasting",
     "domain": "Product",
     "maturity": 2,
     "strategicImportance": "critical",
-    "description": "..."
+    "description": "...",
+    "ai_enabled": true
   }
 ]
 ```
@@ -94,6 +96,21 @@ Each capability is a flat object (NO deep nesting beyond L2/L3 hierarchy in sepa
 - **Format:** 1-2 sentence capability description
 - **Example:** "Manages end-to-end customer onboarding from lead capture to active customer, including KYC, contract execution, and initial service setup."
 - **Should answer:** "What does this capability enable the organization to do?"
+
+### ai_enabled (BOOLEAN - Phase 2.2)
+- **Type:** Boolean (true/false)
+- **Default:** `false`
+- **Purpose:** Mark capabilities that will leverage AI/automation from Strategic Intent or BMC
+- **Criteria for `true`:**
+  - Capability name contains AI/ML/automation keywords (e.g., "Predictive Forecasting", "Automated Customer Support")
+  - References `ai_transformation_themes` from Strategic Intent (Step 1)
+  - Appears in BMC `ai_enabled_activities` or `ai_enabled_resources` (Step 2)
+  - Requires data analytics, ML models, or intelligent automation to execute
+- **Examples:**
+  - `true`: "Predictive Demand Forecasting", "Intelligent Customer Routing", "Automated Risk Assessment", "Personalization Engine"
+  - `false`: "Manage Employee Payroll", "Facility Maintenance", "Legal Contract Review" (unless explicitly using AI tools)
+- **Used by:** Phase 1.3 (capability map robot icons), Step 5 (gap analysis AI prioritization), Step 7 (architecture AI agent design)
+- **Rendering:** Capabilities with `ai_enabled: true` display robot icon (🤖) in capability map visualization
 
 ---
 

@@ -23,14 +23,16 @@ Stored as an **array of value pool objects** in `model.valuePools.valuePools`.
       "estimatedValue": "€5M annually",
       "timeToValue": "12-18 months",
       "confidence": "medium",
-      "enablers": ["Capability 1", "Capability 2", "Technology Platform"]
+      "enablers": ["Capability 1", "Capability 2", "Technology Platform"],
+      "ai_enabled_value": false
     },
     {
       "name": "Cost Reduction Pool",
       "estimatedValue": "€2.5M one-time savings",
       "timeToValue": "6-9 months",
       "confidence": "high",
-      "enablers": ["Process Automation", "Cloud Migration"]
+      "enablers": ["Process Automation", "Cloud Migration"],
+      "ai_enabled_value": false
     }
   ]
 }
@@ -99,6 +101,23 @@ Each value pool object contains:
   - Initiatives: `"Cloud Migration"`, `"Legacy Decommission"`, `"API Platform"`
 - **Should reference:** Capabilities from Step 3, gaps from Step 5, or platforms from Step 4
 - **Must be SPECIFIC:** Not generic "AI" but "AI-driven credit scoring engine"
+
+#### ai_enabled_value (BOOLEAN - OPTIONAL, Phase 2.5)
+- **Type:** Boolean, default false
+- **Purpose:** Flag value pools generated/enhanced by AI transformation initiatives
+- **Criteria:** Set to `true` if:
+  - Value pool enabled by AI-enabled capabilities (Step 3 ai_enabled: true)
+  - Enablers include AI/ML platforms, automation tools, or intelligent systems
+  - References Strategic Intent ai_transformation_themes or BMC ai_enabled_activities
+  - Value created through AI use cases (predictive analytics, automation, personalization, optimization)
+- **Examples:**
+  - ✅ `true`: "AI-Driven Personalization Revenue" (ML recommendations), "RPA Process Savings" (automation), "Predictive Maintenance Cost Avoidance" (ML forecasting)
+  - ❌ `false`: "Cloud Migration Savings" (infrastructure optimization, not AI), "Process Standardization" (no AI/automation)
+- **Usage:**
+  - Quantifies AI transformation ROI
+  - Prioritizes AI investment business case
+  - Informs Step 7 architecture (AI value pools need AI agent architecture)
+  - Roadmap KPI tracking for AI initiatives
 
 ---
 
