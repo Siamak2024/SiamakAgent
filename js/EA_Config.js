@@ -100,8 +100,8 @@ const EA_Config = {
     formats: ['json', 'csv', 'excel']
   },
   
-  // Auto-save interval (milliseconds)
-  autoSaveInterval: 30000  // 30 seconds
+  // Auto-save interval (milliseconds) - Smart auto-save with debouncing
+  autoSaveInterval: 180000  // 3 minutes (only triggers when user is idle for 10+ seconds)
 };
 
 // Make config available globally
