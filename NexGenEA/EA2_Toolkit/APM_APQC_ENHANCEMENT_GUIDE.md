@@ -425,7 +425,7 @@ dataManager.getAPQCCapabilitiesByBusinessType(industryName)
 ## Related Documentation
 
 - [APQC Integration Summary](../APAQ_Data/APQC_INTEGRATION_SUMMARY.md)
-- [APM Data Contract](../EA2_Toolkit/APM_DATA_CONTRACT.md) (if exists)
+- [APM Data Contract](APM_DATA_CONTRACT.md) (if exists)
 - [EA DataManager API](../js/EA_DataManager.js)
 - [APQC PCF Framework Documentation](https://www.apqc.org/resource-library/process-classification-framework)
 
