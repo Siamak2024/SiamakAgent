@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EA Platform - Login</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .login-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 440px;
+      animation: slideUp 0.5s ease;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    
+    .logo h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    
+    .logo p {
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 8px;
+    }
+    
+    input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 15px;
+      transition: all 0.2s;
+      background: white;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 8px;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn:active {
+      transform: translateY(0);
+    }
+    
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .error {
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #dc2626;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-top: 16px;
+      display: none;
+    }
+    
+    .error.show {
+      display: block;
+      animation: shake 0.5s;
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 8px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 13px;
+      color: #64748b;
+    }
+    
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="logo">
+      <h1>🏛️ EA Platform</h1>
+      <p>Enterprise Architecture & Strategic Planning</p>
+    </div>
+    
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email" placeholder="your.email@company.com" required autocomplete="email" />
+      </div>
+      
+      <div class="form-group">
+        <label for="inviteCode">Invite Code</label>
+        <input type="text" id="inviteCode" name="inviteCode" placeholder="ABC1234DEF" required autocomplete="off" style="text-transform: uppercase;" />
+      </div>
+      
+      <button type="submit" class="btn" id="loginBtn">
+        Access Platform →
+      </button>
+      
+      <div class="error" id="errorMsg"></div>
+    </form>
+    
+    <div class="footer">
+      Don't have an invite code? <a href="mailto:admin@advicy.se">Request Access</a>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    // Auto-fill from URL parameters
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('email')) {
+      document.getElementById('email').value = params.get('email');
+    }
+    if (params.get('invite')) {
+      document.getElementById('inviteCode').value = params.get('invite').toUpperCase();
+    }
+    
+    const form = document.getElementById('loginForm');
+    const loginBtn = document.getElementById('loginBtn');
+    const errorMsg = document.getElementById('errorMsg');
+    
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('email').value.trim();
+      const inviteCode = document.getElementById('inviteCode').value.trim().toUpperCase();
+      
+      // Show loading state
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = '<span class="loading"></span>Authenticating...';
+      errorMsg.classList.remove('show');
+      
+      try {
+        await window.EAAuth.login(email, inviteCode);
+        // Redirect to main app
+        window.location.href = '/';
+      } catch (error) {
+        errorMsg.textContent = error.message || 'Login failed. Please check your invite code.';
+        errorMsg.classList.add('show');
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = 'Access Platform →';
+      }
+    });
+    
+    // Auto-submit if both fields populated from URL
+    if (params.get('email') && params.get('invite')) {
+      setTimeout(() => {
+        if (document.getElementById('email').value && document.getElementById('inviteCode').value) {
+          form.dispatchEvent(new Event('submit'));
+        }
+      }, 800);
+    }
+  </script>
+</body>
+</html>
