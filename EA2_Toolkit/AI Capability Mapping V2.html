@@ -268,6 +268,54 @@
   </div>
 </div>
 
+<!-- APQC Settings Modal -->
+<div id="apqc-settings-modal-cap" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center;">
+  <div class="modal-box" style="max-width:550px">
+    <h2 class="font-bold text-gray-900 mb-4 flex items-center gap-2">
+      <i class="fas fa-database text-blue-600"></i> APQC Framework - Importera Capabilities
+    </h2>
+    <p class="text-sm text-gray-600 mb-4">Välj din bransch och strategiska fokus för att importera relevanta capabilities från APQC Process Classification Framework.</p>
+    
+    <div class="mb-4">
+      <label class="text-xs font-semibold text-gray-700 uppercase block mb-2">Bransch</label>
+      <select id="apqc-business-type-cap" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm outline-none focus:border-blue-500">
+        <option value="">-- Välj bransch --</option>
+        <option value="Manufacturing">Tillverkning (Manufacturing)</option>
+        <option value="Services">Tjänster (Services)</option>
+        <option value="Retail">Detaljhandel (Retail)</option>
+        <option value="Financial Services">Finansiella tjänster (Financial Services)</option>
+        <option value="Healthcare">Hälsovård (Healthcare)</option>
+        <option value="Technology">Teknik & IT (Technology)</option>
+        <option value="All">Alla branscher (Cross-Industry)</option>
+      </select>
+    </div>
+    
+    <div class="mb-4">
+      <label class="text-xs font-semibold text-gray-700 uppercase block mb-2">Strategiskt Fokus</label>
+      <select id="apqc-strategic-intent-cap" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm outline-none focus:border-blue-500">
+        <option value="">-- Välj strategiskt fokus --</option>
+        <option value="Growth">Tillväxt (Growth)</option>
+        <option value="Innovation">Innovation</option>
+        <option value="Efficiency">Effektivitet (Efficiency)</option>
+        <option value="Customer Centricity">Kundfokus (Customer Centricity)</option>
+        <option value="Sustainability">Hållbarhet (Sustainability)</option>
+      </select>
+    </div>
+    
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-xs text-blue-800">
+      <i class="fas fa-info-circle mr-1"></i>
+      <strong>Tips:</strong> APQC-capabilities kommer att läggas till i din befintliga capability map. Du kan justera prioritet och mognad efteråt.
+    </div>
+    
+    <div class="flex gap-3">
+      <button onclick="applyAPQCSettingsCap()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+        <i class="fas fa-download mr-2"></i>Importera Capabilities
+      </button>
+      <button onclick="closeAPQCModalCap()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Avbryt</button>
+    </div>
+  </div>
+</div>
+
 <div class="max-w-7xl mx-auto">
 
   <!-- Header -->
@@ -284,6 +332,9 @@
       </button>
       <button onclick="loadExample()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm">
         <i class="fas fa-lightbulb"></i> Ladda exempel
+      </button>
+      <button onclick="showAPQCSettingsCap()" class="flex items-center gap-2 bg-white border border-blue-400 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-50 text-sm" title="Importera capabilities från APQC Framework">
+        <i class="fas fa-database"></i> APQC Import
       </button>
       <button onclick="clearAll()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm">
         <i class="fas fa-trash-alt"></i> Rensa
@@ -319,6 +370,25 @@
   </header>
 
   <div id="cap-mode-banner" class="hidden mb-5 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-[12px] text-green-900"></div>
+
+  <!-- APQC Framework Banner -->
+  <div id="apqc-banner-cap" class="hidden mb-5 rounded-lg border border-blue-300 bg-blue-50 px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <i class="fas fa-database text-blue-600 text-lg"></i>
+      <div>
+        <div class="font-semibold text-blue-900 text-sm">APQC Process Classification Framework tillgänglig</div>
+        <div class="text-blue-700 text-xs">Importera branschspecifika capabilities baserat på APQC-standard</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="showAPQCSettingsCap()" class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700 transition">
+        <i class="fas fa-cog mr-1"></i> Konfigurera & Importera
+      </button>
+      <button onclick="document.getElementById('apqc-banner-cap').classList.add('hidden')" class="px-2 py-1 text-blue-600 hover:text-blue-800 text-xs">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
 
   <div id="cap-tobe-panel" class="hidden bg-white rounded-xl shadow p-6 mb-8 border border-indigo-100">
     <div class="flex items-center justify-between mb-3">
@@ -1444,6 +1514,162 @@ function downloadCSV(rows, filename) {
   URL.revokeObjectURL(url);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// APQC FRAMEWORK INTEGRATION
+// ═══════════════════════════════════════════════════════════════════════════════
+let apqcFrameworkCap = null;
+let apqcIntegratedCap = false;
+
+/**
+ * Initialize APQC Framework for Capability Mapping Toolkit
+ */
+async function initializeAPQCIntegrationCap() {
+  if (!dataManager) {
+    console.warn('⚠️ EA_DataManager not available. APQC integration disabled.');
+    return;
+  }
+
+  try {
+    // Load APQC framework using EA_DataManager
+    apqcFrameworkCap = await dataManager.loadAPQCFramework();
+    
+    if (apqcFrameworkCap) {
+      console.log('✅ APQC Framework loaded for Capability Mapping Toolkit:', apqcFrameworkCap);
+      updateAPQCBannerCap();
+    }
+  } catch (error) {
+    console.error('❌ Failed to load APQC Framework:', error);
+  }
+}
+
+/**
+ * Update APQC banner visibility
+ */
+function updateAPQCBannerCap() {
+  const banner = document.getElementById('apqc-banner-cap');
+  if (!banner) return;
+
+  if (apqcFrameworkCap && apqcFrameworkCap.categories && apqcFrameworkCap.categories.length > 0) {
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+/**
+ * Show APQC Settings Modal
+ */
+function showAPQCSettingsCap() {
+  const modal = document.getElementById('apqc-settings-modal-cap');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+}
+
+/**
+ * Close APQC Settings Modal
+ */
+function closeAPQCModalCap() {
+  const modal = document.getElementById('apqc-settings-modal-cap');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+/**
+ * Apply APQC Settings and Import Capabilities
+ */
+async function applyAPQCSettingsCap() {
+  const businessType = document.getElementById('apqc-business-type-cap')?.value;
+  const strategicIntent = document.getElementById('apqc-strategic-intent-cap')?.value;
+
+  if (!businessType || !strategicIntent) {
+    alert('Vänligen välj både bransch och strategiskt fokus.');
+    return;
+  }
+
+  if (!dataManager) {
+    alert('EA_DataManager inte tillgänglig. Kan inte importera APQC capabilities.');
+    return;
+  }
+
+  try {
+    // Get APQC capabilities filtered by business type and strategic intent
+    const apqcCaps = await dataManager.getAPQCCapabilitiesByBusinessType(businessType);
+    
+    if (!apqcCaps || apqcCaps.length === 0) {
+      showToast('⚠️ Inga APQC capabilities hittades för vald bransch.');
+      closeAPQCModalCap();
+      return;
+    }
+
+    // Map APQC categories to toolkit domains
+    const domainMapping = {
+      '1.0': 'product',      // Develop Vision and Strategy → Product
+      '2.0': 'product',      // Develop and Manage Products and Services → Product
+      '3.0': 'operations',   // Market and Sell Products and Services → Operations
+      '4.0': 'operations',   // Deliver Products and Services → Operations
+      '5.0': 'customer',     // Manage Customer Service → Customer
+      '6.0': 'technology',   // Develop and Manage Human Capital → Technology
+      '7.0': 'technology',   // Manage Information Technology → Technology
+      '8.0': 'finance',      // Manage Financial Resources → Finance
+      '9.0': 'operations',   // Acquire, Construct, and Manage Assets → Operations
+      '10.0': 'operations',  // Manage Enterprise Risk, Compliance, and Resiliency → Operations
+      '11.0': 'operations',  // Manage External Relationships → Operations
+      '12.0': 'operations',  // Develop and Manage Business Capabilities → Operations
+      '13.0': 'operations'   // Measure and Benchmark → Operations
+    };
+
+    let importedCount = 0;
+    const priorityByIntent = {
+      'Growth': 'strategic',
+      'Innovation': 'strategic',
+      'Efficiency': 'important',
+      'Customer Centricity': 'strategic',
+      'Sustainability': 'important'
+    };
+
+    const priority = priorityByIntent[strategicIntent] || 'important';
+
+    apqcCaps.forEach(cap => {
+      // Extract L1 category code (e.g., "1.0" from "1.2.3")
+      const l1Code = cap.code ? cap.code.split('.')[0] + '.0' : '12.0';
+      const domainId = domainMapping[l1Code] || 'operations';
+
+      // Check if capability already exists (avoid duplicates)
+      const exists = capabilities[domainId]?.some(c => 
+        c.name.toLowerCase() === cap.name.toLowerCase()
+      );
+
+      if (!exists) {
+        capabilities[domainId].push({
+          name: cap.name,
+          desc: cap.description || `APQC ${cap.code}: ${cap.name}`,
+          priority: priority,
+          maturity: 2  // Default maturity level
+        });
+        importedCount++;
+      }
+    });
+
+    render();
+    saveAll();
+    apqcIntegratedCap = true;
+    
+    showToast(`✅ Importerade ${importedCount} APQC capabilities för ${businessType} (${strategicIntent})`);
+    closeAPQCModalCap();
+    
+    // Hide banner after successful import
+    document.getElementById('apqc-banner-cap')?.classList.add('hidden');
+
+  } catch (error) {
+    console.error('❌ Failed to import APQC capabilities:', error);
+    alert('Fel vid import av APQC capabilities. Se konsolen för detaljer.');
+  }
+}
+
 function showToast(msg) {
   const t = document.createElement('div');
   t.className = 'fixed bottom-6 right-6 bg-gray-900 text-white px-5 py-3 rounded-lg shadow-xl text-sm z-50 flex items-center gap-2';
@@ -1457,6 +1683,9 @@ window.onload = () => {
   updateApiStatus();
   checkIntegrationStatus();
   renderCapContextBadge();
+
+  // Initialize APQC Framework Integration
+  initializeAPQCIntegrationCap();
 
   const capParams = new URLSearchParams(window.location.search);
   const forceFromVc = capParams.get('from') === 'vc' && capParams.get('refresh') === '1';

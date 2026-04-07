@@ -238,7 +238,9 @@
 <!-- TAB BAR -->
 <div class="tab-bar">
     <div class="tab-bar-inner">
-        <button class="tab-btn active" onclick="switchTab('inventory',this)"><i class="fas fa-table-list"></i> Inventory</button>
+        <button class="tab-btn active" onclick="switchTab('capability',this)"><i class="fas fa-layer-group"></i> Capability Layer</button>
+        <button class="tab-btn" onclick="switchTab('aiagent',this)"><i class="fas fa-robot"></i> AI Agent Layer</button>
+        <button class="tab-btn" onclick="switchTab('inventory',this)"><i class="fas fa-table-list"></i> Inventory</button>
         <button class="tab-btn" onclick="switchTab('lifecycle',this)"><i class="fas fa-timeline"></i> Lifecycle</button>
         <button class="tab-btn" onclick="switchTab('ownership',this)"><i class="fas fa-users"></i> Ownership</button>
         <button class="tab-btn" onclick="switchTab('fitmatrix',this)"><i class="fas fa-chart-scatter"></i> Fit Matrix</button>
@@ -248,8 +250,100 @@
 
 <main>
 
+<!-- ==================== CAPABILITY LAYER ==================== -->
+<div id="view-capability" class="section-view active">
+    <!-- KPI Strip -->
+    <div class="kpi-strip">
+        <div class="kpi-card">
+            <div class="kpi-value" id="capTotalCount">0</div>
+            <div class="kpi-label">Total Capabilities</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value" id="capAvgMaturity">0.0</div>
+            <div class="kpi-label">Avg Maturity</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value" id="capHighAI">0</div>
+            <div class="kpi-label">High AI Potential</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value" id="capUnmapped">0</div>
+            <div class="kpi-label">Unmapped Capabilities</div>
+        </div>
+    </div>
+
+    <!-- Template Loaded Indicator -->
+    <div id="templateIndicator" style="display:none;margin-bottom:16px;"></div>
+
+    <!-- Toolbar -->
+    <div class="filter-bar" style="justify-content:space-between">
+        <div style="display:flex;gap:10px;align-items:center">
+            <button class="btn btn-primary" onclick="document.getElementById('importCapFile').click()"><i class="fas fa-upload"></i> Import APQC</button>
+            <input type="file" id="importCapFile" accept=".json,.xlsx,.xls" class="hidden" onchange="importCapabilities(event)">
+            <select id="templateSelect" onchange="loadCapabilityTemplate(this.value)" style="padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:12px">
+                <option value="">Load APQC Template...</option>
+            </select>
+            <button class="btn btn-success" onclick="triggerAIMapping()" title="Use AI to automatically map applications to capabilities"><i class="fas fa-robot"></i> AI Map Apps</button>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="toggleCapabilityView('tree')" id="btnTreeView"><i class="fas fa-sitemap"></i> Tree View</button>
+            <button class="btn btn-ghost" onclick="toggleCapabilityView('heatmap')" id="btnHeatmapView"><i class="fas fa-th"></i> Heatmap</button>
+        </div>
+    </div>
+
+    <!-- Tree View -->
+    <div id="capTreeView" class="card">
+        <div style="display:grid;grid-template-columns:280px 1fr 400px;gap:20px;min-height:600px">
+            <!-- L1 Domains Sidebar -->
+            <div style="border-right:1px solid #e2e8f0;padding-right:16px">
+                <div class="section-label">L1 Domains</div>
+                <div id="domainList"></div>
+            </div>
+            <!-- L2/L3 Capability Tree -->
+            <div style="border-right:1px solid #e2e8f0;padding-right:16px">
+                <div class="section-label">Capabilities</div>
+                <div id="capabilityTree"></div>
+            </div>
+            <!-- Detail Panel -->
+            <div>
+                <div class="section-label">Capability Details</div>
+                <div id="capabilityDetail" style="color:#94a3b8;font-size:12px">Select a capability to view details</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Heatmap View -->
+    <div id="capHeatmapView" class="card hidden" style="min-height:600px">
+        <canvas id="capabilityHeatmap"></canvas>
+    </div>
+</div>
+
+<!-- ==================== AI AGENT LAYER ==================== -->
+<div id="view-aiagent" class="section-view">
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <select id="filterAgentType" onchange="renderAIAgents()">
+            <option value="">All Types</option>
+            <option value="NLP">NLP</option>
+            <option value="RPA">RPA</option>
+            <option value="Predictive Analytics">Predictive Analytics</option>
+            <option value="Computer Vision">Computer Vision</option>
+            <option value="Conversational AI">Conversational AI</option>
+            <option value="Automation">Automation</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer">
+            <input type="checkbox" id="filterToBeOnly" onchange="renderAIAgents()" style="cursor:pointer">
+            <span>Show TO-BE Only</span>
+        </label>
+        <button class="btn btn-primary" onclick="openAIAgentModal()"><i class="fas fa-plus"></i> Add AI Agent</button>
+    </div>
+
+    <!-- Agent Cards Grid -->
+    <div id="aiAgentGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:20px"></div>
+</div>
+
 <!-- ==================== INVENTORY ==================== -->
-<div id="view-inventory" class="section-view active">
+<div id="view-inventory" class="section-view">
     <!-- KPI Strip -->
     <div class="kpi-strip" id="kpiStrip"></div>
 
@@ -295,6 +389,7 @@
                         <th>Users</th>
                         <th title="Technical Fit">Tech Fit</th>
                         <th title="Business Value">Biz Value</th>
+                        <th title="AI Maturity (1-5)">AI Maturity</th>
                         <th>Action</th>
                         <th></th>
                     </tr>
@@ -502,10 +597,176 @@
                 <label class="form-label">Notes</label>
                 <textarea id="fNotes" class="form-input" rows="2" placeholder="Migration notes, dependencies, constraints..."></textarea>
             </div>
+
+            <div class="divider"></div>
+
+            <div style="margin-bottom:16px">
+                <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:4px">
+                    <i class="fas fa-robot" style="color:#ea580c;margin-right:6px"></i>AI Transformation Analysis
+                </div>
+                <div style="font-size:11px;color:#64748b">Assess AI readiness and modernization potential</div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">AI Maturity (1 = None, 5 = AI-Native)</label>
+                <div class="score-row" id="aiMaturityBtns">
+                    <button class="score-btn" onclick="setScore('aiMaturity',1)">1</button>
+                    <button class="score-btn" onclick="setScore('aiMaturity',2)">2</button>
+                    <button class="score-btn sel" onclick="setScore('aiMaturity',3)">3</button>
+                    <button class="score-btn" onclick="setScore('aiMaturity',4)">4</button>
+                    <button class="score-btn" onclick="setScore('aiMaturity',5)">5</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">AI Transformation Potential</label>
+                <select id="fAiPotential" class="form-select">
+                    <option value="None">None — Minimal AI opportunity</option>
+                    <option value="Low">Low — Limited automation potential</option>
+                    <option value="Medium" selected>Medium — Moderate AI benefits</option>
+                    <option value="High">High — Significant AI opportunity</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Modern Stack Alternative (Optional)</label>
+                <input type="text" id="fModernStack" class="form-input" placeholder="e.g. Migrate to Azure AI Services, Replace with GPT-4 API">
+            </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
             <button class="btn btn-primary" onclick="saveApp()"><i class="fas fa-floppy-disk"></i> Save Application</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== CAPABILITY MAPPING MODAL ==================== -->
+<div id="capMappingModal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title" id="capMappingTitle">Map Applications to Capability</div>
+            <button class="modal-close" onclick="closeCapMappingModal()"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="mappingCapId">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+                <!-- Mapped Apps -->
+                <div>
+                    <div class="form-label">Mapped Applications (<span id="mappedCount">0</span>)</div>
+                    <div id="mappedAppsList" style="max-height:400px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px"></div>
+                </div>
+                <!-- Available Apps -->
+                <div>
+                    <div class="form-label">Available Applications</div>
+                    <input type="text" id="appSearchInput" placeholder="Search applications..." class="form-input" style="margin-bottom:8px" oninput="filterAvailableApps()">
+                    <div id="availableAppsList" style="max-height:400px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px"></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeCapMappingModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== AI AGENT MODAL ==================== -->
+<div id="aiAgentModal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title" id="agentModalTitle">Add AI Agent</div>
+            <button class="modal-close" onclick="closeAIAgentModal()"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editAgentId">
+            
+            <div class="form-group">
+                <label class="form-label">Agent Name *</label>
+                <input type="text" id="agentName" class="form-input" placeholder="e.g. Customer Service Chatbot">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Type</label>
+                    <select id="agentType" class="form-select">
+                        <option value="NLP">NLP</option>
+                        <option value="RPA">RPA</option>
+                        <option value="Predictive Analytics">Predictive Analytics</option>
+                        <option value="Computer Vision">Computer Vision</option>
+                        <option value="Conversational AI">Conversational AI</option>
+                        <option value="Automation">Automation</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Maturity Level</label>
+                    <div class="score-row" id="agentMaturityBtns">
+                        <button class="score-btn" onclick="setAgentMaturity(1)">1</button>
+                        <button class="score-btn" onclick="setAgentMaturity(2)">2</button>
+                        <button class="score-btn sel" onclick="setAgentMaturity(3)">3</button>
+                        <button class="score-btn" onclick="setAgentMaturity(4)">4</button>
+                        <button class="score-btn" onclick="setAgentMaturity(5)">5</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea id="agentDescription" class="form-input" rows="2" placeholder="Brief description of the AI agent's purpose and capabilities"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Link to Capabilities (multi-select)</label>
+                <select id="agentCapabilities" class="form-select" multiple size="4">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Link to Applications (multi-select)</label>
+                <select id="agentApplications" class="form-select" multiple size="4">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:#64748b;cursor:pointer">
+                    <input type="checkbox" id="agentToBe" style="cursor:pointer">
+                    <span>This is a TO-BE proposal (not yet implemented)</span>
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeAIAgentModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveAIAgent()"><i class="fas fa-floppy-disk"></i> Save Agent</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== AI MAPPING VALIDATION MODAL ==================== -->
+<div id="aiMappingModal" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:900px;">
+        <div class="modal-header">
+            <div>
+                <div class="modal-title"><i class="fas fa-robot"></i> AI Application-to-Capability Mapping</div>
+                <div style="font-size:11px;color:#64748b;margin-top:4px;" id="aiMappingSummary">Review and approve AI-generated mappings</div>
+            </div>
+            <button class="modal-close" onclick="closeAIMappingModal()"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="modal-body" style="max-height:600px;overflow-y:auto;">
+            <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:12px;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <i class="fas fa-info-circle" style="color:#f59e0b;"></i>
+                    <div style="font-size:11px;color:#92400e;">
+                        <strong>Review mappings:</strong> Check the checkbox for each mapping you want to apply. High-confidence matches are pre-selected.
+                    </div>
+                </div>
+            </div>
+            <div id="aiMappingList">
+                <!-- Generated dynamically -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeAIMappingModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="applyAIMappings()"><i class="fas fa-check"></i> Apply Selected Mappings</button>
         </div>
     </div>
 </div>
@@ -522,9 +783,25 @@ const STORAGE_KEY = 'apm_portfolio';
 function loadData() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) return JSON.parse(raw);
-    } catch(e) {}
-    return { applications: [], lastUpdated: null };
+        if (raw) {
+            const data = JSON.parse(raw);
+            // Migrate old data structure to new structure with capabilities and AI agents
+            if (!data.capabilities) data.capabilities = [];
+            if (!data.ai_agents) data.ai_agents = [];
+            // Add AI transformation fields to existing apps if missing
+            if (data.applications) {
+                data.applications = data.applications.map(app => ({
+                    ...app,
+                    ai_maturity: app.ai_maturity || 3,
+                    ai_transformation_potential: app.ai_transformation_potential || 'Medium',
+                    modernStackAlternative: app.modernStackAlternative || '',
+                    linkedAIAgents: app.linkedAIAgents || []
+                }));
+            }
+            return data;
+        }
+    } catch(e) { console.error('Error loading data:', e); }
+    return { applications: [], capabilities: [], ai_agents: [], lastUpdated: null };
 }
 
 function saveData(data) {
@@ -533,6 +810,8 @@ function saveData(data) {
 }
 
 function getApps() { return loadData().applications || []; }
+function getCapabilities() { return loadData().capabilities || []; }
+function getAIAgents() { return loadData().ai_agents || []; }
 
 function upsertApp(app) {
     const data = loadData();
@@ -548,8 +827,62 @@ function deleteApp(id) {
     saveData(data);
 }
 
+function upsertCapability(capability) {
+    const data = loadData();
+    const idx = data.capabilities.findIndex(c => c.id === capability.id);
+    if (idx >= 0) data.capabilities[idx] = capability;
+    else data.capabilities.push(capability);
+    saveData(data);
+}
+
+function deleteCapability(id) {
+    const data = loadData();
+    data.capabilities = data.capabilities.filter(c => c.id !== id);
+    // Remove capability references from apps
+    data.applications.forEach(app => {
+        if (app.businessCapabilities) {
+            const cap = data.capabilities.find(c => c.id === id);
+            if (cap) {
+                app.businessCapabilities = app.businessCapabilities.filter(name => name !== cap.name);
+            }
+        }
+    });
+    saveData(data);
+}
+
+function upsertAIAgent(agent) {
+    const data = loadData();
+    const idx = data.ai_agents.findIndex(a => a.id === agent.id);
+    if (idx >= 0) data.ai_agents[idx] = agent;
+    else data.ai_agents.push(agent);
+    saveData(data);
+}
+
+function deleteAIAgent(id) {
+    const data = loadData();
+    data.ai_agents = data.ai_agents.filter(a => a.id !== id);
+    // Remove agent references from apps and capabilities
+    data.applications.forEach(app => {
+        if (app.linkedAIAgents) {
+            app.linkedAIAgents = app.linkedAIAgents.filter(aid => aid !== id);
+        }
+    });
+    data.capabilities.forEach(cap => {
+        if (cap.linkedAIAgents) {
+            cap.linkedAIAgents = cap.linkedAIAgents.filter(aid => aid !== id);
+        }
+    });
+    saveData(data);
+}
+
 function generateId() {
     return 'app_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+function generateCapId() {
+    return 'cap_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+function generateAgentId() {
+    return 'agent_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
 // ─────────────────────────────────────────────
@@ -560,11 +893,163 @@ function switchTab(name, btn) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('view-' + name).classList.add('active');
     btn.classList.add('active');
+    if (name === 'capability')    { renderCapabilityLayer(); }
+    if (name === 'aiagent')       { renderAIAgents(); }
     if (name === 'inventory')     { renderKPIs(); renderInventory(); }
     if (name === 'lifecycle')     { renderLifecycle(); }
     if (name === 'ownership')     { renderOwnership(); }
     if (name === 'fitmatrix')     { renderFitMatrix(); }
     if (name === 'rationalization') { renderRationalization(); }
+}
+
+// ─────────────────────────────────────────────
+//  CAPABILITY LAYER
+// ─────────────────────────────────────────────
+let selectedCapability = null;
+let capabilityViewMode = 'tree';
+
+function renderCapabilityLayer() {
+    const capabilities = getCapabilities();
+    
+    // Update KPIs
+    const totalCaps = capabilities.length;
+    const avgMaturity = capabilities.length ? (capabilities.reduce((sum, c) => sum + (c.maturity || 0), 0) / capabilities.length).toFixed(1) : 0;
+    const highAI = capabilities.filter(c => c.aiPotential === 'High').length;
+    const unmapped = capabilities.filter(c => !c.linkedApplications || c.linkedApplications.length === 0).length;
+    
+    document.getElementById('capTotalCount').textContent = totalCaps;
+    document.getElementById('capAvgMaturity').textContent = avgMaturity;
+    document.getElementById('capHighAI').textContent = highAI;
+    document.getElementById('capUnmapped').textContent = unmapped;
+    document.getElementById('capUnmapped').style.color = unmapped > totalCaps * 0.2 ? '#dc2626' : '#16a34a';
+    
+    // Render appropriate view
+    if (capabilityViewMode === 'tree') {
+        renderCapabilityTree();
+    } else {
+        renderCapabilityHeatmap();
+    }
+}
+
+function renderCapabilityTree() {
+    const capabilities = getCapabilities();
+    
+    // Group by domain (L1)
+    const domains = {};
+    capabilities.forEach(cap => {
+        const domain = cap.domain || cap.parentId || 'Uncategorized';
+        if (!domains[domain]) domains[domain] = [];
+        domains[domain].push(cap);
+    });
+    
+    // Render domains sidebar
+    let domainHTML = '';
+    Object.keys(domains).sort().forEach(domain => {
+        const count = domains[domain].length;
+        domainHTML += `
+            <div style="padding:10px;cursor:pointer;border-radius:8px;margin-bottom:4px;transition:all .2s" 
+                 onmouseover="this.style.background='#f8fafc'" 
+                 onmouseout="this.style.background=''" 
+                 onclick="filterByDomain('${esc(domain)}')">
+                <div style="font-weight:700;font-size:13px;color:#0f172a">${esc(domain)}</div>
+                <div style="font-size:10px;color:#94a3b8">${count} capabilities</div>
+            </div>
+        `;
+    });
+    document.getElementById('domainList').innerHTML = domainHTML || '<div style="color:#94a3b8;font-size:12px">No domains</div>';
+    
+    // Render capability tree
+    let treeHTML = '';
+    capabilities.slice(0, 50).forEach(cap => {  // Limit to first 50 for performance
+        const maturityColor = ['#dc2626', '#f97316', '#fbbf24', '#84cc16', '#16a34a'][cap.maturity - 1] || '#94a3b8';
+        const aiPotentialBadge = cap.aiPotential ? `<span class="badge" style="background:${cap.aiPotential === 'High' ? '#dcfce7' : cap.aiPotential === 'Medium' ? '#fef3c7' : '#f1f5f9'};color:${cap.aiPotential === 'High' ? '#16a34a' : cap.aiPotential === 'Medium' ? '#d97706' : '#64748b'};font-size:9px">${cap.aiPotential}</span>` : '';
+        const appCount = cap.linkedApplications ? cap.linkedApplications.length : 0;
+        const appBadge = appCount > 0 ? `<span style="font-size:10px;color:#64748b">🔗 ${appCount} apps</span>` : '';
+        
+        treeHTML += `
+            <div style="padding:10px;border-bottom:1px solid #f1f5f9;cursor:pointer;transition:all .2s" 
+                 onmouseover="this.style.background='#f8fafc'" 
+                 onmouseout="this.style.background=''" 
+                 onclick="selectCapability('${cap.id}')">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                    <span style="width:8px;height:8px;border-radius:50%;background:${maturityColor}"></span>
+                    <span style="font-weight:700;font-size:12px;flex:1">${esc(cap.name)}</span>
+                    ${aiPotentialBadge}
+                </div>
+                <div style="font-size:10px;color:#94a3b8;display:flex;justify-content:space-between">
+                    <span>${esc(cap.domain || '')}</span>
+                    ${appBadge}
+                </div>
+            </div>
+        `;
+    });
+    document.getElementById('capabilityTree').innerHTML = treeHTML || '<div style="color:#94a3b8;font-size:12px;padding:20px">No capabilities. Import APQC or load a template.</div>';
+}
+
+function selectCapability(capId) {
+    selectedCapability = capId;
+    const cap = getCapabilities().find(c => c.id === capId);
+    if (!cap) return;
+    
+    const apps = getApps();
+    const linkedApps = cap.linkedApplications ? apps.filter(a => cap.linkedApplications.includes(a.id)) : [];
+    
+    const maturityLabels = ['Ad-hoc', 'Repeatable', 'Defined', 'Managed', 'Optimized'];
+    const maturityStars = '★'.repeat(cap.maturity || 0) + '☆'.repeat(5 - (cap.maturity || 0));
+    
+    let detailHTML = `
+        <div style="margin-bottom:16px">
+            <h3 style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:8px">${esc(cap.name)}</h3>
+            <div style="font-size:11px;color:#64748b;margin-bottom:12px">${esc(cap.description || 'No description')}</div>
+        </div>
+        
+        <div style="margin-bottom:12px">
+            <div style="font-size:9px;font-weight:800;color:#94a3b8;margin-bottom:4px">MATURITY</div>
+            <div style="font-size:14px;color:#ea580c">${maturityStars} ${maturityLabels[cap.maturity - 1] || 'Unknown'}</div>
+        </div>
+        
+        <div style="margin-bottom:12px">
+            <div style="font-size:9px;font-weight:800;color:#94a3b8;margin-bottom:4px">STRATEGIC IMPORTANCE</div>
+            <div><span class="badge" style="background:#dbeafe;color:#1d4ed8">${esc(cap.strategicImportance || 'medium')}</span></div>
+        </div>
+        
+        <div style="margin-bottom:12px">
+            <div style="font-size:9px;font-weight:800;color:#94a3b8;margin-bottom:4px">AI POTENTIAL</div>
+            <div><span class="badge" style="background:${cap.aiPotential === 'High' ? '#dcfce7' : '#fef3c7'};color:${cap.aiPotential === 'High' ? '#16a34a' : '#d97706'}">${cap.aiPotential || 'Medium'}</span></div>
+        </div>
+        
+        <div style="margin-bottom:16px">
+            <div style="font-size:9px;font-weight:800;color:#94a3b8;margin-bottom:8px">LINKED APPLICATIONS (${linkedApps.length})</div>
+            ${linkedApps.length > 0 ? linkedApps.map(a => `<div style="font-size:11px;padding:4px 0;border-bottom:1px solid #f1f5f9">${esc(a.name)}</div>`).join('') : '<div style="color:#94a3b8;font-size:11px">No applications mapped</div>'}
+        </div>
+        
+        <button class="btn btn-primary" onclick="openCapMappingModal('${cap.id}')"><i class="fas fa-link"></i> Map Applications</button>
+    `;
+    
+    document.getElementById('capabilityDetail').innerHTML = detailHTML;
+}
+
+function filterByDomain(domain) {
+    // Simple filter - just highlight in UI for now
+    showToast(`Filtered by domain: ${domain}`, 'ok');
+}
+
+function toggleCapabilityView(mode) {
+    capabilityViewMode = mode;
+    document.getElementById('capTreeView').classList.toggle('hidden', mode !== 'tree');
+    document.getElementById('capHeatmapView').classList.toggle('hidden', mode !== 'heatmap');
+    
+    document.getElementById('btnTreeView').classList.toggle('btn-ghost', mode !== 'tree');
+    document.getElementById('btnTreeView').classList.toggle('btn-primary', mode === 'tree');
+    document.getElementById('btnHeatmapView').classList.toggle('btn-ghost', mode !== 'heatmap');
+    document.getElementById('btnHeatmapView').classList.toggle('btn-primary', mode === 'heatmap');
+    
+    if (mode === 'heatmap') renderCapabilityHeatmap();
+}
+
+function renderCapabilityHeatmap() {
+    // TODO: Implement Chart.js bubble chart for maturity vs importance
+    document.getElementById('capabilityHeatmap').parentElement.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">Heatmap view - Coming soon</div>';
 }
 
 // ─────────────────────────────────────────────
@@ -670,7 +1155,7 @@ function renderInventory() {
 
     const tbody = document.getElementById('inventoryBody');
     if (!filtered.length) {
-        tbody.innerHTML = `<tr><td colspan="13"><div class="empty-state"><i class="fas fa-inbox"></i><p>${apps.length ? 'No applications match the current filters.' : 'No applications yet. Click "Add Application" to get started.'}</p></div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="14"><div class="empty-state"><i class="fas fa-inbox"></i><p>${apps.length ? 'No applications match the current filters.' : 'No applications yet. Click "Add Application" to get started.'}</p></div></td></tr>`;
         return;
     }
 
@@ -694,6 +1179,7 @@ function renderInventory() {
             <td>${a.userCount ? Number(a.userCount).toLocaleString() : '—'}</td>
             <td><span style="font-weight:900;color:${scoreColor(tf)}">${tf||'—'}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
             <td><span style="font-weight:900;color:${scoreColor(bv)}">${bv||'—'}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
+            <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${['#dc2626','#f97316','#fbbf24','#84cc16','#16a34a'][(a.ai_maturity||3)-1]}" title="AI Maturity ${a.ai_maturity||3}/5"></span> <span style="font-weight:700;color:#64748b">${a.ai_maturity||3}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
             <td><span class="badge ac-${a.rationalizationAction}">${AC_LABEL[a.rationalizationAction]||a.rationalizationAction||'—'}</span></td>
             <td><div class="action-row">
                 <button class="icon-btn" onclick="openModal('${a.id}')" title="Edit"><i class="fas fa-pen"></i></button>
@@ -1047,7 +1533,7 @@ function renderRationalization() {
 // ─────────────────────────────────────────────
 //  MODAL
 // ─────────────────────────────────────────────
-let _techFit = 5, _bizValue = 5, _currency = 'SEK';
+let _techFit = 5, _bizValue = 5, _aiMaturity = 3, _currency = 'SEK';
 
 function setCurrency(c) {
     _currency = c;
@@ -1065,7 +1551,7 @@ function openModal(id) {
     modal.classList.remove('hidden');
 
     // Reset
-    _techFit = 5; _bizValue = 5;
+    _techFit = 5; _bizValue = 5; _aiMaturity = 3;
     clearForm();
 
     if (id) {
@@ -1087,17 +1573,24 @@ function openModal(id) {
             document.getElementById('fAction').value = app.rationalizationAction || 'retain';
             document.getElementById('fCaps').value = (app.businessCapabilities || []).join(', ');
             document.getElementById('fNotes').value = app.notes || '';
+            document.getElementById('fAiPotential').value = app.ai_transformation_potential || 'Medium';
+            document.getElementById('fModernStack').value = app.modernStackAlternative || '';
             _techFit = Number(app.technicalFitScore) || 5;
             _bizValue = Number(app.businessValueScore) || 5;
+            _aiMaturity = Number(app.ai_maturity) || 3;
             highlightScore('techFit', _techFit);
             highlightScore('bizValue', _bizValue);
+            highlightScore('aiMaturity', _aiMaturity);
             return;
         }
     }
     document.getElementById('modalTitle').textContent = 'Add Application';
     document.getElementById('editId').value = '';
+    document.getElementById('fAiPotential').value = 'Medium';
+    document.getElementById('fModernStack').value = '';
     highlightScore('techFit', 5);
     highlightScore('bizValue', 5);
+    highlightScore('aiMaturity', 3);
 }
 
 function closeModal() {
@@ -1116,12 +1609,13 @@ function clearForm() {
 
 function setScore(type, val) {
     if (type === 'techFit') _techFit = val;
-    else _bizValue = val;
+    else if (type === 'bizValue') _bizValue = val;
+    else if (type === 'aiMaturity') _aiMaturity = val;
     highlightScore(type, val);
 }
 
 function highlightScore(type, val) {
-    const id = type === 'techFit' ? 'techFitBtns' : 'bizValueBtns';
+    const id = type === 'techFit' ? 'techFitBtns' : type === 'bizValue' ? 'bizValueBtns' : 'aiMaturityBtns';
     const btns = document.querySelectorAll('#' + id + ' .score-btn');
     btns.forEach((b, i) => {
         if (i + 1 === val) b.classList.add('sel');
@@ -1154,6 +1648,9 @@ function saveApp() {
         businessCapabilities: caps,
         technicalFitScore:  _techFit,
         businessValueScore: _bizValue,
+        ai_maturity: _aiMaturity,
+        ai_transformation_potential: document.getElementById('fAiPotential').value,
+        modernStackAlternative: document.getElementById('fModernStack').value.trim(),
         notes: document.getElementById('fNotes').value.trim(),
     };
 
@@ -1361,6 +1858,867 @@ function esc(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ─────────────────────────────────────────────
+//  CAPABILITY MAPPING MODAL
+// ─────────────────────────────────────────────
+function openCapMappingModal(capId) {
+    const cap = getCapabilities().find(c => c.id === capId);
+    if (!cap) return;
+    
+    document.getElementById('mappingCapId').value = capId;
+    document.getElementById('capMappingTitle').textContent = `Map Applications to: ${cap.name}`;
+    document.getElementById('capMappingModal').classList.remove('hidden');
+    
+    renderMappingLists();
+}
+
+function closeCapMappingModal() {
+    document.getElementById('capMappingModal').classList.add('hidden');
+}
+
+function renderMappingLists() {
+    const capId = document.getElementById('mappingCapId').value;
+    const cap = getCapabilities().find(c => c.id === capId);
+    if (!cap) return;
+    
+    const apps = getApps();
+    const linkedAppIds = cap.linkedApplications || [];
+    const mappedApps = apps.filter(a => linkedAppIds.includes(a.id));
+    const availableApps = apps.filter(a => !linkedAppIds.includes(a.id));
+    
+    // Render mapped apps
+    let mappedHTML = '';
+    mappedApps.forEach(app => {
+        const cost = totalCostOf(app);
+        mappedHTML += `
+            <div style="padding:8px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between">
+                <div>
+                    <div style="font-weight:700;font-size:12px">${esc(app.name)}</div>
+                    <div style="font-size:10px;color:#94a3b8">
+                        <span class="badge lc-${app.lifecycle}">${LC_LABEL[app.lifecycle]}</span>
+                        <span style="margin-left:4px">${fmtCost(cost, app.currency)}</span>
+                    </div>
+                </div>
+                <button class="icon-btn del" onclick="unmapApp('${app.id}')"><i class="fas fa-xmark"></i></button>
+            </div>
+        `;
+    });
+    document.getElementById('mappedAppsList').innerHTML = mappedHTML || '<div style="color:#94a3b8;font-size:11px;padding:12px">No apps mapped yet</div>';
+    document.getElementById('mappedCount').textContent = mappedApps.length;
+    
+    // Render available apps
+    renderAvailableApps(availableApps);
+}
+
+function renderAvailableApps(apps) {
+    const searchTerm = document.getElementById('appSearchInput').value.toLowerCase();
+    const filtered = apps.filter(a => a.name.toLowerCase().includes(searchTerm));
+    
+    let availableHTML = '';
+    filtered.forEach(app => {
+        availableHTML += `
+            <div style="padding:8px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between">
+                <div>
+                    <div style="font-weight:700;font-size:12px">${esc(app.name)}</div>
+                    <div style="font-size:10px;color:#94a3b8">${esc(app.department || 'N/A')}</div>
+                </div>
+                <button class="icon-btn" onclick="mapApp('${app.id}')" style="color:#16a34a"><i class="fas fa-plus"></i></button>
+            </div>
+        `;
+    });
+    document.getElementById('availableAppsList').innerHTML = availableHTML || '<div style="color:#94a3b8;font-size:11px;padding:12px">No apps available</div>';
+}
+
+function filterAvailableApps() {
+    const capId = document.getElementById('mappingCapId').value;
+    const cap = getCapabilities().find(c => c.id === capId);
+    if (!cap) return;
+    
+    const apps = getApps();
+    const linkedAppIds = cap.linkedApplications || [];
+    const availableApps = apps.filter(a => !linkedAppIds.includes(a.id));
+    renderAvailableApps(availableApps);
+}
+
+function mapApp(appId) {
+    const capId = document.getElementById('mappingCapId').value;
+    const cap = getCapabilities().find(c => c.id === capId);
+    const app = getApps().find(a => a.id === appId);
+    if (!cap || !app) return;
+    
+    // Update capability
+    if (!cap.linkedApplications) cap.linkedApplications = [];
+    if (!cap.linkedApplications.includes(appId)) {
+        cap.linkedApplications.push(appId);
+        upsertCapability(cap);
+    }
+    
+    // Update application
+    if (!app.businessCapabilities) app.businessCapabilities = [];
+    if (!app.businessCapabilities.includes(cap.name)) {
+        app.businessCapabilities.push(cap.name);
+        upsertApp(app);
+    }
+    
+    renderMappingLists();
+    renderCapabilityTree();
+    showToast(`Mapped ${app.name} to ${cap.name}`, 'ok');
+}
+
+function unmapApp(appId) {
+    const capId = document.getElementById('mappingCapId').value;
+    const cap = getCapabilities().find(c => c.id === capId);
+    const app = getApps().find(a => a.id === appId);
+    if (!cap || !app) return;
+    
+    // Update capability
+    if (cap.linkedApplications) {
+        cap.linkedApplications = cap.linkedApplications.filter(id => id !== appId);
+        upsertCapability(cap);
+    }
+    
+    // Update application
+    if (app.businessCapabilities) {
+        app.businessCapabilities = app.businessCapabilities.filter(name => name !== cap.name);
+        upsertApp(app);
+    }
+    
+    renderMappingLists();
+    renderCapabilityTree();
+    showToast(`Unmapped ${app.name} from ${cap.name}`, 'ok');
+}
+
+// ─────────────────────────────────────────────
+//  APQC IMPORT & TEMPLATES
+// ─────────────────────────────────────────────
+function importCapabilities(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            if (file.name.endsWith('.json')) {
+                const caps = JSON.parse(e.target.result);
+                importCapabilityData(caps);
+            } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                // Use xlsx library to parse Excel
+                const wb = XLSX.read(e.target.result, {type: 'binary'});
+                const sheet = wb.Sheets[wb.SheetNames[0]];
+                const data = XLSX.utils.sheet_to_json(sheet);
+                const caps = parseAPQCExcel(data);
+                importCapabilityData(caps);
+            }
+        } catch(err) {
+            showToast('Error importing file: ' + err.message, 'err');
+        }
+    };
+    
+    if (file.name.endsWith('.json')) {
+        reader.readAsText(file);
+    } else {
+        reader.readAsBinaryString(file);
+    }
+    
+    event.target.value = ''; // Reset input
+}
+
+function parseAPQCExcel(data) {
+    // Parse APQC Excel format to capability objects
+    const capabilities = [];
+    
+    data.forEach(row => {
+        const id = row['Process Number'] || row['ID'] || '';
+        const name = row['Process Name'] || row['Name'] || '';
+        const parent = row['Parent'] || '';
+        
+        if (!id || !name) return;
+        
+        // Detect level from numbering (e.g., "1.0.0" = L1, "1.1.0" = L2, "1.1.1" = L3)
+        const parts = id.split('.');
+        const level = parts.filter(p => p !== '0').length;
+        
+        capabilities.push({
+            id: generateCapId(),
+            name: name,
+            level: level === 1 ? 'L1' : level === 2 ? 'L2' : 'L3',
+            parentId: parent || (level > 1 ? parts[0] : null),
+            domain: level === 1 ? name : parts[0],
+            industryTag: row['Industry'] || 'Cross-Industry',
+            strategicImportance: 'medium',
+            maturity: 3,
+            aiPotential: 'Medium',
+            linkedApplications: [],
+            description: row['Description'] || ''
+        });
+    });
+    
+    return capabilities;
+}
+
+function importCapabilityData(newCaps) {
+    if (!Array.isArray(newCaps)) {
+        showToast('Invalid capability data format', 'err');
+        return;
+    }
+    
+    const existing = getCapabilities();
+    let updated = 0, added = 0;
+    
+    newCaps.forEach(newCap => {
+        const existingCap = existing.find(c => c.name === newCap.name && c.level === newCap.level);
+        if (existingCap) {
+            // Update existing, preserve linkedApplications
+            upsertCapability({...newCap, id: existingCap.id, linkedApplications: existingCap.linkedApplications});
+            updated++;
+        } else {
+            // Add new
+            upsertCapability(newCap);
+            added++;
+        }
+    });
+    
+    showToast(`Imported: ${added} new, ${updated} updated capabilities`, 'ok');
+    renderCapabilityLayer();
+}
+
+function loadCapabilityTemplate(templateName) {
+    if (!templateName) return;
+    
+    // Try loading from APQC first
+    if (apqcMetadata && apqcMetadata.business_type_mappings) {
+        loadTemplateFromAPQC(templateName);
+        document.getElementById('templateSelect').value = '';
+        return;
+    }
+    
+    // Fallback to hardcoded templates
+    const templates = {
+        real_estate: getRealEstateTemplate(),
+        manufacturing: getManufacturingTemplate(),
+        financial_services: getFinancialServicesTemplate(),
+        retail: getRetailTemplate(),
+        healthcare: getHealthcareTemplate(),
+        technology: getTechnologyTemplate(),
+        services: getServicesTemplate()
+    };
+    
+    const template = templates[templateName];
+    if (template) {
+        importCapabilityData(template);
+        const displayName = templateName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        currentLoadedTemplate = displayName;
+        updateTemplateIndicator();
+    }
+    
+    document.getElementById('templateSelect').value = ''; // Reset dropdown
+}
+
+function getRealEstateTemplate() {
+    return [
+        {id: generateCapId(), name: 'Property Management', level: 'L1', parentId: null, domain: 'Property Management', industryTag: 'RealEstate', strategicImportance: 'high', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Manage physical real estate assets, leases, and property operations'},
+        {id: generateCapId(), name: 'Tenant Management', level: 'L2', parentId: 'Property Management', domain: 'Property Management', industryTag: 'RealEstate', strategicImportance: 'high', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Manage tenant relationships, contracts, and services'},
+        {id: generateCapId(), name: 'Lease Administration', level: 'L2', parentId: 'Property Management', domain: 'Property Management', industryTag: 'RealEstate', strategicImportance: 'high', maturity: 2, aiPotential: 'Medium', linkedApplications: [], description: 'Administer lease contracts and renewals'},
+        {id: generateCapId(), name: 'Portfolio Planning', level: 'L2', parentId: 'Property Management', domain: 'Property Management', industryTag: 'RealEstate', strategicImportance: 'critical', maturity: 2, aiPotential: 'High', linkedApplications: [], description: 'Strategic planning of property portfolio'},
+        {id: generateCapId(), name: 'Financial Management', level: 'L1', parentId: null, domain: 'Financial Management', industryTag: 'RealEstate', strategicImportance: 'high', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Financial operations including rent collection and reporting'},
+        {id: generateCapId(), name: 'Rent Collection', level: 'L2', parentId: 'Financial Management', domain: 'Financial Management', industryTag: 'RealEstate', strategicImportance: 'high', maturity: 3, aiPotential: 'Low', linkedApplications: [], description: 'Collect and process rental payments'},
+        {id: generateCapId(), name: 'Financial Reporting', level: 'L2', parentId: 'Financial Management', domain: 'Financial Management', industryTag: 'RealEstate', strategicImportance: 'medium', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Generate financial reports and analytics'},
+        {id: generateCapId(), name: 'Maintenance Operations', level: 'L1', parentId: null, domain: 'Maintenance Operations', industryTag: 'RealEstate', strategicImportance: 'medium', maturity: 2, aiPotential: 'High', linkedApplications: [], description: 'Property maintenance and facility management'},
+        {id: generateCapId(), name: 'Preventive Maintenance', level: 'L2', parentId: 'Maintenance Operations', domain: 'Maintenance Operations', industryTag: 'RealEstate', strategicImportance: 'medium', maturity: 2, aiPotential: 'High', linkedApplications: [], description: 'Scheduled maintenance to prevent failures'},
+        {id: generateCapId(), name: 'Work Order Management', level: 'L2', parentId: 'Maintenance Operations', domain: 'Maintenance Operations', industryTag: 'RealEstate', strategicImportance: 'medium', maturity: 2, aiPotential: 'Medium', linkedApplications: [], description: 'Manage maintenance work orders and requests'}
+    ];
+}
+
+function getManufacturingTemplate() {
+    return [
+        {id: generateCapId(), name: 'Production Management', level: 'L1', parentId: null, domain: 'Production Management', industryTag: 'Manufacturing', strategicImportance: 'critical', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Plan and execute manufacturing operations'},
+        {id: generateCapId(), name: 'Quality Control', level: 'L2', parentId: 'Production Management', domain: 'Production Management', industryTag: 'Manufacturing', strategicImportance: 'high', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Ensure product quality standards'},
+        {id: generateCapId(), name: 'Inventory Management', level: 'L2', parentId: 'Production Management', domain: 'Production Management', industryTag: 'Manufacturing', strategicImportance: 'high', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Manage raw materials and finished goods inventory'},
+        {id: generateCapId(), name: 'Supply Chain Management', level: 'L1', parentId: null, domain: 'Supply Chain Management', industryTag: 'Manufacturing', strategicImportance: 'critical', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Coordinate supply chain from suppliers to customers'},
+        {id: generateCapId(), name: 'Procurement', level: 'L2', parentId: 'Supply Chain Management', domain: 'Supply Chain Management', industryTag: 'Manufacturing', strategicImportance: 'high', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Source and purchase materials and services'}
+    ];
+}
+
+function getFinancialServicesTemplate() {
+    return [
+        {id: generateCapId(), name: 'Customer Relationship Management', level: 'L1', parentId: null, domain: 'Customer Relationship Management', industryTag: 'FinancialServices', strategicImportance: 'critical', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Manage customer relationships and interactions'},
+        {id: generateCapId(), name: 'Account Management', level: 'L2', parentId: 'Customer Relationship Management', domain: 'Customer Relationship Management', industryTag: 'FinancialServices', strategicImportance: 'high', maturity: 4, aiPotential: 'Medium', linkedApplications: [], description: 'Manage customer accounts and portfolios'},
+        {id: generateCapId(), name: 'Risk Management', level: 'L1', parentId: null, domain: 'Risk Management', industryTag: 'FinancialServices', strategicImportance: 'critical', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Identify, assess and mitigate financial risks'},
+        {id: generateCapId(), name: 'Compliance Management', level: 'L2', parentId: 'Risk Management', domain: 'Risk Management', industryTag: 'FinancialServices', strategicImportance: 'critical', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Ensure regulatory compliance'},
+        {id: generateCapId(), name: 'Transaction Processing', level: 'L1', parentId: null, domain: 'Transaction Processing', industryTag: 'FinancialServices', strategicImportance: 'high', maturity: 4, aiPotential: 'Low', linkedApplications: [], description: 'Process financial transactions efficiently'}
+    ];
+}
+
+function getRetailTemplate() {
+    return [
+        {id: generateCapId(), name: 'Merchandising', level: 'L1', parentId: null, domain: 'Merchandising', industryTag: 'Retail', strategicImportance: 'critical', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Product selection, pricing,and assortment planning'},
+        {id: generateCapId(), name: 'Inventory Management', level: 'L2', parentId: 'Merchandising', domain: 'Merchandising', industryTag: 'Retail', strategicImportance: 'high', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Stock level optimization across channels'},
+        {id: generateCapId(), name: 'Omnichannel Operations', level: 'L1', parentId: null, domain: 'Omnichannel Operations', industryTag: 'Retail', strategicImportance: 'critical', maturity: 2, aiPotential: 'High', linkedApplications: [], description: 'Unified commerce across physical and digital channels'},
+        {id: generateCapId(), name: 'Customer Experience Management', level: 'L1', parentId: null, domain: 'Customer Experience', industryTag: 'Retail', strategicImportance: 'high', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Personalization and customer journey optimization'}
+    ];
+}
+
+function getHealthcareTemplate() {
+    return [
+        {id: generateCapId(), name: 'Patient Care Management', level: 'L1', parentId: null, domain: 'Patient Care', industryTag: 'Healthcare', strategicImportance: 'critical', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Clinical care delivery and patient outcomes'},
+        {id: generateCapId(), name: 'Electronic Health Records', level: 'L2', parentId: 'Patient Care Management', domain: 'Patient Care', industryTag: 'Healthcare', strategicImportance: 'critical', maturity: 4, aiPotential: 'Medium', linkedApplications: [], description: 'Digital patient record management'},
+        {id: generateCapId(), name: 'Clinical Decision Support', level: 'L2', parentId: 'Patient Care Management', domain: 'Patient Care', industryTag: 'Healthcare', strategicImportance: 'high', maturity: 2, aiPotential: 'High', linkedApplications: [], description: 'AI-assisted diagnosis and treatment recommendations'},
+        {id: generateCapId(), name: 'Revenue Cycle Management', level: 'L1', parentId: null, domain: 'Finance', industryTag: 'Healthcare', strategicImportance: 'high', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Billing, claims, and payment processing'}
+    ];
+}
+
+function getTechnologyTemplate() {
+    return [
+        {id: generateCapId(), name: 'Product Development', level: 'L1', parentId: null, domain: 'Product', industryTag: 'Technology', strategicImportance: 'critical', maturity: 4, aiPotential: 'High', linkedApplications: [], description: 'Software development and product lifecycle'},
+        {id: generateCapId(), name: 'DevOps & CI/CD', level: 'L2', parentId: 'Product Development', domain: 'Product', industryTag: 'Technology', strategicImportance: 'high', maturity: 4, aiPotential: 'Medium', linkedApplications: [], description: 'Automated deployment and infrastructure'},
+        {id: generateCapId(), name: 'Cloud Platform Management', level: 'L1', parentId: null, domain: 'Technology', industryTag: 'Technology', strategicImportance: 'critical', maturity: 4, aiPotential: 'High', linkedApplications: [], description: 'Cloud infrastructure and platform services'},
+        {id: generateCapId(), name: 'Customer Success', level: 'L1', parentId: null, domain: 'Customer', industryTag: 'Technology', strategicImportance: 'high', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Onboarding, adoption, and retention'}
+    ];
+}
+
+function getServicesTemplate() {
+    return [
+        {id: generateCapId(), name: 'Service Delivery', level: 'L1', parentId: null, domain: 'Operations', industryTag: 'Services', strategicImportance: 'critical', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Professional service execution and quality'},
+        {id: generateCapId(), name: 'Resource Management', level: 'L2', parentId: 'Service Delivery', domain: 'Operations', industryTag: 'Services', strategicImportance: 'high', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Consultant allocation and utilization'},
+        {id: generateCapId(), name: 'Project Management', level: 'L1', parentId: null, domain: 'Operations', industryTag: 'Services', strategicImportance: 'high', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Client project planning and execution'},
+        {id: generateCapId(), name: 'Knowledge Management', level: 'L1', parentId: null, domain: 'Knowledge', industryTag: 'Services', strategicImportance: 'high', maturity: 2, aiPotential: 'High', linkedApplications: [], description: 'Capture and share expertise across organization'}
+    ];
+}
+
+// ─────────────────────────────────────────────
+//  APQC FRAMEWORK INTEGRATION
+// ─────────────────────────────────────────────
+let apqcMetadata = null;
+let currentLoadedTemplate = null;
+
+// Load APQC metadata on startup
+async function loadAPQCMetadata() {
+    try {
+        const response = await fetch('../APAQ_Data/apqc_metadata_mapping.json');
+        if (response.ok) {
+            apqcMetadata = await response.json();
+            populateTemplateDropdown();
+            console.log('✅ APQC metadata loaded successfully');
+        }
+    } catch (error) {
+        console.warn('⚠️ Could not load APQC metadata:', error);
+    }
+}
+
+// Populate template dropdown with all APQC industries
+function populateTemplateDropdown() {
+    if (!apqcMetadata || !apqcMetadata.business_type_mappings) return;
+    
+    const select = document.getElementById('templateSelect');
+    if (!select) return;
+    
+    // Clear existing options except first
+    select.innerHTML = '<option value="">Load APQC Template...</option>';
+    
+    // Add all industry templates
+    Object.keys(apqcMetadata.business_type_mappings).forEach(industry => {
+        if (industry !== 'All') { // Skip 'All' as it's too broad
+            const option = document.createElement('option');
+            option.value = industry.toLowerCase().replace(/ /g, '_');
+            option.textContent = industry;
+            select.appendChild(option);
+        }
+    });
+}
+
+// Load template from APQC framework
+async function loadTemplateFromAPQC(industryKey) {
+    if (!window.dataManager) {
+        showToast('EA_DataManager not available. Using fallback templates.', 'warn');
+        return loadCapabilityTemplate(industryKey); // Fallback to hardcoded
+    }
+    
+    try {
+        const industryName = industryKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const capabilities = await window.dataManager.getAPQCCapabilitiesByBusinessType(industryName);
+        
+        if (!capabilities || capabilities.length === 0) {
+            showToast(`No APQC capabilities found for ${industryName}`, 'warn');
+            return;
+        }
+        
+        // Convert APQC capabilities to APM format
+        const apmCapabilities = capabilities.map(cap => ({
+            id: generateCapId(),
+            name: cap.name,
+            level: cap.level === 1 ? 'L1' : cap.level === 2 ? 'L2' : 'L3',
+            parentId: cap.parent_id || null,
+            domain: cap.domain || cap.name,
+            industryTag: industryName,
+            strategicImportance: 'medium',
+            maturity: 2,
+            aiPotential: cap.ai_transformation?.ai_enabled ? 'High' : 'Medium',
+            linkedApplications: [],
+            description: cap.description || '',
+            apqc_code: cap.code || '',
+            apqc_source: true
+        }));
+        
+        importCapabilityData(apmCapabilities);
+        currentLoadedTemplate = industryName;
+        updateTemplateIndicator();
+        showToast(`✅ Loaded ${apmCapabilities.length} APQC capabilities for ${industryName}`, 'ok');
+    } catch (error) {
+        console.error('Error loading APQC template:', error);
+        showToast('Error loading APQC template', 'err');
+    }
+}
+
+// Update template loaded indicator
+function updateTemplateIndicator() {
+    const indicator = document.getElementById('templateIndicator');
+    if (!indicator) return;
+    
+    if (currentLoadedTemplate) {
+        indicator.innerHTML = `
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:linear-gradient(135deg,#dbeafe,#e0f2fe);border:2px solid #3b82f6;border-radius:12px;">
+                <i class="fas fa-check-circle" style="color:#1d4ed8;font-size:18px;"></i>
+                <div>
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#1e40af;">Template Loaded</div>
+                    <div style="font-size:13px;font-weight:900;color:#1e3a8a;">${currentLoadedTemplate} Framework</div>
+                </div>
+                <button onclick="clearTemplate()" style="margin-left:auto;padding:6px 12px;background:#ef4444;color:white;border:none;border-radius:6px;font-size:10px;font-weight:800;cursor:pointer;" title="Clear template">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        indicator.style.display = 'block';
+    } else {
+        indicator.style.display = 'none';
+    }
+}
+
+function clearTemplate() {
+    if (confirm('This will remove all APQC-sourced capabilities from this template. Continue?')) {
+        const data = loadData();
+        data.capabilities = data.capabilities.filter(c => !c.apqc_source);
+        saveData(data);
+        currentLoadedTemplate = null;
+        updateTemplateIndicator();
+        renderCapabilityLayer();
+        showToast('Template cleared', 'ok');
+    }
+}
+
+// ─────────────────────────────────────────────
+//  AI-DRIVEN APPLICATION MAPPING
+// ─────────────────────────────────────────────
+let aiMappingSuggestions = [];
+
+// Trigger AI mapping for all applications
+async function triggerAIMapping() {
+    const apps = getApps();
+    const capabilities = getCapabilities();
+    
+    if (apps.length === 0) {
+        showToast('No applications to map', 'warn');
+        return;
+    }
+    
+    if (capabilities.length === 0) {
+        showToast('No capabilities available. Load a template first.', 'warn');
+        return;
+    }
+    
+    const apiKey = getAPIKey();
+    if (!apiKey) {
+        showToast('OpenAI API key required for AI mapping. Add it in EA Config.', 'warn');
+        openAIMappingValidation(generateFallbackMappings(apps, capabilities));
+        return;
+    }
+    
+    showToast('🤖 AI is analyzing applications and mapping to capabilities...', 'ok');
+    
+    try {
+        const mappings = await generateAIMappings(apps, capabilities, apiKey);
+        aiMappingSuggestions = mappings;
+        openAIMappingValidation(mappings);
+    } catch (error) {
+        console.error('AI mapping error:', error);
+        showToast('AI mapping failed. Showing fallback suggestions.', 'err');
+        openAIMappingValidation(generateFallbackMappings(apps, capabilities));
+    }
+}
+
+// Generate AI mappings using GPT
+async function generateAIMappings(apps, capabilities, apiKey) {
+    const prompt = `You are an expert in Application Portfolio Management and capability mapping.
+
+Analyze these applications and map each to the most relevant capabilities from the provided capability framework.
+
+**Applications:**
+${apps.map(a => `- ${a.name}: ${a.description || 'No description'} | Department: ${a.department || 'Unknown'} | Technology: ${a.technology || 'Unknown'}`).join('\n')}
+
+**Available Capabilities:**
+${capabilities.map(c => `- ${c.name} (${c.domain}): ${c.description || 'No description'}`).join('\n')}
+
+**Task:**
+For each application, identify 1-3 capabilities it supports. Consider:
+1. Application purpose and department
+2. Technology alignment
+3. Business capability definitions
+
+**Output Format (JSON only, no explanation):**
+\`\`\`json
+{
+  "mappings": [
+    {
+      "applicationId": "app_xyz",
+      "applicationName": "App Name",
+      "suggestedCapabilities": [
+        {
+          "capabilityId": "cap_abc",
+          "capabilityName": "Capability Name",
+          "confidence": 0.95,
+          "reasoning": "Brief explanation"
+        }
+      ]
+    }
+  ]
+}
+\`\`\``;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.3
+        })
+    });
+    
+    if (!response.ok) throw new Error('API request failed');
+    
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+    const jsonMatch = content.match(/\`\`\`json\s*([\s\S]*?)\`\`\`/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[1] : content);
+    
+    return parsed.mappings || [];
+}
+
+// Fallback rule-based mapping
+function generateFallbackMappings(apps, capabilities) {
+    const mappings = [];
+    
+    apps.forEach(app => {
+        const suggested = [];
+        const appNameLower = (app.name || '').toLowerCase();
+        const appDescLower = (app.description || '').toLowerCase();
+        const appDeptLower = (app.department || '').toLowerCase();
+        
+        capabilities.forEach(cap => {
+            const capNameLower = (cap.name || '').toLowerCase();
+            const capDescLower = (cap.description || '').toLowerCase();
+            const capDomainLower = (cap.domain || '').toLowerCase();
+            
+            let score = 0;
+            
+            // Keyword matching
+            const appText = `${appNameLower} ${appDescLower} ${appDeptLower}`;
+            const capText = `${capNameLower} ${capDescLower} ${capDomainLower}`;
+            
+            const appWords = appText.split(/\W+/).filter(w => w.length > 3);
+            const capWords = capText.split(/\W+/).filter(w => w.length > 3);
+            
+            appWords.forEach(word => {
+                if (capWords.includes(word)) score += 0.2;
+            });
+            
+            // Department-domain matching
+            if (appDeptLower.includes(capDomainLower) || capDomainLower.includes(appDeptLower)) {
+                score += 0.3;
+            }
+            
+            if (score > 0.3) {
+                suggested.push({
+                    capabilityId: cap.id,
+                    capabilityName: cap.name,
+                    confidence: Math.min(score, 0.95),
+                    reasoning: `Match based on keywords and department alignment`
+                });
+            }
+        });
+        
+        // Sort by confidence and take top 3
+        suggested.sort((a, b) => b.confidence - a.confidence);
+        
+        mappings.push({
+            applicationId: app.id,
+            applicationName: app.name,
+            suggestedCapabilities: suggested.slice(0, 3)
+        });
+    });
+    
+    return mappings;
+}
+
+// Open AI mapping validation UI
+function openAIMappingValidation(mappings) {
+    aiMappingSuggestions = mappings;
+    const modal = document.getElementById('aiMappingModal');
+    if (!modal) return;
+    
+    renderAIMappingList();
+    modal.classList.remove('hidden');
+}
+
+function closeAIMappingModal() {
+    document.getElementById('aiMappingModal')?.classList.add('hidden');
+}
+
+function renderAIMappingList() {
+    const container = document.getElementById('aiMappingList');
+    if (!container) return;
+    
+    let html = '';
+    let totalMappings = 0;
+    
+    aiMappingSuggestions.forEach((mapping, idx) => {
+        const suggestedCount = mapping.suggestedCapabilities.length;
+        totalMappings += suggestedCount;
+        
+        html += `
+            <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                    <div style="font-weight:800;font-size:14px;color:#0f172a;">${esc(mapping.applicationName)}</div>
+                    <span class="badge" style="background:#dbeafe;color:#1d4ed8;">${suggestedCount} suggestions</span>
+                </div>
+        `;
+        
+        if (suggestedCount === 0) {
+            html += `<div style="font-size:12px;color:#94a3b8;font-style:italic;">No matching capabilities found</div>`;
+        } else {
+            mapping.suggestedCapabilities.forEach((sug, sIdx) => {
+                const confidenceColor = sug.confidence > 0.7 ? '#16a34a' : sug.confidence > 0.5 ? '#f97316' : '#94a3b8';
+                const confidencePercent = Math.round(sug.confidence * 100);
+                
+                html += `
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:8px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                            <div style="font-weight:700;font-size:12px;color:#0f172a;">${esc(sug.capabilityName)}</div>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <span style="font-size:11px;font-weight:700;color:${confidenceColor};">${confidencePercent}% match</span>
+                                <input type="checkbox" 
+                                       id="mapping_${idx}_${sIdx}" 
+                                       data-app-id="${mapping.applicationId}" 
+                                       data-cap-id="${sug.capabilityId}"
+                                       data-cap-name="${esc(sug.capabilityName)}"
+                                       ${sug.confidence > 0.6 ? 'checked' : ''}
+                                       style="width:18px;height:18px;cursor:pointer;">
+                            </div>
+                        </div>
+                        <div style="font-size:11px;color:#64748b;">${esc(sug.reasoning)}</div>
+                    </div>
+                `;
+            });
+        }
+        
+        html += `</div>`;
+    });
+    
+    container.innerHTML = html || '<div style="text-align:center;color:#94a3b8;padding:40px;">No mappings generated</div>';
+    
+    // Update summary
+    document.getElementById('aiMappingSummary').textContent = 
+        `${aiMappingSuggestions.length} applications analyzed • ${totalMappings} capability mappings suggested`;
+}
+
+function applyAIMappings() {
+    const checkboxes = document.querySelectorAll('#aiMappingList input[type="checkbox"]:checked');
+    let appliedCount = 0;
+    
+    checkboxes.forEach(checkbox => {
+        const appId = checkbox.dataset.appId;
+        const capId = checkbox.dataset.capId;
+        const capName = checkbox.dataset.capName;
+        
+        const app = getApps().find(a => a.id === appId);
+        const cap = getCapabilities().find(c => c.id === capId);
+        
+        if (app && cap) {
+            // Update application
+            if (!app.businessCapabilities) app.businessCapabilities = [];
+            if (!app.businessCapabilities.includes(capName)) {
+                app.businessCapabilities.push(capName);
+            }
+            upsertApp(app);
+            
+            // Update capability
+            if (!cap.linkedApplications) cap.linkedApplications = [];
+            if (!cap.linkedApplications.includes(appId)) {
+                cap.linkedApplications.push(appId);
+            }
+            upsertCapability(cap);
+            
+            appliedCount++;
+        }
+    });
+    
+    closeAIMappingModal();
+    renderCapabilityLayer();
+    showToast(`✅ Applied ${appliedCount} capability mappings`, 'ok');
+}
+
+function getAPIKey() {
+    return localStorage.getItem('openai_api_key') || '';
+}
+
+// ─────────────────────────────────────────────
+//  AI AGENT LAYER
+// ─────────────────────────────────────────────
+let currentAgentMaturity = 3;
+
+function renderAIAgents() {
+    const agents = getAIAgents();
+    const filterType = document.getElementById('filterAgentType').value;
+    const toBeOnly = document.getElementById('filterToBeOnly').checked;
+    
+    let filtered = agents;
+    if (filterType) filtered = filtered.filter(a => a.type === filterType);
+    if (toBeOnly) filtered = filtered.filter(a => a.toBe);
+    
+    let html = '';
+    filtered.forEach(agent => {
+        const maturityLabels = ['Pilot', 'Developing', 'Defined', 'Production', 'Optimized'];
+        const maturityColors = ['#94a3b8', '#60a5fa', '#fbbf24', '#84cc16', '#16a34a'];
+        const maturityColor = maturityColors[agent.maturity - 1] || '#94a3b8';
+        const opacity = agent.toBe ? 'opacity:0.85;border:2px dashed #16a34a;' : '';
+        
+        html += `
+            <div class="owner-card" style="${opacity}">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                    <div style="font-weight:800;font-size:13px">${esc(agent.name)}</div>
+                    ${agent.toBe ? '<span class="badge" style="background:#dcfce7;color:#16a34a"><i class="fas fa-wand-magic-sparkles"></i> TO-BE</span>' : ''}
+                </div>
+                <div style="margin-bottom:8px">
+                    <span class="badge" style="background:#dbeafe;color:#1d4ed8">${esc(agent.type)}</span>
+                    <span class="badge" style="background:${maturityColor};color:white;margin-left:4px">${maturityLabels[agent.maturity - 1]}</span>
+                </div>
+                <div style="font-size:11px;color:#64748b;margin-bottom:10px">${esc(agent.description || 'No description')}</div>
+                <div style="font-size:10px;color:#94a3b8;margin-bottom:8px">
+                    🔗 ${(agent.linkedCapabilities || []).length} capabilities · ${(agent.linkedApplications || []).length} apps
+                </div>
+                <div class="action-row" style="margin-top:10px">
+                    <button class="icon-btn" onclick="editAIAgent('${agent.id}')" title="Edit"><i class="fas fa-pencil"></i></button>
+                    <button class="icon-btn del" onclick="if(confirm('Delete this AI agent?')) deleteAIAgent('${agent.id}')" title="Delete"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `;
+    });
+    
+    document.getElementById('aiAgentGrid').innerHTML = html || '<div class="empty-state"><i class="fas fa-robot"></i><p>No AI agents yet. Click "Add AI Agent" to create one.</p></div>';
+}
+
+function openAIAgentModal(agentId = null) {
+    currentAgentMaturity = 3;
+    
+    if (agentId) {
+        const agent = getAIAgents().find(a => a.id === agentId);
+        if (!agent) return;
+        
+        document.getElementById('agentModalTitle').textContent = 'Edit AI Agent';
+        document.getElementById('editAgentId').value = agent.id;
+        document.getElementById('agentName').value = agent.name;
+        document.getElementById('agentType').value = agent.type;
+        document.getElementById('agentDescription').value = agent.description || '';
+        document.getElementById('agentToBe').checked = agent.toBe || false;
+        currentAgentMaturity = agent.maturity || 3;
+        setAgentMaturity(currentAgentMaturity);
+        
+        // Pre-select linked capabilities and applications
+        setTimeout(() => {
+            Array.from(document.getElementById('agentCapabilities').options).forEach(opt => {
+                opt.selected = (agent.linkedCapabilities || []).includes(opt.value);
+            });
+            Array.from(document.getElementById('agentApplications').options).forEach(opt => {
+                opt.selected = (agent.linkedApplications || []).includes(opt.value);
+            });
+        }, 100);
+    } else {
+        document.getElementById('agentModalTitle').textContent = 'Add AI Agent';
+        document.getElementById('editAgentId').value = '';
+        document.getElementById('agentName').value = '';
+        document.getElementById('agentType').value = 'NLP';
+        document.getElementById('agentDescription').value = '';
+        document.getElementById('agentToBe').checked = true;
+        setAgentMaturity(3);
+    }
+    
+    // Populate capability and application dropdowns
+    const caps = getCapabilities();
+    const apps = getApps();
+    
+    document.getElementById('agentCapabilities').innerHTML = caps.map(c => 
+        `<option value="${c.id}">${esc(c.name)}</option>`
+    ).join('');
+    
+    document.getElementById('agentApplications').innerHTML = apps.map(a => 
+        `<option value="${a.id}">${esc(a.name)}</option>`
+    ).join('');
+    
+    document.getElementById('aiAgentModal').classList.remove('hidden');
+}
+
+function closeAIAgentModal() {
+    document.getElementById('aiAgentModal').classList.add('hidden');
+}
+
+function setAgentMaturity(val) {
+    currentAgentMaturity = val;
+    document.querySelectorAll('#agentMaturityBtns .score-btn').forEach((btn, idx) => {
+        btn.classList.toggle('sel', idx === val - 1);
+    });
+}
+
+function saveAIAgent() {
+    const id = document.getElementById('editAgentId').value || generateAgentId();
+    const name = document.getElementById('agentName').value.trim();
+    const type = document.getElementById('agentType').value;
+    const description = document.getElementById('agentDescription').value.trim();
+    const toBe = document.getElementById('agentToBe').checked;
+    const linkedCapabilities = Array.from(document.getElementById('agentCapabilities').selectedOptions).map(o => o.value);
+    const linkedApplications = Array.from(document.getElementById('agentApplications').selectedOptions).map(o => o.value);
+    
+    if (!name) {
+        showToast('Agent name is required', 'err');
+        return;
+    }
+    
+    const agent = {
+        id, name, type, description, maturity: currentAgentMaturity, toBe,
+        linkedCapabilities, linkedApplications
+    };
+    
+    upsertAIAgent(agent);
+    closeAIAgentModal();
+    renderAIAgents();
+    showToast(`AI Agent ${id.startsWith('agent_') ? 'saved' : 'updated'}`, 'ok');
+}
+
+function editAIAgent(id) {
+    openAIAgentModal(id);
+}
+
+function deleteAIAgent(id) {
+    window.deleteAIAgent(id);
+    renderAIAgents();
+    showToast('AI Agent deleted', 'ok');
+}
+
+// ─────────────────────────────────────────────
+//  UTILS
+// ─────────────────────────────────────────────
+
 let toastTimer = null;
 function showToast(msg, type) {
     const t = document.getElementById('toast');
@@ -1374,12 +2732,25 @@ function showToast(msg, type) {
 document.getElementById('appModal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
 });
+document.getElementById('capMappingModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCapMappingModal();
+});
+document.getElementById('aiAgentModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAIAgentModal();
+});
 
 // ─────────────────────────────────────────────
 //  INIT
 // ─────────────────────────────────────────────
-renderKPIs();
-renderInventory();
+// Check if this is first load with new structure and show migration notice
+const data = loadData();
+if (data.applications && data.applications.length > 0 && !data._migrated) {
+    showToast('✨ APM enhanced with Capability Mapping & AI Agents. Your existing portfolio data has been preserved.', 'ok');
+    data._migrated = true;
+    saveData(data);
+}
+
+renderCapabilityLayer();
 </script>
 
 <!-- ================================================================
@@ -1431,6 +2802,10 @@ renderInventory();
         <button class="apm-qa-btn" onclick="apmQuickAsk('Which applications in my portfolio represent the highest technical risk due to legacy status or low technical fit score? Suggest remediation actions')">Legacy risk</button>
         <button class="apm-qa-btn" onclick="apmQuickAsk('Give me a prioritized invest / retire recommendation for each application based on tech fit and business value scores')">Invest / Retire plan</button>
         <button class="apm-qa-btn" onclick="apmQuickAsk('Which applications could be consolidated? Look for overlapping capabilities, same department, or similar technology stacks')">Consolidation opportunities</button>
+        <button class="apm-qa-btn" onclick="apmQuickAsk('Analyze my business capability coverage. Which capabilities have NO linked applications (coverage gaps)? Which capabilities have 3+ applications (consolidation risk)?')">Capability gap analysis</button>
+        <button class="apm-qa-btn" onclick="apmQuickAsk('Recommend which AI agents I should implement to modernize my application portfolio. Link agents to specific applications with low AI maturity')">AI agent recommendations</button>
+        <button class="apm-qa-btn" onclick="apmQuickAsk('Identify applications with high AI transformation potential but low AI maturity. Suggest a sequence for AI modernization initiatives')">AI modernization roadmap</button>
+        <button class="apm-qa-btn" onclick="apmQuickAsk('Which capabilities are most critical for our business but supported by legacy applications? Recommend modernization priorities')">Critical capability risk</button>
         <button class="apm-qa-btn" onclick="apmQuickAsk('Analyze technology standardization opportunities across my portfolio. Which technology stacks are duplicated?')">Tech standardization</button>
         <button class="apm-qa-btn" onclick="apmQuickAsk('Build a 12-month roadmap for my application portfolio rationalization — sequence replacements, consolidations, and retirements')">12-month roadmap</button>
         <button class="apm-qa-btn" onclick="apmQuickAsk('What KPIs and metrics should I track to measure the success of my portfolio rationalization initiative?')">Portfolio KPIs</button>
@@ -1471,57 +2846,97 @@ const APM_ASSISTANT = {
 
     getAPMContext() {
         const apps = (typeof getApps === 'function') ? getApps() : [];
-        if (!apps.length) return null;
+        const capabilities = (typeof getCapabilities === 'function') ? getCapabilities() : [];
+        const aiAgents = (typeof getAIAgents === 'function') ? getAIAgents() : [];
+        
+        if (!apps.length && !capabilities.length && !aiAgents.length) return null;
 
         const LC_MAP = { active:'Active', phaseIn:'Phase-In', phaseOut:'Phase-Out', legacy:'Legacy', retired:'Retired' };
         const AC_MAP = { retain:'Retain', invest:'Invest', replace:'Replace', consolidate:'Consolidate', retire:'Retire' };
 
-        const lines = [`Application Portfolio — ${apps.length} applications:\n`];
-        apps.forEach(a => {
-            const cur = a.currency || 'SEK';
-            const capex = Number(a.capex) || 0;
-            const opex  = Number(a.opex)  || 0;
-            const total = capex + opex;
-            const costStr = total ? `Cost ${cur} ${total >= 1e6 ? (total/1e6).toFixed(1)+'M' : total >= 1000 ? (total/1000).toFixed(0)+'K' : total} / yr` : 'No cost data';
-            lines.push(
-                `- ${a.name} | Dept: ${a.department||'—'} | Owner: ${a.owner||'—'} | Lifecycle: ${LC_MAP[a.lifecycle]||a.lifecycle} | Action: ${AC_MAP[a.rationalizationAction]||'—'} | TechFit: ${a.technicalFitScore||'—'}/5 | BizValue: ${a.businessValueScore||'—'}/5 | ${costStr} | Users: ${a.userCount||'—'} | Vendor: ${a.vendor||'—'} | Tech: ${a.technology||'—'}`
-            );
-        });
+        const lines = [];
+
+        // Capabilities summary
+        if (capabilities.length) {
+            const unmappedCaps = capabilities.filter(c => !c.linkedApplications || c.linkedApplications.length === 0);
+            const consolidationRisk = capabilities.filter(c => c.linkedApplications && c.linkedApplications.length >= 3);
+            const highAIpotential = capabilities.filter(c => c.aiPotential === 'High');
+            lines.push(`Business Capabilities — ${capabilities.length} total:`);
+            lines.push(`  - ${unmappedCaps.length} capabilities have NO linked applications (coverage gaps)`);
+            lines.push(`  - ${consolidationRisk.length} capabilities have 3+ applications (consolidation opportunity)`);
+            lines.push(`  - ${highAIpotential.length} capabilities have High AI transformation potential`);
+            lines.push(`  - Top capabilities: ${capabilities.slice(0, 5).map(c => c.name).join(', ')}`);
+            lines.push('');
+        }
+
+        // AI Agents summary
+        if (aiAgents.length) {
+            const productionAgents = aiAgents.filter(a => !a.toBe);
+            const proposedAgents = aiAgents.filter(a => a.toBe);
+            lines.push(`AI Agents — ${aiAgents.length} total:`);
+            lines.push(`  - ${productionAgents.length} in production, ${proposedAgents.length} TO-BE proposals`);
+            lines.push(`  - Types: ${[...new Set(aiAgents.map(a => a.type))].join(', ')}`);
+            lines.push('');
+        }
+
+        // Application portfolio
+        if (apps.length) {
+            lines.push(`Application Portfolio — ${apps.length} applications:\n`);
+            apps.forEach(a => {
+                const cur = a.currency || 'SEK';
+                const capex = Number(a.capex) || 0;
+                const opex  = Number(a.opex)  || 0;
+                const total = capex + opex;
+                const costStr = total ? `Cost ${cur} ${total >= 1e6 ? (total/1e6).toFixed(1)+'M' : total >= 1000 ? (total/1000).toFixed(0)+'K' : total} / yr` : 'No cost data';
+                const aiMaturity = a.ai_maturity || 3;
+                const aiPotential = a.ai_transformation_potential || 'Medium';
+                const caps = a.businessCapabilities?.length ? `Capabilities: ${a.businessCapabilities.join(', ')}` : 'No capabilities';
+                lines.push(
+                    `- ${a.name} | Dept: ${a.department||'—'} | Owner: ${a.owner||'—'} | Lifecycle: ${LC_MAP[a.lifecycle]||a.lifecycle} | Action: ${AC_MAP[a.rationalizationAction]||'—'} | TechFit: ${a.technicalFitScore||'—'}/5 | BizValue: ${a.businessValueScore||'—'}/5 | AI Maturity: ${aiMaturity}/5 | AI Potential: ${aiPotential} | ${costStr} | Users: ${a.userCount||'—'} | Vendor: ${a.vendor||'—'} | Tech: ${a.technology||'—'} | ${caps}`
+                );
+            });
+        }
+        
         return lines.join('\n');
     },
 
-    systemPrompt: `You are an expert AI assistant specialised in Application Portfolio Management (APM) and Enterprise Architecture.
+    systemPrompt: `You are an expert AI assistant specialised in Application Portfolio Management (APM), Business Capability Mapping, and AI-driven transformation.
 
 Your role is to:
 1. ANALYSE the application portfolio and identify rationalisation candidates, risks, and opportunities
-2. RECOMMEND concrete actions: Retain, Invest, Replace, Consolidate, or Retire for each application
-3. PRIORITISE based on technical fit score, business value score, lifecycle status, and total cost (CAPEX + OPEX)
-4. IDENTIFY cost optimisation opportunities — especially high-OPEX applications with low business value
-5. SUGGEST consolidation opportunities for overlapping applications
-6. SUPPORT roadmap planning for portfolio rationalisation
+2. ASSESS business capability coverage gaps and consolidation risks (multiple apps per capability)
+3. RECOMMEND AI agent implementations to modernize legacy applications and improve capability maturity
+4. PRIORITISE based on technical fit score, business value score, AI maturity, lifecycle status, and total cost (CAPEX + OPEX)
+5. IDENTIFY cost optimisation opportunities — especially high-OPEX applications with low business value or AI maturity
+6. SUGGEST consolidation opportunities for overlapping applications within the same capability
+7. SUPPORT roadmap planning for both portfolio rationalisation AND AI transformation
 
 Always respond in English. Be concrete, structured, and business-focused.
 Use bullet points, short headers, and prioritised lists.
 Always justify recommendations with data from the portfolio context when available.
 
 Focus on:
-- Portfolio health (lifecycle distribution, fit scores)
+- Portfolio health (lifecycle distribution, fit scores, AI maturity levels)
+- Capability coverage (gaps where no apps exist, consolidation where 3+ apps overlap)
+- AI transformation potential (applications with high AI potential but low AI maturity = modernization priority)
 - Cost efficiency (CAPEX/OPEX vs business value)
-- Technical risk (legacy applications, low tech fit)
+- Technical risk (legacy applications, low tech fit, low AI maturity)
 - Business alignment (low business value applications)
-- Consolidation potential (overlapping vendors, departments, technologies)
-- Rationalisation roadmap sequencing`,
+- Consolidation potential (overlapping capabilities, vendors, departments, technologies)
+- Rationalisation roadmap sequencing (retire → replace → consolidate → invest)
+- AI agent recommendations (which agents to implement, linked to which capabilities/applications)`,
 
-    welcomeMsg: `Hello! I'm your **APM AI Assistant**.
+    welcomeMsg: `Hello! I'm your **APM AI Assistant** with capability mapping and AI transformation expertise.
 
 I help you:
 - Identify rationalization candidates (Replace / Retire / Consolidate)
-- Analyse portfolio health and lifecycle risks
-- Optimize costs — CAPEX & OPEX vs business value
-- Plan a sequenced rationalization roadmap
-- Benchmark technical fit and business alignment
+- Analyse business capability coverage gaps and consolidation risks
+- Recommend AI agents to modernize your portfolio
+- Optimize costs — CAPEX & OPEX vs business value and AI maturity
+- Plan a sequenced AI transformation roadmap
+- Benchmark technical fit, business alignment, and AI readiness
 
-Use the quick-action buttons above or type your question below. If you have applications in your portfolio, I'll automatically use them as context for tailored recommendations.`,
+Use the quick-action buttons above or type your question below. If you have applications or capabilities in your portfolio, I'll automatically use them as context for tailored recommendations.`,
 
     init() {
         this.renderWelcome();
@@ -1709,8 +3124,16 @@ function apmNewChat() {
     APM_ASSISTANT.showMiniToast('New chat started');
 }
 
-document.addEventListener('DOMContentLoaded', () => APM_ASSISTANT.init());
-if (document.readyState !== 'loading') APM_ASSISTANT.init();
+document.addEventListener('DOMContentLoaded', () => {
+    APM_ASSISTANT.init();
+    loadAPQCMetadata(); // Load APQC framework metadata
+    updateTemplateIndicator(); // Update template indicator if template already loaded
+});
+if (document.readyState !== 'loading') {
+    APM_ASSISTANT.init();
+    loadAPQCMetadata();
+    updateTemplateIndicator();
+}
 /* ================================================================
    APM AI ASSISTANT END
    ================================================================ */

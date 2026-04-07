@@ -112,6 +112,36 @@ Each capability is a flat object (NO deep nesting beyond L2/L3 hierarchy in sepa
 - **Used by:** Phase 1.3 (capability map robot icons), Step 5 (gap analysis AI prioritization), Step 7 (architecture AI agent design)
 - **Rendering:** Capabilities with `ai_enabled: true` display robot icon (🤖) in capability map visualization
 
+### apqc_source (BOOLEAN - Phase 4.1)
+- **Type:** Boolean (true/false)
+- **Default:** `false`
+- **Added:** 2026-04-07 (APQC Integration)
+- **Purpose:** Indicates if capability was derived from APQC Process Classification Framework
+- **Usage:** Helps identify industry-standard capabilities vs. custom company-specific ones
+- **Criteria for `true`:**
+  - Capability imported from APQC framework data
+  - Capability name/description matches APQC L2-L4 process
+  - APQC framework was used as source during generation
+- **Examples:**
+  - `true`: "Develop Product Strategy" (APQC 2.1), "Manage Customer Service" (APQC 5.0)
+  - `false`: Company-specific custom capabilities, AI-generated unique capabilities
+- **Rendering:** Capabilities with `apqc_source: true` display badge "APQC" in UI
+
+### apqc_code (STRING - Phase 4.1)
+- **Type:** String (APQC category code)
+- **Default:** `null` or omitted
+- **Added:** 2026-04-07 (APQC Integration)
+- **Purpose:** Links capability to specific APQC Process Classification Framework category
+- **Format:** 
+  - L1: `"1.0"` (e.g., "1.0 - Develop Vision and Strategy")
+  - L2: `"1.1"` (e.g., "1.1 - Define the Business Concept")
+  - L3: `"1.1.1"` (e.g., "1.1.1 - Assess External Environment")
+  - L4: `"1.1.1.1"` (detailed process)
+- **Validation:** Must match APQC v8.0 standard codes if provided
+- **Example:** `"2.1"` for "Develop Product Strategy", `"5.2"` for "Manage Customer Inquiries"
+- **Usage:** Traceability to APQC standard, benchmarking alignment
+- **Optional:** Only required when `apqc_source: true`
+
 ---
 
 ## Autopilot vs Legacy Generation

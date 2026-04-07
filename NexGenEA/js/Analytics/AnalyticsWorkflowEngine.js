@@ -173,7 +173,7 @@ const AnalyticsWorkflowEngine = (() => {
 
     // Append instruction file content if PromptBuilder loaded it
     if (typeof PromptBuilder !== 'undefined' && taskDef.instructionFile) {
-      const instruction = PromptBuilder.getInstruction(tabState.tabId, taskDef.instructionFile);
+      const instruction = await PromptBuilder.load(tabState.tabId, taskDef.instructionFile, '');
       if (instruction) system = instruction + '\n\n' + system;
     }
 

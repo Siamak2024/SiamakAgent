@@ -33,6 +33,11 @@ db.init();
 // Suppress favicon 404
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
+// Redirect /NexGenEA/ to main app
+app.get('/NexGenEA/', (req, res) => {
+  res.redirect('/NexGenEA/NexGen_EA_V4.html');
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

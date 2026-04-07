@@ -33,7 +33,25 @@ You are a Senior Enterprise Architect designing the complete target state archit
 - security_architecture: zero-trust, SASE, defence-in-depth â€” specific to this org's risk profile
 - devsecops_maturity: target engineering practice maturity
 - key_platforms: the 3-5 platform investments that underpin everything else
-
+**AI Agents & Intelligent Automation (NEW - Phase 4.1):**
+- **Generate 3-8 AI agents** that automate or augment capabilities identified in the capability map
+- Each AI agent should:
+  - Have a specific **agent_type**: "NLP", "Computer Vision", "RPA", "Predictive Analytics", "Conversational AI", "Recommendation Engine", etc.
+  - Define clear **purpose**: What business process or capability does it automate/augment?
+  - Link to **capabilities**: Which capabilities from Step 3 does this agent enable? (linked_capabilities array)
+  - Specify **maturity_level**: "Pilot", "Production", "Optimized"
+  - Mark **is_proposed: true** for TO-BE agents (not yet implemented)
+- **AI Agent Selection Criteria:**
+  - Review capabilities marked with `ai_enabled: true` from Step 3
+  - Review Strategic Intent AI transformation themes from Step 1
+  - Identify repetitive, high-volume, or data-intensive processes
+  - Consider customer-facing automation opportunities
+  - Prioritize agents with high strategic impact and feasible implementation
+- **Examples:**
+  - "Invoice Processing RPA" → automates "Manage Accounts Payable" capability
+  - "Customer Intent NLP Engine" → augments "Manage Customer Service" capability
+  - "Predictive Maintenance AI" → enables "Monitor Asset Health" capability
+  - "Product Recommendation Engine" → enhances "Deliver Personalized Marketing" capability
 **Architecture Decisions (ADRs):** Include 3-5 of the most consequential decisions made in this architecture design. Each ADR should capture a genuine trade-off â€” a decision where reasonable architects might have chosen differently.
 
 **metadata.at_a_glance:** Max 25 words â€” what is the target architecture in plain language for a CEO?
@@ -71,6 +89,24 @@ Return ONLY valid JSON. No markdown, no prose.
     "devsecops_maturity": "",
     "key_platforms": []
   },
+  "ai_agents": [
+    {
+      "name": "Invoice Processing RPA",
+      "agent_type": "RPA",
+      "purpose": "Automate invoice data extraction, validation, and posting to ERP",
+      "linked_capabilities": ["Manage Accounts Payable", "Process Financial Transactions"],
+      "maturity_level": "Pilot",
+      "is_proposed": true
+    },
+    {
+      "name": "Customer Intent NLP Engine",
+      "agent_type": "NLP",
+      "purpose": "Analyze customer inquiries and route to appropriate service channel",
+      "linked_capabilities": ["Manage Customer Service", "Deliver Omnichannel Support"],
+      "maturity_level": "Production",
+      "is_proposed": false
+    }
+  ],
   "architecture_decisions": [
     {
       "adr_id": "ADR01",

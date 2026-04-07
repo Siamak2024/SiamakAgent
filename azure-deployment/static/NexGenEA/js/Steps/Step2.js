@@ -157,7 +157,7 @@ Return JSON output.`;
         key_partners: ['string'],
         cost_structure: ['string'],
         revenue_streams: ['string'],
-        ai_transformation: 'object'  // Phase 2.1: AI-enabled BMC elements
+        ai_transformation: 'object?'  // Phase 2.1: Optional AI-enabled BMC elements (only if Strategic Intent has AI plans)
       },
 
       parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step2_bmc_future')

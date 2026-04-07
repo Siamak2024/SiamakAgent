@@ -168,14 +168,90 @@ Before returning JSON:
 - [ ] No system names (CRM, ERP) used as capability names
 - [ ] JSON is valid and matches schema from DATA_CONTRACT
 
+## APQC Framework Integration (NEW - 2026-04-07)
+
+**When APQC framework data is available:**
+
+The platform may provide you with APQC Process Classification Framework capabilities relevant to the user's industry and strategic intent. **USE THIS DATA** to enrich your capability generation.
+
+### How to Use APQC Capabilities:
+
+1. **Check Context for APQC Data:**
+   - If `apqcCapabilities` array is provided in context
+   - APQC capabilities are industry-standard L2-L4 process capabilities
+   
+2. **Integration Approach:**
+   - **DON'T** copy all APQC capabilities verbatim (too many, too detailed)
+   - **DO** use APQC as inspiration and validation
+   - **DO** merge APQC capabilities with your AI-generated ones
+   - **DO** adapt APQC names to [Verb][Object] format if needed
+   
+3. **APQC Source Attribution:**
+   - Add `"apqc_source": true` to capabilities derived from APQC
+   - Add `"apqc_code": "1.2.3"` if you know the APQC category code
+   - This helps users identify industry-standard capabilities
+   
+4. **Strategic Filtering:**
+   - Prioritize APQC capabilities that align with Strategic Intent
+   - E.g., if intent is "Innovation" → prioritize APQC capabilities in R&D, Product Development
+   - E.g., if intent is "Efficiency" → prioritize APQC capabilities in Operations, Supply Chain
+   
+5. **Domain Mapping:**
+   - Map APQC L1 categories to your business domains:
+     - APQC 1.0-2.0 (Vision, Products) → Product/Service domain
+     - APQC 3.0-5.0 (Marketing, Delivery, Customer Service) → Customer/Operations
+     - APQC 6.0 (Human Capital) → Workforce/People
+     - APQC 7.0 (IT Management) → Technology
+     - APQC 8.0 (Financial Resources) → Finance
+     - APQC 9.0-13.0 (Assets, Risk, Benchmarking) → Operations/Governance
+
+### Example with APQC:
+
+```json
+{
+  "capabilities": [
+    {
+      "id": "CAP-001",
+      "name": "Develop Product Strategy",
+      "domain": "Product",
+      "maturity": 2,
+      "strategicImportance": "critical",
+      "description": "Define product roadmap aligned with market trends and strategic themes",
+      "apqc_source": true,
+      "apqc_code": "2.1"
+    },
+    {
+      "id": "CAP-002",
+      "name": "Manage Customer Onboarding",
+      "domain": "Customer",
+      "maturity": 3,
+      "strategicImportance": "high",
+      "description": "Streamline customer acquisition and activation process",
+      "apqc_source": false
+    }
+  ]
+}
+```
+
+**Quality Check with APQC:**
+- [ ] Used APQC capabilities where they match strategic context
+- [ ] Adapted APQC names to [Verb][Object] format
+- [ ] Marked APQC-sourced capabilities with `apqc_source: true`
+- [ ] Balanced APQC-derived (30-50%) with AI-generated (50-70%) capabilities
+
+---
+
 ## Instructions
 
-1. Analyze industry, BMC, and Strategic Intent to identify appropriate business domains
-2. Generate 25-35 capabilities across 5-8 domains derived from the company context
-3. Set maturity based on constraints and evidence in the company description
-4. Set strategic importance based on Strategic Intent themes
-5. Write descriptions that connect each capability to BMC key activities or Strategic Intent
-6. Validate against checklist above
-7. Return valid JSON matching schema
+1. **Check for APQC data** in context (if provided)
+2. Analyze industry, BMC, and Strategic Intent to identify appropriate business domains
+3. Generate 25-35 capabilities across 5-8 domains derived from the company context
+   - **If APQC data available:** Incorporate 8-15 relevant APQC capabilities (marked with `apqc_source: true`)
+   - Generate additional AI capabilities to complement APQC where gaps exist
+4. Set maturity based on constraints and evidence in the company description
+5. Set strategic importance based on Strategic Intent themes
+6. Write descriptions that connect each capability to BMC key activities or Strategic Intent
+7. Validate against checklist above
+8. Return valid JSON matching schema
 
 **CRITICAL:** This is Autopilot mode — generate a complete, context-grounded capability map without placeholders or asking follow-up questions. Trust your knowledge of the company's industry and context.

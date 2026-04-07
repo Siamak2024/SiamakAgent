@@ -497,10 +497,12 @@ Include 8-12 initiatives total. executive_roadmap_summary: 3 sentences Board-lev
 
       aiAgents: (() => {
         if ((model.aiAgents || []).length > 0) return model.aiAgents;
-        // No explicit AI agent schema in Step7; derive from strategic options or tech arch
-        const techArch = output.targetArch?.technology_architecture || {};
-        // Some AI models return ai_agents or ai_capabilities
-        const explicit = techArch.ai_agents || techArch.ai_capabilities || [];
+        // AI agents should be at output.targetArch.ai_agents per 7_2_target_arch.instruction.md
+        // ALSO check technology_architecture for backward compatibility with older generations
+        const explicit = output.targetArch?.ai_agents 
+                      || output.targetArch?.technology_architecture?.ai_agents 
+                      || output.targetArch?.technology_architecture?.ai_capabilities 
+                      || [];
         if (explicit.length) {
           // Enrich AI agents with Phase 1.1 schema fields if not present
           return explicit.map(a => {

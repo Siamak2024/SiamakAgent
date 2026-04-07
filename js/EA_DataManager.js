@@ -762,6 +762,267 @@ class EA_DataManager {
       ]
     };
   }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // APQC FRAMEWORK INTEGRATION
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * Load APQC PCF master data
+   * @returns {Promise<object>} - APQC framework data
+   */
+  async loadAPQCFramework() {
+    try {
+      const response = await fetch('APAQ_Data/apqc_pcf_master.json');
+      if (!response.ok) {
+        throw new Error(`Failed to load APQC framework: ${response.statusText}`);
+      }
+      const data = await response.json();
+      
+      // Cache in sessionStorage for performance
+      sessionStorage.setItem('ea_apqc_framework', JSON.stringify(data));
+      
+      console.log('✅ APQC Framework loaded:', data.total_categories, 'categories');
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to load APQC framework:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Load APQC metadata mappings
+   * @returns {Promise<object>} - Metadata mappings
+   */
+  async loadAPQCMetadata() {
+    try {
+      const response = await fetch('APAQ_Data/apqc_metadata_mapping.json');
+      if (!response.ok) {
+        throw new Error(`Failed to load APQC metadata: ${response.statusText}`);
+      }
+      const data = await response.json();
+      
+      // Cache in sessionStorage
+      sessionStorage.setItem('ea_apqc_metadata', JSON.stringify(data));
+      
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to load APQC metadata:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Load APQC capability enrichment data
+   * @returns {Promise<object>} - Enrichment data
+   */
+  async loadAPQCEnrichment() {
+    try {
+      const response = await fetch('APAQ_Data/apqc_capability_enrichment.json');
+      if (!response.ok) {
+        // Enrichment file may not exist yet if Excel hasn't been converted
+        console.warn('⚠️ APQC enrichment file not found (run converter first)');
+        return null;
+      }
+      const data = await response.json();
+      
+      // Cache in sessionStorage
+      sessionStorage.setItem('ea_apqc_enrichment', JSON.stringify(data));
+      
+      return data;
+    } catch (error) {
+      console.warn('⚠️ APQC enrichment not available:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Get cached APQC framework or load if not cached
+   * @returns {Promise<object>} - APQC framework data
+   */
+  async getAPQCFramework() {
+    // Check cache first
+    const cached = sessionStorage.getItem('ea_apqc_framework');
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (e) {
+        console.warn('Invalid cached APQC data, reloading...');
+      }
+    }
+    
+    return await this.loadAPQCFramework();
+  }
+
+  /**
+   * Get APQC capabilities filtered by business type
+   * @param {string} businessType - Business type filter (e.g., "Manufacturing", "Services")
+   * @returns {Promise<Array>} - Filtered capabilities
+   */
+  async getAPQCCapabilitiesByBusinessType(businessType) {
+    const framework = await this.getAPQCFramework();
+    const metadata = await this.loadAPQCMetadata();
+    
+    if (!framework || !metadata) return [];
+
+    const mapping = metadata.business_type_mappings[businessType];
+    if (!mapping) return framework.categories; // Return all if no specific mapping
+
+    // Filter categories based on business type
+    return framework.categories.filter(category => {
+      return mapping.applicable_categories?.includes(category.code) ||
+             mapping.primary_categories?.includes(category.code) ||
+             mapping.secondary_categories?.includes(category.code);
+    });
+  }
+
+  /**
+   * Get APQC capabilities filtered by strategic intent
+   * @param {string} strategicIntent - Strategic intent filter (e.g., "Growth", "Innovation")
+   * @returns {Promise<Array>} - Filtered capabilities
+   */
+  async getAPQCCapabilitiesByIntent(strategicIntent) {
+    const framework = await this.getAPQCFramework();
+    const metadata = await this.loadAPQCMetadata();
+    
+    if (!framework || !metadata) return [];
+
+    const mapping = metadata.strategic_intent_mappings[strategicIntent];
+    if (!mapping) return framework.categories;
+
+    // Filter categories based on strategic intent
+    return framework.categories.filter(category => {
+      return mapping.primary_categories?.includes(category.code);
+    });
+  }
+
+  /**
+   * Enrich project capabilities with APQC data
+   * @param {string} projectId - Project ID
+   * @param {object} options - Enrichment options (businessType, strategicIntent)
+   * @returns {Promise<boolean>} - Success status
+   */
+  async enrichProjectWithAPQC(projectId, options = {}) {
+    const project = this.getProject(projectId);
+    if (!project) {
+      console.error('Project not found:', projectId);
+      return false;
+    }
+
+    try {
+      const framework = await this.getAPQCFramework();
+      const enrichment = await this.loadAPQCEnrichment();
+      const metadata = await this.loadAPQCMetadata();
+
+      if (!framework) {
+        console.error('APQC framework not available');
+        return false;
+      }
+
+      // Filter capabilities based on options
+      let capabilities = framework.categories;
+      
+      if (options.businessType) {
+        capabilities = await this.getAPQCCapabilitiesByBusinessType(options.businessType);
+      }
+      
+      if (options.strategicIntent) {
+        const intentCapabilities = await this.getAPQCCapabilitiesByIntent(options.strategicIntent);
+        // Intersect if both filters applied
+        if (options.businessType) {
+          const intentIds = new Set(intentCapabilities.map(c => c.id));
+          capabilities = capabilities.filter(c => intentIds.has(c.id));
+        } else {
+          capabilities = intentCapabilities;
+        }
+      }
+
+      // Store APQC data in project
+      const apqcData = {
+        source: 'APQC',
+        framework_version: framework.framework_version,
+        imported_date: new Date().toISOString(),
+        filters: options,
+        capabilities: capabilities,
+        enrichment: enrichment || [],
+        metadata: metadata
+      };
+
+      // Update project with APQC data
+      this.updateProject(projectId, {
+        data: {
+          ...project.data,
+          apqc: apqcData
+        },
+        metadata: {
+          ...project.metadata,
+          apqc_integrated: true,
+          apqc_version: framework.framework_version
+        }
+      });
+
+      console.log(`✅ Project enriched with ${capabilities.length} APQC capabilities`);
+      return true;
+
+    } catch (error) {
+      console.error('❌ Failed to enrich project with APQC:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get APQC capabilities for current project
+   * @returns {Array} - APQC capabilities or empty array
+   */
+  getProjectAPQCCapabilities() {
+    const project = this.getCurrentProject();
+    if (!project || !project.data.apqc) {
+      return [];
+    }
+    
+    return project.data.apqc.capabilities || [];
+  }
+
+  /**
+   * Check if current project has APQC integration
+   * @returns {boolean} - True if APQC data exists
+   */
+  hasAPQCIntegration() {
+    const project = this.getCurrentProject();
+    return project && project.metadata.apqc_integrated === true;
+  }
+
+  /**
+   * Get APQC integration status for UI display
+   * @returns {object} - Integration status
+   */
+  getAPQCStatus() {
+    const project = this.getCurrentProject();
+    
+    if (!project) {
+      return {
+        integrated: false,
+        message: 'No active project'
+      };
+    }
+
+    if (!project.metadata.apqc_integrated) {
+      return {
+        integrated: false,
+        message: 'APQC framework not loaded for this project'
+      };
+    }
+
+    const apqcData = project.data.apqc;
+    return {
+      integrated: true,
+      version: apqcData.framework_version,
+      imported_date: apqcData.imported_date,
+      capability_count: apqcData.capabilities?.length || 0,
+      filters: apqcData.filters,
+      message: `Powered by APQC PCF ${apqcData.framework_version}`
+    };
+  }
 }
 
 // Make available globally
