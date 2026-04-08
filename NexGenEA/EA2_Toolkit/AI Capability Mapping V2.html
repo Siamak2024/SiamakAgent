@@ -306,6 +306,18 @@
       </select>
     </div>
     
+    <div class="mb-4">
+      <label class="text-xs font-semibold text-gray-700 uppercase block mb-2">
+        Organisationsbeskrivning (Valfritt)
+        <span class="text-gray-400 font-normal ml-1"><i class="fas fa-magic text-xs"></i> Forbattrar AI-detektering</span>
+      </label>
+      <textarea id="apqc-org-description-cap" rows="3" placeholder="Beskriv din organisation, produkter/tjanster, strategiska mal, eller utmaningar... (t.ex. 'Vi ar en SaaS-plattform for HR-analytics med fokus pa prediktiv analys och AI-driven talangutveckling')" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 resize-none"></textarea>
+      <div class="text-xs text-gray-500 mt-1">
+        <i class="fas fa-lightbulb text-yellow-500 mr-1"></i>
+        Denna information hjalper AI:n att battre detektera bransch och foreslå relevanta capabilities.
+      </div>
+    </div>
+    
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-xs text-blue-800">
       <i class="fas fa-info-circle mr-1"></i>
       <strong>Tips:</strong> APQC-capabilities kommer att laggas till i din befintliga capability map. Du kan justera prioritet och mognad efterat.
@@ -1578,9 +1590,10 @@ function showAPQCSettingsCap() {
 
 /**
  * LAYER 1: AI Industry Detection from Context
- * Infers industry from BMC + VC data using AI
+ * Infers industry from BMC + VC data + optional org description using AI
+ * @param {string} orgDescription - Optional organization description from user
  */
-async function detectIndustryFromContext() {
+async function detectIndustryFromContext(orgDescription = '') {
   if (!dataManager) return;
   
   const apiKey = getApiKey();
@@ -1592,12 +1605,16 @@ async function detectIndustryFromContext() {
   const bmcData = dataManager.getIntegrationData('bmc_latest');
   const vcData = dataManager.getIntegrationData('valuechain_latest');
   
-  if (!bmcData && !vcData) {
-    console.log('[INFO] No BMC/VC context - skipping AI industry detection');
+  if (!bmcData && !vcData && !orgDescription) {
+    console.log('[INFO] No BMC/VC context or org description - skipping AI industry detection');
     return;
   }
   
   let contextParts = [];
+  
+  if (orgDescription && orgDescription.trim()) {
+    contextParts.push(`Organization Description: ${orgDescription.trim()}`);
+  }
   
   if (bmcData) {
     const asIs = bmcData.as_is_data || {};
@@ -1888,8 +1905,17 @@ function closeAPQCModalCap() {
  * Apply APQC Settings and Import Capabilities (3-LAYER IMPLEMENTATION)
  */
 async function applyAPQCSettingsCap() {
-  const businessType = document.getElementById('apqc-business-type-cap')?.value;
+  let businessType = document.getElementById('apqc-business-type-cap')?.value;
   const strategicIntent = document.getElementById('apqc-strategic-intent-cap')?.value;
+  const orgDescription = document.getElementById('apqc-org-description-cap')?.value || '';
+
+  // If no business type selected but org description provided, try AI detection first
+  if (!businessType && orgDescription.trim()) {
+    showToast('[INFO] Analyserar organisationsbeskrivning for att detektera bransch...');
+    await detectIndustryFromContext(orgDescription);
+    // Re-read business type after AI detection
+    businessType = document.getElementById('apqc-business-type-cap')?.value;
+  }
 
   if (!businessType || !strategicIntent) {
     alert('Vanligen valj both bransch och strategiskt fokus.');
@@ -1919,7 +1945,9 @@ async function applyAPQCSettingsCap() {
     
     const bmcData = dataManager.getIntegrationData('bmc_latest');
     const vcData = dataManager.getIntegrationData('valuechain_latest');
-    const strategicContext = {};
+    const strategicContext = {
+      orgDescription: orgDescription
+    };
     
     if (bmcData) {
       const asIs = bmcData.as_is_data || {};
