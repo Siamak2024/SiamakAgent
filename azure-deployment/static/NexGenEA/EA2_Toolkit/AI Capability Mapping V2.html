@@ -274,17 +274,19 @@
     <h2 class="font-bold text-gray-900 mb-4 flex items-center gap-2">
       <i class="fas fa-database text-blue-600"></i> APQC Framework - Importera Capabilities
     </h2>
-    <p class="text-sm text-gray-600 mb-4">Välj din bransch och strategiska fokus för att importera relevanta capabilities från APQC Process Classification Framework.</p>
+    <p class="text-sm text-gray-600 mb-4">Valj din bransch och strategiska fokus for att importera relevanta capabilities fran APQC Process Classification Framework.</p>
+    
+    <div id="apqc-detection-banner-cap" class="hidden mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800"></div>
     
     <div class="mb-4">
       <label class="text-xs font-semibold text-gray-700 uppercase block mb-2">Bransch</label>
       <select id="apqc-business-type-cap" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm outline-none focus:border-blue-500">
-        <option value="">-- Välj bransch --</option>
+        <option value="">-- Valj bransch --</option>
         <option value="Manufacturing">Tillverkning (Manufacturing)</option>
-        <option value="Services">Tjänster (Services)</option>
+        <option value="Services">Tjanster (Services)</option>
         <option value="Retail">Detaljhandel (Retail)</option>
-        <option value="Financial Services">Finansiella tjänster (Financial Services)</option>
-        <option value="Healthcare">Hälsovård (Healthcare)</option>
+        <option value="Financial Services">Finansiella tjanster (Financial Services)</option>
+        <option value="Healthcare">Halsovard (Healthcare)</option>
         <option value="Technology">Teknik & IT (Technology)</option>
         <option value="All">Alla branscher (Cross-Industry)</option>
       </select>
@@ -293,18 +295,18 @@
     <div class="mb-4">
       <label class="text-xs font-semibold text-gray-700 uppercase block mb-2">Strategiskt Fokus</label>
       <select id="apqc-strategic-intent-cap" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm outline-none focus:border-blue-500">
-        <option value="">-- Välj strategiskt fokus --</option>
-        <option value="Growth">Tillväxt (Growth)</option>
+        <option value="">-- Valj strategiskt fokus --</option>
+        <option value="Growth">Tillvaxt (Growth)</option>
         <option value="Innovation">Innovation</option>
         <option value="Efficiency">Effektivitet (Efficiency)</option>
         <option value="Customer Centricity">Kundfokus (Customer Centricity)</option>
-        <option value="Sustainability">Hållbarhet (Sustainability)</option>
+        <option value="Sustainability">Hallbarhet (Sustainability)</option>
       </select>
     </div>
     
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-xs text-blue-800">
       <i class="fas fa-info-circle mr-1"></i>
-      <strong>Tips:</strong> APQC-capabilities kommer att läggas till i din befintliga capability map. Du kan justera prioritet och mognad efteråt.
+      <strong>Tips:</strong> APQC-capabilities kommer att laggas till i din befintliga capability map. Du kan justera prioritet och mognad efterat.
     </div>
     
     <div class="flex gap-3">
@@ -1519,6 +1521,9 @@ function downloadCSV(rows, filename) {
 // ═══════════════════════════════════════════════════════════════════════════════
 let apqcFrameworkCap = null;
 let apqcIntegratedCap = false;
+let detectedIndustry = null;
+let detectedIndustryConfidence = 0;
+let detectedIndustryReasoning = '';
 
 /**
  * Initialize APQC Framework for Capability Mapping Toolkit
@@ -1565,6 +1570,335 @@ function showAPQCSettingsCap() {
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
   }
+  
+  detectIndustryFromContext();
+}
+
+/**
+ * LAYER 1: AI Industry Detection from Context
+ * Infers industry from BMC + VC data using AI
+ */
+async function detectIndustryFromContext() {
+  if (!dataManager) return;
+  
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    console.log('[INFO] No API key - skipping AI industry detection');
+    return;
+  }
+  
+  const bmcData = dataManager.getIntegrationData('bmc_latest');
+  const vcData = dataManager.getIntegrationData('valuechain_latest');
+  
+  if (!bmcData && !vcData) {
+    console.log('[INFO] No BMC/VC context - skipping AI industry detection');
+    return;
+  }
+  
+  let contextParts = [];
+  
+  if (bmcData) {
+    const asIs = bmcData.as_is_data || {};
+    if (asIs.value_proposition) contextParts.push(`Value Proposition: ${asIs.value_proposition}`);
+    if (asIs.customer_segments) contextParts.push(`Customer Segments: ${asIs.customer_segments}`);
+    if (asIs.key_activities) contextParts.push(`Key Activities: ${asIs.key_activities}`);
+    if (asIs.strategic_goal) contextParts.push(`Strategic Goal: ${asIs.strategic_goal}`);
+  }
+  
+  if (vcData) {
+    const asIs = vcData.as_is_data || {};
+    Object.entries(asIs).forEach(([key, val]) => {
+      if (val && typeof val === 'string') contextParts.push(`${key}: ${val}`);
+    });
+  }
+  
+  if (contextParts.length === 0) {
+    console.log('[INFO] Empty context - skipping AI industry detection');
+    return;
+  }
+  
+  const banner = document.getElementById('apqc-detection-banner-cap');
+  if (banner) {
+    banner.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>AI detekterar bransch...';
+    banner.classList.remove('hidden');
+  }
+  
+  try {
+    const prompt = `Based on the following organization description, classify the organization into one of these APQC industry categories:
+- manufacturing
+- services
+- retail
+- financial_services
+- healthcare
+- technology
+
+Organization Context:
+${contextParts.join('\n')}
+
+Return ONLY valid JSON with this structure (no markdown):
+{
+  "primary_industry": "one of the 6 categories above",
+  "secondary_industry": "optional secondary category or null",
+  "confidence_score": 85,
+  "reasoning": "Brief explanation (50 words max)"
+}`;
+
+    const res = await fetch('/api/openai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-5',
+        messages: [
+          { role: 'system', content: 'You are an industry classification expert. Return ONLY valid JSON, no markdown.' },
+          { role: 'user', content: prompt }
+        ]
+      })
+    });
+    
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+    
+    let raw = json.choices[0].message.content.trim();
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    const result = JSON.parse(raw);
+    
+    detectedIndustry = result.primary_industry || null;
+    detectedIndustryConfidence = Math.min(100, Math.max(0, Number(result.confidence_score) || 0));
+    detectedIndustryReasoning = String(result.reasoning || '').slice(0, 150);
+    
+    if (detectedIndustry && detectedIndustryConfidence >= 60) {
+      const dropdown = document.getElementById('apqc-business-type-cap');
+      const industryMap = {
+        'manufacturing': 'Manufacturing',
+        'services': 'Services',
+        'retail': 'Retail',
+        'financial_services': 'Financial Services',
+        'healthcare': 'Healthcare',
+        'technology': 'Technology'
+      };
+      
+      const mappedValue = industryMap[detectedIndustry];
+      if (dropdown && mappedValue) {
+        dropdown.value = mappedValue;
+      }
+      
+      if (banner) {
+        banner.innerHTML = `<div class="flex items-start gap-3">
+          <i class="fas fa-check-circle text-green-600 mt-1"></i>
+          <div class="flex-1">
+            <div class="font-semibold text-green-900">AI-detekterad bransch: ${mappedValue} (${detectedIndustryConfidence}% sakert)</div>
+            <div class="text-xs text-green-700 mt-1">${detectedIndustryReasoning}</div>
+            <div class="flex gap-2 mt-2">
+              <button onclick="closeDetectionBannerCap()" class="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">OK, anvand denna</button>
+              <button onclick="closeDetectionBannerCap(); document.getElementById('apqc-business-type-cap').value=''" class="text-xs px-3 py-1 border border-green-400 text-green-700 rounded hover:bg-green-50">Andras manuellt</button>
+            </div>
+          </div>
+        </div>`;
+      }
+    } else if (banner) {
+      banner.innerHTML = '<i class="fas fa-info-circle mr-2"></i>AI-detektion gav lag sakerhets-skor. Valj bransch manuellt.';
+      setTimeout(() => banner.classList.add('hidden'), 4000);
+    }
+  } catch (error) {
+    console.error('[ERROR] Industry detection failed:', error);
+    if (banner) {
+      banner.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>AI-detektion misslyckades. Valj bransch manuellt.';
+      setTimeout(() => banner.classList.add('hidden'), 4000);
+    }
+  }
+}
+
+function closeDetectionBannerCap() {
+  const banner = document.getElementById('apqc-detection-banner-cap');
+  if (banner) banner.classList.add('hidden');
+}
+
+/**
+ * LAYER 2: Filter APQC by Industry + Strategic Theme
+ * Returns L2 capabilities matching selected criteria
+ */
+function loadAPQCSubset(industry, strategicTheme) {
+  if (!apqcFrameworkCap || !apqcFrameworkCap.categories) {
+    return [];
+  }
+  
+  const filtered = [];
+  const industryLower = String(industry).toLowerCase().replace(/ /g, '_');
+  const themeLower = String(strategicTheme).toLowerCase().replace(/ /g, '_');
+  
+  apqcFrameworkCap.categories.forEach(category => {
+    if (category.children && Array.isArray(category.children)) {
+      category.children.forEach(child => {
+        if (child.level === 2 && 
+            child.industries && 
+            child.strategic_themes) {
+          
+          const matchesIndustry = child.industries.includes('all') || 
+                                  child.industries.some(ind => 
+                                    String(ind).toLowerCase() === industryLower
+                                  );
+          
+          const matchesTheme = child.strategic_themes.some(theme => 
+            String(theme).toLowerCase() === themeLower
+          );
+          
+          if (matchesIndustry && matchesTheme) {
+            filtered.push({
+              ...child,
+              parent_name: category.name,
+              parent_code: category.code
+            });
+          }
+        }
+      });
+    }
+  });
+  
+  console.log(`[APQC Filter] Found ${filtered.length} capabilities for ${industry}/${strategicTheme}`);
+  return filtered;
+}
+
+/**
+ * LAYER 3: AI Scoring and Customization
+ * Scores relevance and customizes naming based on org context
+ */
+async function scoreAndCustomizeAPQCSubset(apqcSubset, strategicContext) {
+  const apiKey = getApiKey();
+  
+  if (!apiKey || !apqcSubset || apqcSubset.length === 0) {
+    return apqcSubset.map(cap => ({
+      name: cap.name,
+      desc: cap.description || `APQC ${cap.code}: ${cap.name}`,
+      priority: 'important',
+      maturity: 2,
+      domain: cap.capability_category || 'operations',
+      apqc_code: cap.code,
+      relevance_score: 7
+    }));
+  }
+  
+  try {
+    const contextText = Object.entries(strategicContext)
+      .filter(([k, v]) => v)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('\n');
+    
+    const capabilitiesList = apqcSubset.map((c, i) => 
+      `${i + 1}. [${c.code}] ${c.name} (domain: ${c.capability_category})`
+    ).join('\n');
+    
+    const prompt = `You are an Enterprise Architect. Score and customize these APQC capabilities for this organization.
+
+Organization Context:
+${contextText}
+
+APQC Capabilities:
+${capabilitiesList}
+
+For each capability, return:
+1. relevance_score (1-10, only include if >= 6)
+2. customized_name (adapt to org language, keep concise)
+3. priority (strategic/important/commodity)
+4. maturity (1-5, realistic assessment)
+
+Return ONLY valid JSON array (no markdown):
+[
+  {"index": 1, "relevance_score": 8, "customized_name": "...", "priority": "strategic", "maturity": 2},
+  ...
+]`;
+
+    const res = await fetch('/api/openai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-5',
+        messages: [
+          { role: 'system', content: 'You are an EA expert. Return ONLY valid JSON array, no markdown.' },
+          { role: 'user', content: prompt }
+        ]
+      })
+    });
+    
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+    
+    let raw = json.choices[0].message.content.trim();
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    const scores = JSON.parse(raw);
+    
+    const customized = [];
+    scores.forEach(score => {
+      const idx = Number(score.index) - 1;
+      if (idx >= 0 && idx < apqcSubset.length && score.relevance_score >= 6) {
+        const original = apqcSubset[idx];
+        customized.push({
+          name: score.customized_name || original.name,
+          desc: original.description || `APQC ${original.code}`,
+          priority: ['strategic', 'important', 'commodity'].includes(score.priority) ? score.priority : 'important',
+          maturity: Math.max(1, Math.min(5, Number(score.maturity) || 2)),
+          domain: original.capability_category || 'operations',
+          apqc_code: original.code,
+          relevance_score: score.relevance_score
+        });
+      }
+    });
+    
+    console.log(`[APQC AI Scoring] ${customized.length} high-relevance capabilities after AI scoring`);
+    return customized;
+    
+  } catch (error) {
+    console.error('[ERROR] APQC AI scoring failed:', error);
+    return apqcSubset.map(cap => ({
+      name: cap.name,
+      desc: cap.description || `APQC ${cap.code}: ${cap.name}`,
+      priority: 'important',
+      maturity: 2,
+      domain: cap.capability_category || 'operations',
+      apqc_code: cap.code,
+      relevance_score: 7
+    }));
+  }
+}
+
+/**
+ * Show APQC Settings Modal (LEGACY - kept for compatibility)
+ */
+function showAPQCSettingsCap_Legacy() {
+  const modal = document.getElementById('apqc-settings-modal-cap');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+}
+
+/**
+ * Show APQC Settings Modal (LEGACY - kept for compatibility)
+ */
+function showAPQCSettingsCap_Legacy() {
+  const modal = document.getElementById('apqc-settings-modal-cap');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+}
+
+
+  const modal = document.getElementById('apqc-settings-modal-cap');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+/**
+ * Show APQC Settings Modal (LEGACY - kept for compatibility)
+ */
+function showAPQCSettingsCap_Legacy() {
+  const modal = document.getElementById('apqc-settings-modal-cap');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
 }
 
 /**
@@ -1579,96 +1913,111 @@ function closeAPQCModalCap() {
 }
 
 /**
- * Apply APQC Settings and Import Capabilities
+ * Apply APQC Settings and Import Capabilities (3-LAYER IMPLEMENTATION)
  */
 async function applyAPQCSettingsCap() {
   const businessType = document.getElementById('apqc-business-type-cap')?.value;
   const strategicIntent = document.getElementById('apqc-strategic-intent-cap')?.value;
 
   if (!businessType || !strategicIntent) {
-    alert('Vänligen välj både bransch och strategiskt fokus.');
+    alert('Vanligen valj both bransch och strategiskt fokus.');
     return;
   }
 
   if (!dataManager) {
-    alert('EA_DataManager inte tillgänglig. Kan inte importera APQC capabilities.');
+    alert('EA_DataManager inte tillganglig. Kan inte importera APQC capabilities.');
     return;
   }
-
+  
+  showToast('[OK] Importerar APQC capabilities med 3-lagers AI-intelligens...');
+  
   try {
-    // Get APQC capabilities filtered by business type and strategic intent
-    const apqcCaps = await dataManager.getAPQCCapabilitiesByBusinessType(businessType);
+    const industryNormalized = String(businessType).toLowerCase().replace(/ /g, '_');
+    const themeNormalized = String(strategicIntent).toLowerCase().replace(/ /g, '_');
     
-    if (!apqcCaps || apqcCaps.length === 0) {
-      showToast('⚠️ Inga APQC capabilities hittades för vald bransch.');
+    const apqcSubset = loadAPQCSubset(industryNormalized, themeNormalized);
+    
+    if (!apqcSubset || apqcSubset.length === 0) {
+      showToast('[WARNING] Inga APQC capabilities hittades for vald bransch och strategiskt fokus.');
       closeAPQCModalCap();
       return;
     }
-
-    // Map APQC categories to toolkit domains
-    const domainMapping = {
-      '1.0': 'product',      // Develop Vision and Strategy → Product
-      '2.0': 'product',      // Develop and Manage Products and Services → Product
-      '3.0': 'operations',   // Market and Sell Products and Services → Operations
-      '4.0': 'operations',   // Deliver Products and Services → Operations
-      '5.0': 'customer',     // Manage Customer Service → Customer
-      '6.0': 'technology',   // Develop and Manage Human Capital → Technology
-      '7.0': 'technology',   // Manage Information Technology → Technology
-      '8.0': 'finance',      // Manage Financial Resources → Finance
-      '9.0': 'operations',   // Acquire, Construct, and Manage Assets → Operations
-      '10.0': 'operations',  // Manage Enterprise Risk, Compliance, and Resiliency → Operations
-      '11.0': 'operations',  // Manage External Relationships → Operations
-      '12.0': 'operations',  // Develop and Manage Business Capabilities → Operations
-      '13.0': 'operations'   // Measure and Benchmark → Operations
-    };
-
+    
+    console.log(`[APQC Layer 2] Filtered ${apqcSubset.length} capabilities`);
+    
+    const bmcData = dataManager.getIntegrationData('bmc_latest');
+    const vcData = dataManager.getIntegrationData('valuechain_latest');
+    const strategicContext = {};
+    
+    if (bmcData) {
+      const asIs = bmcData.as_is_data || {};
+      if (asIs.value_proposition) strategicContext.value_proposition = asIs.value_proposition;
+      if (asIs.customer_segments) strategicContext.customer_segments = asIs.customer_segments;
+      if (asIs.key_activities) strategicContext.key_activities = asIs.key_activities;
+      if (asIs.strategic_goal) strategicContext.strategic_goal = asIs.strategic_goal;
+    }
+    
+    let finalCapabilities = apqcSubset.map(cap => ({
+      name: cap.name,
+      desc: cap.description || `APQC ${cap.code}`,
+      priority: 'important',
+      maturity: 2,
+      domain: cap.capability_category || 'operations',
+      apqc_code: cap.code
+    }));
+    
+    const apiKey = getApiKey();
+    if (apiKey && Object.keys(strategicContext).length > 0) {
+      console.log('[APQC Layer 3] Calling AI for scoring and customization...');
+      finalCapabilities = await scoreAndCustomizeAPQCSubset(apqcSubset, strategicContext);
+    } else {
+      console.log('[APQC Layer 3] Skipping AI (no API key or no context) - using rule-based import');
+      const priorityByIntent = {
+        'Growth': 'strategic',
+        'Innovation': 'strategic',
+        'Efficiency': 'important',
+        'Customer Centricity': 'strategic',
+        'Sustainability': 'important'
+      };
+      const priority = priorityByIntent[strategicIntent] || 'important';
+      finalCapabilities.forEach(cap => cap.priority = priority);
+    }
+    
     let importedCount = 0;
-    const priorityByIntent = {
-      'Growth': 'strategic',
-      'Innovation': 'strategic',
-      'Efficiency': 'important',
-      'Customer Centricity': 'strategic',
-      'Sustainability': 'important'
-    };
-
-    const priority = priorityByIntent[strategicIntent] || 'important';
-
-    apqcCaps.forEach(cap => {
-      // Extract L1 category code (e.g., "1.0" from "1.2.3")
-      const l1Code = cap.code ? cap.code.split('.')[0] + '.0' : '12.0';
-      const domainId = domainMapping[l1Code] || 'operations';
-
-      // Check if capability already exists (avoid duplicates)
+    
+    finalCapabilities.forEach(cap => {
+      const domainId = cap.domain || 'operations';
+      
       const exists = capabilities[domainId]?.some(c => 
         c.name.toLowerCase() === cap.name.toLowerCase()
       );
-
+      
       if (!exists) {
         capabilities[domainId].push({
           name: cap.name,
-          desc: cap.description || `APQC ${cap.code}: ${cap.name}`,
-          priority: priority,
-          maturity: 2  // Default maturity level
+          desc: cap.desc,
+          priority: cap.priority,
+          maturity: cap.maturity
         });
         importedCount++;
       }
     });
-
+    
     render();
     saveAll();
     apqcIntegratedCap = true;
     
-    showToast(`✅ Importerade ${importedCount} APQC capabilities för ${businessType} (${strategicIntent})`);
+    showToast(`[OK] Importerade ${importedCount} APQC capabilities for ${businessType} (${strategicIntent})`);
     closeAPQCModalCap();
     
-    // Hide banner after successful import
     document.getElementById('apqc-banner-cap')?.classList.add('hidden');
 
   } catch (error) {
-    console.error('❌ Failed to import APQC capabilities:', error);
-    alert('Fel vid import av APQC capabilities. Se konsolen för detaljer.');
+    console.error('[FAILED] Failed to import APQC capabilities:', error);
+    alert('Fel vid import av APQC capabilities. Se konsolen for detaljer.');
   }
 }
+
 
 function showToast(msg) {
   const t = document.createElement('div');
