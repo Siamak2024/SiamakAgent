@@ -773,7 +773,7 @@ class EA_DataManager {
    */
   async loadAPQCFramework() {
     try {
-      const response = await fetch('APAQ_Data/apqc_pcf_master.json');
+      const response = await fetch('/APAQ_Data/apqc_pcf_master.json');
       if (!response.ok) {
         throw new Error(`Failed to load APQC framework: ${response.statusText}`);
       }
