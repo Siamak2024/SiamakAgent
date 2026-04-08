@@ -167,6 +167,44 @@
   </div>
 </section>
 
+<!-- APQC CONTEXT HERO SECTION -->
+<div id="apqc-hero-section" class="hidden bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+  <div class="max-w-7xl mx-auto px-6 py-4">
+    <div class="flex items-start gap-4">
+      <div class="bg-white/20 rounded-lg p-3">
+        <i class="fas fa-sitemap text-3xl"></i>
+      </div>
+      <div class="flex-1">
+        <div class="flex items-center gap-3 mb-2">
+          <h2 class="text-lg font-bold">APQC Framework Aktiverad</h2>
+          <span id="apqc-hero-scenario-badge" class="px-3 py-1 bg-white/20 rounded-full text-xs font-semibold"></span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div class="bg-white/10 rounded-lg px-4 py-2">
+            <div class="text-xs opacity-80 uppercase tracking-wide mb-1">Bransch / Industry</div>
+            <div id="apqc-hero-industry" class="font-semibold text-base">-</div>
+            <div id="apqc-hero-industry-detail" class="text-xs opacity-90 mt-1 hidden"></div>
+          </div>
+          <div class="bg-white/10 rounded-lg px-4 py-2">
+            <div class="text-xs opacity-80 uppercase tracking-wide mb-1">Strategiskt Fokus</div>
+            <div id="apqc-hero-focus" class="font-semibold text-base">-</div>
+          </div>
+          <div class="bg-white/10 rounded-lg px-4 py-2">
+            <div class="text-xs opacity-80 uppercase tracking-wide mb-1">Status</div>
+            <div id="apqc-hero-status" class="font-semibold text-base flex items-center gap-2">
+              <i class="fas fa-check-circle text-green-300"></i>
+              <span id="apqc-hero-count">0 capabilities importerade</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button onclick="hideAPQCHero()" class="text-white/80 hover:text-white transition-colors p-2" title="Dolj">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="p-6">
 <!-- AI ASSISTANT WIDGET -->
 <div id="cap-ai-widget">
@@ -1552,8 +1590,87 @@ function downloadCSV(rows, filename) {
 let apqcFrameworkCap = null;
 let apqcIntegratedCap = false;
 let detectedIndustry = null;
+let detectedIndustrySecondary = null;
 let detectedIndustryConfidence = 0;
 let detectedIndustryReasoning = '';
+let apqcHeroState = {
+  scenario: null,
+  industry: null,
+  focus: null,
+  aiDetected: false,
+  confidence: 0,
+  secondaryIndustry: null,
+  importedCount: 0
+};
+
+/**
+ * Update APQC Hero Section
+ */
+function updateAPQCHero(config) {
+  Object.assign(apqcHeroState, config);
+  
+  const heroSection = document.getElementById('apqc-hero-section');
+  const scenarioBadge = document.getElementById('apqc-hero-scenario-badge');
+  const industryEl = document.getElementById('apqc-hero-industry');
+  const industryDetailEl = document.getElementById('apqc-hero-industry-detail');
+  const focusEl = document.getElementById('apqc-hero-focus');
+  const countEl = document.getElementById('apqc-hero-count');
+  
+  if (!heroSection) return;
+  
+  // Show hero section
+  heroSection.classList.remove('hidden');
+  
+  // Update scenario badge
+  if (scenarioBadge) {
+    if (apqcHeroState.scenario === 1) {
+      scenarioBadge.innerHTML = '<i class="fas fa-hand-pointer mr-1"></i>Scenario 1: Manuell Val';
+      scenarioBadge.className = 'px-3 py-1 bg-yellow-500/30 rounded-full text-xs font-semibold';
+    } else if (apqcHeroState.scenario === 2) {
+      scenarioBadge.innerHTML = '<i class="fas fa-robot mr-1"></i>Scenario 2: AI-Assisterad';
+      scenarioBadge.className = 'px-3 py-1 bg-green-500/30 rounded-full text-xs font-semibold';
+    }
+  }
+  
+  // Update industry
+  if (industryEl) {
+    industryEl.textContent = apqcHeroState.industry || '-';
+  }
+  
+  // Update industry detail (AI confidence or secondary industry)
+  if (industryDetailEl) {
+    if (apqcHeroState.aiDetected && apqcHeroState.confidence > 0) {
+      let detailText = `AI-detekterad (${apqcHeroState.confidence}% sakerhet)`;
+      if (apqcHeroState.secondaryIndustry) {
+        detailText += ` • Secondary: ${apqcHeroState.secondaryIndustry}`;
+      }
+      industryDetailEl.textContent = detailText;
+      industryDetailEl.classList.remove('hidden');
+    } else {
+      industryDetailEl.classList.add('hidden');
+    }
+  }
+  
+  // Update strategic focus
+  if (focusEl) {
+    focusEl.textContent = apqcHeroState.focus || '-';
+  }
+  
+  // Update count
+  if (countEl) {
+    countEl.textContent = `${apqcHeroState.importedCount} capabilities importerade`;
+  }
+}
+
+/**
+ * Hide APQC Hero Section
+ */
+function hideAPQCHero() {
+  const heroSection = document.getElementById('apqc-hero-section');
+  if (heroSection) {
+    heroSection.classList.add('hidden');
+  }
+}
 
 /**
  * Initialize APQC Framework for Capability Mapping Toolkit
@@ -1698,6 +1815,7 @@ Return ONLY valid JSON with this structure (no markdown):
     const result = JSON.parse(raw);
     
     detectedIndustry = result.primary_industry || null;
+    detectedIndustrySecondary = result.secondary_industry || null;
     detectedIndustryConfidence = Math.min(100, Math.max(0, Number(result.confidence_score) || 0));
     detectedIndustryReasoning = String(result.reasoning || '').slice(0, 150);
     
@@ -2069,6 +2187,21 @@ async function applyAPQCSettingsCap() {
     render();
     saveAll();
     apqcIntegratedCap = true;
+    
+    // Determine which scenario was used
+    const wasAIDetected = orgDescription.trim() && detectedIndustry;
+    const scenario = wasAIDetected ? 2 : 1;
+    
+    // Update hero section
+    updateAPQCHero({
+      scenario: scenario,
+      industry: businessType,
+      focus: strategicIntent,
+      aiDetected: wasAIDetected,
+      confidence: wasAIDetected ? detectedIndustryConfidence : 0,
+      secondaryIndustry: wasAIDetected ? detectedIndustrySecondary : null,
+      importedCount: importedCount
+    });
     
     showToast(`[OK] Importerade ${importedCount} APQC capabilities for ${businessType} (${strategicIntent})`);
     closeAPQCModalCap();
