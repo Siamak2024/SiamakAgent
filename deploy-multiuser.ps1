@@ -7,7 +7,7 @@ Write-Host "This script will deploy the multi-user authentication system to Azur
 # Step 1: Generate Admin Secret Key
 Write-Host "Step 1: Generating Admin Secret Key..." -ForegroundColor Yellow
 $adminKey = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 32 | ForEach-Object {[char]$_})
-Write-Host "✅ Admin key generated!`n" -ForegroundColor Green
+Write-Host "[OK] Admin key generated!`n" -ForegroundColor Green
 
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host "IMPORTANT: Save this key securely!" -ForegroundColor Red
@@ -33,7 +33,7 @@ APP_BASE_URL=https://your-app-name.azurestaticapps.net
 "@
 
 $configContent | Out-File -FilePath "azure-deployment\DEPLOYMENT_CONFIG.txt" -Encoding UTF8
-Write-Host "✅ Config saved to: azure-deployment\DEPLOYMENT_CONFIG.txt`n" -ForegroundColor Green
+Write-Host "[OK] Config saved to: azure-deployment\DEPLOYMENT_CONFIG.txt`n" -ForegroundColor Green
 
 # Step 2: Verify files
 Write-Host "Step 2: Verifying implementation files..." -ForegroundColor Yellow
@@ -52,19 +52,19 @@ $filesToCheck = @(
 $allPresent = $true
 foreach ($file in $filesToCheck) {
     if (Test-Path $file) {
-        Write-Host "  ✅ $file" -ForegroundColor Green
+        Write-Host "  [OK] $file" -ForegroundColor Green
     } else {
-        Write-Host "  ❌ MISSING: $file" -ForegroundColor Red
+        Write-Host "  [MISSING] $file" -ForegroundColor Red
         $allPresent = $false
     }
 }
 
 if (!$allPresent) {
-    Write-Host "`n⚠️ Some files are missing. Please run the implementation first.`n" -ForegroundColor Red
+    Write-Host "`n[WARNING] Some files are missing. Please run the implementation first.`n" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "`n✅ All files present!`n" -ForegroundColor Green
+Write-Host "`n[OK] All files present!`n" -ForegroundColor Green
 
 # Step 3: Git status
 Write-Host "Step 3: Checking git status..." -ForegroundColor Yellow
@@ -74,7 +74,7 @@ if ($gitStatus) {
     git status --short
     Write-Host ""
 } else {
-    Write-Host "✅ No uncommitted changes`n" -ForegroundColor Green
+    Write-Host "[OK] No uncommitted changes`n" -ForegroundColor Green
 }
 
 # Step 4: Ask for confirmation
@@ -86,7 +86,7 @@ Write-Host "  3. Push to Azure (triggers auto-deployment)`n" -ForegroundColor Wh
 
 $confirm = Read-Host "Continue? (yes/no)"
 if ($confirm -ne "yes") {
-    Write-Host "`n⚠️ Deployment cancelled.`n" -ForegroundColor Yellow
+    Write-Host "`n[CANCELLED] Deployment cancelled.`n" -ForegroundColor Yellow
     exit 0
 }
 
@@ -103,7 +103,7 @@ git add TEST_APM_MULTIUSER_WORKFLOW.md
 git add EA2_Toolkit/Import\ data/test_applications.json
 git add azure-deployment/DEPLOYMENT_CONFIG.txt
 
-Write-Host "✅ Files staged`n" -ForegroundColor Green
+Write-Host "[OK] Files staged`n" -ForegroundColor Green
 
 # Step 6: Commit
 Write-Host "Step 6: Creating commit..." -ForegroundColor Yellow
@@ -121,9 +121,9 @@ Cost: $0.00/month (Azure free tier)
 "
 
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "✅ Commit created`n" -ForegroundColor Green
+    Write-Host "[OK] Commit created`n" -ForegroundColor Green
 } else {
-    Write-Host "⚠️ No changes to commit or commit failed`n" -ForegroundColor Yellow
+    Write-Host "[WARNING] No changes to commit or commit failed`n" -ForegroundColor Yellow
 }
 
 # Step 7: Push
@@ -133,15 +133,15 @@ Write-Host "This will trigger GitHub Actions deployment (3-5 minutes)`n" -Foregr
 git push origin main
 
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "`n✅ Push successful!`n" -ForegroundColor Green
+    Write-Host "`n[OK] Push successful!`n" -ForegroundColor Green
 } else {
-    Write-Host "`n❌ Push failed. Check git configuration.`n" -ForegroundColor Red
+    Write-Host "`n[FAILED] Push failed. Check git configuration.`n" -ForegroundColor Red
     exit 1
 }
 
 # Step 8: Next steps
 Write-Host "================================================" -ForegroundColor Cyan
-Write-Host "🎉 Deployment Initiated!" -ForegroundColor Green
+Write-Host "Deployment Initiated!" -ForegroundColor Green
 Write-Host "================================================`n" -ForegroundColor Cyan
 
 Write-Host "Next Steps:`n" -ForegroundColor Yellow
@@ -156,7 +156,7 @@ Write-Host "     - ea_sessions_data = {}`n" -ForegroundColor Cyan
 
 Write-Host "2. Wait for Deployment (3-5 minutes):" -ForegroundColor White
 Write-Host "   • Check GitHub Actions: https://github.com/your-repo/actions" -ForegroundColor Gray
-Write-Host "   • Wait for green checkmark ✅`n" -ForegroundColor Gray
+Write-Host "   • Wait for green checkmark in GitHub Actions`n" -ForegroundColor Gray
 
 Write-Host "3. Generate Test Invite Code:" -ForegroundColor White
 Write-Host "   • Open: https://your-app-name.azurestaticapps.net/admin/invites.html" -ForegroundColor Gray
@@ -172,9 +172,9 @@ Write-Host "================================================`n" -ForegroundColor
 Write-Host "Config file saved: azure-deployment\DEPLOYMENT_CONFIG.txt" -ForegroundColor Green
 Write-Host "Keep this file SECURE - contains admin key!`n" -ForegroundColor Red
 
-Write-Host "📚 Documentation:" -ForegroundColor Yellow
+Write-Host "Documentation:" -ForegroundColor Yellow
 Write-Host "   • TEST_APM_MULTIUSER_WORKFLOW.md - Complete test guide" -ForegroundColor Gray
 Write-Host "   • COMPLETE_IMPLEMENTATION_PACKAGE.md - Technical details" -ForegroundColor Gray
 Write-Host "   • MULTI_USER_IMPLEMENTATION_GUIDE.md - Architecture overview`n" -ForegroundColor Gray
 
-Write-Host "✅ Deployment script complete!`n" -ForegroundColor Green
+Write-Host "[OK] Deployment script complete!`n" -ForegroundColor Green

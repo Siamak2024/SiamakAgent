@@ -85,6 +85,7 @@ Expires: $($expiryDate.ToString("yyyy-MM-dd HH:mm"))
 Link: $($response.inviteLink)
 
 "@
+
         $inviteLog | Add-Content -Path "invites_log.txt"
         Write-Host "📝 Invite also saved to: invites_log.txt`n" -ForegroundColor Cyan
 
