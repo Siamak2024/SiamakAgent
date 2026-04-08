@@ -269,7 +269,7 @@
 </div>
 
 <!-- WORKSHOP PROGRESS INDICATOR -->
-<div id="workshop-progress" class="mx-6 mt-4" style="display: none;">
+<div id="workshop-progress" class="mx-6 mt-4">
   <div class="flex items-center justify-between mb-3">
     <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">
       <i class="fas fa-route mr-2 text-blue-600"></i>Workshop Flow
@@ -498,6 +498,9 @@
       <button onclick="loadExample()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm">
         <i class="fas fa-lightbulb"></i> Ladda exempel
       </button>
+      <a href="Capability_Workshop_Builder.html" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white no-underline" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);border:none;" onmouseover="this.style.background='linear-gradient(135deg,#15305a,#1d4ed8)'" onmouseout="this.style.background='linear-gradient(135deg,#1e3a5f,#2563eb)'" title="Använd Workshop Builder för att strukturera capability-mappingen innan du börjar">
+        <i class="fas fa-chess-board"></i> Workshop Builder
+      </a>
       <button onclick="showAPQCSettingsCap()" class="flex items-center gap-2 bg-white border border-blue-400 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-50 text-sm" title="Importera capabilities från APQC Framework">
         <i class="fas fa-database"></i> APQC Import
       </button>
@@ -2329,6 +2332,7 @@ window.onload = () => {
 
   const capParams = new URLSearchParams(window.location.search);
   const forceFromVc = capParams.get('from') === 'vc' && capParams.get('refresh') === '1';
+  const fromWorkshop = capParams.get('from') === 'workshop';
 
   const saved = localStorage.getItem('cap_map_v2');
   if (saved) {
@@ -2350,13 +2354,74 @@ window.onload = () => {
       }
     } catch (_) {}
   }
-  importFromValueChainIntegration(!forceFromVc, forceFromVc);
-  if (forceFromVc && dataManager) {
-    const vc = dataManager.getIntegrationData('valuechain_latest');
-    if (vc && getApiKey()) {
-      setTimeout(() => autoFillCapFromVcContext(vc), 300);
+  
+  // Load workshop context if coming from Workshop Builder
+  if (fromWorkshop) {
+    const workshopCtx = localStorage.getItem('capability_workshop_context');
+    if (workshopCtx) {
+      try {
+        const ctx = JSON.parse(workshopCtx);
+        console.log('[Workshop Import] Loading data from Workshop Builder:', ctx);
+        
+        // Update APQC hero state if APQC was used in workshop
+        if (ctx.apqcScenario) {
+          apqcHeroState = {
+            scenario: ctx.apqcScenario,
+            industry: ctx.apqcIndustry || ctx.industry,
+            focus: ctx.focus,
+            aiDetected: ctx.orgDesc && ctx.orgDesc.length > 0,
+            confidence: ctx.apqcConfidence || 0,
+            secondaryIndustry: null
+          };
+          
+          // Show APQC hero section
+          const heroSection = document.getElementById('apqc-hero-section');
+          if (heroSection) heroSection.classList.remove('hidden');
+          
+          updateAPQCHero({
+            scenario: ctx.apqcScenario,
+            industry: ctx.apqcIndustry || ctx.industry,
+            focus: ctx.focus,
+            wasAIDetected: ctx.orgDesc && ctx.orgDesc.length > 0,
+            confidence: ctx.apqcConfidence || 0,
+            secondaryIndustry: null,
+            importedCount: Object.values(capabilities).flat().length
+          });
+        }
+        
+        // Set workshop step to 1 (Define AS-IS)
+        setWorkshopStep(1);
+        
+        // Show success toast
+        const capCount = Object.values(capabilities).flat().length;
+        showToast(`✓ Workshop data importerad: ${capCount} capabilities från Workshop Builder`);
+        
+        // Render capabilities
+        render();
+        
+        // Update context badge
+        const badge = document.getElementById('cap-context-badge');
+        if (badge && ctx.org) {
+          badge.classList.remove('hidden');
+          badge.innerHTML = `<i class="fas fa-chess-board mr-1"></i> Workshop: ${ctx.org} · ${ctx.industry} · ${ctx.focus}`;
+        }
+      } catch (e) {
+        console.error('[Workshop Import] Failed to load workshop context:', e);
+        showToast('⚠ Lyckades inte importera workshop-data');
+      }
     } else {
-      showToast('✓ Importerade från Value Chain');
+      console.warn('[Workshop Import] No workshop context found in localStorage');
+    }
+  } else {
+    // Normal flow: import from Value Chain if applicable
+    importFromValueChainIntegration(!forceFromVc, forceFromVc);
+    if (forceFromVc && dataManager) {
+      const vc = dataManager.getIntegrationData('valuechain_latest');
+      if (vc && getApiKey()) {
+        setTimeout(() => autoFillCapFromVcContext(vc), 300);
+      } else {
+        showToast('✓ Importerade från Value Chain');
+      }
     }
   }
   const key = getApiKey();
@@ -2407,16 +2472,32 @@ function sendCapInitialGreeting() {
     const total = all.length;
     const high = all.filter(c => c.priority === 'strategic').length;
     const lowMat = all.filter(c => c.maturity <= 2).length;
+    
+    // Check if APQC was used
+    const apqcUsed = apqcHeroState.scenario !== null;
+    const apqcInfo = apqcUsed ? `<br><br><strong>APQC Framework:</strong> ${apqcHeroState.scenario} | ${apqcHeroState.industry}` : '';
 
     if (total === 0) {
-        addCapMsg('Hej! Jag ser att din capability map är tom. Klicka på <strong>Ladda exempel</strong> för att komma igång, eller lägg till capabilities manuellt. Sedan kan jag analysera dem åt dig!', 'ai');
+        addCapMsg(`Hej! 👋 Jag är din EA-expert för <strong>Capability Mapping</strong> och <strong>APQC Framework</strong>.<br><br>
+        Jag kan hjälpa dig med:<br>
+        • Workshop Flow guidance (3-stegs metodologi)<br>
+        • APQC Framework import och anpassning<br>
+        • Capability prioritering och mognadsbedömning<br>
+        • AS-IS validering och TO-BE generering<br>
+        • Gap-analys och transformationsstrategier<br><br>
+        Din capability map är tom just nu. Klicka på <strong>APQC Import</strong> för AI-assisterad import, eller <strong>Ladda exempel</strong> för att komma igång!`, 'ai');
         return;
     }
-    addCapMsg(`Hej! Jag har analyserat din Capability Map.<br><br>
-        Du har <strong>${total} capabilities</strong> definierade — 
-        <strong>${high} st Strategiska</strong> och 
-        <strong>${lowMat} st</strong> med mognad ≤ 2/5.<br><br>
-        Vill du börja med att identifiera de mest kritiska gapen?`, 'ai');
+    addCapMsg(`Hej! 👋 Jag har analyserat din Capability Map.<br><br>
+        <strong>Status:</strong> ${total} capabilities definierade — 
+        ${high} st Strategiska, ${lowMat} st med låg mognad (≤2/5)${apqcInfo}<br><br>
+        <strong>Workshop Status:</strong> Du är i Steg ${workshopStep} av 3-stegs metodologin.<br><br>
+        💡 <strong>Jag kan hjälpa med:</strong><br>
+        • Validera APQC-mappning mot din bransch<br>
+        • Identifiera kritiska gaps och transformationsmöjligheter<br>
+        • Föreslå TO-BE capabilities baserat på AS-IS<br>
+        • Bedöma mognad och prioriteringar<br><br>
+        Vad vill du fokusera på?`, 'ai');
 }
 
 function addCapMsg(text, sender) {
@@ -2472,13 +2553,39 @@ async function sendCapMessage() {
     document.getElementById('cap-chat-messages').appendChild(loadingDiv);
 
     try {
+        // Build enhanced system prompt with APQC and workshop context
+        let systemPrompt = `Du är en senior Enterprise Architect och expert på:
+• **APQC Process Classification Framework (PCF)** - Cross-industry standard med 13 L1-kategorier och branschspecifik mappning
+• **Capability Mapping metodologi** - Strukturerad 3-stegs workshop: Define AS-IS → Generate TO-BE → Review & Consolidate
+• **Capability Maturity Models** - Bedömning av mognadsnivåer (1-5) och evolution (Genesis → Custom → Product → Commodity)
+• **Gap Analysis** - Identifiering av transformationsmöjligheter mellan AS-IS och TO-BE states
+• **AI-driven transformation** - Hur AI kan automatisera och optimera capabilities
+
+Svara alltid på svenska. Var konkret, affärsfokuserad och data-driven.
+
+**APQC Framework Context:**
+${apqcHeroState.scenario ? `- Scenario: ${apqcHeroState.scenario}\n- Bransch: ${apqcHeroState.industry}${apqcHeroState.confidence ? ` (AI-detekterad med ${apqcHeroState.confidence}% säkerhet)` : ''}\n- Strategisk fokus: ${apqcHeroState.focus || 'N/A'}` : '- APQC inte aktiverad än'}
+
+**Workshop Status:**
+- Aktuellt steg: ${workshopStep} av 3 (${workshopStep === 1 ? 'Define AS-IS' : workshopStep === 2 ? 'Generate TO-BE' : 'Review & Consolidate'})
+${(() => {
+  const lockStatus = checkASISLockStatus();
+  return `- AS-IS låsta capabilities: ${lockStatus.locked}/${lockStatus.total} (${lockStatus.percentage}%)`;
+})()}
+
+**Capability Map Data:**
+${context || 'Capability map är tom.'}
+
+**Din roll:**
+Ge praktiska råd baserade på APQC best practices, capability maturity benchmarks, och workshop-metodologin. När användaren frågar om gapanalys, transformation eller TO-BE, referera till konkreta capabilities i deras map.`;
+
         const res = await fetch('/api/openai/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: 'gpt-5',
                 messages: [
-                    { role: 'system', content: `Du är en senior Enterprise Architect specialiserad på Verksamhet och domain-specific. Svara alltid på svenska. Var konkret och affärsfokuserad.\n\n${context || 'Capability map är tom.'}` },
+                    { role: 'system', content: systemPrompt },
                     { role: 'user', content: text }
                 ]
             })
