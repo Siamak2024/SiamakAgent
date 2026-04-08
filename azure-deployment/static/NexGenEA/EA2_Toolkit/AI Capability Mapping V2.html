@@ -98,6 +98,69 @@
 .cap-chat-input input { flex: 1; border: 1px solid #d1d5db; padding: 9px 14px; border-radius: 8px; outline: none; font-size: 13px; }
 .cap-chat-input input:focus { border-color: #2563eb; }
 .cap-chat-input button { background: #2563eb; color: white; border: none; width: 38px; height: 38px; border-radius: 8px; cursor: pointer; }
+
+  /* === WORKSHOP FLOW STYLES === */
+  #workshop-progress {
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    border-radius: 10px; padding: 20px; margin: 16px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #d1d5db;
+  }
+  .workshop-steps { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .workshop-step { flex: 1; text-align: center; position: relative; }
+  .workshop-step-number {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: #d1d5db; color: #6b7280;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px; margin-bottom: 8px;
+    transition: all 0.3s; border: 3px solid transparent;
+  }
+  .workshop-step.active .workshop-step-number {
+    background: #2563eb; color: white;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.4);
+    border-color: #dbeafe; transform: scale(1.1);
+  }
+  .workshop-step.completed .workshop-step-number {
+    background: #10b981; color: white;
+  }
+  .workshop-step-label {
+    font-size: 12px; font-weight: 600;
+    color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .workshop-step.active .workshop-step-label { color: #1e40af; }
+  .workshop-step.completed .workshop-step-label { color: #065f46; }
+  .workshop-step-connector {
+    position: absolute; top: 20px; left: 50%; width: 100%;
+    height: 3px; background: #d1d5db; z-index: -1;
+  }
+  .workshop-step.completed .workshop-step-connector { background: #10b981; }
+  .workshop-message {
+    background: white; border-radius: 8px; padding: 12px 16px;
+    border-left: 4px solid #2563eb; font-size: 14px; color: #374151;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .workshop-guide-btn {
+    background: linear-gradient(135deg, #1e3a5f, #2563eb);
+    color: white; border: none; padding: 8px 16px; border-radius: 6px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; box-shadow: 0 2px 6px rgba(37,99,235,0.3);
+  }
+  .workshop-guide-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
+  .workshop-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    z-index: 200; display: flex; align-items: center; justify-content: center;
+  }
+  .workshop-modal.hidden { display: none; }
+  .workshop-modal-content {
+    background: white; border-radius: 12px; padding: 32px;
+    max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .cap-lock-icon {
+    cursor: pointer; opacity: 0.3; transition: all 0.2s;
+    font-size: 14px; color: #6b7280;
+  }
+  .cap-lock-icon:hover { opacity: 0.7; }
+  .cap-locked .cap-lock-icon { opacity: 1; color: #10b981; }
 </style>
 <link rel="stylesheet" href="/css/ea-design-engine.css" />
 </head>
@@ -202,6 +265,38 @@
         <i class="fas fa-times"></i>
       </button>
     </div>
+  </div>
+</div>
+
+<!-- WORKSHOP PROGRESS INDICATOR -->
+<div id="workshop-progress" class="mx-6 mt-4" style="display: none;">
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">
+      <i class="fas fa-route mr-2 text-blue-600"></i>Workshop Flow
+    </h3>
+    <button onclick="toggleWorkshopGuide()" class="workshop-guide-btn">
+      <i class="fas fa-book mr-1"></i> Guide
+    </button>
+  </div>
+  <div class="workshop-steps">
+    <div class="workshop-step" id="ws-step-1">
+      <div class="workshop-step-connector"></div>
+      <div class="workshop-step-number"><i class="fas fa-clipboard-list"></i></div>
+      <div class="workshop-step-label">Define AS-IS</div>
+    </div>
+    <div class="workshop-step" id="ws-step-2">
+      <div class="workshop-step-connector"></div>
+      <div class="workshop-step-number"><i class="fas fa-wand-magic-sparkles"></i></div>
+      <div class="workshop-step-label">Generate TO-BE</div>
+    </div>
+    <div class="workshop-step" id="ws-step-3">
+      <div class="workshop-step-number"><i class="fas fa-check-double"></i></div>
+      <div class="workshop-step-label">Review & Consolidate</div>
+    </div>
+  </div>
+  <div class="workshop-message" id="ws-message">
+    <i class="fas fa-info-circle text-blue-600"></i>
+    <span id="ws-message-text">Start by defining your AS-IS capabilities through manual entry, templates, or AI-assisted APQC import.</span>
   </div>
 </div>
 
@@ -2414,7 +2509,253 @@ function handleCapDemoResponse(text, context) {
         }
     }, 600);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WORKSHOP FLOW MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+let workshopStep = 1;
+let asIsLocked = {}; // Track locked capabilities by domain
+
+function setWorkshopStep(step) {
+  workshopStep = step;
+  updateWorkshopUI();
+  saveWorkshopState();
+}
+
+function completeWorkshopStep(step) {
+  document.getElementById(`ws-step-${step}`)?.classList.add('completed');
+  if (step < 3) setWorkshopStep(step + 1);
+  saveWorkshopState();
+}
+
+function updateWorkshopUI() {
+  // Show workshop progress indicator
+  const progressDiv = document.getElementById('workshop-progress');
+  if (progressDiv) progressDiv.style.display = 'block';
+
+  // Update step states
+  for (let i = 1; i <= 3; i++) {
+    const stepEl = document.getElementById(`ws-step-${i}`);
+    if (!stepEl) continue;
+    stepEl.classList.remove('active');
+    if (i === workshopStep) stepEl.classList.add('active');
+  }
+
+  // Update message
+  const messages = {
+    1: 'Define your AS-IS capabilities. Use manual entry, templates, or AI-assisted APQC import. Lock capabilities when validated.',
+    2: 'Generate TO-BE capabilities with AI assistance. Compare with AS-IS to identify transformation opportunities.',
+    3: 'Review and consolidate your capability map. Export for integration with Gap Analysis and Roadmap toolkits.'
+  };
+  const msgEl = document.getElementById('ws-message-text');
+  if (msgEl) msgEl.textContent = messages[workshopStep] || messages[1];
+}
+
+function toggleWorkshopGuide() {
+  const modal = document.getElementById('workshop-guide-modal');
+  if (modal) modal.classList.toggle('hidden');
+}
+
+function toggleCapabilityLock(domainId, capIndex) {
+  if (!asIsLocked[domainId]) asIsLocked[domainId] = [];
+  const idx = asIsLocked[domainId].indexOf(capIndex);
+  if (idx > -1) {
+    asIsLocked[domainId].splice(idx, 1);
+  } else {
+    asIsLocked[domainId].push(capIndex);
+  }
+  saveWorkshopState();
+  render();
+}
+
+function lockAllCapabilitiesInDomain(domainId) {
+  const caps = capabilities[domainId] || [];
+  asIsLocked[domainId] = caps.map((_, i) => i);
+  saveWorkshopState();
+  render();
+}
+
+function checkASISLockStatus() {
+  let total = 0, locked = 0;
+  DOMAINS.forEach(d => {
+    const caps = capabilities[d.id] || [];
+    total += caps.length;
+    locked += (asIsLocked[d.id] || []).length;
+  });
+  return { total, locked, percentage: total > 0 ? Math.round((locked / total) * 100) : 0 };
+}
+
+function saveWorkshopState() {
+  const state = {
+    workshopStep,
+    asIsLocked,
+    timestamp: new Date().toISOString()
+  };
+  localStorage.setItem('cap_workshop_state_v1', JSON.stringify(state));
+}
+
+function loadWorkshopState() {
+  try {
+    const saved = localStorage.getItem('cap_workshop_state_v1');
+    if (saved) {
+      const state = JSON.parse(saved);
+      workshopStep = state.workshopStep || 1;
+      asIsLocked = state.asIsLocked || {};
+      updateWorkshopUI();
+    }
+  } catch (e) {
+    console.error('[Workshop] Failed to load state:', e);
+  }
+}
+
+function exportCapabilityAssessment() {
+  const lockStatus = checkASISLockStatus();
+  const exportData = {
+    schema_version: '2.0',
+    toolkit: 'capability_mapping',
+    timestamp: new Date().toISOString(),
+    apqc_context: apqcHeroState.scenario ? {
+      scenario: apqcHeroState.scenario,
+      industry: apqcHeroState.industry,
+      confidence: apqcHeroState.confidence,
+      secondary_industry: apqcHeroState.secondaryIndustry,
+      ai_detected: apqcHeroState.aiDetected
+    } : null,
+    as_is_to_be: {
+      workshop_step: workshopStep,
+      as_is_locked_count: lockStatus.locked,
+      as_is_total_count: lockStatus.total,
+      as_is_lock_percentage: lockStatus.percentage,
+      as_is_snapshot: capAsIsSnapshotBeforeToBe,
+      to_be_draft: capToBeDraft,
+      to_be_final: capFinalToBe,
+      to_be_users_updated: capToBeUsersUpdated
+    },
+    capabilities: capabilities
+  };
+  
+  return exportData;
+}
+
+function downloadCapabilityAssessment() {
+  const data = exportCapabilityAssessment();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const timestamp = new Date().toISOString().split('T')[0];
+  a.href = url;
+  a.download = `capability_assessment_v2_${timestamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('✓ Capability assessment exported (v2.0 schema)');
+}
+
+function storeForIntegration() {
+  const data = exportCapabilityAssessment();
+  if (dataManager) {
+    dataManager.setIntegrationData('capability_latest', data);
+    showToast('✓ Stored for integration with Gap Analysis toolkit');
+  } else {
+    console.error('[Integration] EA_DataManager not available');
+    showToast('⚠ Integration storage unavailable');
+  }
+}
+
+// Initialize workshop on load
+window.addEventListener('load', () => {
+  loadWorkshopState();
+});
 </script>
+
+<!-- WORKSHOP GUIDE MODAL -->
+<div id="workshop-guide-modal" class="workshop-modal hidden">
+  <div class="workshop-modal-content">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">
+        <i class="fas fa-book text-blue-600 mr-2"></i>
+        Workshop Flow Guide
+      </h2>
+      <button onclick="toggleWorkshopGuide()" class="text-gray-400 hover:text-gray-600">
+        <i class="fas fa-times text-xl"></i>
+      </button>
+    </div>
+
+    <div class="space-y-6">
+      <div class="border-l-4 border-blue-600 pl-4">
+        <h3 class="text-lg font-bold text-blue-800 mb-2">
+          <i class="fas fa-clipboard-list mr-2"></i>Step 1: Define AS-IS Capabilities
+        </h3>
+        <p class="text-gray-700 mb-3">Document your organization's current capability landscape.</p>
+        <ul class="list-disc list-inside text-gray-600 space-y-1 text-sm">
+          <li><strong>Manual Entry:</strong> Add capabilities one-by-one using the domain cards</li>
+          <li><strong>Template Import:</strong> Use industry templates as a starting point</li>
+          <li><strong>AI-Assisted APQC:</strong> Import capabilities from APQC framework with AI filtering</li>
+          <li><strong>Lock Validated Capabilities:</strong> Click lock icon to mark capabilities as reviewed</li>
+        </ul>
+        <div class="mt-3 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+          <i class="fas fa-lightbulb mr-1"></i>
+          <strong>Tip:</strong> Complete Step 1 when you have locked at least 60% of your AS-IS capabilities.
+        </div>
+      </div>
+
+      <div class="border-l-4 border-green-600 pl-4">
+        <h3 class="text-lg font-bold text-green-800 mb-2">
+          <i class="fas fa-wand-magic-sparkles mr-2"></i>Step 2: Generate TO-BE Capabilities
+        </h3>
+        <p class="text-gray-700 mb-3">Use AI to identify transformation opportunities and future-state capabilities.</p>
+        <ul class="list-disc list-inside text-gray-600 space-y-1 text-sm">
+          <li><strong>Create TO-BE:</strong> AI generates future-state capabilities based on AS-IS and strategic context</li>
+          <li><strong>Review Comparison:</strong> See side-by-side AS-IS vs TO-BE analysis</li>
+          <li><strong>AI Insights:</strong> Automatic identification of gaps, duplicates, and transformation opportunities</li>
+          <li><strong>Edit & Refine:</strong> Manually adjust TO-BE capabilities as needed</li>
+        </ul>
+        <div class="mt-3 p-3 bg-green-50 rounded-lg text-sm text-green-800">
+          <i class="fas fa-info-circle mr-1"></i>
+          <strong>Note:</strong> TO-BE generation requires OpenAI API key and AS-IS capabilities.
+        </div>
+      </div>
+
+      <div class="border-l-4 border-purple-600 pl-4">
+        <h3 class="text-lg font-bold text-purple-800 mb-2">
+          <i class="fas fa-check-double mr-2"></i>Step 3: Review & Consolidate
+        </h3>
+        <p class="text-gray-700 mb-3">Finalize your capability map and prepare for integration with downstream toolkits.</p>
+        <ul class="list-disc list-inside text-gray-600 space-y-1 text-sm">
+          <li><strong>Consolidate:</strong> Merge AS-IS and TO-BE into a unified capability map</li>
+          <li><strong>Export v2.0:</strong> Download capability assessment with full metadata</li>
+          <li><strong>Store for Integration:</strong> Save to EA_DataManager for Gap Analysis toolkit</li>
+          <li><strong>Verify Schema:</strong> Ensure export matches integration registry specification</li>
+        </ul>
+        <div class="mt-3 p-3 bg-purple-50 rounded-lg text-sm text-purple-800">
+          <i class="fas fa-arrow-right mr-1"></i>
+          <strong>Next:</strong> Use exported data in Gap Analysis and Transformation Roadmap toolkits.
+        </div>
+      </div>
+
+      <div class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <h4 class="font-bold text-gray-800 mb-2">Integration Governance</h4>
+        <p class="text-sm text-gray-600 mb-2">
+          This toolkit follows strict integration principles to ensure seamless data flow:
+        </p>
+        <ul class="list-disc list-inside text-gray-600 space-y-1 text-sm">
+          <li>Versioned exports (v2.0 schema with backward compatibility)</li>
+          <li>EA_DataManager API for integration storage</li>
+          <li>No breaking changes to existing toolkit chains</li>
+          <li>Documentation-first approach (see INTEGRATION_REGISTRY.md)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-8 text-center">
+      <button onclick="toggleWorkshopGuide()" class="workshop-guide-btn px-6 py-2">
+        <i class="fas fa-check mr-2"></i>Got It
+      </button>
+    </div>
+  </div>
+</div>
+
 </div><!-- Close wrapper div -->
 </body>
 </html>
