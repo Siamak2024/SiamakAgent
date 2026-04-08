@@ -1,16 +1,187 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Application Portfolio Management</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Application Portfolio Management � EA Toolkit</title>
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="../js/EA_Config.js"></script>
-    <script src="../js/EA_DataManager.js"></script>
+    <script src="../../js/EA_Config.js"></script>
+    <script src="../../js/EA_DataManager.js"></script>
+    <script src="../../js/Advicy_AI.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
+        /* === EA PLATFORM LAYOUT === */
+        #app-container { display: flex; flex-direction: column; min-height: 100vh; }
+        #main-content { flex: 1; transition: margin-right 0.3s ease; }
+        body.chat-sidebar-open #main-content { margin-right: 380px; }
+        
+        /* === EA PLATFORM HEADER === */
+        .ea-header {
+            background: linear-gradient(135deg, #92400e 0%, #b45309 100%) !important;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .ea-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .ea-brand-mark {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            color: white;
+        }
+        
+        .ea-header-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+            margin: 0;
+        }
+        
+        .ea-header-title p {
+            font-size: 12px;
+            color: rgba(255,255,255,0.85);
+            margin: 0;
+        }
+        
+        .ea-header-right {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .ea-header-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .ea-header-icon:hover {
+            background: rgba(255,255,255,0.18);
+        }
+        
+        /* === EA PLATFORM CHAT SIDEBAR === */
+        #ai-chat-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 380px;
+            background: var(--ea-surface, #1a1a2e);
+            border-left: 1px solid var(--ea-border, #2d2d4e);
+            box-shadow: -4px 0 24px rgba(0,0,0,0.08);
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        body.chat-sidebar-open #ai-chat-panel { display: flex; }
+        
+        #chat-resize-handle {
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 5px;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 20;
+            transition: background 0.15s;
+        }
+        #chat-resize-handle:hover, #chat-resize-handle.dragging { background: #0e7afe; }
+        
+        #chat-header {
+            height: 64px;
+            background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+            color: white;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        #chat-header-title { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; }
+        #chat-controls { display: flex; gap: 6px; }
+        #chat-controls button {
+            width: 32px; height: 32px; border-radius: 6px;
+            background: rgba(255,255,255,0.1); border: none; color: white;
+            cursor: pointer; font-size: 16px; transition: background 0.15s;
+        }
+        #chat-controls button:hover { background: rgba(255,255,255,0.2); }
+        
+        .quick-actions {
+            display: flex; flex-wrap: wrap; gap: 6px;
+            padding: 12px 16px; background: #1a1a1a;
+            border-bottom: 1px solid #2d2d2d; flex-shrink: 0;
+        }
+        .qa-btn {
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 12px; border: 1px solid #404040;
+            background: #2d2d2d; color: #e0e0e0;
+            border-radius: 20px; cursor: pointer; font-size: 12px;
+            font-weight: 500; transition: all 0.15s;
+        }
+        .qa-btn:hover { background: #92400e; border-color: #92400e; color: white; }
+        .qa-btn i { font-size: 11px; }
+        
+        #chat-messages {
+            flex: 1; overflow-y: auto;
+            padding: 20px 16px; background: #1a1a1a;
+            display: flex; flex-direction: column; gap: 0;
+            scrollbar-width: thin; scrollbar-color: #404040 transparent;
+        }
+        #chat-messages::-webkit-scrollbar { width: 6px; }
+        #chat-messages::-webkit-scrollbar-thumb { background: #404040; border-radius: 3px; }
+        
+        .chat-message { display: flex; gap: 0; animation: chatSlideIn 0.2s ease; margin-bottom: 16px; }
+        @keyframes chatSlideIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+        .message-content { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+        .message-text { background: transparent; border: none; border-radius: 0; padding: 0; font-size: 14px; line-height: 1.6; color: #e0e0e0; word-break: break-word; }
+        .user-message .message-text { background: rgba(55,65,81,0.85); color: #e2e8f0; border: 1px solid rgba(75,85,99,0.4); padding: 12px 14px; border-radius: 8px; font-size: 13px; }
+        .message-time { font-size: 11px; color: #666; padding: 4px 0 0 0; }
+        
+        #chat-input-container {
+            display: flex; gap: 8px; padding: 12px 16px;
+            background: #1a1a1a; border-top: 1px solid #2d2d2d; flex-shrink: 0;
+        }
+        #chat-input {
+            flex: 1; border: 1px solid #404040; border-radius: 6px;
+            padding: 10px 12px; font-size: 14px; resize: none; height: 72px;
+            outline: none; background: #2d2d2d; color: #e0e0e0; font-family: inherit;
+        }
+        #chat-input::placeholder { color: #808080; }
+        #chat-input:focus { border-color: #b45309; box-shadow: 0 0 0 1px #b45309; }
+        #send-chat {
+            width: 36px; height: 36px; border: none; border-radius: 6px;
+            background: #b45309; color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; align-self: flex-end;
+            font-size: 14px; transition: background 0.2s;
+        }
+        #send-chat:hover { background: #92400e; }
+        .spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* === ORIGINAL APM STYLING === */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
         body{font-family:'Inter',sans-serif;background:#f8fafc;color:#0f172a}
@@ -160,85 +331,44 @@
         .toast.toast-ok{background:#16a34a}
         .toast.toast-err{background:#dc2626}
 
-        /* ── APM AI ASSISTANT ── */
-        #apm-assistant-btn {
-            position:fixed;bottom:28px;right:28px;width:52px;height:52px;
-            background:linear-gradient(135deg,#ea580c,#9333ea);
-            border-radius:50%;display:flex;align-items:center;justify-content:center;
-            cursor:pointer;box-shadow:0 4px 20px rgba(234,88,12,.45);z-index:999;
-            border:none;transition:transform .2s,box-shadow .2s;
-        }
-        #apm-assistant-btn:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(234,88,12,.55)}
-        #apm-assistant-btn .notif-dot{position:absolute;top:4px;right:4px;width:10px;height:10px;background:#f59e0b;border-radius:50%;border:2px solid white}
-        #apm-chat-panel{
-            position:fixed;bottom:90px;right:28px;width:780px;max-height:620px;
-            background:white;border-radius:16px;box-shadow:0 12px 50px rgba(15,23,42,.18);
-            display:flex;flex-direction:column;z-index:998;overflow:hidden;
-            transition:opacity .2s,transform .2s;
-        }
-        #apm-chat-panel.hidden{opacity:0;pointer-events:none;transform:translateY(12px)}
-        .apm-chat-header{background:linear-gradient(135deg,#0f172a,#c2410c);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-        .apm-chat-header-title{display:flex;align-items:center;gap:8px;color:white}
-        .apm-chat-avatar{width:30px;height:30px;background:rgba(255,255,255,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem}
-        .apm-chat-header-title span{font-size:.82rem;font-weight:700;color:white}
-        .apm-chat-header-title small{display:block;font-size:.62rem;opacity:.7;font-weight:400;color:white}
-        #apm-api-notice{background:#fffbeb;border-bottom:1px solid #fde68a;padding:5px 10px;font-size:.62rem;color:#92400e;text-align:center;flex-shrink:0}
-        .apm-context-toggle{padding:5px 10px;background:#fff7ed;border-bottom:1px solid #fed7aa;display:flex;align-items:center;gap:6px;font-size:.65rem;color:#ea580c;font-weight:600;flex-shrink:0}
-        .apm-quick-actions{padding:8px 10px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;flex-wrap:wrap;gap:5px;flex-shrink:0}
-        .apm-qa-btn{font-size:.65rem;font-weight:600;padding:4px 9px;border-radius:20px;border:1px solid #e2e8f0;background:white;color:#475569;cursor:pointer;transition:all .15s;white-space:nowrap}
-        .apm-qa-btn:hover{background:#ea580c;color:white;border-color:#ea580c}
-        #apm-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:0}
-        .apm-msg{display:flex;gap:7px;align-items:flex-start}
-        .apm-msg.user{flex-direction:row-reverse}
-        .apm-msg-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;flex-shrink:0;margin-top:2px}
-        .apm-msg.ai .apm-msg-avatar{background:linear-gradient(135deg,#ea580c,#9333ea);color:white}
-        .apm-msg.user .apm-msg-avatar{background:#e2e8f0;color:#475569}
-        .apm-msg-bubble{max-width:82%;padding:8px 11px;border-radius:12px;font-size:.78rem;line-height:1.55}
-        .apm-msg.ai .apm-msg-bubble{background:#f1f5f9;color:#1e293b;border-bottom-left-radius:4px}
-        .apm-msg.user .apm-msg-bubble{background:linear-gradient(135deg,#ea580c,#f97316);color:white;border-bottom-right-radius:4px}
-        .apm-msg-bubble strong{font-weight:700}
-        .apm-msg-bubble ul{margin-left:1rem;margin-top:4px}
-        .apm-msg-bubble li{list-style:disc;margin-bottom:2px}
-        .apm-typing-dots span{display:inline-block;width:6px;height:6px;background:#94a3b8;border-radius:50%;margin:0 1px;animation:apmBounce 1.2s infinite}
-        .apm-typing-dots span:nth-child(2){animation-delay:.2s}
-        .apm-typing-dots span:nth-child(3){animation-delay:.4s}
-        @keyframes apmBounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
-        .apm-chat-input-area{padding:10px;border-top:1px solid #e2e8f0;display:flex;gap:7px;align-items:flex-end;flex-shrink:0;background:white}
-        #apm-chat-input{flex:1;border:1px solid #e2e8f0;border-radius:10px;padding:8px 11px;font-size:.78rem;resize:none;outline:none;max-height:90px;line-height:1.4;font-family:inherit}
-        #apm-chat-input:focus{border-color:#ea580c}
-        #apm-send-btn{width:34px;height:34px;background:#ea580c;border:none;border-radius:9px;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;transition:background .15s}
-        #apm-send-btn:hover{background:#c2410c}
-        #apm-send-btn:disabled{background:#94a3b8;cursor:not-allowed}
-        .apm-spin{animation:apmSpin 1s linear infinite}
-        @keyframes apmSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
     </style>
 </head>
-<body>
+<body class="ea-toolkit-app">
 
-<!-- HEADER -->
-<header>
-    <div class="header-inner">
-        <div class="logo">
-            <div class="logo-icon"><i class="fas fa-cubes"></i></div>
-            <div>
-                <h1>Application Portfolio Management</h1>
-                <p>Inventory · Lifecycle · Ownership · Fit Matrix · Rationalization</p>
-            </div>
+<div id="app-container">
+
+<!-- EA PLATFORM HEADER -->
+<header class="ea-header">
+    <div class="ea-header-left">
+        <div class="ea-brand-mark">
+            <i class="fas fa-layer-group" style="font-size: 32px;"></i>
         </div>
-        <div class="nav-btns">
-            <button class="btn btn-success" onclick="exportData()"><i class="fas fa-download"></i> Export JSON</button>
-            <button class="btn btn-success" onclick="exportExcelTemplate()" title="Download a pre-filled Excel template with all fields. Edit and import back."><i class="fas fa-file-excel"></i> Excel Template</button>
-            <button class="btn btn-warning" onclick="document.getElementById('importFile').click()"><i class="fas fa-upload"></i> Import</button>
-            <input type="file" id="importFile" accept=".json,.xlsx,.xls" class="hidden" onchange="importData(event)">
-            <button class="btn btn-primary" onclick="openModal()"><i class="fas fa-plus"></i> Add Application</button>
+        <div class="ea-header-title">
+            <h1>Application Portfolio Management</h1>
+            <p>Application Inventory � Lifecycle Management � Portfolio Rationalization</p>
         </div>
     </div>
+    <div class="ea-header-right">
+        <button class="ea-header-icon" onclick="window.location.href='../Integration_Workflow_Hub.html'" title="Back to Workflow Hub">
+            <i class="fas fa-th-large"></i>
+        </button>
+        <button class="ea-header-icon" onclick="window.location.href='../NexGen_EA_V4.html'" title="Go to EA Platform">
+            <i class="fas fa-home"></i>
+        </button>
+        <button class="ea-header-icon" id="toggle-chat-btn" onclick="toggleChatPanel()" title="AI Assistant (Ctrl+K)">
+            <i class="fas fa-robot"></i>
+        </button>
+    </div>
 </header>
+
+<div id="main-content">
 
 <!-- TAB BAR -->
 <div class="tab-bar">
     <div class="tab-bar-inner">
-        <button class="tab-btn active" onclick="switchTab('inventory',this)"><i class="fas fa-table-list"></i> Inventory</button>
+        <button class="tab-btn active" onclick="switchTab('capability',this)"><i class="fas fa-layer-group"></i> Capability Layer</button>
+        <button class="tab-btn" onclick="switchTab('aiagent',this)"><i class="fas fa-robot"></i> AI Agent Layer</button>
+        <button class="tab-btn" onclick="switchTab('inventory',this)"><i class="fas fa-table-list"></i> Inventory</button>
         <button class="tab-btn" onclick="switchTab('lifecycle',this)"><i class="fas fa-timeline"></i> Lifecycle</button>
         <button class="tab-btn" onclick="switchTab('ownership',this)"><i class="fas fa-users"></i> Ownership</button>
         <button class="tab-btn" onclick="switchTab('fitmatrix',this)"><i class="fas fa-chart-scatter"></i> Fit Matrix</button>
@@ -248,8 +378,100 @@
 
 <main>
 
+<!-- ==================== CAPABILITY LAYER ==================== -->
+<div id="view-capability" class="section-view active">
+    <!-- KPI Strip -->
+    <div class="kpi-strip">
+        <div class="kpi-card">
+            <div class="kpi-value" id="capTotalCount">0</div>
+            <div class="kpi-label">Total Capabilities</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value" id="capAvgMaturity">0.0</div>
+            <div class="kpi-label">Avg Maturity</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value" id="capHighAI">0</div>
+            <div class="kpi-label">High AI Potential</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value" id="capUnmapped">0</div>
+            <div class="kpi-label">Unmapped Capabilities</div>
+        </div>
+    </div>
+
+    <!-- Template Loaded Indicator -->
+    <div id="templateIndicator" style="display:none;margin-bottom:16px;"></div>
+
+    <!-- Toolbar -->
+    <div class="filter-bar" style="justify-content:space-between">
+        <div style="display:flex;gap:10px;align-items:center">
+            <button class="btn btn-primary" onclick="document.getElementById('importCapFile').click()"><i class="fas fa-upload"></i> Import APQC</button>
+            <input type="file" id="importCapFile" accept=".json,.xlsx,.xls" class="hidden" onchange="importCapabilities(event)">
+            <select id="templateSelect" onchange="loadCapabilityTemplate(this.value)" style="padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:12px">
+                <option value="">Load APQC Template...</option>
+            </select>
+            <button class="btn btn-success" onclick="triggerAIMapping()" title="Use AI to automatically map applications to capabilities"><i class="fas fa-robot"></i> AI Map Apps</button>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="toggleCapabilityView('tree')" id="btnTreeView"><i class="fas fa-sitemap"></i> Tree View</button>
+            <button class="btn btn-ghost" onclick="toggleCapabilityView('heatmap')" id="btnHeatmapView"><i class="fas fa-th"></i> Heatmap</button>
+        </div>
+    </div>
+
+    <!-- Tree View -->
+    <div id="capTreeView" class="card">
+        <div style="display:grid;grid-template-columns:280px 1fr 400px;gap:20px;min-height:600px">
+            <!-- L1 Domains Sidebar -->
+            <div style="border-right:1px solid #e2e8f0;padding-right:16px">
+                <div class="section-label">L1 Domains</div>
+                <div id="domainList"></div>
+            </div>
+            <!-- L2/L3 Capability Tree -->
+            <div style="border-right:1px solid #e2e8f0;padding-right:16px">
+                <div class="section-label">Capabilities</div>
+                <div id="capabilityTree"></div>
+            </div>
+            <!-- Detail Panel -->
+            <div>
+                <div class="section-label">Capability Details</div>
+                <div id="capabilityDetail" style="color:#94a3b8;font-size:12px">Select a capability to view details</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Heatmap View -->
+    <div id="capHeatmapView" class="card hidden" style="min-height:600px">
+        <canvas id="capabilityHeatmap"></canvas>
+    </div>
+</div>
+
+<!-- ==================== AI AGENT LAYER ==================== -->
+<div id="view-aiagent" class="section-view">
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <select id="filterAgentType" onchange="renderAIAgents()">
+            <option value="">All Types</option>
+            <option value="NLP">NLP</option>
+            <option value="RPA">RPA</option>
+            <option value="Predictive Analytics">Predictive Analytics</option>
+            <option value="Computer Vision">Computer Vision</option>
+            <option value="Conversational AI">Conversational AI</option>
+            <option value="Automation">Automation</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#64748b;cursor:pointer">
+            <input type="checkbox" id="filterToBeOnly" onchange="renderAIAgents()" style="cursor:pointer">
+            <span>Show TO-BE Only</span>
+        </label>
+        <button class="btn btn-primary" onclick="openAIAgentModal()"><i class="fas fa-plus"></i> Add AI Agent</button>
+    </div>
+
+    <!-- Agent Cards Grid -->
+    <div id="aiAgentGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:20px"></div>
+</div>
+
 <!-- ==================== INVENTORY ==================== -->
-<div id="view-inventory" class="section-view active">
+<div id="view-inventory" class="section-view">
     <!-- KPI Strip -->
     <div class="kpi-strip" id="kpiStrip"></div>
 
@@ -289,12 +511,13 @@
                         <th>Owner</th>
                         <th>Lifecycle</th>
                         <th>Vendor</th>
-                        <th title="CAPEX — Avg. Yearly License Cost">CAPEX / yr</th>
-                        <th title="OPEX — Avg. Yearly Support &amp; Consulting">OPEX / yr</th>
+                        <th title="CAPEX � Avg. Yearly License Cost">CAPEX / yr</th>
+                        <th title="OPEX � Avg. Yearly Support &amp; Consulting">OPEX / yr</th>
                         <th title="Total Annual Cost (CAPEX + OPEX)">Total / yr</th>
                         <th>Users</th>
                         <th title="Technical Fit">Tech Fit</th>
                         <th title="Business Value">Biz Value</th>
+                        <th title="AI Maturity (1-5)">AI Maturity</th>
                         <th>Action</th>
                         <th></th>
                     </tr>
@@ -356,8 +579,8 @@
                         <th>Application</th>
                         <th>Action</th>
                         <th>Lifecycle</th>
-                        <th title="CAPEX — Avg. Yearly License Cost">CAPEX / yr</th>
-                        <th title="OPEX — Avg. Yearly Support &amp; Consulting">OPEX / yr</th>
+                        <th title="CAPEX � Avg. Yearly License Cost">CAPEX / yr</th>
+                        <th title="OPEX � Avg. Yearly Support &amp; Consulting">OPEX / yr</th>
                         <th title="Total Annual Cost">Total / yr</th>
                         <th>Tech Fit</th>
                         <th>Biz Value</th>
@@ -426,14 +649,14 @@
 
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label">CAPEX — Avg. Yearly License Cost</label>
+                    <label class="form-label">CAPEX � Avg. Yearly License Cost</label>
                     <div class="cost-input-wrap">
                         <span class="cost-currency" id="capexCurrLabel">SEK</span>
                         <input type="number" id="fCapex" class="form-input cost-input" placeholder="0" min="0">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">OPEX — Avg. Yearly Support &amp; Consulting</label>
+                    <label class="form-label">OPEX � Avg. Yearly Support &amp; Consulting</label>
                     <div class="cost-input-wrap">
                         <span class="cost-currency" id="opexCurrLabel">SEK</span>
                         <input type="number" id="fOpex" class="form-input cost-input" placeholder="0" min="0">
@@ -502,6 +725,41 @@
                 <label class="form-label">Notes</label>
                 <textarea id="fNotes" class="form-input" rows="2" placeholder="Migration notes, dependencies, constraints..."></textarea>
             </div>
+
+            <div class="divider"></div>
+
+            <div style="margin-bottom:16px">
+                <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:4px">
+                    <i class="fas fa-robot" style="color:#ea580c;margin-right:6px"></i>AI Transformation Analysis
+                </div>
+                <div style="font-size:11px;color:#64748b">Assess AI readiness and modernization potential</div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">AI Maturity (1 = None, 5 = AI-Native)</label>
+                <div class="score-row" id="aiMaturityBtns">
+                    <button class="score-btn" onclick="setScore('aiMaturity',1)">1</button>
+                    <button class="score-btn" onclick="setScore('aiMaturity',2)">2</button>
+                    <button class="score-btn sel" onclick="setScore('aiMaturity',3)">3</button>
+                    <button class="score-btn" onclick="setScore('aiMaturity',4)">4</button>
+                    <button class="score-btn" onclick="setScore('aiMaturity',5)">5</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">AI Transformation Potential</label>
+                <select id="fAiPotential" class="form-select">
+                    <option value="None">None � Minimal AI opportunity</option>
+                    <option value="Low">Low � Limited automation potential</option>
+                    <option value="Medium" selected>Medium � Moderate AI benefits</option>
+                    <option value="High">High � Significant AI opportunity</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Modern Stack Alternative (Optional)</label>
+                <input type="text" id="fModernStack" class="form-input" placeholder="e.g. Migrate to Azure AI Services, Replace with GPT-4 API">
+            </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -510,21 +768,168 @@
     </div>
 </div>
 
+<!-- ==================== CAPABILITY MAPPING MODAL ==================== -->
+<div id="capMappingModal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title" id="capMappingTitle">Map Applications to Capability</div>
+            <button class="modal-close" onclick="closeCapMappingModal()"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="mappingCapId">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+                <!-- Mapped Apps -->
+                <div>
+                    <div class="form-label">Mapped Applications (<span id="mappedCount">0</span>)</div>
+                    <div id="mappedAppsList" style="max-height:400px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px"></div>
+                </div>
+                <!-- Available Apps -->
+                <div>
+                    <div class="form-label">Available Applications</div>
+                    <input type="text" id="appSearchInput" placeholder="Search applications..." class="form-input" style="margin-bottom:8px" oninput="filterAvailableApps()">
+                    <div id="availableAppsList" style="max-height:400px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px"></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeCapMappingModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== AI AGENT MODAL ==================== -->
+<div id="aiAgentModal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title" id="agentModalTitle">Add AI Agent</div>
+            <button class="modal-close" onclick="closeAIAgentModal()"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editAgentId">
+            
+            <div class="form-group">
+                <label class="form-label">Agent Name *</label>
+                <input type="text" id="agentName" class="form-input" placeholder="e.g. Customer Service Chatbot">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Type</label>
+                    <select id="agentType" class="form-select">
+                        <option value="NLP">NLP</option>
+                        <option value="RPA">RPA</option>
+                        <option value="Predictive Analytics">Predictive Analytics</option>
+                        <option value="Computer Vision">Computer Vision</option>
+                        <option value="Conversational AI">Conversational AI</option>
+                        <option value="Automation">Automation</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Maturity Level</label>
+                    <div class="score-row" id="agentMaturityBtns">
+                        <button class="score-btn" onclick="setAgentMaturity(1)">1</button>
+                        <button class="score-btn" onclick="setAgentMaturity(2)">2</button>
+                        <button class="score-btn sel" onclick="setAgentMaturity(3)">3</button>
+                        <button class="score-btn" onclick="setAgentMaturity(4)">4</button>
+                        <button class="score-btn" onclick="setAgentMaturity(5)">5</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea id="agentDescription" class="form-input" rows="2" placeholder="Brief description of the AI agent's purpose and capabilities"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Link to Capabilities (multi-select)</label>
+                <select id="agentCapabilities" class="form-select" multiple size="4">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Link to Applications (multi-select)</label>
+                <select id="agentApplications" class="form-select" multiple size="4">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:#64748b;cursor:pointer">
+                    <input type="checkbox" id="agentToBe" style="cursor:pointer">
+                    <span>This is a TO-BE proposal (not yet implemented)</span>
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeAIAgentModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveAIAgent()"><i class="fas fa-floppy-disk"></i> Save Agent</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== AI MAPPING VALIDATION MODAL ==================== -->
+<div id="aiMappingModal" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:900px;">
+        <div class="modal-header">
+            <div>
+                <div class="modal-title"><i class="fas fa-robot"></i> AI Application-to-Capability Mapping</div>
+                <div style="font-size:11px;color:#64748b;margin-top:4px;" id="aiMappingSummary">Review and approve AI-generated mappings</div>
+            </div>
+            <button class="modal-close" onclick="closeAIMappingModal()"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="modal-body" style="max-height:600px;overflow-y:auto;">
+            <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:12px;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <i class="fas fa-info-circle" style="color:#f59e0b;"></i>
+                    <div style="font-size:11px;color:#92400e;">
+                        <strong>Review mappings:</strong> Check the checkbox for each mapping you want to apply. High-confidence matches are pre-selected.
+                    </div>
+                </div>
+            </div>
+            <div id="aiMappingList">
+                <!-- Generated dynamically -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeAIMappingModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="applyAIMappings()"><i class="fas fa-check"></i> Apply Selected Mappings</button>
+        </div>
+    </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast" class="toast"></div>
 
 <script>
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  DATA LAYER
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 const STORAGE_KEY = 'apm_portfolio';
 
 function loadData() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) return JSON.parse(raw);
-    } catch(e) {}
-    return { applications: [], lastUpdated: null };
+        if (raw) {
+            const data = JSON.parse(raw);
+            // Migrate old data structure to new structure with capabilities and AI agents
+            if (!data.capabilities) data.capabilities = [];
+            if (!data.ai_agents) data.ai_agents = [];
+            // Add AI transformation fields to existing apps if missing
+            if (data.applications) {
+                data.applications = data.applications.map(app => ({
+                    ...app,
+                    ai_maturity: app.ai_maturity || 3,
+                    ai_transformation_potential: app.ai_transformation_potential || 'Medium',
+                    modernStackAlternative: app.modernStackAlternative || '',
+                    linkedAIAgents: app.linkedAIAgents || []
+                }));
+            }
+            return data;
+        }
+    } catch(e) { console.error('Error loading data:', e); }
+    return { applications: [], capabilities: [], ai_agents: [], lastUpdated: null };
 }
 
 function saveData(data) {
@@ -533,6 +938,8 @@ function saveData(data) {
 }
 
 function getApps() { return loadData().applications || []; }
+function getCapabilities() { return loadData().capabilities || []; }
+function getAIAgents() { return loadData().ai_agents || []; }
 
 function upsertApp(app) {
     const data = loadData();
@@ -548,18 +955,74 @@ function deleteApp(id) {
     saveData(data);
 }
 
+function upsertCapability(capability) {
+    const data = loadData();
+    const idx = data.capabilities.findIndex(c => c.id === capability.id);
+    if (idx >= 0) data.capabilities[idx] = capability;
+    else data.capabilities.push(capability);
+    saveData(data);
+}
+
+function deleteCapability(id) {
+    const data = loadData();
+    data.capabilities = data.capabilities.filter(c => c.id !== id);
+    // Remove capability references from apps
+    data.applications.forEach(app => {
+        if (app.businessCapabilities) {
+            const cap = data.capabilities.find(c => c.id === id);
+            if (cap) {
+                app.businessCapabilities = app.businessCapabilities.filter(name => name !== cap.name);
+            }
+        }
+    });
+    saveData(data);
+}
+
+function upsertAIAgent(agent) {
+    const data = loadData();
+    const idx = data.ai_agents.findIndex(a => a.id === agent.id);
+    if (idx >= 0) data.ai_agents[idx] = agent;
+    else data.ai_agents.push(agent);
+    saveData(data);
+}
+
+function deleteAIAgent(id) {
+    const data = loadData();
+    data.ai_agents = data.ai_agents.filter(a => a.id !== id);
+    // Remove agent references from apps and capabilities
+    data.applications.forEach(app => {
+        if (app.linkedAIAgents) {
+            app.linkedAIAgents = app.linkedAIAgents.filter(aid => aid !== id);
+        }
+    });
+    data.capabilities.forEach(cap => {
+        if (cap.linkedAIAgents) {
+            cap.linkedAIAgents = cap.linkedAIAgents.filter(aid => aid !== id);
+        }
+    });
+    saveData(data);
+}
+
 function generateId() {
     return 'app_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
+function generateCapId() {
+    return 'cap_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+function generateAgentId() {
+    return 'agent_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  TABS
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 function switchTab(name, btn) {
     document.querySelectorAll('.section-view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('view-' + name).classList.add('active');
     btn.classList.add('active');
+    if (name === 'capability')    { renderCapabilityLayer(); }
+    if (name === 'aiagent')       { renderAIAgents(); }
     if (name === 'inventory')     { renderKPIs(); renderInventory(); }
     if (name === 'lifecycle')     { renderLifecycle(); }
     if (name === 'ownership')     { renderOwnership(); }
@@ -567,14 +1030,164 @@ function switchTab(name, btn) {
     if (name === 'rationalization') { renderRationalization(); }
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
+//  CAPABILITY LAYER
+// ---------------------------------------------
+let selectedCapability = null;
+let capabilityViewMode = 'tree';
+
+function renderCapabilityLayer() {
+    const capabilities = getCapabilities();
+    
+    // Update KPIs
+    const totalCaps = capabilities.length;
+    const avgMaturity = capabilities.length ? (capabilities.reduce((sum, c) => sum + (c.maturity || 0), 0) / capabilities.length).toFixed(1) : 0;
+    const highAI = capabilities.filter(c => c.aiPotential === 'High').length;
+    const unmapped = capabilities.filter(c => !c.linkedApplications || c.linkedApplications.length === 0).length;
+    
+    document.getElementById('capTotalCount').textContent = totalCaps;
+    document.getElementById('capAvgMaturity').textContent = avgMaturity;
+    document.getElementById('capHighAI').textContent = highAI;
+    document.getElementById('capUnmapped').textContent = unmapped;
+    document.getElementById('capUnmapped').style.color = unmapped > totalCaps * 0.2 ? '#dc2626' : '#16a34a';
+    
+    // Render appropriate view
+    if (capabilityViewMode === 'tree') {
+        renderCapabilityTree();
+    } else {
+        renderCapabilityHeatmap();
+    }
+}
+
+function renderCapabilityTree() {
+    const capabilities = getCapabilities();
+    
+    // Group by domain (L1)
+    const domains = {};
+    capabilities.forEach(cap => {
+        const domain = cap.domain || cap.parentId || 'Uncategorized';
+        if (!domains[domain]) domains[domain] = [];
+        domains[domain].push(cap);
+    });
+    
+    // Render domains sidebar
+    let domainHTML = '';
+    Object.keys(domains).sort().forEach(domain => {
+        const count = domains[domain].length;
+        domainHTML += `
+            <div style="padding:10px;cursor:pointer;border-radius:8px;margin-bottom:4px;transition:all .2s" 
+                 onmouseover="this.style.background='#f8fafc'" 
+                 onmouseout="this.style.background=''" 
+                 onclick="filterByDomain('${esc(domain)}')">
+                <div style="font-weight:700;font-size:13px;color:#0f172a">${esc(domain)}</div>
+                <div style="font-size:10px;color:#94a3b8">${count} capabilities</div>
+            </div>
+        `;
+    });
+    document.getElementById('domainList').innerHTML = domainHTML || '<div style="color:#94a3b8;font-size:12px">No domains</div>';
+    
+    // Render capability tree
+    let treeHTML = '';
+    capabilities.slice(0, 50).forEach(cap => {  // Limit to first 50 for performance
+        const maturityColor = ['#dc2626', '#f97316', '#fbbf24', '#84cc16', '#16a34a'][cap.maturity - 1] || '#94a3b8';
+        const aiPotentialBadge = cap.aiPotential ? `<span class="badge" style="background:${cap.aiPotential === 'High' ? '#dcfce7' : cap.aiPotential === 'Medium' ? '#fef3c7' : '#f1f5f9'};color:${cap.aiPotential === 'High' ? '#16a34a' : cap.aiPotential === 'Medium' ? '#d97706' : '#64748b'};font-size:9px">${cap.aiPotential}</span>` : '';
+        const appCount = cap.linkedApplications ? cap.linkedApplications.length : 0;
+        const appBadge = appCount > 0 ? `<span style="font-size:10px;color:#64748b">?? ${appCount} apps</span>` : '';
+        
+        treeHTML += `
+            <div style="padding:10px;border-bottom:1px solid #f1f5f9;cursor:pointer;transition:all .2s" 
+                 onmouseover="this.style.background='#f8fafc'" 
+                 onmouseout="this.style.background=''" 
+                 onclick="selectCapability('${cap.id}')">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                    <span style="width:8px;height:8px;border-radius:50%;background:${maturityColor}"></span>
+                    <span style="font-weight:700;font-size:12px;flex:1">${esc(cap.name)}</span>
+                    ${aiPotentialBadge}
+                </div>
+                <div style="font-size:10px;color:#94a3b8;display:flex;justify-content:space-between">
+                    <span>${esc(cap.domain || '')}</span>
+                    ${appBadge}
+                </div>
+            </div>
+        `;
+    });
+    document.getElementById('capabilityTree').innerHTML = treeHTML || '<div style="color:#94a3b8;font-size:12px;padding:20px">No capabilities. Import APQC or load a template.</div>';
+}
+
+function selectCapability(capId) {
+    selectedCapability = capId;
+    const cap = getCapabilities().find(c => c.id === capId);
+    if (!cap) return;
+    
+    const apps = getApps();
+    const linkedApps = cap.linkedApplications ? apps.filter(a => cap.linkedApplications.includes(a.id)) : [];
+    
+    const maturityLabels = ['Ad-hoc', 'Repeatable', 'Defined', 'Managed', 'Optimized'];
+    const maturityStars = '?'.repeat(cap.maturity || 0) + '?'.repeat(5 - (cap.maturity || 0));
+    
+    let detailHTML = `
+        <div style="margin-bottom:16px">
+            <h3 style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:8px">${esc(cap.name)}</h3>
+            <div style="font-size:11px;color:#64748b;margin-bottom:12px">${esc(cap.description || 'No description')}</div>
+        </div>
+        
+        <div style="margin-bottom:12px">
+            <div style="font-size:9px;font-weight:800;color:#94a3b8;margin-bottom:4px">MATURITY</div>
+            <div style="font-size:14px;color:#ea580c">${maturityStars} ${maturityLabels[cap.maturity - 1] || 'Unknown'}</div>
+        </div>
+        
+        <div style="margin-bottom:12px">
+            <div style="font-size:9px;font-weight:800;color:#94a3b8;margin-bottom:4px">STRATEGIC IMPORTANCE</div>
+            <div><span class="badge" style="background:#dbeafe;color:#1d4ed8">${esc(cap.strategicImportance || 'medium')}</span></div>
+        </div>
+        
+        <div style="margin-bottom:12px">
+            <div style="font-size:9px;font-weight:800;color:#94a3b8;margin-bottom:4px">AI POTENTIAL</div>
+            <div><span class="badge" style="background:${cap.aiPotential === 'High' ? '#dcfce7' : '#fef3c7'};color:${cap.aiPotential === 'High' ? '#16a34a' : '#d97706'}">${cap.aiPotential || 'Medium'}</span></div>
+        </div>
+        
+        <div style="margin-bottom:16px">
+            <div style="font-size:9px;font-weight:800;color:#94a3b8;margin-bottom:8px">LINKED APPLICATIONS (${linkedApps.length})</div>
+            ${linkedApps.length > 0 ? linkedApps.map(a => `<div style="font-size:11px;padding:4px 0;border-bottom:1px solid #f1f5f9">${esc(a.name)}</div>`).join('') : '<div style="color:#94a3b8;font-size:11px">No applications mapped</div>'}
+        </div>
+        
+        <button class="btn btn-primary" onclick="openCapMappingModal('${cap.id}')"><i class="fas fa-link"></i> Map Applications</button>
+    `;
+    
+    document.getElementById('capabilityDetail').innerHTML = detailHTML;
+}
+
+function filterByDomain(domain) {
+    // Simple filter - just highlight in UI for now
+    showToast(`Filtered by domain: ${domain}`, 'ok');
+}
+
+function toggleCapabilityView(mode) {
+    capabilityViewMode = mode;
+    document.getElementById('capTreeView').classList.toggle('hidden', mode !== 'tree');
+    document.getElementById('capHeatmapView').classList.toggle('hidden', mode !== 'heatmap');
+    
+    document.getElementById('btnTreeView').classList.toggle('btn-ghost', mode !== 'tree');
+    document.getElementById('btnTreeView').classList.toggle('btn-primary', mode === 'tree');
+    document.getElementById('btnHeatmapView').classList.toggle('btn-ghost', mode !== 'heatmap');
+    document.getElementById('btnHeatmapView').classList.toggle('btn-primary', mode === 'heatmap');
+    
+    if (mode === 'heatmap') renderCapabilityHeatmap();
+}
+
+function renderCapabilityHeatmap() {
+    // TODO: Implement Chart.js bubble chart for maturity vs importance
+    document.getElementById('capabilityHeatmap').parentElement.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">Heatmap view - Coming soon</div>';
+}
+
+// ---------------------------------------------
 //  COST HELPER
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 function fmtCost(amount, currency) {
     const n = Number(amount) || 0;
-    if (!n) return '—';
+    if (!n) return '�';
     const c = currency || 'SEK';
-    const sym = c === 'EUR' ? '€' : '';
+    const sym = c === 'EUR' ? '�' : '';
     const suffix = c === 'SEK' ? ' kr' : '';
     const display = n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(0)+'K' : n.toLocaleString('sv-SE');
     return sym + display + suffix;
@@ -584,9 +1197,9 @@ function totalCostOf(a) {
     return (Number(a.capex)||0) + (Number(a.opex)||0);
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  KPIs
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 function renderKPIs() {
     const apps = getApps();
 
@@ -598,11 +1211,11 @@ function renderKPIs() {
         opexByCurr[c]  = (opexByCurr[c]||0)  + (Number(a.opex)||0);
     });
     const currencies = [...new Set(Object.keys(capexByCurr).concat(Object.keys(opexByCurr)))];
-    const capexStr = currencies.map(c => fmtCost(capexByCurr[c]||0, c)).filter(s=>s!=='—').join(' + ') || '—';
-    const opexStr  = currencies.map(c => fmtCost(opexByCurr[c]||0, c)).filter(s=>s!=='—').join(' + ') || '—';
+    const capexStr = currencies.map(c => fmtCost(capexByCurr[c]||0, c)).filter(s=>s!=='�').join(' + ') || '�';
+    const opexStr  = currencies.map(c => fmtCost(opexByCurr[c]||0, c)).filter(s=>s!=='�').join(' + ') || '�';
 
-    const avgTech = apps.length ? (apps.reduce((s, a) => s + (Number(a.technicalFitScore)||0), 0) / apps.length).toFixed(1) : '—';
-    const avgBiz  = apps.length ? (apps.reduce((s, a) => s + (Number(a.businessValueScore)||0), 0) / apps.length).toFixed(1) : '—';
+    const avgTech = apps.length ? (apps.reduce((s, a) => s + (Number(a.technicalFitScore)||0), 0) / apps.length).toFixed(1) : '�';
+    const avgBiz  = apps.length ? (apps.reduce((s, a) => s + (Number(a.businessValueScore)||0), 0) / apps.length).toFixed(1) : '�';
     const retireCount = apps.filter(a => a.rationalizationAction === 'retire' || a.rationalizationAction === 'replace').length;
 
     const kpis = [
@@ -622,9 +1235,9 @@ function renderKPIs() {
         </div>`).join('');
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  INVENTORY
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 const LC_LABEL = { phaseIn:'Phase In', active:'Active', legacy:'Legacy', phaseOut:'Phase Out', retired:'Retired' };
 const AC_LABEL = { retain:'Retain', invest:'Invest', replace:'Replace', consolidate:'Consolidate', retire:'Retire' };
 
@@ -660,7 +1273,7 @@ function renderInventory() {
     if (filtered.length && totalCost > 0) {
         // If all same currency show with symbol, else just number
         const currs = [...new Set(filtered.map(a => a.currency || 'SEK'))];
-        const sym = currs.length === 1 ? (currs[0] === 'EUR' ? '€' : '') : '';
+        const sym = currs.length === 1 ? (currs[0] === 'EUR' ? '�' : '') : '';
         const suf = currs.length === 1 && currs[0] === 'SEK' ? ' kr' : '';
         costBadge.textContent = 'Filtered Total: ' + sym + totalCost.toLocaleString('sv-SE') + suf;
         costBadge.classList.remove('hidden');
@@ -670,7 +1283,7 @@ function renderInventory() {
 
     const tbody = document.getElementById('inventoryBody');
     if (!filtered.length) {
-        tbody.innerHTML = `<tr><td colspan="13"><div class="empty-state"><i class="fas fa-inbox"></i><p>${apps.length ? 'No applications match the current filters.' : 'No applications yet. Click "Add Application" to get started.'}</p></div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="14"><div class="empty-state"><i class="fas fa-inbox"></i><p>${apps.length ? 'No applications match the current filters.' : 'No applications yet. Click "Add Application" to get started.'}</p></div></td></tr>`;
         return;
     }
 
@@ -683,18 +1296,19 @@ function renderInventory() {
         const bv = Number(a.businessValueScore)||0;
         const costColor = total > 500000 ? '#dc2626' : total > 200000 ? '#d97706' : '#16a34a';
         return `<tr>
-            <td><span class="app-name">${esc(a.name)}</span>${a.businessCapabilities?.length ? `<br><span style="font-size:10px;color:#94a3b8">${a.businessCapabilities.slice(0,2).join(', ')}${a.businessCapabilities.length>2?'…':''}</span>` : ''}</td>
-            <td>${esc(a.department||'—')}</td>
-            <td>${esc(a.owner||'—')}</td>
+            <td><span class="app-name">${esc(a.name)}</span>${a.businessCapabilities?.length ? `<br><span style="font-size:10px;color:#94a3b8">${a.businessCapabilities.slice(0,2).join(', ')}${a.businessCapabilities.length>2?'�':''}</span>` : ''}</td>
+            <td>${esc(a.department||'�')}</td>
+            <td>${esc(a.owner||'�')}</td>
             <td><span class="badge lc-${a.lifecycle}">${LC_LABEL[a.lifecycle]||a.lifecycle}</span></td>
-            <td>${esc(a.vendor||'—')}</td>
+            <td>${esc(a.vendor||'�')}</td>
             <td style="font-weight:700;color:#64748b">${fmtCost(capex,cur)}</td>
             <td style="font-weight:700;color:#64748b">${fmtCost(opex,cur)}</td>
             <td style="font-weight:800;color:${costColor}">${fmtCost(total,cur)}</td>
-            <td>${a.userCount ? Number(a.userCount).toLocaleString() : '—'}</td>
-            <td><span style="font-weight:900;color:${scoreColor(tf)}">${tf||'—'}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
-            <td><span style="font-weight:900;color:${scoreColor(bv)}">${bv||'—'}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
-            <td><span class="badge ac-${a.rationalizationAction}">${AC_LABEL[a.rationalizationAction]||a.rationalizationAction||'—'}</span></td>
+            <td>${a.userCount ? Number(a.userCount).toLocaleString() : '�'}</td>
+            <td><span style="font-weight:900;color:${scoreColor(tf)}">${tf||'�'}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
+            <td><span style="font-weight:900;color:${scoreColor(bv)}">${bv||'�'}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
+            <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${['#dc2626','#f97316','#fbbf24','#84cc16','#16a34a'][(a.ai_maturity||3)-1]}" title="AI Maturity ${a.ai_maturity||3}/5"></span> <span style="font-weight:700;color:#64748b">${a.ai_maturity||3}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
+            <td><span class="badge ac-${a.rationalizationAction}">${AC_LABEL[a.rationalizationAction]||a.rationalizationAction||'�'}</span></td>
             <td><div class="action-row">
                 <button class="icon-btn" onclick="openModal('${a.id}')" title="Edit"><i class="fas fa-pen"></i></button>
                 <button class="icon-btn del" onclick="confirmDelete('${a.id}')" title="Delete"><i class="fas fa-trash"></i></button>
@@ -703,9 +1317,9 @@ function renderInventory() {
     }).join('');
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  LIFECYCLE (KANBAN)
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 const LC_ORDER = ['phaseIn','active','legacy','phaseOut','retired'];
 const LC_ICON  = { phaseIn:'fas fa-seedling', active:'fas fa-circle-check', legacy:'fas fa-triangle-exclamation', phaseOut:'fas fa-arrow-down-to-line', retired:'fas fa-archive' };
 
@@ -730,18 +1344,18 @@ function renderLifecycle() {
                          ondragend="kanbanDragEnd(event)"
                          onclick="openModal('${a.id}')">
                         <div class="kanban-card-name">${esc(a.name)}</div>
-                        <div class="kanban-card-dept">${esc(a.department||'—')} · ${esc(a.owner||'—')}</div>
+                        <div class="kanban-card-dept">${esc(a.department||'�')} � ${esc(a.owner||'�')}</div>
                         ${totalCostOf(a) ? `<div style="font-size:10px;color:#ea580c;margin-top:4px;font-weight:700">${fmtCost(totalCostOf(a), a.currency||'SEK')} / yr</div>` : ''}
-                        <div style="margin-top:6px"><span class="badge ac-${a.rationalizationAction}" style="font-size:9px">${AC_LABEL[a.rationalizationAction]||'—'}</span></div>
+                        <div style="margin-top:6px"><span class="badge ac-${a.rationalizationAction}" style="font-size:9px">${AC_LABEL[a.rationalizationAction]||'�'}</span></div>
                     </div>`).join('') : '<div style="padding:16px;text-align:center;color:#cbd5e1;font-size:11px;font-weight:700">Drop here</div>'}
             </div>
         </div>`;
     }).join('');
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  KANBAN DRAG & DROP
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 let _dragId = null;
 
 function kanbanDragStart(event, id) {
@@ -787,9 +1401,9 @@ function kanbanDrop(event, targetLc) {
     showToast(`${app.name} moved to ${LC_LABEL[targetLc]}.`, 'ok');
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  OWNERSHIP
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 function renderOwnership() {
     const apps = getApps();
     const container = document.getElementById('ownershipView');
@@ -825,7 +1439,7 @@ function renderOwnership() {
                 <div class="dept-icon"><i class="fas fa-building"></i></div>
                 <div>
                     <div class="dept-name">${esc(dept)}</div>
-                    <div class="dept-count">${dApps.length} application${dApps.length!==1?'s':''} · ${totalCostStr}</div>
+                    <div class="dept-count">${dApps.length} application${dApps.length!==1?'s':''} � ${totalCostStr}</div>
                 </div>
             </div>
             <div class="owner-grid">
@@ -837,9 +1451,9 @@ function renderOwnership() {
                     const lcs = [...new Set(oApps.map(a => a.lifecycle))];
                     return `<div class="owner-card" onclick="filterByOwner('${esc(owner)}')">
                         <div class="owner-name">${esc(owner)}</div>
-                        <div class="owner-role">${dept} · ${oApps.length} app${oApps.length!==1?'s':''}</div>
+                        <div class="owner-role">${dept} � ${oApps.length} app${oApps.length!==1?'s':''}</div>
                         <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
-                            ${oApps.slice(0,4).map(a => `<span class="badge lc-${a.lifecycle}" style="font-size:9px">${esc(a.name.length>14?a.name.slice(0,14)+'…':a.name)}</span>`).join('')}
+                            ${oApps.slice(0,4).map(a => `<span class="badge lc-${a.lifecycle}" style="font-size:9px">${esc(a.name.length>14?a.name.slice(0,14)+'�':a.name)}</span>`).join('')}
                             ${oApps.length>4?`<span style="font-size:10px;color:#94a3b8">+${oApps.length-4} more</span>`:''}
                         </div>
                         <div class="owner-apps">
@@ -870,9 +1484,9 @@ function filterByOwner(owner) {
     renderInventory();
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  FIT MATRIX (BUBBLE CHART)
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 let fitChartInst = null;
 
 function renderFitMatrix() {
@@ -924,7 +1538,7 @@ function renderFitMatrix() {
                             const cur = app.currency || 'SEK';
                             return [
                                 ctx.dataset.label,
-                                `Tech Fit: ${app.technicalFitScore||'—'}  Biz Value: ${app.businessValueScore||'—'}`,
+                                `Tech Fit: ${app.technicalFitScore||'�'}  Biz Value: ${app.businessValueScore||'�'}`,
                                 app.capex ? `CAPEX: ${fmtCost(app.capex, cur)}` : '',
                                 app.opex  ? `OPEX: ${fmtCost(app.opex, cur)}`  : '',
                             ].filter(Boolean);
@@ -954,17 +1568,17 @@ function showMatrixDetail(id) {
     document.getElementById('matrixDetail').innerHTML = `
         <div class="section-label">Selected Application</div>
         <div style="font-size:18px;font-weight:900;margin-bottom:4px">${esc(app.name)}</div>
-        <div style="font-size:12px;color:#64748b;margin-bottom:16px">${esc(app.department||'')} · ${esc(app.owner||'')}</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:16px">${esc(app.department||'')} � ${esc(app.owner||'')}</div>
         <div style="display:flex;flex-direction:column;gap:10px">
             <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Lifecycle</span><span class="badge lc-${app.lifecycle}">${LC_LABEL[app.lifecycle]}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Action</span><span class="badge ac-${app.rationalizationAction}">${AC_LABEL[app.rationalizationAction]||'—'}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Technical Fit</span><span style="font-weight:900;color:${scoreColor(app.technicalFitScore||0)}">${app.technicalFitScore||'—'}/5</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Business Value</span><span style="font-weight:900;color:${scoreColor(app.businessValueScore||0)}">${app.businessValueScore||'—'}/5</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Action</span><span class="badge ac-${app.rationalizationAction}">${AC_LABEL[app.rationalizationAction]||'�'}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Technical Fit</span><span style="font-weight:900;color:${scoreColor(app.technicalFitScore||0)}">${app.technicalFitScore||'�'}/5</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Business Value</span><span style="font-weight:900;color:${scoreColor(app.businessValueScore||0)}">${app.businessValueScore||'�'}/5</span></div>
             <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">CAPEX / yr</span><span style="font-weight:700">${fmtCost(capex, cur)}</span></div>
             <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">OPEX / yr</span><span style="font-weight:700">${fmtCost(opex, cur)}</span></div>
             <div style="display:flex;justify-content:space-between;border-top:1px solid #f1f5f9;padding-top:6px;margin-top:2px"><span style="font-size:11px;font-weight:700;color:#64748b">Total / yr</span><span style="font-weight:900;color:#ea580c">${fmtCost(total, cur)}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Users</span><span style="font-weight:700">${app.userCount ? Number(app.userCount).toLocaleString() : '—'}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Vendor</span><span style="font-weight:700">${esc(app.vendor||'—')}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Users</span><span style="font-weight:700">${app.userCount ? Number(app.userCount).toLocaleString() : '�'}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Vendor</span><span style="font-weight:700">${esc(app.vendor||'�')}</span></div>
             ${app.businessCapabilities?.length ? `<div><span style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px">Capabilities</span><div style="display:flex;flex-wrap:wrap;gap:4px">${app.businessCapabilities.map(c=>`<span style="background:#f1f5f9;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700">${esc(c)}</span>`).join('')}</div></div>` : ''}
             ${app.notes ? `<div><span style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px">Notes</span><div style="font-size:11px;color:#475569;line-height:1.6">${esc(app.notes)}</div></div>` : ''}
         </div>
@@ -973,9 +1587,9 @@ function showMatrixDetail(id) {
         </div>`;
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  RATIONALIZATION
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 let ratPieInst = null, ratLcInst = null;
 
 function renderRationalization() {
@@ -1036,18 +1650,18 @@ function renderRationalization() {
                 <td style="font-weight:700;color:#64748b">${fmtCost(Number(a.capex)||0, cur)}</td>
                 <td style="font-weight:700;color:#64748b">${fmtCost(Number(a.opex)||0, cur)}</td>
                 <td style="font-weight:800;color:#dc2626">${fmtCost(totalCostOf(a), cur)}</td>
-                <td style="font-weight:900;color:${scoreColor(a.technicalFitScore||0)}">${a.technicalFitScore||'—'}/5</td>
-                <td style="font-weight:900;color:${scoreColor(a.businessValueScore||0)}">${a.businessValueScore||'—'}/5</td>
-                <td style="font-size:11px;color:#64748b;max-width:200px">${esc(a.notes||'—')}</td>
+                <td style="font-weight:900;color:${scoreColor(a.technicalFitScore||0)}">${a.technicalFitScore||'�'}/5</td>
+                <td style="font-weight:900;color:${scoreColor(a.businessValueScore||0)}">${a.businessValueScore||'�'}/5</td>
+                <td style="font-size:11px;color:#64748b;max-width:200px">${esc(a.notes||'�')}</td>
             </tr>`;
         }).join('');
     }
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  MODAL
-// ─────────────────────────────────────────────
-let _techFit = 5, _bizValue = 5, _currency = 'SEK';
+// ---------------------------------------------
+let _techFit = 5, _bizValue = 5, _aiMaturity = 3, _currency = 'SEK';
 
 function setCurrency(c) {
     _currency = c;
@@ -1065,7 +1679,7 @@ function openModal(id) {
     modal.classList.remove('hidden');
 
     // Reset
-    _techFit = 5; _bizValue = 5;
+    _techFit = 5; _bizValue = 5; _aiMaturity = 3;
     clearForm();
 
     if (id) {
@@ -1087,17 +1701,24 @@ function openModal(id) {
             document.getElementById('fAction').value = app.rationalizationAction || 'retain';
             document.getElementById('fCaps').value = (app.businessCapabilities || []).join(', ');
             document.getElementById('fNotes').value = app.notes || '';
+            document.getElementById('fAiPotential').value = app.ai_transformation_potential || 'Medium';
+            document.getElementById('fModernStack').value = app.modernStackAlternative || '';
             _techFit = Number(app.technicalFitScore) || 5;
             _bizValue = Number(app.businessValueScore) || 5;
+            _aiMaturity = Number(app.ai_maturity) || 3;
             highlightScore('techFit', _techFit);
             highlightScore('bizValue', _bizValue);
+            highlightScore('aiMaturity', _aiMaturity);
             return;
         }
     }
     document.getElementById('modalTitle').textContent = 'Add Application';
     document.getElementById('editId').value = '';
+    document.getElementById('fAiPotential').value = 'Medium';
+    document.getElementById('fModernStack').value = '';
     highlightScore('techFit', 5);
     highlightScore('bizValue', 5);
+    highlightScore('aiMaturity', 3);
 }
 
 function closeModal() {
@@ -1116,12 +1737,13 @@ function clearForm() {
 
 function setScore(type, val) {
     if (type === 'techFit') _techFit = val;
-    else _bizValue = val;
+    else if (type === 'bizValue') _bizValue = val;
+    else if (type === 'aiMaturity') _aiMaturity = val;
     highlightScore(type, val);
 }
 
 function highlightScore(type, val) {
-    const id = type === 'techFit' ? 'techFitBtns' : 'bizValueBtns';
+    const id = type === 'techFit' ? 'techFitBtns' : type === 'bizValue' ? 'bizValueBtns' : 'aiMaturityBtns';
     const btns = document.querySelectorAll('#' + id + ' .score-btn');
     btns.forEach((b, i) => {
         if (i + 1 === val) b.classList.add('sel');
@@ -1154,6 +1776,9 @@ function saveApp() {
         businessCapabilities: caps,
         technicalFitScore:  _techFit,
         businessValueScore: _bizValue,
+        ai_maturity: _aiMaturity,
+        ai_transformation_potential: document.getElementById('fAiPotential').value,
+        modernStackAlternative: document.getElementById('fModernStack').value.trim(),
         notes: document.getElementById('fNotes').value.trim(),
     };
 
@@ -1174,9 +1799,9 @@ function confirmDelete(id) {
     renderInventory();
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  EXPORT / IMPORT
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 function exportData() {
     const data = loadData();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1189,7 +1814,7 @@ function exportData() {
     showToast('Portfolio exported.', 'ok');
 }
 
-// Excel column → app field mapping (must match exportExcelTemplate headers)
+// Excel column ? app field mapping (must match exportExcelTemplate headers)
 const EXCEL_COLS = [
     { header: 'Name *',              field: 'name' },
     { header: 'Description',         field: 'description' },
@@ -1223,15 +1848,15 @@ function exportExcelTemplate() {
         'e.g. SAP, Microsoft, Custom',
         'e.g. .NET, Java, SaaS',
         'SEK or EUR',
-        'Numeric — avg yearly license cost',
-        'Numeric — avg yearly support & consulting',
-        'Numeric — number of users',
+        'Numeric � avg yearly license cost',
+        'Numeric � avg yearly support & consulting',
+        'Numeric � number of users',
         LIFECYCLE_VALS,
         ACTION_VALS,
         '1 (Poor) to 5 (Excellent)',
         '1 (Low) to 5 (Critical)',
         'Comma-separated capabilities',
-        'Migration notes, dependencies…'
+        'Migration notes, dependencies�'
     ];
 
     const existingApps = getApps();
@@ -1245,7 +1870,7 @@ function exportExcelTemplate() {
     // Column widths
     ws['!cols'] = EXCEL_COLS.map((c, i) => ({ wch: i === 0 ? 30 : i <= 5 ? 22 : 18 }));
 
-    // Style header row cells bold (via cell metadata — cosmetic hint for Excel)
+    // Style header row cells bold (via cell metadata � cosmetic hint for Excel)
     headers.forEach((h, i) => {
         const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
         if (!ws[cellRef]) return;
@@ -1354,12 +1979,873 @@ function importData(evt) {
     evt.target.value = '';
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  UTILS
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 function esc(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// ---------------------------------------------
+//  CAPABILITY MAPPING MODAL
+// ---------------------------------------------
+function openCapMappingModal(capId) {
+    const cap = getCapabilities().find(c => c.id === capId);
+    if (!cap) return;
+    
+    document.getElementById('mappingCapId').value = capId;
+    document.getElementById('capMappingTitle').textContent = `Map Applications to: ${cap.name}`;
+    document.getElementById('capMappingModal').classList.remove('hidden');
+    
+    renderMappingLists();
+}
+
+function closeCapMappingModal() {
+    document.getElementById('capMappingModal').classList.add('hidden');
+}
+
+function renderMappingLists() {
+    const capId = document.getElementById('mappingCapId').value;
+    const cap = getCapabilities().find(c => c.id === capId);
+    if (!cap) return;
+    
+    const apps = getApps();
+    const linkedAppIds = cap.linkedApplications || [];
+    const mappedApps = apps.filter(a => linkedAppIds.includes(a.id));
+    const availableApps = apps.filter(a => !linkedAppIds.includes(a.id));
+    
+    // Render mapped apps
+    let mappedHTML = '';
+    mappedApps.forEach(app => {
+        const cost = totalCostOf(app);
+        mappedHTML += `
+            <div style="padding:8px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between">
+                <div>
+                    <div style="font-weight:700;font-size:12px">${esc(app.name)}</div>
+                    <div style="font-size:10px;color:#94a3b8">
+                        <span class="badge lc-${app.lifecycle}">${LC_LABEL[app.lifecycle]}</span>
+                        <span style="margin-left:4px">${fmtCost(cost, app.currency)}</span>
+                    </div>
+                </div>
+                <button class="icon-btn del" onclick="unmapApp('${app.id}')"><i class="fas fa-xmark"></i></button>
+            </div>
+        `;
+    });
+    document.getElementById('mappedAppsList').innerHTML = mappedHTML || '<div style="color:#94a3b8;font-size:11px;padding:12px">No apps mapped yet</div>';
+    document.getElementById('mappedCount').textContent = mappedApps.length;
+    
+    // Render available apps
+    renderAvailableApps(availableApps);
+}
+
+function renderAvailableApps(apps) {
+    const searchTerm = document.getElementById('appSearchInput').value.toLowerCase();
+    const filtered = apps.filter(a => a.name.toLowerCase().includes(searchTerm));
+    
+    let availableHTML = '';
+    filtered.forEach(app => {
+        availableHTML += `
+            <div style="padding:8px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between">
+                <div>
+                    <div style="font-weight:700;font-size:12px">${esc(app.name)}</div>
+                    <div style="font-size:10px;color:#94a3b8">${esc(app.department || 'N/A')}</div>
+                </div>
+                <button class="icon-btn" onclick="mapApp('${app.id}')" style="color:#16a34a"><i class="fas fa-plus"></i></button>
+            </div>
+        `;
+    });
+    document.getElementById('availableAppsList').innerHTML = availableHTML || '<div style="color:#94a3b8;font-size:11px;padding:12px">No apps available</div>';
+}
+
+function filterAvailableApps() {
+    const capId = document.getElementById('mappingCapId').value;
+    const cap = getCapabilities().find(c => c.id === capId);
+    if (!cap) return;
+    
+    const apps = getApps();
+    const linkedAppIds = cap.linkedApplications || [];
+    const availableApps = apps.filter(a => !linkedAppIds.includes(a.id));
+    renderAvailableApps(availableApps);
+}
+
+function mapApp(appId) {
+    const capId = document.getElementById('mappingCapId').value;
+    const cap = getCapabilities().find(c => c.id === capId);
+    const app = getApps().find(a => a.id === appId);
+    if (!cap || !app) return;
+    
+    // Update capability
+    if (!cap.linkedApplications) cap.linkedApplications = [];
+    if (!cap.linkedApplications.includes(appId)) {
+        cap.linkedApplications.push(appId);
+        upsertCapability(cap);
+    }
+    
+    // Update application
+    if (!app.businessCapabilities) app.businessCapabilities = [];
+    if (!app.businessCapabilities.includes(cap.name)) {
+        app.businessCapabilities.push(cap.name);
+        upsertApp(app);
+    }
+    
+    renderMappingLists();
+    renderCapabilityTree();
+    showToast(`Mapped ${app.name} to ${cap.name}`, 'ok');
+}
+
+function unmapApp(appId) {
+    const capId = document.getElementById('mappingCapId').value;
+    const cap = getCapabilities().find(c => c.id === capId);
+    const app = getApps().find(a => a.id === appId);
+    if (!cap || !app) return;
+    
+    // Update capability
+    if (cap.linkedApplications) {
+        cap.linkedApplications = cap.linkedApplications.filter(id => id !== appId);
+        upsertCapability(cap);
+    }
+    
+    // Update application
+    if (app.businessCapabilities) {
+        app.businessCapabilities = app.businessCapabilities.filter(name => name !== cap.name);
+        upsertApp(app);
+    }
+    
+    renderMappingLists();
+    renderCapabilityTree();
+    showToast(`Unmapped ${app.name} from ${cap.name}`, 'ok');
+}
+
+// ---------------------------------------------
+//  APQC IMPORT & TEMPLATES
+// ---------------------------------------------
+function importCapabilities(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            if (file.name.endsWith('.json')) {
+                const caps = JSON.parse(e.target.result);
+                importCapabilityData(caps);
+            } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                // Use xlsx library to parse Excel
+                const wb = XLSX.read(e.target.result, {type: 'binary'});
+                const sheet = wb.Sheets[wb.SheetNames[0]];
+                const data = XLSX.utils.sheet_to_json(sheet);
+                const caps = parseAPQCExcel(data);
+                importCapabilityData(caps);
+            }
+        } catch(err) {
+            showToast('Error importing file: ' + err.message, 'err');
+        }
+    };
+    
+    if (file.name.endsWith('.json')) {
+        reader.readAsText(file);
+    } else {
+        reader.readAsBinaryString(file);
+    }
+    
+    event.target.value = ''; // Reset input
+}
+
+function parseAPQCExcel(data) {
+    // Parse APQC Excel format to capability objects
+    const capabilities = [];
+    
+    data.forEach(row => {
+        const id = row['Process Number'] || row['ID'] || '';
+        const name = row['Process Name'] || row['Name'] || '';
+        const parent = row['Parent'] || '';
+        
+        if (!id || !name) return;
+        
+        // Detect level from numbering (e.g., "1.0.0" = L1, "1.1.0" = L2, "1.1.1" = L3)
+        const parts = id.split('.');
+        const level = parts.filter(p => p !== '0').length;
+        
+        capabilities.push({
+            id: generateCapId(),
+            name: name,
+            level: level === 1 ? 'L1' : level === 2 ? 'L2' : 'L3',
+            parentId: parent || (level > 1 ? parts[0] : null),
+            domain: level === 1 ? name : parts[0],
+            industryTag: row['Industry'] || 'Cross-Industry',
+            strategicImportance: 'medium',
+            maturity: 3,
+            aiPotential: 'Medium',
+            linkedApplications: [],
+            description: row['Description'] || ''
+        });
+    });
+    
+    return capabilities;
+}
+
+function importCapabilityData(newCaps) {
+    if (!Array.isArray(newCaps)) {
+        showToast('Invalid capability data format', 'err');
+        return;
+    }
+    
+    const existing = getCapabilities();
+    let updated = 0, added = 0;
+    
+    newCaps.forEach(newCap => {
+        const existingCap = existing.find(c => c.name === newCap.name && c.level === newCap.level);
+        if (existingCap) {
+            // Update existing, preserve linkedApplications
+            upsertCapability({...newCap, id: existingCap.id, linkedApplications: existingCap.linkedApplications});
+            updated++;
+        } else {
+            // Add new
+            upsertCapability(newCap);
+            added++;
+        }
+    });
+    
+    showToast(`Imported: ${added} new, ${updated} updated capabilities`, 'ok');
+    renderCapabilityLayer();
+}
+
+function loadCapabilityTemplate(templateName) {
+    if (!templateName) return;
+    
+    // Try loading from APQC first
+    if (apqcMetadata && apqcMetadata.business_type_mappings) {
+        loadTemplateFromAPQC(templateName);
+        document.getElementById('templateSelect').value = '';
+        return;
+    }
+    
+    // Fallback to hardcoded templates
+    const templates = {
+        real_estate: getRealEstateTemplate(),
+        manufacturing: getManufacturingTemplate(),
+        financial_services: getFinancialServicesTemplate(),
+        retail: getRetailTemplate(),
+        healthcare: getHealthcareTemplate(),
+        technology: getTechnologyTemplate(),
+        services: getServicesTemplate()
+    };
+    
+    const template = templates[templateName];
+    if (template) {
+        importCapabilityData(template);
+        const displayName = templateName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        currentLoadedTemplate = displayName;
+        updateTemplateIndicator();
+    }
+    
+    document.getElementById('templateSelect').value = ''; // Reset dropdown
+}
+
+function getRealEstateTemplate() {
+    return [
+        {id: generateCapId(), name: 'Property Management', level: 'L1', parentId: null, domain: 'Property Management', industryTag: 'RealEstate', strategicImportance: 'high', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Manage physical real estate assets, leases, and property operations'},
+        {id: generateCapId(), name: 'Tenant Management', level: 'L2', parentId: 'Property Management', domain: 'Property Management', industryTag: 'RealEstate', strategicImportance: 'high', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Manage tenant relationships, contracts, and services'},
+        {id: generateCapId(), name: 'Lease Administration', level: 'L2', parentId: 'Property Management', domain: 'Property Management', industryTag: 'RealEstate', strategicImportance: 'high', maturity: 2, aiPotential: 'Medium', linkedApplications: [], description: 'Administer lease contracts and renewals'},
+        {id: generateCapId(), name: 'Portfolio Planning', level: 'L2', parentId: 'Property Management', domain: 'Property Management', industryTag: 'RealEstate', strategicImportance: 'critical', maturity: 2, aiPotential: 'High', linkedApplications: [], description: 'Strategic planning of property portfolio'},
+        {id: generateCapId(), name: 'Financial Management', level: 'L1', parentId: null, domain: 'Financial Management', industryTag: 'RealEstate', strategicImportance: 'high', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Financial operations including rent collection and reporting'},
+        {id: generateCapId(), name: 'Rent Collection', level: 'L2', parentId: 'Financial Management', domain: 'Financial Management', industryTag: 'RealEstate', strategicImportance: 'high', maturity: 3, aiPotential: 'Low', linkedApplications: [], description: 'Collect and process rental payments'},
+        {id: generateCapId(), name: 'Financial Reporting', level: 'L2', parentId: 'Financial Management', domain: 'Financial Management', industryTag: 'RealEstate', strategicImportance: 'medium', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Generate financial reports and analytics'},
+        {id: generateCapId(), name: 'Maintenance Operations', level: 'L1', parentId: null, domain: 'Maintenance Operations', industryTag: 'RealEstate', strategicImportance: 'medium', maturity: 2, aiPotential: 'High', linkedApplications: [], description: 'Property maintenance and facility management'},
+        {id: generateCapId(), name: 'Preventive Maintenance', level: 'L2', parentId: 'Maintenance Operations', domain: 'Maintenance Operations', industryTag: 'RealEstate', strategicImportance: 'medium', maturity: 2, aiPotential: 'High', linkedApplications: [], description: 'Scheduled maintenance to prevent failures'},
+        {id: generateCapId(), name: 'Work Order Management', level: 'L2', parentId: 'Maintenance Operations', domain: 'Maintenance Operations', industryTag: 'RealEstate', strategicImportance: 'medium', maturity: 2, aiPotential: 'Medium', linkedApplications: [], description: 'Manage maintenance work orders and requests'}
+    ];
+}
+
+function getManufacturingTemplate() {
+    return [
+        {id: generateCapId(), name: 'Production Management', level: 'L1', parentId: null, domain: 'Production Management', industryTag: 'Manufacturing', strategicImportance: 'critical', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Plan and execute manufacturing operations'},
+        {id: generateCapId(), name: 'Quality Control', level: 'L2', parentId: 'Production Management', domain: 'Production Management', industryTag: 'Manufacturing', strategicImportance: 'high', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Ensure product quality standards'},
+        {id: generateCapId(), name: 'Inventory Management', level: 'L2', parentId: 'Production Management', domain: 'Production Management', industryTag: 'Manufacturing', strategicImportance: 'high', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Manage raw materials and finished goods inventory'},
+        {id: generateCapId(), name: 'Supply Chain Management', level: 'L1', parentId: null, domain: 'Supply Chain Management', industryTag: 'Manufacturing', strategicImportance: 'critical', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Coordinate supply chain from suppliers to customers'},
+        {id: generateCapId(), name: 'Procurement', level: 'L2', parentId: 'Supply Chain Management', domain: 'Supply Chain Management', industryTag: 'Manufacturing', strategicImportance: 'high', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Source and purchase materials and services'}
+    ];
+}
+
+function getFinancialServicesTemplate() {
+    return [
+        {id: generateCapId(), name: 'Customer Relationship Management', level: 'L1', parentId: null, domain: 'Customer Relationship Management', industryTag: 'FinancialServices', strategicImportance: 'critical', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Manage customer relationships and interactions'},
+        {id: generateCapId(), name: 'Account Management', level: 'L2', parentId: 'Customer Relationship Management', domain: 'Customer Relationship Management', industryTag: 'FinancialServices', strategicImportance: 'high', maturity: 4, aiPotential: 'Medium', linkedApplications: [], description: 'Manage customer accounts and portfolios'},
+        {id: generateCapId(), name: 'Risk Management', level: 'L1', parentId: null, domain: 'Risk Management', industryTag: 'FinancialServices', strategicImportance: 'critical', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Identify, assess and mitigate financial risks'},
+        {id: generateCapId(), name: 'Compliance Management', level: 'L2', parentId: 'Risk Management', domain: 'Risk Management', industryTag: 'FinancialServices', strategicImportance: 'critical', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Ensure regulatory compliance'},
+        {id: generateCapId(), name: 'Transaction Processing', level: 'L1', parentId: null, domain: 'Transaction Processing', industryTag: 'FinancialServices', strategicImportance: 'high', maturity: 4, aiPotential: 'Low', linkedApplications: [], description: 'Process financial transactions efficiently'}
+    ];
+}
+
+function getRetailTemplate() {
+    return [
+        {id: generateCapId(), name: 'Merchandising', level: 'L1', parentId: null, domain: 'Merchandising', industryTag: 'Retail', strategicImportance: 'critical', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Product selection, pricing,and assortment planning'},
+        {id: generateCapId(), name: 'Inventory Management', level: 'L2', parentId: 'Merchandising', domain: 'Merchandising', industryTag: 'Retail', strategicImportance: 'high', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Stock level optimization across channels'},
+        {id: generateCapId(), name: 'Omnichannel Operations', level: 'L1', parentId: null, domain: 'Omnichannel Operations', industryTag: 'Retail', strategicImportance: 'critical', maturity: 2, aiPotential: 'High', linkedApplications: [], description: 'Unified commerce across physical and digital channels'},
+        {id: generateCapId(), name: 'Customer Experience Management', level: 'L1', parentId: null, domain: 'Customer Experience', industryTag: 'Retail', strategicImportance: 'high', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Personalization and customer journey optimization'}
+    ];
+}
+
+function getHealthcareTemplate() {
+    return [
+        {id: generateCapId(), name: 'Patient Care Management', level: 'L1', parentId: null, domain: 'Patient Care', industryTag: 'Healthcare', strategicImportance: 'critical', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Clinical care delivery and patient outcomes'},
+        {id: generateCapId(), name: 'Electronic Health Records', level: 'L2', parentId: 'Patient Care Management', domain: 'Patient Care', industryTag: 'Healthcare', strategicImportance: 'critical', maturity: 4, aiPotential: 'Medium', linkedApplications: [], description: 'Digital patient record management'},
+        {id: generateCapId(), name: 'Clinical Decision Support', level: 'L2', parentId: 'Patient Care Management', domain: 'Patient Care', industryTag: 'Healthcare', strategicImportance: 'high', maturity: 2, aiPotential: 'High', linkedApplications: [], description: 'AI-assisted diagnosis and treatment recommendations'},
+        {id: generateCapId(), name: 'Revenue Cycle Management', level: 'L1', parentId: null, domain: 'Finance', industryTag: 'Healthcare', strategicImportance: 'high', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Billing, claims, and payment processing'}
+    ];
+}
+
+function getTechnologyTemplate() {
+    return [
+        {id: generateCapId(), name: 'Product Development', level: 'L1', parentId: null, domain: 'Product', industryTag: 'Technology', strategicImportance: 'critical', maturity: 4, aiPotential: 'High', linkedApplications: [], description: 'Software development and product lifecycle'},
+        {id: generateCapId(), name: 'DevOps & CI/CD', level: 'L2', parentId: 'Product Development', domain: 'Product', industryTag: 'Technology', strategicImportance: 'high', maturity: 4, aiPotential: 'Medium', linkedApplications: [], description: 'Automated deployment and infrastructure'},
+        {id: generateCapId(), name: 'Cloud Platform Management', level: 'L1', parentId: null, domain: 'Technology', industryTag: 'Technology', strategicImportance: 'critical', maturity: 4, aiPotential: 'High', linkedApplications: [], description: 'Cloud infrastructure and platform services'},
+        {id: generateCapId(), name: 'Customer Success', level: 'L1', parentId: null, domain: 'Customer', industryTag: 'Technology', strategicImportance: 'high', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Onboarding, adoption, and retention'}
+    ];
+}
+
+function getServicesTemplate() {
+    return [
+        {id: generateCapId(), name: 'Service Delivery', level: 'L1', parentId: null, domain: 'Operations', industryTag: 'Services', strategicImportance: 'critical', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Professional service execution and quality'},
+        {id: generateCapId(), name: 'Resource Management', level: 'L2', parentId: 'Service Delivery', domain: 'Operations', industryTag: 'Services', strategicImportance: 'high', maturity: 3, aiPotential: 'High', linkedApplications: [], description: 'Consultant allocation and utilization'},
+        {id: generateCapId(), name: 'Project Management', level: 'L1', parentId: null, domain: 'Operations', industryTag: 'Services', strategicImportance: 'high', maturity: 3, aiPotential: 'Medium', linkedApplications: [], description: 'Client project planning and execution'},
+        {id: generateCapId(), name: 'Knowledge Management', level: 'L1', parentId: null, domain: 'Knowledge', industryTag: 'Services', strategicImportance: 'high', maturity: 2, aiPotential: 'High', linkedApplications: [], description: 'Capture and share expertise across organization'}
+    ];
+}
+
+// ---------------------------------------------
+//  APQC FRAMEWORK INTEGRATION
+// ---------------------------------------------
+let apqcMetadata = null;
+let currentLoadedTemplate = null;
+
+// Load APQC metadata on startup
+async function loadAPQCMetadata() {
+    try {
+        const response = await fetch('../APAQ_Data/apqc_metadata_mapping.json');
+        if (response.ok) {
+            apqcMetadata = await response.json();
+            populateTemplateDropdown();
+            console.log('? APQC metadata loaded successfully');
+        }
+    } catch (error) {
+        console.warn('?? Could not load APQC metadata:', error);
+    }
+}
+
+// Populate template dropdown with all APQC industries
+function populateTemplateDropdown() {
+    if (!apqcMetadata || !apqcMetadata.business_type_mappings) return;
+    
+    const select = document.getElementById('templateSelect');
+    if (!select) return;
+    
+    // Clear existing options except first
+    select.innerHTML = '<option value="">Load APQC Template...</option>';
+    
+    // Add all industry templates
+    Object.keys(apqcMetadata.business_type_mappings).forEach(industry => {
+        if (industry !== 'All') { // Skip 'All' as it's too broad
+            const option = document.createElement('option');
+            option.value = industry.toLowerCase().replace(/ /g, '_');
+            option.textContent = industry;
+            select.appendChild(option);
+        }
+    });
+}
+
+// Load template from APQC framework
+async function loadTemplateFromAPQC(industryKey) {
+    if (!window.dataManager) {
+        showToast('EA_DataManager not available. Using fallback templates.', 'warn');
+        return loadCapabilityTemplate(industryKey); // Fallback to hardcoded
+    }
+    
+    try {
+        const industryName = industryKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const capabilities = await window.dataManager.getAPQCCapabilitiesByBusinessType(industryName);
+        
+        if (!capabilities || capabilities.length === 0) {
+            showToast(`No APQC capabilities found for ${industryName}`, 'warn');
+            return;
+        }
+        
+        // Convert APQC capabilities to APM format
+        const apmCapabilities = capabilities.map(cap => ({
+            id: generateCapId(),
+            name: cap.name,
+            level: cap.level === 1 ? 'L1' : cap.level === 2 ? 'L2' : 'L3',
+            parentId: cap.parent_id || null,
+            domain: cap.domain || cap.name,
+            industryTag: industryName,
+            strategicImportance: 'medium',
+            maturity: 2,
+            aiPotential: cap.ai_transformation?.ai_enabled ? 'High' : 'Medium',
+            linkedApplications: [],
+            description: cap.description || '',
+            apqc_code: cap.code || '',
+            apqc_source: true
+        }));
+        
+        importCapabilityData(apmCapabilities);
+        currentLoadedTemplate = industryName;
+        updateTemplateIndicator();
+        showToast(`? Loaded ${apmCapabilities.length} APQC capabilities for ${industryName}`, 'ok');
+    } catch (error) {
+        console.error('Error loading APQC template:', error);
+        showToast('Error loading APQC template', 'err');
+    }
+}
+
+// Update template loaded indicator
+function updateTemplateIndicator() {
+    const indicator = document.getElementById('templateIndicator');
+    if (!indicator) return;
+    
+    if (currentLoadedTemplate) {
+        indicator.innerHTML = `
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:linear-gradient(135deg,#dbeafe,#e0f2fe);border:2px solid #3b82f6;border-radius:12px;">
+                <i class="fas fa-check-circle" style="color:#1d4ed8;font-size:18px;"></i>
+                <div>
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#1e40af;">Template Loaded</div>
+                    <div style="font-size:13px;font-weight:900;color:#1e3a8a;">${currentLoadedTemplate} Framework</div>
+                </div>
+                <button onclick="clearTemplate()" style="margin-left:auto;padding:6px 12px;background:#ef4444;color:white;border:none;border-radius:6px;font-size:10px;font-weight:800;cursor:pointer;" title="Clear template">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        indicator.style.display = 'block';
+    } else {
+        indicator.style.display = 'none';
+    }
+}
+
+function clearTemplate() {
+    if (confirm('This will remove all APQC-sourced capabilities from this template. Continue?')) {
+        const data = loadData();
+        data.capabilities = data.capabilities.filter(c => !c.apqc_source);
+        saveData(data);
+        currentLoadedTemplate = null;
+        updateTemplateIndicator();
+        renderCapabilityLayer();
+        showToast('Template cleared', 'ok');
+    }
+}
+
+// ---------------------------------------------
+//  AI-DRIVEN APPLICATION MAPPING
+// ---------------------------------------------
+let aiMappingSuggestions = [];
+
+// Trigger AI mapping for all applications
+async function triggerAIMapping() {
+    const apps = getApps();
+    const capabilities = getCapabilities();
+    
+    if (apps.length === 0) {
+        showToast('No applications to map', 'warn');
+        return;
+    }
+    
+    if (capabilities.length === 0) {
+        showToast('No capabilities available. Load a template first.', 'warn');
+        return;
+    }
+    
+    const apiKey = getAPIKey();
+    if (!apiKey) {
+        showToast('OpenAI API key required for AI mapping. Add it in EA Config.', 'warn');
+        openAIMappingValidation(generateFallbackMappings(apps, capabilities));
+        return;
+    }
+    
+    showToast('?? AI is analyzing applications and mapping to capabilities...', 'ok');
+    
+    try {
+        const mappings = await generateAIMappings(apps, capabilities, apiKey);
+        aiMappingSuggestions = mappings;
+        openAIMappingValidation(mappings);
+    } catch (error) {
+        console.error('AI mapping error:', error);
+        showToast('AI mapping failed. Showing fallback suggestions.', 'err');
+        openAIMappingValidation(generateFallbackMappings(apps, capabilities));
+    }
+}
+
+// Generate AI mappings using GPT
+async function generateAIMappings(apps, capabilities, apiKey) {
+    const prompt = `You are an expert in Application Portfolio Management and capability mapping.
+
+Analyze these applications and map each to the most relevant capabilities from the provided capability framework.
+
+**Applications:**
+${apps.map(a => `- ${a.name}: ${a.description || 'No description'} | Department: ${a.department || 'Unknown'} | Technology: ${a.technology || 'Unknown'}`).join('\n')}
+
+**Available Capabilities:**
+${capabilities.map(c => `- ${c.name} (${c.domain}): ${c.description || 'No description'}`).join('\n')}
+
+**Task:**
+For each application, identify 1-3 capabilities it supports. Consider:
+1. Application purpose and department
+2. Technology alignment
+3. Business capability definitions
+
+**Output Format (JSON only, no explanation):**
+\`\`\`json
+{
+  "mappings": [
+    {
+      "applicationId": "app_xyz",
+      "applicationName": "App Name",
+      "suggestedCapabilities": [
+        {
+          "capabilityId": "cap_abc",
+          "capabilityName": "Capability Name",
+          "confidence": 0.95,
+          "reasoning": "Brief explanation"
+        }
+      ]
+    }
+  ]
+}
+\`\`\``;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.3
+        })
+    });
+    
+    if (!response.ok) throw new Error('API request failed');
+    
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+    const jsonMatch = content.match(/\`\`\`json\s*([\s\S]*?)\`\`\`/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[1] : content);
+    
+    return parsed.mappings || [];
+}
+
+// Fallback rule-based mapping
+function generateFallbackMappings(apps, capabilities) {
+    const mappings = [];
+    
+    apps.forEach(app => {
+        const suggested = [];
+        const appNameLower = (app.name || '').toLowerCase();
+        const appDescLower = (app.description || '').toLowerCase();
+        const appDeptLower = (app.department || '').toLowerCase();
+        
+        capabilities.forEach(cap => {
+            const capNameLower = (cap.name || '').toLowerCase();
+            const capDescLower = (cap.description || '').toLowerCase();
+            const capDomainLower = (cap.domain || '').toLowerCase();
+            
+            let score = 0;
+            
+            // Keyword matching
+            const appText = `${appNameLower} ${appDescLower} ${appDeptLower}`;
+            const capText = `${capNameLower} ${capDescLower} ${capDomainLower}`;
+            
+            const appWords = appText.split(/\W+/).filter(w => w.length > 3);
+            const capWords = capText.split(/\W+/).filter(w => w.length > 3);
+            
+            appWords.forEach(word => {
+                if (capWords.includes(word)) score += 0.2;
+            });
+            
+            // Department-domain matching
+            if (appDeptLower.includes(capDomainLower) || capDomainLower.includes(appDeptLower)) {
+                score += 0.3;
+            }
+            
+            if (score > 0.3) {
+                suggested.push({
+                    capabilityId: cap.id,
+                    capabilityName: cap.name,
+                    confidence: Math.min(score, 0.95),
+                    reasoning: `Match based on keywords and department alignment`
+                });
+            }
+        });
+        
+        // Sort by confidence and take top 3
+        suggested.sort((a, b) => b.confidence - a.confidence);
+        
+        mappings.push({
+            applicationId: app.id,
+            applicationName: app.name,
+            suggestedCapabilities: suggested.slice(0, 3)
+        });
+    });
+    
+    return mappings;
+}
+
+// Open AI mapping validation UI
+function openAIMappingValidation(mappings) {
+    aiMappingSuggestions = mappings;
+    const modal = document.getElementById('aiMappingModal');
+    if (!modal) return;
+    
+    renderAIMappingList();
+    modal.classList.remove('hidden');
+}
+
+function closeAIMappingModal() {
+    document.getElementById('aiMappingModal')?.classList.add('hidden');
+}
+
+function renderAIMappingList() {
+    const container = document.getElementById('aiMappingList');
+    if (!container) return;
+    
+    let html = '';
+    let totalMappings = 0;
+    
+    aiMappingSuggestions.forEach((mapping, idx) => {
+        const suggestedCount = mapping.suggestedCapabilities.length;
+        totalMappings += suggestedCount;
+        
+        html += `
+            <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                    <div style="font-weight:800;font-size:14px;color:#0f172a;">${esc(mapping.applicationName)}</div>
+                    <span class="badge" style="background:#dbeafe;color:#1d4ed8;">${suggestedCount} suggestions</span>
+                </div>
+        `;
+        
+        if (suggestedCount === 0) {
+            html += `<div style="font-size:12px;color:#94a3b8;font-style:italic;">No matching capabilities found</div>`;
+        } else {
+            mapping.suggestedCapabilities.forEach((sug, sIdx) => {
+                const confidenceColor = sug.confidence > 0.7 ? '#16a34a' : sug.confidence > 0.5 ? '#f97316' : '#94a3b8';
+                const confidencePercent = Math.round(sug.confidence * 100);
+                
+                html += `
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:8px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                            <div style="font-weight:700;font-size:12px;color:#0f172a;">${esc(sug.capabilityName)}</div>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <span style="font-size:11px;font-weight:700;color:${confidenceColor};">${confidencePercent}% match</span>
+                                <input type="checkbox" 
+                                       id="mapping_${idx}_${sIdx}" 
+                                       data-app-id="${mapping.applicationId}" 
+                                       data-cap-id="${sug.capabilityId}"
+                                       data-cap-name="${esc(sug.capabilityName)}"
+                                       ${sug.confidence > 0.6 ? 'checked' : ''}
+                                       style="width:18px;height:18px;cursor:pointer;">
+                            </div>
+                        </div>
+                        <div style="font-size:11px;color:#64748b;">${esc(sug.reasoning)}</div>
+                    </div>
+                `;
+            });
+        }
+        
+        html += `</div>`;
+    });
+    
+    container.innerHTML = html || '<div style="text-align:center;color:#94a3b8;padding:40px;">No mappings generated</div>';
+    
+    // Update summary
+    document.getElementById('aiMappingSummary').textContent = 
+        `${aiMappingSuggestions.length} applications analyzed � ${totalMappings} capability mappings suggested`;
+}
+
+function applyAIMappings() {
+    const checkboxes = document.querySelectorAll('#aiMappingList input[type="checkbox"]:checked');
+    let appliedCount = 0;
+    
+    checkboxes.forEach(checkbox => {
+        const appId = checkbox.dataset.appId;
+        const capId = checkbox.dataset.capId;
+        const capName = checkbox.dataset.capName;
+        
+        const app = getApps().find(a => a.id === appId);
+        const cap = getCapabilities().find(c => c.id === capId);
+        
+        if (app && cap) {
+            // Update application
+            if (!app.businessCapabilities) app.businessCapabilities = [];
+            if (!app.businessCapabilities.includes(capName)) {
+                app.businessCapabilities.push(capName);
+            }
+            upsertApp(app);
+            
+            // Update capability
+            if (!cap.linkedApplications) cap.linkedApplications = [];
+            if (!cap.linkedApplications.includes(appId)) {
+                cap.linkedApplications.push(appId);
+            }
+            upsertCapability(cap);
+            
+            appliedCount++;
+        }
+    });
+    
+    closeAIMappingModal();
+    renderCapabilityLayer();
+    showToast(`? Applied ${appliedCount} capability mappings`, 'ok');
+}
+
+function getAPIKey() {
+    return localStorage.getItem('openai_api_key') || '';
+}
+
+// ---------------------------------------------
+//  AI AGENT LAYER
+// ---------------------------------------------
+let currentAgentMaturity = 3;
+
+function renderAIAgents() {
+    const agents = getAIAgents();
+    const filterType = document.getElementById('filterAgentType').value;
+    const toBeOnly = document.getElementById('filterToBeOnly').checked;
+    
+    let filtered = agents;
+    if (filterType) filtered = filtered.filter(a => a.type === filterType);
+    if (toBeOnly) filtered = filtered.filter(a => a.toBe);
+    
+    let html = '';
+    filtered.forEach(agent => {
+        const maturityLabels = ['Pilot', 'Developing', 'Defined', 'Production', 'Optimized'];
+        const maturityColors = ['#94a3b8', '#60a5fa', '#fbbf24', '#84cc16', '#16a34a'];
+        const maturityColor = maturityColors[agent.maturity - 1] || '#94a3b8';
+        const opacity = agent.toBe ? 'opacity:0.85;border:2px dashed #16a34a;' : '';
+        
+        html += `
+            <div class="owner-card" style="${opacity}">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                    <div style="font-weight:800;font-size:13px">${esc(agent.name)}</div>
+                    ${agent.toBe ? '<span class="badge" style="background:#dcfce7;color:#16a34a"><i class="fas fa-wand-magic-sparkles"></i> TO-BE</span>' : ''}
+                </div>
+                <div style="margin-bottom:8px">
+                    <span class="badge" style="background:#dbeafe;color:#1d4ed8">${esc(agent.type)}</span>
+                    <span class="badge" style="background:${maturityColor};color:white;margin-left:4px">${maturityLabels[agent.maturity - 1]}</span>
+                </div>
+                <div style="font-size:11px;color:#64748b;margin-bottom:10px">${esc(agent.description || 'No description')}</div>
+                <div style="font-size:10px;color:#94a3b8;margin-bottom:8px">
+                    ?? ${(agent.linkedCapabilities || []).length} capabilities � ${(agent.linkedApplications || []).length} apps
+                </div>
+                <div class="action-row" style="margin-top:10px">
+                    <button class="icon-btn" onclick="editAIAgent('${agent.id}')" title="Edit"><i class="fas fa-pencil"></i></button>
+                    <button class="icon-btn del" onclick="if(confirm('Delete this AI agent?')) deleteAIAgent('${agent.id}')" title="Delete"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `;
+    });
+    
+    document.getElementById('aiAgentGrid').innerHTML = html || '<div class="empty-state"><i class="fas fa-robot"></i><p>No AI agents yet. Click "Add AI Agent" to create one.</p></div>';
+}
+
+function openAIAgentModal(agentId = null) {
+    currentAgentMaturity = 3;
+    
+    if (agentId) {
+        const agent = getAIAgents().find(a => a.id === agentId);
+        if (!agent) return;
+        
+        document.getElementById('agentModalTitle').textContent = 'Edit AI Agent';
+        document.getElementById('editAgentId').value = agent.id;
+        document.getElementById('agentName').value = agent.name;
+        document.getElementById('agentType').value = agent.type;
+        document.getElementById('agentDescription').value = agent.description || '';
+        document.getElementById('agentToBe').checked = agent.toBe || false;
+        currentAgentMaturity = agent.maturity || 3;
+        setAgentMaturity(currentAgentMaturity);
+        
+        // Pre-select linked capabilities and applications
+        setTimeout(() => {
+            Array.from(document.getElementById('agentCapabilities').options).forEach(opt => {
+                opt.selected = (agent.linkedCapabilities || []).includes(opt.value);
+            });
+            Array.from(document.getElementById('agentApplications').options).forEach(opt => {
+                opt.selected = (agent.linkedApplications || []).includes(opt.value);
+            });
+        }, 100);
+    } else {
+        document.getElementById('agentModalTitle').textContent = 'Add AI Agent';
+        document.getElementById('editAgentId').value = '';
+        document.getElementById('agentName').value = '';
+        document.getElementById('agentType').value = 'NLP';
+        document.getElementById('agentDescription').value = '';
+        document.getElementById('agentToBe').checked = true;
+        setAgentMaturity(3);
+    }
+    
+    // Populate capability and application dropdowns
+    const caps = getCapabilities();
+    const apps = getApps();
+    
+    document.getElementById('agentCapabilities').innerHTML = caps.map(c => 
+        `<option value="${c.id}">${esc(c.name)}</option>`
+    ).join('');
+    
+    document.getElementById('agentApplications').innerHTML = apps.map(a => 
+        `<option value="${a.id}">${esc(a.name)}</option>`
+    ).join('');
+    
+    document.getElementById('aiAgentModal').classList.remove('hidden');
+}
+
+function closeAIAgentModal() {
+    document.getElementById('aiAgentModal').classList.add('hidden');
+}
+
+function setAgentMaturity(val) {
+    currentAgentMaturity = val;
+    document.querySelectorAll('#agentMaturityBtns .score-btn').forEach((btn, idx) => {
+        btn.classList.toggle('sel', idx === val - 1);
+    });
+}
+
+function saveAIAgent() {
+    const id = document.getElementById('editAgentId').value || generateAgentId();
+    const name = document.getElementById('agentName').value.trim();
+    const type = document.getElementById('agentType').value;
+    const description = document.getElementById('agentDescription').value.trim();
+    const toBe = document.getElementById('agentToBe').checked;
+    const linkedCapabilities = Array.from(document.getElementById('agentCapabilities').selectedOptions).map(o => o.value);
+    const linkedApplications = Array.from(document.getElementById('agentApplications').selectedOptions).map(o => o.value);
+    
+    if (!name) {
+        showToast('Agent name is required', 'err');
+        return;
+    }
+    
+    const agent = {
+        id, name, type, description, maturity: currentAgentMaturity, toBe,
+        linkedCapabilities, linkedApplications
+    };
+    
+    upsertAIAgent(agent);
+    closeAIAgentModal();
+    renderAIAgents();
+    showToast(`AI Agent ${id.startsWith('agent_') ? 'saved' : 'updated'}`, 'ok');
+}
+
+function editAIAgent(id) {
+    openAIAgentModal(id);
+}
+
+function deleteAIAgent(id) {
+    window.deleteAIAgent(id);
+    renderAIAgents();
+    showToast('AI Agent deleted', 'ok');
+}
+
+// ---------------------------------------------
+//  UTILS
+// ---------------------------------------------
 
 let toastTimer = null;
 function showToast(msg, type) {
@@ -1374,346 +2860,426 @@ function showToast(msg, type) {
 document.getElementById('appModal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
 });
+document.getElementById('capMappingModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCapMappingModal();
+});
+document.getElementById('aiAgentModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAIAgentModal();
+});
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  INIT
-// ─────────────────────────────────────────────
-renderKPIs();
-renderInventory();
+// ---------------------------------------------
+// Check if this is first load with new structure and show migration notice
+const data = loadData();
+if (data.applications && data.applications.length > 0 && !data._migrated) {
+    showToast('? APM enhanced with Capability Mapping & AI Agents. Your existing portfolio data has been preserved.', 'ok');
+    data._migrated = true;
+    saveData(data);
+}
+
+renderCapabilityLayer();
 </script>
 
-<!-- ================================================================
-     APM AI ASSISTANT
-     ================================================================ -->
+</div> <!-- #main-content -->
 
-<!-- FLOATING BUTTON -->
-<button id="apm-assistant-btn" onclick="toggleAPMChat()" title="APM AI Assistant">
-    <i class="fas fa-robot text-white text-lg"></i>
-    <span class="notif-dot"></span>
-</button>
-
-<!-- CHAT PANEL -->
-<div id="apm-chat-panel" class="hidden">
-
-    <!-- Header -->
-    <div class="apm-chat-header">
-        <div class="apm-chat-header-title">
-            <div class="apm-chat-avatar"><i class="fas fa-robot"></i></div>
-            <div>
-                <span>APM AI Assistant</span>
-                <small>Rationalization · Lifecycle · Cost · Fit Analysis</small>
+<!-- EA Platform AI Assistant Sidebar -->
+<div id="ai-chat-panel">
+    <div id="chat-resize-handle" title="Drag to resize"></div>
+    <div id="chat-header">
+        <div id="chat-header-title">
+            <i class="fas fa-layer-group"></i>
+            <span>APM AI Assistant</span>
+        </div>
+        <div id="chat-controls">
+            <button onclick="startNewChat()" title="New conversation">+</button>
+            <button onclick="clearChat()" title="Clear history">&#x21BA;</button>
+            <button onclick="toggleChatPanel()" title="Close sidebar">&times;</button>
+        </div>
+    </div>
+    
+    <div class="quick-actions">
+        <button class="qa-btn" onclick="quickAsk('Analyze my portfolio and identify the top 5 rationalization candidates')">
+            <i class="fas fa-chart-pie"></i> Rationalization
+        </button>
+        <button class="qa-btn" onclick="quickAsk('Assess the overall health of my application portfolio')">
+            <i class="fas fa-heartbeat"></i> Portfolio Health
+        </button>
+        <button class="qa-btn" onclick="quickAsk('Identify cost optimization opportunities and high OPEX applications')">
+            <i class="fas fa-dollar-sign"></i> Cost Optimization
+        </button>
+        <button class="qa-btn" onclick="quickAsk('Identify applications with high AI transformation potential')">
+            <i class="fas fa-robot"></i> AI Modernization
+        </button>
+        <button class="qa-btn" onclick="quickAsk('Build a 12-month roadmap for portfolio rationalization')">
+            <i class="fas fa-map"></i> 12-Month Roadmap
+        </button>
+        <button class="qa-btn" onclick="quickAsk('Analyze technology standardization opportunities across my portfolio')">
+            <i class="fas fa-cubes"></i> Tech Stack
+        </button>
+    </div>
+    
+    <div id="chat-messages">
+        <div class="chat-message assistant-message">
+            <div class="message-content">
+                <div class="message-text">
+                    <strong style="color:#ffffff;font-weight:700;">Welcome to APM AI Assistant</strong>
+                    <div style="height:10px;"></div>
+                    <p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">I can help you with:</p>
+                    <ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Portfolio rationalization and retirement candidates</li>
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Cost optimization and OPEX analysis</li>
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">AI transformation and modernization roadmaps</li>
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Capability coverage gaps and consolidation</li>
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Technology standardization opportunities</li>
+                    </ul>
+                    <div style="height:10px;"></div>
+                    <em>Click a quick action above or ask me anything!</em>
+                </div>
             </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-            <button onclick="apmNewChat()" class="text-white/80 hover:text-white text-[11px] font-bold bg-white/10 border border-white/15 rounded px-2 py-1 cursor-pointer" style="font-size:11px;font-weight:700;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:6px;padding:4px 10px;cursor:pointer">New chat</button>
-            <button onclick="apmClearChatHistory()" class="text-white/80 hover:text-white text-[11px] font-bold bg-white/10 border border-white/15 rounded px-2 py-1 cursor-pointer" style="font-size:11px;font-weight:700;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:6px;padding:4px 10px;cursor:pointer">Clear</button>
-            <button onclick="toggleAPMChat()" style="color:rgba(255,255,255,.6);font-size:1.1rem;background:none;border:none;cursor:pointer;line-height:1">&times;</button>
-        </div>
     </div>
-
-    <!-- API notice -->
-    <div id="apm-api-notice">
-        <i class="fas fa-key" style="margin-right:4px"></i> No API key found — responses served in demo mode
-    </div>
-
-    <!-- Context toggle -->
-    <div class="apm-context-toggle">
-        <input type="checkbox" id="apm-use-context" checked>
-        <label for="apm-use-context">Include current portfolio data in queries</label>
-        <i class="fas fa-info-circle" style="margin-left:auto;color:#ea580c" title="When enabled, your applications list is sent to the AI for context-aware answers"></i>
-    </div>
-
-    <!-- Quick actions -->
-    <div class="apm-quick-actions">
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Analyze my portfolio and identify the top 5 rationalization candidates — applications that should be retired or replaced based on lifecycle, fit scores, and cost')">Rationalization candidates</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Assess the overall health of my application portfolio. Highlight any lifecycle risks, technical debt, and business alignment gaps')">Portfolio health</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Identify cost optimization opportunities in my portfolio. Which applications have the highest OPEX and low business value?')">Cost optimization</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Which applications in my portfolio represent the highest technical risk due to legacy status or low technical fit score? Suggest remediation actions')">Legacy risk</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Give me a prioritized invest / retire recommendation for each application based on tech fit and business value scores')">Invest / Retire plan</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Which applications could be consolidated? Look for overlapping capabilities, same department, or similar technology stacks')">Consolidation opportunities</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Analyze technology standardization opportunities across my portfolio. Which technology stacks are duplicated?')">Tech standardization</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Build a 12-month roadmap for my application portfolio rationalization — sequence replacements, consolidations, and retirements')">12-month roadmap</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('What KPIs and metrics should I track to measure the success of my portfolio rationalization initiative?')">Portfolio KPIs</button>
-    </div>
-
-    <!-- Messages -->
-    <div id="apm-messages"></div>
-
-    <!-- Input -->
-    <div class="apm-chat-input-area">
-        <textarea id="apm-chat-input"
-            placeholder="Ask anything about your application portfolio..."
-            rows="1"
-            onkeydown="apmHandleKey(event)"
-            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
-        <button id="apm-send-btn" onclick="apmSendMessage()">
+    
+    <div id="chat-input-container">
+        <textarea id="chat-input" placeholder="Ask about your application portfolio..." rows="2"></textarea>
+        <button id="send-chat" onclick="sendMessage()">
             <i class="fas fa-paper-plane"></i>
         </button>
     </div>
 </div>
 
+</div> <!-- #app-container -->
+
 <script>
-/* ================================================================
-   APM AI ASSISTANT — JavaScript
-   ================================================================ */
-const APM_ASSISTANT = {
-    open: false,
-    history: [],
-    API_KEYS: ['ea20_openai_key','vc_openai_key','cap_openai_key','strategy_openai_key','openai_api_key'],
+// ==============================================
+// EA PLATFORM CHAT SIDEBAR - APM VERSION
+// ==============================================
 
-    getApiKey() {
-        for (const k of this.API_KEYS) {
-            const v = localStorage.getItem(k);
-            if (v) return v;
+// Chat Panel Toggle
+function toggleChatPanel() {
+    const panel = document.getElementById('ai-chat-panel');
+    if (!panel) return;
+    const isOpen = !panel.classList.contains('hidden');
+    if (isOpen) {
+        panel.classList.add('hidden');
+        document.body.classList.remove('chat-sidebar-open');
+    } else {
+        panel.classList.remove('hidden');
+        document.body.classList.add('chat-sidebar-open');
+        const input = document.getElementById('chat-input');
+        if (input) input.focus();
+    }
+}
+
+// Initialize Chat Sidebar Resize
+function initChatSidebarResize() {
+    const handle = document.getElementById('chat-resize-handle');
+    const panel = document.getElementById('ai-chat-panel');
+    if (!handle || !panel) return;
+    let startX, startW;
+
+    // Restore saved width
+    const saved = parseInt(localStorage.getItem('apm_sidebar_w') || '0', 10);
+    if (saved >= 280 && saved <= 800) applySidebarWidth(saved);
+
+    handle.addEventListener('mousedown', (e) => {
+        startX = e.clientX;
+        startW = panel.offsetWidth;
+        handle.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+
+        function onMove(ev) {
+            const diff = startX - ev.clientX;
+            const newW = Math.max(280, Math.min(800, startW + diff));
+            applySidebarWidth(newW);
         }
-        return '';
-    },
-
-    getAPMContext() {
-        const apps = (typeof getApps === 'function') ? getApps() : [];
-        if (!apps.length) return null;
-
-        const LC_MAP = { active:'Active', phaseIn:'Phase-In', phaseOut:'Phase-Out', legacy:'Legacy', retired:'Retired' };
-        const AC_MAP = { retain:'Retain', invest:'Invest', replace:'Replace', consolidate:'Consolidate', retire:'Retire' };
-
-        const lines = [`Application Portfolio — ${apps.length} applications:\n`];
-        apps.forEach(a => {
-            const cur = a.currency || 'SEK';
-            const capex = Number(a.capex) || 0;
-            const opex  = Number(a.opex)  || 0;
-            const total = capex + opex;
-            const costStr = total ? `Cost ${cur} ${total >= 1e6 ? (total/1e6).toFixed(1)+'M' : total >= 1000 ? (total/1000).toFixed(0)+'K' : total} / yr` : 'No cost data';
-            lines.push(
-                `- ${a.name} | Dept: ${a.department||'—'} | Owner: ${a.owner||'—'} | Lifecycle: ${LC_MAP[a.lifecycle]||a.lifecycle} | Action: ${AC_MAP[a.rationalizationAction]||'—'} | TechFit: ${a.technicalFitScore||'—'}/5 | BizValue: ${a.businessValueScore||'—'}/5 | ${costStr} | Users: ${a.userCount||'—'} | Vendor: ${a.vendor||'—'} | Tech: ${a.technology||'—'}`
-            );
-        });
-        return lines.join('\n');
-    },
-
-    systemPrompt: `You are an expert AI assistant specialised in Application Portfolio Management (APM) and Enterprise Architecture.
-
-Your role is to:
-1. ANALYSE the application portfolio and identify rationalisation candidates, risks, and opportunities
-2. RECOMMEND concrete actions: Retain, Invest, Replace, Consolidate, or Retire for each application
-3. PRIORITISE based on technical fit score, business value score, lifecycle status, and total cost (CAPEX + OPEX)
-4. IDENTIFY cost optimisation opportunities — especially high-OPEX applications with low business value
-5. SUGGEST consolidation opportunities for overlapping applications
-6. SUPPORT roadmap planning for portfolio rationalisation
-
-Always respond in English. Be concrete, structured, and business-focused.
-Use bullet points, short headers, and prioritised lists.
-Always justify recommendations with data from the portfolio context when available.
-
-Focus on:
-- Portfolio health (lifecycle distribution, fit scores)
-- Cost efficiency (CAPEX/OPEX vs business value)
-- Technical risk (legacy applications, low tech fit)
-- Business alignment (low business value applications)
-- Consolidation potential (overlapping vendors, departments, technologies)
-- Rationalisation roadmap sequencing`,
-
-    welcomeMsg: `Hello! I'm your **APM AI Assistant**.
-
-I help you:
-- Identify rationalization candidates (Replace / Retire / Consolidate)
-- Analyse portfolio health and lifecycle risks
-- Optimize costs — CAPEX & OPEX vs business value
-- Plan a sequenced rationalization roadmap
-- Benchmark technical fit and business alignment
-
-Use the quick-action buttons above or type your question below. If you have applications in your portfolio, I'll automatically use them as context for tailored recommendations.`,
-
-    init() {
-        this.renderWelcome();
-        this.updateApiNotice();
-    },
-
-    updateApiNotice() {
-        const notice = document.getElementById('apm-api-notice');
-        if (!notice) return;
-        notice.style.display = this.getApiKey() ? 'none' : 'block';
-    },
-
-    renderWelcome() {
-        this.addMessage('ai', this.welcomeMsg);
-    },
-
-    reset(message = null) {
-        this.history = [];
-        const container = document.getElementById('apm-messages');
-        if (container) container.innerHTML = '';
-        const input = document.getElementById('apm-chat-input');
-        if (input) { input.value = ''; input.style.height = 'auto'; }
-        this.updateApiNotice();
-        this.addMessage('ai', message || this.welcomeMsg);
-    },
-
-    addMessage(role, text) {
-        const container = document.getElementById('apm-messages');
-        if (!container) return;
-        const div = document.createElement('div');
-        div.className = `apm-msg ${role}`;
-        const avatar = document.createElement('div');
-        avatar.className = 'apm-msg-avatar';
-        avatar.innerHTML = role === 'ai' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
-        const bubble = document.createElement('div');
-        bubble.className = 'apm-msg-bubble';
-        bubble.innerHTML = this.formatText(text);
-        div.appendChild(avatar);
-        div.appendChild(bubble);
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
-    },
-
-    addTyping() {
-        const container = document.getElementById('apm-messages');
-        if (!container) return;
-        const div = document.createElement('div');
-        div.className = 'apm-msg ai';
-        div.id = 'apm-typing';
-        div.innerHTML = `<div class="apm-msg-avatar"><i class="fas fa-robot"></i></div><div class="apm-msg-bubble"><div class="apm-typing-dots"><span></span><span></span><span></span></div></div>`;
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
-    },
-
-    removeTyping() {
-        const el = document.getElementById('apm-typing');
-        if (el) el.remove();
-    },
-
-    formatText(text) {
-        return text
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/^### (.*)$/gm, '<strong style="font-size:.8rem;display:block;margin-top:6px;color:#0f172a">$1</strong>')
-            .replace(/^## (.*)$/gm, '<strong style="font-size:.82rem;display:block;margin-top:8px;color:#0f172a">$1</strong>')
-            .replace(/^- (.*)$/gm, '<li>$1</li>')
-            .replace(/^\* (.*)$/gm, '<li>$1</li>')
-            .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
-            .replace(/\n{2,}/g, '<br>')
-            .replace(/\n/g, '<br>');
-    },
-
-    async send(userText) {
-        if (!userText.trim()) return;
-        this.addMessage('user', userText);
-        this.history.push({ role: 'user', content: userText });
-
-        const sendBtn = document.getElementById('apm-send-btn');
-        if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner apm-spin"></i>'; }
-        this.addTyping();
-
-        const apiKey = this.getApiKey();
-        const useContext = document.getElementById('apm-use-context')?.checked !== false;
-        let systemContent = this.systemPrompt;
-        if (useContext) {
-            const ctx = this.getAPMContext();
-            if (ctx) systemContent += `\n\n---\nCURRENT PORTFOLIO DATA:\n${ctx}`;
+        function onUp() {
+            localStorage.setItem('apm_sidebar_w', panel.offsetWidth);
+            handle.classList.remove('dragging');
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
         }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+}
 
-        const messages = [
-            { role: 'system', content: systemContent },
-            ...this.history.slice(-10)
-        ];
+function applySidebarWidth(w) {
+    const panel = document.getElementById('ai-chat-panel');
+    if (!panel) return;
+    panel.style.width = w + 'px';
+    const style = document.getElementById('_sidebar-width-style') || (() => {
+        const s = document.createElement('style');
+        s.id = '_sidebar-width-style';
+        document.head.appendChild(s);
+        return s;
+    })();
+    style.textContent = `body.chat-sidebar-open #main-content{margin-right:${w}px!important;}`;
+}
 
-        if (!apiKey) {
-            await new Promise(r => setTimeout(r, 900));
-            this.removeTyping();
-            const demoReply = this.getDemoReply(userText);
-            this.addMessage('ai', demoReply);
-            this.history.push({ role: 'assistant', content: demoReply });
-        } else {
-            try {
-                const res = await fetch('/api/openai/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: 'gpt-5', messages, max_tokens: 1000 })
-                });
-                const json = await res.json();
-                if (json.error) throw new Error(json.error.message);
-                const reply = json.choices[0].message.content;
-                this.removeTyping();
-                this.addMessage('ai', reply);
-                this.history.push({ role: 'assistant', content: reply });
-            } catch (e) {
-                this.removeTyping();
-                this.addMessage('ai', `Error: ${e.message}\n\nCheck your API key under the EA Platform settings.`);
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+    initChatSidebarResize();
+});
+
+// Keyboard shortcut: Ctrl+K toggles chat
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        toggleChatPanel();
+    }
+    if (e.key === 'Enter' && e.target.id === 'chat-input' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+// Markdown parser
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function parseMarkdown(text) {
+    if (!text) return '';
+    let t = escapeHtml(text);
+    
+    t = t.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    t = t.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff;font-weight:700;">$1</strong>');
+    t = t.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    t = t.replace(/`([^`]+)`/g, '<code style="font-family:monospace;background:#1a1a1a;padding:2px 6px;border-radius:4px;font-size:12px;color:#66d9ef;font-weight:500;border:1px solid #404040;">$1</code>');
+    
+    const lines = t.split('\n');
+    const out = [];
+    let inUL = false, inOL = false, inCodeBlock = false, codeLines = [];
+    
+    const closeList = () => {
+        if (inUL) { out.push('</ul>'); inUL = false; }
+        if (inOL) { out.push('</ol>'); inOL = false; }
+    };
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        
+        if (trimmed.startsWith('```')) {
+            if (!inCodeBlock) {
+                closeList();
+                inCodeBlock = true;
+                codeLines = [];
+                continue;
+            } else {
+                const codeContent = codeLines.join('\n');
+                out.push(`<pre style="background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;margin:10px 0;overflow-x:auto;font-size:10px;line-height:1.6;font-family:monospace;"><code>${codeContent}</code></pre>`);
+                inCodeBlock = false;
+                continue;
             }
         }
-        if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>'; }
-    },
-
-    getDemoReply(question) {
-        const q = question.toLowerCase();
-        if (q.includes('rationali') || q.includes('retire') || q.includes('replace')) {
-            return `**Rationalization Candidates (Demo):**\n\n- **Legacy + Low Business Value** → strong Retire candidates\n- **High OPEX + Low Tech Fit** → Replace or Consolidate\n- **Phase-Out lifecycle + available modern alternative** → accelerate retirement\n\n**Key factors to evaluate:**\n- Tech Fit < 2/5 with Biz Value < 2/5 → immediate Retire/Replace\n- OPEX > 500K/yr with low utilization → cost-driven consolidation\n- Duplicate vendors/tech stacks → merge and standardize\n\n*Connect an OpenAI API key to get recommendations tailored to your actual portfolio data.*`;
+        
+        if (inCodeBlock) {
+            codeLines.push(line);
+            continue;
         }
-        if (q.includes('cost') || q.includes('capex') || q.includes('opex')) {
-            return `**Cost Optimization Opportunities (Demo):**\n\n- Prioritize applications with high OPEX and low business value for consolidation\n- License cost (CAPEX) rationalization: eliminate duplicate SaaS subscriptions\n- Target legacy applications for replacement with lower-cost cloud alternatives\n\n**Typical savings levers:**\n- Consolidate 3–5 overlapping tools: 20–35% cost reduction\n- Retire unused applications: eliminate 100% of their run cost\n- Renegotiate vendor contracts for retained applications\n\n*Add an API key to analyze your specific CAPEX/OPEX data.*`;
+        
+        const h3m = trimmed.match(/^### (.+)$/);
+        const h2m = trimmed.match(/^## (.+)$/);
+        if (h2m || h3m) {
+            closeList();
+            if (h3m) out.push(`<div style="font-size:14px;font-weight:600;color:#b0b0b0;margin:16px 0 8px;">${h3m[1]}</div>`);
+            else out.push(`<div style="font-size:15px;font-weight:700;color:#e0e0e0;border-bottom:2px solid #ea580c;padding-bottom:6px;margin:18px 0 10px;">${h2m[1]}</div>`);
+            continue;
         }
-        if (q.includes('health') || q.includes('portfolio') || q.includes('overview')) {
-            return `**Portfolio Health Assessment (Demo):**\n\n**Lifecycle distribution target:**\n- Active: 60–70% | Phase-In: 10–15% | Legacy/Phase-Out: < 20%\n\n**Fit Matrix positioning:**\n- Stars (High Tech + High Biz): Invest & grow\n- Cash Cows (Low Tech + High Biz): Sustain or modernize\n- Question Marks (High Tech + Low Biz): Evaluate ROI\n- Dogs (Low Tech + Low Biz): Retire / Replace\n\n*Open with your real portfolio data and an API key for a data-driven health report.*`;
+        
+        if (/^---+$/.test(trimmed)) {
+            closeList();
+            out.push('<hr style="border:none;border-top:1px solid #404040;margin:14px 0;">');
+            continue;
         }
-        if (q.includes('roadmap') || q.includes('plan') || q.includes('12-month')) {
-            return `**12-Month Rationalization Roadmap (Demo):**\n\n**Q1:** Assessment & quick wins\n- Complete portfolio data with costs, scores, and owners\n- Retire applications with zero users and no dependencies\n\n**Q2:** Consolidation initiatives\n- Merge overlapping tools (target: same department, same vendor family)\n- Initiate replacement RFPs for highest-risk legacy apps\n\n**Q3–Q4:** Strategic transitions\n- Execute top-3 replacement projects\n- Renegotiate retained vendor contracts\n- Update architecture target state\n\n*Provide an API key to generate a roadmap based on your actual portfolio.*`;
+        
+        const ulm = trimmed.match(/^[-*�] (.+)$/);
+        if (ulm) {
+            if (!inUL) { closeList(); out.push('<ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">'); inUL = true; }
+            out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${ulm[1]}</li>`);
+            continue;
         }
-        return `Thank you for your question!\n\nIn **demo mode** I provide predefined example answers.\n\nFor answers tailored to your specific portfolio:\n1. Add your OpenAI API key in the EA Platform settings\n2. Make sure your applications have costs, scores, and lifecycle data filled in\n3. Ask your question again — I'll analyse your real portfolio data\n\nTry the quick-action buttons above for common APM analysis tasks.`;
-    },
-
-    showMiniToast(msg) {
-        const t = document.createElement('div');
-        t.style.cssText = 'position:fixed;bottom:100px;right:28px;background:#0f172a;color:white;font-size:11px;padding:6px 12px;border-radius:8px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.2)';
-        t.textContent = msg;
-        document.body.appendChild(t);
-        setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 2000);
+        
+        const olm = trimmed.match(/^\d+\.\s(.+)$/);
+        if (olm) {
+            if (!inOL) { closeList(); out.push('<ol style="margin:8px 0;padding-left:22px;color:#b0b0b0;">'); inOL = true; }
+            out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${olm[1]}</li>`);
+            continue;
+        }
+        
+        if (trimmed === '') {
+            closeList();
+            out.push('<div style="height:10px;"></div>');
+            continue;
+        }
+        
+        closeList();
+        out.push(`<p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">${trimmed}</p>`);
     }
-};
-
-function toggleAPMChat() {
-    const panel = document.getElementById('apm-chat-panel');
-    const btn   = document.getElementById('apm-assistant-btn');
-    APM_ASSISTANT.open = !APM_ASSISTANT.open;
-    if (APM_ASSISTANT.open) {
-        panel.classList.remove('hidden');
-        btn.querySelector('.notif-dot').style.display = 'none';
-        APM_ASSISTANT.updateApiNotice();
-        document.getElementById('apm-chat-input')?.focus();
-    } else {
-        panel.classList.add('hidden');
-    }
+    
+    closeList();
+    return out.join('');
 }
 
-function apmSendMessage() {
-    const input = document.getElementById('apm-chat-input');
-    const text = input.value.trim();
-    if (!text) return;
+// Chat Functions
+function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    addChatMessage(message, 'user');
     input.value = '';
     input.style.height = 'auto';
-    APM_ASSISTANT.send(text);
+    
+    processAIRequest(message);
 }
 
-function apmQuickAsk(question) {
-    if (!APM_ASSISTANT.open) toggleAPMChat();
-    APM_ASSISTANT.send(question);
+function quickAsk(question) {
+    addChatMessage(question, 'user');
+    processAIRequest(question);
 }
 
-function apmHandleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); apmSendMessage(); }
+function startNewChat() {
+    const messagesDiv = document.getElementById('chat-messages');
+    messagesDiv.innerHTML = `
+        <div class="chat-message assistant-message">
+            <div class="message-content">
+                <div class="message-text">
+                    <strong style="color:#ffffff;font-weight:700;">New conversation started</strong>
+                    <div style="height:10px;"></div>
+                    <p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">How can I help you with your application portfolio today?</p>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
-function apmClearChatHistory() {
-    APM_ASSISTANT.reset('Chat history cleared. Ask a new question about your portfolio.');
+function clearChat() {
+    if (!confirm('Clear entire chat history?')) return;
+    startNewChat();
 }
 
-function apmNewChat() {
-    APM_ASSISTANT.reset();
-    APM_ASSISTANT.showMiniToast('New chat started');
+function addChatMessage(text, role) {
+    const messagesDiv = document.getElementById('chat-messages');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `chat-message ${role}-message`;
+    
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+    
+    const messageText = document.createElement('div');
+    messageText.className = 'message-text';
+    messageText.innerHTML = role === 'assistant' ? parseMarkdown(text) : escapeHtml(text);
+    
+    const messageTime = document.createElement('div');
+    messageTime.className = 'message-time';
+    messageTime.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    
+    messageContent.appendChild(messageText);
+    messageContent.appendChild(messageTime);
+    msgDiv.appendChild(messageContent);
+    messagesDiv.appendChild(msgDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-document.addEventListener('DOMContentLoaded', () => APM_ASSISTANT.init());
-if (document.readyState !== 'loading') APM_ASSISTANT.init();
-/* ================================================================
-   APM AI ASSISTANT END
-   ================================================================ */
+function getPortfolioContext() {
+    const apps = (typeof getApps === 'function') ? getApps() : [];
+    const capabilities = (typeof getCapabilities === 'function') ? getCapabilities() : [];
+    
+    if (!apps.length && !capabilities.length) return null;
+    
+    const lines = [];
+    
+    if (capabilities.length) {
+        const unmapped = capabilities.filter(c => !c.linkedApplications || c.linkedApplications.length === 0);
+        const highAI = capabilities.filter(c => c.aiPotential === 'High');
+        lines.push(`Business Capabilities: ${capabilities.length} total, ${unmapped.length} unmapped, ${highAI.length} high AI potential`);
+    }
+    
+    if (apps.length) {
+        const legacy = apps.filter(a => a.lifecycle === 'legacy' || a.lifecycle === 'Legacy');
+        const retire = apps.filter(a => a.action === 'retire' || a.action === 'Retire');
+        const highOpex = apps.filter(a => parseFloat(a.opex || 0) > 500000);
+        lines.push(`Applications: ${apps.length} total, ${legacy.length} legacy, ${retire.length} marked for retirement, ${highOpex.length} high OPEX (>500K)`);
+        
+        const appSummary = apps.slice(0, 10).map(a => 
+            `${a.name} [${a.lifecycle || 'Unknown'}] Tech:${a.techFit || 'N/A'}/5 Biz:${a.bizValue || 'N/A'}/5 OPEX:${a.opex || 'N/A'}`
+        ).join('; ');
+        lines.push(`Sample apps: ${appSummary}`);
+    }
+    
+    return lines.join('\n');
+}
+
+async function processAIRequest(userMessage) {
+    const apiKey = window.EA_CONFIG?.OPENAI_API_KEY || localStorage.getItem('advicy_openai_key');
+    
+    if (!apiKey) {
+        addChatMessage('?? **No API key configured**\n\nPlease set your OpenAI API key in EA Platform Settings to get AI-powered portfolio analysis.\n\nIn the meantime, use the quick-action buttons for common APM tasks.', 'assistant');
+        return;
+    }
+    
+    const thinkingDiv = document.createElement('div');
+    thinkingDiv.className = 'chat-message assistant-message';
+    thinkingDiv.innerHTML = '<div class="message-content"><i class="fas fa-spinner spinner"></i> Analyzing portfolio...</div>';
+    thinkingDiv.id = 'thinking-indicator';
+    document.getElementById('chat-messages').appendChild(thinkingDiv);
+    document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+    
+    try {
+        const context = getPortfolioContext();
+        const systemPrompt = `You are an expert Application Portfolio Management consultant. Help analyze application portfolios, identify rationalization opportunities, recommend cost optimizations, and plan AI transformation initiatives. Be concise, data-driven, and actionable.`;
+        
+        const response = await fetch('/api/openai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'gpt-4',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: context ? `${userMessage}\n\nCurrent Portfolio:\n${context}` : userMessage }
+                ],
+                temperature: 0.7,
+                max_tokens: 1000
+            })
+        });
+        
+        const data = await response.json();
+        document.getElementById('thinking-indicator')?.remove();
+        
+        if (data.choices && data.choices[0]) {
+            addChatMessage(data.choices[0].message.content, 'assistant');
+        } else {
+            addChatMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+        }
+        
+    } catch (error) {
+        document.getElementById('thinking-indicator')?.remove();
+        addChatMessage(`**Error:** ${error.message}\n\nPlease check your API key and try again.`, 'assistant');
+    }
+}
+
+// Auto-expand textarea
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('chat-input');
+    if (input) {
+        input.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+        });
+    }
+});
+
 </script>
 </body>
 </html>

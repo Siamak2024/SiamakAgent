@@ -1,14 +1,229 @@
 ﻿<!DOCTYPE html>
-<html lang="sv">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Capability Mapping V2</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script src="/js/EA_Config.js"></script>
-<script src="/js/EA_DataManager.js"></script>
-<script src="/js/EA_ToolkitKPI.js"></script><style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capability Mapping — EA Toolkit</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../../js/EA_Config.js"></script>
+    <script src="../../js/EA_DataManager.js"></script>
+    <script src="../../js/Advicy_AI.js"></script>
+    <style>
+  /* EA Platform Layout */
+  #app-container { display: flex; min-height: 100vh; }
+  #main-content { flex: 1; transition: margin-right 0.3s ease; }
+  body.chat-sidebar-open #main-content { margin-right: 450px; }
+  
+  /* EA Header */
+  .ea-header {
+    background: linear-gradient(135deg, #581c87 0%, #7c3aed 100%) !important;
+    color: white;
+    padding: 0 24px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .ea-header-left { display: flex; align-items: center; gap: 16px; }
+  .ea-brand-mark {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .ea-header-title h1 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ea-header-title h1 i { font-size: 32px; }
+  .ea-header-title p {
+    font-size: 11px;
+    opacity: 0.9;
+    margin: 2px 0 0 0;
+    font-weight: 400;
+  }
+  .ea-header-right { display: flex; gap: 8px; }
+  .ea-header-icon {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .ea-header-icon:hover { background: rgba(255,255,255,0.25); }
+  
+  /* Chat Sidebar */
+  #ai-chat-panel {
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 450px;
+    height: 100vh;
+    background: #1a1a1a;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+  }
+  #ai-chat-panel.hidden { transform: translateX(100%); }
+  body.chat-sidebar-open #ai-chat-panel { transform: translateX(0); }
+  
+  #chat-resize-handle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 5px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 10;
+  }
+  #chat-resize-handle:hover { background: #0e7afe; }
+  #chat-resize-handle.dragging { background: #0e7afe; }
+  
+  #chat-header {
+    background: #2d2d2d;
+    padding: 16px 20px;
+    border-bottom: 1px solid #404040;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #chat-header-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  #chat-header-title i { color: #7c3aed; font-size: 20px; }
+  #chat-controls { display: flex; gap: 8px; }
+  #chat-controls button {
+    background: transparent;
+   border: 1px solid #404040;
+    color: #b0b0b0;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  #chat-controls button:hover { background: #404040; color: #ffffff; }
+  
+  #chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    background: #1a1a1a;
+  }
+  
+  .chat-message {
+    margin-bottom: 20px;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .message-content {
+    display: inline-block;
+    max-width: 85%;
+  }
+  .user-message .message-content { float: right; }
+  .assistant-message .message-content { float: left; }
+  
+  .message-text {
+    background: #2d2d2d;
+    padding: 12px 16px;
+    border-radius: 12px;
+    color: #e0e0e0;
+    font-size: 14px;
+    line-height: 1.6;
+    border: 1px solid #404040;
+  }
+  .user-message .message-text {
+    background: #7c3aed;
+    border-color: #7c3aed;
+    color: #ffffff;
+  }
+  
+  .message-time {
+    font-size: 11px;
+    color: #666;
+    margin-top: 4px;
+    text-align: right;
+  }
+  .user-message .message-time { text-align: right; }
+  .assistant-message .message-time { text-align: left; }
+  
+  #chat-input-container {
+    padding: 16px;
+    background: #2d2d2d;
+    border-top: 1px solid #404040;
+    display: flex;
+    gap: 8px;
+  }
+  #chat-input {
+    flex: 1;
+    background: #1a1a1a;
+    border: 1px solid #404040;
+    color: #e0e0e0;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    resize: none;
+    min-height: 42px;
+    max-height: 120px;
+    font-family: inherit;
+  }
+  #chat-input:focus { outline: none; border-color: #7c3aed; }
+  #chat-input::placeholder { color: #666; }
+  
+  #send-chat {
+    background: #7c3aed;
+    border: none;
+    color: white;
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  #send-chat:hover { background: #6d28d9; transform: scale(1.05); }
+  #send-chat:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Toolkit-specific styles */
+<style>
   body { font-family: 'Segoe UI', sans-serif; background: #f3f4f6; }
   .cap-card {
     background: white; border-radius: 8px; padding: 10px 14px;
@@ -44,60 +259,6 @@
   .maturity-btn:not([class*="active"]) { background: #f3f4f6; color: #6b7280; }
   .export-btn { background: linear-gradient(135deg, #16a34a, #15803d); color: white; border: none; }
   .export-btn:hover { background: linear-gradient(135deg, #15803d, #166534); }
-  /* === CAP AI ASSISTANT === */
-#cap-ai-widget { position: fixed; bottom: 30px; right: 30px; z-index: 1000; font-family: 'Segoe UI', sans-serif; }
-#cap-ai-button {
-    width: 65px; height: 65px; border-radius: 50%;
-    background: linear-gradient(135deg, #1e3a5f 0%, #3498db 100%);
-    box-shadow: 0 10px 25px rgba(52,152,219,0.4);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: all 0.3s; border: none; position: relative;
-}
-#cap-ai-button:hover { transform: scale(1.1) rotate(5deg); }
-#cap-ai-button i { color: white; font-size: 26px; }
-.cap-notification-badge {
-    position: absolute; top: -2px; right: -2px;
-    background: #ef4444; color: white; border-radius: 50%;
-    width: 20px; height: 20px; font-size: 11px;
-    display: none; align-items: center; justify-content: center;
-    border: 2px solid white; animation: cap-pulse 2s infinite;
-}
-@keyframes cap-pulse {
-    0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); }
-    70% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
-    100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
-}
-#cap-chat-panel {
-    position: absolute; bottom: 80px; right: 0;
-    width: 760px; height: 640px; background: white;
-    border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-    display: none; flex-direction: column; overflow: hidden;
-    border: 1px solid #e5e7eb;
-}
-.cap-chat-header {
-    background: linear-gradient(135deg, #1e3a5f, #2563eb);
-    color: white; padding: 18px 20px;
-    display: flex; justify-content: space-between; align-items: center;
-}
-.cap-chat-messages {
-    flex: 1; padding: 16px; overflow-y: auto;
-    background: #f9fafb; display: flex; flex-direction: column; gap: 12px;
-}
-.cap-msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; }
-.cap-msg.ai { align-self: flex-start; background: white; border: 1px solid #e5e7eb; color: #1f2937; border-bottom-left-radius: 2px; }
-.cap-msg.user { align-self: flex-end; background: #2563eb; color: white; border-bottom-right-radius: 2px; }
-.cap-quick-actions { padding: 12px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; background: white; border-top: 1px solid #f3f4f6; }
-.cap-btn-q {
-    background: #f3f4f6; border: 1px solid #e5e7eb;
-    padding: 7px 10px; border-radius: 8px; font-size: 11.5px;
-    text-align: left; cursor: pointer; transition: all 0.2s;
-    color: #374151; display: flex; align-items: center; gap: 6px;
-}
-.cap-btn-q:hover { background: #e5e7eb; color: #111827; }
-.cap-chat-input { padding: 12px; background: white; border-top: 1px solid #e5e7eb; display: flex; gap: 8px; }
-.cap-chat-input input { flex: 1; border: 1px solid #d1d5db; padding: 9px 14px; border-radius: 8px; outline: none; font-size: 13px; }
-.cap-chat-input input:focus { border-color: #2563eb; }
-.cap-chat-input button { background: #2563eb; color: white; border: none; width: 38px; height: 38px; border-radius: 8px; cursor: pointer; }
 
   /* === WORKSHOP FLOW STYLES === */
   #workshop-progress {
@@ -162,52 +323,28 @@
   .cap-lock-icon:hover { opacity: 0.7; }
   .cap-locked .cap-lock-icon { opacity: 1; color: #10b981; }
 </style>
-<link rel="stylesheet" href="/css/ea-design-engine.css" />
 </head>
-<body class="p-0 ea-toolkit-app">
-
-<!-- WORKFLOW NAVIGATION BAR -->
-<div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 text-xs font-semibold shadow-md flex items-center justify-between">
-  <div class="flex items-center gap-4">
-    <a href="../Integration_Workflow_Hub.html" class="flex items-center gap-2 hover:underline">
-      <i class="fas fa-arrow-left"></i> Tillbaka till Workflow Hub
-    </a>
-    <div class="h-4 w-px bg-white/30"></div>
-    <div class="flex items-center gap-2">
-      <a href="./AI Business Model Canvas.html" class="opacity-90 hover:opacity-100 hover:underline">PHASE 1</a>
-      <i class="fas fa-chevron-right opacity-50 text-xs"></i>
-      <a href="./AI Value Chain Analyzer V2.html" class="opacity-90 hover:opacity-100 hover:underline">PHASE 2</a>
-      <i class="fas fa-chevron-right opacity-50 text-xs"></i>
-      <span class="bg-white text-purple-600 px-2 py-1 rounded font-bold">PHASE 3 av 4</span>
-      <i class="fas fa-chevron-right opacity-50 text-xs"></i>
-      <a href="./AI Strategy Workbench V2.html" class="opacity-90 hover:opacity-100 hover:underline">PHASE 4</a>
-    </div>
-  </div>
-  <div class="text-xs opacity-90">
-    <i class="fas fa-info-circle mr-1"></i> Exportera när klar för att låsa upp nästa fas
-  </div>
-</div>
-
-<!-- EA PLATFORM HEADER -->
-<header class="bg-gradient-to-r from-slate-900 to-blue-900 text-white px-5 py-3 flex items-center justify-between shadow-lg">
-  <div class="flex items-center gap-3">
-    <a href="../NexGenEA/NexGen_EA_V4.html" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
-      <i class="fas fa-arrow-left"></i> Tillbaka till EA Platform
-    </a>
-    <div class="h-6 w-px bg-slate-600"></div>
-    <div class="flex items-center gap-2">
-      <div class="bg-purple-500 rounded-lg w-8 h-8 flex items-center justify-center font-bold text-sm"><i class="fas fa-sitemap"></i></div>
-      <div>
-        <div class="font-bold text-sm leading-tight">AI Capability Mapping</div>
-        <div class="text-blue-300 text-xs">Workshop Tool · Step 3</div>
+<body>
+<div id="app-container">
+  <div id="main-content">
+    <!-- EA PLATFORM HEADER -->
+    <div class="ea-header">
+      <div class="ea-header-left">
+        <div class="ea-brand-mark">EA</div>
+        <div class="ea-header-title">
+          <h1><i class="fas fa-sitemap"></i>Capability Mapping</h1>
+          <p>Domain-Based Capability Modeling — APQC Framework — Strategic Assessment</p>
+        </div>
+      </div>
+      <div class="ea-header-right">
+        <button class="ea-header-icon" onclick="window.location.href='../NexGen_EA_V4.html'" title="Back to EA Platform">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <button class="ea-header-icon" onclick="toggleChatPanel()" title="AI Assistant">
+          <i class="fas fa-robot"></i>
+        </button>
       </div>
     </div>
-  </div>
-  <div class="text-xs text-slate-300">
-    <div id="cap-sync-status"><i class="fas fa-sync-alt"></i> Data synkas automatiskt med EA Platform</div>
-    <div id="cap-context-badge" class="mt-1 text-[11px] text-blue-200 hidden"></div>
-  </div>
-</header>
 
 <section class="ea-kpi-strip">
   <div class="ea-kpi-grid">
@@ -223,7 +360,7 @@
       <span class="ea-kpi-icon"><i class="fas fa-sitemap"></i></span>
       <div><span class="ea-kpi-label">Focus</span><span class="ea-kpi-value">Capability Maturity</span></div>
     </div>
-    <button class="ea-kpi-card" type="button" onclick="capOpenNextTool()" title="Gå till nästa verktyg: AI Strategy Workbench" style="text-align:left; cursor:pointer; width:100%;">
+    <button class="ea-kpi-card" type="button" onclick="capOpenNextTool()" title="Go to next tool: Strategy Workbench" style="text-align:left; cursor:pointer; width:100%;">
       <span class="ea-kpi-icon"><i class="fas fa-arrow-right"></i></span>
       <div><span class="ea-kpi-label">Next Tool</span><span class="ea-kpi-value">Strategy Workbench</span></div>
     </button>
@@ -232,31 +369,31 @@
 
 <!-- APQC CONTEXT HERO SECTION -->
 <div id="apqc-hero-section" class="hidden bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
-  <div class="max-w-7xl mx-auto px-6 py-4">
+  <div class="mx-auto px-6 py-4">
     <div class="flex items-start gap-4">
       <div class="bg-white/20 rounded-lg p-3">
         <i class="fas fa-sitemap text-3xl"></i>
       </div>
       <div class="flex-1">
         <div class="flex items-center gap-3 mb-2">
-          <h2 class="text-lg font-bold">APQC Framework Aktiverad</h2>
+          <h2 class="text-lg font-bold">APQC Framework Activated</h2>
           <span id="apqc-hero-scenario-badge" class="px-3 py-1 bg-white/20 rounded-full text-xs font-semibold"></span>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div class="bg-white/10 rounded-lg px-4 py-2">
-            <div class="text-xs opacity-80 uppercase tracking-wide mb-1">Bransch / Industry</div>
+            <div class="text-xs opacity-80 uppercase tracking-wide mb-1">Industry</div>
             <div id="apqc-hero-industry" class="font-semibold text-base">-</div>
             <div id="apqc-hero-industry-detail" class="text-xs opacity-90 mt-1 hidden"></div>
           </div>
           <div class="bg-white/10 rounded-lg px-4 py-2">
-            <div class="text-xs opacity-80 uppercase tracking-wide mb-1">Strategiskt Fokus</div>
+            <div class="text-xs opacity-80 uppercase tracking-wide mb-1">Strategic Focus</div>
             <div id="apqc-hero-focus" class="font-semibold text-base">-</div>
           </div>
           <div class="bg-white/10 rounded-lg px-4 py-2">
             <div class="text-xs opacity-80 uppercase tracking-wide mb-1">Status</div>
             <div id="apqc-hero-status" class="font-semibold text-base flex items-center gap-2">
               <i class="fas fa-check-circle text-green-300"></i>
-              <span id="apqc-hero-count">0 capabilities importerade</span>
+              <span id="apqc-hero-count">0 capabilities imported</span>
             </div>
           </div>
         </div>
@@ -301,50 +438,6 @@
 </div>
 
 <div class="p-6">
-<!-- AI ASSISTANT WIDGET -->
-<div id="cap-ai-widget">
-    <div id="cap-chat-panel">
-        <div class="cap-chat-header">
-            <div style="display:flex;align-items:center;gap:10px">
-                <i class="fas fa-robot"></i>
-                <div>
-                    <div style="font-weight:700;font-size:14px">Capability Advisor AI</div>
-                    <div style="font-size:11px;opacity:0.8">Enterprise Architecture · domain-specific</div>
-                </div>
-            </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <button onclick="startNewCapChat()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);color:white;font-size:11px;font-weight:700;padding:6px 8px;border-radius:8px;cursor:pointer">Ny chat</button>
-            <button onclick="clearCapChatHistory()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);color:white;font-size:11px;font-weight:700;padding:6px 8px;border-radius:8px;cursor:pointer">Rensa</button>
-            <button onclick="toggleCapChat()" style="background:none;border:none;color:white;font-size:18px;cursor:pointer">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
-        </div>
-        <div class="cap-chat-messages" id="cap-chat-messages"></div>
-        <div class="cap-quick-actions">
-            <button class="cap-btn-q" onclick="askCapAI('Vilka är våra mest kritiska capability gaps?')"><i class="fas fa-exclamation-triangle text-red-500"></i> Kritiska Gaps</button>
-            <button class="cap-btn-q" onclick="askCapAI('Vilka förmågor bör vi outsourca vs bygga själva?')"><i class="fas fa-handshake text-blue-500"></i> Outsourcing vs Build</button>
-            <button class="cap-btn-q" onclick="askCapAI('Skapa en 12-månaders roadmap för mognadshöjning.')"><i class="fas fa-calendar-alt text-purple-500"></i> Roadmap 12 mån</button>
-            <button class="cap-btn-q" onclick="askCapAI('Vilken capability ger störst konkurrensfördel?')"><i class="fas fa-trophy text-yellow-500"></i> Konkurrensfördel</button>
-            <button class="cap-btn-q" onclick="askCapAI('Analysera Technology-domänen i detalj.')"><i class="fas fa-microchip text-gray-500"></i> Tech-domän</button>
-            <button class="cap-btn-q" onclick="askCapAI('Hur påverkar ESG och CSRD vår capability mapping?')"><i class="fas fa-leaf text-green-500"></i> ESG & CSRD</button>
-            <button class="cap-btn-q" title="Benchmark mot branschstandard" onclick="askCapAI('Benchmarka oss mot branschstandard för domain-specific.')"><i class="fas fa-chart-line text-blue-500"></i> Benchmark</button>
-            <button class="cap-btn-q" onclick="askCapAI('Vilka risker ser du i Customer-domänen?')"><i class="fas fa-user-shield text-orange-500"></i> Customer Risks</button>
-            <button class="cap-btn-q" onclick="askCapAI('Ge förslag på KPI:er för att mäta mognadsresan.')"><i class="fas fa-bullseye text-red-500"></i> KPI Förslag</button>
-            <button class="cap-btn-q" onclick="askCapAI('Sammanfatta hela nuläget i en SWOT-analys.')"><i class="fas fa-list-ul text-purple-500"></i> SWOT Analys</button>
-            <button class="cap-btn-q" title="Förbered nästa workshop: Wardley Mapping" onclick="askCapAI('Baserat på vår capability map: vilka capabilities ska placeras i Genesis, Custom Build, Product respektive Commodity på en Wardley Map? Förbered mig för nästa workshop med positioneringsförslag per capability.')"><i class="fas fa-arrow-right text-indigo-500"></i> Förbered Wardley</button>
-            <button class="cap-btn-q" title="Öppna nästa verktyg: AI Strategy Workbench" onclick="capOpenNextTool()"><i class="fas fa-rocket text-indigo-600"></i> Öppna Wardley</button>
-        </div>
-        <div class="cap-chat-input">
-          <input type="text" id="cap-user-input" placeholder="Ställ en fråga om din capability map..." onkeypress="if(event.key==='Enter') sendCapMessage()">
-            <button onclick="sendCapMessage()"><i class="fas fa-paper-plane"></i></button>
-        </div>
-    </div>
-    <button id="cap-ai-button" onclick="toggleCapChat()">
-        <i class="fas fa-robot"></i>
-        <div class="cap-notification-badge" id="cap-badge">1</div>
-    </button>
-</div>
 <!-- API Modal -->
 <div id="api-modal" class="hidden">
   <div class="modal-box">
@@ -353,52 +446,52 @@
         <i class="fas fa-key text-blue-600"></i>
       </div>
       <div>
-        <h2 class="font-bold text-gray-900">OpenAI API-nyckel</h2>
-        <p class="text-xs text-gray-500">Delas med alla verktyg i EA Strategy Suite</p>
+        <h2 class="font-bold text-gray-900">OpenAI API Key</h2>
+        <p class="text-xs text-gray-500">Shared with all tools in EA Strategy Suite</p>
       </div>
     </div>
-    <p class="text-sm text-gray-600 mb-4">Nyckeln sparas i <code class="bg-gray-100 px-1 rounded text-xs">localStorage</code> under nyckeln <code class="bg-gray-100 px-1 rounded text-xs">ea_openai_key</code> och används av BMC, Capability Map och Wardley Map.</p>
+    <p class="text-sm text-gray-600 mb-4">The key is stored in <code class="bg-gray-100 px-1 rounded text-xs">localStorage</code> under key <code class="bg-gray-100 px-1 rounded text-xs">ea_openai_key</code> and is used by BMC, Capability Map, and Wardley Map.</p>
     <input id="api-key-input" type="password" placeholder="sk-proj-..."
       class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-500 mb-3 font-mono"/>
     <div class="flex items-center gap-2 mb-5">
       <input type="checkbox" id="show-key" onchange="document.getElementById('api-key-input').type = this.checked ? 'text' : 'password'">
-      <label for="show-key" class="text-xs text-gray-500 cursor-pointer">Visa nyckel</label>
+      <label for="show-key" class="text-xs text-gray-500 cursor-pointer">Show key</label>
     </div>
     <div class="flex gap-3">
       <button onclick="saveApiKey()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
-        <i class="fas fa-check mr-2"></i>Spara & Aktivera
+        <i class="fas fa-check mr-2"></i>Save & Activate
       </button>
-      <button onclick="document.getElementById('api-modal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Avbryt</button>
+      <button onclick="document.getElementById('api-modal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
     </div>
-    <p class="text-xs text-gray-400 mt-4 text-center"><i class="fas fa-shield-alt mr-1"></i>Skickas endast till OpenAI. Aldrig till annan server.</p>
+    <p class="text-xs text-gray-400 mt-4 text-center"><i class="fas fa-shield-alt mr-1"></i>Sent only to OpenAI. Never to any other server.</p>
   </div>
 </div>
 
 <!-- Capability Edit Modal -->
 <div id="cap-modal" class="hidden">
   <div class="modal-box" style="max-width:500px">
-    <h2 class="font-bold text-gray-900 mb-4 flex items-center gap-2"><i class="fas fa-edit text-blue-600"></i> Redigera Capability</h2>
-    <input id="cap-name-input" type="text" placeholder="Capability-namn" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-3 outline-none focus:border-blue-500"/>
-    <textarea id="cap-desc-input" placeholder="Beskrivning (valfritt)" rows="2" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-3 outline-none focus:border-blue-500 resize-none"></textarea>
+    <h2 class="font-bold text-gray-900 mb-4 flex items-center gap-2"><i class="fas fa-edit text-blue-600"></i> Edit Capability</h2>
+    <input id="cap-name-input" type="text" placeholder="Capability name" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-3 outline-none focus:border-blue-500"/>
+    <textarea id="cap-desc-input" placeholder="Description (optional)" rows="2" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-3 outline-none focus:border-blue-500 resize-none"></textarea>
     <div class="mb-3">
-      <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Strategisk Prioritet</p>
+      <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Strategic Priority</p>
       <div class="flex gap-2">
-        <button class="maturity-btn" onclick="setMaturity('strategic')" id="btn-strategic">🔴 Strategisk</button>
-        <button class="maturity-btn" onclick="setMaturity('important')" id="btn-important">🟡 Viktig</button>
+        <button class="maturity-btn" onclick="setMaturity('strategic')" id="btn-strategic">Strategic</button>
+        <button class="maturity-btn" onclick="setMaturity('important')" id="btn-important">Important</button>
         <button class="maturity-btn" onclick="setMaturity('commodity')" id="btn-commodity">🟢 Commodity</button>
       </div>
     </div>
     <div class="mb-4">
-      <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Mognadsnivå (1–5)</p>
+      <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Maturity Level (1-5)</p>
       <input id="cap-maturity" type="range" min="1" max="5" value="3" class="w-full" oninput="document.getElementById('maturity-val').textContent = this.value"/>
       <div class="flex justify-between text-xs text-gray-400 mt-1">
-        <span>1 – Initial</span><span id="maturity-val" class="font-bold text-gray-700">3</span><span>5 – Optimerad</span>
+        <span>1 – Initial</span><span id="maturity-val" class="font-bold text-gray-700">3</span><span>5 – Optimized</span>
       </div>
     </div>
     <div class="flex gap-3">
       <button onclick="saveCapability()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700">Spara</button>
-      <button onclick="deleteCapability()" class="px-4 py-2 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-100">Ta bort</button>
-      <button onclick="document.getElementById('cap-modal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Avbryt</button>
+      <button onclick="deleteCapability()" class="px-4 py-2 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-100">Delete</button>
+      <button onclick="document.getElementById('cap-modal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
     </div>
   </div>
 </div>
@@ -407,135 +500,128 @@
 <div id="apqc-settings-modal-cap" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center;">
   <div class="modal-box" style="max-width:550px">
     <h2 class="font-bold text-gray-900 mb-4 flex items-center gap-2">
-      <i class="fas fa-database text-blue-600"></i> APQC Framework - Importera Capabilities
+      <i class="fas fa-database text-blue-600"></i> APQC Framework — Import Capabilities
     </h2>
-    <p class="text-sm text-gray-600 mb-4">Valj din bransch och strategiska fokus for att importera relevanta capabilities fran APQC Process Classification Framework.</p>
+    <p class="text-sm text-gray-600 mb-4">Select your industry and strategic focus to import relevant capabilities from the APQC Process Classification Framework.</p>
     
     <div id="apqc-detection-banner-cap" class="hidden mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800"></div>
     
     <div class="mb-4">
       <label class="text-xs font-semibold text-gray-700 uppercase block mb-2">
         Bransch
-        <span class="text-gray-400 font-normal ml-1">(Valfritt om organisationsbeskrivning anges)</span>
+        <span class="text-gray-400 font-normal ml-1">(Optional if org description is provided)</span>
       </label>
       <select id="apqc-business-type-cap" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm outline-none focus:border-blue-500">
         <option value="">-- Valj bransch (eller lat AI detektera) --</option>
-        <option value="Manufacturing">Tillverkning (Manufacturing)</option>
-        <option value="Services">Tjanster (Services)</option>
-        <option value="Retail">Detaljhandel (Retail)</option>
-        <option value="Financial Services">Finansiella tjanster (Financial Services)</option>
-        <option value="Healthcare">Halsovard (Healthcare)</option>
-        <option value="Technology">Teknik & IT (Technology)</option>
-        <option value="All">Alla branscher (Cross-Industry)</option>
+        <option value="Manufacturing">Manufacturing</option>
+        <option value="Services">Services</option>
+        <option value="Retail">Retail</option>
+        <option value="Financial Services">Financial Services</option>
+        <option value="Healthcare">Healthcare</option>
+        <option value="Technology">Technology & IT</option>
+        <option value="All">All Industries (Cross-Industry)</option>
       </select>
     </div>
     
     <div class="mb-4">
-      <label class="text-xs font-semibold text-gray-700 uppercase block mb-2">Strategiskt Fokus</label>
+      <label class="text-xs font-semibold text-gray-700 uppercase block mb-2">Strategic Focus</label>
       <select id="apqc-strategic-intent-cap" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm outline-none focus:border-blue-500">
         <option value="">-- Valj strategiskt fokus --</option>
-        <option value="Growth">Tillvaxt (Growth)</option>
+        <option value="Growth">Growth</option>
         <option value="Innovation">Innovation</option>
-        <option value="Efficiency">Effektivitet (Efficiency)</option>
-        <option value="Customer Centricity">Kundfokus (Customer Centricity)</option>
-        <option value="Sustainability">Hallbarhet (Sustainability)</option>
+        <option value="Efficiency">Efficiency</option>
+        <option value="Customer Centricity">Customer Centricity</option>
+        <option value="Sustainability">Sustainability</option>
       </select>
     </div>
     
     <div class="mb-4">
       <label class="text-xs font-semibold text-gray-700 uppercase block mb-2">
-        Organisationsbeskrivning (Valfritt)
-        <span class="text-gray-400 font-normal ml-1"><i class="fas fa-magic text-xs"></i> Forbattrar AI-detektering</span>
+        Organization Description (Optional)
+        <span class="text-gray-400 font-normal ml-1"><i class="fas fa-magic text-xs"></i> Improves AI detection</span>
       </label>
-      <textarea id="apqc-org-description-cap" rows="3" placeholder="Beskriv din organisation, produkter/tjanster, strategiska mal, eller utmaningar... (t.ex. 'Vi ar en SaaS-plattform for HR-analytics med fokus pa prediktiv analys och AI-driven talangutveckling')" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 resize-none"></textarea>
+      <textarea id="apqc-org-description-cap" rows="3" placeholder="Describe your organization, products/services, goals, or challenges (e.g. 'We are a SaaS platform for HR analytics focused on predictive analysis and AI-driven talent development')" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 resize-none"></textarea>
       <div class="text-xs text-gray-500 mt-1">
         <i class="fas fa-lightbulb text-yellow-500 mr-1"></i>
-        Denna information hjalper AI:n att battre detektera bransch och foreslå relevanta capabilities.
+        This information helps the AI better detect the industry and suggest relevant capabilities.
       </div>
     </div>
     
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-xs text-blue-800">
       <i class="fas fa-route mr-1"></i>
-      <strong>Tva alternativ:</strong>
+      <strong>Two options:</strong>
       <div class="mt-2 space-y-1.5">
         <div class="flex gap-2">
           <span class="font-semibold">1.</span>
-          <span>Manuellt: Valj Bransch + Strategiskt Fokus</span>
+          <span>Manuellt: Valj Bransch + Strategic Focus</span>
         </div>
         <div class="flex gap-2">
           <span class="font-semibold">2.</span>
-          <span>AI-assisterat: Beskriv organisation + Valj Strategiskt Fokus → AI detekterar bransch automatiskt</span>
+          <span>AI-assisterat: Beskriv organisation + Valj Strategic Focus → AI detekterar bransch automatiskt</span>
         </div>
       </div>
       <div class="text-xs text-blue-700 mt-2 pt-2 border-t border-blue-200">
-        <i class="fas fa-info-circle mr-1"></i>APQC-capabilities laggas till i din capability map. Justera prioritet/mognad efterat.
+        <i class="fas fa-info-circle mr-1"></i>APQC capabilities are added to your capability map. Adjust priority/maturity afterwards.
       </div>
     </div>
     
     <div class="flex gap-3">
       <button onclick="applyAPQCSettingsCap()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
-        <i class="fas fa-download mr-2"></i>Importera Capabilities
+        <i class="fas fa-download mr-2"></i>Import Capabilities
       </button>
-      <button onclick="closeAPQCModalCap()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Avbryt</button>
+      <button onclick="closeAPQCModalCap()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
     </div>
   </div>
 </div>
 
-<div class="max-w-7xl mx-auto">
+<div class="w-full">
 
-  <!-- Header -->
-  <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900">AI Capability Mapping <span class="text-blue-600">V2</span></h1>
-      <p class="text-gray-500 text-sm">Enterprise Architecture · domain-specific & Industry-specific</p>
-    </div>
-    <div class="flex flex-wrap gap-3">
+  <div class="flex flex-wrap gap-3 mb-5">
       <button onclick="document.getElementById('api-modal').classList.remove('hidden')" id="api-status-btn"
         class="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition">
         <i id="api-icon" class="fas fa-circle text-xs text-orange-400"></i>
-        <span id="api-text">Konfigurera API-nyckel</span>
+        <span id="api-text">Configure API Key</span>
       </button>
       <button onclick="loadExample()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm">
-        <i class="fas fa-lightbulb"></i> Ladda exempel
+        <i class="fas fa-lightbulb"></i> Load Example
       </button>
-      <a href="Capability_Workshop_Builder.html" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white no-underline" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);border:none;" onmouseover="this.style.background='linear-gradient(135deg,#15305a,#1d4ed8)'" onmouseout="this.style.background='linear-gradient(135deg,#1e3a5f,#2563eb)'" title="Använd Workshop Builder för att strukturera capability-mappingen innan du börjar">
+      <a href="Capability_Workshop_Builder.html" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white no-underline" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);border:none;" onmouseover="this.style.background='linear-gradient(135deg,#15305a,#1d4ed8)'" onmouseout="this.style.background='linear-gradient(135deg,#1e3a5f,#2563eb)'" title="Use Workshop Builder to structure capability mapping">
         <i class="fas fa-chess-board"></i> Workshop Builder
       </a>
       <button onclick="showAPQCSettingsCap()" class="flex items-center gap-2 bg-white border border-blue-400 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-50 text-sm" title="Importera capabilities från APQC Framework">
         <i class="fas fa-database"></i> APQC Import
       </button>
       <button onclick="clearAll()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm">
-        <i class="fas fa-trash-alt"></i> Rensa
+        <i class="fas fa-trash-alt"></i> Clear
       </button>
       <button onclick="saveAll()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm">
-        <i class="fas fa-save"></i> Spara
+        <i class="fas fa-save"></i> Save
       </button>
       <button onclick="exportCapabilitiesToCSV()" class="flex items-center gap-2 export-btn px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
-        <i class="fas fa-file-excel"></i> Exportera (Excel)
+        <i class="fas fa-file-excel"></i> Export (Excel)
       </button>
-      <button onclick="exportToIntegrationCache()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background: linear-gradient(135deg, #9333ea, #7e22ce); color: white;" title="Exportera till EA Platform integration">
-        <i class="fas fa-project-diagram"></i> Exportera (EA)
+      <button onclick="exportToIntegrationCache()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background: linear-gradient(135deg, #9333ea, #7e22ce); color: white;" title="Export to EA Platform integration">
+        <i class="fas fa-project-diagram"></i> Export (EA)
       </button>
       <button onclick="runAnalysis()" class="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 shadow text-sm font-semibold">
-        <i class="fas fa-robot"></i> AI Analys
+        <i class="fas fa-robot"></i> AI Analyze
       </button>
-      <button onclick="generateCapToBeFromLatestAnalysis()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#ecfdf5;color:#166534;border:1px solid #4ade80;" title="Skapa TO-BE-forslag baserat pa analysen">
-        <i class="fas fa-lightbulb"></i> Skapa TO-BE
+      <button onclick="generateCapToBeFromLatestAnalysis()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#ecfdf5;color:#166534;border:1px solid #4ade80;" title="Generate TO-BE proposal from analysis">
+        <i class="fas fa-lightbulb"></i> Create TO-BE
       </button>
-      <button onclick="toggleCapToBePanel(true)" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#eef2ff;color:#3730a3;border:1px solid #a5b4fc;" title="Visa AS-IS och TO-BE sida vid sida">
-        <i class="fas fa-columns"></i> Granska AS-IS/TO-BE
+      <button onclick="toggleCapToBePanel(true)" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#eef2ff;color:#3730a3;border:1px solid #a5b4fc;" title="Show AS-IS and TO-BE side by side">
+        <i class="fas fa-columns"></i> Review AS-IS/TO-BE
       </button>
-      <button onclick="consolidateCapToBe()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#ecfeff;color:#0e7490;border:1px solid #67e8f9;" title="Konsolidera slutlig TO-BE for synk">
-        <i class="fas fa-check-double"></i> Konsolidera TO-BE
+      <button onclick="consolidateCapToBe()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#ecfeff;color:#0e7490;border:1px solid #67e8f9;" title="Consolidate final TO-BE for sync">
+        <i class="fas fa-check-double"></i> Consolidate TO-BE
       </button>
-      <button id="cap-restore-asis-btn" onclick="restoreCapAsIsState()" class="hidden flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#f8fafc;color:#334155;border:1px solid #cbd5e1;" title="Återställ AS-IS">
-        <i class="fas fa-rotate-left"></i> Återställ AS-IS
+      <button id="cap-restore-asis-btn" onclick="restoreCapAsIsState()" class="hidden flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#f8fafc;color:#334155;border:1px solid #cbd5e1;" title="Restore AS-IS">
+        <i class="fas fa-rotate-left"></i> Restore AS-IS
       </button>
-      <button onclick="generateEAToolReport()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#f0fdfa;color:#0f766e;border:1px solid #2dd4bf;" title="Skapa EA Tool-rapport (AS IS, analys, TO BE)">
-        <i class="fas fa-file-lines"></i> Generera EA Tool-rapport
+      <button onclick="generateEAToolReport()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#f0fdfa;color:#0f766e;border:1px solid #2dd4bf;" title="Generate EA Tool Report (AS-IS, Analysis, TO-BE)">
+        <i class="fas fa-file-lines"></i> Generate EA Tool Report
       </button>
     </div>
-  </header>
 
   <div id="cap-mode-banner" class="hidden mb-5 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-[12px] text-green-900"></div>
 
@@ -544,13 +630,13 @@
     <div class="flex items-center gap-3">
       <i class="fas fa-database text-blue-600 text-lg"></i>
       <div>
-        <div class="font-semibold text-blue-900 text-sm">APQC Process Classification Framework tillgänglig</div>
-        <div class="text-blue-700 text-xs">Importera branschspecifika capabilities baserat på APQC-standard</div>
+        <div class="font-semibold text-blue-900 text-sm">APQC Process Classification Framework Available</div>
+        <div class="text-blue-700 text-xs">Import industry-specific capabilities based on the APQC standard</div>
       </div>
     </div>
     <div class="flex items-center gap-2">
       <button onclick="showAPQCSettingsCap()" class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700 transition">
-        <i class="fas fa-cog mr-1"></i> Konfigurera & Importera
+        <i class="fas fa-cog mr-1"></i> Configure & Import
       </button>
       <button onclick="document.getElementById('apqc-banner-cap').classList.add('hidden')" class="px-2 py-1 text-blue-600 hover:text-blue-800 text-xs">
         <i class="fas fa-times"></i>
@@ -560,8 +646,8 @@
 
   <div id="cap-tobe-panel" class="hidden bg-white rounded-xl shadow p-6 mb-8 border border-indigo-100">
     <div class="flex items-center justify-between mb-3">
-      <h2 class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-columns text-indigo-600"></i> AS-IS vs TO-BE konsolidering</h2>
-      <button onclick="toggleCapToBePanel(false)" class="text-xs px-3 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-50">Stang</button>
+      <h2 class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-columns text-indigo-600"></i> AS-IS vs TO-BE Consolidation</h2>
+      <button onclick="toggleCapToBePanel(false)" class="text-xs px-3 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-50">Close</button>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
@@ -569,7 +655,7 @@
         <textarea id="cap-asis-json" class="w-full h-64 text-[11px] border rounded p-2 font-mono bg-slate-50" readonly></textarea>
       </div>
       <div>
-        <div class="text-xs font-bold text-slate-500 uppercase mb-2">TO-BE Draft (redigerbar)</div>
+        <div class="text-xs font-bold text-slate-500 uppercase mb-2">TO-BE Draft (editable)</div>
         <textarea id="cap-tobe-json" class="w-full h-64 text-[11px] border rounded p-2 font-mono"></textarea>
       </div>
     </div>
@@ -1082,7 +1168,7 @@ Prioritera de capabilities som bäst stöder processautomation, AI-agenter, arbe
       <button onclick="document.getElementById('api-modal').classList.remove('hidden')" class="mt-3 text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded">Uppdatera API-nyckel</button>
     </div>`;
   }
-  btn.innerHTML = '<i class="fas fa-robot"></i> AI Analys';
+  btn.innerHTML = '<i class="fas fa-robot"></i> AI Analyze';
   btn.disabled = false;
 }
 
@@ -1756,7 +1842,7 @@ function updateAPQCHero(config) {
   
   // Update count
   if (countEl) {
-    countEl.textContent = `${apqcHeroState.importedCount} capabilities importerade`;
+    countEl.textContent = `${apqcHeroState.importedCount} capabilities imported`;
   }
 }
 
@@ -2612,9 +2698,9 @@ function handleCapDemoResponse(text, context) {
         } else if (text.includes('roadmap')) {
             addCapMsg('<strong>Roadmap-förslag:</strong><br>Q1-Q2: Stärk strategiska capabilities med låg mognad.<br>Q3: Standardisera commodity-capabilities.<br>Q4: Mät och iterera med KPI:er.', 'ai');
         } else if (text.includes('SWOT')) {
-            addCapMsg('För en fullständig SWOT-analys baserad på din specifika data behöver jag en OpenAI API-nyckel. Konfigurera den via knappen i headern.', 'ai');
+            addCapMsg('För en fullständig SWOT-analys baserad på din specifika data behöver jag en OpenAI API Key. Konfigurera den via knappen i headern.', 'ai');
         } else {
-            addCapMsg('Konfigurera din OpenAI API-nyckel (knappen i headern) för att få fullständiga AI-svar baserade på din capability map.', 'ai');
+            addCapMsg('Konfigurera din OpenAI API Key (knappen i headern) för att få fullständiga AI-svar baserade på din capability map.', 'ai');
         }
     }, 600);
 }
@@ -2776,6 +2862,285 @@ function storeForIntegration() {
 window.addEventListener('load', () => {
   loadWorkshopState();
 });
+
+// === EA PLATFORM CHAT FUNCTIONS ===
+
+// Chat Panel Toggle
+function toggleChatPanel() {
+    const isOpen = document.body.classList.contains('chat-sidebar-open');
+    if (isOpen) {
+        document.body.classList.remove('chat-sidebar-open');
+    } else {
+        document.body.classList.add('chat-sidebar-open');
+        const input = document.getElementById('chat-input');
+        if (input) input.focus();
+    }
+}
+
+// Initialize Chat Sidebar Resize
+function initChatSidebarResize() {
+    const handle = document.getElementById('chat-resize-handle');
+    const panel = document.getElementById('ai-chat-panel');
+    if (!handle || !panel) return;
+    let startX, startW;
+
+    const saved = parseInt(localStorage.getItem('capmap_sidebar_w') || '0', 10);
+    if (saved >= 280 && saved <= 800) applySidebarWidth(saved);
+
+    handle.addEventListener('mousedown', (e) => {
+        startX = e.clientX;
+        startW = panel.offsetWidth;
+        handle.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+
+        function onMove(ev) {
+            const diff = startX - ev.clientX;
+            const newW = Math.max(280, Math.min(800, startW + diff));
+            applySidebarWidth(newW);
+        }
+        function onUp() {
+            localStorage.setItem('capmap_sidebar_w', panel.offsetWidth);
+            handle.classList.remove('dragging');
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+}
+
+function applySidebarWidth(w) {
+    const panel = document.getElementById('ai-chat-panel');
+    if (!panel) return;
+    panel.style.width = w + 'px';
+    const style = document.getElementById('_sidebar-width-style') || (() => {
+        const s = document.createElement('style');
+        s.id = '_sidebar-width-style';
+        document.head.appendChild(s);
+        return s;
+    })();
+    style.textContent = `body.chat-sidebar-open #main-content{margin-right:${w}px!important;}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initChatSidebarResize();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        toggleChatPanel();
+    }
+    if (e.key === 'Enter' && e.target.id === 'chat-input' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function parseMarkdown(text) {
+    if (!text) return '';
+    let t = escapeHtml(text);
+    
+    t = t.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    t = t.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff;font-weight:700;">$1</strong>');
+    t = t.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    t = t.replace(/`([^`]+)`/g, '<code style="font-family:monospace;background:#1a1a1a;padding:2px 6px;border-radius:4px;font-size:12px;color:#66d9ef;font-weight:500;border:1px solid #404040;">$1</code>');
+    
+    const lines = t.split('\n');
+    const out = [];
+    let inUL = false, inOL = false, inCodeBlock = false, codeLines = [];
+    
+    const closeList = () => {
+        if (inUL) { out.push('</ul>'); inUL = false; }
+        if (inOL) { out.push('</ol>'); inOL = false; }
+    };
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        
+        if (trimmed.startsWith('```')) {
+            if (!inCodeBlock) {
+                closeList();
+                inCodeBlock = true;
+                codeLines = [];
+                continue;
+            } else {
+                const codeContent = codeLines.join('\n');
+                out.push(`<pre style="background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;margin:10px 0;overflow-x:auto;font-size:10px;line-height:1.6;font-family:monospace;"><code>${codeContent}</code></pre>`);
+                inCodeBlock = false;
+                continue;
+            }
+        }
+        
+        if (inCodeBlock) {
+            codeLines.push(line);
+            continue;
+        }
+        
+        const h3m = trimmed.match(/^### (.+)$/);
+        const h2m = trimmed.match(/^## (.+)$/);
+        const h1m = trimmed.match(/^# (.+)$/);
+        if (h1m || h2m || h3m) {
+            closeList();
+            if (h3m) out.push(`<div style="font-size:14px;font-weight:600;color:#b0b0b0;margin:16px 0 8px;">${h3m[1]}</div>`);
+            else if (h2m) out.push(`<div style="font-size:15px;font-weight:700;color:#e0e0e0;border-bottom:2px solid #0066cc;padding-bottom:6px;margin:18px 0 10px;">${h2m[1]}</div>`);
+            else out.push(`<div style="font-size:16px;font-weight:700;color:#ffffff;margin:20px 0 10px;">${h1m[1]}</div>`);
+            continue;
+        }
+        
+        if (/^---+$/.test(trimmed)) {
+            closeList();
+            out.push('<hr style="border:none;border-top:1px solid #404040;margin:14px 0;">');
+            continue;
+        }
+        
+        const quotem = trimmed.match(/^> (.+)$/);
+        if (quotem) {
+            closeList();
+            out.push(`<div style="border-left:3px solid #0066cc;background:#1a1a1a;padding:10px 14px;margin:10px 0;border-radius:4px;font-style:italic;color:#b0b0b0;">${quotem[1]}</div>`);
+            continue;
+        }
+        
+        const ulm = trimmed.match(/^[-*—] (.+)$/);
+        if (ulm) {
+            if (!inUL) { closeList(); out.push('<ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">'); inUL = true; }
+            out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${ulm[1]}</li>`);
+            continue;
+        }
+        
+        const olm = trimmed.match(/^\d+\.\s(.+)$/);
+        if (olm) {
+            if (!inOL) { closeList(); out.push('<ol style="margin:8px 0;padding-left:22px;color:#b0b0b0;">'); inOL = true; }
+            out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${olm[1]}</li>`);
+            continue;
+        }
+        
+        if (trimmed === '') {
+            closeList();
+            out.push('<div style="height:10px;"></div>');
+            continue;
+        }
+        
+        closeList();
+        out.push(`<p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">${trimmed}</p>`);
+    }
+    
+    closeList();
+    return out.join('');
+}
+
+function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    addChatMessage(message, 'user');
+    input.value = '';
+    processAIRequest(message);
+}
+
+function clearChat() {
+    const messagesDiv = document.getElementById('chat-messages');
+    messagesDiv.innerHTML = '<div class="chat-message assistant-message"><div class="message-content"><div class="message-text"><strong style="color:#ffffff;font-weight:700;">Chat cleared</strong><div style="height:10px;"></div><p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">Start a new conversation about your capability map.</p></div></div></div>';
+}
+
+function addChatMessage(text, role) {
+    const messagesDiv = document.getElementById('chat-messages');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `chat-message ${role}-message`;
+    
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+    
+    const messageText = document.createElement('div');
+    messageText.className = 'message-text';
+    messageText.innerHTML = role === 'assistant' ? parseMarkdown(text) : escapeHtml(text);
+    
+    const messageTime = document.createElement('div');
+    messageTime.className = 'message-time';
+    messageTime.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    
+    messageContent.appendChild(messageText);
+    messageContent.appendChild(messageTime);
+    msgDiv.appendChild(messageContent);
+    messagesDiv.appendChild(msgDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+async function processAIRequest(userMessage) {
+    const apiKey = window.EA_CONFIG?.OPENAI_API_KEY || localStorage.getItem('advicy_openai_key');
+    
+    if (!apiKey) {
+        addChatMessage('No API key configured. Please set your OpenAI API key in EA Platform Settings.', 'assistant');
+        return;
+    }
+    
+    const thinkingDiv = document.createElement('div');
+    thinkingDiv.className = 'chat-message assistant-message';
+    thinkingDiv.innerHTML = '<div class="message-content"><div class="message-text"><i class="fas fa-spinner fa-spin"></i> Thinking...</div></div>';
+    thinkingDiv.id = 'thinking-indicator';
+    document.getElementById('chat-messages').appendChild(thinkingDiv);
+    
+    try {
+        let all = [];
+        DOMAINS.forEach(d => {
+            (capabilities[d.id] || []).forEach(c => {
+                all.push({ domain: d.label, name: c.name, maturity: c.maturity });
+            });
+        });
+        const context = `Current Capability Map: ${JSON.stringify(all, null, 2)}`;
+        
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are an expert in capability mapping, APQC framework, enterprise architecture, and strategic assessment. Help users analyze their capability maps, identify gaps, assess maturity levels, and provide actionable insights. Be concise, actionable, and insightful.'
+                    },
+                    {
+                        role: 'user',
+                        content: `${userMessage}\n\nContext:\n${context}`
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 800
+            })
+        });
+        
+        const data = await response.json();
+        document.getElementById('thinking-indicator')?.remove();
+        
+        if (data.choices && data.choices[0]) {
+            addChatMessage(data.choices[0].message.content, 'assistant');
+        } else {
+            addChatMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+        }
+        
+    } catch (error) {
+        document.getElementById('thinking-indicator')?.remove();
+        addChatMessage('Error: ' + error.message, 'assistant');
+    }
+}
+
 </script>
 
 <!-- WORKSHOP GUIDE MODAL -->
@@ -2865,7 +3230,44 @@ window.addEventListener('load', () => {
   </div>
 </div>
 
-</div><!-- Close wrapper div -->
+    </div><!-- end main-content -->
+    
+    <!-- AI Chat Sidebar (fixed right, full height) -->
+    <div id="ai-chat-panel" class="hidden">
+        <div id="chat-resize-handle" title="Drag to resize"></div>
+        <div id="chat-header">
+            <div id="chat-header-title">
+                <i class="fas fa-robot"></i> Capability Mapping AI Assistant
+            </div>
+            <div id="chat-controls">
+                <button onclick="clearChat()" title="Clear chat"><i class="fas fa-trash"></i></button>
+                <button onclick="toggleChatPanel()" title="Close"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        
+        <div id="chat-messages">
+            <div class="chat-message assistant-message">
+                <div class="message-content">
+                    <div class="message-text">
+                        <strong style="color:#ffffff;font-weight:700;">Welcome to Capability Mapping AI Assistant</strong>
+                        <div style="height:10px;"></div>
+                        <p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">I can help you with capability mapping, APQC framework integration, maturity assessment, and strategic planning.</p>
+                        <div style="height:10px;"></div>
+                        <em>Map your capabilities and ask me anything!</em>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="chat-input-container">
+            <textarea id="chat-input" placeholder="Ask about your capability map..."></textarea>
+            <button id="send-chat" onclick="sendMessage()">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+    
+</div><!-- end app-container -->
 </body>
 </html>
 

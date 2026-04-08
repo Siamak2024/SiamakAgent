@@ -1,15 +1,107 @@
 ﻿<!DOCTYPE html>
-<html lang="sv">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Strategy Workbench – Wardley Map V2</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Strategy Workbench — Wardley Map V2</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script src="../js/EA_Config.js"></script>
-<script src="../js/EA_DataManager.js"></script>
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../../js/EA_Config.js"></script>
+    <script src="../../js/EA_DataManager.js"></script>
+    <script src="../../js/Advicy_AI.js"></script>
     <style>
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+        /* Layout: Main + Sidebar */
+        body {
+            margin: 0;
+            font-family: 'Manrope', 'Segoe UI', system-ui, sans-serif;
+            background: var(--ea-background);
+            overflow: hidden;
+            color: #e2e8f0;
+        }
+        #app-container {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+        #main-content {
+            flex: 1;
+            overflow-y: auto;
+            transition: margin-right 0.2s ease;
+            background: var(--ea-background);
+        }
+        body.chat-sidebar-open #main-content {
+            margin-right: 380px;
+        }
+        
+        /* EA Header - Gold gradient for Strategy Workbench */
+        .ea-header {
+            height: 64px;
+            background: linear-gradient(135deg, #92400e 0%, #ea580c 100%) !important;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            color: white;
+        }
+        .ea-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .ea-brand-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.16);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 14px;
+            color: white;
+        }
+        .ea-header-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 2px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .ea-header-title h1 i {
+            font-size: 32px;
+        }
+        .ea-header-title p {
+            font-size: 11px;
+            opacity: 0.7;
+            margin: 0;
+        }
+        .ea-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ea-header-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        .ea-header-icon:hover {
+            background: rgba(255,255,255,0.18);
+        }
 
         #wardley-canvas {
             position: relative; width: 100%; height: 560px;
@@ -74,22 +166,22 @@
         .color-pink   { background: #ec4899; }
 
         .sidebar-card {
-            background: #1e293b; border: 1px solid #334155;
+            background: var(--ea-surface); border: 1px solid var(--ea-border);
             border-radius: 10px; padding: 14px;
         }
         .sidebar-card h3 {
             font-size: 0.7rem; font-weight: 700;
             text-transform: uppercase; letter-spacing: 0.08em;
-            color: #64748b; margin-bottom: 10px;
+            color: var(--ea-text-muted); margin-bottom: 10px;
         }
         .w-input {
-            background: #0f172a; border: 1px solid #334155;
+            background: #f8fafc; border: 1px solid var(--ea-border);
             border-radius: 8px; padding: 7px 10px;
-            font-size: 0.78rem; color: #e2e8f0; width: 100%; outline: none;
+            font-size: 0.78rem; color: var(--ea-text-strong); width: 100%; outline: none;
         }
-        .w-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
-        .w-input::placeholder { color: #475569; }
-        select.w-input option { background: #1e293b; }
+        .w-input:focus { border-color: var(--ea-primary); box-shadow: 0 0 0 2px rgba(44,62,80,0.12); }
+        .w-input::placeholder { color: var(--ea-text-muted); }
+        select.w-input option { background: white; }
 
         .btn {
             border-radius: 8px; font-size: 0.75rem; font-weight: 600;
@@ -98,8 +190,8 @@
         }
         .btn-primary { background: #3b82f6; color: white; }
         .btn-primary:hover { background: #2563eb; }
-        .btn-secondary { background: #1e293b; border: 1px solid #334155; color: #94a3b8; }
-        .btn-secondary:hover { background: #334155; color: #e2e8f0; }
+        .btn-secondary { background: white; border: 1px solid var(--ea-border); color: var(--ea-text-default); }
+        .btn-secondary:hover { background: var(--ea-hover); color: var(--ea-text-strong); }
         .btn-gold { background: linear-gradient(135deg, #d97706, #b45309); color: white; }
         .btn-gold:hover { background: linear-gradient(135deg, #b45309, #92400e); }
         .btn-export { background: linear-gradient(135deg, #16a34a, #15803d); color: white; border: none; }
@@ -108,7 +200,7 @@
         .btn-import:hover { background: linear-gradient(135deg, #0369a1, #075985); }
 
         #result-panel {
-            background: #1e293b; border: 1px solid #334155;
+            background: var(--ea-surface); border: 1px solid var(--ea-border);
             border-radius: 12px; overflow: hidden; margin-top: 16px;
         }
         .result-header {
@@ -118,16 +210,16 @@
         }
         #result-content {
             padding: 18px 22px; font-size: 0.82rem;
-            color: #cbd5e1; line-height: 1.7;
+            color: var(--ea-text-default); line-height: 1.7;
         }
         #result-content h3 {
-            font-size: 0.88rem; font-weight: 700; color: #93c5fd;
+            font-size: 0.88rem; font-weight: 700; color: var(--ea-primary);
             margin-top: 1.2rem; margin-bottom: 0.4rem;
-            padding-bottom: 4px; border-bottom: 1px solid #334155;
+            padding-bottom: 4px; border-bottom: 1px solid var(--ea-border);
         }
         #result-content ul { margin-left: 1.2rem; margin-bottom: 0.6rem; }
         #result-content li { list-style: disc; margin-bottom: 0.25rem; }
-        #result-content strong { color: #e2e8f0; }
+        #result-content strong { color: var(--ea-text-strong); }
 
         #api-modal {
             position: fixed; inset: 0; background: rgba(0,0,0,0.7);
@@ -151,14 +243,225 @@
         #import-modal.hidden { display: none; }
 
         .modal-box {
-            background: #1e293b; border: 1px solid #334155;
+            background: var(--ea-surface); border: 1px solid var(--ea-border);
             border-radius: 14px; padding: 26px; max-width: 420px;
-            width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
         }
 
         .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
         .spinner { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* AI Chat Panel (Right Sidebar) */
+        #ai-chat-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 380px;
+            background: var(--ea-surface);
+            border-left: 1px solid var(--ea-border);
+            box-shadow: -4px 0 24px rgba(0,0,0,0.08);
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        body.chat-sidebar-open #ai-chat-panel {
+            display: flex;
+        }
+        
+        /* Resize handle on left edge */
+        #chat-resize-handle {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 20;
+            transition: background 0.15s;
+        }
+        #chat-resize-handle:hover,
+        #chat-resize-handle.dragging {
+            background: #0e7afe;
+        }
+        
+        #chat-header {
+            height: 64px;
+            background: linear-gradient(135deg, #92400e 0%, #ea580c 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        #chat-header-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        #chat-controls {
+            display: flex;
+            gap: 6px;
+        }
+        #chat-controls button {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.15s;
+        }
+        #chat-controls button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 16px;
+            background: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            scrollbar-width: thin;
+            scrollbar-color: #404040 transparent;
+        }
+        #chat-messages::-webkit-scrollbar { width: 6px; }
+        #chat-messages::-webkit-scrollbar-thumb { background: #404040; border-radius: 3px; }
+
+        /* Chat messages - EA Platform styling */
+        .chat-message {
+            display: flex;
+            gap: 0;
+            animation: chatSlideIn 0.2s ease;
+            margin-bottom: 16px;
+        }
+        @keyframes chatSlideIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message-avatar { display: none; }
+        .message-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            min-width: 0;
+        }
+        .message-text {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #e0e0e0;
+            white-space: normal;
+            word-break: break-word;
+        }
+        .user-message {
+            flex-direction: row;
+            margin-bottom: 16px;
+        }
+        .user-message .message-content { align-items: flex-start; }
+        .user-message .message-text {
+            background: rgba(55, 65, 81, 0.85);
+            color: #e2e8f0;
+            border: 1px solid rgba(75, 85, 99, 0.4);
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .assistant-message .message-text {
+            color: #e0e0e0;
+        }
+        .message-time {
+            font-size: 11px;
+            color: #666;
+            padding: 4px 0 0 0;
+        }
+        
+        #chat-input-container {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border-top: 1px solid #2d2d2d;
+            flex-shrink: 0;
+        }
+        #chat-input {
+            flex: 1;
+            border: 1px solid #404040;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 14px;
+            resize: none;
+            height: 72px;
+            outline: none;
+            background: #2d2d2d;
+            color: #e0e0e0;
+            font-family: inherit;
+        }
+        #chat-input::placeholder { color: #808080; }
+        #chat-input:focus {
+            border-color: #0066cc;
+            box-shadow: 0 0 0 1px #0066cc;
+        }
+        #send-chat {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 6px;
+            background: #0066cc;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            align-self: flex-end;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+        #send-chat:hover { background: #0052a3; }
+        
+        /* Quick Actions */
+        .quick-actions {
+            padding: 16px;
+            border-bottom: 1px solid var(--ea-border);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .qa-btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid var(--ea-border);
+            border-radius: var(--ea-radius-sm);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--ea-text-strong);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .qa-btn:hover {
+            background: var(--ea-hover);
+            border-color: var(--ea-primary);
+            color: var(--ea-primary);
+        }
+        .qa-btn i {
+            margin-right: 4px;
+        }
 
         .w-tooltip {
             position: fixed; background: #0f172a; border: 1px solid #334155;
@@ -235,8 +538,11 @@
 .ward-chat-input button:hover { background: #6d28d9; }
     </style>
 </head>
-<body class="p-0">
+<body>
 
+<div id="app-container">
+<div id="main-content">
+    
 <!-- WORKFLOW NAVIGATION BAR -->
 <div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 text-xs font-semibold shadow-md flex items-center justify-between">
   <div class="flex items-center gap-4">
@@ -255,41 +561,44 @@
     </div>
   </div>
   <div class="text-xs opacity-90">
-    <i class="fas fa-info-circle mr-1"></i> Exportera när klar - sista fasen!
+    <i class="fas fa-info-circle mr-1"></i> Export when complete - final phase!
   </div>
 </div>
 
 <!-- EA PLATFORM HEADER -->
-<header class="bg-gradient-to-r from-slate-900 to-blue-900 text-white px-5 py-3 flex items-center justify-between shadow-lg">
-  <div class="flex items-center gap-3">
-    <a href="../EA Plattform/EA 20 Platform_V3_Integrated.html" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
-      <i class="fas fa-arrow-left"></i> Tillbaka till EA Platform
-    </a>
-    <div class="h-6 w-px bg-slate-600"></div>
-    <div class="flex items-center gap-2">
-      <div class="bg-amber-500 rounded-lg w-8 h-8 flex items-center justify-center font-bold text-sm"><i class="fas fa-chess-board"></i></div>
-      <div>
-        <div class="font-bold text-sm leading-tight">AI Strategy Workbench</div>
-        <div class="text-blue-300 text-xs">Workshop Tool · Step 4</div>
-      </div>
+<div class="ea-header">
+    <div class="ea-header-left">
+        <div class="ea-brand-mark">EA</div>
+        <div class="ea-header-title">
+            <h1>
+                <i class="fas fa-chess"></i>
+                AI Strategy Workbench
+            </h1>
+            <p>Wardley Map — Strategic Positioning — Evolution</p>
+        </div>
     </div>
-  </div>
-    <div class="text-xs text-slate-300">
-        <div id="ward-sync-status"><i class="fas fa-sync-alt"></i> Data synkas automatiskt med EA Platform</div>
-        <div id="ward-context-badge" class="mt-1 text-[11px] text-blue-200 hidden"></div>
+    <div class="ea-header-right">
+        <button class="ea-header-icon" onclick="toggleChatPanel()" title="AI Assistant (Ctrl+K)">
+            <i class="fas fa-robot"></i>
+        </button>
+        <button class="ea-header-icon" onclick="location.href='../Integration_Workflow_Hub.html'" title="Workflow Hub">
+            <i class="fas fa-th-large"></i>
+        </button>
+        <button class="ea-header-icon" onclick="location.href='../EA Plattform/EA 20 Platform_V3_Integrated.html'" title="EA Platform">
+            <i class="fas fa-home"></i>
+        </button>
     </div>
-</header>
+</div>
 
 <div class="p-5">
-<!-- WARDLEY AI ASSISTANT WIDGET -->
-<div id="ward-ai-widget">
+<div id="ward-ai-widget" style="display:none">
     <div id="ward-chat-panel">
         <div class="ward-chat-header">
             <div style="display:flex;align-items:center;gap:10px">
                 <i class="fas fa-map-marked-alt"></i>
                 <div>
                     <div style="font-weight:700;font-size:14px">Wardley Strategy Advisor</div>
-                    <div style="font-size:11px;opacity:0.8">AI Strategy Workbench · PropTech</div>
+                    <div style="font-size:11px;opacity:0.8">Strategy Workbench — PropTech</div>
                 </div>
             </div>
             <button onclick="toggleWardChat()" style="background:none;border:none;color:white;font-size:18px;cursor:pointer">
@@ -298,21 +607,21 @@
         </div>
         <div class="ward-chat-messages" id="ward-chat-messages"></div>
         <div class="ward-quick-actions">
-            <button class="ward-btn-q" onclick="askWardAI('Vilka komponenter är felpositionerade på kartan?')"><i class="fas fa-crosshairs" style="color:#ef4444"></i> Felpositionerade</button>
-            <button class="ward-btn-q" onclick="askWardAI('Vad ska vi bygga internt vs köpa vs outsourca?')"><i class="fas fa-code-branch" style="color:#3b82f6"></i> Build vs Buy</button>
-            <button class="ward-btn-q" onclick="askWardAI('Vilka Genesis-komponenter har störst strategisk potential?')"><i class="fas fa-star" style="color:#eab308"></i> Genesis-potential</button>
-            <button class="ward-btn-q" onclick="askWardAI('Identifiera inertia och strategiska blockerare.')"><i class="fas fa-lock" style="color:#f97316"></i> Inertia & Blockerare</button>
-            <button class="ward-btn-q" onclick="askWardAI('Vilka Commodity-komponenter bör outsourcas omedelbart?')"><i class="fas fa-cloud" style="color:#22c55e"></i> Outsourca nu</button>
-            <button class="ward-btn-q" onclick="askWardAI('Hur påverkar ESG och CSRD vår value chain?')"><i class="fas fa-leaf" style="color:#22c55e"></i> ESG & CSRD</button>
-            <button class="ward-btn-q" onclick="askWardAI('Vilka komponenter rör sig mot Commodity och bör standardiseras?')"><i class="fas fa-arrow-right" style="color:#94a3b8"></i> Evolution-rörelse</button>
-            <button class="ward-btn-q" onclick="askWardAI('Ge en konkurrensanalys baserad på kartan.')"><i class="fas fa-chess" style="color:#a855f7"></i> Konkurrensanalys</button>
-            <button class="ward-btn-q" title="Skapa en 12-månaders strategisk roadmap" onclick="askWardAI('Skapa en 12-månaders strategisk roadmap.')"><i class="fas fa-calendar-alt" style="color:#3b82f6"></i> Roadmap 12m</button>
-            <button class="ward-btn-q" onclick="askWardAI('Sammanfatta kartan i en C-level executive summary.')"><i class="fas fa-briefcase" style="color:#eab308"></i> C-level Summary</button>
-            <button class="ward-btn-q" title="Förbered nästa workshop: Maturity Toolbox" onclick="askWardAI('Baserat på vår Wardley Map: vilka mognadsdimensioner bör vi fokusera på i mognadsanalysen? Vilka ramverk (Proptech, ESG, IT-Governance, etc.) rekommenderar du och varför? Förbered mig för Maturity Toolbox-workshopen.')"><i class="fas fa-arrow-right" style="color:#22c55e"></i> Förbered Mognad</button>
-            <button class="ward-btn-q" title="Öppna nästa verktyg: EA20 Maturity Toolbox" onclick="wardOpenNextTool()"><i class="fas fa-rocket" style="color:#22c55e"></i> Öppna Maturity</button>
+            <button class="ward-btn-q" onclick="askWardAI('Which components are mispositioned on the map?')"><i class="fas fa-crosshairs" style="color:#ef4444"></i> Mispositioned</button>
+            <button class="ward-btn-q" onclick="askWardAI('What should we build internally vs buy vs outsource?')"><i class="fas fa-code-branch" style="color:#3b82f6"></i> Build vs Buy</button>
+            <button class="ward-btn-q" onclick="askWardAI('Which Genesis components have the greatest strategic potential?')"><i class="fas fa-star" style="color:#eab308"></i> Genesis Potential</button>
+            <button class="ward-btn-q" onclick="askWardAI('Identify inertia and strategic blockers.')"><i class="fas fa-lock" style="color:#f97316"></i> Inertia & Blockers</button>
+            <button class="ward-btn-q" onclick="askWardAI('Which Commodity components should be outsourced immediately?')"><i class="fas fa-cloud" style="color:#22c55e"></i> Outsource Now</button>
+            <button class="ward-btn-q" onclick="askWardAI('How does ESG and CSRD impact our value chain?')"><i class="fas fa-leaf" style="color:#22c55e"></i> ESG & CSRD</button>
+            <button class="ward-btn-q" onclick="askWardAI('Which components are moving toward Commodity and should be standardized?')"><i class="fas fa-arrow-right" style="color:#94a3b8"></i> Evolution Movement</button>
+            <button class="ward-btn-q" onclick="askWardAI('Give a competitive analysis based on the map.')"><i class="fas fa-chess" style="color:#a855f7"></i> Competitive Analysis</button>
+            <button class="ward-btn-q" title="Create a 12-month strategic roadmap" onclick="askWardAI('Create a 12-month strategic roadmap.')"><i class="fas fa-calendar-alt" style="color:#3b82f6"></i> Roadmap 12m</button>
+            <button class="ward-btn-q" onclick="askWardAI('Summarize the map in a C-level executive summary.')"><i class="fas fa-briefcase" style="color:#eab308"></i> C-level Summary</button>
+            <button class="ward-btn-q" title="Prepare next workshop: Maturity Toolbox" onclick="askWardAI('Based on our Wardley Map: which maturity dimensions should we focus on? Which frameworks (Proptech, ESG, IT-Governance) do you recommend? Prepare me for the Maturity Toolbox workshop. Which frameworks (Proptech, ESG, IT-Governance, etc.) do you recommend and why? Prepare me for the Maturity Toolbox workshop.')"><i class="fas fa-arrow-right" style="color:#22c55e"></i> Prepare Maturity</button>
+            <button class="ward-btn-q" title="Open next tool: EA20 Maturity Toolbox" onclick="wardOpenNextTool()"><i class="fas fa-rocket" style="color:#22c55e"></i> Open Maturity</button>
         </div>
         <div class="ward-chat-input">
-            <input type="text" id="ward-user-input" placeholder="Fråga om din Wardley Map..." onkeypress="if(event.key==='Enter') sendWardMessage()">
+            <input type="text" id="ward-user-input" placeholder="Ask about your Wardley Map..." onkeypress="if(event.key==='Enter') sendWardMessage()">
             <button onclick="sendWardMessage()"><i class="fas fa-paper-plane"></i></button>
         </div>
     </div>
@@ -328,27 +637,27 @@
 <div id="api-modal" class="hidden">
     <div class="modal-box">
         <div class="flex items-center gap-3 mb-3">
-            <div class="w-9 h-9 bg-blue-900 rounded-xl flex items-center justify-center">
-                <i class="fas fa-key text-blue-400 text-sm"></i>
+            <div class="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-key text-blue-600 text-sm"></i>
             </div>
             <div>
-                <h2 class="text-sm font-bold text-white">OpenAI API-nyckel</h2>
-                <p class="text-[11px] text-slate-400">Delas med alla EA 2.0-verktyg</p>
+                <h2 class="text-sm font-bold text-gray-900">OpenAI API Key</h2>
+                <p class="text-[11px] text-gray-500">Delas med alla EA 2.0-verktyg</p>
             </div>
         </div>
         <input id="api-key-input" type="password" placeholder="sk-proj-..." class="w-input mb-2"/>
         <div class="flex items-center gap-2 mb-3">
             <input type="checkbox" id="show-key" onchange="toggleKeyVis()" class="rounded">
-            <label for="show-key" class="text-[11px] text-slate-400 cursor-pointer">Visa nyckel</label>
+        <label for="show-key" class="text-[11px] text-gray-500 cursor-pointer">Show key</label>
         </div>
         <div class="flex gap-2">
             <button class="btn btn-primary flex-1" onclick="saveApiKey()">
-                <i class="fas fa-check"></i> Spara & Aktivera
+                <i class="fas fa-check"></i> Save & Activate
             </button>
             <button class="btn btn-secondary" onclick="closeApiModal()">Avbryt</button>
         </div>
-        <p class="text-[10px] text-slate-500 mt-2 flex items-center gap-1">
-            <i class="fas fa-shield-alt"></i> Skickas endast till OpenAI.
+        <p class="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
+            <i class="fas fa-shield-alt"></i> Sent only to OpenAI.
         </p>
     </div>
 </div>
@@ -356,157 +665,74 @@
 <!-- Add Component Modal -->
 <div id="add-modal" class="hidden">
     <div class="modal-box" style="max-width:360px;">
-        <h2 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
-            <i class="fas fa-plus-circle text-blue-400"></i> Lägg till komponent
-        </h2>
+        <h2 class="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2"><i class="fas fa-plus-circle text-blue-600"></i> Add Component</h2>
         <div class="space-y-3">
             <div>
-                <label class="text-[11px] text-slate-400 block mb-1">Komponentnamn *</label>
-                <input id="new-name" class="w-input" placeholder="Ex: Hyresgästportal, IoT-sensorer..."/>
+                <label class="text-[11px] text-gray-600 block mb-1">Component Name *</label>
+                <input id="new-name" class="w-input" placeholder="E.g. Tenant portal, IoT sensors..."/>
             </div>
             <div>
-                <label class="text-[11px] text-slate-400 block mb-1">Kategori</label>
+                <label class="text-[11px] text-gray-600 block mb-1">Category</label>
                 <select id="new-category" class="w-input">
-                    <option value="Kund">Kund (synlig)</option>
-                    <option value="Plattform">Plattform</option>
+                    <option value="Kund">Customer (visible)</option>
+                    <option value="Plattform">Platform</option>
                     <option value="Data & AI">Data & AI</option>
-                    <option value="Infrastruktur">Infrastruktur</option>
+                    <option value="Infrastruktur">Infrastructure</option>
                     <option value="Process">Process</option>
                     <option value="Compliance">Compliance / ESG</option>
                 </select>
             </div>
             <div>
-                <label class="text-[11px] text-slate-400 block mb-1">Evolution (X-axel)</label>
+                <label class="text-[11px] text-gray-600 block mb-1">Evolution (X-axis)</label>
                 <select id="new-evolution" class="w-input">
-                    <option value="10">Genesis (0–25%) – Ny, unik, osäker</option>
-                    <option value="35">Custom (25–50%) – Skräddarsydd lösning</option>
-                    <option value="60">Product (50–75%) – Standardiserad produkt</option>
-                    <option value="85">Commodity (75–100%) – Utility/outsourca</option>
+                    <option value="10">Genesis (0-25%) — New, unique, uncertain</option>
+                    <option value="35">Custom (25-50%) — Tailored solution</option>
+                    <option value="60">Product (50-75%) — Standardized product</option>
+                    <option value="85">Commodity (75-100%) — Utility/outsource</option>
                 </select>
             </div>
             <div>
-                <label class="text-[11px] text-slate-400 block mb-1">Synlighet för kund (Y-axel)</label>
+                <label class="text-[11px] text-gray-600 block mb-1">Customer Visibility (Y-axis)</label>
                 <select id="new-visibility" class="w-input">
-                    <option value="15">Hög – Direkt kundvärde</option>
-                    <option value="35">Medel-hög</option>
-                    <option value="55">Medel-låg</option>
-                    <option value="80">Låg – Infrastruktur/backend</option>
+                    <option value="15">High — Direct customer value</option>
+                    <option value="35">Medium-High</option>
+                    <option value="55">Medium-Low</option>
+                    <option value="80">Low — Infrastructure/backend</option>
                 </select>
             </div>
             <div>
-                <label class="text-[11px] text-slate-400 block mb-1">Färg</label>
+                <label class="text-[11px] text-gray-600 block mb-1">Color</label>
                 <select id="new-color" class="w-input">
-                    <option value="color-blue">Blå (Plattform)</option>
-                    <option value="color-green">Grön (Kund/Värde)</option>
-                    <option value="color-red">Röd (Risk/Genesis)</option>
+                    <option value="color-blue">Blue (Platform)</option>
+                    <option value="color-green">Green (Customer/Value)</option>
+                    <option value="color-red">Red (Risk/Genesis)</option>
                     <option value="color-orange">Orange (Process)</option>
-                    <option value="color-purple">Lila (AI/Data)</option>
-                    <option value="color-yellow">Gul (Compliance)</option>
+                    <option value="color-purple">Purple (AI/Data)</option>
+                    <option value="color-yellow">Yellow (Compliance)</option>
                     <option value="color-teal">Teal (Innovation)</option>
-                    <option value="color-pink">Rosa (Kanal)</option>
+                    <option value="color-pink">Pink (Channel)</option>
                 </select>
             </div>
             <div>
-                <label class="text-[11px] text-slate-400 block mb-1">Notering (valfri)</label>
-                <input id="new-note" class="w-input" placeholder="Ex: Bör outsourcas, kritisk beroende..."/>
+                <label class="text-[11px] text-gray-600 block mb-1">Note (optional)</label>
+                <input id="new-note" class="w-input" placeholder="E.g. Should be outsourced, critical dependency..."/>
             </div>
         </div>
         <div class="flex gap-2 mt-4">
-            <button class="btn btn-primary flex-1" onclick="confirmAddComponent()">
-                <i class="fas fa-plus"></i> Lägg till
-            </button>
-            <button class="btn btn-secondary" onclick="closeAddModal()">Avbryt</button>
-        </div>
-    </div>
-</div>
-
-<!-- Import CSV Modal -->
-<div id="import-modal" class="hidden">
-    <div class="modal-box" style="max-width:560px; width:95%;">
-        <h2 class="text-sm font-bold text-white mb-1 flex items-center gap-2">
-            <i class="fas fa-file-import text-blue-400"></i> Importera från Capability Map (CSV)
-        </h2>
-        <p class="text-[11px] text-slate-400 mb-4">Välj filen <code class="bg-slate-700 px-1 rounded">EA2_Capabilities.csv</code> som exporterades från Capability Map-verktyget.</p>
-
-        <div id="import-drop-zone"
-            class="border-2 border-dashed border-slate-600 rounded-xl p-6 text-center mb-4 cursor-pointer hover:border-blue-500 transition"
-            onclick="document.getElementById('csv-file-input').click()"
-            ondragover="event.preventDefault(); this.classList.add('border-blue-500')"
-            ondragleave="this.classList.remove('border-blue-500')"
-            ondrop="handleFileDrop(event)">
-            <i class="fas fa-cloud-upload-alt text-2xl text-slate-500 mb-2 block"></i>
-            <p class="text-[12px] text-slate-400">Klicka eller dra & släpp CSV-fil här</p>
-            <p class="text-[10px] text-slate-600 mt-1">EA2_Capabilities.csv</p>
-        </div>
-        <input type="file" id="csv-file-input" accept=".csv" class="hidden" onchange="handleFileSelect(event)"/>
-
-        <div id="import-preview" class="hidden mb-4 rounded-lg overflow-hidden border border-slate-700">
-            <table>
-                <thead id="import-preview-head"></thead>
-                <tbody id="import-preview-body"></tbody>
-            </table>
-        </div>
-
-        <div id="import-summary" class="hidden text-[11px] text-slate-400 mb-4 bg-slate-800 rounded-lg p-3"></div>
-
-        <div class="flex gap-2">
-            <button id="import-confirm-btn" class="btn btn-import flex-1 hidden" onclick="confirmImport()">
-                <i class="fas fa-check"></i> Importera komponenter
-            </button>
-            <button class="btn btn-secondary" onclick="closeImportModal()">Avbryt</button>
-        </div>
-    </div>
-</div>
-
-<!-- Main App -->
-<div class="max-w-7xl mx-auto">
-
-    <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-5 gap-3">
-        <div>
-            <h1 class="text-xl font-bold text-white flex items-center gap-2">
-                <i class="fas fa-map text-yellow-400"></i>
-                AI Strategy Workbench
-                <span class="text-yellow-400 text-xs font-semibold bg-yellow-400/10 px-2 py-0.5 rounded-full border border-yellow-400/20">Wardley Map V2</span>
-            </h1>
-            <p class="text-[12px] text-slate-400 mt-1">
-                Strategisk positionering · Evolution · Value Chain · Proptech & Real Estate
-            </p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-            <a href="Wardley_Workshop_Builder.html" class="btn text-[11px]" style="background:linear-gradient(135deg,#5b21b6,#1e40af);color:white;text-decoration:none;" title="Bygg kartan steg för steg med guidad workshop">
-                <i class="fas fa-chess-board"></i> Workshop Builder
-            </a>
-            <button onclick="openApiModal()" class="btn btn-secondary text-[11px]">
-                <i class="fas fa-key"></i>
-                <span id="api-status-text">API-nyckel</span>
-            </button>
-            <button onclick="loadExample()" class="btn btn-secondary text-[11px]">
-                <i class="fas fa-lightbulb text-yellow-400"></i> Ladda exempel
-            </button>
-            <button onclick="clearMap()" class="btn btn-secondary text-[11px]">
-                <i class="fas fa-trash-alt text-red-400"></i> Rensa
-            </button>
-            <button onclick="saveMap()" class="btn btn-secondary text-[11px]">
-                <i class="fas fa-save text-green-400"></i> Spara
-            </button>
-            <button onclick="openAddModal()" class="btn btn-secondary text-[11px]">
-                <i class="fas fa-plus text-blue-400"></i> Lägg till
-            </button>
+            <button class="btn btn-primary flex-1" onclick="confirmAddComponent()"><i class="fas fa-plus"></i> Add</button>
             <button onclick="openImportModal()" class="btn btn-import text-[11px]">
-                <i class="fas fa-file-import"></i> Importera CSV
+                <i class="fas fa-file-import"></i> Import CSV
             </button>
             <button onclick="exportWardleyToCSV()" class="btn btn-export text-[11px]">
-                <i class="fas fa-file-excel"></i> Exportera (Excel)
+                <i class="fas fa-file-excel"></i> Export (Excel)
             </button>
-            <button onclick="exportToIntegrationCache()" class="btn text-[11px]" style="background: linear-gradient(135deg, #9333ea, #7e22ce); color: white; border: none;" title="Exportera till EA Platform integration">
-                <i class="fas fa-project-diagram"></i> Exportera (EA)
+            <button onclick="exportToIntegrationCache()" class="btn text-[11px]" style="background: linear-gradient(135deg, #9333ea, #7e22ce); color: white; border: none;" title="Export to EA Platform integration">
+                <i class="fas fa-project-diagram"></i> Export (EA)
             </button>
             <button onclick="runAI()" class="btn btn-gold text-[11px]">
                 <i class="fas fa-robot"></i> AI Wardley-analys
             </button>
         </div>
-    </div>
 
     <!-- Main layout: Canvas + Sidebar -->
     <div class="flex gap-4">
@@ -524,8 +750,8 @@
 
             <div class="flex gap-2">
                 <div class="flex flex-col justify-between items-center py-2" style="width:28px;">
-                    <span class="text-[9px] text-slate-500 font-bold uppercase tracking-widest" style="writing-mode:vertical-rl; transform:rotate(180deg);">Synlighet ↑ Hög</span>
-                    <span class="text-[9px] text-slate-500 font-bold uppercase tracking-widest" style="writing-mode:vertical-rl; transform:rotate(180deg);">Låg ↓</span>
+                    <span class="text-[9px] text-gray-500 font-bold uppercase tracking-widest" style="writing-mode:vertical-rl; transform:rotate(180deg);">Visibility — High</span>
+                    <span class="text-[9px] text-slate-500 font-bold uppercase tracking-widest" style="writing-mode:vertical-rl; transform:rotate(180deg);">Low —</span>
                 </div>
 
                 <div id="wardley-canvas" onclick="handleCanvasClick(event)">
@@ -539,19 +765,19 @@
                     <div style="position:absolute;left:75%;top:0;bottom:40px;width:1px;background:rgba(148,163,184,0.12);"></div>
                     <div style="position:absolute;left:0;right:0;bottom:40px;height:1px;background:rgba(148,163,184,0.2);"></div>
 
-                    <span class="x-label" style="left:12.5%;">Genesis<br><span style="color:#ef4444;font-size:0.55rem;">0–25%</span></span>
-                    <span class="x-label" style="left:37.5%;">Custom<br><span style="color:#f97316;font-size:0.55rem;">25–50%</span></span>
-                    <span class="x-label" style="left:62.5%;">Product<br><span style="color:#3b82f6;font-size:0.55rem;">50–75%</span></span>
-                    <span class="x-label" style="left:87.5%;">Commodity<br><span style="color:#22c55e;font-size:0.55rem;">75–100%</span></span>
+                    <span class="x-label" style="left:12.5%;">Genesis<br><span style="color:#ef4444;font-size:0.55rem;">0-25%</span></span>
+                    <span class="x-label" style="left:37.5%;">Custom<br><span style="color:#f97316;font-size:0.55rem;">25-50%</span></span>
+                    <span class="x-label" style="left:62.5%;">Product<br><span style="color:#3b82f6;font-size:0.55rem;">50-75%</span></span>
+                    <span class="x-label" style="left:87.5%;">Commodity<br><span style="color:#22c55e;font-size:0.55rem;">75-100%</span></span>
 
                     <div id="nodes-container"></div>
                 </div>
             </div>
 
-            <p class="text-[10px] text-slate-600 mt-2 text-center">
+            <p class="text-[10px] text-gray-500 mt-2 text-center">
                 <i class="fas fa-info-circle mr-1"></i>
-                Klicka på kartan för att lägga till · Dra noder för att flytta · Hovra för detaljer ·
-                <span class="text-blue-400">Importera CSV</span> från Capability Map
+                Click on the map to add a component - Drag nodes to move - Hover for details
+                <span class="text-blue-400">Import CSV</span> from Capability Map
             </p>
         </div>
 
@@ -561,7 +787,7 @@
             <div class="sidebar-card">
                 <h3><i class="fas fa-circle-dot mr-1"></i> Kategorier</h3>
                 <div class="space-y-1.5 text-[11px]">
-                    <div class="flex items-center gap-2"><span class="legend-dot color-green"></span> Kund / Värde</div>
+                    <div class="flex items-center gap-2"><span class="legend-dot color-green"></span> Customer / Value</div>
                     <div class="flex items-center gap-2"><span class="legend-dot color-blue"></span> Plattform</div>
                     <div class="flex items-center gap-2"><span class="legend-dot color-purple"></span> Data & AI</div>
                     <div class="flex items-center gap-2"><span class="legend-dot color-orange"></span> Process</div>
@@ -573,58 +799,58 @@
 
             <div class="sidebar-card">
                 <h3><i class="fas fa-arrow-right mr-1"></i> Evolution-guide</h3>
-                <div class="space-y-2 text-[11px] text-slate-400">
-                    <div><span class="text-red-400 font-bold">Genesis:</span> Ny, unik, hög risk. Bygg internt.</div>
-                    <div><span class="text-orange-400 font-bold">Custom:</span> Skräddarsydd. Differentiering.</div>
-                    <div><span class="text-blue-400 font-bold">Product:</span> Standardiserad. Köp/partner.</div>
-                    <div><span class="text-green-400 font-bold">Commodity:</span> Utility. Outsourca/SaaS.</div>
+                <div class="space-y-2 text-[11px] text-gray-600">
+                    <div><span class="text-red-600 font-bold">Genesis:</span> New, unique, high risk. Build internally.</div>
+                    <div><span class="text-orange-600 font-bold">Custom:</span> Tailored. Differentiation.</div>
+                    <div><span class="text-blue-700 font-bold">Product:</span> Standardized. Buy/partner.</div>
+                    <div><span class="text-green-700 font-bold">Commodity:</span> Utility. Outsource/SaaS.</div>
                 </div>
             </div>
 
             <div class="sidebar-card">
-                <h3><i class="fas fa-building mr-1"></i> Kontext för AI</h3>
+                <h3><i class="fas fa-building mr-1"></i> AI Context</h3>
                 <div class="space-y-2">
                     <div>
-                        <label class="text-[10px] text-slate-500 block mb-1">Organisation / Bolag</label>
-                        <input id="ctx-org" class="w-input text-[11px]" placeholder="Ex: Fastighetsbolag, 500 enheter"/>
+                        <label class="text-[10px] text-gray-500 block mb-1">Organization / Company</label>
+                        <input id="ctx-org" class="w-input text-[11px]" placeholder="E.g. Real estate company, 500 units"/>
                     </div>
                     <div>
-                        <label class="text-[10px] text-slate-500 block mb-1">Strategiskt fokus</label>
+                        <label class="text-[10px] text-gray-500 block mb-1">Strategic Focus</label>
                         <select id="ctx-focus" class="w-input text-[11px]">
-                            <option>Digitalisering & automation</option>
-                            <option>ESG & hållbarhet</option>
-                            <option>Kostnadsoptimering</option>
-                            <option>Tillväxt & skalning</option>
-                            <option>Riskreduktion</option>
+                            <option>Digitalization & Automation</option>
+                            <option>ESG & Sustainability</option>
+                            <option>Cost Optimization</option>
+                            <option>Growth & Scaling</option>
+                            <option>Risk Reduction</option>
                         </select>
                     </div>
                     <div>
-                        <label class="text-[10px] text-slate-500 block mb-1">Tidshorisont</label>
+                        <label class="text-[10px] text-gray-500 block mb-1">Time Horizon</label>
                         <select id="ctx-horizon" class="w-input text-[11px]">
-                            <option>12 månader</option>
-                            <option>24 månader</option>
-                            <option>36 månader</option>
+                            <option>12 months</option>
+                            <option>24 months</option>
+                            <option>36 months</option>
                         </select>
                     </div>
                 </div>
             </div>
 
             <div class="sidebar-card text-center">
-                <div class="text-2xl font-bold text-white" id="node-count">0</div>
-                <div class="text-[10px] text-slate-500 uppercase tracking-widest">Komponenter</div>
+                <div class="text-2xl font-bold text-gray-900" id="node-count">0</div>
+                <div class="text-[10px] text-gray-500 uppercase tracking-widest">Components</div>
             </div>
 
             <!-- Import/Export info -->
             <div class="sidebar-card">
-                <h3><i class="fas fa-exchange-alt mr-1"></i> Dataflöde</h3>
-                <div class="space-y-2 text-[11px] text-slate-400">
+                <h3><i class="fas fa-exchange-alt mr-1"></i> Data Flow</h3>
+                <div class="space-y-2 text-[11px] text-gray-600">
                     <div class="flex items-start gap-2">
-                        <i class="fas fa-arrow-right text-blue-400 mt-0.5 shrink-0"></i>
-                        <span><strong class="text-slate-300">Importera CSV</strong> – Läs in capabilities från Capability Map</span>
+                        <i class="fas fa-arrow-right text-blue-600 mt-0.5 shrink-0"></i>
+                        <span><strong class="text-gray-800">Import CSV</strong> - Load capabilities from Capability Map</span>
                     </div>
                     <div class="flex items-start gap-2">
-                        <i class="fas fa-arrow-left text-green-400 mt-0.5 shrink-0"></i>
-                        <span><strong class="text-slate-300">Exportera Excel</strong> – Spara Wardley-kartan som CSV för rapporter</span>
+                        <i class="fas fa-arrow-left text-green-600 mt-0.5 shrink-0"></i>
+                        <span><strong class="text-gray-800">Export Excel</strong> - Save Wardley Map as CSV for reports</span>
                     </div>
                 </div>
             </div>
@@ -639,7 +865,7 @@
             </div>
             <div class="flex items-center gap-3">
                 <span id="model-badge" class="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full"></span>
-                <button onclick="closeResult()" class="text-white/70 hover:text-white text-lg leading-none">×</button>
+                <button onclick="closeResult()" class="text-white/70 hover:text-white text-lg leading-none">&times;</button>
             </div>
         </div>
         <div id="result-content"></div>
@@ -654,14 +880,14 @@
     let pendingClickX = 0, pendingClickY = 0;
     let importedRows = [];
 
-    // ── Initialize unified data manager ────
+    // -- Initialize unified data manager ----
     let dataManager = null;
     if (typeof EA_DataManager !== 'undefined') {
         dataManager = new EA_DataManager();
-        console.log('✅ Strategy Workbench: DataManager initialized - unified API key active');
+        console.log('? Strategy Workbench: DataManager initialized - unified API key active');
     }
 
-    // ── API Key ──
+    // -- API Key --
     function getApiKey() {
         if (dataManager) return dataManager.getApiKey() || '';
         
@@ -676,11 +902,11 @@
     
     function saveApiKey() {
         const key = document.getElementById('api-key-input').value.trim();
-        if (!key.startsWith('sk-')) { alert('Nyckeln ska börja med "sk-".'); return; }
+        if (!key.startsWith('sk-')) { alert('Key must start with "sk-".'); return; }
         
         if (dataManager) {
             dataManager.setApiKey(key);
-            console.log('✅ API key saved via unified DataManager');
+            console.log('? API key saved via unified DataManager');
         } else {
             // Fallback to legacy storage
             const legacyKeys = ['ea20_openai_key','vc_openai_key','cap_openai_key','strategy_openai_key','openai_api_key','bmc_openai_key','ea_openai_key'];
@@ -689,12 +915,12 @@
         
         updateApiStatus();
         closeApiModal();
-        showToast('API-nyckel sparad för alla EA 2.0-verktyg ✓ (delas med EA Platform)');
+        showToast('API key saved for all EA 2.0 tools (shared with EA Platform)');
     }
     function updateApiStatus() {
         const key = getApiKey();
         const el = document.getElementById('api-status-text');
-        el.textContent = key ? 'API aktiv · ' + key.substring(0,8) + '...' : 'API-nyckel saknas';
+        el.textContent = key ? 'API active: ' + key.substring(0,8) + '...' : 'API key missing';
     }
     function openApiModal() {
         const key = getApiKey();
@@ -707,7 +933,7 @@
         i.type = i.type === 'password' ? 'text' : 'password';
     }
 
-    // ── Add Component Modal ──
+    // -- Add Component Modal --
     function openAddModal(x, y) {
         pendingClickX = x || 50;
         pendingClickY = y || 50;
@@ -718,7 +944,7 @@
 
     function confirmAddComponent() {
         const name = document.getElementById('new-name').value.trim();
-        if (!name) { showToast('⚠️ Ange ett komponentnamn'); return; }
+        if (!name) { showToast('?? Ange ett komponentnamn'); return; }
         const evo = parseFloat(document.getElementById('new-evolution').value);
         const vis = parseFloat(document.getElementById('new-visibility').value);
         const color = document.getElementById('new-color').value;
@@ -735,10 +961,10 @@
         closeAddModal();
         document.getElementById('new-name').value = '';
         document.getElementById('new-note').value = '';
-        showToast(`"${name}" tillagd ✓`);
+        showToast(`"${name}" tillagd ?`);
     }
 
-    // ── Canvas click ──
+    // -- Canvas click --
     function handleCanvasClick(e) {
         if (e.target !== document.getElementById('wardley-canvas') &&
             e.target.id !== 'nodes-container') return;
@@ -758,7 +984,7 @@
         document.getElementById('node-count').textContent = components.length;
     }
 
-    // ── Render nodes ──
+    // -- Render nodes --
     function renderNodes() {
         const container = document.getElementById('nodes-container');
         const canvas = document.getElementById('wardley-canvas');
@@ -773,7 +999,7 @@
             node.style.top = (comp.y / 100 * canvasH) + 'px';
 
             node.innerHTML = `
-                <div class="w-node-delete" onclick="deleteComponent(${comp.id})">×</div>
+                <div class="w-node-delete" onclick="deleteComponent(${comp.id})">&times;</div>
                 <div class="w-node-dot ${comp.color}"></div>
                 <div class="w-node-label">${comp.name}</div>
             `;
@@ -787,7 +1013,7 @@
         updateCount();
     }
 
-    // ── Drag ──
+    // -- Drag --
     function startDrag(e) {
         if (e.target.classList.contains('w-node-delete')) return;
         e.preventDefault();
@@ -821,16 +1047,16 @@
         document.removeEventListener('mouseup', stopDrag);
     }
 
-    // ── Tooltip ──
+    // -- Tooltip --
     function showTooltip(e, comp) {
         const t = document.getElementById('tooltip');
         const evoLabel = comp.x < 25 ? 'Genesis' : comp.x < 50 ? 'Custom' : comp.x < 75 ? 'Product' : 'Commodity';
-        const visLabel = comp.y < 30 ? 'Hög synlighet' : comp.y < 60 ? 'Medel synlighet' : 'Låg synlighet';
+        const visLabel = comp.y < 30 ? 'High visibility' : comp.y < 60 ? 'Medium visibility' : 'Low visibility';
         t.innerHTML = `
             <div class="font-bold text-white mb-1">${comp.name}</div>
             <div class="text-slate-400">${comp.category}</div>
             <div class="text-[10px] mt-1">
-                <span class="text-yellow-400">${evoLabel}</span> · <span class="text-blue-400">${visLabel}</span>
+                <span class="text-yellow-400">${evoLabel}</span> | <span class="text-blue-400">${visLabel}</span>
             </div>
             ${comp.note ? `<div class="text-[10px] text-slate-500 mt-1 italic">${comp.note}</div>` : ''}
         `;
@@ -840,14 +1066,14 @@
     }
     function hideTooltip() { document.getElementById('tooltip').style.display = 'none'; }
 
-    // ── Save / Clear ──
+    // -- Save / Clear --
     function saveMap() {
         localStorage.setItem('wardley_v2', JSON.stringify(components));
         
         // Auto-export to integration cache
         exportToIntegrationCache();
         
-        showToast('Wardley Map sparad i webbläsaren ✓');
+        showToast('Wardley Map saved in browser');
     }
 
     function clearMap() {
@@ -880,7 +1106,7 @@
                 name,
                 category: item.domainLabel || item.domain || 'Capability',
                 color: wardley.color || (item.priority === 'strategic' ? 'color-red' : item.priority === 'important' ? 'color-orange' : 'color-green'),
-                note: item.desc || 'Importerad från Capability Mapping',
+                note: item.desc || 'Imported from Capability Mapping',
                 x: Math.max(1, Math.min(99, x)),
                 y: Math.max(1, Math.min(99, y))
             });
@@ -890,25 +1116,25 @@
         if (added > 0) {
             renderNodes();
             saveMap();
-            showToast(`✓ Importerade ${added} komponenter från Capability Mapping`);
+            showToast(`? Imported ${added} components from Capability Mapping`);
             return true;
         }
 
         return false;
     }
 
-    // ── Integration Export Functions ────
+    // -- Integration Export Functions ----
     /**
      * Export Wardley Map to integration cache for EA Platform
      */
     function exportToIntegrationCache() {
         if (!dataManager) {
-            showToast('⚠️ DataManager not available - export skipped');
+            showToast('?? DataManager not available - export skipped');
             return false;
         }
 
         if (!components.length) {
-            showToast('⚠️ Inga komponenter att exportera');
+            showToast('?? Inga komponenter att exportera');
             return false;
         }
 
@@ -978,12 +1204,12 @@
             // Update export status indicator
             updateExportStatus(true);
             
-            console.log('✅ Wardley Map exported to integration cache:', exportData);
-            showToast(`✓ Exporterad till EA Platform (${enrichedComponents.length} komponenter)`);
+            console.log('? Wardley Map exported to integration cache:', exportData);
+            showToast(`? Exporterad till EA Platform (${enrichedComponents.length} komponenter)`);
             return true;
         } catch (error) {
-            console.error('❌ Export failed:', error);
-            showToast('⚠️ Export misslyckades');
+            console.error('? Export failed:', error);
+            showToast('?? Export misslyckades');
             return false;
         }
     }
@@ -999,7 +1225,7 @@
         };
 
         components.forEach(c => {
-            // Genesis/Custom → Build or Partner
+            // Genesis/Custom ? Build or Partner
             if (c.evolution === 'Genesis' || c.evolution === 'Custom') {
                 if (c.visibility === 'High') {
                     recommendations.buildBuyPartner.push({
@@ -1018,7 +1244,7 @@
                 }
             }
 
-            // Product → Buy or standardize
+            // Product ? Buy or standardize
             if (c.evolution === 'Product') {
                 recommendations.buildBuyPartner.push({
                     component: c.name,
@@ -1028,7 +1254,7 @@
                 });
             }
 
-            // Commodity → Optimize or outsource
+            // Commodity ? Optimize or outsource
             if (c.evolution === 'Commodity') {
                 recommendations.optimization.push({
                     component: c.name,
@@ -1038,7 +1264,7 @@
                 });
             }
 
-            // High visibility + early evolution → innovation opportunity
+            // High visibility + early evolution ? innovation opportunity
             if (c.visibility === 'High' && (c.evolution === 'Genesis' || c.evolution === 'Custom')) {
                 recommendations.innovation.push({
                     component: c.name,
@@ -1057,7 +1283,7 @@
     function updateExportStatus(exported) {
         const header = document.getElementById('ward-sync-status');
         if (header && exported) {
-            header.innerHTML = '<i class="fas fa-check-circle text-green-400"></i> <span class="text-green-300">Exporterad till EA Platform ✓</span>';
+            header.innerHTML = '<i class="fas fa-check-circle text-green-400"></i> <span class="text-green-300">Exporterad till EA Platform ?</span>';
             setTimeout(() => {
                 header.innerHTML = '<i class="fas fa-sync-alt"></i> Data synkas automatiskt med EA Platform';
                 renderWardContextBadge();
@@ -1074,7 +1300,7 @@
             return;
         }
         const age = Math.max(0, Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60));
-        badge.innerHTML = '<i class="fas fa-link mr-1"></i> Kontext från Capability Map · uppdaterad ' + age + ' min sedan';
+        badge.innerHTML = '<i class="fas fa-link mr-1"></i> Context from Capability Map — updated ' + age + ' min sedan';
         badge.classList.remove('hidden');
     }
 
@@ -1093,14 +1319,14 @@
         if (hasData) {
             const data = dataManager.getIntegrationPackage('capability_latest');
             const age = Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60);
-            console.log(`ℹ️ Last Capability Map export: ${age} minutes ago`);
+            console.log(`?? Last Capability Map export: ${age} minutes ago`);
         }
     }
 
-    // ── Export to CSV (Excel) ──
+    // -- Export to CSV (Excel) --
     function exportWardleyToCSV() {
         if (!components.length) {
-            showToast('⚠️ Inga komponenter att exportera');
+            showToast('?? Inga komponenter att exportera');
             return;
         }
 
@@ -1132,10 +1358,10 @@
         });
 
         downloadCSV(rows, 'EA2_Wardley_Map.csv');
-        showToast('✅ EA2_Wardley_Map.csv exporterad');
+        showToast('? EA2_Wardley_Map.csv exporterad');
     }
 
-    // ── Import CSV Modal ──
+    // -- Import CSV Modal --
     function openImportModal() {
         importedRows = [];
         document.getElementById('import-preview').classList.add('hidden');
@@ -1164,7 +1390,7 @@
             const text = e.target.result.replace(/^\uFEFF/, ''); // strip BOM
             const lines = text.split(/\r?\n/).filter(l => l.trim());
             if (lines.length < 2) {
-                showToast('⚠️ Filen verkar tom eller ogiltig');
+                showToast('?? Filen verkar tom eller ogiltig');
                 return;
             }
 
@@ -1221,9 +1447,9 @@
         const summary = document.getElementById('import-summary');
         summary.innerHTML = `
             <i class="fas fa-check-circle text-green-400 mr-1"></i>
-            <strong class="text-slate-200">${rows.length} rader</strong> hittades i filen.
-            ${isCapMap ? 'Format: <span class="text-blue-400">Capability Map export</span> – koordinater beräknas automatiskt.' : 'Format: <span class="text-green-400">Wardley Map export</span> – koordinater läses direkt.'}
-            ${rows.length > 8 ? ` (visar 8 av ${rows.length})` : ''}
+            <strong class="text-gray-800">${rows.length} rader</strong> rows found in file.
+            ${isCapMap ? 'Format: <span class="text-blue-400">Capability Map export</span> - coordinates calculated automatically.' : 'Format: <span class="text-green-400">Wardley Map export</span> - coordinates loaded directly.'}
+            ${rows.length > 8 ? ` (showing 8 of ${rows.length})` : ''}
         `;
         summary.classList.remove('hidden');
         document.getElementById('import-confirm-btn').classList.remove('hidden');
@@ -1266,7 +1492,7 @@
 
         renderNodes();
         closeImportModal();
-        showToast(`✅ ${added} komponenter importerade från CSV`);
+        showToast(`${added} components imported from CSV`);
     }
 
     function evoToX(evo) {
@@ -1293,7 +1519,7 @@
         return 50;
     }
 
-    // ── CSV download helper ──
+    // -- CSV download helper --
     function downloadCSV(rows, filename) {
         const BOM = '\uFEFF';
         const csv = BOM + rows.map(r =>
@@ -1314,31 +1540,31 @@
         URL.revokeObjectURL(url);
     }
 
-    // ── Load Example ──
+    // -- Load Example --
     function loadExample() {
         components = [
-            { id: 1,  name: 'Hyresgästupplevelse',  category: 'Kund',          color: 'color-green',  x: 62, y: 10, note: 'Direkt kundvärde – differentiering' },
-            { id: 2,  name: 'Hyresgästportal',       category: 'Plattform',     color: 'color-blue',   x: 58, y: 22, note: 'Standardiserad SaaS-lösning' },
-            { id: 3,  name: 'Prediktivt underhåll',  category: 'Data & AI',     color: 'color-purple', x: 28, y: 30, note: 'Custom AI-modell – konkurrensfördel' },
-            { id: 4,  name: 'IoT-sensorer',          category: 'Infrastruktur', color: 'color-teal',   x: 72, y: 45, note: 'Commodity – köp/outsourca' },
-            { id: 5,  name: 'Energioptimering',      category: 'Process',       color: 'color-orange', x: 42, y: 38, note: 'ESG-krav driver adoption' },
-            { id: 6,  name: 'CSRD-rapportering',     category: 'Compliance',    color: 'color-yellow', x: 35, y: 55, note: 'Regulatoriskt krav 2025' },
-            { id: 7,  name: 'Fastighetssystem (ERP)',category: 'Plattform',     color: 'color-blue',   x: 80, y: 60, note: 'Vitec/Momentum – commodity' },
-            { id: 8,  name: 'AI Hyresanalys',        category: 'Data & AI',     color: 'color-purple', x: 15, y: 25, note: 'Genesis – strategisk innovation' },
-            { id: 9,  name: 'Molninfrastruktur',     category: 'Infrastruktur', color: 'color-green',  x: 88, y: 75, note: 'AWS/Azure – utility' },
-            { id: 10, name: 'Digital Tvilling',      category: 'Innovation',    color: 'color-teal',   x: 12, y: 18, note: 'Genesis – BIM + IoT + AI' },
-            { id: 11, name: 'Betalningslösning',     category: 'Process',       color: 'color-orange', x: 85, y: 35, note: 'Commodity – Stripe/Bankgiro' },
-            { id: 12, name: 'Cybersäkerhet',         category: 'Infrastruktur', color: 'color-red',    x: 55, y: 70, note: 'ISO 27001 – kritisk risk' },
+            { id: 1,  name: 'Tenant Experience',  category: 'Customer',          color: 'color-green',  x: 62, y: 10, note: 'Direct customer value - differentiation' },
+            { id: 2,  name: 'Tenant Portal',       category: 'Platform',     color: 'color-blue',   x: 58, y: 22, note: 'Standardized SaaS solution' },
+            { id: 3,  name: 'Predictive Maintenance',  category: 'Data & AI',     color: 'color-purple', x: 28, y: 30, note: 'Custom AI model - competitive advantage' },
+            { id: 4,  name: 'IoT Sensors',             category: 'Infrastructure', color: 'color-teal',   x: 72, y: 45, note: 'Commodity - buy/outsource' },
+            { id: 5,  name: 'Energioptimering',      category: 'Process',       color: 'color-orange', x: 42, y: 38, note: 'ESG requirements drive adoption' },
+            { id: 6,  name: 'CSRD-rapportering',     category: 'Compliance',    color: 'color-yellow', x: 35, y: 55, note: 'Regulatory requirement 2025' },
+            { id: 7,  name: 'Property System (ERP)',   category: 'Platform',     color: 'color-blue',   x: 80, y: 60, note: 'Vitec/Momentum - commodity' },
+            { id: 8,  name: 'AI Hyresanalys',        category: 'Data & AI',     color: 'color-purple', x: 15, y: 25, note: 'Genesis - strategic innovation' },
+            { id: 9,  name: 'Cloud Infrastructure',    category: 'Infrastructure', color: 'color-green',  x: 88, y: 75, note: 'AWS/Azure - utility' },
+            { id: 10, name: 'Digital Twin',            category: 'Innovation',    color: 'color-teal',   x: 12, y: 18, note: 'Genesis - BIM + IoT + AI' },
+            { id: 11, name: 'Payment Solution',     category: 'Process',       color: 'color-orange', x: 85, y: 35, note: 'Commodity - Stripe/Bankgiro' },
+            { id: 12, name: 'Cybersecurity',           category: 'Infrastructure', color: 'color-red',    x: 55, y: 70, note: 'ISO 27001 - critical risk' },
         ];
         renderNodes();
-        showToast('Proptech Wardley-exempelscenario laddat ✓');
+        showToast('PropTech Wardley example scenario loaded');
     }
 
-    // ── AI Analysis ──
+    // -- AI Analysis --
     async function runAI() {
         const apiKey = getApiKey();
-        if (!apiKey) { openApiModal(); showToast('⚠️ Lägg till API-nyckel först'); return; }
-        if (components.length === 0) { showToast('⚠️ Lägg till komponenter på kartan först'); return; }
+        if (!apiKey) { openApiModal(); showToast('?? Please add an API key first'); return; }
+        if (components.length === 0) { showToast('?? Please add components to the map first'); return; }
 
         const btn = document.querySelector('button.btn-gold');
         btn.disabled = true;
@@ -1347,46 +1573,50 @@
         const panel = document.getElementById('result-panel');
         const content = document.getElementById('result-content');
         panel.classList.remove('hidden');
-        content.innerHTML = '<div class="flex items-center gap-2 text-blue-400 text-sm p-4"><i class="fas fa-spinner spinner"></i><span>AI analyserar Wardley Map utifrån strategiska affärsutfall...</span></div>';
+        content.innerHTML = '<div class="flex items-center gap-2 text-blue-400 text-sm p-4"><i class="fas fa-spinner spinner"></i><span>AI analyzing Wardley Map based on strategic business outcomes...</span></div>';
         panel.scrollIntoView({ behavior: 'smooth' });
 
         const compSummary = components.map(c => {
             const evo = c.x < 25 ? 'Genesis' : c.x < 50 ? 'Custom' : c.x < 75 ? 'Product' : 'Commodity';
-            const vis = c.y < 30 ? 'Hög synlighet' : c.y < 60 ? 'Medel' : 'Låg synlighet (infrastruktur)';
-            return `- ${c.name} | Kategori: ${c.category} | Evolution: ${evo} | Synlighet: ${vis}${c.note ? ' | Notering: ' + c.note : ''}`;
+            const vis = c.y < 30 ? 'High visibility' : c.y < 60 ? 'Medium' : 'Low visibility (infrastructure)';
+            return `- ${c.name} | Category: ${c.category} | Evolution: ${evo} | Visibility: ${vis}${c.note ? ' | Note: ' + c.note : ''}`;
         }).join('\n');
 
-        const org     = document.getElementById('ctx-org').value || 'Fastighetsbolag';
+        const org     = document.getElementById('ctx-org').value || 'Real estate company';
         const focus   = document.getElementById('ctx-focus').value;
         const horizon = document.getElementById('ctx-horizon').value;
 
-        const systemPrompt = `Du är en senior enterprise-arkitekt och strategisk rådgivare specialiserad på fastighet, proptech och digital transformation.
+        const systemPrompt = `You are a senior enterprise architect and strategic advisor specializing in digital transformation.
 
-Du analyserar en Wardley Map med komponenter positionerade längs Evolution-axeln (Genesis → Custom → Product → Commodity) och Value Chain-axeln (synlighet för kund: Hög → Låg).
+You analyze a Wardley Map with components positioned along the Evolution axis (Genesis
+Custom
+Product
+Commodity) and the Value Chain axis (customer visibility: High
+Low).
 
-Svara på svenska. Fokusera på affärsnytta: kostnadsbesparing, riskreduktion, konkurrensfördel, regulatorisk efterlevnad, tenant retention.
+Respond in the same language as the user's prompt. Focus on business value: cost savings, risk reduction, competitive advantage, regulatory compliance, and customer retention.
 
-Använd dessa exakta rubriker:
+Use these exact section headings:
 
-## Strategisk positionering
-Sammanfatta var organisationen befinner sig strategiskt. Vilka komponenter är i rätt fas? Vad är felpositionerat?
+## Strategic Positioning
+Summarize where the organization is strategically. Which components are in the right phase? What is mispositioned?
 
-## Inertia & strategiska risker
-Identifiera 2–4 komponenter med hög inertia (svåra att flytta) eller strategisk risk. Varför är de kritiska?
+## Inertia and Strategic Risks
+Identify 2-4 components with high inertia (difficult to move) or strategic risk. Why are they critical?
 
 ## Build vs Buy vs Partner
-Ge konkreta rekommendationer per komponent: vad ska byggas internt (Genesis/Custom), köpas (Product) eller outsourcas (Commodity)?
+Give concrete recommendations per component: what should be built internally (Genesis/Custom), bought (Product), or outsourced (Commodity)?
 
-## Strategiska möjligheter (${horizon})
-Lista 3–5 konkreta initiativ med förväntad affärsnytta. Koppla till ${focus}.
+## Strategic Opportunities (${horizon})
+List 3-5 concrete initiatives with expected business value. Link to ${focus}.
 
-## Prioriterad roadmap
-Steg 1–3 med tydlig prioritering och förväntad ROI eller riskminskningseffekt.
+## Prioritized Roadmap
+Steps 1-3 with clear prioritization and expected ROI or risk reduction effect.
 
-## Sammanfattning för C-level
-2–3 meningar: den viktigaste strategiska insikten och nästa steg.`;
+## Executive Summary
+2-3 sentences: the most important strategic insight and next steps.`;
 
-        const userPrompt = `Organisation: ${org}\nStrategiskt fokus: ${focus}\nTidshorisont: ${horizon}\n\nWardley Map-komponenter:\n${compSummary}`;
+        const userPrompt = `Organization: ${org}\nStrategic focus: ${focus}\nTime horizon: ${horizon}\n\nWardley Map components:\n${compSummary}`;
 
         try {
             const res = await fetch('/api/openai/chat', {
@@ -1407,9 +1637,9 @@ Steg 1–3 med tydlig prioritering och förväntad ROI eller riskminskningseffek
         } catch (e) {
             content.innerHTML = `
                 <div class="bg-red-900/30 border border-red-700 text-red-300 text-xs p-4 rounded m-4">
-                    <div class="font-bold mb-1"><i class="fas fa-exclamation-triangle mr-1"></i>Fel vid API-anrop</div>
+                    <div class="font-bold mb-1"><i class="fas fa-exclamation-triangle mr-1"></i>API call failed</div>
                     <div>${e.message}</div>
-                    <button onclick="openApiModal()" class="mt-2 text-[10px] bg-red-800 hover:bg-red-700 text-red-200 px-2 py-1 rounded">Uppdatera API-nyckel</button>
+                    <button onclick="openApiModal()" class="mt-2 text-[10px] bg-red-800 hover:bg-red-700 text-red-200 px-2 py-1 rounded">Update API Key</button>
                 </div>`;
         }
 
@@ -1438,7 +1668,7 @@ Steg 1–3 med tydlig prioritering och förväntad ROI eller riskminskningseffek
         setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3200);
     }
 
-    // ── Init ──
+    // -- Init --
     window.onload = () => {
         updateApiStatus();
         checkIntegrationStatus();
@@ -1471,19 +1701,19 @@ Steg 1–3 med tydlig prioritering och förväntad ROI eller riskminskningseffek
                     // Map trigger to closest focus option
                     const focusEl = document.getElementById('ctx-focus');
                     const t = wctx.trigger.toLowerCase();
-                    if (t.includes('esg') || t.includes('csrd'))              focusEl.value = 'ESG & hållbarhet';
+                    if (t.includes('esg') || t.includes('csrd'))              focusEl.value = 'ESG & Sustainability';
                     else if (t.includes('kostnad') || t.includes('opex'))     focusEl.value = 'Kostnadsoptimering';
-                    else if (t.includes('tillväxt') || t.includes('skalning'))focusEl.value = 'Tillväxt & skalning';
+                    else if (t.includes('growth') || t.includes('scaling'))focusEl.value = 'Growth & Scaling';
                     else if (t.includes('risk'))                               focusEl.value = 'Riskreduktion';
                     else                                                        focusEl.value = 'Digitalisering & automation';
                 }
                 if (wctx.workshopDone) {
                     const n = components.length;
-                    showToast(`✓ Workshop-data importerad: ${n} komponenter från Wardley Workshop Builder`);
+                    showToast(`Workshop data imported: ${n} components from Wardley Workshop Builder`);
                     // Show workshop badge
                     const badge = document.getElementById('ward-context-badge');
                     if (badge) {
-                        badge.innerHTML = '<i class="fas fa-chess-board mr-1"></i> Karta byggd med Workshop Builder · ' + (wctx.persona || '') + (wctx.needs?.length ? ' · ' + wctx.needs.slice(0,2).join(', ') : '');
+                        badge.innerHTML = '<i class="fas fa-chess-board mr-1"></i> Map built with Workshop Builder - ' + (wctx.persona || '') + (wctx.needs?.length ? ' - ' + wctx.needs.slice(0,2).join(', ') : '');
                         badge.classList.remove('hidden');
                     }
                 }
@@ -1518,7 +1748,7 @@ function getWardContextText() {
     let text = `Organisation: ${org}\nStrategiskt fokus: ${focus}\nTidshorisont: ${horizon}\n\nWardley Map-komponenter:\n`;
     components.forEach(c => {
         const evo = c.x < 25 ? 'Genesis' : c.x < 50 ? 'Custom' : c.x < 75 ? 'Product' : 'Commodity';
-        const vis = c.y < 30 ? 'Hög synlighet' : c.y < 60 ? 'Medel synlighet' : 'Låg synlighet';
+        const vis = c.y < 30 ? 'High visibility' : c.y < 60 ? 'Medium visibility' : 'Low visibility';
         text += `- ${c.name} | ${c.category} | ${evo} | ${vis}${c.note ? ' | ' + c.note : ''}\n`;
     });
     return text;
@@ -1530,14 +1760,14 @@ function sendWardInitialGreeting() {
     const commodity= components.filter(c => c.x >= 75).length;
 
     if (total === 0) {
-        addWardMsg('Hej! Din Wardley Map är tom. Klicka på <strong>Ladda exempel</strong> för att komma igång, eller lägg till komponenter manuellt. Sedan analyserar jag din strategiska position.', 'ai');
+        addWardMsg('Your Wardley Map is empty. Click <strong>Load Example</strong> to get started, or add components manually. Then I will analyze your strategic position.', 'ai');
         return;
     }
-    addWardMsg(`Hej! Jag har analyserat din Wardley Map.<br><br>
-        Du har <strong>${total} komponenter</strong> — 
-        <strong>${genesis} st i Genesis</strong> (hög strategisk potential) och 
-        <strong>${commodity} st i Commodity</strong> (outsourcing-kandidater).<br><br>
-        Vill du börja med att identifiera inertia och strategiska blockerare?`, 'ai');
+    addWardMsg(`I've analyzed your Wardley Map.<br><br>
+        You have <strong>${total} components</strong> - 
+        <strong>${genesis} in Genesis</strong> (high strategic potential) and 
+        <strong>${commodity} in Commodity</strong> (outsourcing candidates).<br><br>
+        Shall we start by identifying inertia and strategic blockers?`, 'ai');
 }
 
 function addWardMsg(text, sender) {
@@ -1561,7 +1791,7 @@ async function sendWardMessage() {
     addWardMsg(text, 'user');
     input.value = '';
 
-    const apiKey = getApiKey(); // använder din befintliga funktion
+    const apiKey = getApiKey(); // uses existing function
     const context = getWardContextText();
 
     if (!apiKey) {
@@ -1581,7 +1811,7 @@ async function sendWardMessage() {
             body: JSON.stringify({
                 model: 'gpt-5',
                 messages: [
-                    { role: 'system', content: `Du är en senior enterprise-arkitekt och Wardley Mapping-expert specialiserad på fastighet och PropTech. Svara alltid på svenska. Var konkret och affärsfokuserad — koppla alltid till kostnadsbesparing, riskreduktion, konkurrensfördel eller regulatorisk efterlevnad.\n\n${context || 'Kartan är tom.'}` },
+                    { role: 'system', content: `You are a senior enterprise architect and Wardley Mapping expert specialized in real estate and PropTech. Respond in the same language as the user's prompt. Be concrete and business-focused - always connect to cost savings, risk reduction, competitive advantage, or regulatory compliance.\n\n${context || 'The map is empty.'}` },
                     { role: 'user', content: text }
                 ]
             })
@@ -1600,16 +1830,304 @@ async function sendWardMessage() {
 
 function handleWardDemoResponse(text) {
     const demos = {
-        'genesis':    '<strong>Genesis-komponenter</strong> representerar din högsta strategiska potential — men också högst risk och kostnad. Bygg internt och skydda som kärnkompetens. Lägg till API-nyckel för djupanalys.',
-        'outsourca':  '<strong>Commodity-komponenter</strong> (x > 75%) bör outsourcas till SaaS/utility-leverantörer. Det frigör resurser för strategisk innovation i Genesis/Custom-zonen.',
-        'inertia':    '<strong>Inertia</strong> uppstår ofta i ERP-system och legacy-plattformar i Product-zonen. De är dyra att flytta men blockerar evolution. Identifiera dem och planera migration.',
-        'roadmap':    '<strong>Roadmap-förslag:</strong><br>Q1-Q2: Outsourca Commodity, frigör budget.<br>Q3: Investera i Genesis-komponenter med störst kundvärde.<br>Q4: Mät evolution och justera positionering.',
-        'c-level':    'Lägg till API-nyckel för en fullständig C-level executive summary baserad på din specifika karta.',
+        'genesis':    '<strong>Genesis components</strong> represent your highest strategic potential - but also highest risk and cost. Build internally and protect as core competence. Add an API key for deep analysis.',
+        'outsourca':  '<strong>Commodity components</strong> (x > 75%) should be outsourced to SaaS/utility vendors. This frees resources for strategic innovation in the Genesis/Custom zone.',
+        'inertia':    '<strong>Inertia</strong> typically occurs in ERP systems and legacy platforms in the Product zone. They are costly to move but block evolution. Identify them and plan migration.',
+        'roadmap':    '<strong>Roadmap proposal:</strong><br>Q1-Q2: Outsource Commodity, free up budget.<br>Q3: Invest in Genesis components with highest customer value.<br>Q4: Measure evolution and adjust positioning.',
+        'c-level':    'Add an API key for a complete C-level executive summary based on your specific map.',
     };
     const key = Object.keys(demos).find(k => text.toLowerCase().includes(k));
-    setTimeout(() => addWardMsg(key ? demos[key] : 'Konfigurera din OpenAI API-nyckel via knappen i headern för fullständiga AI-svar baserade på din Wardley Map.', 'ai'), 600);
+    setTimeout(() => addWardMsg(key ? demos[key] : 'Configure your OpenAI API Key via the button in the header for complete AI responses based on your Wardley Map.', 'ai'), 600);
 }
 </script>
 </div><!-- Close wrapper div -->
+</div><!-- Close #main-content -->
+
+<!-- AI Chat Sidebar -->
+<div id="ai-chat-panel">
+    <div id="chat-resize-handle" title="Drag to resize"></div>
+    <div id="chat-header">
+        <div id="chat-header-title">
+            <i class="fas fa-chess"></i>
+            <span>Strategy AI Assistant</span>
+        </div>
+        <div id="chat-controls">
+            <button onclick="clearChat()" title="Clear history">&#x21BA;</button>
+            <button onclick="toggleChatPanel()" title="Close sidebar">&times;</button>
+        </div>
+    </div>
+    
+    <div class="quick-actions">
+        <button class="qa-btn" onclick="analyzeWardleyMap()">
+            <i class="fas fa-chart-line"></i> Analyze Map
+        </button>
+        <button class="qa-btn" onclick="suggestEvolution()">
+            <i class="fas fa-arrow-trend-up"></i> Evolution
+        </button>
+        <button class="qa-btn" onclick="identifyInertia()">
+            <i class="fas fa-lock"></i> Inertia
+        </button>
+    </div>
+    
+    <div id="chat-messages">
+        <div class="chat-message assistant-message">
+            <div class="message-content">
+                <div class="message-text">
+                    <strong style="color:#ffffff;font-weight:700;">Welcome to Strategy AI Assistant</strong>
+                    <div style="height:10px;"></div>
+                    <p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">I can help you:</p>
+                    <ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Analyze your Wardley Map for strategic insights</li>
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Identify evolution opportunities and inertia</li>
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Suggest positioning improvements</li>
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Answer questions about strategic positioning</li>
+                    </ul>
+                    <div style="height:10px;"></div>
+                    <em>Click a quick action above or ask me anything!</em>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="chat-input-container">
+        <textarea id="chat-input" placeholder="Ask about your strategy..." rows="2"></textarea>
+        <button id="send-chat" onclick="sendMessage()">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+</div>
+
+</div><!-- Close #app-container -->
+
+<script>
+// Chat Panel Toggle
+function toggleChatPanel() {
+    const isOpen = document.body.classList.contains('chat-sidebar-open');
+    if (isOpen) {
+        document.body.classList.remove('chat-sidebar-open');
+    } else {
+        document.body.classList.add('chat-sidebar-open');
+        const input = document.getElementById('chat-input');
+        if (input) input.focus();
+    }
+}
+
+// Initialize Chat Sidebar Resize
+function initChatSidebarResize() {
+    const handle = document.getElementById('chat-resize-handle');
+    const panel = document.getElementById('ai-chat-panel');
+    if (!handle || !panel) return;
+    let startX, startW;
+
+    // Restore saved width
+    const saved = parseInt(localStorage.getItem('strategy_sidebar_w') || '0', 10);
+    if (saved >= 280 && saved <= 800) applySidebarWidth(saved);
+
+    handle.addEventListener('mousedown', (e) => {
+        startX = e.clientX;
+        startW = panel.offsetWidth;
+        handle.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+
+        function onMove(ev) {
+            const diff = startX - ev.clientX;
+            const newW = Math.max(280, Math.min(800, startW + diff));
+            applySidebarWidth(newW);
+        }
+        function onUp() {
+            localStorage.setItem('strategy_sidebar_w', panel.offsetWidth);
+            handle.classList.remove('dragging');
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+}
+
+function applySidebarWidth(w) {
+    const panel = document.getElementById('ai-chat-panel');
+    if (!panel) return;
+    panel.style.width = w + 'px';
+    // Update main content margin to match sidebar width
+    const style = document.getElementById('_sidebar-width-style') || (() => {
+        const s = document.createElement('style');
+        s.id = '_sidebar-width-style';
+        document.head.appendChild(s);
+        return s;
+    })();
+    style.textContent = `body.chat-sidebar-open #main-content{margin-right:${w}px!important;}`;
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+    initChatSidebarResize();
+});
+
+// Keyboard shortcut: Ctrl+K toggles chat
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        toggleChatPanel();
+    }
+    if (e.key === 'Enter' && e.target.id === 'chat-input' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+// Markdown parser
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function parseMarkdown(text) {
+    let html = escapeHtml(text);
+    
+    // Bold
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
+    
+    // Italic
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    html = html.replace(/_(.*?)_/g, '<em>$1</em>');
+    
+    // Code
+    html = html.replace(/`(.*?)`/g, '<code style="background:#2d2d2d;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:0.9em;">$1</code>');
+    
+    // Line breaks
+    html = html.replace(/\n/g, '<br>');
+    
+    return html;
+}
+
+function addChatMessage(text, role) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `chat-message ${role === 'user' ? 'user-message' : 'assistant-message'}`;
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    
+    const textDiv = document.createElement('div');
+    textDiv.className = 'message-text';
+    textDiv.innerHTML = parseMarkdown(text);
+    
+    contentDiv.appendChild(textDiv);
+    msgDiv.appendChild(contentDiv);
+    container.appendChild(msgDiv);
+    container.scrollTop = container.scrollHeight;
+}
+
+async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    
+    addChatMessage(text, 'user');
+    input.value = '';
+    
+    // Add loading indicator
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'chat-message assistant-message';
+    loadingDiv.innerHTML = '<div class="message-content"><div class="message-text"><i class="fas fa-spinner fa-spin"></i> Thinking...</div></div>';
+    document.getElementById('chat-messages').appendChild(loadingDiv);
+    
+    try {
+        // Get map context
+        const context = getWardleyContext();
+        
+        // Call AI
+        const response = await callAdvisyAI(text, context);
+        loadingDiv.remove();
+        addChatMessage(response, 'assistant');
+    } catch(e) {
+        loadingDiv.remove();
+        addChatMessage('Error: ' + e.message, 'assistant');
+    }
+}
+
+async function callAdvisyAI(userMessage, context) {
+    // Integration with Advicy_AI.js
+    if (typeof window.AdvisyAI !== 'undefined' && window.AdvisyAI.chat) {
+        const systemPrompt = `You are a senior enterprise architect and Wardley Mapping expert specialized in PropTech and strategic positioning. Respond in the same language as the user's prompt. Be concrete and business-focused - always connect to cost savings, risk reduction, competitive advantage, or regulatory compliance.\n\nCurrent map context:\n${context}`;
+        return await window.AdvisyAI.chat(userMessage, { systemPrompt });
+    }
+    
+    // Fallback demo response
+    return 'AI Assistant requires configuration of Advicy_AI.js. Add your OpenAI API Key in settings.';
+}
+
+function getWardleyContext() {
+    const nodes = getAllNodes();
+    if (nodes.length === 0) return 'Wardley Map is empty.';
+    
+    let context = `Wardley Map contains ${nodes.length} components:\n`;
+    nodes.forEach(node => {
+        const evoStage = node.x < 25 ? 'Genesis' : node.x < 50 ? 'Custom' : node.x < 75 ? 'Product' : 'Commodity';
+        context += `- ${node.label} (${node.category}, ${evoStage}, visibility ${Math.round(100-node.y)}%)\n`;
+    });
+    
+    return context;
+}
+
+function clearChat() {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div class="chat-message assistant-message">
+            <div class="message-content">
+                <div class="message-text">
+                    <strong style="color:#ffffff;font-weight:700;">Welcome to Strategy AI Assistant</strong>
+                    <div style="height:10px;"></div>
+                    <p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">I can help you:</p>
+                    <ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Analyze your Wardley Map for strategic insights</li>
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Identify evolution opportunities and inertia</li>
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Suggest positioning improvements</li>
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Answer questions about strategic positioning</li>
+                    </ul>
+                    <div style="height:10px;"></div>
+                    <em>Click a quick action above or ask me anything!</em>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Quick action functions
+function analyzeWardleyMap() {
+    sendMessageWithText('Analyze my Wardley Map: identify strengths, weaknesses and strategic opportunities.');
+}
+
+function suggestEvolution() {
+    sendMessageWithText('Which components should evolve further? Suggest evolution strategies.');
+}
+
+function identifyInertia() {
+    sendMessageWithText('Identify inertia and strategic blockers on the map.');
+}
+
+function sendMessageWithText(text) {
+    const input = document.getElementById('chat-input');
+    if (input) {
+        input.value = text;
+        sendMessage();
+    }
+}
+</script>
+
 </body>
 </html>

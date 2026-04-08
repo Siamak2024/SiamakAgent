@@ -3,14 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NextGen EA Maturity Toolbox</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>EA Maturity Toolbox — EA Toolkit</title>
+    <link rel="icon" href="data:,">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="../js/EA_Config.js"></script>
-    <script src="../js/EA_DataManager.js"></script>
-    <script src="../js/EA_ToolkitKPI.js"></script>
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
+    <script src="../../js/EA_Config.js"></script>
+    <script src="../../js/EA_DataManager.js"></script>
+   <script src="../../js/Advicy_AI.js"></script>
     <style>
+        /* Layout:Main + Sidebar */
+        body {
+            margin: 0;
+            font-family: 'Manrope', 'Segoe UI', system-ui, sans-serif;
+            background: var(--ea-background);
+            overflow: hidden;
+        }
+        #app-container {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+        #main-content {
+            flex: 1;
+            overflow-y: auto;
+            transition: margin-right 0.2s ease;
+        }
+        body.chat-sidebar-open #main-content {
+            margin-right: 380px;
+        }
+        
+        /* EA Header - Indigo/Purple gradient for Maturity Toolbox */
+        .ea-header {
+            height: 64px;
+            background: linear-gradient(135deg, #3730a3 0%, #7c3aed 100%) !important;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            color: white;
+        }
+        .ea-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .ea-brand-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.16);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 14px;
+            color: white;
+        }
+        .ea-header-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 2px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .ea-header-title h1 i {
+            font-size: 32px;
+        }
+        .ea-header-title p {
+            font-size: 11px;
+            opacity: 0.7;
+            margin: 0;
+        }
+        .ea-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ea-header-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        .ea-header-icon:hover {
+            background: rgba(255,255,255,0.18);
+        }
+        
+        /* Original Maturity Toolbox Styling (Keep functional CSS) */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
         body{font-family:'Inter',sans-serif;background:#f8fafc;color:#0f172a}
@@ -110,93 +201,279 @@
         .color-opt{width:28px;height:28px;border-radius:8px;cursor:pointer;border:3px solid transparent;transition:all .15s}
         .color-opt.selected{border-color:#0f172a;transform:scale(1.15)}
         .hidden{display:none!important}
-        /* === MATURITY AI ASSISTANT === */
-        #mat-ai-widget{position:fixed;bottom:30px;right:30px;z-index:1000;font-family:'Inter',sans-serif}
-        #mat-ai-button{width:62px;height:62px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#7c3aed);box-shadow:0 10px 25px rgba(79,70,229,.4);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .3s;border:none;position:relative}
-        #mat-ai-button:hover{transform:scale(1.1) rotate(5deg)}
-        #mat-ai-button i{color:white;font-size:24px}
-        #mat-badge{position:absolute;top:-2px;right:-2px;background:#ef4444;color:#fff;border-radius:50%;width:20px;height:20px;font-size:11px;display:none;align-items:center;justify-content:center;border:2px solid #f8fafc;font-weight:700;animation:mat-pulse 2s infinite}
-        @keyframes mat-pulse{0%{box-shadow:0 0 0 0 rgba(239,68,68,.7)}70%{box-shadow:0 0 0 8px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
-        #mat-chat-panel{position:absolute;bottom:80px;right:0;width:380px;max-height:76vh;background:#fff;border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.18);display:none;flex-direction:column;overflow:hidden;border:1px solid #e2e8f0}
-        #mat-chat-header{background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
-        .mat-avatar{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;color:white;font-size:1rem}
-        .mat-close{margin-left:auto;background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;font-size:1.1rem;padding:4px;border-radius:4px;transition:color .2s}
-        .mat-close:hover{color:white}
-        #mat-quick-btns{padding:10px;display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid #f1f5f9;background:#fafafa;flex-shrink:0}
-        .mat-qbtn{background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:5px 10px;font-size:.68rem;color:#374151;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:'Inter',sans-serif}
-        .mat-qbtn:hover{background:#eef2ff;border-color:#a5b4fc;color:#4f46e5}
-        #mat-messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:160px}
-        .mat-msg{display:flex;gap:8px;align-items:flex-start}
-        .mat-msg.mat-user{flex-direction:row-reverse}
-        .mat-bubble{max-width:82%;padding:9px 13px;border-radius:14px;font-size:.78rem;line-height:1.55}
-        .mat-bot .mat-bubble{background:#f1f5f9;color:#1e293b;border-bottom-left-radius:4px}
-        .mat-user .mat-bubble{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;border-bottom-right-radius:4px}
-        .mat-icon{width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.72rem}
-        .mat-bot .mat-icon{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white}
-        .mat-user .mat-icon{background:#e2e8f0;color:#64748b}
-        .mat-typing{display:flex;gap:4px;align-items:center;padding:2px 0}
-        .mat-typing span{width:7px;height:7px;background:#94a3b8;border-radius:50%;animation:mat-bounce 1.2s infinite}
-        .mat-typing span:nth-child(2){animation-delay:.2s}
-        .mat-typing span:nth-child(3){animation-delay:.4s}
-        @keyframes mat-bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
-        #mat-input-area{padding:10px 12px;border-top:1px solid #f1f5f9;display:flex;gap:8px;align-items:center;flex-shrink:0}
-        #mat-user-input{flex:1;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;font-size:.78rem;outline:none;font-family:'Inter',sans-serif;transition:border-color .2s}
-        #mat-user-input:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.1)}
-        #mat-send-btn{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;border:none;border-radius:10px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;transition:opacity .2s}
-        #mat-send-btn:hover{opacity:.88}
-        #mat-send-btn:disabled{opacity:.5;cursor:not-allowed}
         .tag{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:800}
         .tag-custom{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
         .divider{height:1px;background:#f1f5f9;margin:16px 0}
-    </style>
-    <link rel="stylesheet" href="../css/ea-design-engine.css" />
-</head>
-<body class="p-0 ea-toolkit-app">
 
-<!-- WORKFLOW NAVIGATION BAR -->
-<div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 text-xs font-semibold shadow-md flex items-center justify-between">
-  <div class="flex items-center gap-4">
-    <a href="../Integration_Workflow_Hub.html" class="flex items-center gap-2 hover:underline">
-      <i class="fas fa-arrow-left"></i> Tillbaka till Workflow Hub
-    </a>
-    <div class="h-4 w-px bg-white/30"></div>
-    <div class="flex items-center gap-2">
-      <a href="./AI Business Model Canvas.html" class="opacity-90 hover:opacity-100 hover:underline">PHASE 1</a>
-      <i class="fas fa-chevron-right opacity-50 text-xs"></i>
-      <a href="./AI Value Chain Analyzer V2.html" class="opacity-90 hover:opacity-100 hover:underline">PHASE 2</a>
-      <i class="fas fa-chevron-right opacity-50 text-xs"></i>
-      <a href="./AI Capability Mapping V2.html" class="opacity-90 hover:opacity-100 hover:underline">PHASE 3</a>
-      <i class="fas fa-chevron-right opacity-50 text-xs"></i>
-      <a href="./AI Strategy Workbench V2.html" class="opacity-90 hover:opacity-100 hover:underline">PHASE 4</a>
-      <i class="fas fa-chevron-right opacity-50 text-xs"></i>
-      <span class="bg-white text-purple-600 px-2 py-1 rounded font-bold">PHASE 5 av 5</span>
-    </div>
-  </div>
-  <div class="text-xs opacity-90">
-    <i class="fas fa-info-circle mr-1"></i> Sista steget innan EA Platform
-  </div>
-</div>
+        /* === EA PLATFORM CHAT SIDEBAR === */
+        #app-container { display: flex; flex-direction: column; min-height: 100vh; }
+        #main-content { flex: 1; transition: margin-right 0.3s ease; }
+        body.chat-sidebar-open #main-content { margin-right: 380px; }
+        
+        #ai-chat-panel {
+            position: fixed;
+            top: 0;
+            right: -380px;
+            width: 380px;
+            height: 100vh;
+            background: #1a1a2e;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+            transition: right 0.3s ease;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        body.chat-sidebar-open #ai-chat-panel { right: 0; }
+        
+        .chat-resize-handle {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 5px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 10000;
+        }
+        
+        .chat-resize-handle:hover { background: #0e7afe; }
+        
+        .chat-sidebar-header {
+            background: linear-gradient(135deg, #3730a3 0%, #7c3aed 100%);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        
+        .chat-sidebar-header i.fas { font-size: 20px; color: white; }
+        
+        .chat-sidebar-header h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            margin: 0;
+            flex: 1;
+        }
+        
+        .chat-close-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        
+        .chat-close-btn:hover { background: rgba(255,255,255,0.2); }
+        
+        #ai-chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #1a1a2e;
+        }
+        
+        .ai-message {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .ai-message.user { flex-direction: row-reverse; }
+        
+        .ai-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+        
+        .ai-message.assistant .ai-avatar {
+            background: linear-gradient(135deg, #3730a3, #7c3aed);
+            color: white;
+        }
+        
+        .ai-message.user .ai-avatar {
+            background: #2d2d44;
+            color: #8b5cf6;
+        }
+        
+        .ai-message-content {
+            max-width: 75%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        .ai-message.assistant .ai-message-content {
+            background: #2d2d44;
+            color: #e2e8f0;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .ai-message.user .ai-message-content {
+            background: linear-gradient(135deg, #3730a3, #7c3aed);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        /* Markdown styling in chat */
+        .ai-message-content h1, .ai-message-content h2, .ai-message-content h3 {
+            margin-top: 12px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .ai-message-content h1 { font-size: 18px; }
+        .ai-message-content h2 { font-size: 16px; }
+        .ai-message-content h3 { font-size: 14px; }
+        
+        .ai-message-content p { margin-bottom: 8px; }
+        .ai-message-content p:last-child { margin-bottom: 0; }
+        
+        .ai-message-content ul, .ai-message-content ol {
+            margin-left: 20px;
+            margin-bottom: 8px;
+        }
+        
+        .ai-message-content li { margin-bottom: 4px; }
+        
+        .ai-message-content code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+        }
+        
+        .ai-message-content pre {
+            background: rgba(0,0,0,0.3);
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+        
+        .ai-message-content pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        .ai-message-content strong { font-weight: 600; }
+        .ai-message-content em { font-style: italic; }
+        
+        .ai-message-content blockquote {
+            border-left: 3px solid #3730a3;
+            padding-left: 12px;
+            margin: 8px 0;
+            color: #94a3b8;
+        }
+        
+        #ai-chat-input-area {
+            padding: 16px;
+            background: #16182e;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        
+        #ai-chat-input {
+            width: 100%;
+            background: #2d2d44;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        #ai-chat-input:focus { border-color: #3730a3; }
+        
+        #ai-chat-input::placeholder { color: #64748b; }
+        
+        .chat-input-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+        }
+        
+        .chat-input-hint {
+            font-size: 11px;
+            color: #64748b;
+        }
+        
+        .chat-send-btn {
+            background: linear-gradient(135deg, #3730a3, #7c3aed);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        
+        .chat-send-btn:hover { opacity: 0.9; }
+        .chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body class="ea-toolkit-app">
+
+<div id="app-container">
 
 <!-- EA PLATFORM HEADER -->
-<header class="bg-gradient-to-r from-slate-900 to-blue-900 text-white px-5 py-3 flex items-center justify-between shadow-lg">
-  <div class="flex items-center gap-3">
-    <a href="../NexGenEA/NexGen_EA_V4.html" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
-      <i class="fas fa-arrow-left"></i> Tillbaka till EA Platform
-    </a>
-    <div class="h-6 w-px bg-slate-600"></div>
-    <div class="flex items-center gap-2">
-      <div class="bg-indigo-500 rounded-lg w-8 h-8 flex items-center justify-center font-bold text-sm"><i class="fas fa-building-shield"></i></div>
-      <div>
-        <div class="font-bold text-sm leading-tight">NextGen EA Maturity Toolbox</div>
-        <div class="text-blue-300 text-xs">Workshop Tool · Step 5</div>
-      </div>
+<header class="ea-header bg-gradient-to-r from-slate-900 to-purple-900">
+    <div class="ea-header-left">
+        <div class="ea-brand-mark">
+            <i class="fas fa-chart-line" style="font-size: 32px;"></i>
+        </div>
+        <div class="ea-header-title">
+            <h1 style="font-size: 20px; font-weight: 700; margin: 0;">EA Maturity Toolbox</h1>
+            <p style="font-size: 12px; opacity: 0.85; margin: 0;">Benchmark & Assessment — Multi-Framework Support — Strategic Maturity Analysis</p>
+        </div>
     </div>
-  </div>
-    <div class="text-xs text-slate-300">
-        <div id="mat-sync-status"><i class="fas fa-sync-alt"></i> Data synkas automatiskt med EA Platform</div>
-        <div id="mat-context-badge" class="mt-1 text-[11px] text-blue-200 hidden"></div>
+    <div class="ea-header-right">
+        <button class="ea-header-icon" onclick="window.location.href='../Integration_Workflow_Hub.html'" title="Back to Workflow Hub">
+            <i class="fas fa-th-large"></i>
+        </button>
+        <button class="ea-header-icon" onclick="window.location.href='../NexGen_EA_V4.html'" title="Go to EA Platform">
+            <i class="fas fa-home"></i>
+        </button>
+        <button class="ea-header-icon" id="toggle-chat-btn" onclick="toggleChatPanel()" title="AI Assistant (Ctrl+K)">
+            <i class="fas fa-robot"></i>
+        </button>
     </div>
 </header>
+
+<div id="main-content">
 
 <section class="ea-kpi-strip">
     <div class="ea-kpi-grid">
@@ -424,251 +701,332 @@
     </div>
 </div>
 
-<!-- ================================================
-     MATURITY AI ASSISTANT — PHASE 2
-     Floating workshop facilitator chat widget
-     ================================================ -->
-<div id="mat-ai-widget">
-    <div id="mat-chat-panel">
-        <div id="mat-chat-header">
-            <div class="mat-avatar"><i class="fas fa-robot"></i></div>
-            <div>
-                <div style="color:white;font-weight:700;font-size:14px">Maturity Advisor AI</div>
-                <div style="color:rgba(255,255,255,.7);font-size:11px">Workshop Facilitator · NextGen EA</div>
+</div> <!-- END #main-content -->
+
+<!-- === EA PLATFORM AI CHAT SIDEBAR === -->
+<aside id="ai-chat-panel">
+    <div class="chat-resize-handle"></div>
+    
+    <div class="chat-sidebar-header">
+        <i class="fas fa-robot"></i>
+        <h3>EA Maturity Assistant</h3>
+        <button class="chat-close-btn" onclick="toggleChatPanel()" title="Close (Ctrl+K)">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    
+    <div id="ai-chat-messages">
+        <div class="ai-message assistant">
+            <div class="ai-avatar"><i class="fas fa-robot"></i></div>
+            <div class="ai-message-content">
+                <strong>Welcome to EA Maturity Assessment!</strong><br><br>
+                I'm your AI assistant. I can help you:
+                <ul>
+                    <li>Interpret maturity scores and benchmarks</li>
+                    <li>Identify improvement priorities</li>
+                    <li>Create roadmaps for maturity advancement</li>
+                    <li>Explain framework-specific practices</li>
+                    <li>Prepare executive summaries</li>
+                </ul>
+                <strong>Quick shortcuts:</strong><br>
+                Press <code>Ctrl+K</code> to toggle this panel<br>
+                Press <code>Enter</code> to send messages
             </div>
-            <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
-                <button onclick="startMatNewChat()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);color:white;font-size:11px;font-weight:700;padding:6px 8px;border-radius:8px;cursor:pointer">Ny chat</button>
-                <button onclick="clearMatChatHistory()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);color:white;font-size:11px;font-weight:700;padding:6px 8px;border-radius:8px;cursor:pointer">Rensa</button>
-                <button class="mat-close" onclick="toggleMatChat()"><i class="fas fa-times"></i></button>
-            </div>
-        </div>
-        <div id="mat-quick-btns">
-            <button class="mat-qbtn" onclick="askMatAI('Förklara vad varje mognadsnivå 1-5 innebär i praktiken för vår bransch')">📊 Förklara nivåerna</button>
-            <button class="mat-qbtn" onclick="askMatAI('Identifiera våra svagaste kategorier och ge konkreta förbättringsåtgärder')">🎯 Förbättringsåtgärder</button>
-            <button class="mat-qbtn" onclick="askMatAI('Skapa en prioriterad 12-månaders roadmap för mognadshöjning')">🗓️ Roadmap 12 mån</button>
-            <button class="mat-qbtn" onclick="askMatAI('Vilka affärsrisker innebär våra mognadsgap?')">⚠️ Affärsrisker</button>
-            <button class="mat-qbtn" onclick="askMatAI('Hur benchmarkar vi oss mot branschstandard?')">📈 Benchmark</button>
-            <button class="mat-qbtn" title="Förbered C-level sammanfattning" onclick="askMatAI('Hjälp mig förbereda en presentation av mognadsresultaten för ledningsgruppen')">👔 C-level</button>
-            <button class="mat-qbtn" title="Hur exporterar jag resultaten och implementerar planen i EA Platform?" onclick="askMatAI('Hur exporterar jag resultaten och implementerar förbättringsplanen i EA Platform?')">🚀 Nästa steg EA</button>
-            <button class="mat-qbtn" title="Öppna nästa steg: EA Platform" onclick="matOpenEaPlatform()">🧭 Öppna EA Platform</button>
-        </div>
-        <div id="mat-messages"></div>
-        <div id="mat-input-area">
-            <input type="text" id="mat-user-input"
-                placeholder="Ställ en fråga om din mognadsanalys..."
-                onkeypress="if(event.key==='Enter') sendMatMessage()">
-            <button id="mat-send-btn" onclick="sendMatMessage()"><i class="fas fa-paper-plane"></i></button>
         </div>
     </div>
-    <button id="mat-ai-button" onclick="toggleMatChat()" title="Maturity Advisor AI">
-        <i class="fas fa-robot"></i>
-        <div id="mat-badge">1</div>
-    </button>
-</div>
+    
+    <div id="ai-chat-input-area">
+        <textarea id="ai-chat-input" rows="2" 
+            placeholder="Ask about maturity levels or improvement strategies..."
+            onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+        <div class="chat-input-actions">
+            <span class="chat-input-hint">Shift+Enter for new line</span>
+            <button class="chat-send-btn" onclick="sendMessage()">
+                <i class="fas fa-paper-plane"></i> Send
+            </button>
+        </div>
+    </div>
+</aside>
+
+</div> <!-- END #app-container -->
 
 <script>
-let matChatOpen = false, matFirstOpen = true, matHistory = [];
+// === EA PLATFORM CHAT FUNCTIONS ===
 
-setTimeout(function() {
-    if (!matChatOpen) document.getElementById('mat-badge').style.display = 'flex';
-}, 5000);
-
-function toggleMatChat() {
-    const panel = document.getElementById('mat-chat-panel');
-    matChatOpen = !matChatOpen;
-    panel.style.display = matChatOpen ? 'flex' : 'none';
-    if (matChatOpen) {
-        document.getElementById('mat-badge').style.display = 'none';
-        if (matFirstOpen) { matSendInitialGreeting(); matFirstOpen = false; }
-        setTimeout(function() { document.getElementById('mat-user-input').focus(); }, 100);
+// Toggle chat sidebar panel
+function toggleChatPanel() {
+    document.body.classList.toggle('chat-sidebar-open');
+    if (document.body.classList.contains('chat-sidebar-open')) {
+        document.getElementById('ai-chat-input').focus();
     }
 }
 
-function getMatApiKey() {
-    if (typeof dataManager !== 'undefined' && dataManager) {
-        const k = dataManager.getApiKey();
-        if (k) return k;
-    }
-    const keys = ['ea20_openai_key','openai_api_key','vc_openai_key','cap_openai_key','strategy_openai_key','ea_openai_key'];
-    for (const k of keys) { const v = localStorage.getItem(k); if (v) return v; }
-    return '';
-}
-
-function getMatContext() {
-    const fw = frameworks[currentFw];
-    const avgs = getWeightedAvgs();
-    const total = (avgs.reduce(function(a,b){return a+b;},0)/avgs.length).toFixed(1);
-    const org = localStorage.getItem('ea20_org_name') || 'Kunden';
-    const answered = fw.questions.filter(function(q,i){ return scores[currentFw+'_q'+i] > 0; }).length;
-    const pct = Math.round((answered / fw.questions.length) * 100);
-
-    let ctx = 'Organisation: ' + org + '\nAktivt ramverk: ' + fw.name + '\nViktat totalscore: ' + total + '/5\nBesvarade frågor: ' + pct + '%\n\nKategoriscores:\n';
-    fw.categories.forEach(function(c,i) { ctx += '- ' + c + ': ' + avgs[i] + '/5\n'; });
-
-    const low = fw.categories.filter(function(c,i){ return avgs[i] < 2.5; });
-    const high = fw.categories.filter(function(c,i){ return avgs[i] >= 4.0; });
-    if (low.length) ctx += '\nSvagaste kategorier (< 2.5): ' + low.join(', ');
-    if (high.length) ctx += '\nStarka kategorier (>= 4.0): ' + high.join(', ');
-
-    ctx += '\n\nDetaljerade svar:\n';
-    fw.questions.forEach(function(q,i) {
-        const score = scores[currentFw+'_q'+i] || 0;
-        if (score > 0) ctx += '- [' + q.cat + '] ' + q.q + ' => ' + score + '/5\n';
+// Initialize resizable chat sidebar
+function initChatSidebarResize() {
+    const handle = document.querySelector('.chat-resize-handle');
+    const panel = document.getElementById('ai-chat-panel');
+    const mainContent = document.getElementById('main-content');
+    
+    if (!handle || !panel || !mainContent) return;
+    
+    let isResizing = false;
+    let startX, startWidth;
+    
+    handle.addEventListener('mousedown', function(e) {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = panel.offsetWidth;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
     });
-    return ctx;
+    
+    document.addEventListener('mousemove', function(e) {
+        if (!isResizing) return;
+        const deltaX = startX - e.clientX;
+        const newWidth = Math.min(Math.max(startWidth + deltaX, 280), 800);
+        panel.style.width = newWidth + 'px';
+        applySidebarWidth(newWidth);
+    });
+    
+    document.addEventListener('mouseup', function() {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            const currentWidth = panel.offsetWidth;
+            localStorage.setItem('maturity_sidebar_w', currentWidth);
+        }
+    });
+    
+    applySidebarWidth();
 }
 
-function matSendInitialGreeting() {
-    const fw = frameworks[currentFw];
-    const avgs = getWeightedAvgs();
-    const total = (avgs.reduce(function(a,b){return a+b;},0)/avgs.length).toFixed(1);
-    const answered = fw.questions.filter(function(q,i){ return scores[currentFw+'_q'+i] > 0; }).length;
-    const org = localStorage.getItem('ea20_org_name') || 'din organisation';
-    if (answered === 0) {
-        addMatMsg('Hej! Jag är din <strong>Maturity Advisor AI</strong> 👋<br><br>Du har valt ramverket <strong>' + fw.name + '</strong>. Börja svara på frågorna till vänster — jag analyserar dina svar och hjälper dig förstå vad varje poäng innebär för er verksamhet.<br><br>Använd snabbknapparna ovan eller skriv en fråga nedan.', 'mat-bot');
-    } else {
-        const lowestIdx = avgs.indexOf(Math.min.apply(null, avgs));
-        const lowestCat = fw.categories[lowestIdx];
-        addMatMsg('Hej! Jag har analyserat <strong>' + org + 's</strong> mognad inom <strong>' + fw.name + '</strong>.<br><br>Totalt score: <strong>' + total + '/5</strong> (' + answered + '/' + fw.questions.length + ' frågor besvarade).<br><br>Din svagaste kategori är <strong>' + lowestCat + '</strong> — vill du att jag föreslår konkreta förbättringsåtgärder?', 'mat-bot');
+// Apply saved sidebar width
+function applySidebarWidth(width) {
+    const panel = document.getElementById('ai-chat-panel');
+    if (!panel) return;
+    
+    if (typeof width === 'undefined') {
+        width = parseInt(localStorage.getItem('maturity_sidebar_w') || '380', 10);
+        panel.style.width = width + 'px';
     }
+    
+    const styleId = 'chat-sidebar-dynamic-style';
+    let styleEl = document.getElementById(styleId);
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = styleId;
+        document.head.appendChild(styleEl);
+    }
+    
+    styleEl.textContent = `
+        body.chat-sidebar-open #ai-chat-panel { right: 0; width: ${width}px !important; }
+        body.chat-sidebar-open #main-content { margin-right: ${width}px !important; }
+    `;
 }
 
-function addMatMsg(text, sender) {
-    const container = document.getElementById('mat-messages');
+// HTML escape utility
+function escapeHtml(text) {
     const div = document.createElement('div');
-    div.className = 'mat-msg ' + sender;
-    const iconClass = sender === 'mat-bot' ? 'fas fa-robot' : 'fas fa-user';
-    div.innerHTML = '<div class="mat-icon"><i class="' + iconClass + '"></i></div><div class="mat-bubble">' + formatMatText(text) + '</div>';
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
+    div.textContent = text;
+    return div.innerHTML;
 }
 
-function formatMatText(text) {
-    return text
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/^## (.*)$/gm, '<strong style="font-size:.8rem;display:block;margin-top:6px;color:#1e293b">$1</strong>')
-        .replace(/^[-*] (.*)$/gm, '<li>$1</li>')
-        .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul style="margin:4px 0 4px 14px">$1</ul>')
-        .replace(/\n{2,}/g, '<br>')
-        .replace(/\n/g, '<br>');
+// Markdown parser for chat messages
+function parseMarkdown(text) {
+    let html = escapeHtml(text);
+    
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+    html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+    
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    
+    html = html.replace(/\n- (.+)/g, '\n<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+    
+    html = html.replace(/\n\d+\. (.+)/g, '\n<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, function(match) {
+        if (match.includes('<ul>')) return match;
+        return '<ol>' + match + '</ol>';
+    });
+    
+    html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+    
+    html = html.replace(/\n\n+/g, '</p><p>');
+    html = '<p>' + html + '</p>';
+    html = html.replace(/<p><\/p>/g, '');
+    html = html.replace(/<p>(<h[123]>)/g, '$1');
+    html = html.replace(/(<\/h[123]>)<\/p>/g, '$1');
+    html = html.replace(/<p>(<ul>)/g, '$1');
+    html = html.replace(/(<\/ul>)<\/p>/g, '$1');
+    html = html.replace(/<p>(<ol>)/g, '$1');
+    html = html.replace(/(<\/ol>)<\/p>/g, '$1');
+    html = html.replace(/<p>(<blockquote>)/g, '$1');
+    html = html.replace(/(<\/blockquote>)<\/p>/g, '$1');
+    
+    return html;
 }
 
-function askMatAI(question) {
-    document.getElementById('mat-user-input').value = question;
-    sendMatMessage();
-}
-
-function resetMatChat(message, showGreeting = false) {
-    matHistory = [];
-    const container = document.getElementById('mat-messages');
-    if (container) container.innerHTML = '';
-    const input = document.getElementById('mat-user-input');
-    if (input) input.value = '';
-    if (showGreeting) matSendInitialGreeting();
-    else if (message) addMatMsg(message, 'mat-bot');
-}
-
-function clearMatChatHistory() {
-    resetMatChat('🧹 Chatthistoriken är rensad. Ställ en ny fråga om mognadsanalysen när du vill.', false);
-}
-
-function startMatNewChat() {
-    resetMatChat('', true);
-    matFirstOpen = false;
-}
-
-async function sendMatMessage() {
-    const input = document.getElementById('mat-user-input');
-    const text = input.value.trim();
-    if (!text) return;
-    addMatMsg(text, 'mat-user');
+// Send chat message
+async function sendMessage() {
+    const input = document.getElementById('ai-chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    addChatMessage('user', message);
     input.value = '';
-    matHistory.push({ role: 'user', content: text });
+    
+    await processAIRequest(message);
+}
 
-    const apiKey = getMatApiKey();
-    const context = getMatContext();
-    const systemPrompt = 'Du är en senior expert inom verksamhetsutveckling, mognadsstyrning och enterprise architecture. Din roll är att vara en coachande workshop-facilitator för EA20 Maturity Toolbox.\n\nHjälp användaren att:\n1. Förstå vad varje mognadsnivå (1-5) innebär i praktiken för deras bransch\n2. Identifiera prioriterade förbättringsområden med konkreta affärsutfall\n3. Föreslå realistiska nästa steg med tydliga leverabler och ansvar\n4. Koppla mognadsgap till affärsrisker (kostnad, compliance, konkurrensförmåga)\n5. Prioritera rätt hävstänger för nuläget, exempelvis processautomation, AI-agenter, styrning, kompetens, dataförmåga, leverantörsstyrning eller arbetssätt\n6. Förbereda dem för nästa steg: export till EA Platform och strategisk planering\n\nSvara alltid på svenska. Var kortfattad, konkret och affärsnära. Undvik att göra digitalisering eller ny teknik till standardsvar om andra åtgärder är mer relevanta.\nStrukturera svar med korta rubriker och bullet points.\n\nAKTUELL MOGNADSDATA:\n' + context;
-    const container = document.getElementById('mat-messages');
-    const typingDiv = document.createElement('div');
-    typingDiv.className = 'mat-msg mat-bot';
-    typingDiv.id = 'mat-typing';
-    typingDiv.innerHTML = '<div class="mat-icon"><i class="fas fa-robot"></i></div><div class="mat-bubble"><div class="mat-typing"><span></span><span></span><span></span></div></div>';
-    container.appendChild(typingDiv);
-    container.scrollTop = container.scrollHeight;
+// Clear chat history
+function clearChat() {
+    const messages = document.getElementById('ai-chat-messages');
+    if (!messages) return;
+    messages.innerHTML = `
+        <div class="ai-message assistant">
+            <div class="ai-avatar"><i class="fas fa-robot"></i></div>
+            <div class="ai-message-content">
+                <strong>Chat history cleared.</strong><br><br>
+                How can I help you with your EA maturity assessment?
+            </div>
+        </div>
+    `;
+}
 
-    const sendBtn = document.getElementById('mat-send-btn');
-    if (sendBtn) sendBtn.disabled = true;
+// Add message to chat
+function addChatMessage(role, content) {
+    const messages = document.getElementById('ai-chat-messages');
+    if (!messages) return;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `ai-message ${role}`;
+    
+    const avatarDiv = document.createElement('div');
+    avatarDiv.className = 'ai-avatar';
+    avatarDiv.innerHTML = role === 'assistant' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'ai-message-content';
+    contentDiv.innerHTML = role === 'assistant' ? parseMarkdown(content) : escapeHtml(content);
+    
+    messageDiv.appendChild(avatarDiv);
+    messageDiv.appendChild(contentDiv);
+    messages.appendChild(messageDiv);
+    messages.scrollTop = messages.scrollHeight;
+}
 
+// Process AI request
+async function processAIRequest(userMessage) {
+    const maturityContext = getMaturityContext();
+    
+    const systemPrompt = `You are an expert EA (Enterprise Architecture) maturity assessment consultant. 
+
+Help users interpret their maturity scores, identify improvement priorities, create roadmaps, and prepare for strategic planning.
+
+CURRENT MATURITY DATA:
+${maturityContext}
+
+Provide practical, actionable advice. Be concise and structured. Use bullet points and headings.`;
+
+    let apiKey = '';
+    if (typeof dataManager !== 'undefined' && dataManager) {
+        apiKey = dataManager.getApiKey();
+    }
+    
     if (!apiKey) {
-        await new Promise(function(r){ setTimeout(r, 800); });
-        const el = document.getElementById('mat-typing'); if (el) el.remove();
-        const demoReply = getMatDemoReply(text);
-        addMatMsg(demoReply, 'mat-bot');
-        matHistory.push({ role: 'assistant', content: demoReply });
-        if (sendBtn) sendBtn.disabled = false;
+        const keys = ['ea20_openai_key','openai_api_key','ea_openai_key'];
+        for (const k of keys) {
+            const v = localStorage.getItem(k);
+            if (v) {
+                apiKey = v;
+                break;
+            }
+        }
+    }
+    
+    if (!apiKey) {
+        addChatMessage('assistant', '**API Key Required**\n\nPlease add your OpenAI API key in Settings to use the AI assistant.\n\nI can help you with:\n- Maturity score interpretation\n- Improvement roadmaps\n- Framework comparisons\n- Executive summaries');
         return;
     }
-
+    
     try {
-        const res = await fetch('/api/openai/chat', {
+        const response = await fetch('/api/openai/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: 'gpt-5',
-                messages: [{ role: 'system', content: systemPrompt }].concat(matHistory.slice(-8)),
-                max_tokens: 700
+                model: 'gpt-4',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userMessage }
+                ],
+                max_tokens: 800
             })
         });
-        const data = await res.json();
-        const el = document.getElementById('mat-typing'); if (el) el.remove();
-        if (data.error) throw new Error(data.error.message);
-        const reply = data.choices[0].message.content;
-        addMatMsg(reply, 'mat-bot');
-        matHistory.push({ role: 'assistant', content: reply });
-    } catch(e) {
-        const el = document.getElementById('mat-typing'); if (el) el.remove();
-        addMatMsg('<strong>Fel:</strong> ' + e.message + '<br>Kontrollera API-nyckeln i Inställningar.', 'mat-bot');
+        
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        
+        const data = await response.json();
+        
+        if (data.error) throw new Error(data.error.message || 'API request failed');
+        
+        const assistantMessage = data.choices[0].message.content;
+        addChatMessage('assistant', assistantMessage);
+        
+    } catch (error) {
+        addChatMessage('assistant', `**Error:** ${error.message}\n\nPlease check your API key in Settings and try again.`);
     }
-    if (sendBtn) sendBtn.disabled = false;
 }
 
-function getMatDemoReply(question) {
-    const q = question.toLowerCase();
-    if (q.includes('nivå') || q.includes('förklara') || q.includes('innebär')) {
-        return '**Mognadsnivåerna 1–5:**\n\n- **Nivå 1 – Initial:** Ad hoc, reaktivt, personberoende\n- **Nivå 2 – Etablerad:** Grundprocesser dokumenterade men inkonsekvent\n- **Nivå 3 – Definierad:** Standardiserade med mätetal och ansvar\n- **Nivå 4 – Kvantifierad:** Datadrivna beslut, förutsägbar prestanda\n- **Nivå 5 – Optimerad:** Kontinuerlig förbättring, AI-assisterad\n\nLägg till API-nyckel för branschspecifik tolkning kopplad till era faktiska scores.';
+// Get maturity context for AI
+function getMaturityContext() {
+    if (typeof frameworks === 'undefined' || typeof currentFw === 'undefined' || typeof scores === 'undefined') {
+        return 'No maturity data available yet. User is setting up the assessment.';
     }
-    if (q.includes('gap') || q.includes('förbättr') || q.includes('åtgärd')) {
-        return '**Vanliga förbättringsinsatser:**\n\n- 🎯 Utse process-owner med tydligt mandat\n- 📊 Implementera KPI-dashboard som baseline\n- 🤖 Utvärdera automationsmöjligheter (RPA/AI)\n- 📋 Dokumentera och standardisera arbetsflöden\n\nLägg till API-nyckel för prioriterade åtgärder baserade på era faktiska scores.';
-    }
-    if (q.includes('roadmap') || q.includes('plan') || q.includes('nästa')) {
-        return '**Typisk mognadshöjande roadmap:**\n\n**0–3 mån (Quick Wins):** Dokumentera top-3 kritiska processer, sätt KPI-baseline\n\n**3–9 mån (Etablering):** Processautomation, kompetensutveckling\n\n**9–18 mån (Optimering):** AI-driven analys, ramverkscertifiering\n\nLägg till OpenAI API-nyckel under Inställningar för skräddarsydd plan.';
-    }
-    if (q.includes('c-level') || q.includes('ledning') || q.includes('presentation')) {
-        return '**C-level budskap att förbereda:**\n\n- Nuläge: Viktat score X/5 inom [ramverk]\n- Affärsrisk: Mognadsgap kostar ca X% i ineffektivitet\n- Investering: Y MSEK för att nå nivå 3-4\n- ROI: Z% kostnadsminskning, minskad regulatorisk risk\n\nLägg till API-nyckel för en genomarbetad executive summary.';
-    }
-    const fw = (typeof currentFw !== 'undefined' && frameworks && frameworks[currentFw]) ? frameworks[currentFw].name : 'detta ramverk';
-    return 'Öppna **Inställningar** (kugghjulet) och lägg till din OpenAI API-nyckel för fullständiga, kontextuella svar baserade på era faktiska mognadsscores inom ' + fw + '.';
+    
+    const fw = frameworks[currentFw];
+    if (!fw) return 'No framework selected.';
+    
+    const avgs = getWeightedAvgs();
+    const total = (avgs.reduce((a,b) => a+b, 0) / avgs.length).toFixed(1);
+    const org = localStorage.getItem('ea20_org_name') || 'the organization';
+    const answered = fw.questions.filter((q,i) => scores[currentFw+'_q'+i] > 0).length;
+    const pct = Math.round((answered / fw.questions.length) * 100);
+    
+    let ctx = `Organization: ${org}\nFramework: ${fw.name}\nOverall Score: ${total}/5\nProgress: ${pct}% (${answered}/${fw.questions.length} questions)\n\nCategory Scores:\n`;
+    fw.categories.forEach((c,i) => { ctx += `- ${c}: ${avgs[i]}/5\n`; });
+    
+    const low = fw.categories.filter((c,i) => avgs[i] < 2.5);
+    const high = fw.categories.filter((c,i) => avgs[i] >= 4.0);
+    if (low.length) ctx += `\nWeak areas (< 2.5): ${low.join(', ')}`;
+    if (high.length) ctx += `\nStrong areas (>= 4.0): ${high.join(', ')}`;
+    
+    return ctx;
 }
 
-function renderMatContextBadge() {
-    const badge = document.getElementById('mat-context-badge');
-    if (!badge || !dataManager) return;
-    if (!dataManager.hasRecentIntegrationData('strategy_latest', 1440)) {
-        badge.classList.add('hidden');
-        return;
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        toggleChatPanel();
     }
-    const data = dataManager.getIntegrationPackage('strategy_latest');
-    const age = Math.max(0, Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60));
-    badge.innerHTML = '<i class="fas fa-link mr-1"></i> Kontext från Strategy Workbench · uppdaterad ' + age + ' min sedan';
-    badge.classList.remove('hidden');
-}
+});
 
-function matOpenEaPlatform() {
-    if (typeof exportMaturityToIntegrationCache === 'function') {
-        exportMaturityToIntegrationCache();
-    }
-    window.location.href = '../NexGenEA/NexGen_EA_V4.html?autoflow=1';
-}
+// Initialize on load
+window.addEventListener('DOMContentLoaded', function() {
+    initChatSidebarResize();
+    applySidebarWidth();
+});
+
 </script>
 
 <script>

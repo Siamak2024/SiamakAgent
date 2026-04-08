@@ -1,2232 +1,1368 @@
-﻿	<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Business Model Canvas</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>AI Business Model Canvas — EA Toolkit</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="../js/EA_Config.js"></script>
-    <script src="../js/EA_DataManager.js"></script>
-    <script src="../js/EA_ToolkitKPI.js"></script>
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
+    <script src="../../js/EA_Config.js"></script>
+    <script src="../../js/EA_DataManager.js"></script>
+    <script src="../../js/Advicy_AI.js"></script>
     <style>
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background:#f8fafc; }
-        .canvas-outer {
+        /* Layout: Main + Sidebar */
+        body {
+            margin: 0;
+            font-family: 'Manrope', 'Segoe UI', system-ui, sans-serif;
+            background: var(--ea-background);
+            overflow: hidden;
+        }
+        #app-container {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+        #main-content {
+            flex: 1;
+            overflow-y: auto;
+            transition: margin-right 0.2s ease;
+        }
+        body.chat-sidebar-open #main-content {
+            margin-right: 380px;
+        }
+        
+        /* EA Header - Teal gradient matching toolkit landing page */
+        .ea-header {
+            height: 64px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f766e 100%) !important;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            color: white;
+        }
+        .ea-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .ea-brand-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.16);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 14px;
+            color: white;
+        }
+        .ea-header-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 2px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .ea-header-title h1 i {
+            font-size: 32px;
+        }
+        .ea-header-title p {
+            font-size: 11px;
+            opacity: 0.7;
+            margin: 0;
+        }
+        .ea-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ea-header-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        .ea-header-icon:hover {
+            background: rgba(255,255,255,0.18);
+        }
+        
+        /* Toolbar */
+        .ea-toolbar {
+            background: var(--ea-surface);
+            border-bottom: 1px solid var(--ea-border);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .ea-toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ea-toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toolbar-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: var(--ea-radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--ea-border);
             background: white;
-            border: 2px solid #1e293b;
-            border-radius: 4px;
+            color: var(--ea-text-strong);
+            transition: all 0.15s;
+        }
+        .toolbar-btn:hover {
+            background: var(--ea-hover);
+            border-color: var(--ea-primary);
+            color: var(--ea-primary);
+        }
+        .toolbar-btn--primary {
+            background: var(--ea-primary);
+            color: white;
+            border-color: var(--ea-primary);
+        }
+        .toolbar-btn--primary:hover {
+            background: #1e40af;
+        }
+        .toolbar-btn--danger {
+            background: white;
+            color: #dc2626;
+            border-color: #fecaca;
+        }
+        .toolbar-btn--danger:hover {
+            background: #fef2f2;
+            border-color: #dc2626;
+        }
+        .toolbar-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--ea-border);
+            margin: 0 4px;
+        }
+        
+        /* Canvas Container */
+        .canvas-container {
+            max-width: 1600px;
+            margin: 32px auto;
+            padding: 0 32px;
+        }
+        .canvas-outer {
+            background: var(--ea-surface);
+            border: 3px solid var(--ea-border-strong);
+            border-radius: var(--ea-radius-md);
+            box-shadow: var(--ea-shadow-card);
+            overflow: hidden;
         }
         .canvas-title-bar {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr 1fr;
-            border-bottom: 2px solid #1e293b;
+            border-bottom: 3px solid var(--ea-border-strong);
+            background: var(--ea-hover);
         }
         .meta-field {
-            border-left: 1px solid #1e293b;
-            padding: 6px 10px;
+            border-left: 2px solid var(--ea-border-strong);
+            padding: 12px 16px;
         }
         .meta-field:first-child { border-left: none; }
         .meta-label {
-            font-size: 0.6rem;
+            font-size: var(--ea-meta);
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            color: #64748b;
-            margin-bottom: 2px;
+            color: var(--ea-text-muted);
+            margin-bottom: 4px;
         }
         .meta-input {
             width: 100%;
             border: none;
             outline: none;
-            font-size: 0.78rem;
-            color: #1e293b;
+            font-size: var(--ea-body);
+            color: var(--ea-text-strong);
             background: transparent;
-            font-weight: 500;
+            font-weight: 600;
         }
+        
+        /* Canvas Grid - Increased min-height for better readability */
         .canvas-grid {
             display: grid;
             grid-template-columns: 1fr 1fr 1.4fr 1fr 1fr;
             grid-template-rows: 1fr 1fr 1fr;
+            gap: 0;
         }
         .cell {
-            border: 1px solid #1e293b;
-            padding: 10px;
+            border-right: 2px solid var(--ea-border-strong);
+            border-bottom: 2px solid var(--ea-border-strong);
+            padding: 16px;
             display: flex;
             flex-direction: column;
-            min-height: 160px;
+            min-height: 220px;
             position: relative;
-            background: white;
+            background: var(--ea-surface);
+        }
+        .cell:nth-child(5n) {
+            border-right: none;
+        }
+        .cell:nth-last-child(-n+5) {
+            border-bottom: none;
         }
         .cell-header {
-            font-size: 0.72rem;
+            font-size: var(--ea-body);
             font-weight: 800;
-            color: #0f172a;
-            margin-bottom: 4px;
+            color: var(--ea-text-strong);
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
         }
         .cell-num {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 16px;
-            height: 16px;
-            background: #0f172a;
+            width: 24px;
+            height: 24px;
+            background: var(--ea-primary);
             color: white;
-            border-radius: 50%;
-            font-size: 0.6rem;
+            border-radius: 999px;
+            font-size: 11px;
             font-weight: 800;
             flex-shrink: 0;
         }
         .cell-icon {
-            font-size: 0.85rem;
-            color: #475569;
+            font-size: 16px;
+            color: var(--ea-text-muted);
         }
         .cell-subtitle {
-            font-size: 0.6rem;
-            color: #94a3b8;
-            margin-bottom: 6px;
-            line-height: 1.4;
+            font-size: var(--ea-meta);
+            color: var(--ea-text-muted);
+            margin-bottom: 10px;
+            line-height: 1.5;
         }
         .cell textarea {
             flex: 1;
             background: #f8fafc;
-            border-radius: 6px;
-            border: 1px solid #e2e8f0;
-            font-size: 0.75rem;
-            padding: 7px;
+            border-radius: var(--ea-radius-sm);
+            border: 1px solid var(--ea-border);
+            font-size: var(--ea-body);
+            padding: 10px;
             resize: none;
             outline: none;
-            color: #334155;
-            line-height: 1.5;
+            color: var(--ea-text-default);
+            line-height: 1.6;
+            font-family: inherit;
         }
         .cell textarea:focus {
-            border-color: #3b82f6;
-            background: #eff6ff;
+            border-color: var(--ea-primary);
+            background: white;
         }
-        .cell textarea::placeholder { color: #cbd5e1; }
+        .cell textarea::placeholder {
+            color: var(--ea-text-muted);
+            opacity: 0.6;
+        }
+        
+        /* Bottom Row */
         .bottom-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            border-top: 2px solid #1e293b;
+            border-top: 3px solid var(--ea-border-strong);
         }
         .bottom-cell {
-            border-right: 1px solid #1e293b;
-            padding: 10px;
+            border-right: 2px solid var(--ea-border-strong);
+            padding: 16px;
             display: flex;
             flex-direction: column;
-            min-height: 130px;
+            min-height: 180px;
         }
         .bottom-cell:last-child { border-right: none; }
-        .kpi-panel {
-            background: white;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            padding: 14px;
+        
+        /* AI Chat Panel (Right Sidebar) */
+        #ai-chat-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 380px;
+            background: var(--ea-surface);
+            border-left: 1px solid var(--ea-border);
+            box-shadow: -4px 0 24px rgba(0,0,0,0.08);
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
         }
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 10px;
+        body.chat-sidebar-open #ai-chat-panel {
+            display: flex;
         }
-        .kpi-item {
-            background: #f8fafc;
-            border-radius: 8px;
-            padding: 10px 12px;
+        
+        /* Resize handle on left edge */
+        #chat-resize-handle {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 20;
+            transition: background 0.15s;
         }
-        .kpi-label {
-            font-size: 0.68rem;
-            color: #64748b;
-            font-weight: 600;
-            margin-bottom: 4px;
+        #chat-resize-handle:hover,
+        #chat-resize-handle.dragging {
+            background: #0e7afe;
         }
-        .kpi-input {
-            width: 100%;
-            border-radius: 6px;
-            border: 1px solid #e2e8f0;
-            padding: 6px 8px;
-            font-size: 0.78rem;
-            outline: none;
-            background: white;
-        }
-        .kpi-input:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
-        }
-        .kpi-textarea {
-            width: 100%;
-            border-radius: 6px;
-            border: 1px solid #e2e8f0;
-            padding: 7px 8px;
-            font-size: 0.78rem;
-            outline: none;
-            background: white;
-            line-height: 1.5;
-            resize: vertical;
-            min-height: 72px;
-        }
-        .kpi-textarea:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
-        }
-        #result-panel {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.07);
-            margin-top: 16px;
-            overflow: hidden;
-        }
-        .result-header {
-            background: linear-gradient(135deg, #0f172a, #1d4ed8);
-            padding: 12px 16px;
+        
+        #chat-header {
+            height: 64px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f766e 100%);
+            color: white;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            padding: 0 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-        #result-content {
-            padding: 16px 20px;
-            font-size: 0.84rem;
-            color: #334155;
-            line-height: 1.65;
+        #chat-header-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 700;
         }
-        #result-content h3 { font-size: 0.9rem; font-weight: 700; color: #0f172a; margin-top: 1rem; margin-bottom: 0.4rem; }
-        #result-content ul { margin-left: 1.2rem; margin-bottom: 0.6rem; }
-        #result-content li { list-style: disc; margin-bottom: 0.25rem; }
-        #result-content strong { color: #0f172a; }
-        #api-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(3px); }
-        #api-modal.hidden { display: none; }
-        .modal-box { background: white; border-radius: 12px; padding: 24px; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-        .modal-input { width: 100%; border-radius: 8px; border: 1px solid #e2e8f0; padding: 10px 12px; font-size: 0.8rem; font-family: monospace; }
-        .modal-input:focus { border-color: #1d4ed8; box-shadow: 0 0 0 2px rgba(37,99,235,0.18); outline: none; }
-        .btn { border-radius: 7px; font-size: 0.8rem; font-weight: 600; padding: 7px 13px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; border: none; }
-        .btn-primary { background: #1d4ed8; color: white; }
-        .btn-primary:hover { background: #1e40af; }
-        .btn-secondary { background: white; border: 1px solid #e2e8f0; color: #64748b; }
-        .btn-secondary:hover { background: #f8fafc; }
-        .to-be-suggestion {
-            margin-top: 6px;
-            border-left: 3px solid #16a34a;
-            background: #f0fdf4;
+        #chat-controls {
+            display: flex;
+            gap: 6px;
+        }
+        #chat-controls button {
+            width: 32px;
+            height: 32px;
             border-radius: 6px;
-            padding: 6px 8px;
-            display: none;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.15s;
         }
-        .to-be-suggestion.visible { display: block; }
-        .to-be-suggestion .label {
-            display: block;
-            font-size: 0.62rem;
-            font-weight: 800;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: #166534;
-            margin-bottom: 2px;
+        #chat-controls button:hover {
+            background: rgba(255,255,255,0.2);
         }
-        .to-be-suggestion .text {
-            font-size: 0.72rem;
-            line-height: 1.5;
-            color: #15803d;
-            white-space: pre-line;
-            font-weight: 600;
+        
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 16px;
+            background: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            scrollbar-width: thin;
+            scrollbar-color: #404040 transparent;
         }
-        .spinner { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .order-hint {
-            font-size: 0.58rem;
-            color: #94a3b8;
-            font-style: italic;
-            margin-top: 2px;
-        }
-		        /* ============================================================
-           BMC AI ASSISTANT WIDGET
-           Kopiera allt mellan START och END in i din BMC HTML-fil
-           ============================================================ */
+        #chat-messages::-webkit-scrollbar { width: 6px; }
+        #chat-messages::-webkit-scrollbar-thumb { background: #404040; border-radius: 3px; }
 
-        /* --- FLOATING BUTTON --- */
-        #bmc-assistant-btn {
-            position: fixed;
-            bottom: 28px;
-            right: 28px;
-            width: 52px;
-            height: 52px;
-            background: linear-gradient(135deg, #1d4ed8, #7c3aed);
-            border-radius: 50%;
+        /* Chat messages - EA Platform styling with gradients and markdown support */
+        .chat-message {
+            display: flex;
+            gap: 0;
+            animation: chatSlideIn 0.2s ease;
+            margin-bottom: 16px;
+        }
+        @keyframes chatSlideIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message-avatar { display: none; }
+        .message-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            min-width: 0;
+        }
+        .message-text {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #e0e0e0;
+            white-space: normal;
+            word-break: break-word;
+        }
+        .user-message {
+            flex-direction: row;
+            margin-bottom: 16px;
+        }
+        .user-message .message-content { align-items: flex-start; }
+        .user-message .message-text {
+            background: rgba(55, 65, 81, 0.85);
+            color: #e2e8f0;
+            border: 1px solid rgba(75, 85, 99, 0.4);
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .assistant-message .message-text {
+            color: #e0e0e0;
+        }
+        .message-time {
+            font-size: 11px;
+            color: #666;
+            padding: 4px 0 0 0;
+        }
+        
+        #chat-input-container {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border-top: 1px solid #2d2d2d;
+            flex-shrink: 0;
+        }
+        #chat-input {
+            flex: 1;
+            border: 1px solid #404040;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 14px;
+            resize: none;
+            height: 72px;
+            outline: none;
+            background: #2d2d2d;
+            color: #e0e0e0;
+            font-family: inherit;
+        }
+        #chat-input::placeholder { color: #808080; }
+        #chat-input:focus {
+            border-color: #0066cc;
+            box-shadow: 0 0 0 1px #0066cc;
+        }
+        #send-chat {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 6px;
+            background: #0066cc;
+            color: #fff;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(29,78,216,0.45);
-            z-index: 999;
-            border: none;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        #bmc-assistant-btn:hover {
-            transform: scale(1.08);
-            box-shadow: 0 6px 28px rgba(29,78,216,0.55);
-        }
-        #bmc-assistant-btn .notif-dot {
-            position: absolute;
-            top: 4px; right: 4px;
-            width: 10px; height: 10px;
-            background: #f59e0b;
-            border-radius: 50%;
-            border: 2px solid white;
-        }
-
-        /* --- CHAT PANEL --- */
-        #bmc-chat-panel {
-            position: fixed;
-            bottom: 90px;
-            right: 28px;
-            width: 760px;
-            max-height: 600px;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 12px 50px rgba(15,23,42,0.18);
-            display: flex;
-            flex-direction: column;
-            z-index: 998;
-            overflow: hidden;
-            transition: opacity 0.2s, transform 0.2s;
-        }
-        #bmc-chat-panel.hidden {
-            opacity: 0;
-            pointer-events: none;
-            transform: translateY(12px);
-        }
-
-        /* Header */
-        .chat-header {
-            background: linear-gradient(135deg, #0f172a, #1d4ed8);
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            align-self: flex-end;
             flex-shrink: 0;
+            font-size: 14px;
         }
-        .chat-header-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: white;
-        }
-        .chat-avatar {
-            width: 30px; height: 30px;
-            background: rgba(255,255,255,0.15);
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.85rem;
-        }
-        .chat-header-title span {
-            font-size: 0.82rem;
-            font-weight: 700;
-        }
-        .chat-header-title small {
-            display: block;
-            font-size: 0.62rem;
-            opacity: 0.7;
-            font-weight: 400;
-        }
-
-        /* Quick actions */
+        #send-chat:hover { background: #0052a3; }
+        
+        /* Quick Actions */
         .quick-actions {
-            padding: 8px 10px;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
+            padding: 16px;
+            border-bottom: 1px solid var(--ea-border);
             display: flex;
             flex-wrap: wrap;
-            gap: 5px;
-            flex-shrink: 0;
+            gap: 8px;
         }
         .qa-btn {
-            font-size: 0.65rem;
-            font-weight: 600;
-            padding: 4px 9px;
-            border-radius: 20px;
-            border: 1px solid #e2e8f0;
+            flex: 1;
+            min-width: 100px;
+            padding: 8px 12px;
             background: white;
-            color: #475569;
+            border: 1px solid var(--ea-border);
+            border-radius: var(--ea-radius-sm);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--ea-text-strong);
             cursor: pointer;
             transition: all 0.15s;
-            white-space: nowrap;
         }
         .qa-btn:hover {
-            background: #1d4ed8;
-            color: white;
-            border-color: #1d4ed8;
+            background: var(--ea-hover);
+            border-color: var(--ea-primary);
+            color: var(--ea-primary);
         }
-
-        /* Messages */
-        #bmc-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            min-height: 0;
+        .qa-btn i {
+            margin-right: 4px;
         }
-        .msg {
-            display: flex;
-            gap: 7px;
-            align-items: flex-start;
-        }
-        .msg.user { flex-direction: row-reverse; }
-        .msg-avatar {
-            width: 26px; height: 26px;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.7rem;
-            flex-shrink: 0;
-            margin-top: 2px;
-        }
-        .msg.ai .msg-avatar { background: linear-gradient(135deg,#1d4ed8,#7c3aed); color: white; }
-        .msg.user .msg-avatar { background: #e2e8f0; color: #475569; }
-        .msg-bubble {
-            max-width: 82%;
-            padding: 8px 11px;
-            border-radius: 12px;
-            font-size: 0.78rem;
-            line-height: 1.55;
-        }
-        .msg.ai .msg-bubble {
-            background: #f1f5f9;
-            color: #1e293b;
-            border-bottom-left-radius: 4px;
-        }
-        .msg.user .msg-bubble {
-            background: linear-gradient(135deg,#1d4ed8,#3b82f6);
-            color: white;
-            border-bottom-right-radius: 4px;
-        }
-        .msg-bubble strong { font-weight: 700; }
-        .msg-bubble ul { margin-left: 1rem; margin-top: 4px; }
-        .msg-bubble li { list-style: disc; margin-bottom: 2px; }
-        .msg-bubble .apply-btn {
+        
+        /* Buttons */
+        .ea-btn {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            margin-top: 7px;
-            font-size: 0.68rem;
-            font-weight: 700;
-            padding: 4px 10px;
-            background: #1d4ed8;
-            color: white;
-            border-radius: 6px;
-            cursor: pointer;
-            border: none;
-        }
-        .msg-bubble .apply-btn:hover { background: #1e40af; }
-
-        /* Typing indicator */
-        .typing-dots span {
-            display: inline-block;
-            width: 6px; height: 6px;
-            background: #94a3b8;
-            border-radius: 50%;
-            margin: 0 1px;
-            animation: bounce 1.2s infinite;
-        }
-        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes bounce {
-            0%,60%,100% { transform: translateY(0); }
-            30% { transform: translateY(-5px); }
-        }
-
-        /* Input area */
-        .chat-input-area {
-            padding: 10px;
-            border-top: 1px solid #e2e8f0;
-            display: flex;
-            gap: 7px;
-            align-items: flex-end;
-            flex-shrink: 0;
-            background: white;
-        }
-        #bmc-chat-input {
-            flex: 1;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 8px 11px;
-            font-size: 0.78rem;
-            resize: none;
-            outline: none;
-            max-height: 90px;
-            line-height: 1.4;
-            font-family: inherit;
-        }
-        #bmc-chat-input:focus { border-color: #3b82f6; }
-        #bmc-send-btn {
-            width: 34px; height: 34px;
-            background: #1d4ed8;
-            border: none;
-            border-radius: 9px;
-            color: white;
-            cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.8rem;
-            flex-shrink: 0;
-            transition: background 0.15s;
-        }
-        #bmc-send-btn:hover { background: #1e40af; }
-        #bmc-send-btn:disabled { background: #94a3b8; cursor: not-allowed; }
-
-        /* Context toggle */
-        .context-toggle {
-            padding: 5px 10px;
-            background: #eff6ff;
-            border-bottom: 1px solid #dbeafe;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.65rem;
-            color: #1d4ed8;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: var(--ea-radius-sm);
+            font-size: var(--ea-body);
             font-weight: 600;
-            flex-shrink: 0;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
         }
-        .context-toggle input[type=checkbox] { cursor: pointer; }
-
-        /* Demo mode notice */
-        .demo-notice {
-            background: #fffbeb;
-            border-bottom: 1px solid #fde68a;
-            padding: 5px 10px;
-            font-size: 0.62rem;
-            color: #92400e;
-            text-align: center;
-            flex-shrink: 0;
+        .ea-btn--primary {
+            background: var(--ea-primary);
+            color: white;
         }
-
+        .ea-btn--primary:hover {
+            background: #1e40af;
+        }
+        .ea-btn--secondary {
+            background: white;
+            color: var(--ea-text-strong);
+            border: 1px solid var(--ea-border);
+        }
+        .ea-btn--secondary:hover {
+            background: var(--ea-hover);
+        }
+        
         /* Spinner */
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-    </style>
-    <link rel="stylesheet" href="../css/ea-design-engine.css" />
-</head>
-<body class="p-0 ea-toolkit-app">
-
-<!-- WORKFLOW NAVIGATION BAR -->
-<div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 text-xs font-semibold shadow-md flex items-center justify-between">
-  <div class="flex items-center gap-4">
-    <a href="../Integration_Workflow_Hub.html" class="flex items-center gap-2 hover:underline">
-      <i class="fas fa-arrow-left"></i> Tillbaka till Workflow Hub
-    </a>
-    <div class="h-4 w-px bg-white/30"></div>
-    <div class="flex items-center gap-2">
-      <span class="bg-white text-purple-600 px-2 py-1 rounded font-bold">PHASE 1 av 4</span>
-      <i class="fas fa-chevron-right opacity-50 text-xs"></i>
-      <a href="./AI Value Chain Analyzer V2.html" onclick="event.preventDefault(); bmcOpenNextTool();" class="opacity-90 hover:opacity-100 hover:underline">PHASE 2</a>
-      <i class="fas fa-chevron-right opacity-50 text-xs"></i>
-      <a href="./AI Capability Mapping V2.html" class="opacity-70 hover:opacity-100 hover:underline">PHASE 3</a>
-      <i class="fas fa-chevron-right opacity-50 text-xs"></i>
-      <a href="./AI Strategy Workbench V2.html" class="opacity-70 hover:opacity-100 hover:underline">PHASE 4</a>
-    </div>
-  </div>
-  <div class="text-xs opacity-90">
-    <i class="fas fa-info-circle mr-1"></i> Exportera när klar för att låsa upp nästa fas
-  </div>
-</div>
-
-<!-- EA PLATFORM HEADER -->
-<header class="bg-gradient-to-r from-slate-900 to-blue-900 text-white px-5 py-3 flex items-center justify-between shadow-lg">
-  <div class="flex items-center gap-3">
-    <a href="../NexGenEA/NexGen_EA_V4.html" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
-      <i class="fas fa-arrow-left"></i> Tillbaka till EA Platform
-    </a>
-    <div class="h-6 w-px bg-slate-600"></div>
-    <div class="flex items-center gap-2">
-      <div class="bg-teal-500 rounded-lg w-8 h-8 flex items-center justify-center font-bold text-sm"><i class="fas fa-table-columns"></i></div>
-      <div>
-        <div class="font-bold text-sm leading-tight">AI Business Model Canvas</div>
-        <div class="text-blue-300 text-xs">Workshop Tool · Step 1</div>
-      </div>
-    </div>
-  </div>
-    <div class="text-xs text-slate-300">
-        <div id="bmc-sync-status"><i class="fas fa-sync-alt"></i> Data synkas automatiskt med EA Platform</div>
-        <div id="bmc-context-badge" class="mt-1 text-[11px] text-blue-200 hidden"></div>
-    </div>
-</header>
-
-<section class="ea-kpi-strip">
-    <div class="ea-kpi-grid">
-        <div class="ea-kpi-card">
-            <span class="ea-kpi-icon"><i class="fas fa-list-check"></i></span>
-            <div><span class="ea-kpi-label">Tool Step</span><span class="ea-kpi-value">1 / 5</span></div>
-        </div>
-        <div class="ea-kpi-card is-accent">
-            <span class="ea-kpi-icon"><i class="fas fa-link"></i></span>
-            <div><span class="ea-kpi-label">Sync</span><span class="ea-kpi-value" data-kpi="sync">EA Platform Active</span></div>
-        </div>
-        <div class="ea-kpi-card">
-            <span class="ea-kpi-icon"><i class="fas fa-brain"></i></span>
-            <div><span class="ea-kpi-label">AI Mode</span><span class="ea-kpi-value" data-kpi="ai">Assistant Ready</span></div>
-        </div>
-        <button class="ea-kpi-card" type="button" onclick="bmcOpenNextTool()" title="Gå till nästa verktyg: AI Value Chain Analyzer" style="text-align:left; cursor:pointer; width:100%;">
-            <span class="ea-kpi-icon"><i class="fas fa-arrow-right"></i></span>
-            <div><span class="ea-kpi-label">Next Tool</span><span class="ea-kpi-value">Value Chain</span></div>
-        </button>
-    </div>
-</section>
-
-<div class="p-5">
-<!-- ================================================================
-    === BMC ASSISTANT START - KOPIERA HARIFRAN ===
-    ================================================================ -->
-
-<!-- FLOATING BUTTON -->
-<button id="bmc-assistant-btn" onclick="toggleBMCChat()" title="BMC AI-assistent">
-    <i class="fas fa-robot text-white text-lg"></i>
-    <span class="notif-dot"></span>
-</button>
-
-<!-- CHAT PANEL -->
-<div id="bmc-chat-panel" class="hidden">
-
-    <!-- Header -->
-    <div class="chat-header">
-        <div class="chat-header-title">
-            <div class="chat-avatar"><i class="fas fa-robot"></i></div>
-            <div>
-                <span>BMC AI-assistent</span>
-                <small>Hjälper dig bygga optimal Business Model Canvas</small>
-            </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-            <button onclick="bmcNewChat()" class="text-white/80 hover:text-white text-[11px] font-bold bg-white/10 border border-white/15 rounded px-2 py-1 cursor-pointer">Ny chat</button>
-            <button onclick="bmcClearChatHistory()" class="text-white/80 hover:text-white text-[11px] font-bold bg-white/10 border border-white/15 rounded px-2 py-1 cursor-pointer">Rensa</button>
-            <button onclick="toggleBMCChat()" class="text-white/60 hover:text-white text-lg leading-none bg-transparent border-none cursor-pointer">x</button>
-        </div>
-    </div>
-
-    <!-- Demo/API notice -->
-    <div class="demo-notice" id="bmc-api-notice">
-        <i class="fas fa-key mr-1"></i> Ingen API-nyckel hittad - svar ges i demo-läge
-    </div>
-
-    <!-- Context toggle -->
-    <div class="context-toggle">
-        <input type="checkbox" id="bmc-use-context" checked>
-        <label for="bmc-use-context">Inkludera aktuell BMC-data i frågorna</label>
-        <i class="fas fa-info-circle text-blue-400 ml-auto" title="När aktiverat skickas dina ifyllda fält med till AI:n för kontextuella svar"></i>
-    </div>
-
-    <!-- Quick action buttons -->
-    <div class="quick-actions">
-        <button class="qa-btn" onclick="bmcQuickAsk('Analysera min BMC och identifiera de 3 svagaste punkterna')">Analysera svagheter</button>
-        <button class="qa-btn" onclick="bmcQuickAsk('Ge konkreta förslag på hur jag kan stärka mitt värdeerbjudande')">Stärk värdeerbjudande</button>
-        <button class="qa-btn" onclick="bmcQuickAsk('Vilka intäktsströmmar saknar jag troligen baserat på min affärsmodell?')">Saknade intäkter</button>
-        <button class="qa-btn" title="Föreslå 3 digitaliserings- och automationsinitiativ" onclick="bmcQuickAsk('Föreslå 3 digitaliserings- och automationsinitiativ för min affärsmodell')">Digitalisering</button>
-        <button class="qa-btn" onclick="bmcQuickAsk('Hur kan jag optimera min kostnadsstruktur?')">Optimera kostnader</button>
-        <button class="qa-btn" onclick="bmcQuickAsk('Vilka ESG- och hållbarhetskrav bör jag adressera i min BMC?')">ESG & hållbarhet</button>
-        <button class="qa-btn" title="Prioriterad 90-dagars action plan" onclick="bmcQuickAsk('Ge mig en prioriterad 90-dagars action plan baserat på min BMC')">90d plan</button>
-        <button class="qa-btn" onclick="bmcQuickAsk('Hur kan jag förbättra Customer retention och kundrelationer?')">Customer retention</button>
-        <button class="qa-btn" onclick="bmcGenerateEmptyFields()">Fyll tomma fält</button>
-        <button class="qa-btn" title="Förbered nästa workshop: Value Chain" onclick="bmcQuickAsk('Baserat på min BMC: hur förbereder jag Value Chain-analysen? Vilka aktiviteter och kostnadsstrukturer bör jag fokusera på i nästa workshop?')">Förbered VC</button>
-        <button class="qa-btn" title="Öppna nästa verktyg: AI Value Chain Analyzer" onclick="bmcOpenNextTool()">Öppna Value Chain</button>
-    </div>
-
-    <!-- Messages -->
-    <div id="bmc-messages">
-        <!-- Welcome message injected by JS -->
-    </div>
-
-    <!-- Input -->
-    <div class="chat-input-area">
-        <textarea id="bmc-chat-input"
-            placeholder="Ställ en fråga om din BMC..."
-            rows="1"
-            onkeydown="bmcHandleKey(event)"
-            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
-        <button id="bmc-send-btn" onclick="bmcSendMessage()">
-            <i class="fas fa-paper-plane"></i>
-        </button>
-    </div>
-</div>
-
-<!-- ================================================================
-     === BMC ASSISTANT END ===
-     ================================================================ -->
-
-<!-- API Modal -->
-<div id="api-modal" class="hidden">
-    <div class="modal-box">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center">
-                <i class="fas fa-key text-blue-600 text-sm"></i>
-            </div>
-            <div>
-                <h2 class="text-sm font-bold text-slate-900">OpenAI API-nyckel</h2>
-                <p class="text-[11px] text-slate-500 m-0">Delas med alla NextGen EA-verktyg</p>
-            </div>
-        </div>
-        <input id="api-key-input" type="password" placeholder="sk-proj-..." class="modal-input mb-2" />
-        <div class="flex items-center gap-2 mb-3">
-            <input type="checkbox" id="show-key" onchange="toggleKeyVisibility()" class="rounded">
-            <label for="show-key" class="text-[11px] text-slate-500 cursor-pointer">Visa nyckel</label>
-        </div>
-        <div class="flex gap-2">
-            <button class="btn btn-primary flex-1" onclick="saveApiKey()"><i class="fas fa-check"></i> Spara & Aktivera</button>
-            <button class="btn btn-secondary" onclick="closeModal()">Avbryt</button>
-        </div>
-        <p class="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
-            <i class="fas fa-shield-alt"></i> Nyckeln skickas endast till OpenAI.
-        </p>
-    </div>
-</div>
-
-<div class="max-w-7xl mx-auto">
-    <!-- Top toolbar -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
-        <div>
-            <h1 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <i class="fas fa-table-columns text-blue-600"></i>
-                AI Business Model Canvas
-                <span class="text-blue-600 text-xs font-semibold bg-blue-50 px-2 py-0.5 rounded-full">NextGen EA</span>
-            </h1>
-            <p class="text-[11px] text-slate-500 mt-0.5">Affärsmodell · Värdeerbjudande · Intäktslogik · Grund för kapabilitets- & Wardley-mapping</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-            <button onclick="openModal()" class="btn btn-secondary text-[11px]">
-                <i class="fas fa-key"></i><span id="api-status-text">API-nyckel</span>
-            </button>
-            <button onclick="loadExample()" class="btn btn-secondary text-[11px]" style="border-color:#f59e0b;color:#b45309;background:#fffbeb;">
-                <i class="fas fa-lightbulb" style="color:#f59e0b;"></i>Ladda exempel
-            </button>
-            <button onclick="clearCanvas()" class="btn btn-secondary text-[11px]">
-                <i class="fas fa-trash-alt text-red-400"></i>Rensa
-            </button>
-            <button onclick="saveToLocal()" class="btn btn-secondary text-[11px]">
-                <i class="fas fa-save"></i>Spara
-            </button>
-            <button onclick="exportToCSV()" class="btn btn-secondary text-[11px]">
-                <i class="fas fa-file-excel text-green-600"></i>Exportera CSV
-            </button>
-            <button onclick="exportToIntegrationCache()" class="btn btn-secondary text-[11px]" style="border-color:#9333ea;color:#7e22ce;background:#faf5ff;" title="Exportera till EA Platform integration">
-                <i class="fas fa-project-diagram" style="color:#9333ea;"></i>Exportera EA
-            </button>
-            <button onclick="runAnalysis()" class="btn btn-primary text-[11px]">
-                <i class="fas fa-robot"></i>AI Analysera
-            </button>
-            <button id="apply-tobe-btn" onclick="applyToBeModelFromProposal()" class="btn btn-secondary text-[11px]" style="border-color:#16a34a;color:#166534;background:#f0fdf4;" title="Skapa TO BE BMC från AI-förslag" disabled>
-                <i class="fas fa-seedling" style="color:#16a34a;"></i>Skapa TO BE BMC
-            </button>
-            <button id="restore-asis-btn" onclick="restoreAsIsModel()" class="btn btn-secondary text-[11px] hidden" style="border-color:#1e293b;color:#1e293b;background:#f8fafc;" title="Återställ tidigare AS IS-modell">
-                <i class="fas fa-rotate-left"></i>Återställ AS IS
-            </button>
-            <button onclick="generateEAToolReport()" class="btn btn-secondary text-[11px]" style="border-color:#0f766e;color:#0f766e;background:#f0fdfa;" title="Skapa EA Tool-rapport (AS IS, analys, TO BE)">
-                <i class="fas fa-file-lines" style="color:#0f766e;"></i>Generera EA Tool-rapport
-            </button>
-        </div>
-    </div>
-
-    <div id="to-be-status-banner" class="hidden mb-4 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-[12px] text-green-900">
-        <div class="font-bold mb-1 flex items-center gap-2"><i class="fas fa-seedling"></i> TO BE BMC skapad</div>
-        <div id="to-be-status-text" class="leading-5"></div>
-    </div>
-
-    <!-- Canvas -->
-    <div class="canvas-outer mb-4">
-
-        <!-- Title + Meta fields -->
-        <div class="flex items-stretch border-b-2 border-slate-900">
-            <div class="px-4 py-3 flex items-center" style="min-width:260px;">
-                <h2 class="text-xl font-black text-slate-900 tracking-tight">The Business Model Canvas</h2>
-                <span id="bmc-mode-badge" class="ml-3 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">AS IS</span>
-            </div>
-            <div class="canvas-title-bar flex-1">
-                <div class="meta-field">
-                    <div class="meta-label">Designed for</div>
-                    <input id="meta_for" class="meta-input" placeholder="Organisation / projekt..." />
-                </div>
-                <div class="meta-field">
-                    <div class="meta-label">Designed by</div>
-                    <input id="meta_by" class="meta-input" placeholder="Namn / team..." />
-                </div>
-                <div class="meta-field">
-                    <div class="meta-label">Date</div>
-                    <input id="meta_date" class="meta-input" placeholder="ÅÅÅÅ-MM-DD" />
-                </div>
-                <div class="meta-field">
-                    <div class="meta-label">Version</div>
-                    <input id="meta_version" class="meta-input" placeholder="v1.0" />
-                </div>
-            </div>
-        </div>
-
-        <!-- Main 5-column grid (top 2 rows) -->
-        <div style="display:grid; grid-template-columns:1fr 1fr 1.5fr 1fr 1fr; grid-template-rows:1fr 1fr;">
-
-            <!-- Key Partners (rows 1-2) -->
-            <div class="cell" style="grid-row: 1 / span 2; border-left:none; border-top:none;">
-                <div class="cell-header">
-                    <span class="cell-num">8</span>
-                    <i class="fas fa-link cell-icon"></i>
-                    Key Partners
-                </div>
-                <div class="cell-subtitle">Vilka är våra nyckelpartners? Vilka resurser förvärvar vi från partners? Vilka aktiviteter utför partners?</div>
-                <textarea id="key_partners" placeholder="Ex: Tekniska förvaltare, energipartners, domain-specific-leverantörer..."></textarea>
-            </div>
-
-            <!-- Key Activities (row 1) -->
-            <div class="cell" style="grid-row: 1; border-top:none;">
-                <div class="cell-header">
-                    <span class="cell-num">7</span>
-                    <i class="fas fa-check-square cell-icon"></i>
-                    Key Activities
-                </div>
-                <div class="cell-subtitle">Vilka nyckelaktiviteter kräver våra värdeerbjudanden? Distributionskanaler? Kundrelationer?</div>
-                <textarea id="key_activities" placeholder="Ex: Underhåll, energioptimering, kunddialog, dataanalys..."></textarea>
-            </div>
-
-            <!-- Value Propositions (rows 1-2) -->
-            <div class="cell" style="grid-row: 1 / span 2; border-top:none;">
-                <div class="cell-header">
-                    <span class="cell-num">2</span>
-                    <i class="fas fa-gift cell-icon"></i>
-                    Value Propositions
-                </div>
-                <div class="cell-subtitle">Vilket värde levererar vi? Vilket kundproblem löser vi? Vilka produkter/tjänster erbjuder vi?</div>
-                <textarea id="value_proposition" placeholder="Ex: Trygga, energieffektiva och moderna Verksamheter med hög servicegrad..." style="flex:1;"></textarea>
-            </div>
-
-            <!-- Customer Relationships (row 1) -->
-            <div class="cell" style="grid-row: 1; border-top:none;">
-                <div class="cell-header">
-                    <span class="cell-num">4</span>
-                    <i class="fas fa-heart cell-icon"></i>
-                    Customer Relationships
-                </div>
-                <div class="cell-subtitle">Vilken typ av relation förväntar sig varje kundsegment? Hur är de integrerade?</div>
-                <textarea id="customer_relationships" placeholder="Ex: Proaktiv förvaltning, digitala kanaler, SLA-avtal..."></textarea>
-            </div>
-
-            <!-- Customer Segments (rows 1-2) -->
-            <div class="cell" style="grid-row: 1 / span 2; border-top:none; border-right:none;">
-                <div class="cell-header">
-                    <span class="cell-num">1</span>
-                    <i class="fas fa-users cell-icon"></i>
-                    Customer Segments
-                </div>
-                <div class="cell-subtitle">För vem skapar vi värde? Vilka är våra viktigaste kunder?</div>
-                <textarea id="customer_segments" placeholder="Ex: Bostadshyresgäster, kommersiella hyresgäster, investerare..."></textarea>
-            </div>
-
-            <!-- Key Resources (row 2) -->
-            <div class="cell" style="grid-row: 2; border-top:none;">
-                <div class="cell-header">
-                    <span class="cell-num">6</span>
-                    <i class="fas fa-industry cell-icon"></i>
-                    Key Resources
-                </div>
-                <div class="cell-subtitle">Vilka nyckelresurser kräver våra värdeerbjudanden? Distributionskanaler? Kundrelationer?</div>
-                <textarea id="key_resources" placeholder="Ex: Verksamheter, data, system, personal, varumärke..."></textarea>
-            </div>
-
-            <!-- Channels (row 2) -->
-            <div class="cell" style="grid-row: 2; border-top:none; border-right:none;">
-                <div class="cell-header">
-                    <span class="cell-num">3</span>
-                    <i class="fas fa-truck cell-icon"></i>
-                    Channels
-                </div>
-                <div class="cell-subtitle">Genom vilka kanaler vill våra kundsegment nås? Hur når vi dem nu?</div>
-                <textarea id="channels" placeholder="Ex: Hyresgästportal, e-post, telefon, mäklare, partners..."></textarea>
-            </div>
-        </div>
-
-        <!-- Bottom row: Cost Structure + Revenue Streams -->
-        <div class="bottom-row">
-            <div class="bottom-cell">
-                <div class="cell-header">
-                    <span class="cell-num">9</span>
-                    <i class="fas fa-tag cell-icon"></i>
-                    Cost Structure
-                </div>
-                <div class="cell-subtitle">Vilka är de viktigaste kostnaderna i vår affärsmodell? Vilka nyckelresurser/aktiviteter är dyrast?</div>
-                <textarea id="cost_structure" placeholder="Ex: Drift, underhåll, kapital, IT-system, personal, regulatoriska krav..." style="flex:1; min-height:70px;"></textarea>
-            </div>
-            <div class="bottom-cell" style="border-right:none;">
-                <div class="cell-header">
-                    <span class="cell-num">5</span>
-                    <i class="fas fa-dollar-sign cell-icon"></i>
-                    Revenue Streams
-                </div>
-                <div class="cell-subtitle">För vilket värde är kunderna verkligen villiga att betala? Hur betalar de för närvarande?</div>
-                <textarea id="revenue_streams" placeholder="Ex: Hyra, serviceavgifter, energitjänster, datadrivna tilläggstjänster..." style="flex:1; min-height:70px;"></textarea>
-            </div>
-        </div>
-    </div>
-
-    <!-- KPI-panel -->
-    <div class="kpi-panel mb-4">
-        <h3 class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
-            <i class="fas fa-chart-line"></i> Nyckelmått & affärsdrivare
-        </h3>
-        <div class="kpi-grid">
-            <div class="kpi-item">
-                <div class="kpi-label">Strategiskt mål</div>
-                <textarea id="goal" class="kpi-textarea" rows="3" placeholder="Ex: Öka NKI med 10 p och sänka energikostnad med 15% på 3 år"></textarea>
-            </div>
-            <div class="kpi-item">
-                <div class="kpi-label">Primär affärsdriver</div>
-                <textarea id="driver" class="kpi-textarea" rows="3" placeholder="Ex: Kostnadsbesparing, riskreduktion, Customer retention"></textarea>
-            </div>
-            <div class="kpi-item">
-                <div class="kpi-label">Regulatorik / ESG</div>
-                <textarea id="regulatory" class="kpi-textarea" rows="3" placeholder="Ex: CSRD, EU Taxonomy, klimatmål"></textarea>
-            </div>
-        </div>
-    </div>
-
-    <!-- Result panel -->
-    <div id="result-panel" class="hidden">
-        <div class="result-header">
-            <div class="flex items-center gap-2 text-white text-xs font-semibold">
-                <i class="fas fa-robot"></i> AI-analys av Business Model Canvas
-            </div>
-            <button onclick="closeResult()" class="text-white/70 hover:text-white text-lg leading-none">x</button>
-        </div>
-        <div id="result-content"></div>
-    </div>
-</div>
-<!-- ====
-    CHATLLM FILL WIDGET - Klistra in precis före </body>
-     ==== -->
-<div id="fill-widget" style="
-    position:fixed; bottom:90px; left:28px;
-    background:white; border-radius:14px;
-    box-shadow:0 8px 32px rgba(15,23,42,0.15);
-    width:320px; z-index:997; overflow:hidden;
-    border:1px solid #e2e8f0; font-family:'Segoe UI',sans-serif;">
-
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,#0f172a,#1d4ed8);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
-        <div style="display:flex;align-items:center;gap:8px;color:white;">
-            <i class="fas fa-wand-magic-sparkles" style="font-size:0.85rem;"></i>
-            <span style="font-size:0.78rem;font-weight:700;">Fyll i BMC med AI</span>
-        </div>
-        <button onclick="document.getElementById('fill-widget').style.display='none'"
-            style="background:none;border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:1rem;line-height:1;">x</button>
-    </div>
-
-    <!-- Body -->
-    <div style="padding:12px;">
-        <p style="font-size:0.68rem;color:#64748b;margin:0 0 8px;">Beskriv bolaget/scenariot så fyller AI:n i alla fält automatiskt.</p>
-        <textarea id="fill-prompt" rows="3" placeholder="Ex: Kommersiell Verksamhetsägare med fokus på ESG och smart förvaltning..."
-            style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:0.75rem;resize:none;outline:none;box-sizing:border-box;font-family:inherit;"></textarea>
-
-        <!-- Preset buttons -->
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;">
-            <button onclick="setFillPrompt('Kommersiell Verksamhetsägare med smart förvaltning och ESG-fokus')"
-                style="font-size:0.62rem;padding:3px 8px;border-radius:20px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer;">Kommersiell</button>
-            <button onclick="setFillPrompt('BostadsVerksamhetsbolag med digitala hyresgästtjänster')"
-                style="font-size:0.62rem;padding:3px 8px;border-radius:20px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer;">Bostäder</button>
-            <button onclick="setFillPrompt('domain-specific-startup som erbjuder AI-driven Verksamhetsanalys')"
-                style="font-size:0.62rem;padding:3px 8px;border-radius:20px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer;">domain-specific</button>
-            <button onclick="setFillPrompt('Facility management-bolag med fokus på automation och IoT')"
-                style="font-size:0.62rem;padding:3px 8px;border-radius:20px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer;">FM-bolag</button>
-        </div>
-
-        <button onclick="runFillCanvas()"
-            style="width:100%;background:#1d4ed8;color:white;border:none;border-radius:8px;padding:8px;font-size:0.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
-            <i class="fas fa-robot"></i>
-            <span id="fill-btn-text">Fyll i alla fält automatiskt</span>
-        </button>
-        <div id="fill-status" style="font-size:0.65rem;color:#64748b;text-align:center;margin-top:6px;min-height:14px;"></div>
-    </div>
-</div>
-
-<!-- Floating trigger button (vänster sida) -->
-<button onclick="document.getElementById('fill-widget').style.display='block'"
-    id="fill-trigger-btn"
-    title="Fyll i BMC med AI"
-    style="position:fixed;bottom:28px;left:28px;width:52px;height:52px;
-    background:linear-gradient(135deg,#0f172a,#1d4ed8);border-radius:50%;
-    display:flex;align-items:center;justify-content:center;
-    cursor:pointer;box-shadow:0 4px 20px rgba(15,23,42,0.35);
-    z-index:999;border:none;transition:transform 0.2s;">
-    <i class="fas fa-wand-magic-sparkles" style="color:white;font-size:1.1rem;"></i>
-</button>
-
-<script>
-function setFillPrompt(text) {
-    document.getElementById('fill-prompt').value = text;
-}
-
-async function runFillCanvas() {
-    const prompt = document.getElementById('fill-prompt').value.trim();
-    if (!prompt) { alert('Beskriv bolaget/scenariot först.'); return; }
-
-    const apiKey = getApiKey(); // använder befintlig funktion i BMC-filen
-    if (!apiKey) { openModal(); return; }
-
-    const btn = document.getElementById('fill-btn-text');
-    const status = document.getElementById('fill-status');
-    btn.textContent = 'Genererar...';
-    status.textContent = '⏳ AI fyller i fälten...';
-
-    const systemPrompt = `Du är en expert på Business Model Canvas för Verksamhet och domain-specific.
-Returnera ENDAST ett JSON-objekt med exakt dessa nycklar (inga andra):
-key_partners, key_activities, key_resources, customer_relationships,
-channels, customer_segments, value_proposition, revenue_streams, cost_structure,
-goal, driver, regulatory, meta_for, meta_by, meta_date, meta_version.
-
-Varje värde ska vara en kort, konkret text på svenska (2-5 rader).
-Anpassa innehållet till det scenario användaren beskriver.
-Fokusera på: kostnadsbesparing, riskreduktion, ESG, Customer retention.
-Returnera BARA JSON - ingen förklaring, ingen markdown.`;
-
-    try {
-        const res = await fetch('/api/openai/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: 'gpt-5',
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: `Scenario: ${prompt}` }
-                ],
-                response_format: { type: 'json_object' }
-            })
-        });
-        const json = await res.json();
-        if (json.error) throw new Error(json.error.message);
-
-        const data = JSON.parse(json.choices[0].message.content);
-        const allFields = [
-            'key_partners','key_activities','key_resources','customer_relationships',
-            'channels','customer_segments','value_proposition','revenue_streams',
-            'cost_structure','goal','driver','regulatory','meta_for','meta_by','meta_date','meta_version'
-        ];
-        let filled = 0;
-        allFields.forEach(f => {
-            const el = document.getElementById(f);
-            if (el && data[f]) { el.value = data[f]; filled++; }
-        });
-
-        status.textContent = `✓ ${filled} fält ifyllda!`;
-        btn.textContent = 'Fyll i alla fält automatiskt';
-
-        // Auto-spara
-        if (typeof saveToLocal === 'function') saveToLocal();
-
-    } catch(e) {
-        status.textContent = 'Fel: ' + e.message;
-        btn.textContent = 'Fyll i alla fält automatiskt';
-    }
-}
-</script>
-<!-- ==== CHATLLM FILL WIDGET END ==== -->
-<script>
-    // Initialize unified data manager
-    let dataManager = null;
-    if (typeof EA_DataManager !== 'undefined') {
-        dataManager = new EA_DataManager();
-        console.log('✓ BMC: DataManager initialized - unified API key active');
-    }
-
-    const FIELDS = [
-        'key_partners','key_activities','key_resources',
-        'customer_relationships','channels','customer_segments',
-        'value_proposition','revenue_streams','cost_structure',
-        'goal','driver','regulatory'
-    ];
-    const META_FIELDS = ['meta_for','meta_by','meta_date','meta_version'];
-    const STORAGE_KEY = 'bmc_v2';
-    let lastBmcAnalysis = null;
-    let lastToBeProposal = null;
-    let asIsSnapshotBeforeToBe = null;
-    let toBeAppliedAt = null;
-    const BMC_FIELD_LABELS = {
-        key_partners:'Key Partners',
-        key_activities:'Key Activities',
-        key_resources:'Key Resources',
-        customer_relationships:'Customer Relationships',
-        channels:'Channels',
-        customer_segments:'Customer Segments',
-        value_proposition:'Value Propositions',
-        revenue_streams:'Revenue Streams',
-        cost_structure:'Cost Structure',
-        goal:'Strategiskt mål',
-        driver:'Primär affärsdriver',
-        regulatory:'Regulatorik / ESG'
-    };
-
-    function collectCurrentBmcData() {
-        const data = {};
-        [...FIELDS, ...META_FIELDS].forEach((f) => {
-            data[f] = document.getElementById(f)?.value?.trim() || '';
-        });
-        return data;
-    }
-
-    function setBmcModeBadge(mode) {
-        const badge = document.getElementById('bmc-mode-badge');
-        if (!badge) return;
-        if (String(mode).toUpperCase() === 'TO BE') {
-            badge.textContent = 'TO BE';
-            badge.className = 'ml-3 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700';
-            return;
+        .spinner {
+            animation: spin 1s linear infinite;
         }
-        badge.textContent = 'AS IS';
-        badge.className = 'ml-3 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700';
-    }
-
-    function setToBeStatusBanner(visible, message = '') {
-        const banner = document.getElementById('to-be-status-banner');
-        const text = document.getElementById('to-be-status-text');
-        if (!banner || !text) return;
-        if (!visible) {
-            banner.classList.add('hidden');
-            text.textContent = '';
-            return;
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
-        text.textContent = message;
-        banner.classList.remove('hidden');
-    }
-
-    function mergeAsIsAndToBeText(existingText, suggestedText) {
-        const suggested = String(suggestedText || '').trim();
-        if (!suggested) return String(existingText || '').trim();
-
-        let base = String(existingText || '').trim();
-        if (/\n\s*TO BE\s*:/i.test(base)) {
-            base = base.split(/\n\s*TO BE\s*:/i)[0].trim();
-        }
-        base = base.replace(/^AS IS\s*:\s*/i, '').trim();
-
-        if (!base) return `TO BE:\n${suggested}`;
-        return `AS IS:\n${base}\n\nTO BE:\n${suggested}`;
-    }
-
-    function parseAsIsToBeText(text) {
-        const raw = String(text || '').trim();
-        if (!raw) return { asIs: '', toBe: '' };
-
-        const toBeMatch = raw.match(/\n\s*TO BE\s*:\s*([\s\S]*)$/i);
-        const asIsMatch = raw.match(/^\s*AS IS\s*:\s*([\s\S]*?)\n\s*TO BE\s*:/i);
-
-        if (toBeMatch || asIsMatch) {
-            return {
-                asIs: (asIsMatch ? asIsMatch[1] : raw.replace(/\n\s*TO BE\s*:[\s\S]*$/i, '')).trim(),
-                toBe: (toBeMatch ? toBeMatch[1] : '').trim()
-            };
-        }
-
-        return { asIs: raw, toBe: '' };
-    }
-
-    function getActiveBmcVariant() {
-        const badgeText = String(document.getElementById('bmc-mode-badge')?.textContent || '').trim().toUpperCase();
-        if (badgeText === 'TO BE') return 'to-be';
-
-        const hasToBeMarker = FIELDS.some((fieldId) => /\n\s*TO BE\s*:/i.test(String(document.getElementById(fieldId)?.value || '')));
-        return hasToBeMarker ? 'to-be' : 'as-is';
-    }
-
-    function getActiveFieldValueForExport(fieldId, variant) {
-        const current = String(document.getElementById(fieldId)?.value || '');
-        const parsed = parseAsIsToBeText(current);
-        if (variant === 'to-be' && parsed.toBe) return parsed.toBe;
-        return parsed.asIs || current.trim();
-    }
-
-    function autoGrowTextarea(el) {
-        if (!el) return;
-        el.style.height = 'auto';
-        el.style.height = `${Math.max(el.scrollHeight, 72)}px`;
-    }
-
-    function setupStrategicTextareaSizing() {
-        ['goal', 'driver', 'regulatory'].forEach((id) => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            if (!el.dataset.autogrowBound) {
-                el.addEventListener('input', () => autoGrowTextarea(el));
-                el.dataset.autogrowBound = '1';
+        
+        /* Print Styles */
+        @media print {
+            body.chat-sidebar-open #main-content {
+                margin-right: 0;
             }
-            autoGrowTextarea(el);
+            #ai-chat-panel, .ea-toolbar, .ea-header-right {
+                display: none !important;
+            }
+            #main-content {
+                overflow: visible !important;
+            }
+            .canvas-container {
+                margin: 0;
+                padding: 0;
+                max-width: 100%;
+            }
+            .canvas-outer {
+                box-shadow: none;
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <!-- Main Content -->
+        <div id="main-content">
+            <!-- Header -->
+            <div class="ea-header">
+                <div class="ea-header-left">
+                    <div class="ea-brand-mark">EA</div>
+                    <div class="ea-header-title">
+                        <h1><i class="fas fa-table-cells-large"></i>AI Business Model Canvas</h1>
+                        <p>Strategic Canvas — Value Proposition — Revenue Model</p>
+                    </div>
+                </div>
+                <div class="ea-header-right">
+                    <button class="ea-header-icon" onclick="window.location.href='../NexGen_EA_V4.html'" title="Return to EA Platform">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <button class="ea-header-icon" onclick="toggleChatPanel()" title="AI Assistant (Ctrl+K)">
+                        <i class="fas fa-robot"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Toolbar -->
+            <div class="ea-toolbar">
+                <div class="ea-toolbar-left">
+                    <button class="toolbar-btn toolbar-btn--primary" onclick="saveBMC()" title="Save BMC to browser storage">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                    <button class="toolbar-btn" onclick="loadBMC()" title="Load saved BMC from browser storage">
+                        <i class="fas fa-folder-open"></i> Load
+                    </button>
+                    <div class="toolbar-divider"></div>
+                    <button class="toolbar-btn" onclick="exportBMC()" title="Export BMC as JSON file">
+                        <i class="fas fa-download"></i> Export JSON
+                    </button>
+                    <button class="toolbar-btn" onclick="document.getElementById('import-file').click()" title="Import BMC from JSON file">
+                        <i class="fas fa-upload"></i> Import JSON
+                    </button>
+                    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importBMC(event)">
+                    <button class="toolbar-btn" onclick="exportBMCImage()" title="Export canvas as image">
+                        <i class="fas fa-image"></i> Export Image
+                    </button>
+                    <div class="toolbar-divider"></div>
+                    <button class="toolbar-btn" onclick="printBMC()" title="Print BMC">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                </div>
+                <div class="ea-toolbar-right">
+                    <button class="toolbar-btn toolbar-btn--danger" onclick="clearBMC()" title="Clear all canvas content">
+                        <i class="fas fa-trash"></i> Clear Canvas
+                    </button>
+                </div>
+            </div>
+            <input type="file" id="import-file" accept=".json" style="display:none" onchange="importBMC(event)">
+            
+            <!-- Canvas -->
+            <div class="canvas-container">
+                <div class="canvas-outer">
+                    <!-- Meta Fields -->
+                    <div class="canvas-title-bar">
+                        <div class="meta-field">
+                            <div class="meta-label">Designed For</div>
+                            <input type="text" class="meta-input" id="meta-designed-for" placeholder="Company name">
+                        </div>
+                        <div class="meta-field">
+                            <div class="meta-label">Designed By</div>
+                            <input type="text" class="meta-input" id="meta-designed-by" placeholder="AI-assistant">
+                        </div>
+                        <div class="meta-field">
+                            <div class="meta-label">Date</div>
+                            <input type="text" class="meta-input" id="meta-date" readonly>
+                        </div>
+                        <div class="meta-field">
+                            <div class="meta-label">Version</div>
+                            <input type="text" class="meta-input" id="meta-version" value="1.0 TO-BE">
+                        </div>
+                    </div>
+                    
+                    <!-- BMC Grid -->
+                    <div class="canvas-grid">
+                        <!-- Row 1 -->
+                        <div class="cell">
+                            <div class="cell-header">
+                                <span class="cell-num">1</span>
+                                <i class="fas fa-handshake cell-icon"></i>
+                                <span>Key Partners</span>
+                            </div>
+                            <div class="cell-subtitle">Who are our key partners? Which key suppliers and resources do we depend on?</div>
+                            <textarea id="bmc-partners" placeholder="List critical strategic partnerships, suppliers, and collaborators..."></textarea>
+                        </div>
+                        
+                        <div class="cell" style="grid-column: span 2; grid-row: span 2;">
+                            <div class="cell-header">
+                                <span class="cell-num">3</span>
+                                <i class="fas fa-star cell-icon"></i>
+                                <span>Value Propositions</span>
+                            </div>
+                            <div class="cell-subtitle">What unique value do we deliver to customers? Which customer problems do we solve?</div>
+                            <textarea id="bmc-value" placeholder="Describe the core value proposition..." style="min-height: 400px;"></textarea>
+                        </div>
+                        
+                        <div class="cell">
+                            <div class="cell-header">
+                                <span class="cell-num">4</span>
+                                <i class="fas fa-users cell-icon"></i>
+                                <span>Customer Relationships</span>
+                            </div>
+                            <div class="cell-subtitle">How do we establish and maintain relationships with each customer segment?</div>
+                            <textarea id="bmc-relationships" placeholder="Define customer engagement model..."></textarea>
+                        </div>
+                        
+                        <div class="cell">
+                            <div class="cell-header">
+                                <span class="cell-num">5</span>
+                                <i class="fas fa-user-group cell-icon"></i>
+                                <span>Customer Segments</span>
+                            </div>
+                            <div class="cell-subtitle">For whom are we creating value? Who are our most important customers?</div>
+                            <textarea id="bmc-segments" placeholder="List target customer segments..."></textarea>
+                        </div>
+                        
+                        <!-- Row 2 -->
+                        <div class="cell">
+                            <div class="cell-header">
+                                <span class="cell-num">2</span>
+                                <i class="fas fa-cogs cell-icon"></i>
+                                <span>Key Activities</span>
+                            </div>
+                            <div class="cell-subtitle">What key activities do our value propositions require?</div>
+                            <textarea id="bmc-activities" placeholder="Describe critical business activities..."></textarea>
+                        </div>
+                        
+                        <div class="cell">
+                            <div class="cell-header">
+                                <span class="cell-num">6</span>
+                                <i class="fas fa-network-wired cell-icon"></i>
+                                <span>Channels</span>
+                            </div>
+                            <div class="cell-subtitle">Through which channels do we reach customer segments?</div>
+                            <textarea id="bmc-channels" placeholder="List distribution and communication channels..."></textarea>
+                        </div>
+                        
+                        <!-- Row 3 -->
+                        <div class="cell">
+                            <div class="cell-header">
+                                <span class="cell-num">7</span>
+                                <i class="fas fa-box cell-icon"></i>
+                                <span>Key Resources</span>
+                            </div>
+                            <div class="cell-subtitle">What key assets and resources do we need to operate?</div>
+                            <textarea id="bmc-resources" placeholder="List critical resources (physical, intellectual, human, financial)..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Bottom Row -->
+                    <div class="bottom-row">
+                        <div class="bottom-cell">
+                            <div class="cell-header">
+                                <span class="cell-num">8</span>
+                                <i class="fas fa-dollar-sign cell-icon"></i>
+                                <span>Cost Structure</span>
+                            </div>
+                            <div class="cell-subtitle">What are the most important costs? Which key resources and activities are most expensive?</div>
+                            <textarea id="bmc-costs" placeholder="Describe cost drivers and structure..."></textarea>
+                        </div>
+                        <div class="bottom-cell">
+                            <div class="cell-header">
+                                <span class="cell-num">9</span>
+                                <i class="fas fa-coins cell-icon"></i>
+                                <span>Revenue Streams</span>
+                            </div>
+                            <div class="cell-subtitle">For what value are customers willing to pay? How and for what do they pay?</div>
+                            <textarea id="bmc-revenue" placeholder="List revenue models and pricing strategies..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- AI Chat Sidebar -->
+        <div id="ai-chat-panel">
+            <div id="chat-resize-handle" title="Drag to resize"></div>
+            <div id="chat-header">
+                <div id="chat-header-title">
+                    <i class="fas fa-robot"></i>
+                    <span>BMC AI Assistant</span>
+                </div>
+                <div id="chat-controls">
+                    <button onclick="startNewChat()" title="New conversation">+</button>
+                    <button onclick="clearChat()" title="Clear history">&#x21BA;</button>
+                    <button onclick="toggleChatPanel()" title="Close sidebar">&times;</button>
+                </div>
+            </div>
+            
+            <div class="quick-actions">
+                <button class="qa-btn" onclick="fillBMCWithAI()">
+                    <i class="fas fa-wand-magic-sparkles"></i> Fill BMC
+                </button>
+                <button class="qa-btn" onclick="analyzeBMC()">
+                    <i class="fas fa-chart-line"></i> Analyze
+                </button>
+                <button class="qa-btn" onclick="improveBMC()">
+                    <i class="fas fa-lightbulb"></i> Improve
+                </button>
+            </div>
+            
+            <div id="chat-messages">
+                <div class="chat-message assistant-message">
+                    <div class="message-content">
+                        <div class="message-text">
+                            <strong style="color:#ffffff;font-weight:700;">Welcome to BMC AI Assistant</strong>
+                            <div style="height:10px;"></div>
+                            <p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">I can help you:</p>
+                            <ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">
+                                <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Fill out your Business Model Canvas from description</li>
+                                <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Analyze your business model for strengths and risks</li>
+                                <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Suggest improvements and alternatives</li>
+                                <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Answer questions about business model design</li>
+                            </ul>
+                            <div style="height:10px;"></div>
+                            <em>Click "Fill BMC" above or ask me anything!</em>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="chat-input-container">
+                <textarea id="chat-input" placeholder="Ask about your business model..." rows="2"></textarea>
+                <button id="send-chat" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Initialize
+        document.getElementById('meta-date').value = new Date().toISOString().split('T')[0];
+        
+        // Chat Panel Toggle
+        function toggleChatPanel() {
+            const panel = document.getElementById('ai-chat-panel');
+            if (!panel) return;
+            const isOpen = !panel.classList.contains('hidden');
+            if (isOpen) {
+                panel.classList.add('hidden');
+                document.body.classList.remove('chat-sidebar-open');
+            } else {
+                panel.classList.remove('hidden');
+                document.body.classList.add('chat-sidebar-open');
+                const input = document.getElementById('chat-input');
+                if (input) input.focus();
+            }
+        }
+        
+        // Initialize Chat Sidebar Resize
+        function initChatSidebarResize() {
+            const handle = document.getElementById('chat-resize-handle');
+            const panel = document.getElementById('ai-chat-panel');
+            if (!handle || !panel) return;
+            let startX, startW;
+
+            // Restore saved width
+            const saved = parseInt(localStorage.getItem('bmc_sidebar_w') || '0', 10);
+            if (saved >= 280 && saved <= 800) applySidebarWidth(saved);
+
+            handle.addEventListener('mousedown', (e) => {
+                startX = e.clientX;
+                startW = panel.offsetWidth;
+                handle.classList.add('dragging');
+                document.body.style.userSelect = 'none';
+                document.body.style.cursor = 'col-resize';
+
+                function onMove(ev) {
+                    const diff = startX - ev.clientX;
+                    const newW = Math.max(280, Math.min(800, startW + diff));
+                    applySidebarWidth(newW);
+                }
+                function onUp() {
+                    localStorage.setItem('bmc_sidebar_w', panel.offsetWidth);
+                    handle.classList.remove('dragging');
+                    document.body.style.userSelect = '';
+                    document.body.style.cursor = '';
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                }
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+        }
+
+        function applySidebarWidth(w) {
+            const panel = document.getElementById('ai-chat-panel');
+            if (!panel) return;
+            panel.style.width = w + 'px';
+            // Update main content margin to match sidebar width
+            const style = document.getElementById('_sidebar-width-style') || (() => {
+                const s = document.createElement('style');
+                s.id = '_sidebar-width-style';
+                document.head.appendChild(s);
+                return s;
+            })();
+            style.textContent = `body.chat-sidebar-open #main-content{margin-right:${w}px!important;}`;
+        }
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            initChatSidebarResize();
         });
-    }
-
-    function ensureToBeSuggestionSlots() {
-        FIELDS.forEach((fieldId) => {
-            const input = document.getElementById(fieldId);
-            if (!input) return;
-            const existing = document.getElementById(`to-be-${fieldId}`);
-            if (existing) return;
-
-            const slot = document.createElement('div');
-            slot.id = `to-be-${fieldId}`;
-            slot.className = 'to-be-suggestion';
-            input.insertAdjacentElement('afterend', slot);
+        
+        // Keyboard shortcut: Ctrl+K toggles chat
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                toggleChatPanel();
+            }
+            if (e.key === 'Enter' && e.target.id === 'chat-input' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
         });
-    }
+        
+        // Markdown parser (from EA Platform)
+        function escapeHtml(text) {
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
 
-    function clearToBeSuggestions() {
-        FIELDS.forEach((fieldId) => {
-            const slot = document.getElementById(`to-be-${fieldId}`);
-            if (!slot) return;
-            slot.classList.remove('visible');
-            slot.innerHTML = '';
-        });
-    }
-
-    function escapeHtmlText(text) {
-        return String(text || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
-
-    function renderToBeSuggestions(suggestions) {
-        ensureToBeSuggestionSlots();
-        let shown = 0;
-
-        FIELDS.forEach((fieldId) => {
-            const slot = document.getElementById(`to-be-${fieldId}`);
-            if (!slot) return;
-
-            const text = String(suggestions?.[fieldId] || '').trim();
-            if (!text) {
-                slot.classList.remove('visible');
-                slot.innerHTML = '';
+        function parseMarkdown(text) {
+            if (!text) return '';
+            let t = escapeHtml(text);
+            
+            // Inline formatting
+            t = t.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+            t = t.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff;font-weight:700;">$1</strong>');
+            t = t.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            t = t.replace(/`([^`]+)`/g, '<code style="font-family:monospace;background:#1a1a1a;padding:2px 6px;border-radius:4px;font-size:12px;color:#66d9ef;font-weight:500;border:1px solid #404040;">$1</code>');
+            
+            // Block processing
+            const lines = t.split('\n');
+            const out = [];
+            let inUL = false, inOL = false, inCodeBlock = false, codeLines = [];
+            
+            const closeList = () => {
+                if (inUL) { out.push('</ul>'); inUL = false; }
+                if (inOL) { out.push('</ol>'); inOL = false; }
+            };
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const trimmed = line.trim();
+                
+                // Code blocks (```)
+                if (trimmed.startsWith('```')) {
+                    if (!inCodeBlock) {
+                        closeList();
+                        inCodeBlock = true;
+                        codeLines = [];
+                        continue;
+                    } else {
+                        const codeContent = codeLines.join('\n');
+                        out.push(`<pre style="background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;margin:10px 0;overflow-x:auto;font-size:10px;line-height:1.6;font-family:monospace;"><code>${codeContent}</code></pre>`);
+                        inCodeBlock = false;
+                        continue;
+                    }
+                }
+                
+                if (inCodeBlock) {
+                    codeLines.push(line);
+                    continue;
+                }
+                
+                // Headings
+                const h3m = trimmed.match(/^### (.+)$/);
+                const h2m = trimmed.match(/^## (.+)$/);
+                const h1m = trimmed.match(/^# (.+)$/);
+                if (h1m || h2m || h3m) {
+                    closeList();
+                    if (h3m) out.push(`<div style="font-size:14px;font-weight:600;color:#b0b0b0;margin:16px 0 8px;">${h3m[1]}</div>`);
+                    else if (h2m) out.push(`<div style="font-size:15px;font-weight:700;color:#e0e0e0;border-bottom:2px solid #0066cc;padding-bottom:6px;margin:18px 0 10px;">${h2m[1]}</div>`);
+                    else out.push(`<div style="font-size:16px;font-weight:700;color:#ffffff;margin:20px 0 10px;">${h1m[1]}</div>`);
+                    continue;
+                }
+                
+                // Horizontal rule
+                if (/^---+$/.test(trimmed)) {
+                    closeList();
+                    out.push('<hr style="border:none;border-top:1px solid #404040;margin:14px 0;">');
+                    continue;
+                }
+                
+                // Blockquote
+                const quotem = trimmed.match(/^> (.+)$/);
+                if (quotem) {
+                    closeList();
+                    out.push(`<div style="border-left:3px solid #0066cc;background:#1a1a1a;padding:10px 14px;margin:10px 0;border-radius:4px;font-style:italic;color:#b0b0b0;">${quotem[1]}</div>`);
+                    continue;
+                }
+                
+                // Unordered list
+                const ulm = trimmed.match(/^[-*—] (.+)$/);
+                if (ulm) {
+                    if (!inUL) { closeList(); out.push('<ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">'); inUL = true; }
+                    out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${ulm[1]}</li>`);
+                    continue;
+                }
+                
+                // Ordered list
+                const olm = trimmed.match(/^\d+\.\s(.+)$/);
+                if (olm) {
+                    if (!inOL) { closeList(); out.push('<ol style="margin:8px 0;padding-left:22px;color:#b0b0b0;">'); inOL = true; }
+                    out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${olm[1]}</li>`);
+                    continue;
+                }
+                
+                // Empty line
+                if (trimmed === '') {
+                    closeList();
+                    out.push('<div style="height:10px;"></div>');
+                    continue;
+                }
+                
+                // Regular paragraph
+                closeList();
+                out.push(`<p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">${trimmed}</p>`);
+            }
+            
+            closeList();
+            return out.join('');
+        }
+        
+        // Chat Functions
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            addChatMessage(message, 'user');
+            input.value = '';
+            
+            // Call AI
+            processAIRequest(message);
+        }
+        
+        function addChatMessage(text, role) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `chat-message ${role}-message`;
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            const messageText = document.createElement('div');
+            messageText.className = 'message-text';
+            messageText.innerHTML = role === 'assistant' ? parseMarkdown(text) : escapeHtml(text);
+            
+            const messageTime = document.createElement('div');
+            messageTime.className = 'message-time';
+            messageTime.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            
+            messageContent.appendChild(messageText);
+            messageContent.appendChild(messageTime);
+            msgDiv.appendChild(messageContent);
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        async function processAIRequest(userMessage) {
+            // Get API key from EA_Config or localStorage
+            const apiKey = window.EA_CONFIG?.OPENAI_API_KEY || localStorage.getItem('advicy_openai_key');
+            
+            if (!apiKey) {
+                addChatMessage('⚠️ No API key configured. Please set your OpenAI API key in EA Platform Settings.', 'assistant');
                 return;
             }
-
-            shown += 1;
-            slot.classList.add('visible');
-            slot.innerHTML = `<span class="label">TO BE-forslag (${escapeHtmlText(BMC_FIELD_LABELS[fieldId] || fieldId)})</span><div class="text">${escapeHtmlText(text)}</div>`;
-        });
-
-        const applyBtn = document.getElementById('apply-tobe-btn');
-        if (applyBtn) applyBtn.disabled = shown === 0;
-    }
-
-    function extractFirstJsonObject(text) {
-        const raw = String(text || '').trim();
-        if (!raw) return null;
-        try {
-            return JSON.parse(raw);
-        } catch (_) {
-            const start = raw.indexOf('{');
-            const end = raw.lastIndexOf('}');
-            if (start === -1 || end === -1 || end <= start) return null;
+            
+            // Show thinking indicator
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.className = 'chat-message assistant';
+            thinkingDiv.innerHTML = '<i class="fas fa-spinner spinner"></i> Thinking...';
+            thinkingDiv.id = 'thinking-indicator';
+            document.getElementById('chat-messages').appendChild(thinkingDiv);
+            
             try {
-                return JSON.parse(raw.slice(start, end + 1));
-            } catch (_) {
-                return null;
-            }
-        }
-    }
-
-    async function buildToBeProposalFromAnalysis(apiKey, analysisText) {
-        const asIs = collectCurrentBmcData();
-        const toBePrompt = `Du ska ta fram TO BE-forslag för Business Model Canvas.
-
-AS IS-data:
-${JSON.stringify(asIs, null, 2)}
-
-AI-analys av AS IS:
-${analysisText}
-
-Svarskrav:
-- Returnera ENDAST giltig JSON.
-- Inkludera exakt dessa nycklar:
-  key_partners, key_activities, key_resources, customer_relationships, channels, customer_segments, value_proposition, revenue_streams, cost_structure, goal, driver, regulatory
-- Ge korta, konkreta TO BE-texter per fält.
-- Håll fokus på kostnadsbesparing, riskreduktion, konkurrensfördel, regulatorisk efterlevnad och Customer retention.
-- Utgå från branschens och verksamhetens faktiska behov. Föreslå inte ny teknik eller digitalisering som standard om det inte tydligt stöds av underlaget.
-- Prioritera i första hand relevanta affärshävstänger som processautomation, AI-agenter, styrning, arbetssätt, kompetens, partnerskap, erbjudandelogik, kanaler och compliance.
-- Om teknikrelaterade förslag ges ska de vara tydligt motiverade av AS IS-data eller analysen och beskrivas som ett medel, inte som mål i sig.
-- Inga markdown-taggar eller förklaringar utanför JSON.`;
-
-        const response = await fetch('/api/openai/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: 'gpt-5',
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'Du ar en senior EA- och affarsstrateg. Prioritera affarsmodell, processer, styrning och industrispecifika förbättringshävstänger före generell teknikförnyelse. Returnera endast JSON enligt instruktionerna.'
-                    },
-                    { role: 'user', content: toBePrompt }
-                ]
-            })
-        });
-
-        const json = await response.json();
-        if (json.error) throw new Error(json.error.message);
-        const candidate = json?.choices?.[0]?.message?.content || '';
-        const parsed = extractFirstJsonObject(candidate);
-        if (!parsed || typeof parsed !== 'object') {
-            throw new Error('Kunde inte tolka TO BE-svar som JSON');
-        }
-
-        const normalized = {};
-        FIELDS.forEach((fieldId) => {
-            normalized[fieldId] = String(parsed[fieldId] || '').trim();
-        });
-
-        return normalized;
-    }
-
-    async function generateToBeSuggestionsFromLatestAnalysis() {
-        const apiKey = getApiKey();
-        if (!apiKey) {
-            showToast('Lagg till API-nyckel for TO BE-forslag');
-            return false;
-        }
-
-        const analysisText = (lastBmcAnalysis?.text || document.getElementById('result-content')?.innerText || '').trim();
-        if (!analysisText) {
-            showToast('Kor AI Analysera forst for att skapa TO BE-forslag');
-            return false;
-        }
-
-        try {
-            const suggestions = await buildToBeProposalFromAnalysis(apiKey, analysisText);
-            lastToBeProposal = {
-                generatedAt: new Date().toISOString(),
-                suggestions,
-                analysisText
-            };
-            renderToBeSuggestions(suggestions);
-            showToast('✓ TO BE-förslag skapade och visade i grönt under AS IS-fälten');
-            return true;
-        } catch (error) {
-            console.error('TO BE generation failed:', error);
-            showToast('⚠️ Kunde inte skapa TO BE-förslag');
-            return false;
-        }
-    }
-
-    function applyToBeModelFromProposal() {
-        if (!lastToBeProposal?.suggestions) {
-            showToast('Skapa TO BE-förslag först via AI Analysera');
-            return;
-        }
-
-        if (!confirm('Skapa en TO BE BMC baserat pa AI-forslagen? Nuvarande AS IS sparas sa du kan aterstalla.')) {
-            return;
-        }
-
-        asIsSnapshotBeforeToBe = collectCurrentBmcData();
-
-        let integratedCount = 0;
-        FIELDS.forEach((fieldId) => {
-            const suggested = String(lastToBeProposal.suggestions[fieldId] || '').trim();
-            if (!suggested) return;
-            const el = document.getElementById(fieldId);
-            if (el) {
-                el.value = mergeAsIsAndToBeText(el.value, suggested);
-                integratedCount += 1;
-            }
-        });
-
-        const versionEl = document.getElementById('meta_version');
-        if (versionEl) {
-            const current = String(versionEl.value || '').trim() || 'v1.0';
-            versionEl.value = /to\s*be/i.test(current) ? current : `${current} TO-BE`;
-        }
-
-        const dateEl = document.getElementById('meta_date');
-        if (dateEl && !dateEl.value) {
-            dateEl.value = new Date().toISOString().slice(0, 10);
-        }
-
-        setBmcModeBadge('TO BE');
-        const restoreBtn = document.getElementById('restore-asis-btn');
-        if (restoreBtn) restoreBtn.classList.remove('hidden');
-        toBeAppliedAt = new Date();
-        setToBeStatusBanner(true, `TO BE skapad ${toBeAppliedAt.toLocaleString()} och integrerad med AS IS i ${integratedCount} fält. Du kan nu justera text manuellt eller via AI-assistenten.`);
-
-        setupStrategicTextareaSizing();
-
-        saveToLocal();
-        showToast('✓ TO BE BMC skapad och integrerad med AS IS.');
-    }
-
-    function restoreAsIsModel() {
-        if (!asIsSnapshotBeforeToBe) {
-            showToast('Ingen sparad AS IS-modell att återställa');
-            return;
-        }
-
-        [...FIELDS, ...META_FIELDS].forEach((fieldId) => {
-            const el = document.getElementById(fieldId);
-            if (!el) return;
-            el.value = asIsSnapshotBeforeToBe[fieldId] || '';
-        });
-
-        setBmcModeBadge('AS IS');
-        const restoreBtn = document.getElementById('restore-asis-btn');
-        if (restoreBtn) restoreBtn.classList.add('hidden');
-        setToBeStatusBanner(false);
-        clearToBeSuggestions();
-        lastToBeProposal = null;
-        asIsSnapshotBeforeToBe = null;
-        toBeAppliedAt = null;
-        setupStrategicTextareaSizing();
-
-        saveToLocal();
-        showToast('✓ AS IS-modell återställd');
-    }
-
-    function isBmcToBeUsersUpdated(toBeData) {
-        if (getActiveBmcVariant() !== 'to-be') return false;
-        if (!toBeData || typeof toBeData !== 'object') return false;
-        if (!lastToBeProposal?.suggestions) {
-            return FIELDS.some((f) => String(toBeData[f] || '').trim().length > 0);
-        }
-
-        return FIELDS.some((f) => {
-            const suggested = String(lastToBeProposal.suggestions[f] || '').trim();
-            const currentToBe = String(toBeData[f] || '').trim();
-            return suggested !== currentToBe;
-        });
-    }
-
-    function getApiKey() {
-        if (dataManager) {
-            return dataManager.getApiKey() || '';
-        }
-        // Fallback to legacy storage
-        const legacyKeys = ['ea20_openai_key','vc_openai_key','cap_openai_key','strategy_openai_key','openai_api_key'];
-        for (const k of legacyKeys) {
-            const v = localStorage.getItem(k);
-            if (v) return v;
-        }
-        return '';
-    }
-    
-    function saveApiKey() {
-        const key = document.getElementById('api-key-input').value.trim();
-        if (!key.startsWith('sk-')) { 
-            alert('Nyckeln verkar inte vara giltig. Den ska börja med "sk-".'); 
-            return; 
-        }
-        
-        if (dataManager) {
-            dataManager.setApiKey(key);
-            console.log('✓ API key saved via unified DataManager');
-        } else {
-            // Fallback to legacy storage
-            const legacyKeys = ['ea20_openai_key','vc_openai_key','cap_openai_key','strategy_openai_key','openai_api_key'];
-            legacyKeys.forEach(k => localStorage.setItem(k, key));
-        }
-        
-        updateApiStatus(); 
-        closeModal();
-        showToast('API-nyckel sparad ✓ (delas med EA Platform)');
-    }
-    
-    function updateApiStatus() {
-        const key = getApiKey();
-        const el = document.getElementById('api-status-text');
-        el.textContent = key ? 'API aktiv · ' + key.substring(0,8) + '...' : 'API-nyckel saknas';
-    }
-    function openModal() {
-        const key = getApiKey();
-        if (key) document.getElementById('api-key-input').value = key;
-        document.getElementById('api-modal').classList.remove('hidden');
-    }
-    function closeModal() { document.getElementById('api-modal').classList.add('hidden'); }
-    function toggleKeyVisibility() {
-        const input = document.getElementById('api-key-input');
-        input.type = input.type === 'password' ? 'text' : 'password';
-    }
-
-    function loadExample() {
-        const example = {
-            meta_for: 'Kommersiell Verksamhetsägare AB',
-            meta_by: 'Strategiteam / EA 2.0',
-            meta_date: new Date().toISOString().slice(0,10),
-            meta_version: 'v1.0',
-            key_partners: `Tekniska förvaltare (FM-bolag)\nIoT- och sensorleverantörer\nEnergibolag och elnätsoperatörer\ndomain-specific-plattformar (Planon, MRI)\nByggentreprenörer och servicepartners`,
-            key_activities: `Verksamhetsförvaltning och underhåll\nEnergioptimering via IoT och AI\nHyresgästdialog och servicehantering\nDataanalys och ESG-rapportering\nUthyrning och kontraktshantering`,
-            key_resources: `Verksamhetsportfölj (150 000 kvm)\nDriftsystem (CAFM/IWMS) och IoT\nKompetent förvaltningsteam\nEnergidata och sensordata i realtid\nVarumärke och kundrelationer`,
-            customer_relationships: `Dedikerade förvaltningskontakter\nDigital hyresgästportal\nKvartalsvisa driftmöten\nSLA-avtal med garanterade svarstider\nProaktiv kommunikation`,
-            channels: `Digital hyresgästportal (webb + app)\nE-post och telefon\nMäklarnätverk för uthyrning\nLinkedIn och branschevent`,
-            customer_segments: `Kommersiella hyresgäster (kontor, handel, logistik)\nInstitutionella investerare\nOffentlig sektor\nSmå företag med flexibla hyreslösningar`,
-            value_proposition: `Moderna, energieffektiva kommersiella lokaler\nHög servicegrad med snabb respons\nTransparens via realtidsdata\nESG-certifierade Verksamheter\nFlexibla hyresvillkor`,
-            revenue_streams: `Bashyra (85% av omsättning)\nServiceavgifter och tilläggstjänster\nEnergiförsäljning och solel\nESG-datatjänster till hyresgäster`,
-            cost_structure: `Drift och underhåll (~40% av driftkostnad)\nKapitalkostnader (räntor, amorteringar)\nIT-system och digitala plattformar\nPersonal (förvaltare, tekniker, ekonomi)\nEnergi och regulatoriska kostnader`,
-            goal: `Sänka driftkostnader med 20% och öka NKI från 68 till 80 inom 3 år`,
-            driver: `Kostnadsbesparing och Customer retention`,
-            regulatory: `CSRD, EU Taxonomy, Miljöbyggnad/BREEAM, energideklarationskrav`
-        };
-        [...FIELDS, ...META_FIELDS].forEach(f => {
-            if (example[f] !== undefined) document.getElementById(f).value = example[f];
-        });
-        showToast('✓ Exempeldata laddad - kommersiell Verksamhetsägare');
-        
-        // Auto-export example data
-        setTimeout(() => exportToIntegrationCache(), 500);
-    }
-
-    function clearCanvas() {
-        if (!confirm('Rensa hela canvasen? All data tas bort.')) return;
-        [...FIELDS, ...META_FIELDS].forEach(f => document.getElementById(f).value = '');
-        document.getElementById('result-panel').classList.add('hidden');
-        lastToBeProposal = null;
-        asIsSnapshotBeforeToBe = null;
-        toBeAppliedAt = null;
-        clearToBeSuggestions();
-        setBmcModeBadge('AS IS');
-        setToBeStatusBanner(false);
-        setupStrategicTextareaSizing();
-        const applyBtn = document.getElementById('apply-tobe-btn');
-        if (applyBtn) applyBtn.disabled = true;
-        const restoreBtn = document.getElementById('restore-asis-btn');
-        if (restoreBtn) restoreBtn.classList.add('hidden');
-        showToast('Canvas rensad ✓');
-    }
-
-    function saveToLocal() {
-        const data = {};
-        [...FIELDS, ...META_FIELDS].forEach(f => data[f] = document.getElementById(f).value);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        
-        // Auto-export to integration cache
-        exportToIntegrationCache();
-        
-        showToast('Canvas sparad lokalt ✓');
-    }
-
-    function exportToCSV() {
-        const rows = [['Fält','Innehåll']];
-        const labels = {
-            meta_for:'Designed for', meta_by:'Designed by', meta_date:'Date', meta_version:'Version',
-            key_partners:'Key Partners', key_activities:'Key Activities', key_resources:'Key Resources',
-            customer_relationships:'Customer Relationships', channels:'Channels',
-            customer_segments:'Customer Segments', value_proposition:'Value Propositions',
-            revenue_streams:'Revenue Streams', cost_structure:'Cost Structure',
-            goal:'Strategiskt mål', driver:'Primär affärsdriver', regulatory:'Regulatorik / ESG'
-        };
-        [...META_FIELDS, ...FIELDS].forEach(f => {
-            const val = (document.getElementById(f).value || '').replace(/\r\n/g,' ').replace(/\n/g,' ');
-            rows.push([labels[f] || f, val]);
-        });
-        const csv = rows.map(r => r.map(v => `"${(v||'').replace(/"/g,'""')}"`).join(';')).join('\n');
-        const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = `BMC_${new Date().toISOString().slice(0,10)}.csv`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast('CSV nedladdad ✓');
-    }
-
-    async function runAnalysis() {
-        const apiKey = getApiKey();
-        if (!apiKey) { openModal(); showToast('Lägg till API-nyckel först'); return; }
-        const btn = document.querySelector('button.btn-primary');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner spinner"></i> Analyserar...';
-        const panel = document.getElementById('result-panel');
-        const content = document.getElementById('result-content');
-        panel.classList.remove('hidden');
-        content.innerHTML = '<div class="flex items-center gap-2 text-blue-600 text-sm p-4"><i class="fas fa-spinner spinner"></i><span>AI analyserar affärsmodellen...</span></div>';
-
-        const systemPrompt = `Du är en senior strategi- och transformationsrådgivare inom Verksamhet, domain-specific och förvaltning.
-Svara på svenska. Var konkret och affärsnära. Fokusera på: kostnadsbesparing, riskreduktion, konkurrensfördel, regulatorisk efterlevnad, Customer retention.
-Identifiera de mest relevanta förbättringshävstängerna utifrån bransch och nuläge: processautomation, AI-agenter, styrning, kompetens, partnerskap, erbjudandeutveckling, kundinteraktion, data/compliance och först därefter eventuell ny teknik om underlaget motiverar det.
-Undvik att göra digitalisering eller ny teknik till standardsvar om andra åtgärder är mer relevanta.
-
-Strukturera svaret med rubrikerna:
-## Styrkor i affärsmodellen
-## Svagheter och risker
-## Prioriterade förbättringshävstänger
-## Rekommenderad roadmap (12-24 månader)
-## Sammanfattning för C-level`;
-
-        const prompt = FIELDS.map(f => `${BMC_FIELD_LABELS[f]}:\n${document.getElementById(f).value || '(ej ifyllt)'}`).join('\n\n');
-
-        try {
-            const res = await fetch('/api/openai/chat', {
-                method:'POST',
-                headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({model:'gpt-5',messages:[{role:'system',content:systemPrompt},{role:'user',content:prompt}]})
-            });
-            const json = await res.json();
-            if (json.error) throw new Error(json.error.message);
-            const raw = json.choices[0].message.content;
-            lastBmcAnalysis = {
-                model: 'gpt-5',
-                generatedAt: new Date().toISOString(),
-                text: raw
-            };
-            content.innerHTML = raw
-                .replace(/^## (.*)$/gim,'<h3>$1</h3>')
-                .replace(/^\* (.*)$/gim,'<li>$1</li>')
-                .replace(/^- (.*)$/gim,'<li>$1</li>')
-                .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
-                .replace(/(<li>.*<\/li>)/gs,'<ul>$1</ul>')
-                .replace(/\n{2,}/g,'<br><br>');
-
-            await generateToBeSuggestionsFromLatestAnalysis();
-            
-            // Auto-export after successful analysis
-            exportToIntegrationCache();
-        } catch(e) {
-            content.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 text-xs p-3 rounded m-4"><div class="font-semibold mb-1"><i class="fas fa-exclamation-triangle mr-1"></i>Fel vid API-anrop</div><div>${e.message}</div></div>`;
-        }
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-robot"></i>AI Analysera';
-    }
-
-    function generateEAToolReport() {
-        const asIs = {};
-        [...FIELDS, ...META_FIELDS].forEach(f => {
-            asIs[f] = document.getElementById(f)?.value?.trim() || '';
-        });
-
-        const analysisText = lastBmcAnalysis?.text || document.getElementById('result-content')?.innerText?.trim() || '';
-        const toBe = {
-            draftSource: analysisText ? 'ai-analysis' : 'manual',
-            targetModelHypothesis: analysisText || 'Ingen AI-analys tillgänglig ännu. Kör AI Analysera för att bygga TO BE-förslag.',
-            changeIntents: analysisText
-                ? analysisText.split('\n').map(l => l.trim()).filter(l => /^[-*]|^\d+\./.test(l)).slice(0, 8)
-                : []
-        };
-
-        const report = {
-            toolId: 'bmc',
-            toolName: 'AI Business Model Canvas',
-            generatedAt: new Date().toISOString(),
-            asIs,
-            analysis: analysisText ? { ...lastBmcAnalysis, text: analysisText } : null,
-            toBe,
-            meta: {
-                version: asIs.meta_version || 'v1',
-                designedFor: asIs.meta_for || '',
-                designedBy: asIs.meta_by || ''
-            }
-        };
-
-        if (dataManager && typeof dataManager.saveToolReport === 'function') {
-            dataManager.saveToolReport('bmc', report);
-        }
-
-        const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `NextGenEA_BMC_Tool_Report_${Date.now()}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        showToast('✓ EA Tool-rapport genererad (BMC)');
-    }
-
-    function closeResult() { document.getElementById('result-panel').classList.add('hidden'); }
-
-    // Integration Export Functions
-    /**
-     * Export BMC data to integration cache for Value Chain Analyzer / EA Platform
-     */
-    function exportToIntegrationCache() {
-        if (!dataManager) {
-            showToast('⚠️ DataManager not available - export skipped');
-            return false;
-        }
-
-        const activeVariant = getActiveBmcVariant();
-
-        //Collect all BMC field data
-        const bmcData = {};
-        let filledCount = 0;
-        [...FIELDS, ...META_FIELDS].forEach(f => {
-            const value = META_FIELDS.includes(f)
-                ? (document.getElementById(f)?.value.trim() || '')
-                : getActiveFieldValueForExport(f, activeVariant);
-            bmcData[f] = value;
-            if (value && !META_FIELDS.includes(f)) filledCount++;
-        });
-
-        const analysisText = (lastBmcAnalysis?.text || document.getElementById('result-content')?.innerText || '').trim();
-
-        // Collect both AS IS and TO BE data separately for downstream AI auto-fill
-        const asIsData = {};
-        const toBeData = {};
-        FIELDS.forEach(f => {
-            const rawValue = document.getElementById(f)?.value?.trim() || '';
-            const parsed = parseAsIsToBeText(rawValue);
-            if (asIsSnapshotBeforeToBe && asIsSnapshotBeforeToBe[f] !== undefined) {
-                asIsData[f] = asIsSnapshotBeforeToBe[f] || '';
-                toBeData[f] = parsed.toBe || '';
-            } else {
-                asIsData[f] = parsed.asIs || rawValue;
-                toBeData[f] = parsed.toBe || '';
-            }
-        });
-        const hasToBe = FIELDS.some(f => (toBeData[f] || '').trim().length > 0);
-        const usersUpdated = isBmcToBeUsersUpdated(toBeData);
-        const sourceModelLabel = activeVariant === 'to-be'
-            ? `TO BE${usersUpdated ? ' - Users updated' : ''}`
-            : 'AS IS';
-
-        // Create structured format for integration
-        const exportData = {
-            // Core BMC components (active variant)
-            value_proposition: bmcData.value_proposition,
-            customer_segments: bmcData.customer_segments,
-            channels: bmcData.channels,
-            customer_relationships: bmcData.customer_relationships,
-            revenue_streams: bmcData.revenue_streams,
-            key_resources: bmcData.key_resources,
-            key_activities: bmcData.key_activities,
-            key_partners: bmcData.key_partners,
-            cost_structure: bmcData.cost_structure,
-            
-            // Strategic context
-            strategic_goal: bmcData.goal,
-            business_driver: bmcData.driver,
-            regulatory_context: bmcData.regulatory,
-            model_variant: activeVariant,
-            source_model_label: sourceModelLabel,
-            ai_analysis_text: analysisText || null,
-
-            // Full AS IS content for downstream AI filling
-            as_is_data: {
-                value_proposition: asIsData.value_proposition,
-                customer_segments: asIsData.customer_segments,
-                channels: asIsData.channels,
-                customer_relationships: asIsData.customer_relationships,
-                revenue_streams: asIsData.revenue_streams,
-                key_resources: asIsData.key_resources,
-                key_activities: asIsData.key_activities,
-                key_partners: asIsData.key_partners,
-                cost_structure: asIsData.cost_structure,
-                strategic_goal: asIsData.goal,
-                business_driver: asIsData.driver,
-                regulatory_context: asIsData.regulatory
-            },
-            // Full TO BE content for downstream AI filling
-            to_be_data: {
-                value_proposition: toBeData.value_proposition,
-                customer_segments: toBeData.customer_segments,
-                channels: toBeData.channels,
-                customer_relationships: toBeData.customer_relationships,
-                revenue_streams: toBeData.revenue_streams,
-                key_resources: toBeData.key_resources,
-                key_activities: toBeData.key_activities,
-                key_partners: toBeData.key_partners,
-                cost_structure: toBeData.cost_structure,
-                strategic_goal: toBeData.goal,
-                business_driver: toBeData.driver,
-                regulatory_context: toBeData.regulatory
-            },
-            has_to_be: hasToBe,
-
-            // Metadata
-            metadata: {
-                source: 'AI_Business_Model_Canvas',
-                exportedAt: new Date().toISOString(),
-                version: bmcData.meta_version || 'EA_2.0',
-                designedFor: bmcData.meta_for,
-                designedBy: bmcData.meta_by,
-                date: bmcData.meta_date,
-                filledFields: filledCount,
-                totalFields: FIELDS.length - META_FIELDS.length,
-                completeness: Math.round((filledCount / (FIELDS.length - META_FIELDS.length)) * 100),
-                activeVariant,
-                usersUpdated
-            },
-            
-            // Context for Value Chain analysis
-            context_for_value_chain: generateValueChainContext(bmcData)
-        };
-
-        // Save to integration cache
-        try {
-            dataManager.saveIntegrationData('bmc_latest', exportData);
-            
-            // Update export status indicator
-            updateExportStatus(true);
-            
-            console.log('✓ BMC exported to integration cache:', exportData);
-            showToast(`✓ Exporterad till EA Platform (${filledCount}/${FIELDS.length - META_FIELDS.length} fält · ${activeVariant === 'to-be' ? 'TO BE' : 'AS IS'})`);
-            return true;
-        } catch (error) {
-            console.error('Export failed:', error);
-            showToast('⚠️ Export misslyckades');
-            return false;
-        }
-    }
-
-    /**
-     * Generate Value Chain analysis context from BMC data
-     */
-    function generateValueChainContext(bmcData) {
-        const context = {
-            summary: `Business model focusing on: ${bmcData.value_proposition || 'N/A'}`,
-            value_focus: bmcData.value_proposition,
-            cost_drivers: bmcData.cost_structure,
-            key_activities: bmcData.key_activities,
-            customer_focus: bmcData.customer_segments,
-            revenue_model: bmcData.revenue_streams,
-            strategic_priority: bmcData.goal,
-            constraints: bmcData.regulatory
-        };
-        
-        return context;
-    }
-
-    /**
-     * Update export status indicator in UI
-     */
-    function updateExportStatus(exported) {
-        const header = document.getElementById('bmc-sync-status');
-        if (header && exported) {
-            const activeVariant = getActiveBmcVariant();
-            const label = activeVariant === 'to-be' ? 'TO BE' : 'AS IS';
-            header.innerHTML = `<i class="fas fa-check-circle text-green-400"></i> <span class="text-green-300">Exporterad (${label}) till EA Platform ✓</span>`;
-            setTimeout(() => {
-                header.innerHTML = '<i class="fas fa-sync-alt"></i> Data synkas automatiskt med EA Platform';
-                renderBmcContextBadge();
-            }, 4000);
-        }
-    }
-
-    function renderBmcContextBadge() {
-        const badge = document.getElementById('bmc-context-badge');
-        if (!badge || !dataManager) return;
-        const candidates = ['ea_platform_latest', 'ea_architecture_latest', 'ea_model_latest'];
-        let pkg = null;
-        for (const key of candidates) {
-            if (dataManager.hasRecentIntegrationData(key, 1440)) {
-                pkg = dataManager.getIntegrationPackage(key);
-                break;
-            }
-        }
-        if (!pkg) {
-            badge.classList.add('hidden');
-            return;
-        }
-        const age = Math.max(0, Math.round((Date.now() - new Date(pkg.timestamp).getTime()) / 1000 / 60));
-        badge.innerHTML = '<i class="fas fa-link mr-1"></i> Kontext från föregående steg · uppdaterad ' + age + ' min sedan';
-        badge.classList.remove('hidden');
-    }
-
-    function bmcOpenNextTool() {
-        const ok = exportToIntegrationCache();
-        if (!ok) {
-            showToast('⚠️ Kunde inte synka BMC-data före navigering');
-        }
-
-        const variant = getActiveBmcVariant();
-        window.location.href = `./AI Value Chain Analyzer V2.html?from=bmc&refresh=1&variant=${encodeURIComponent(variant)}`;
-    }
-
-    /**
-     * Check integration status on page load
-     */
-    function checkIntegrationStatus() {
-        if (!dataManager) return;
-        
-        const hasData = dataManager.hasRecentIntegrationData('bmc_latest', 1440); // 24 hours
-        if (hasData) {
-            const data = dataManager.getIntegrationPackage('bmc_latest');
-            const age = Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60);
-            console.log(`Last BMC export: ${age} minutes ago`);
-        }
-    }
-
-    function showToast(msg) {
-        const t = document.createElement('div');
-        t.className = 'fixed bottom-5 right-5 bg-slate-900 text-white text-[11px] px-4 py-2 rounded-lg shadow-lg z-50';
-        t.innerHTML = msg;
-        document.body.appendChild(t);
-        setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(()=>t.remove(),300); }, 2500);
-    }
-
-    window.onload = () => {
-        updateApiStatus();
-        checkIntegrationStatus();
-        renderBmcContextBadge();
-        ensureToBeSuggestionSlots();
-        setBmcModeBadge('AS IS');
-        setToBeStatusBanner(false);
-        
-        // Set today's date as default
-        const today = new Date().toISOString().slice(0,10);
-        document.getElementById('meta_date').value = today;
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            try {
-                const data = JSON.parse(saved);
-                [...FIELDS, ...META_FIELDS].forEach(f => { if (data[f]) document.getElementById(f).value = data[f]; });
-            } catch(e) {}
-        }
-
-        const hasIntegratedToBe = FIELDS.some((fieldId) => /\n\s*TO BE\s*:/i.test(String(document.getElementById(fieldId)?.value || '')));
-        if (hasIntegratedToBe) {
-            setBmcModeBadge('TO BE');
-            setToBeStatusBanner(true, 'TO BE-innehall hittades i modellen och ar integrerat med AS IS. Du kan fortsatta justera manuellt eller via AI-assistenten.');
-            const restoreBtn = document.getElementById('restore-asis-btn');
-            if (restoreBtn) restoreBtn.classList.remove('hidden');
-        }
-
-        setupStrategicTextareaSizing();
-    };
-	/* ================================================================
-    BMC AI ASSISTANT - JAVASCRIPT
-   Klistra in detta block inuti din befintliga <script>-tagg
-   (eller som ett separat <script>-block precis före </body>)
-   ================================================================ */
-
-const BMC_ASSISTANT = {
-    open: false,
-    history: [],
-    API_KEYS: ['ea20_openai_key','vc_openai_key','cap_openai_key','strategy_openai_key','openai_api_key'],
-
-    getApiKey() {
-        for (const k of this.API_KEYS) {
-            const v = localStorage.getItem(k);
-            if (v) return v;
-        }
-        return '';
-    },
-
-    // Reads current BMC field values from the canvas
-    // Works both standalone and when embedded in the full BMC tool
-    getBMCContext() {
-        const fieldMap = {
-            key_partners: 'Key Partners',
-            key_activities: 'Key Activities',
-            key_resources: 'Key Resources',
-            customer_relationships: 'Customer Relationships',
-            channels: 'Channels',
-            customer_segments: 'Customer Segments',
-            value_proposition: 'Value Propositions',
-            revenue_streams: 'Revenue Streams',
-            cost_structure: 'Cost Structure',
-            goal: 'Strategiskt mål',
-            driver: 'Primär affärsdriver',
-            regulatory: 'Regulatorik / ESG',
-            meta_for: 'Designed for',
-            meta_by: 'Designed by'
-        };
-        const parts = [];
-        let hasData = false;
-        for (const [id, label] of Object.entries(fieldMap)) {
-            const el = document.getElementById(id);
-            if (el && el.value && el.value.trim()) {
-                parts.push(`${label}:\n${el.value.trim()}`);
-                hasData = true;
-            }
-        }
-        return hasData ? parts.join('\n\n') : null;
-    },
-
-    systemPrompt: `Du är en expert AI-assistent specialiserad på Business Model Canvas (BMC) inom Verksamhet, domain-specific och förvaltning.
-
-Din roll är att:
-1. GUIDA användaren att fylla i varje BMC-fält optimalt med konkreta, branschrelevanta exempel
-2. ANALYSERA befintlig BMC-data och identifiera svagheter, risker och möjligheter
-3. FÖRESLÅ förbättringar med tydliga affärsutfall: kostnadsbesparing, riskreduktion, konkurrensfördel, regulatorisk efterlevnad, Customer retention
-4. JUSTERA och OPTIMERA svarsalternativ för att bygga den mest robusta affärsmodellen
-5. GE instruktioner för hur specifika fält ska uppdateras
-
-Svara alltid på svenska. Var konkret, kortfattad och affärsnära.
-Strukturera längre svar med korta rubriker och bullet points.
-När du föreslår text som kan kopieras direkt till ett BMC-fält, markera det tydligt med: **Förslag till [fältnamn]:**
-
-Fokusera alltid på dessa affärsdrivare:
-- Kostnadsbesparing
-- Riskreduktion
-- Konkurrensfördel
-- Regulatorisk efterlevnad (CSRD, EU Taxonomy, ESG)
-- Customer retention
-
-När du föreslår förbättringar:
-- Utgå från den aktuella industrin och det faktiska underlaget i modellen
-- Prioritera processautomation, AI-agenter, styrning, kompetens, samarbeten, serviceupplägg och andra verksamhetsnära förbättringar före generell teknikförnyelse
-- Föreslå ny teknik, digitalisering eller plattformsbyte endast när det är tydligt motiverat av nuläge, målbild eller identifierade gap`,
-
-    welcomeMsg: `Hej! Jag är din **BMC AI-assistent**
-
-Jag hjälper dig att:
-- Fylla i varje fält optimalt
-- Analysera och identifiera svagheter
-- Föreslå förbättringar med affärsutfall
-- Prioritera rätt förbättringshävstänger för just din verksamhet
-
-Använd snabbknapparna ovan eller skriv din fråga nedan. Om du har fyllt i din BMC aktiverar jag automatiskt kontextläge så att mina svar är anpassade till din specifika affärsmodell.`,
-
-    init() {
-        this.renderWelcome();
-        this.updateApiNotice();
-    },
-
-    updateApiNotice() {
-        const notice = document.getElementById('bmc-api-notice');
-        if (!notice) return;
-        if (this.getApiKey()) {
-            notice.style.display = 'none';
-        } else {
-            notice.style.display = 'block';
-        }
-    },
-
-    renderWelcome() {
-        this.addMessage('ai', this.welcomeMsg);
-    },
-
-    reset(message = null) {
-        this.history = [];
-        const container = document.getElementById('bmc-messages');
-        if (container) container.innerHTML = '';
-        const input = document.getElementById('bmc-chat-input');
-        if (input) {
-            input.value = '';
-            input.style.height = 'auto';
-        }
-        this.updateApiNotice();
-        this.addMessage('ai', message || this.welcomeMsg);
-    },
-
-    addMessage(role, text, withApply = null) {
-        const container = document.getElementById('bmc-messages');
-        if (!container) return;
-
-        const div = document.createElement('div');
-        div.className = `msg ${role}`;
-
-        const avatar = document.createElement('div');
-        avatar.className = 'msg-avatar';
-        avatar.innerHTML = role === 'ai'
-            ? '<i class="fas fa-robot"></i>'
-            : '<i class="fas fa-user"></i>';
-
-        const bubble = document.createElement('div');
-        bubble.className = 'msg-bubble';
-        bubble.innerHTML = this.formatText(text);
-
-        // Apply-to-field button
-        if (withApply) {
-            const btn = document.createElement('button');
-            btn.className = 'apply-btn';
-            btn.innerHTML = `<i class="fas fa-arrow-right"></i> Applicera på ${withApply.field}`;
-            btn.onclick = () => {
-                const el = document.getElementById(withApply.id);
-                if (el) {
-                    el.value = withApply.text;
-                    el.focus();
-                    this.showMiniToast(`Uppdaterade ${withApply.field}`);
-                }
-            };
-            bubble.appendChild(btn);
-        }
-
-        div.appendChild(avatar);
-        div.appendChild(bubble);
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
-    },
-
-    addTyping() {
-        const container = document.getElementById('bmc-messages');
-        const div = document.createElement('div');
-        div.className = 'msg ai';
-        div.id = 'bmc-typing';
-        div.innerHTML = `
-            <div class="msg-avatar"><i class="fas fa-robot"></i></div>
-            <div class="msg-bubble">
-                <div class="typing-dots">
-                    <span></span><span></span><span></span>
-                </div>
-            </div>`;
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
-    },
-
-    removeTyping() {
-        const el = document.getElementById('bmc-typing');
-        if (el) el.remove();
-    },
-
-    formatText(text) {
-        return text
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/^### (.*)$/gm, '<strong style="font-size:0.8rem;display:block;margin-top:6px;color:#0f172a">$1</strong>')
-            .replace(/^## (.*)$/gm, '<strong style="font-size:0.82rem;display:block;margin-top:8px;color:#0f172a">$1</strong>')
-            .replace(/^- (.*)$/gm, '<li>$1</li>')
-            .replace(/^\* (.*)$/gm, '<li>$1</li>')
-            .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
-            .replace(/\n{2,}/g, '<br>')
-            .replace(/\n/g, '<br>');
-    },
-
-    async send(userText) {
-        if (!userText.trim()) return;
-
-        this.addMessage('user', userText);
-        this.history.push({ role: 'user', content: userText });
-
-        const sendBtn = document.getElementById('bmc-send-btn');
-        if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner spin"></i>'; }
-
-        this.addTyping();
-
-        const apiKey = this.getApiKey();
-
-        // Build messages array
-        const useContext = document.getElementById('bmc-use-context')?.checked !== false;
-        let systemContent = this.systemPrompt;
-        if (useContext) {
-            const ctx = this.getBMCContext();
-            if (ctx) {
-                systemContent += `\n\n---\nAKTUELL BMC-DATA (användarens ifyllda canvas):\n${ctx}`;
-            }
-        }
-
-        const messages = [
-            { role: 'system', content: systemContent },
-            ...this.history.slice(-10) // keep last 10 turns for context
-        ];
-
-        if (!apiKey) {
-            // Demo mode - simulated response
-            await new Promise(r => setTimeout(r, 900));
-            this.removeTyping();
-            const demoReply = this.getDemoReply(userText);
-            this.addMessage('ai', demoReply);
-            this.history.push({ role: 'assistant', content: demoReply });
-        } else {
-            try {
-                const res = await fetch('/api/openai/chat', {
+                // Prepare context
+                const bmcData = getBMCData();
+                const context = `Current BMC: ${JSON.stringify(bmcData, null, 2)}`;
+                
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-5',
-                        messages: messages,
-                        max_tokens: 900
+                        model: 'gpt-4',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'You are an expert business model strategist. Help users design, analyze, and improve their Business Model Canvas. Be concise, actionable, and insightful.'
+                            },
+                            {
+                                role: 'user',
+                                content: `${userMessage}\n\nContext:\n${context}`
+                            }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 800
                     })
                 });
-                const json = await res.json();
-                if (json.error) throw new Error(json.error.message);
-                const reply = json.choices[0].message.content;
-                this.removeTyping();
-                this.addMessage('ai', reply);
-                this.history.push({ role: 'assistant', content: reply });
-            } catch (e) {
-                this.removeTyping();
-                this.addMessage('ai', `Fel: ${e.message}\n\nKontrollera din API-nyckel under knappen "API-nyckel" i BMC-verktyget.`);
+                
+                const data = await response.json();
+                
+                // Remove thinking indicator
+                document.getElementById('thinking-indicator')?.remove();
+                
+                if (data.choices && data.choices[0]) {
+                    addChatMessage(data.choices[0].message.content, 'assistant');
+                } else {
+                    addChatMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+                }
+                
+            } catch (error) {
+                document.getElementById('thinking-indicator')?.remove();
+                addChatMessage(`Error: ${error.message}`, 'assistant');
             }
         }
-
-        if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>'; }
-    },
-
-    getDemoReply(question) {
-        const q = question.toLowerCase();
-        if (q.includes('värdeerbjudande') || q.includes('value prop')) {
-            return `**Förslag till Value Propositions:**\n\n- Moderna, energieffektiva lokaler med realtidsdata om drift och energi\n- Hög servicegrad med garanterade SLA-svarstider\n- ESG-certifierade Verksamheter som stödjer hyresgästernas hållbarhetsmål\n- Flexibla hyresvillkor och anpassningsbara ytor\n\n**Tips:** Koppla alltid värdeerbjudandet till hyresgästens affärsmål - inte bara Verksamhetens egenskaper. Det stärker **Customer retention** och motiverar premiumhyra.`;
+        
+        // Fill BMC with AI
+        async function fillBMCWithAI() {
+            const description = prompt('Describe your business in a few sentences (industry, customers, value proposition):');
+            if (!description) return;
+            
+            addChatMessage(`Fill BMC for: ${description}`, 'user');
+            
+            const apiKey = window.EA_CONFIG?.OPENAI_API_KEY || localStorage.getItem('advicy_openai_key');
+            if (!apiKey) {
+                addChatMessage('⚠️ No API key configured. Please set your OpenAI API key in EA Platform Settings.', 'assistant');
+                return;
+            }
+            
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.className = 'chat-message assistant';
+            thinkingDiv.innerHTML = '<i class="fas fa-spinner spinner"></i> Generating Business Model Canvas...';
+            thinkingDiv.id = 'thinking-indicator';
+            document.getElementById('chat-messages').appendChild(thinkingDiv);
+            
+            try {
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'You are a Business Model Canvas expert. Generate complete, realistic BMC blocks based on business description. Return ONLY valid JSON with keys: partners, activities, resources, value, relationships, channels, segments, costs, revenue. Each value should be a concise but detailed string (2-4 sentences).'
+                            },
+                            {
+                                role: 'user',
+                                content: `Generate a complete Business Model Canvas for: ${description}`
+                            }
+                        ],
+                        temperature: 0.8,
+                        max_tokens: 1500
+                    })
+                });
+                
+                const data = await response.json();
+                document.getElementById('thinking-indicator')?.remove();
+                
+                if (data.choices && data.choices[0]) {
+                    const content = data.choices[0].message.content;
+                    // Try to parse JSON
+                    const jsonMatch = content.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        const bmcData = JSON.parse(jsonMatch[0]);
+                        populateBMC(bmcData);
+                        addChatMessage('✅ Business Model Canvas filled successfully! Review and adjust as needed.', 'assistant');
+                    } else {
+                        addChatMessage(content, 'assistant');
+                    }
+                } else {
+                    addChatMessage('Sorry, I encountered an error generating the BMC.', 'assistant');
+                }
+                
+            } catch (error) {
+                document.getElementById('thinking-indicator')?.remove();
+                addChatMessage(`Error: ${error.message}`, 'assistant');
+            }
         }
-        if (q.includes('kostnad') || q.includes('cost')) {
-            return `## Optimera kostnadsstrukturen\n\n**Tre snabbvinster:**\n- Prediktivt underhåll via IoT-sensorer -> minskar reaktivt underhåll med 25-40%\n- Energioptimering med AI-styrning -> 15-20% lägre energikostnad\n- Automatisera hyresgästkommunikation -> frigör 30% av förvaltartid\n\nSammantagen besparing: typiskt **18-25% av totala driftkostnader** inom 24 månader.`;
+        
+        // Analyze BMC
+        function analyzeBMC() {
+            const bmcData = getBMCData();
+            const isEmpty = Object.values(bmcData).every(v => !v || !v.trim());
+            
+            if (isEmpty) {
+                addChatMessage('The canvas is empty. Please fill in some blocks first, or use "Fill BMC" to generate content.', 'assistant');
+                return;
+            }
+            
+            processAIRequest('Analyze this Business Model Canvas. Identify strengths, weaknesses, risks, and opportunities. Be specific and actionable.');
         }
-        if (q.includes('esg') || q.includes('hållbar') || q.includes('csrd')) {
-            return `## ESG i din BMC\n\n**Obligatoriska krav att adressera:**\n- CSRD (från 2025): dubbel väsentlighetsanalys, scope 1-3 utsläpp\n- EU Taxonomy: klassificera Verksamheter som gröna investeringar\n- Energideklaration: uppdatera vid uthyrning\n\n**Affärsnytta:** ESG-certifierade Verksamheter uppnår **5-12% högre hyra** och lägre vakansrisk enligt JLL 2024.`;
+        
+        // Improve BMC
+        function improveBMC() {
+            const bmcData = getBMCData();
+            const isEmpty = Object.values(bmcData).every(v => !v || !v.trim());
+            
+            if (isEmpty) {
+                addChatMessage('The canvas is empty. Please fill in some blocks first.', 'assistant');
+                return;
+            }
+            
+            processAIRequest('Suggest concrete improvements to this Business Model Canvas. Focus on strengthening value proposition, reducing costs, and increasing revenue potential.');
         }
-        return `Tack för din fråga! I **demo-läge** ger jag fördefinierade svar.\n\nFör fullständiga, kontextuella AI-svar anpassade till din specifika BMC:\n1. Klicka på **"API-nyckel"** i BMC-verktyget\n2. Ange din OpenAI API-nyckel (sk-...)\n3. Ställ frågan igen\n\nJag kommer då att analysera just din affärsmodell och ge skräddarsydda rekommendationer.`;
-    },
-
-    showMiniToast(msg) {
-        const t = document.createElement('div');
-        t.style.cssText = 'position:fixed;bottom:100px;right:28px;background:#0f172a;color:white;font-size:11px;padding:6px 12px;border-radius:8px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.2)';
-        t.textContent = msg;
-        document.body.appendChild(t);
-        setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(()=>t.remove(),300); }, 2000);
-    }
-};
-
-function toggleBMCChat() {
-    const panel = document.getElementById('bmc-chat-panel');
-    const btn = document.getElementById('bmc-assistant-btn');
-    BMC_ASSISTANT.open = !BMC_ASSISTANT.open;
-    if (BMC_ASSISTANT.open) {
-        panel.classList.remove('hidden');
-        btn.querySelector('.notif-dot').style.display = 'none';
-        BMC_ASSISTANT.updateApiNotice();
-        document.getElementById('bmc-chat-input')?.focus();
-    } else {
-        panel.classList.add('hidden');
-    }
-}
-
-function bmcSendMessage() {
-    const input = document.getElementById('bmc-chat-input');
-    const text = input.value.trim();
-    if (!text) return;
-    input.value = '';
-    input.style.height = 'auto';
-    BMC_ASSISTANT.send(text);
-}
-
-function bmcQuickAsk(question) {
-    BMC_ASSISTANT.send(question);
-}
-
-function bmcHandleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        bmcSendMessage();
-    }
-}
-
-function bmcClearChatHistory() {
-    BMC_ASSISTANT.reset('Chatthistoriken är rensad. Ställ en ny fråga om din BMC när du vill.');
-}
-
-function bmcNewChat() {
-    BMC_ASSISTANT.reset();
-    BMC_ASSISTANT.showMiniToast('Ny chat startad');
-}
-
-// Init on load
-document.addEventListener('DOMContentLoaded', () => BMC_ASSISTANT.init());
-if (document.readyState !== 'loading') BMC_ASSISTANT.init();
-
-function bmcGenerateEmptyFields() {
-    const fieldLabels = {
-        key_partners:'Key Partners', key_activities:'Key Activities', key_resources:'Key Resources',
-        customer_relationships:'Customer Relationships', channels:'Channels',
-        customer_segments:'Customer Segments', value_proposition:'Value Propositions',
-        revenue_streams:'Revenue Streams', cost_structure:'Cost Structure',
-        goal:'Strategiskt mål', driver:'Primär affärsdriver', regulatory:'Regulatorik / ESG'
-    };
-    const empty = [];
-    for (const [id, label] of Object.entries(fieldLabels)) {
-        const el = document.getElementById(id);
-        if (el && !el.value.trim()) empty.push(label);
-    }
-    if (empty.length === 0) {
-        BMC_ASSISTANT.send('Alla fält är ifyllda! Gör en fullständig analys och identifiera de 3 viktigaste förbättringsområdena.');
-    } else {
-        BMC_ASSISTANT.send('Generera konkreta, affärsrelevanta förslag för dessa tomma BMC-fält: ' + empty.join(', ') + '. Ge ett tydligt förslag per fält som jag kan använda direkt.');
-    }
-}
-
-/* ================================================================
-   === BMC ASSISTANT JS END ===
-   ================================================================ */
-</script>
-</div><!-- Close wrapper div -->
+        
+        // Helper: Get BMC Data
+        function getBMCData() {
+            return {
+                partners: document.getElementById('bmc-partners').value,
+                activities: document.getElementById('bmc-activities').value,
+                resources: document.getElementById('bmc-resources').value,
+                value: document.getElementById('bmc-value').value,
+                relationships: document.getElementById('bmc-relationships').value,
+                channels: document.getElementById('bmc-channels').value,
+                segments: document.getElementById('bmc-segments').value,
+                costs: document.getElementById('bmc-costs').value,
+                revenue: document.getElementById('bmc-revenue').value
+            };
+        }
+        
+        // Helper: Populate BMC
+        function populateBMC(data) {
+            if (data.partners) document.getElementById('bmc-partners').value = data.partners;
+            if (data.activities) document.getElementById('bmc-activities').value = data.activities;
+            if (data.resources) document.getElementById('bmc-resources').value = data.resources;
+            if (data.value) document.getElementById('bmc-value').value = data.value;
+            if (data.relationships) document.getElementById('bmc-relationships').value = data.relationships;
+            if (data.channels) document.getElementById('bmc-channels').value = data.channels;
+            if (data.segments) document.getElementById('bmc-segments').value = data.segments;
+            if (data.costs) document.getElementById('bmc-costs').value = data.costs;
+            if (data.revenue) document.getElementById('bmc-revenue').value = data.revenue;
+        }
+        
+        // Save BMC to localStorage
+        function saveBMC() {
+            const bmcData = getBMCData();
+            const meta = {
+                designed_for: document.getElementById('meta-designed-for').value,
+                designed_by: document.getElementById('meta-designed-by').value,
+                date: document.getElementById('meta-date').value,
+                version: document.getElementById('meta-version').value
+            };
+            
+            const saveData = { meta, bmc: bmcData, savedAt: new Date().toISOString() };
+            localStorage.setItem('bmc_saved', JSON.stringify(saveData));
+            
+            // Show confirmation
+            const btn = event.target.closest('button');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Saved!';
+            btn.style.background = '#22c55e';
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.style.background = '';
+            }, 2000);
+        }
+        
+        // Load BMC from localStorage
+        function loadBMC() {
+            const saved = localStorage.getItem('bmc_saved');
+            if (!saved) {
+                alert('No saved BMC found in browser storage.');
+                return;
+            }
+            
+            if (!confirm('Load saved BMC? This will replace current content.')) return;
+            
+            try {
+                const data = JSON.parse(saved);
+                
+                // Load meta
+                if (data.meta) {
+                    document.getElementById('meta-designed-for').value = data.meta.designed_for || '';
+                    document.getElementById('meta-designed-by').value = data.meta.designed_by || '';
+                    document.getElementById('meta-version').value = data.meta.version || '1.0';
+                }
+                
+                // Load BMC
+                if (data.bmc) {
+                    populateBMC(data.bmc);
+                }
+                
+                alert('BMC loaded successfully!');
+            } catch (error) {
+                alert('Error loading BMC: ' + error.message);
+            }
+        }
+        
+        // Export BMC as JSON file
+        function exportBMC() {
+            const bmcData = getBMCData();
+            const meta = {
+                designed_for: document.getElementById('meta-designed-for').value,
+                designed_by: document.getElementById('meta-designed-by').value,
+                date: document.getElementById('meta-date').value,
+                version: document.getElementById('meta-version').value
+            };
+            
+            const exportData = { meta, bmc: bmcData, exportedAt: new Date().toISOString() };
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `BMC_${(meta.designed_for || 'export').replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.json`;
+            a.click();
+        }
+        
+        // Import BMC from JSON file
+        function importBMC(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    // Load meta
+                    if (data.meta) {
+                        document.getElementById('meta-designed-for').value = data.meta.designed_for || '';
+                        document.getElementById('meta-designed-by').value = data.meta.designed_by || '';
+                        document.getElementById('meta-version').value = data.meta.version || '1.0';
+                    }
+                    
+                    // Load BMC
+                    if (data.bmc) {
+                        populateBMC(data.bmc);
+                    }
+                    
+                    alert('BMC imported successfully!');
+                } catch (error) {
+                    alert('Error importing BMC: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset input
+        }
+        
+        // Export BMC as Image
+        async function exportBMCImage() {
+            alert('Image export requires html2canvas library. For now, use Print > Save as PDF or take a screenshot.');
+        }
+        
+        // Print BMC
+        function printBMC() {
+            window.print();
+        }
+        
+        // Clear BMC
+        function clearBMC() {
+            if (!confirm('Clear all canvas content?')) return;
+            document.querySelectorAll('.cell textarea, .bottom-cell textarea').forEach(t => t.value = '');
+        }
+        
+        // Clear Chat
+        function clearChat() {
+            const messagesDiv = document.getElementById('chat-messages');
+            messagesDiv.innerHTML = '';
+            const welcomeMsg = document.createElement('div');
+            welcomeMsg.className = 'chat-message assistant-message';
+            welcomeMsg.innerHTML = `
+                <div class="message-content">
+                    <div class="message-text">${parseMarkdown('**Chat cleared.**\n\nHow can I help you with your Business Model Canvas?')}</div>
+                    <div class="message-time">${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+                </div>
+            `;
+            messagesDiv.appendChild(welcomeMsg);
+        }
+        
+        // Start New Chat
+        function startNewChat() {
+            clearChat();
+        }
+    </script>
 </body>
 </html>
-

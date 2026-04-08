@@ -1,16 +1,187 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Application Portfolio Management</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Application Portfolio Management � EA Toolkit</title>
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="../js/EA_Config.js"></script>
-    <script src="../js/EA_DataManager.js"></script>
+    <script src="../../js/EA_Config.js"></script>
+    <script src="../../js/EA_DataManager.js"></script>
+    <script src="../../js/Advicy_AI.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
+        /* === EA PLATFORM LAYOUT === */
+        #app-container { display: flex; flex-direction: column; min-height: 100vh; }
+        #main-content { flex: 1; transition: margin-right 0.3s ease; }
+        body.chat-sidebar-open #main-content { margin-right: 380px; }
+        
+        /* === EA PLATFORM HEADER === */
+        .ea-header {
+            background: linear-gradient(135deg, #92400e 0%, #b45309 100%) !important;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .ea-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .ea-brand-mark {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            color: white;
+        }
+        
+        .ea-header-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+            margin: 0;
+        }
+        
+        .ea-header-title p {
+            font-size: 12px;
+            color: rgba(255,255,255,0.85);
+            margin: 0;
+        }
+        
+        .ea-header-right {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .ea-header-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .ea-header-icon:hover {
+            background: rgba(255,255,255,0.18);
+        }
+        
+        /* === EA PLATFORM CHAT SIDEBAR === */
+        #ai-chat-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 380px;
+            background: var(--ea-surface, #1a1a2e);
+            border-left: 1px solid var(--ea-border, #2d2d4e);
+            box-shadow: -4px 0 24px rgba(0,0,0,0.08);
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        body.chat-sidebar-open #ai-chat-panel { display: flex; }
+        
+        #chat-resize-handle {
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 5px;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 20;
+            transition: background 0.15s;
+        }
+        #chat-resize-handle:hover, #chat-resize-handle.dragging { background: #0e7afe; }
+        
+        #chat-header {
+            height: 64px;
+            background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+            color: white;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        #chat-header-title { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; }
+        #chat-controls { display: flex; gap: 6px; }
+        #chat-controls button {
+            width: 32px; height: 32px; border-radius: 6px;
+            background: rgba(255,255,255,0.1); border: none; color: white;
+            cursor: pointer; font-size: 16px; transition: background 0.15s;
+        }
+        #chat-controls button:hover { background: rgba(255,255,255,0.2); }
+        
+        .quick-actions {
+            display: flex; flex-wrap: wrap; gap: 6px;
+            padding: 12px 16px; background: #1a1a1a;
+            border-bottom: 1px solid #2d2d2d; flex-shrink: 0;
+        }
+        .qa-btn {
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 12px; border: 1px solid #404040;
+            background: #2d2d2d; color: #e0e0e0;
+            border-radius: 20px; cursor: pointer; font-size: 12px;
+            font-weight: 500; transition: all 0.15s;
+        }
+        .qa-btn:hover { background: #92400e; border-color: #92400e; color: white; }
+        .qa-btn i { font-size: 11px; }
+        
+        #chat-messages {
+            flex: 1; overflow-y: auto;
+            padding: 20px 16px; background: #1a1a1a;
+            display: flex; flex-direction: column; gap: 0;
+            scrollbar-width: thin; scrollbar-color: #404040 transparent;
+        }
+        #chat-messages::-webkit-scrollbar { width: 6px; }
+        #chat-messages::-webkit-scrollbar-thumb { background: #404040; border-radius: 3px; }
+        
+        .chat-message { display: flex; gap: 0; animation: chatSlideIn 0.2s ease; margin-bottom: 16px; }
+        @keyframes chatSlideIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+        .message-content { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+        .message-text { background: transparent; border: none; border-radius: 0; padding: 0; font-size: 14px; line-height: 1.6; color: #e0e0e0; word-break: break-word; }
+        .user-message .message-text { background: rgba(55,65,81,0.85); color: #e2e8f0; border: 1px solid rgba(75,85,99,0.4); padding: 12px 14px; border-radius: 8px; font-size: 13px; }
+        .message-time { font-size: 11px; color: #666; padding: 4px 0 0 0; }
+        
+        #chat-input-container {
+            display: flex; gap: 8px; padding: 12px 16px;
+            background: #1a1a1a; border-top: 1px solid #2d2d2d; flex-shrink: 0;
+        }
+        #chat-input {
+            flex: 1; border: 1px solid #404040; border-radius: 6px;
+            padding: 10px 12px; font-size: 14px; resize: none; height: 72px;
+            outline: none; background: #2d2d2d; color: #e0e0e0; font-family: inherit;
+        }
+        #chat-input::placeholder { color: #808080; }
+        #chat-input:focus { border-color: #b45309; box-shadow: 0 0 0 1px #b45309; }
+        #send-chat {
+            width: 36px; height: 36px; border: none; border-radius: 6px;
+            background: #b45309; color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; align-self: flex-end;
+            font-size: 14px; transition: background 0.2s;
+        }
+        #send-chat:hover { background: #92400e; }
+        .spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* === ORIGINAL APM STYLING === */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
         body{font-family:'Inter',sans-serif;background:#f8fafc;color:#0f172a}
@@ -160,80 +331,37 @@
         .toast.toast-ok{background:#16a34a}
         .toast.toast-err{background:#dc2626}
 
-        /* ── APM AI ASSISTANT ── */
-        #apm-assistant-btn {
-            position:fixed;bottom:28px;right:28px;width:52px;height:52px;
-            background:linear-gradient(135deg,#ea580c,#9333ea);
-            border-radius:50%;display:flex;align-items:center;justify-content:center;
-            cursor:pointer;box-shadow:0 4px 20px rgba(234,88,12,.45);z-index:999;
-            border:none;transition:transform .2s,box-shadow .2s;
-        }
-        #apm-assistant-btn:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(234,88,12,.55)}
-        #apm-assistant-btn .notif-dot{position:absolute;top:4px;right:4px;width:10px;height:10px;background:#f59e0b;border-radius:50%;border:2px solid white}
-        #apm-chat-panel{
-            position:fixed;bottom:90px;right:28px;width:780px;max-height:620px;
-            background:white;border-radius:16px;box-shadow:0 12px 50px rgba(15,23,42,.18);
-            display:flex;flex-direction:column;z-index:998;overflow:hidden;
-            transition:opacity .2s,transform .2s;
-        }
-        #apm-chat-panel.hidden{opacity:0;pointer-events:none;transform:translateY(12px)}
-        .apm-chat-header{background:linear-gradient(135deg,#0f172a,#c2410c);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-        .apm-chat-header-title{display:flex;align-items:center;gap:8px;color:white}
-        .apm-chat-avatar{width:30px;height:30px;background:rgba(255,255,255,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem}
-        .apm-chat-header-title span{font-size:.82rem;font-weight:700;color:white}
-        .apm-chat-header-title small{display:block;font-size:.62rem;opacity:.7;font-weight:400;color:white}
-        #apm-api-notice{background:#fffbeb;border-bottom:1px solid #fde68a;padding:5px 10px;font-size:.62rem;color:#92400e;text-align:center;flex-shrink:0}
-        .apm-context-toggle{padding:5px 10px;background:#fff7ed;border-bottom:1px solid #fed7aa;display:flex;align-items:center;gap:6px;font-size:.65rem;color:#ea580c;font-weight:600;flex-shrink:0}
-        .apm-quick-actions{padding:8px 10px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;flex-wrap:wrap;gap:5px;flex-shrink:0}
-        .apm-qa-btn{font-size:.65rem;font-weight:600;padding:4px 9px;border-radius:20px;border:1px solid #e2e8f0;background:white;color:#475569;cursor:pointer;transition:all .15s;white-space:nowrap}
-        .apm-qa-btn:hover{background:#ea580c;color:white;border-color:#ea580c}
-        #apm-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:0}
-        .apm-msg{display:flex;gap:7px;align-items:flex-start}
-        .apm-msg.user{flex-direction:row-reverse}
-        .apm-msg-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;flex-shrink:0;margin-top:2px}
-        .apm-msg.ai .apm-msg-avatar{background:linear-gradient(135deg,#ea580c,#9333ea);color:white}
-        .apm-msg.user .apm-msg-avatar{background:#e2e8f0;color:#475569}
-        .apm-msg-bubble{max-width:82%;padding:8px 11px;border-radius:12px;font-size:.78rem;line-height:1.55}
-        .apm-msg.ai .apm-msg-bubble{background:#f1f5f9;color:#1e293b;border-bottom-left-radius:4px}
-        .apm-msg.user .apm-msg-bubble{background:linear-gradient(135deg,#ea580c,#f97316);color:white;border-bottom-right-radius:4px}
-        .apm-msg-bubble strong{font-weight:700}
-        .apm-msg-bubble ul{margin-left:1rem;margin-top:4px}
-        .apm-msg-bubble li{list-style:disc;margin-bottom:2px}
-        .apm-typing-dots span{display:inline-block;width:6px;height:6px;background:#94a3b8;border-radius:50%;margin:0 1px;animation:apmBounce 1.2s infinite}
-        .apm-typing-dots span:nth-child(2){animation-delay:.2s}
-        .apm-typing-dots span:nth-child(3){animation-delay:.4s}
-        @keyframes apmBounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
-        .apm-chat-input-area{padding:10px;border-top:1px solid #e2e8f0;display:flex;gap:7px;align-items:flex-end;flex-shrink:0;background:white}
-        #apm-chat-input{flex:1;border:1px solid #e2e8f0;border-radius:10px;padding:8px 11px;font-size:.78rem;resize:none;outline:none;max-height:90px;line-height:1.4;font-family:inherit}
-        #apm-chat-input:focus{border-color:#ea580c}
-        #apm-send-btn{width:34px;height:34px;background:#ea580c;border:none;border-radius:9px;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;transition:background .15s}
-        #apm-send-btn:hover{background:#c2410c}
-        #apm-send-btn:disabled{background:#94a3b8;cursor:not-allowed}
-        .apm-spin{animation:apmSpin 1s linear infinite}
-        @keyframes apmSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
     </style>
 </head>
-<body>
+<body class="ea-toolkit-app">
 
-<!-- HEADER -->
-<header>
-    <div class="header-inner">
-        <div class="logo">
-            <div class="logo-icon"><i class="fas fa-cubes"></i></div>
-            <div>
-                <h1>Application Portfolio Management</h1>
-                <p>Inventory · Lifecycle · Ownership · Fit Matrix · Rationalization</p>
-            </div>
+<div id="app-container">
+
+<!-- EA PLATFORM HEADER -->
+<header class="ea-header">
+    <div class="ea-header-left">
+        <div class="ea-brand-mark">
+            <i class="fas fa-layer-group" style="font-size: 32px;"></i>
         </div>
-        <div class="nav-btns">
-            <button class="btn btn-success" onclick="exportData()"><i class="fas fa-download"></i> Export JSON</button>
-            <button class="btn btn-success" onclick="exportExcelTemplate()" title="Download a pre-filled Excel template with all fields. Edit and import back."><i class="fas fa-file-excel"></i> Excel Template</button>
-            <button class="btn btn-warning" onclick="document.getElementById('importFile').click()"><i class="fas fa-upload"></i> Import</button>
-            <input type="file" id="importFile" accept=".json,.xlsx,.xls" class="hidden" onchange="importData(event)">
-            <button class="btn btn-primary" onclick="openModal()"><i class="fas fa-plus"></i> Add Application</button>
+        <div class="ea-header-title">
+            <h1>Application Portfolio Management</h1>
+            <p>Application Inventory � Lifecycle Management � Portfolio Rationalization</p>
         </div>
     </div>
+    <div class="ea-header-right">
+        <button class="ea-header-icon" onclick="window.location.href='../Integration_Workflow_Hub.html'" title="Back to Workflow Hub">
+            <i class="fas fa-th-large"></i>
+        </button>
+        <button class="ea-header-icon" onclick="window.location.href='../NexGen_EA_V4.html'" title="Go to EA Platform">
+            <i class="fas fa-home"></i>
+        </button>
+        <button class="ea-header-icon" id="toggle-chat-btn" onclick="toggleChatPanel()" title="AI Assistant (Ctrl+K)">
+            <i class="fas fa-robot"></i>
+        </button>
+    </div>
 </header>
+
+<div id="main-content">
 
 <!-- TAB BAR -->
 <div class="tab-bar">
@@ -383,8 +511,8 @@
                         <th>Owner</th>
                         <th>Lifecycle</th>
                         <th>Vendor</th>
-                        <th title="CAPEX — Avg. Yearly License Cost">CAPEX / yr</th>
-                        <th title="OPEX — Avg. Yearly Support &amp; Consulting">OPEX / yr</th>
+                        <th title="CAPEX � Avg. Yearly License Cost">CAPEX / yr</th>
+                        <th title="OPEX � Avg. Yearly Support &amp; Consulting">OPEX / yr</th>
                         <th title="Total Annual Cost (CAPEX + OPEX)">Total / yr</th>
                         <th>Users</th>
                         <th title="Technical Fit">Tech Fit</th>
@@ -451,8 +579,8 @@
                         <th>Application</th>
                         <th>Action</th>
                         <th>Lifecycle</th>
-                        <th title="CAPEX — Avg. Yearly License Cost">CAPEX / yr</th>
-                        <th title="OPEX — Avg. Yearly Support &amp; Consulting">OPEX / yr</th>
+                        <th title="CAPEX � Avg. Yearly License Cost">CAPEX / yr</th>
+                        <th title="OPEX � Avg. Yearly Support &amp; Consulting">OPEX / yr</th>
                         <th title="Total Annual Cost">Total / yr</th>
                         <th>Tech Fit</th>
                         <th>Biz Value</th>
@@ -521,14 +649,14 @@
 
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label">CAPEX — Avg. Yearly License Cost</label>
+                    <label class="form-label">CAPEX � Avg. Yearly License Cost</label>
                     <div class="cost-input-wrap">
                         <span class="cost-currency" id="capexCurrLabel">SEK</span>
                         <input type="number" id="fCapex" class="form-input cost-input" placeholder="0" min="0">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">OPEX — Avg. Yearly Support &amp; Consulting</label>
+                    <label class="form-label">OPEX � Avg. Yearly Support &amp; Consulting</label>
                     <div class="cost-input-wrap">
                         <span class="cost-currency" id="opexCurrLabel">SEK</span>
                         <input type="number" id="fOpex" class="form-input cost-input" placeholder="0" min="0">
@@ -621,10 +749,10 @@
             <div class="form-group">
                 <label class="form-label">AI Transformation Potential</label>
                 <select id="fAiPotential" class="form-select">
-                    <option value="None">None — Minimal AI opportunity</option>
-                    <option value="Low">Low — Limited automation potential</option>
-                    <option value="Medium" selected>Medium — Moderate AI benefits</option>
-                    <option value="High">High — Significant AI opportunity</option>
+                    <option value="None">None � Minimal AI opportunity</option>
+                    <option value="Low">Low � Limited automation potential</option>
+                    <option value="Medium" selected>Medium � Moderate AI benefits</option>
+                    <option value="High">High � Significant AI opportunity</option>
                 </select>
             </div>
 
@@ -775,9 +903,9 @@
 <div id="toast" class="toast"></div>
 
 <script>
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  DATA LAYER
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 const STORAGE_KEY = 'apm_portfolio';
 
 function loadData() {
@@ -885,9 +1013,9 @@ function generateAgentId() {
     return 'agent_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  TABS
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 function switchTab(name, btn) {
     document.querySelectorAll('.section-view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -902,9 +1030,9 @@ function switchTab(name, btn) {
     if (name === 'rationalization') { renderRationalization(); }
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  CAPABILITY LAYER
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 let selectedCapability = null;
 let capabilityViewMode = 'tree';
 
@@ -964,7 +1092,7 @@ function renderCapabilityTree() {
         const maturityColor = ['#dc2626', '#f97316', '#fbbf24', '#84cc16', '#16a34a'][cap.maturity - 1] || '#94a3b8';
         const aiPotentialBadge = cap.aiPotential ? `<span class="badge" style="background:${cap.aiPotential === 'High' ? '#dcfce7' : cap.aiPotential === 'Medium' ? '#fef3c7' : '#f1f5f9'};color:${cap.aiPotential === 'High' ? '#16a34a' : cap.aiPotential === 'Medium' ? '#d97706' : '#64748b'};font-size:9px">${cap.aiPotential}</span>` : '';
         const appCount = cap.linkedApplications ? cap.linkedApplications.length : 0;
-        const appBadge = appCount > 0 ? `<span style="font-size:10px;color:#64748b">🔗 ${appCount} apps</span>` : '';
+        const appBadge = appCount > 0 ? `<span style="font-size:10px;color:#64748b">?? ${appCount} apps</span>` : '';
         
         treeHTML += `
             <div style="padding:10px;border-bottom:1px solid #f1f5f9;cursor:pointer;transition:all .2s" 
@@ -995,7 +1123,7 @@ function selectCapability(capId) {
     const linkedApps = cap.linkedApplications ? apps.filter(a => cap.linkedApplications.includes(a.id)) : [];
     
     const maturityLabels = ['Ad-hoc', 'Repeatable', 'Defined', 'Managed', 'Optimized'];
-    const maturityStars = '★'.repeat(cap.maturity || 0) + '☆'.repeat(5 - (cap.maturity || 0));
+    const maturityStars = '?'.repeat(cap.maturity || 0) + '?'.repeat(5 - (cap.maturity || 0));
     
     let detailHTML = `
         <div style="margin-bottom:16px">
@@ -1052,14 +1180,14 @@ function renderCapabilityHeatmap() {
     document.getElementById('capabilityHeatmap').parentElement.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">Heatmap view - Coming soon</div>';
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  COST HELPER
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 function fmtCost(amount, currency) {
     const n = Number(amount) || 0;
-    if (!n) return '—';
+    if (!n) return '�';
     const c = currency || 'SEK';
-    const sym = c === 'EUR' ? '€' : '';
+    const sym = c === 'EUR' ? '�' : '';
     const suffix = c === 'SEK' ? ' kr' : '';
     const display = n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(0)+'K' : n.toLocaleString('sv-SE');
     return sym + display + suffix;
@@ -1069,9 +1197,9 @@ function totalCostOf(a) {
     return (Number(a.capex)||0) + (Number(a.opex)||0);
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  KPIs
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 function renderKPIs() {
     const apps = getApps();
 
@@ -1083,11 +1211,11 @@ function renderKPIs() {
         opexByCurr[c]  = (opexByCurr[c]||0)  + (Number(a.opex)||0);
     });
     const currencies = [...new Set(Object.keys(capexByCurr).concat(Object.keys(opexByCurr)))];
-    const capexStr = currencies.map(c => fmtCost(capexByCurr[c]||0, c)).filter(s=>s!=='—').join(' + ') || '—';
-    const opexStr  = currencies.map(c => fmtCost(opexByCurr[c]||0, c)).filter(s=>s!=='—').join(' + ') || '—';
+    const capexStr = currencies.map(c => fmtCost(capexByCurr[c]||0, c)).filter(s=>s!=='�').join(' + ') || '�';
+    const opexStr  = currencies.map(c => fmtCost(opexByCurr[c]||0, c)).filter(s=>s!=='�').join(' + ') || '�';
 
-    const avgTech = apps.length ? (apps.reduce((s, a) => s + (Number(a.technicalFitScore)||0), 0) / apps.length).toFixed(1) : '—';
-    const avgBiz  = apps.length ? (apps.reduce((s, a) => s + (Number(a.businessValueScore)||0), 0) / apps.length).toFixed(1) : '—';
+    const avgTech = apps.length ? (apps.reduce((s, a) => s + (Number(a.technicalFitScore)||0), 0) / apps.length).toFixed(1) : '�';
+    const avgBiz  = apps.length ? (apps.reduce((s, a) => s + (Number(a.businessValueScore)||0), 0) / apps.length).toFixed(1) : '�';
     const retireCount = apps.filter(a => a.rationalizationAction === 'retire' || a.rationalizationAction === 'replace').length;
 
     const kpis = [
@@ -1107,9 +1235,9 @@ function renderKPIs() {
         </div>`).join('');
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  INVENTORY
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 const LC_LABEL = { phaseIn:'Phase In', active:'Active', legacy:'Legacy', phaseOut:'Phase Out', retired:'Retired' };
 const AC_LABEL = { retain:'Retain', invest:'Invest', replace:'Replace', consolidate:'Consolidate', retire:'Retire' };
 
@@ -1145,7 +1273,7 @@ function renderInventory() {
     if (filtered.length && totalCost > 0) {
         // If all same currency show with symbol, else just number
         const currs = [...new Set(filtered.map(a => a.currency || 'SEK'))];
-        const sym = currs.length === 1 ? (currs[0] === 'EUR' ? '€' : '') : '';
+        const sym = currs.length === 1 ? (currs[0] === 'EUR' ? '�' : '') : '';
         const suf = currs.length === 1 && currs[0] === 'SEK' ? ' kr' : '';
         costBadge.textContent = 'Filtered Total: ' + sym + totalCost.toLocaleString('sv-SE') + suf;
         costBadge.classList.remove('hidden');
@@ -1168,19 +1296,19 @@ function renderInventory() {
         const bv = Number(a.businessValueScore)||0;
         const costColor = total > 500000 ? '#dc2626' : total > 200000 ? '#d97706' : '#16a34a';
         return `<tr>
-            <td><span class="app-name">${esc(a.name)}</span>${a.businessCapabilities?.length ? `<br><span style="font-size:10px;color:#94a3b8">${a.businessCapabilities.slice(0,2).join(', ')}${a.businessCapabilities.length>2?'…':''}</span>` : ''}</td>
-            <td>${esc(a.department||'—')}</td>
-            <td>${esc(a.owner||'—')}</td>
+            <td><span class="app-name">${esc(a.name)}</span>${a.businessCapabilities?.length ? `<br><span style="font-size:10px;color:#94a3b8">${a.businessCapabilities.slice(0,2).join(', ')}${a.businessCapabilities.length>2?'�':''}</span>` : ''}</td>
+            <td>${esc(a.department||'�')}</td>
+            <td>${esc(a.owner||'�')}</td>
             <td><span class="badge lc-${a.lifecycle}">${LC_LABEL[a.lifecycle]||a.lifecycle}</span></td>
-            <td>${esc(a.vendor||'—')}</td>
+            <td>${esc(a.vendor||'�')}</td>
             <td style="font-weight:700;color:#64748b">${fmtCost(capex,cur)}</td>
             <td style="font-weight:700;color:#64748b">${fmtCost(opex,cur)}</td>
             <td style="font-weight:800;color:${costColor}">${fmtCost(total,cur)}</td>
-            <td>${a.userCount ? Number(a.userCount).toLocaleString() : '—'}</td>
-            <td><span style="font-weight:900;color:${scoreColor(tf)}">${tf||'—'}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
-            <td><span style="font-weight:900;color:${scoreColor(bv)}">${bv||'—'}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
+            <td>${a.userCount ? Number(a.userCount).toLocaleString() : '�'}</td>
+            <td><span style="font-weight:900;color:${scoreColor(tf)}">${tf||'�'}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
+            <td><span style="font-weight:900;color:${scoreColor(bv)}">${bv||'�'}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
             <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${['#dc2626','#f97316','#fbbf24','#84cc16','#16a34a'][(a.ai_maturity||3)-1]}" title="AI Maturity ${a.ai_maturity||3}/5"></span> <span style="font-weight:700;color:#64748b">${a.ai_maturity||3}<span style="font-weight:400;color:#94a3b8">/5</span></span></td>
-            <td><span class="badge ac-${a.rationalizationAction}">${AC_LABEL[a.rationalizationAction]||a.rationalizationAction||'—'}</span></td>
+            <td><span class="badge ac-${a.rationalizationAction}">${AC_LABEL[a.rationalizationAction]||a.rationalizationAction||'�'}</span></td>
             <td><div class="action-row">
                 <button class="icon-btn" onclick="openModal('${a.id}')" title="Edit"><i class="fas fa-pen"></i></button>
                 <button class="icon-btn del" onclick="confirmDelete('${a.id}')" title="Delete"><i class="fas fa-trash"></i></button>
@@ -1189,9 +1317,9 @@ function renderInventory() {
     }).join('');
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  LIFECYCLE (KANBAN)
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 const LC_ORDER = ['phaseIn','active','legacy','phaseOut','retired'];
 const LC_ICON  = { phaseIn:'fas fa-seedling', active:'fas fa-circle-check', legacy:'fas fa-triangle-exclamation', phaseOut:'fas fa-arrow-down-to-line', retired:'fas fa-archive' };
 
@@ -1216,18 +1344,18 @@ function renderLifecycle() {
                          ondragend="kanbanDragEnd(event)"
                          onclick="openModal('${a.id}')">
                         <div class="kanban-card-name">${esc(a.name)}</div>
-                        <div class="kanban-card-dept">${esc(a.department||'—')} · ${esc(a.owner||'—')}</div>
+                        <div class="kanban-card-dept">${esc(a.department||'�')} � ${esc(a.owner||'�')}</div>
                         ${totalCostOf(a) ? `<div style="font-size:10px;color:#ea580c;margin-top:4px;font-weight:700">${fmtCost(totalCostOf(a), a.currency||'SEK')} / yr</div>` : ''}
-                        <div style="margin-top:6px"><span class="badge ac-${a.rationalizationAction}" style="font-size:9px">${AC_LABEL[a.rationalizationAction]||'—'}</span></div>
+                        <div style="margin-top:6px"><span class="badge ac-${a.rationalizationAction}" style="font-size:9px">${AC_LABEL[a.rationalizationAction]||'�'}</span></div>
                     </div>`).join('') : '<div style="padding:16px;text-align:center;color:#cbd5e1;font-size:11px;font-weight:700">Drop here</div>'}
             </div>
         </div>`;
     }).join('');
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  KANBAN DRAG & DROP
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 let _dragId = null;
 
 function kanbanDragStart(event, id) {
@@ -1273,9 +1401,9 @@ function kanbanDrop(event, targetLc) {
     showToast(`${app.name} moved to ${LC_LABEL[targetLc]}.`, 'ok');
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  OWNERSHIP
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 function renderOwnership() {
     const apps = getApps();
     const container = document.getElementById('ownershipView');
@@ -1311,7 +1439,7 @@ function renderOwnership() {
                 <div class="dept-icon"><i class="fas fa-building"></i></div>
                 <div>
                     <div class="dept-name">${esc(dept)}</div>
-                    <div class="dept-count">${dApps.length} application${dApps.length!==1?'s':''} · ${totalCostStr}</div>
+                    <div class="dept-count">${dApps.length} application${dApps.length!==1?'s':''} � ${totalCostStr}</div>
                 </div>
             </div>
             <div class="owner-grid">
@@ -1323,9 +1451,9 @@ function renderOwnership() {
                     const lcs = [...new Set(oApps.map(a => a.lifecycle))];
                     return `<div class="owner-card" onclick="filterByOwner('${esc(owner)}')">
                         <div class="owner-name">${esc(owner)}</div>
-                        <div class="owner-role">${dept} · ${oApps.length} app${oApps.length!==1?'s':''}</div>
+                        <div class="owner-role">${dept} � ${oApps.length} app${oApps.length!==1?'s':''}</div>
                         <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
-                            ${oApps.slice(0,4).map(a => `<span class="badge lc-${a.lifecycle}" style="font-size:9px">${esc(a.name.length>14?a.name.slice(0,14)+'…':a.name)}</span>`).join('')}
+                            ${oApps.slice(0,4).map(a => `<span class="badge lc-${a.lifecycle}" style="font-size:9px">${esc(a.name.length>14?a.name.slice(0,14)+'�':a.name)}</span>`).join('')}
                             ${oApps.length>4?`<span style="font-size:10px;color:#94a3b8">+${oApps.length-4} more</span>`:''}
                         </div>
                         <div class="owner-apps">
@@ -1356,9 +1484,9 @@ function filterByOwner(owner) {
     renderInventory();
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  FIT MATRIX (BUBBLE CHART)
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 let fitChartInst = null;
 
 function renderFitMatrix() {
@@ -1410,7 +1538,7 @@ function renderFitMatrix() {
                             const cur = app.currency || 'SEK';
                             return [
                                 ctx.dataset.label,
-                                `Tech Fit: ${app.technicalFitScore||'—'}  Biz Value: ${app.businessValueScore||'—'}`,
+                                `Tech Fit: ${app.technicalFitScore||'�'}  Biz Value: ${app.businessValueScore||'�'}`,
                                 app.capex ? `CAPEX: ${fmtCost(app.capex, cur)}` : '',
                                 app.opex  ? `OPEX: ${fmtCost(app.opex, cur)}`  : '',
                             ].filter(Boolean);
@@ -1440,17 +1568,17 @@ function showMatrixDetail(id) {
     document.getElementById('matrixDetail').innerHTML = `
         <div class="section-label">Selected Application</div>
         <div style="font-size:18px;font-weight:900;margin-bottom:4px">${esc(app.name)}</div>
-        <div style="font-size:12px;color:#64748b;margin-bottom:16px">${esc(app.department||'')} · ${esc(app.owner||'')}</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:16px">${esc(app.department||'')} � ${esc(app.owner||'')}</div>
         <div style="display:flex;flex-direction:column;gap:10px">
             <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Lifecycle</span><span class="badge lc-${app.lifecycle}">${LC_LABEL[app.lifecycle]}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Action</span><span class="badge ac-${app.rationalizationAction}">${AC_LABEL[app.rationalizationAction]||'—'}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Technical Fit</span><span style="font-weight:900;color:${scoreColor(app.technicalFitScore||0)}">${app.technicalFitScore||'—'}/5</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Business Value</span><span style="font-weight:900;color:${scoreColor(app.businessValueScore||0)}">${app.businessValueScore||'—'}/5</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Action</span><span class="badge ac-${app.rationalizationAction}">${AC_LABEL[app.rationalizationAction]||'�'}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Technical Fit</span><span style="font-weight:900;color:${scoreColor(app.technicalFitScore||0)}">${app.technicalFitScore||'�'}/5</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Business Value</span><span style="font-weight:900;color:${scoreColor(app.businessValueScore||0)}">${app.businessValueScore||'�'}/5</span></div>
             <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">CAPEX / yr</span><span style="font-weight:700">${fmtCost(capex, cur)}</span></div>
             <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">OPEX / yr</span><span style="font-weight:700">${fmtCost(opex, cur)}</span></div>
             <div style="display:flex;justify-content:space-between;border-top:1px solid #f1f5f9;padding-top:6px;margin-top:2px"><span style="font-size:11px;font-weight:700;color:#64748b">Total / yr</span><span style="font-weight:900;color:#ea580c">${fmtCost(total, cur)}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Users</span><span style="font-weight:700">${app.userCount ? Number(app.userCount).toLocaleString() : '—'}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Vendor</span><span style="font-weight:700">${esc(app.vendor||'—')}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Users</span><span style="font-weight:700">${app.userCount ? Number(app.userCount).toLocaleString() : '�'}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:700;color:#64748b">Vendor</span><span style="font-weight:700">${esc(app.vendor||'�')}</span></div>
             ${app.businessCapabilities?.length ? `<div><span style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px">Capabilities</span><div style="display:flex;flex-wrap:wrap;gap:4px">${app.businessCapabilities.map(c=>`<span style="background:#f1f5f9;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700">${esc(c)}</span>`).join('')}</div></div>` : ''}
             ${app.notes ? `<div><span style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px">Notes</span><div style="font-size:11px;color:#475569;line-height:1.6">${esc(app.notes)}</div></div>` : ''}
         </div>
@@ -1459,9 +1587,9 @@ function showMatrixDetail(id) {
         </div>`;
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  RATIONALIZATION
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 let ratPieInst = null, ratLcInst = null;
 
 function renderRationalization() {
@@ -1522,17 +1650,17 @@ function renderRationalization() {
                 <td style="font-weight:700;color:#64748b">${fmtCost(Number(a.capex)||0, cur)}</td>
                 <td style="font-weight:700;color:#64748b">${fmtCost(Number(a.opex)||0, cur)}</td>
                 <td style="font-weight:800;color:#dc2626">${fmtCost(totalCostOf(a), cur)}</td>
-                <td style="font-weight:900;color:${scoreColor(a.technicalFitScore||0)}">${a.technicalFitScore||'—'}/5</td>
-                <td style="font-weight:900;color:${scoreColor(a.businessValueScore||0)}">${a.businessValueScore||'—'}/5</td>
-                <td style="font-size:11px;color:#64748b;max-width:200px">${esc(a.notes||'—')}</td>
+                <td style="font-weight:900;color:${scoreColor(a.technicalFitScore||0)}">${a.technicalFitScore||'�'}/5</td>
+                <td style="font-weight:900;color:${scoreColor(a.businessValueScore||0)}">${a.businessValueScore||'�'}/5</td>
+                <td style="font-size:11px;color:#64748b;max-width:200px">${esc(a.notes||'�')}</td>
             </tr>`;
         }).join('');
     }
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  MODAL
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 let _techFit = 5, _bizValue = 5, _aiMaturity = 3, _currency = 'SEK';
 
 function setCurrency(c) {
@@ -1671,9 +1799,9 @@ function confirmDelete(id) {
     renderInventory();
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  EXPORT / IMPORT
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 function exportData() {
     const data = loadData();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1686,7 +1814,7 @@ function exportData() {
     showToast('Portfolio exported.', 'ok');
 }
 
-// Excel column → app field mapping (must match exportExcelTemplate headers)
+// Excel column ? app field mapping (must match exportExcelTemplate headers)
 const EXCEL_COLS = [
     { header: 'Name *',              field: 'name' },
     { header: 'Description',         field: 'description' },
@@ -1720,15 +1848,15 @@ function exportExcelTemplate() {
         'e.g. SAP, Microsoft, Custom',
         'e.g. .NET, Java, SaaS',
         'SEK or EUR',
-        'Numeric — avg yearly license cost',
-        'Numeric — avg yearly support & consulting',
-        'Numeric — number of users',
+        'Numeric � avg yearly license cost',
+        'Numeric � avg yearly support & consulting',
+        'Numeric � number of users',
         LIFECYCLE_VALS,
         ACTION_VALS,
         '1 (Poor) to 5 (Excellent)',
         '1 (Low) to 5 (Critical)',
         'Comma-separated capabilities',
-        'Migration notes, dependencies…'
+        'Migration notes, dependencies�'
     ];
 
     const existingApps = getApps();
@@ -1742,7 +1870,7 @@ function exportExcelTemplate() {
     // Column widths
     ws['!cols'] = EXCEL_COLS.map((c, i) => ({ wch: i === 0 ? 30 : i <= 5 ? 22 : 18 }));
 
-    // Style header row cells bold (via cell metadata — cosmetic hint for Excel)
+    // Style header row cells bold (via cell metadata � cosmetic hint for Excel)
     headers.forEach((h, i) => {
         const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
         if (!ws[cellRef]) return;
@@ -1851,16 +1979,16 @@ function importData(evt) {
     evt.target.value = '';
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  UTILS
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 function esc(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  CAPABILITY MAPPING MODAL
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 function openCapMappingModal(capId) {
     const cap = getCapabilities().find(c => c.id === capId);
     if (!cap) return;
@@ -1988,9 +2116,9 @@ function unmapApp(appId) {
     showToast(`Unmapped ${app.name} from ${cap.name}`, 'ok');
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  APQC IMPORT & TEMPLATES
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 function importCapabilities(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -2185,9 +2313,9 @@ function getServicesTemplate() {
     ];
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  APQC FRAMEWORK INTEGRATION
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 let apqcMetadata = null;
 let currentLoadedTemplate = null;
 
@@ -2198,10 +2326,10 @@ async function loadAPQCMetadata() {
         if (response.ok) {
             apqcMetadata = await response.json();
             populateTemplateDropdown();
-            console.log('✅ APQC metadata loaded successfully');
+            console.log('? APQC metadata loaded successfully');
         }
     } catch (error) {
-        console.warn('⚠️ Could not load APQC metadata:', error);
+        console.warn('?? Could not load APQC metadata:', error);
     }
 }
 
@@ -2262,7 +2390,7 @@ async function loadTemplateFromAPQC(industryKey) {
         importCapabilityData(apmCapabilities);
         currentLoadedTemplate = industryName;
         updateTemplateIndicator();
-        showToast(`✅ Loaded ${apmCapabilities.length} APQC capabilities for ${industryName}`, 'ok');
+        showToast(`? Loaded ${apmCapabilities.length} APQC capabilities for ${industryName}`, 'ok');
     } catch (error) {
         console.error('Error loading APQC template:', error);
         showToast('Error loading APQC template', 'err');
@@ -2305,9 +2433,9 @@ function clearTemplate() {
     }
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  AI-DRIVEN APPLICATION MAPPING
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 let aiMappingSuggestions = [];
 
 // Trigger AI mapping for all applications
@@ -2332,7 +2460,7 @@ async function triggerAIMapping() {
         return;
     }
     
-    showToast('🤖 AI is analyzing applications and mapping to capabilities...', 'ok');
+    showToast('?? AI is analyzing applications and mapping to capabilities...', 'ok');
     
     try {
         const mappings = await generateAIMappings(apps, capabilities, apiKey);
@@ -2530,7 +2658,7 @@ function renderAIMappingList() {
     
     // Update summary
     document.getElementById('aiMappingSummary').textContent = 
-        `${aiMappingSuggestions.length} applications analyzed • ${totalMappings} capability mappings suggested`;
+        `${aiMappingSuggestions.length} applications analyzed � ${totalMappings} capability mappings suggested`;
 }
 
 function applyAIMappings() {
@@ -2566,16 +2694,16 @@ function applyAIMappings() {
     
     closeAIMappingModal();
     renderCapabilityLayer();
-    showToast(`✅ Applied ${appliedCount} capability mappings`, 'ok');
+    showToast(`? Applied ${appliedCount} capability mappings`, 'ok');
 }
 
 function getAPIKey() {
     return localStorage.getItem('openai_api_key') || '';
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  AI AGENT LAYER
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 let currentAgentMaturity = 3;
 
 function renderAIAgents() {
@@ -2606,7 +2734,7 @@ function renderAIAgents() {
                 </div>
                 <div style="font-size:11px;color:#64748b;margin-bottom:10px">${esc(agent.description || 'No description')}</div>
                 <div style="font-size:10px;color:#94a3b8;margin-bottom:8px">
-                    🔗 ${(agent.linkedCapabilities || []).length} capabilities · ${(agent.linkedApplications || []).length} apps
+                    ?? ${(agent.linkedCapabilities || []).length} capabilities � ${(agent.linkedApplications || []).length} apps
                 </div>
                 <div class="action-row" style="margin-top:10px">
                     <button class="icon-btn" onclick="editAIAgent('${agent.id}')" title="Edit"><i class="fas fa-pencil"></i></button>
@@ -2715,9 +2843,9 @@ function deleteAIAgent(id) {
     showToast('AI Agent deleted', 'ok');
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  UTILS
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 let toastTimer = null;
 function showToast(msg, type) {
@@ -2739,13 +2867,13 @@ document.getElementById('aiAgentModal').addEventListener('click', function(e) {
     if (e.target === this) closeAIAgentModal();
 });
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 //  INIT
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // Check if this is first load with new structure and show migration notice
 const data = loadData();
 if (data.applications && data.applications.length > 0 && !data._migrated) {
-    showToast('✨ APM enhanced with Capability Mapping & AI Agents. Your existing portfolio data has been preserved.', 'ok');
+    showToast('? APM enhanced with Capability Mapping & AI Agents. Your existing portfolio data has been preserved.', 'ok');
     data._migrated = true;
     saveData(data);
 }
@@ -2753,390 +2881,405 @@ if (data.applications && data.applications.length > 0 && !data._migrated) {
 renderCapabilityLayer();
 </script>
 
-<!-- ================================================================
-     APM AI ASSISTANT
-     ================================================================ -->
+</div> <!-- #main-content -->
 
-<!-- FLOATING BUTTON -->
-<button id="apm-assistant-btn" onclick="toggleAPMChat()" title="APM AI Assistant">
-    <i class="fas fa-robot text-white text-lg"></i>
-    <span class="notif-dot"></span>
-</button>
-
-<!-- CHAT PANEL -->
-<div id="apm-chat-panel" class="hidden">
-
-    <!-- Header -->
-    <div class="apm-chat-header">
-        <div class="apm-chat-header-title">
-            <div class="apm-chat-avatar"><i class="fas fa-robot"></i></div>
-            <div>
-                <span>APM AI Assistant</span>
-                <small>Rationalization · Lifecycle · Cost · Fit Analysis</small>
+<!-- EA Platform AI Assistant Sidebar -->
+<div id="ai-chat-panel">
+    <div id="chat-resize-handle" title="Drag to resize"></div>
+    <div id="chat-header">
+        <div id="chat-header-title">
+            <i class="fas fa-layer-group"></i>
+            <span>APM AI Assistant</span>
+        </div>
+        <div id="chat-controls">
+            <button onclick="startNewChat()" title="New conversation">+</button>
+            <button onclick="clearChat()" title="Clear history">&#x21BA;</button>
+            <button onclick="toggleChatPanel()" title="Close sidebar">&times;</button>
+        </div>
+    </div>
+    
+    <div class="quick-actions">
+        <button class="qa-btn" onclick="quickAsk('Analyze my portfolio and identify the top 5 rationalization candidates')">
+            <i class="fas fa-chart-pie"></i> Rationalization
+        </button>
+        <button class="qa-btn" onclick="quickAsk('Assess the overall health of my application portfolio')">
+            <i class="fas fa-heartbeat"></i> Portfolio Health
+        </button>
+        <button class="qa-btn" onclick="quickAsk('Identify cost optimization opportunities and high OPEX applications')">
+            <i class="fas fa-dollar-sign"></i> Cost Optimization
+        </button>
+        <button class="qa-btn" onclick="quickAsk('Identify applications with high AI transformation potential')">
+            <i class="fas fa-robot"></i> AI Modernization
+        </button>
+        <button class="qa-btn" onclick="quickAsk('Build a 12-month roadmap for portfolio rationalization')">
+            <i class="fas fa-map"></i> 12-Month Roadmap
+        </button>
+        <button class="qa-btn" onclick="quickAsk('Analyze technology standardization opportunities across my portfolio')">
+            <i class="fas fa-cubes"></i> Tech Stack
+        </button>
+    </div>
+    
+    <div id="chat-messages">
+        <div class="chat-message assistant-message">
+            <div class="message-content">
+                <div class="message-text">
+                    <strong style="color:#ffffff;font-weight:700;">Welcome to APM AI Assistant</strong>
+                    <div style="height:10px;"></div>
+                    <p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">I can help you with:</p>
+                    <ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Portfolio rationalization and retirement candidates</li>
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Cost optimization and OPEX analysis</li>
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">AI transformation and modernization roadmaps</li>
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Capability coverage gaps and consolidation</li>
+                        <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Technology standardization opportunities</li>
+                    </ul>
+                    <div style="height:10px;"></div>
+                    <em>Click a quick action above or ask me anything!</em>
+                </div>
             </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-            <button onclick="apmNewChat()" class="text-white/80 hover:text-white text-[11px] font-bold bg-white/10 border border-white/15 rounded px-2 py-1 cursor-pointer" style="font-size:11px;font-weight:700;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:6px;padding:4px 10px;cursor:pointer">New chat</button>
-            <button onclick="apmClearChatHistory()" class="text-white/80 hover:text-white text-[11px] font-bold bg-white/10 border border-white/15 rounded px-2 py-1 cursor-pointer" style="font-size:11px;font-weight:700;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:6px;padding:4px 10px;cursor:pointer">Clear</button>
-            <button onclick="toggleAPMChat()" style="color:rgba(255,255,255,.6);font-size:1.1rem;background:none;border:none;cursor:pointer;line-height:1">&times;</button>
-        </div>
     </div>
-
-    <!-- API notice -->
-    <div id="apm-api-notice">
-        <i class="fas fa-key" style="margin-right:4px"></i> No API key found — responses served in demo mode
-    </div>
-
-    <!-- Context toggle -->
-    <div class="apm-context-toggle">
-        <input type="checkbox" id="apm-use-context" checked>
-        <label for="apm-use-context">Include current portfolio data in queries</label>
-        <i class="fas fa-info-circle" style="margin-left:auto;color:#ea580c" title="When enabled, your applications list is sent to the AI for context-aware answers"></i>
-    </div>
-
-    <!-- Quick actions -->
-    <div class="apm-quick-actions">
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Analyze my portfolio and identify the top 5 rationalization candidates — applications that should be retired or replaced based on lifecycle, fit scores, and cost')">Rationalization candidates</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Assess the overall health of my application portfolio. Highlight any lifecycle risks, technical debt, and business alignment gaps')">Portfolio health</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Identify cost optimization opportunities in my portfolio. Which applications have the highest OPEX and low business value?')">Cost optimization</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Which applications in my portfolio represent the highest technical risk due to legacy status or low technical fit score? Suggest remediation actions')">Legacy risk</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Give me a prioritized invest / retire recommendation for each application based on tech fit and business value scores')">Invest / Retire plan</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Which applications could be consolidated? Look for overlapping capabilities, same department, or similar technology stacks')">Consolidation opportunities</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Analyze my business capability coverage. Which capabilities have NO linked applications (coverage gaps)? Which capabilities have 3+ applications (consolidation risk)?')">Capability gap analysis</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Recommend which AI agents I should implement to modernize my application portfolio. Link agents to specific applications with low AI maturity')">AI agent recommendations</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Identify applications with high AI transformation potential but low AI maturity. Suggest a sequence for AI modernization initiatives')">AI modernization roadmap</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Which capabilities are most critical for our business but supported by legacy applications? Recommend modernization priorities')">Critical capability risk</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Analyze technology standardization opportunities across my portfolio. Which technology stacks are duplicated?')">Tech standardization</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('Build a 12-month roadmap for my application portfolio rationalization — sequence replacements, consolidations, and retirements')">12-month roadmap</button>
-        <button class="apm-qa-btn" onclick="apmQuickAsk('What KPIs and metrics should I track to measure the success of my portfolio rationalization initiative?')">Portfolio KPIs</button>
-    </div>
-
-    <!-- Messages -->
-    <div id="apm-messages"></div>
-
-    <!-- Input -->
-    <div class="apm-chat-input-area">
-        <textarea id="apm-chat-input"
-            placeholder="Ask anything about your application portfolio..."
-            rows="1"
-            onkeydown="apmHandleKey(event)"
-            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
-        <button id="apm-send-btn" onclick="apmSendMessage()">
+    
+    <div id="chat-input-container">
+        <textarea id="chat-input" placeholder="Ask about your application portfolio..." rows="2"></textarea>
+        <button id="send-chat" onclick="sendMessage()">
             <i class="fas fa-paper-plane"></i>
         </button>
     </div>
 </div>
 
+</div> <!-- #app-container -->
+
 <script>
-/* ================================================================
-   APM AI ASSISTANT — JavaScript
-   ================================================================ */
-const APM_ASSISTANT = {
-    open: false,
-    history: [],
-    API_KEYS: ['ea20_openai_key','vc_openai_key','cap_openai_key','strategy_openai_key','openai_api_key'],
+// ==============================================
+// EA PLATFORM CHAT SIDEBAR - APM VERSION
+// ==============================================
 
-    getApiKey() {
-        for (const k of this.API_KEYS) {
-            const v = localStorage.getItem(k);
-            if (v) return v;
+// Chat Panel Toggle
+function toggleChatPanel() {
+    const panel = document.getElementById('ai-chat-panel');
+    if (!panel) return;
+    const isOpen = !panel.classList.contains('hidden');
+    if (isOpen) {
+        panel.classList.add('hidden');
+        document.body.classList.remove('chat-sidebar-open');
+    } else {
+        panel.classList.remove('hidden');
+        document.body.classList.add('chat-sidebar-open');
+        const input = document.getElementById('chat-input');
+        if (input) input.focus();
+    }
+}
+
+// Initialize Chat Sidebar Resize
+function initChatSidebarResize() {
+    const handle = document.getElementById('chat-resize-handle');
+    const panel = document.getElementById('ai-chat-panel');
+    if (!handle || !panel) return;
+    let startX, startW;
+
+    // Restore saved width
+    const saved = parseInt(localStorage.getItem('apm_sidebar_w') || '0', 10);
+    if (saved >= 280 && saved <= 800) applySidebarWidth(saved);
+
+    handle.addEventListener('mousedown', (e) => {
+        startX = e.clientX;
+        startW = panel.offsetWidth;
+        handle.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+
+        function onMove(ev) {
+            const diff = startX - ev.clientX;
+            const newW = Math.max(280, Math.min(800, startW + diff));
+            applySidebarWidth(newW);
         }
-        return '';
-    },
+        function onUp() {
+            localStorage.setItem('apm_sidebar_w', panel.offsetWidth);
+            handle.classList.remove('dragging');
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+}
 
-    getAPMContext() {
-        const apps = (typeof getApps === 'function') ? getApps() : [];
-        const capabilities = (typeof getCapabilities === 'function') ? getCapabilities() : [];
-        const aiAgents = (typeof getAIAgents === 'function') ? getAIAgents() : [];
+function applySidebarWidth(w) {
+    const panel = document.getElementById('ai-chat-panel');
+    if (!panel) return;
+    panel.style.width = w + 'px';
+    const style = document.getElementById('_sidebar-width-style') || (() => {
+        const s = document.createElement('style');
+        s.id = '_sidebar-width-style';
+        document.head.appendChild(s);
+        return s;
+    })();
+    style.textContent = `body.chat-sidebar-open #main-content{margin-right:${w}px!important;}`;
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+    initChatSidebarResize();
+});
+
+// Keyboard shortcut: Ctrl+K toggles chat
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        toggleChatPanel();
+    }
+    if (e.key === 'Enter' && e.target.id === 'chat-input' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+// Markdown parser
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function parseMarkdown(text) {
+    if (!text) return '';
+    let t = escapeHtml(text);
+    
+    t = t.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    t = t.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff;font-weight:700;">$1</strong>');
+    t = t.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    t = t.replace(/`([^`]+)`/g, '<code style="font-family:monospace;background:#1a1a1a;padding:2px 6px;border-radius:4px;font-size:12px;color:#66d9ef;font-weight:500;border:1px solid #404040;">$1</code>');
+    
+    const lines = t.split('\n');
+    const out = [];
+    let inUL = false, inOL = false, inCodeBlock = false, codeLines = [];
+    
+    const closeList = () => {
+        if (inUL) { out.push('</ul>'); inUL = false; }
+        if (inOL) { out.push('</ol>'); inOL = false; }
+    };
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
         
-        if (!apps.length && !capabilities.length && !aiAgents.length) return null;
-
-        const LC_MAP = { active:'Active', phaseIn:'Phase-In', phaseOut:'Phase-Out', legacy:'Legacy', retired:'Retired' };
-        const AC_MAP = { retain:'Retain', invest:'Invest', replace:'Replace', consolidate:'Consolidate', retire:'Retire' };
-
-        const lines = [];
-
-        // Capabilities summary
-        if (capabilities.length) {
-            const unmappedCaps = capabilities.filter(c => !c.linkedApplications || c.linkedApplications.length === 0);
-            const consolidationRisk = capabilities.filter(c => c.linkedApplications && c.linkedApplications.length >= 3);
-            const highAIpotential = capabilities.filter(c => c.aiPotential === 'High');
-            lines.push(`Business Capabilities — ${capabilities.length} total:`);
-            lines.push(`  - ${unmappedCaps.length} capabilities have NO linked applications (coverage gaps)`);
-            lines.push(`  - ${consolidationRisk.length} capabilities have 3+ applications (consolidation opportunity)`);
-            lines.push(`  - ${highAIpotential.length} capabilities have High AI transformation potential`);
-            lines.push(`  - Top capabilities: ${capabilities.slice(0, 5).map(c => c.name).join(', ')}`);
-            lines.push('');
-        }
-
-        // AI Agents summary
-        if (aiAgents.length) {
-            const productionAgents = aiAgents.filter(a => !a.toBe);
-            const proposedAgents = aiAgents.filter(a => a.toBe);
-            lines.push(`AI Agents — ${aiAgents.length} total:`);
-            lines.push(`  - ${productionAgents.length} in production, ${proposedAgents.length} TO-BE proposals`);
-            lines.push(`  - Types: ${[...new Set(aiAgents.map(a => a.type))].join(', ')}`);
-            lines.push('');
-        }
-
-        // Application portfolio
-        if (apps.length) {
-            lines.push(`Application Portfolio — ${apps.length} applications:\n`);
-            apps.forEach(a => {
-                const cur = a.currency || 'SEK';
-                const capex = Number(a.capex) || 0;
-                const opex  = Number(a.opex)  || 0;
-                const total = capex + opex;
-                const costStr = total ? `Cost ${cur} ${total >= 1e6 ? (total/1e6).toFixed(1)+'M' : total >= 1000 ? (total/1000).toFixed(0)+'K' : total} / yr` : 'No cost data';
-                const aiMaturity = a.ai_maturity || 3;
-                const aiPotential = a.ai_transformation_potential || 'Medium';
-                const caps = a.businessCapabilities?.length ? `Capabilities: ${a.businessCapabilities.join(', ')}` : 'No capabilities';
-                lines.push(
-                    `- ${a.name} | Dept: ${a.department||'—'} | Owner: ${a.owner||'—'} | Lifecycle: ${LC_MAP[a.lifecycle]||a.lifecycle} | Action: ${AC_MAP[a.rationalizationAction]||'—'} | TechFit: ${a.technicalFitScore||'—'}/5 | BizValue: ${a.businessValueScore||'—'}/5 | AI Maturity: ${aiMaturity}/5 | AI Potential: ${aiPotential} | ${costStr} | Users: ${a.userCount||'—'} | Vendor: ${a.vendor||'—'} | Tech: ${a.technology||'—'} | ${caps}`
-                );
-            });
-        }
-        
-        return lines.join('\n');
-    },
-
-    systemPrompt: `You are an expert AI assistant specialised in Application Portfolio Management (APM), Business Capability Mapping, and AI-driven transformation.
-
-Your role is to:
-1. ANALYSE the application portfolio and identify rationalisation candidates, risks, and opportunities
-2. ASSESS business capability coverage gaps and consolidation risks (multiple apps per capability)
-3. RECOMMEND AI agent implementations to modernize legacy applications and improve capability maturity
-4. PRIORITISE based on technical fit score, business value score, AI maturity, lifecycle status, and total cost (CAPEX + OPEX)
-5. IDENTIFY cost optimisation opportunities — especially high-OPEX applications with low business value or AI maturity
-6. SUGGEST consolidation opportunities for overlapping applications within the same capability
-7. SUPPORT roadmap planning for both portfolio rationalisation AND AI transformation
-
-Always respond in English. Be concrete, structured, and business-focused.
-Use bullet points, short headers, and prioritised lists.
-Always justify recommendations with data from the portfolio context when available.
-
-Focus on:
-- Portfolio health (lifecycle distribution, fit scores, AI maturity levels)
-- Capability coverage (gaps where no apps exist, consolidation where 3+ apps overlap)
-- AI transformation potential (applications with high AI potential but low AI maturity = modernization priority)
-- Cost efficiency (CAPEX/OPEX vs business value)
-- Technical risk (legacy applications, low tech fit, low AI maturity)
-- Business alignment (low business value applications)
-- Consolidation potential (overlapping capabilities, vendors, departments, technologies)
-- Rationalisation roadmap sequencing (retire → replace → consolidate → invest)
-- AI agent recommendations (which agents to implement, linked to which capabilities/applications)`,
-
-    welcomeMsg: `Hello! I'm your **APM AI Assistant** with capability mapping and AI transformation expertise.
-
-I help you:
-- Identify rationalization candidates (Replace / Retire / Consolidate)
-- Analyse business capability coverage gaps and consolidation risks
-- Recommend AI agents to modernize your portfolio
-- Optimize costs — CAPEX & OPEX vs business value and AI maturity
-- Plan a sequenced AI transformation roadmap
-- Benchmark technical fit, business alignment, and AI readiness
-
-Use the quick-action buttons above or type your question below. If you have applications or capabilities in your portfolio, I'll automatically use them as context for tailored recommendations.`,
-
-    init() {
-        this.renderWelcome();
-        this.updateApiNotice();
-    },
-
-    updateApiNotice() {
-        const notice = document.getElementById('apm-api-notice');
-        if (!notice) return;
-        notice.style.display = this.getApiKey() ? 'none' : 'block';
-    },
-
-    renderWelcome() {
-        this.addMessage('ai', this.welcomeMsg);
-    },
-
-    reset(message = null) {
-        this.history = [];
-        const container = document.getElementById('apm-messages');
-        if (container) container.innerHTML = '';
-        const input = document.getElementById('apm-chat-input');
-        if (input) { input.value = ''; input.style.height = 'auto'; }
-        this.updateApiNotice();
-        this.addMessage('ai', message || this.welcomeMsg);
-    },
-
-    addMessage(role, text) {
-        const container = document.getElementById('apm-messages');
-        if (!container) return;
-        const div = document.createElement('div');
-        div.className = `apm-msg ${role}`;
-        const avatar = document.createElement('div');
-        avatar.className = 'apm-msg-avatar';
-        avatar.innerHTML = role === 'ai' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
-        const bubble = document.createElement('div');
-        bubble.className = 'apm-msg-bubble';
-        bubble.innerHTML = this.formatText(text);
-        div.appendChild(avatar);
-        div.appendChild(bubble);
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
-    },
-
-    addTyping() {
-        const container = document.getElementById('apm-messages');
-        if (!container) return;
-        const div = document.createElement('div');
-        div.className = 'apm-msg ai';
-        div.id = 'apm-typing';
-        div.innerHTML = `<div class="apm-msg-avatar"><i class="fas fa-robot"></i></div><div class="apm-msg-bubble"><div class="apm-typing-dots"><span></span><span></span><span></span></div></div>`;
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
-    },
-
-    removeTyping() {
-        const el = document.getElementById('apm-typing');
-        if (el) el.remove();
-    },
-
-    formatText(text) {
-        return text
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/^### (.*)$/gm, '<strong style="font-size:.8rem;display:block;margin-top:6px;color:#0f172a">$1</strong>')
-            .replace(/^## (.*)$/gm, '<strong style="font-size:.82rem;display:block;margin-top:8px;color:#0f172a">$1</strong>')
-            .replace(/^- (.*)$/gm, '<li>$1</li>')
-            .replace(/^\* (.*)$/gm, '<li>$1</li>')
-            .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
-            .replace(/\n{2,}/g, '<br>')
-            .replace(/\n/g, '<br>');
-    },
-
-    async send(userText) {
-        if (!userText.trim()) return;
-        this.addMessage('user', userText);
-        this.history.push({ role: 'user', content: userText });
-
-        const sendBtn = document.getElementById('apm-send-btn');
-        if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner apm-spin"></i>'; }
-        this.addTyping();
-
-        const apiKey = this.getApiKey();
-        const useContext = document.getElementById('apm-use-context')?.checked !== false;
-        let systemContent = this.systemPrompt;
-        if (useContext) {
-            const ctx = this.getAPMContext();
-            if (ctx) systemContent += `\n\n---\nCURRENT PORTFOLIO DATA:\n${ctx}`;
-        }
-
-        const messages = [
-            { role: 'system', content: systemContent },
-            ...this.history.slice(-10)
-        ];
-
-        if (!apiKey) {
-            await new Promise(r => setTimeout(r, 900));
-            this.removeTyping();
-            const demoReply = this.getDemoReply(userText);
-            this.addMessage('ai', demoReply);
-            this.history.push({ role: 'assistant', content: demoReply });
-        } else {
-            try {
-                const res = await fetch('/api/openai/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: 'gpt-5', messages, max_tokens: 1000 })
-                });
-                const json = await res.json();
-                if (json.error) throw new Error(json.error.message);
-                const reply = json.choices[0].message.content;
-                this.removeTyping();
-                this.addMessage('ai', reply);
-                this.history.push({ role: 'assistant', content: reply });
-            } catch (e) {
-                this.removeTyping();
-                this.addMessage('ai', `Error: ${e.message}\n\nCheck your API key under the EA Platform settings.`);
+        if (trimmed.startsWith('```')) {
+            if (!inCodeBlock) {
+                closeList();
+                inCodeBlock = true;
+                codeLines = [];
+                continue;
+            } else {
+                const codeContent = codeLines.join('\n');
+                out.push(`<pre style="background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;margin:10px 0;overflow-x:auto;font-size:10px;line-height:1.6;font-family:monospace;"><code>${codeContent}</code></pre>`);
+                inCodeBlock = false;
+                continue;
             }
         }
-        if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>'; }
-    },
-
-    getDemoReply(question) {
-        const q = question.toLowerCase();
-        if (q.includes('rationali') || q.includes('retire') || q.includes('replace')) {
-            return `**Rationalization Candidates (Demo):**\n\n- **Legacy + Low Business Value** → strong Retire candidates\n- **High OPEX + Low Tech Fit** → Replace or Consolidate\n- **Phase-Out lifecycle + available modern alternative** → accelerate retirement\n\n**Key factors to evaluate:**\n- Tech Fit < 2/5 with Biz Value < 2/5 → immediate Retire/Replace\n- OPEX > 500K/yr with low utilization → cost-driven consolidation\n- Duplicate vendors/tech stacks → merge and standardize\n\n*Connect an OpenAI API key to get recommendations tailored to your actual portfolio data.*`;
+        
+        if (inCodeBlock) {
+            codeLines.push(line);
+            continue;
         }
-        if (q.includes('cost') || q.includes('capex') || q.includes('opex')) {
-            return `**Cost Optimization Opportunities (Demo):**\n\n- Prioritize applications with high OPEX and low business value for consolidation\n- License cost (CAPEX) rationalization: eliminate duplicate SaaS subscriptions\n- Target legacy applications for replacement with lower-cost cloud alternatives\n\n**Typical savings levers:**\n- Consolidate 3–5 overlapping tools: 20–35% cost reduction\n- Retire unused applications: eliminate 100% of their run cost\n- Renegotiate vendor contracts for retained applications\n\n*Add an API key to analyze your specific CAPEX/OPEX data.*`;
+        
+        const h3m = trimmed.match(/^### (.+)$/);
+        const h2m = trimmed.match(/^## (.+)$/);
+        if (h2m || h3m) {
+            closeList();
+            if (h3m) out.push(`<div style="font-size:14px;font-weight:600;color:#b0b0b0;margin:16px 0 8px;">${h3m[1]}</div>`);
+            else out.push(`<div style="font-size:15px;font-weight:700;color:#e0e0e0;border-bottom:2px solid #ea580c;padding-bottom:6px;margin:18px 0 10px;">${h2m[1]}</div>`);
+            continue;
         }
-        if (q.includes('health') || q.includes('portfolio') || q.includes('overview')) {
-            return `**Portfolio Health Assessment (Demo):**\n\n**Lifecycle distribution target:**\n- Active: 60–70% | Phase-In: 10–15% | Legacy/Phase-Out: < 20%\n\n**Fit Matrix positioning:**\n- Stars (High Tech + High Biz): Invest & grow\n- Cash Cows (Low Tech + High Biz): Sustain or modernize\n- Question Marks (High Tech + Low Biz): Evaluate ROI\n- Dogs (Low Tech + Low Biz): Retire / Replace\n\n*Open with your real portfolio data and an API key for a data-driven health report.*`;
+        
+        if (/^---+$/.test(trimmed)) {
+            closeList();
+            out.push('<hr style="border:none;border-top:1px solid #404040;margin:14px 0;">');
+            continue;
         }
-        if (q.includes('roadmap') || q.includes('plan') || q.includes('12-month')) {
-            return `**12-Month Rationalization Roadmap (Demo):**\n\n**Q1:** Assessment & quick wins\n- Complete portfolio data with costs, scores, and owners\n- Retire applications with zero users and no dependencies\n\n**Q2:** Consolidation initiatives\n- Merge overlapping tools (target: same department, same vendor family)\n- Initiate replacement RFPs for highest-risk legacy apps\n\n**Q3–Q4:** Strategic transitions\n- Execute top-3 replacement projects\n- Renegotiate retained vendor contracts\n- Update architecture target state\n\n*Provide an API key to generate a roadmap based on your actual portfolio.*`;
+        
+        const ulm = trimmed.match(/^[-*�] (.+)$/);
+        if (ulm) {
+            if (!inUL) { closeList(); out.push('<ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">'); inUL = true; }
+            out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${ulm[1]}</li>`);
+            continue;
         }
-        return `Thank you for your question!\n\nIn **demo mode** I provide predefined example answers.\n\nFor answers tailored to your specific portfolio:\n1. Add your OpenAI API key in the EA Platform settings\n2. Make sure your applications have costs, scores, and lifecycle data filled in\n3. Ask your question again — I'll analyse your real portfolio data\n\nTry the quick-action buttons above for common APM analysis tasks.`;
-    },
-
-    showMiniToast(msg) {
-        const t = document.createElement('div');
-        t.style.cssText = 'position:fixed;bottom:100px;right:28px;background:#0f172a;color:white;font-size:11px;padding:6px 12px;border-radius:8px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.2)';
-        t.textContent = msg;
-        document.body.appendChild(t);
-        setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 2000);
+        
+        const olm = trimmed.match(/^\d+\.\s(.+)$/);
+        if (olm) {
+            if (!inOL) { closeList(); out.push('<ol style="margin:8px 0;padding-left:22px;color:#b0b0b0;">'); inOL = true; }
+            out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${olm[1]}</li>`);
+            continue;
+        }
+        
+        if (trimmed === '') {
+            closeList();
+            out.push('<div style="height:10px;"></div>');
+            continue;
+        }
+        
+        closeList();
+        out.push(`<p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">${trimmed}</p>`);
     }
-};
-
-function toggleAPMChat() {
-    const panel = document.getElementById('apm-chat-panel');
-    const btn   = document.getElementById('apm-assistant-btn');
-    APM_ASSISTANT.open = !APM_ASSISTANT.open;
-    if (APM_ASSISTANT.open) {
-        panel.classList.remove('hidden');
-        btn.querySelector('.notif-dot').style.display = 'none';
-        APM_ASSISTANT.updateApiNotice();
-        document.getElementById('apm-chat-input')?.focus();
-    } else {
-        panel.classList.add('hidden');
-    }
+    
+    closeList();
+    return out.join('');
 }
 
-function apmSendMessage() {
-    const input = document.getElementById('apm-chat-input');
-    const text = input.value.trim();
-    if (!text) return;
+// Chat Functions
+function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    addChatMessage(message, 'user');
     input.value = '';
     input.style.height = 'auto';
-    APM_ASSISTANT.send(text);
+    
+    processAIRequest(message);
 }
 
-function apmQuickAsk(question) {
-    if (!APM_ASSISTANT.open) toggleAPMChat();
-    APM_ASSISTANT.send(question);
+function quickAsk(question) {
+    addChatMessage(question, 'user');
+    processAIRequest(question);
 }
 
-function apmHandleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); apmSendMessage(); }
+function startNewChat() {
+    const messagesDiv = document.getElementById('chat-messages');
+    messagesDiv.innerHTML = `
+        <div class="chat-message assistant-message">
+            <div class="message-content">
+                <div class="message-text">
+                    <strong style="color:#ffffff;font-weight:700;">New conversation started</strong>
+                    <div style="height:10px;"></div>
+                    <p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">How can I help you with your application portfolio today?</p>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
-function apmClearChatHistory() {
-    APM_ASSISTANT.reset('Chat history cleared. Ask a new question about your portfolio.');
+function clearChat() {
+    if (!confirm('Clear entire chat history?')) return;
+    startNewChat();
 }
 
-function apmNewChat() {
-    APM_ASSISTANT.reset();
-    APM_ASSISTANT.showMiniToast('New chat started');
+function addChatMessage(text, role) {
+    const messagesDiv = document.getElementById('chat-messages');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `chat-message ${role}-message`;
+    
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+    
+    const messageText = document.createElement('div');
+    messageText.className = 'message-text';
+    messageText.innerHTML = role === 'assistant' ? parseMarkdown(text) : escapeHtml(text);
+    
+    const messageTime = document.createElement('div');
+    messageTime.className = 'message-time';
+    messageTime.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    
+    messageContent.appendChild(messageText);
+    messageContent.appendChild(messageTime);
+    msgDiv.appendChild(messageContent);
+    messagesDiv.appendChild(msgDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
+function getPortfolioContext() {
+    const apps = (typeof getApps === 'function') ? getApps() : [];
+    const capabilities = (typeof getCapabilities === 'function') ? getCapabilities() : [];
+    
+    if (!apps.length && !capabilities.length) return null;
+    
+    const lines = [];
+    
+    if (capabilities.length) {
+        const unmapped = capabilities.filter(c => !c.linkedApplications || c.linkedApplications.length === 0);
+        const highAI = capabilities.filter(c => c.aiPotential === 'High');
+        lines.push(`Business Capabilities: ${capabilities.length} total, ${unmapped.length} unmapped, ${highAI.length} high AI potential`);
+    }
+    
+    if (apps.length) {
+        const legacy = apps.filter(a => a.lifecycle === 'legacy' || a.lifecycle === 'Legacy');
+        const retire = apps.filter(a => a.action === 'retire' || a.action === 'Retire');
+        const highOpex = apps.filter(a => parseFloat(a.opex || 0) > 500000);
+        lines.push(`Applications: ${apps.length} total, ${legacy.length} legacy, ${retire.length} marked for retirement, ${highOpex.length} high OPEX (>500K)`);
+        
+        const appSummary = apps.slice(0, 10).map(a => 
+            `${a.name} [${a.lifecycle || 'Unknown'}] Tech:${a.techFit || 'N/A'}/5 Biz:${a.bizValue || 'N/A'}/5 OPEX:${a.opex || 'N/A'}`
+        ).join('; ');
+        lines.push(`Sample apps: ${appSummary}`);
+    }
+    
+    return lines.join('\n');
+}
+
+async function processAIRequest(userMessage) {
+    const apiKey = window.EA_CONFIG?.OPENAI_API_KEY || localStorage.getItem('advicy_openai_key');
+    
+    if (!apiKey) {
+        addChatMessage('?? **No API key configured**\n\nPlease set your OpenAI API key in EA Platform Settings to get AI-powered portfolio analysis.\n\nIn the meantime, use the quick-action buttons for common APM tasks.', 'assistant');
+        return;
+    }
+    
+    const thinkingDiv = document.createElement('div');
+    thinkingDiv.className = 'chat-message assistant-message';
+    thinkingDiv.innerHTML = '<div class="message-content"><i class="fas fa-spinner spinner"></i> Analyzing portfolio...</div>';
+    thinkingDiv.id = 'thinking-indicator';
+    document.getElementById('chat-messages').appendChild(thinkingDiv);
+    document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+    
+    try {
+        const context = getPortfolioContext();
+        const systemPrompt = `You are an expert Application Portfolio Management consultant. Help analyze application portfolios, identify rationalization opportunities, recommend cost optimizations, and plan AI transformation initiatives. Be concise, data-driven, and actionable.`;
+        
+        const response = await fetch('/api/openai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'gpt-4',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: context ? `${userMessage}\n\nCurrent Portfolio:\n${context}` : userMessage }
+                ],
+                temperature: 0.7,
+                max_tokens: 1000
+            })
+        });
+        
+        const data = await response.json();
+        document.getElementById('thinking-indicator')?.remove();
+        
+        if (data.choices && data.choices[0]) {
+            addChatMessage(data.choices[0].message.content, 'assistant');
+        } else {
+            addChatMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+        }
+        
+    } catch (error) {
+        document.getElementById('thinking-indicator')?.remove();
+        addChatMessage(`**Error:** ${error.message}\n\nPlease check your API key and try again.`, 'assistant');
+    }
+}
+
+// Auto-expand textarea
 document.addEventListener('DOMContentLoaded', () => {
-    APM_ASSISTANT.init();
-    loadAPQCMetadata(); // Load APQC framework metadata
-    updateTemplateIndicator(); // Update template indicator if template already loaded
+    const input = document.getElementById('chat-input');
+    if (input) {
+        input.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+        });
+    }
 });
-if (document.readyState !== 'loading') {
-    APM_ASSISTANT.init();
-    loadAPQCMetadata();
-    updateTemplateIndicator();
-}
-/* ================================================================
-   APM AI ASSISTANT END
-   ================================================================ */
+
 </script>
 </body>
 </html>
