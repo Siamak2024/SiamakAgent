@@ -667,7 +667,7 @@ function render() {
   const grid = document.getElementById('cap-grid');
   grid.innerHTML = '';
   DOMAINS.forEach(d => {
-    const caps = capabilities[d.id];
+    const caps = capabilities[d.id] || [];
     const col = document.createElement('div');
     col.className = 'domain-col';
     col.innerHTML = `
@@ -709,7 +709,7 @@ function renderMatrix() {
   const body = document.getElementById('matrix-body');
   body.innerHTML = '';
   let all = [];
-  DOMAINS.forEach(d => capabilities[d.id].forEach(c => all.push({...c, domain: d.label})));
+  DOMAINS.forEach(d => (capabilities[d.id] || []).forEach(c => all.push({...c, domain: d.label})));
   all.sort((a,b) => {
     const order = {strategic:0, important:1, commodity:2};
     return order[a.priority] - order[b.priority];
@@ -1089,7 +1089,7 @@ Prioritera de capabilities som bäst stöder processautomation, AI-agenter, arbe
 function generateEAToolReport() {
   let allCapabilities = [];
   DOMAINS.forEach(d => {
-    capabilities[d.id].forEach(c => {
+    (capabilities[d.id] || []).forEach(c => {
       allCapabilities.push({
         ...c,
         domain: d.id,
@@ -1100,7 +1100,7 @@ function generateEAToolReport() {
   });
 
   const asIs = {
-    domains: DOMAINS.map(d => ({ id: d.id, label: d.label, count: capabilities[d.id].length })),
+    domains: DOMAINS.map(d => ({ id: d.id, label: d.label, count: (capabilities[d.id] || []).length })),
     capabilities: allCapabilities
   };
 
@@ -1284,7 +1284,7 @@ function exportToIntegrationCache() {
   let allCapabilities = [];
   let totalCount = 0;
   DOMAINS.forEach(d => {
-    capabilities[d.id].forEach(c => {
+    (capabilities[d.id] || []).forEach(c => {
       allCapabilities.push({
         ...c,
         id: `cap_${d.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -1333,7 +1333,7 @@ function exportToIntegrationCache() {
       id: d.id,
       label: d.label,
       icon: d.icon,
-      count: capabilities[d.id].length
+      count: (capabilities[d.id] || []).length
     })),
     
     // Summary statistics
@@ -1346,7 +1346,7 @@ function exportToIntegrationCache() {
       },
       byDomain: DOMAINS.map(d => ({
         domain: d.label,
-        count: capabilities[d.id].length
+        count: (capabilities[d.id] || []).length
       })),
       gapAnalysis: allCapabilities.filter(c => c.maturity <= 2).length // low maturity gaps
     },
@@ -1541,7 +1541,7 @@ function checkIntegrationStatus() {
 // ── Export to CSV (Excel) ────
 function exportCapabilitiesToCSV() {
   let all = [];
-  DOMAINS.forEach(d => capabilities[d.id].forEach(c => all.push({...c, domainId: d.id, domainLabel: d.label})));
+  DOMAINS.forEach(d => (capabilities[d.id] || []).forEach(c => all.push({...c, domainId: d.id, domainLabel: d.label})));
 
   if (!all.length) {
     showToast('⚠ï¸ Inga capabilities att exportera');
@@ -2389,6 +2389,15 @@ window.onload = () => {
           });
         }
         
+        // Update context badge (show for all workshops, not just APQC)
+        const badge = document.getElementById('cap-context-badge');
+        if (badge && ctx.org) {
+          badge.classList.remove('hidden');
+          const methodLabel = ctx.importMethod === 'apqc' ? 'APQC-import' : 
+                             ctx.importMethod === 'manual' ? 'Tom workshop' : 'Workshop';
+          badge.innerHTML = `<i class="fas fa-flask mr-1"></i> Workshop: ${ctx.org} | ${ctx.industry} | ${methodLabel}`;
+        }
+        
         // Set workshop step to 1 (Define AS-IS)
         setWorkshopStep(1);
         
@@ -2398,13 +2407,6 @@ window.onload = () => {
         
         // Render capabilities
         render();
-        
-        // Update context badge
-        const badge = document.getElementById('cap-context-badge');
-        if (badge && ctx.org) {
-          badge.classList.remove('hidden');
-          badge.innerHTML = `<i class="fas fa-chess-board mr-1"></i> Workshop: ${ctx.org} · ${ctx.industry} · ${ctx.focus}`;
-        }
       } catch (e) {
         console.error('[Workshop Import] Failed to load workshop context:', e);
         showToast('⚠ Lyckades inte importera workshop-data');
