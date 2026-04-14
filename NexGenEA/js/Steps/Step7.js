@@ -71,7 +71,8 @@ Generate 6-10 architecture principles. Each must enable at least one strategic t
 
       outputSchema: {
         principles: ['object'],
-        architecture_style: 'string'
+        governing_pattern: 'string?',
+        architecture_style: 'string?'
       },
 
       parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step7_arch_principles')

@@ -101,13 +101,13 @@
     background: transparent;
     z-index: 10;
   }
-  #chat-resize-handle:hover { background: #0e7afe; }
-  #chat-resize-handle.dragging { background: #0e7afe; }
+  #chat-resize-handle:hover { background: #0066cc; }
+  #chat-resize-handle.dragging { background: #0066cc; }
   
   #chat-header {
-    background: #2d2d2d;
+    background: #1a1a1a;
     padding: 16px 20px;
-    border-bottom: 1px solid #404040;
+    border-bottom: 1px solid #2d2d2d;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -142,7 +142,11 @@
     overflow-y: auto;
     padding: 20px;
     background: #1a1a1a;
+    scrollbar-width: thin;
+    scrollbar-color: #404040 transparent;
   }
+  #chat-messages::-webkit-scrollbar { width: 6px; }
+  #chat-messages::-webkit-scrollbar-thumb { background: #404040; border-radius: 3px; }
   
   .chat-message {
     margin-bottom: 20px;
@@ -169,9 +173,9 @@
     border: 1px solid #404040;
   }
   .user-message .message-text {
-    background: #7c3aed;
-    border-color: #7c3aed;
-    color: #ffffff;
+    background: rgba(30, 58, 138, 0.9);
+    border-color: rgba(26, 86, 219, 0.4);
+    color: #e2e8f0;
   }
   
   .message-time {
@@ -183,10 +187,26 @@
   .user-message .message-time { text-align: right; }
   .assistant-message .message-time { text-align: left; }
   
+  /* Markdown styling in chat messages */
+  .message-text h1 { font-size: 18px; font-weight: 700; margin: 16px 0 12px; color: #fff; }
+  .message-text h2 { font-size: 16px; font-weight: 700; margin: 14px 0 10px; color: #f0f0f0; }
+  .message-text h3 { font-size: 14px; font-weight: 700; margin: 12px 0 8px; color: #e0e0e0; }
+  .message-text p { margin: 0 0 12px; }
+  .message-text ul, .message-text ol { margin: 8px 0 12px 20px; padding: 0; }
+  .message-text li { margin-bottom: 6px; }
+  .message-text code { background: #2d2d2d; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #ffd700; }
+  .message-text pre { background: #2d2d2d; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; border-left: 3px solid #0066cc; }
+  .message-text pre code { background: none; padding: 0; color: #e0e0e0; }
+  .message-text strong { font-weight: 700; color: #fff; }
+  .message-text em { font-style: italic; color: #d0d0d0; }
+  .message-text blockquote { border-left: 4px solid #0066cc; padding-left: 12px; margin: 12px 0; color: #b0b0b0; font-style: italic; }
+  .message-text a { color: #4da6ff; text-decoration: underline; }
+  .message-text hr { border: none; border-top: 1px solid #404040; margin: 16px 0; }
+  
   #chat-input-container {
     padding: 16px;
-    background: #2d2d2d;
-    border-top: 1px solid #404040;
+    background: #1a1a1a;
+    border-top: 1px solid #2d2d2d;
     display: flex;
     gap: 8px;
   }
@@ -203,11 +223,11 @@
     max-height: 120px;
     font-family: inherit;
   }
-  #chat-input:focus { outline: none; border-color: #7c3aed; }
+  #chat-input:focus { outline: none; border-color: #0066cc; box-shadow: 0 0 0 1px #0066cc; }
   #chat-input::placeholder { color: #666; }
   
   #send-chat {
-    background: #7c3aed;
+    background: #0066cc;
     border: none;
     color: white;
     width: 42px;
@@ -217,9 +237,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: background 0.15s;
   }
-  #send-chat:hover { background: #6d28d9; transform: scale(1.05); }
+  #send-chat:hover { background: #0052a3; }
   #send-chat:disabled { opacity: 0.5; cursor: not-allowed; }
 
   /* Toolkit-specific styles */
@@ -322,6 +342,100 @@
   }
   .cap-lock-icon:hover { opacity: 0.7; }
   .cap-locked .cap-lock-icon { opacity: 1; color: #10b981; }
+
+  /* Toolbar Button Styles (BMC Standard) */
+  :root {
+    --ea-primary: #2563eb;
+    --ea-border: #d1d5db;
+    --ea-hover: #f3f4f6;
+    --ea-text-strong: #111827;
+    --ea-radius-sm: 8px;
+  }
+  .toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: var(--ea-radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--ea-border);
+    background: white;
+    color: var(--ea-text-strong);
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+  .toolbar-btn:hover {
+    background: var(--ea-hover);
+    border-color: var(--ea-primary);
+    color: var(--ea-primary);
+  }
+  .toolbar-btn--primary {
+    background: var(--ea-primary);
+    color: white;
+    border-color: var(--ea-primary);
+  }
+  .toolbar-btn--primary:hover {
+    background: #1e40af;
+  }
+  .toolbar-btn--danger {
+    background: white;
+    color: #dc2626;
+    border-color: #fecaca;
+  }
+  .toolbar-btn--danger:hover {
+    background: #fef2f2;
+    border-color: #dc2626;
+  }
+  .toolbar-btn--success {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    color: white;
+    border: none;
+  }
+  .toolbar-btn--success:hover {
+    background: linear-gradient(135deg, #15803d, #166534);
+  }
+  .toolbar-btn--purple {
+    background: linear-gradient(135deg, #9333ea, #7e22ce);
+    color: white;
+    border: none;
+  }
+  .toolbar-btn--purple:hover {
+    background: linear-gradient(135deg, #7e22ce, #6b21a8);
+  }
+  .toolbar-btn--tobe {
+    background: #ecfdf5;
+    color: #166534;
+    border: 1px solid #4ade80;
+  }
+  .toolbar-btn--tobe:hover {
+    background: #d1fae5;
+  }
+  .toolbar-btn--review {
+    background: #eef2ff;
+    color: #3730a3;
+    border: 1px solid #a5b4fc;
+  }
+  .toolbar-btn--review:hover {
+    background: #e0e7ff;
+  }
+  .toolbar-btn--consolidate {
+    background: #ecfeff;
+    color: #0e7490;
+    border: 1px solid #67e8f9;
+  }
+  .toolbar-btn--consolidate:hover {
+    background: #cffafe;
+  }
+  .toolbar-btn--restore {
+    background: #f8fafc;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+  }
+  .toolbar-btn--restore:hover {
+    background: #f1f5f9;
+  }
 </style>
 </head>
 <body>
@@ -489,9 +603,9 @@
       </div>
     </div>
     <div class="flex gap-3">
-      <button onclick="saveCapability()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700">Spara</button>
-      <button onclick="deleteCapability()" class="px-4 py-2 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-100">Delete</button>
-      <button onclick="document.getElementById('cap-modal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="saveCapability()" class="toolbar-btn toolbar-btn--primary flex-1">Spara</button>
+      <button onclick="deleteCapability()" class="toolbar-btn toolbar-btn--danger">Delete</button>
+      <button onclick="document.getElementById('cap-modal').classList.add('hidden')" class="toolbar-btn">Cancel</button>
     </div>
   </div>
 </div>
@@ -566,10 +680,10 @@
     </div>
     
     <div class="flex gap-3">
-      <button onclick="applyAPQCSettingsCap()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
-        <i class="fas fa-download mr-2"></i>Import Capabilities
+      <button onclick="applyAPQCSettingsCap()" class="toolbar-btn toolbar-btn--primary flex-1">
+        <i class="fas fa-download"></i> Import Capabilities
       </button>
-      <button onclick="closeAPQCModalCap()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="closeAPQCModalCap()" class="toolbar-btn">Cancel</button>
     </div>
   </div>
 </div>
@@ -582,40 +696,40 @@
         <i id="api-icon" class="fas fa-circle text-xs text-orange-400"></i>
         <span id="api-text">Configure API Key</span>
       </button>
-      <button onclick="loadExample()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm">
+      <button onclick="loadExample()" class="toolbar-btn">
         <i class="fas fa-lightbulb"></i> Load Example
       </button>
-      <a href="Capability_Workshop_Builder.html" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white no-underline" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);border:none;" onmouseover="this.style.background='linear-gradient(135deg,#15305a,#1d4ed8)'" onmouseout="this.style.background='linear-gradient(135deg,#1e3a5f,#2563eb)'" title="Use Workshop Builder to structure capability mapping">
+      <a href="Capability_Workshop_Builder.html" class="toolbar-btn toolbar-btn--primary" title="Use Workshop Builder to structure capability mapping">
         <i class="fas fa-chess-board"></i> Workshop Builder
       </a>
-      <button onclick="showAPQCSettingsCap()" class="flex items-center gap-2 bg-white border border-blue-400 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-50 text-sm" title="Importera capabilities från APQC Framework">
+      <button onclick="showAPQCSettingsCap()" class="toolbar-btn" title="Importera capabilities från APQC Framework">
         <i class="fas fa-database"></i> APQC Import
       </button>
-      <button onclick="clearAll()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm">
+      <button onclick="clearAll()" class="toolbar-btn toolbar-btn--danger">
         <i class="fas fa-trash-alt"></i> Clear
       </button>
-      <button onclick="saveAll()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm">
+      <button onclick="saveAll()" class="toolbar-btn">
         <i class="fas fa-save"></i> Save
       </button>
-      <button onclick="exportCapabilitiesToCSV()" class="flex items-center gap-2 export-btn px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
+      <button onclick="exportCapabilitiesToCSV()" class="toolbar-btn toolbar-btn--success">
         <i class="fas fa-file-excel"></i> Export (Excel)
       </button>
-      <button onclick="exportToIntegrationCache()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background: linear-gradient(135deg, #9333ea, #7e22ce); color: white;" title="Export to EA Platform integration">
+      <button onclick="exportToIntegrationCache()" class="toolbar-btn toolbar-btn--purple" title="Export to EA Platform integration">
         <i class="fas fa-project-diagram"></i> Export (EA)
       </button>
-      <button onclick="runAnalysis()" class="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 shadow text-sm font-semibold">
+      <button onclick="runAnalysis()" class="toolbar-btn toolbar-btn--primary">
         <i class="fas fa-robot"></i> AI Analyze
       </button>
-      <button onclick="generateCapToBeFromLatestAnalysis()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#ecfdf5;color:#166534;border:1px solid #4ade80;" title="Generate TO-BE proposal from analysis">
+      <button onclick="generateCapToBeFromLatestAnalysis()" class="toolbar-btn toolbar-btn--tobe" title="Generate TO-BE proposal from analysis">
         <i class="fas fa-lightbulb"></i> Create TO-BE
       </button>
-      <button onclick="toggleCapToBePanel(true)" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#eef2ff;color:#3730a3;border:1px solid #a5b4fc;" title="Show AS-IS and TO-BE side by side">
+      <button onclick="toggleCapToBePanel(true)" class="toolbar-btn toolbar-btn--review" title="Show AS-IS and TO-BE side by side">
         <i class="fas fa-columns"></i> Review AS-IS/TO-BE
       </button>
-      <button onclick="consolidateCapToBe()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#ecfeff;color:#0e7490;border:1px solid #67e8f9;" title="Consolidate final TO-BE for sync">
+      <button onclick="consolidateCapToBe()" class="toolbar-btn toolbar-btn--consolidate" title="Consolidate final TO-BE for sync">
         <i class="fas fa-check-double"></i> Consolidate TO-BE
       </button>
-      <button id="cap-restore-asis-btn" onclick="restoreCapAsIsState()" class="hidden flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#f8fafc;color:#334155;border:1px solid #cbd5e1;" title="Restore AS-IS">
+      <button id="cap-restore-asis-btn" onclick="restoreCapAsIsState()" class="hidden toolbar-btn toolbar-btn--restore" title="Restore AS-IS">
         <i class="fas fa-rotate-left"></i> Restore AS-IS
       </button>
       <button onclick="generateEAToolReport()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#f0fdfa;color:#0f766e;border:1px solid #2dd4bf;" title="Generate EA Tool Report (AS-IS, Analysis, TO-BE)">
@@ -2516,22 +2630,9 @@ window.onload = () => {
   if (key) document.getElementById('api-key-input').value = key;
   render();
 };
+
 // === CAP AI ASSISTANT ===
-let capChatOpen = false, capFirstOpen = true;
-
-setTimeout(() => {
-    if (!capChatOpen) document.getElementById('cap-badge').style.display = 'flex';
-}, 3000);
-
-function toggleCapChat() {
-    const panel = document.getElementById('cap-chat-panel');
-    capChatOpen = !capChatOpen;
-    panel.style.display = capChatOpen ? 'flex' : 'none';
-    if (capChatOpen) {
-        document.getElementById('cap-badge').style.display = 'none';
-        if (capFirstOpen) { sendCapInitialGreeting(); capFirstOpen = false; }
-    }
-}
+// Note: Old toggleCapChat() removed - now using toggleChatPanel() with EA Platform standard sidebar
 
 function getCapContextText() {
     // Läser direkt från capabilities-objektet som redan finns i filen
@@ -2867,11 +2968,14 @@ window.addEventListener('load', () => {
 
 // Chat Panel Toggle
 function toggleChatPanel() {
+    const panel = document.getElementById('ai-chat-panel');
     const isOpen = document.body.classList.contains('chat-sidebar-open');
     if (isOpen) {
         document.body.classList.remove('chat-sidebar-open');
+        if (panel) panel.classList.add('hidden');
     } else {
         document.body.classList.add('chat-sidebar-open');
+        if (panel) panel.classList.remove('hidden');
         const input = document.getElementById('chat-input');
         if (input) input.focus();
     }

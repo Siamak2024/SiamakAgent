@@ -12,8 +12,12 @@ import path from 'node:path';
 
 const BASE_URL  = 'http://localhost:3000';
 const PAGE_URL  = `${BASE_URL}/NexGenEA/NexGen_EA_V4.html`;
+const TEST_PROJECT_NAME = 'E2E Test Project - Real Estate Autopilot';
+const TEST_PROJECT_DESC = 'Automated E2E test scenario for Swedish real estate company with legacy systems. Generated on ' + new Date().toISOString();
 const COMPANY   = 'A mid-size Swedish real estate company with legacy ERP and property management platforms causing heavily manual administration, personal dependency and poor data quality. Goal is to digitise core operations and improve ESG reporting.';
 const STEP_TIMEOUT = 180_000; // 3 min per AI batch
+
+let testProjectId = null; // Track project ID for cleanup
 
 const artifactsDir = path.resolve('e2e-artifacts');
 fs.mkdirSync(artifactsDir, { recursive: true });
@@ -21,6 +25,8 @@ fs.mkdirSync(artifactsDir, { recursive: true });
 const report = {
   startedAt: new Date().toISOString(),
   scenario: 'Autopilot — Real Estate, Sverige, Medium',
+  testProjectName: TEST_PROJECT_NAME,
+  testProjectId: null, // Will be set after project creation
   steps: [], consoleErrors: [], pageErrors: [], warnings: []
 };
 
@@ -105,16 +111,58 @@ page.on('pageerror', err => {
 // ── 1. OPEN PAGE ────────────────────────────────────────────────────────────
 log('Opening page...');
 await page.goto(PAGE_URL, { waitUntil: 'load', timeout: 30_000 });
+
+// Inject API key into localStorage so the app does not show a key-missing gate.
+// Actual AI calls are proxied through the local server (server.js), not the browser.
+await page.evaluate(() => {
+  localStorage.setItem('ea_api_key', 'server-proxy');
+});
+log('  API key injected into localStorage');
+
 await screenshot(page, '01_load');
 addStep('Page load', 'PASS');
 
-// ── 2. CREATE NEW PROJECT ───────────────────────────────────────────────────
-const createBtn = page.locator('button').filter({ hasText: /Create New Project/i }).first();
-if (await createBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-  await createBtn.click();
-  await page.waitForTimeout(800);
-  log('  Created new project');
+// ── 2. CREATE NEW PROJECT VIA DIALOG ────────────────────────────────────────
+log('Filling out Create New Project dialog...');
+
+// Wait for and fill project name field
+const projectNameInput = page.locator('#newProjectName');
+if (await projectNameInput.isVisible({ timeout: 8000 }).catch(() => false)) {
+  await projectNameInput.fill(TEST_PROJECT_NAME);
+  log(`  Project name: ${TEST_PROJECT_NAME}`);
+} else {
+  addStep('Create Project dialog', 'WARN', 'Dialog not visible - may already be bypassed');
 }
+
+// Fill project description
+const projectDescInput = page.locator('#newProjectDescription');
+if (await projectDescInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+  await projectDescInput.fill(TEST_PROJECT_DESC);
+  log('  Project description filled');
+}
+
+// Click "Create Project" button
+const createProjectBtn = page.locator('button').filter({ hasText: /Create Project/i }).first();
+if (await createProjectBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+  await createProjectBtn.click();
+  await page.waitForTimeout(1200);
+  log('  ✓ Project created via dialog');
+  addStep('Create New Project dialog', 'PASS', TEST_PROJECT_NAME);
+} else {
+  // Fallback: try old flow if dialog doesn't appear
+  const createBtn = page.locator('button').filter({ hasText: /Create New Project/i }).first();
+  if (await createBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await createBtn.click();
+    await page.waitForTimeout(800);
+    log('  Created new project (fallback)');
+    addStep('Create New Project', 'WARN', 'Used fallback flow');
+  }
+}
+
+// Capture project ID from window.currentModelId for cleanup
+testProjectId = await page.evaluate(() => window.currentModelId || null);
+report.testProjectId = testProjectId; // Save to report for inspection
+log(`  Captured project ID for cleanup: ${testProjectId}`);
 
 // Set description in DOM (even if hidden)
 await page.evaluate(desc => {
@@ -367,6 +415,42 @@ addStep('Op Model: AS-IS / TO-BE tabs present',
   `AS-IS: ${!!asIsBtn}, TO-BE: ${!!toBeBtn}`);
 
 await screenshot(page, '07_opmodel_final');
+
+// ── CLEANUP: DELETE TEST PROJECT ───────────────────────────────────────────
+log('Cleaning up test data...');
+if (testProjectId) {
+  const deleted = await page.evaluate((projectId) => {
+    try {
+      // Use EA_DataManager to delete the project
+      if (window.dataManager && typeof window.dataManager.deleteProject === 'function') {
+        const result = window.dataManager.deleteProject(projectId);
+        console.log(`[E2E Cleanup] Deleted project ${projectId}: ${result}`);
+        return result;
+      }
+      // Fallback: manual localStorage cleanup
+      const projects = JSON.parse(localStorage.getItem('ea_projects') || '{}');
+      delete projects[projectId];
+      localStorage.setItem('ea_projects', JSON.stringify(projects));
+      localStorage.removeItem('ea_current_project');
+      console.log(`[E2E Cleanup] Deleted project ${projectId} (fallback)`);
+      return true;
+    } catch (e) {
+      console.error('[E2E Cleanup] Failed to delete project:', e);
+      return false;
+    }
+  }, testProjectId);
+  
+  if (deleted) {
+    log(`  ✓ Test project deleted: ${testProjectId}`);
+    addStep('Cleanup: Delete test project', 'PASS', testProjectId);
+  } else {
+    log(`  ✗ Failed to delete test project: ${testProjectId}`);
+    addStep('Cleanup: Delete test project', 'WARN', 'Deletion failed - may need manual cleanup');
+  }
+} else {
+  log('  ⚠ No project ID captured - skipping cleanup');
+  addStep('Cleanup: Delete test project', 'WARN', 'No project ID to clean up');
+}
 
 // ── CLOSE & REPORT ──────────────────────────────────────────────────────────
 await browser.close();

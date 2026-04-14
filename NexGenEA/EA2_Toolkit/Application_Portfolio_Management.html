@@ -476,28 +476,36 @@
     <div class="kpi-strip" id="kpiStrip"></div>
 
     <!-- Filter bar -->
-    <div class="filter-bar">
-        <input type="text" id="searchInput" placeholder="&#xf002;  Search applications..." oninput="renderInventory()" style="font-family:'Inter','Font Awesome 6 Free',sans-serif">
-        <select id="filterLifecycle" onchange="renderInventory()">
-            <option value="">All Lifecycle States</option>
-            <option value="phaseIn">Phase In</option>
-            <option value="active">Active</option>
-            <option value="legacy">Legacy</option>
-            <option value="phaseOut">Phase Out</option>
-            <option value="retired">Retired</option>
-        </select>
-        <select id="filterAction" onchange="renderInventory()">
-            <option value="">All Actions</option>
-            <option value="retain">Retain</option>
-            <option value="invest">Invest</option>
-            <option value="replace">Replace</option>
-            <option value="consolidate">Consolidate</option>
-            <option value="retire">Retire</option>
-        </select>
-        <select id="filterDept" onchange="renderInventory()">
-            <option value="">All Departments</option>
-        </select>
-        <span id="costBadge" class="total-cost hidden"></span>
+    <div class="filter-bar" style="justify-content:space-between">
+        <div style="display:flex;gap:10px;align-items:center;flex:1">
+            <input type="text" id="searchInput" placeholder="&#xf002;  Search applications..." oninput="renderInventory()" style="font-family:'Inter','Font Awesome 6 Free',sans-serif;flex:1;max-width:300px">
+            <select id="filterLifecycle" onchange="renderInventory()">
+                <option value="">All Lifecycle States</option>
+                <option value="phaseIn">Phase In</option>
+                <option value="active">Active</option>
+                <option value="legacy">Legacy</option>
+                <option value="phaseOut">Phase Out</option>
+                <option value="retired">Retired</option>
+            </select>
+            <select id="filterAction" onchange="renderInventory()">
+                <option value="">All Actions</option>
+                <option value="retain">Retain</option>
+                <option value="invest">Invest</option>
+                <option value="replace">Replace</option>
+                <option value="consolidate">Consolidate</option>
+                <option value="retire">Retire</option>
+            </select>
+            <select id="filterDept" onchange="renderInventory()">
+                <option value="">All Departments</option>
+            </select>
+            <span id="costBadge" class="total-cost hidden"></span>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="exportExcelTemplate()" title="Download Excel template with instructions"><i class="fas fa-download"></i> Export Template</button>
+            <button class="btn btn-primary" onclick="document.getElementById('importFile').click()" title="Import applications from Excel or JSON"><i class="fas fa-upload"></i> Import Apps</button>
+            <input type="file" id="importFile" accept=".xlsx,.xls,.json" class="hidden" onchange="importData(event)">
+            <button class="btn btn-success" onclick="openModal()" title="Add new application to portfolio"><i class="fas fa-plus"></i> Add Application</button>
+        </div>
     </div>
 
     <!-- Table -->
@@ -2127,7 +2135,16 @@ function importCapabilities(event) {
     reader.onload = function(e) {
         try {
             if (file.name.endsWith('.json')) {
-                const caps = JSON.parse(e.target.result);
+                const data = JSON.parse(e.target.result);
+                // Check if it's APQC PCF format (has categories array)
+                let caps;
+                if (data.categories && Array.isArray(data.categories)) {
+                    caps = parseAPQCJson(data);
+                } else if (Array.isArray(data)) {
+                    caps = data; // Already flat array
+                } else {
+                    throw new Error('Unknown JSON format');
+                }
                 importCapabilityData(caps);
             } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
                 // Use xlsx library to parse Excel
@@ -2149,6 +2166,50 @@ function importCapabilities(event) {
     }
     
     event.target.value = ''; // Reset input
+}
+
+function parseAPQCJson(apqcData) {
+    // Parse APQC PCF hierarchical JSON to flat capability objects
+    const capabilities = [];
+    const idMap = {}; // Map APQC IDs to generated capability IDs
+    
+    function processCategory(category, parentCapId = null, parentName = null) {
+        const capId = generateCapId();
+        idMap[category.id] = capId;
+        
+        // Determine domain (use L1 name as domain)
+        const domain = category.level === 1 ? category.name : parentName;
+        
+        capabilities.push({
+            id: capId,
+            name: category.name,
+            level: `L${category.level}`,
+            parentId: parentCapId,
+            domain: domain || category.name,
+            industryTag: category.industries?.[0] || 'Cross-Industry',
+            strategicImportance: category.strategic_themes?.includes('growth') ? 'high' : 'medium',
+            maturity: 3,
+            aiPotential: category.ai_enabled ? 'High' : 'Medium',
+            linkedApplications: [],
+            description: category.description || '',
+            apqc_code: category.code || category.id,
+            apqc_source: true
+        });
+        
+        // Process children recursively
+        if (category.children && Array.isArray(category.children)) {
+            category.children.forEach(child => {
+                processCategory(child, capId, domain || category.name);
+            });
+        }
+    }
+    
+    // Process all top-level categories
+    if (apqcData.categories && Array.isArray(apqcData.categories)) {
+        apqcData.categories.forEach(cat => processCategory(cat));
+    }
+    
+    return capabilities;
 }
 
 function parseAPQCExcel(data) {
@@ -2177,7 +2238,9 @@ function parseAPQCExcel(data) {
             maturity: 3,
             aiPotential: 'Medium',
             linkedApplications: [],
-            description: row['Description'] || ''
+            description: row['Description'] || '',
+            apqc_code: id,
+            apqc_source: true
         });
     });
     
