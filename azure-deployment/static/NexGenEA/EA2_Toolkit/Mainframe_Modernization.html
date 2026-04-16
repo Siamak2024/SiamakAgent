@@ -3547,15 +3547,26 @@
         }
 
         function calculateROI() {
-            // Get annual benefits
-            const mipsSavings = parseFloat(document.getElementById('benefit-mips')?.value || 0);
-            const licenseSavings = parseFloat(document.getElementById('benefit-licenses')?.value || 0);
-            const infraSavings = parseFloat(document.getElementById('benefit-infrastructure')?.value || 0);
-            const newRevenue = parseFloat(document.getElementById('benefit-revenue')?.value || 0);
+            // Get annual benefits - try DOM first, fall back to data model
+            let mipsSavings = parseFloat(document.getElementById('benefit-mips')?.value || 0);
+            let licenseSavings = parseFloat(document.getElementById('benefit-licenses')?.value || 0);
+            let infraSavings = parseFloat(document.getElementById('benefit-infrastructure')?.value || 0);
+            let newRevenue = parseFloat(document.getElementById('benefit-revenue')?.value || 0);
+            
+            // Fall back to data model if DOM values are zero/missing
+            if (mipsSavings === 0 && modernizationProgram.capex?.benefits?.mipsSavings) {
+                mipsSavings = modernizationProgram.capex.benefits.mipsSavings;
+                licenseSavings = modernizationProgram.capex.benefits.licenseSavings || 0;
+                infraSavings = modernizationProgram.capex.benefits.infraSavings || 0;
+                newRevenue = modernizationProgram.capex.benefits.newRevenue || 0;
+            }
             
             const totalAnnualBenefits = mipsSavings + licenseSavings + infraSavings + newRevenue;
             
             // Store in model
+            if (!modernizationProgram.capex) {
+                modernizationProgram.capex = {};
+            }
             modernizationProgram.capex.benefits = {
                 mipsSavings,
                 licenseSavings,
@@ -3587,12 +3598,19 @@
             }
             
             // Update displays
-            document.getElementById('total-annual-benefits').textContent = `€${totalAnnualBenefits.toLocaleString()}`;
-            document.getElementById('cumulative-benefits').textContent = `€${cumulativeBenefits.toLocaleString()}`;
-            document.getElementById('net-benefit').textContent = `€${netBenefit.toLocaleString()}`;
-            document.getElementById('annual-savings').textContent = `€${(totalAnnualBenefits / 1000).toFixed(1)}M`;
-            document.getElementById('payback-period').textContent = paybackMonths > 0 ? `${paybackMonths} months` : '—';
-            document.getElementById('roi-percentage').textContent = totalCAPEX > 0 ? `${roiPercent.toFixed(0)}%` : '—';
+            const totalBenefitsEl = document.getElementById('total-annual-benefits');
+            const cumulativeBenefitsEl = document.getElementById('cumulative-benefits');
+            const netBenefitEl = document.getElementById('net-benefit');
+            const annualSavingsEl = document.getElementById('annual-savings');
+            const paybackEl = document.getElementById('payback-period');
+            const roiEl = document.getElementById('roi-percentage');
+            
+            if (totalBenefitsEl) totalBenefitsEl.textContent = `€${totalAnnualBenefits.toLocaleString()}`;
+            if (cumulativeBenefitsEl) cumulativeBenefitsEl.textContent = `€${cumulativeBenefits.toLocaleString()}`;
+            if (netBenefitEl) netBenefitEl.textContent = `€${netBenefit.toLocaleString()}`;
+            if (annualSavingsEl) annualSavingsEl.textContent = `€${(totalAnnualBenefits / 1000).toFixed(1)}M`;
+            if (paybackEl) paybackEl.textContent = paybackMonths > 0 ? `${paybackMonths} months` : '—';
+            if (roiEl) roiEl.textContent = totalCAPEX > 0 ? `${roiPercent.toFixed(0)}%` : '—';
             
             modernizationProgram.capex.roi = {
                 year1,
@@ -3605,7 +3623,13 @@
             };
             
             saveProgram();
-            showToast('ROI calculated successfully', 'success');
+            
+            console.log('✅ ROI calculated:', {
+                totalAnnualBenefits,
+                totalCAPEX,
+                paybackMonths,
+                roiPercent: roiPercent.toFixed(1) + '%'
+            });
         }
 
         function generateCAPEXWithAI() {
