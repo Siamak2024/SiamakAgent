@@ -69,7 +69,7 @@ fileManager.disableAutoSave();
 
 ---
 
-## � Creating New Projects
+## • Creating New Projects
 
 ### Overview
 The EA Platform provides a dedicated modal interface for creating new projects with proper metadata and automatic backup initialization.
@@ -105,14 +105,14 @@ Click **"Create Project"** to initialize
      systems: [],
      metadata: {
        description: projectDescription,
-       created: new Date().toISOString(),
+       generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|förd: new Date().toISOString(),
        modified: new Date().toISOString()
      }
    });
    ```
 
 3. **Initial Snapshot Creation**
-   - FileManager creates backup in `/data/projects/`
+   - FileManager generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|förs backup in `/data/projects/`
    - Format: `EA-Platform_Project-Name_YYYY-MM-DD_HHmm.json`
    - Allows recovery to "fresh project" state
 
@@ -131,13 +131,13 @@ Click **"Create Project"** to initialize
 
 ### Validation
 
-- **Name Required:** Cannot create project without a name
+- **Name Required:** Cannot generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|för project without a name
 - **Unsaved Changes Warning:** Confirms before discarding current work
 - **Empty Model:** Starts with clean slate (no pre-loaded data)
 
 ---
 
-## �📥 Import Workflow
+## 📥 Import Workflow
 
 ### Step 1: Upload File
 User clicks **Import** button in EA Platform header:
