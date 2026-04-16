@@ -2298,7 +2298,7 @@
                 platform: 'ibm-zseries',
                 version: 'z15',
                 mips: 850,
-                annualCost: '€7.2M',
+                annualCost: 7200,  // in €000s (€7.2M)
                 cobolPrograms: 2400,
                 jclJobs: 340,
                 cicsTransactions: 180,
@@ -3867,7 +3867,26 @@
             });
             
             // Estimate benefits based on current mainframe cost
-            const currentMFCost = parseFloat((mf.annualCost || '').replace(/[^0-9]/g, '')) || baseCost * 0.15;
+            // Handle both numeric (in €000s) and string formats ("€7.2M", "$10M")
+            let currentMFCost;
+            if (typeof mf.annualCost === 'number') {
+                // Already in €000s
+                currentMFCost = mf.annualCost;
+            } else if (typeof mf.annualCost === 'string') {
+                // Parse string like "€7.2M" or "$10M"
+                const costStr = mf.annualCost.toUpperCase();
+                const numPart = parseFloat(costStr.replace(/[^0-9.]/g, ''));
+                if (costStr.includes('M')) {
+                    currentMFCost = numPart * 1000; // Convert M to €000s
+                } else if (costStr.includes('K')) {
+                    currentMFCost = numPart; // Already in €000s
+                } else {
+                    currentMFCost = numPart; // Assume €000s if no suffix
+                }
+            } else {
+                // Fallback: estimate based on MIPS (15% of base cost)
+                currentMFCost = baseCost * 0.15;
+            }
             
             document.getElementById('benefit-mips').value = Math.round(currentMFCost * 0.5); // 50% MIPS reduction
             document.getElementById('benefit-licenses').value = Math.round(currentMFCost * 0.15); // 15% license savings
