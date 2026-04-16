@@ -1696,9 +1696,14 @@
                 <!-- TAB 5: TOLLGATE GOVERNANCE -->
                 <div id="view-tollgates" class="section-view">
                     <div class="panel">
-                        <div class="panel-title">
-                            <i class="fas fa-gate-open"></i>
-                            Tollgate Governance Framework
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <i class="fas fa-gate-open"></i>
+                                Tollgate Governance Framework
+                            </div>
+                            <button class="btn btn-primary" onclick="loadExampleData()" title="Load realistic banking scenario">
+                                <i class="fas fa-flask"></i> Load Example
+                            </button>
                         </div>
                         <p class="panel-description">
                             Track program tollgates (TG0: Initiation → TG5: Decommission). Each tollgate has entry criteria, exit criteria, and stakeholder approvals.
@@ -1723,10 +1728,13 @@
                             </div>
                         </div>
 
-                        <div style="padding: 40px; text-align: center; background: rgba(217, 119, 6, 0.05); border-radius: 12px; margin-top: 24px;">
-                            <i class="fas fa-clipboard-check" style="font-size: 48px; color: var(--mm-accent); margin-bottom: 16px;"></i>
-                            <p style="color: #94a3b8; margin: 0;">Tollgate tracking includes entry/exit checklists, approval workflows, and maturity threshold validation.</p>
-                            <p style="color: #64748b; font-size: 13px; margin-top: 8px;">Maturity scores from Tab 2 determine tollgate readiness.</p>
+                        <!-- Tollgate Timeline Container -->
+                        <div id="tollgates-container">
+                            <div style="padding: 40px; text-align: center; background: rgba(217, 119, 6, 0.05); border-radius: 12px; margin-top: 24px;">
+                                <i class="fas fa-clipboard-check" style="font-size: 48px; color: var(--mm-accent); margin-bottom: 16px;"></i>
+                                <p style="color: #94a3b8; margin: 0;">Click "Load Example" to see tollgate timeline with entry/exit criteria.</p>
+                                <p style="color: #64748b; font-size: 13px; margin-top: 8px;">Maturity scores from Tab 2 determine tollgate readiness.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2488,6 +2496,7 @@
             updateWorkloadSummary();
             updateWaveSummary();
             renderWaves();
+            renderTollgates();
             renderRisks();
             updateRiskSummary();
             
@@ -3320,6 +3329,72 @@
             document.getElementById('wave-count').textContent = waves.length;
             document.getElementById('wave-workloads').textContent = totalWorkloads;
             document.getElementById('wave-duration').textContent = totalDuration;
+        }
+
+        function renderTollgates() {
+            const tollgates = modernizationProgram.tollgates || [];
+            const container = document.getElementById('tollgates-container');
+            
+            if (tollgates.length === 0) {
+                container.innerHTML = `
+                    <div style="padding: 40px; text-align: center; background: rgba(217, 119, 6, 0.05); border-radius: 12px; margin-top: 24px;">
+                        <i class="fas fa-clipboard-check" style="font-size: 48px; color: var(--mm-accent); margin-bottom: 16px;"></i>
+                        <p style="color: #94a3b8; margin: 0;">Click "Load Example" to see tollgate timeline with entry/exit criteria.</p>
+                        <p style="color: #64748b; font-size: 13px; margin-top: 8px;">Maturity scores from Tab 2 determine tollgate readiness.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Build tollgate timeline
+            let html = '<div style="display: flex; flex-direction: column; gap: 16px; position: relative;">';
+            
+            // Timeline line connecting tollgates
+            html += '<div style="position: absolute; left: 28px; top: 40px; bottom: 40px; width: 3px; background: linear-gradient(180deg, #10b981 0%, #3b82f6 50%, #f59e0b 100%);"></div>';
+            
+            tollgates.forEach((tg, index) => {
+                const statusColors = {
+                    'complete': { bg: '#10b981', text: 'Approved', icon: 'check-circle' },
+                    'in-progress': { bg: '#f59e0b', text: 'In Progress', icon: 'spinner' },
+                    'not-started': { bg: '#94a3b8', text: 'Not Started', icon: 'circle' }
+                };
+                
+                const status = statusColors[tg.status] || statusColors['not-started'];
+                
+                html += `
+                    <div style="position: relative; padding-left: 72px;">
+                        <!-- Timeline dot -->
+                        <div style="position: absolute; left: 16px; top: 20px; width: 24px; height: 24px; border-radius: 50%; background: ${status.bg}; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 4px rgba(255,255,255,1), 0 0 0 6px ${status.bg}40; z-index: 10;">
+                            <i class="fas fa-${status.icon}" style="color: white; font-size: 12px;"></i>
+                        </div>
+                        
+                        <!-- Tollgate card -->
+                        <div class="panel" style="margin: 0; border-left: 3px solid ${status.bg};">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                                        <h3 style="margin: 0; color: var(--mm-primary); font-size: 16px; font-weight: 600;">${tg.id}: ${tg.name}</h3>
+                                        <span class="badge badge-${tg.status === 'complete' ? 'success' : tg.status === 'in-progress' ? 'warning' : 'danger'}">
+                                            ${status.text}
+                                        </span>
+                                    </div>
+                                    <div style="background: #f9fafb; padding: 12px; border-radius: 8px; margin-top: 12px;">
+                                        <div style="font-size: 12px; color: #64748b; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Entry/Exit Criteria</div>
+                                        <div style="font-size: 13px; color: #475569; line-height: 1.6;">${tg.criteria}</div>
+                                    </div>
+                                </div>
+                                <div style="text-align: right; margin-left: 24px;">
+                                    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Target Date</div>
+                                    <div style="font-size: 16px; font-weight: 700; color: ${status.bg}; white-space: nowrap;">${tg.date}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
         }
 
         function renderWaves() {
