@@ -950,6 +950,9 @@
                                 <button class="btn btn-primary" onclick="loadExampleData()" title="Load realistic banking scenario for testing">
                                     <i class="fas fa-flask"></i> Load Example
                                 </button>
+                                <button class="btn btn-danger" onclick="clearExampleData()" title="Clear all form data">
+                                    <i class="fas fa-eraser"></i> Clear Data
+                                </button>
                                 <button class="btn btn-secondary" onclick="saveProgram()">
                                     <i class="fas fa-save"></i> Save Progress
                                 </button>
@@ -1709,41 +1712,156 @@
                 <!-- TAB 6: CAPEX MODEL -->
                 <div id="view-capex" class="section-view">
                     <div class="panel">
-                        <div class="panel-title">
-                            <i class="fas fa-dollar-sign"></i>
-                            CAPEX Model & Business Case
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <i class="fas fa-dollar-sign"></i>
+                                CAPEX Model & Business Case
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-primary" onclick="calculateROI()">
+                                    <i class="fas fa-calculator"></i> Calculate ROI
+                                </button>
+                                <button class="btn btn-secondary" onclick="generateCAPEXWithAI()">
+                                    <i class="fas fa-magic"></i> AI Estimate
+                                </button>
+                            </div>
                         </div>
                         <p class="panel-description">
                             Model transformation costs by phase and category. Calculate ROI based on mainframe cost reduction and business benefits.
                         </p>
 
+                        <!-- ROI Summary Cards -->
                         <div class="summary-cards">
                             <div class="summary-card">
-                                <div class="summary-card-value">€0</div>
+                                <div class="summary-card-value" id="total-capex">€0</div>
                                 <div class="summary-card-label">Total Investment</div>
                                 <div class="summary-card-detail">Program CAPEX</div>
                             </div>
                             <div class="summary-card">
-                                <div class="summary-card-value">€0</div>
+                                <div class="summary-card-value" id="annual-savings">€0</div>
                                 <div class="summary-card-label">Annual Savings</div>
-                                <div class="summary-card-detail">Projected Year 1</div>
+                                <div class="summary-card-detail">Year 1 OPEX reduction</div>
                             </div>
                             <div class="summary-card">
-                                <div class="summary-card-value">—</div>
+                                <div class="summary-card-value" id="payback-period">—</div>
                                 <div class="summary-card-label">Payback Period</div>
                                 <div class="summary-card-detail">Months to break even</div>
                             </div>
                             <div class="summary-card">
-                                <div class="summary-card-value">—</div>
-                                <div class="summary-card-label">5-Year NPV</div>
-                                <div class="summary-card-detail">Net present value</div>
+                                <div class="summary-card-value" id="roi-percentage">—</div>
+                                <div class="summary-card-label">3-Year ROI</div>
+                                <div class="summary-card-detail">Return on investment</div>
                             </div>
                         </div>
 
-                        <div style="padding: 40px; text-align: center; background: rgba(217, 119, 6, 0.05); border-radius: 12px; margin-top: 24px;">
-                            <i class="fas fa-chart-line" style="font-size: 48px; color: var(--mm-accent); margin-bottom: 16px;"></i>
-                            <p style="color: #94a3b8; margin: 0;">CAPEX model includes costs by phase (Discovery, Build, Migrate, Stabilize, Decommission) and category (Software, Services, Infrastructure, Training).</p>
-                            <p style="color: #64748b; font-size: 13px; margin-top: 8px;">AI can estimate costs based on industry benchmarks and workload complexity.</p>
+                        <!--CAPEX Cost Model -->
+                        <h3 style="margin: 24px 0 12px; font-size: 16px; font-weight: 600; color: var(--mm-text);">
+                            <i class="fas fa-coins"></i> CAPEX Cost Breakdown (in €000s)
+                        </h3>
+                        
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;">Cost Category</th>
+                                    <th style="width: 14%;">Discovery</th>
+                                    <th style="width: 14%;">Build</th>
+                                    <th style="width: 14%;">Migrate</th>
+                                    <th style="width: 14%;">Stabilize</th>
+                                    <th style="width: 14%;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Software & Tooling</strong></td>
+                                    <td><input type="number" class="form-input" id="capex-software-discovery" value="0" onchange="updateCAPEX()"></td>
+                                    <td><input type="number" class="form-input" id="capex-software-build" value="0" onchange="updateCAPEX()"></td>
+                                    <td><input type="number" class="form-input" id="capex-software-migrate" value="0" onchange="updateCAPEX()"></td>
+                                    <td><input type="number" class="form-input" id="capex-software-stabilize" value="0" onchange="updateCAPEX()"></td>
+                                    <td><strong id="capex-software-total">€0</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Services & Consulting</strong></td>
+                                    <td><input type="number" class="form-input" id="capex-services-discovery" value="0" onchange="updateCAPEX()"></td>
+                                    <td><input type="number" class="form-input" id="capex-services-build" value="0" onchange="updateCAPEX()"></td>
+                                    <td><input type="number" class="form-input" id="capex-services-migrate" value="0" onchange="updateCAPEX()"></td>
+                                    <td><input type="number" class="form-input" id="capex-services-stabilize" value="0" onchange="updateCAPEX()"></td>
+                                    <td><strong id="capex-services-total">€0</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Infrastructure & Cloud</strong></td>
+                                    <td><input type="number" class="form-input" id="capex-infra-discovery" value="0" onchange="updateCAPEX()"></td>
+                                    <td><input type="number" class="form-input" id="capex-infra-build" value="0" onchange="updateCAPEX()"></td>
+                                    <td><input type="number" class="form-input" id="capex-infra-migrate" value="0" onchange="updateCAPEX()"></td>
+                                    <td><input type="number" class="form-input" id="capex-infra-stabilize" value="0" onchange="updateCAPEX()"></td>
+                                    <td><strong id="capex-infra-total">€0</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Training & Change Mgmt</strong></td>
+                                    <td><input type="number" class="form-input" id="capex-training-discovery" value="0" onchange="updateCAPEX()"></td>
+                                    <td><input type="number" class="form-input" id="capex-training-build" value="0" onchange="updateCAPEX()"></td>
+                                    <td><input type="number" class="form-input" id="capex-training-migrate" value="0" onchange="updateCAPEX()"></td>
+                                    <td><input type="number" class="form-input" id="capex-training-stabilize" value="0" onchange="updateCAPEX()"></td>
+                                    <td><strong id="capex-training-total">€0</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>PMO & Contingency (15%)</strong></td>
+                                    <td colspan="4" style="text-align: center; background: #f9fafb;">Calculated automatically</td>
+                                    <td><strong id="capex-contingency-total">€0</strong></td>
+                                </tr>
+                                <tr style="background: #fef3c7; font-weight: bold;">
+                                    <td><strong>TOTAL CAPEX</strong></td>
+                                    <td id="capex-phase-discovery">€0</td>
+                                    <td id="capex-phase-build">€0</td>
+                                    <td id="capex-phase-migrate">€0</td>
+                                    <td id="capex-phase-stabilize">€0</td>
+                                    <td id="capex-grand-total">€0</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- Benefits & OPEX Savings -->
+                        <h3 style="margin: 32px 0 12px; font-size: 16px; font-weight: 600; color: var(--mm-text);">
+                            <i class="fas fa-chart-line"></i> Benefits & OPEX Savings (Annual, in €000s)
+                        </h3>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; marginbottom: 24px;">
+                            <div class="form-field">
+                                <label class="form-label">MIPS Cost Reduction (Annual)</label>
+                                <input type="number" class="form-input" id="benefit-mips" placeholder="e.g., 3600" onchange="updateCAPEX()">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Software License Savings (Annual)</label>
+                                <input type="number" class="form-input" id="benefit-licenses" placeholder="e.g., 1200" onchange="updateCAPEX()">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Infrastructure Savings (Annual)</label>
+                                <input type="number" class="form-input" id="benefit-infrastructure" placeholder="e.g., 800" onchange="updateCAPEX()">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">New Revenue from Real-time Products (Annual)</label>
+                                <input type="number" class="form-input" id="benefit-revenue" placeholder="e.g., 2500" onchange="updateCAPEX()">
+                            </div>
+                        </div>
+
+                        <!-- ROI Calculation Display -->
+                        <div style="padding: 20px; background: linear-gradient(135deg, rgba(146, 64, 14, 0.1), rgba(180, 83, 9, 0.05)); border-radius: 12px; border-left: 4px solid var(--mm-primary);">
+                            <h4 style="margin: 0 0 16px; font-size: 14px; font-weight: 600; color: var(--mm-text);">
+                                <i class="fas fa-calculator"></i> ROI Calculation
+                            </h4>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                                <div>
+                                    <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Total Annual Benefits</div>
+                                    <div style="font-size: 20px; font-weight: 700; color: var(--mm-primary);" id="total-annual-benefits">€0</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">3-Year Cumulative Benefits</div>
+                                    <div style="font-size: 20px; font-weight: 700; color: #10b981;" id="cumulative-benefits">€0</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Net Benefit (3yr)</div>
+                                    <div style="font-size: 20px; font-weight: 700; color: #10b981;" id="net-benefit">€0</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2214,17 +2332,231 @@
                 }
             ];
             
-            // Maturity scores
+            // ═══════════════════════════════════════════════════════════
+            // M4 MATURITY MODEL - Detailed Scores (5 dimensions × 6 capabilities each)
+            // ═══════════════════════════════════════════════════════════
             modernizationProgram.maturity = {
-                organizationalReadiness: 2.8,
-                technicalCapability: 2.5,
-                changeManagement: 3.0,
-                dataQuality: 2.3
+                discovery: [
+                    { score: 3, evidence: 'COBOL inventory complete via automated scanning (IBM watsonx)' },
+                    { score: 3, evidence: 'JCL job catalog documented, 80% dependency mapping done' },
+                    { score: 2, evidence: 'CICS transactions mapped but IMS inventory incomplete' },
+                    { score: 3, evidence: 'DB2 schemas documented; VSAM files cataloged' },
+                    { score: 4, evidence: 'Integration map complete - all 67 endpoints documented' },
+                    { score: 3, evidence: 'Business criticality ratings assigned to top 80% of applications' }
+                ],
+                architecture: [
+                    { score: 4, evidence: 'Target architecture approved by EA Board Q1 2026' },
+                    { score: 3, evidence: 'Replatform/Refactor/Replace patterns assigned to 75% of workloads' },
+                    { score: 3, evidence: 'Coexistence architecture designed using Strangler Fig pattern' },
+                    { score: 4, evidence: 'API gateway (Kong) deployed in AWS; 12 APIs documented' },
+                    { score: 3, evidence: 'Kafka event bus designed; CDC tooling (Qlik) selected' },
+                    { score: 4, evidence: 'AWS landing zone provisioned; network, IAM, security baselines ready' }
+                ],
+                data: [
+                    { score: 2, evidence: 'Data quality assessment shows 78% accuracy in customer master' },
+                    { score: 3, evidence: 'Data lineage mapped for accounts, payments, KYC domains' },
+                    { score: 3, evidence: 'Qlik CDC POC successful; 99.9% replication accuracy' },
+                    { score: 3, evidence: 'Data governance framework approved; data owners assigned' },
+                    { score: 2, evidence: 'AWS DMS selected but migration schema transformation incomplete' },
+                    { score: 2, evidence: 'Reconciliation framework design 60% complete' }
+                ],
+                organizational: [
+                    { score: 3, evidence: 'Program team 70% staffed; PMO Lead and 2x Wave PMs assigned' },
+                    { score: 2, evidence: 'COBOL knowledge transfer 30%complete; video tutorials started' },
+                    { score: 3, evidence: 'Cloud training for 45 developers (AWS Solutions Architect Associate)' },
+                    { score: 4, evidence: 'SI partner Accenture contracted; 8-person team assigned' },
+                    { score: 3, evidence: 'Change management plan approved; communications cadence active' },
+                    { score: 4, evidence: 'Executive sponsor: CFO; steering committee meets monthly' }
+                ],
+                operational: [
+                    { score: 3, evidence: 'GitLab CI/CD pipeline operational for new microservices' },
+                    { score: 2, evidence: 'Dynatrace deployed for cloud; mainframe observability via APM still WIP' },
+                    { score: 2, evidence: 'Automated regression testing framework 40% complete (Selenium)' },
+                    { score: 2, evidence: 'Runbooks drafted for 5 coexistence scenarios; not yet tested' },
+                    { score: 3, evidence: 'Rollback procedures defined for Wave 1; dry-run successful' },
+                    { score: 3, evidence: 'SLA monitoring dashboard operational (Grafana); dual platform coverage' }
+                ]
             };
             
+            // ═══════════════════════════════════════════════════════════
+            // WORKLOAD CLASSIFICATION - Realistic Banking Workloads
+            // ═══════════════════════════════════════════════════════════
+            modernizationProgram.workloads = [
+                { id: 1, name: 'Core Accounts System', domain: 'accounts', type: 'CICS', complexity: 'high', criticality: 'critical', time: 'migrate', pattern: 'replatform', mips: 800 },
+                { id: 2, name: 'Payment Processing Engine', domain: 'payments', type: 'batch', complexity: 'high', criticality: 'critical', time: 'invest', pattern: 'reimagine', mips: 450 },
+                { id: 3, name: 'Loan Origination System', domain: 'lending', type: 'CICS', complexity: 'medium', criticality: 'high', time: 'migrate', pattern: 'replace', mips: 320 },
+                { id: 4, name: 'Mortgage Servicing', domain: 'lending', type: 'CICS', complexity: 'medium', criticality: 'high', time: 'invest', pattern: 'refactor', mips: 280 },
+                { id: 5, name: 'Credit Card Authorization', domain: 'payments', type: 'CICS', complexity: 'high', criticality: 'critical', time: 'migrate', pattern: 'replatform', mips: 600 },
+                { id: 6, name: 'Wire Transfer Hub', domain: 'payments', type: 'realtime', complexity: 'high', criticality: 'critical', time: 'invest', pattern: 'reimagine', mips: 220 },
+                { id: 7, name: 'General Ledger', domain: 'accounts', type: 'batch', complexity: 'medium', criticality: 'critical', time: 'tolerate', pattern: 'invest', mips: 140 },
+                { id: 8, name: 'Trade Finance', domain: 'lending', type: 'CICS', complexity: 'medium', criticality: 'medium', time: 'migrate', pattern: 'replace', mips: 180 },
+                { id: 9, name: 'AML/KYC Screening', domain: 'risk', type: 'batch', complexity: 'high', criticality: 'critical', time: 'invest', pattern: 'reimagine', mips: 260 },
+                { id: 10, name: 'Customer Master Data', domain: 'accounts', type: 'DB2', complexity: 'low', criticality: 'high', time: 'migrate', pattern: 'replatform', mips: 110 },
+                { id: 11, name: 'Regulatory Reporting', domain: 'reporting', type: 'batch', complexity: 'medium', criticality: 'critical', time: 'invest', pattern: 'refactor', mips: 200 },
+                { id: 12, name: 'Interest Calculation Engine', domain: 'accounts', type: 'batch', complexity: 'low', criticality: 'high', time: 'tolerate', pattern: 'invest', mips: 90 },
+                { id: 13, name: 'Statement Generation', domain: 'reporting', type: 'batch', complexity: 'low', criticality: 'low', time: 'eliminate', pattern: 'replace', mips: 50 },
+                { id: 14, name: 'Data Warehouse ETL', domain: 'reporting', type: 'batch', complexity: 'medium', criticality: 'medium', time: 'migrate', pattern: 'replace', mips: 150 },
+                { id: 15, name: 'Legacy Document Archive', domain: 'other', type: 'VSAM', complexity: 'low', criticality: 'low', time: 'eliminate', pattern: 'replace', mips: 40 }
+            ];
+            
+            // ═══════════════════════════════════════════════════════════
+            // MIGRATION WAVES
+            // ═══════════════════════════════════════════════════════════
+            modernizationProgram.waves = [
+                { id: 1, name: 'Wave 1: Quick Wins & Low Complexity', duration: 6, startMonth: 'Month 6',
+                  workloads: [10, 13, 14, 15], description: 'Low-risk migrations to prove model and free up 20% MIPS' },
+                { id: 2, name: 'Wave 2: Core Banking Systems', duration: 12, startMonth: 'Month 15',
+                  workloads: [1, 2, 5, 6, 9], description: 'Critical core systems with extended parallel run (90 days)' },
+                { id: 3, name: 'Wave 3: Lending & Final Domains', duration: 6, startMonth: 'Month 30',
+                  workloads: [3, 4, 7, 8, 11, 12], description: 'Remaining workloads including complex lending systems' }
+            ];
+            
+            // ═══════════════════════════════════════════════════════════
+            // TOLLGATES
+            // ═══════════════════════════════════════════════════════════
+            modernizationProgram.tollgates = [
+                { id: 'TG0', name: 'Program Launch', status: 'complete', date: 'Jan 2026', criteria: 'Business case approved, budget allocated, M4 ≥ 2' },
+                { id: 'TG1', name: 'Architecture Approved', status: 'complete', date: 'Mar 2026', criteria: 'Target architecture signed off, cloud landing zone ready, M4 Arch ≥ 4' },
+                { id: 'TG2', name: 'Wave 1 Migration Start', status: 'in-progress', date: 'Jun 2026', criteria: 'CDC tested, observability operational, M4 Data ≥ 3' },
+                { id: 'TG3', name: 'Wave 2 Migration Start', status: 'not-started', date: 'Mar 2027', criteria: 'Wave 1 complete, 20% MIPS reduction achieved, zero P1 incidents' },
+                { id: 'TG4', name: 'Wave 3 (Core) Migration Start', status: 'not-started', date: 'Dec 2027', criteria: 'Wave 2 complete, 60% MIPS reduction, all M4 ≥ 4' },
+                { id: 'TG5', name: 'Decommission Approval', status: 'not-started', date: 'Jun 2029', criteria: 'All workloads migrated, 90-day hypercare complete, regulatory sign-off' }
+            ];
+            
+            // ═══════════════════════════════════════════════════════════
+            // CAPEX MODEL (€000s)
+            // ═══════════════════════════════════════════════════════════
+            modernizationProgram.capex = {
+                software: { discovery: 240, build: 810, migrate: 540, stabilize: 180 },
+                services: { discovery: 780, build: 1890, migrate: 2430, stabilize: 540 },
+                infra: { discovery: 90, build: 630, migrate: 810, stabilize: 270 },
+                training: { discovery: 180, build: 420, migrate: 180, stabilize: 180 },
+                benefits: {
+                    mipsSavings: 3600, licenseSavings: 1080, infraSavings: 720, newRevenue: 2160
+                }
+            };
+            
+            // ═══════════════════════════════════════════════════════════
+            // RISKS
+            // ═══════════════════════════════════════════════════════════
+            modernizationProgram.risks = [
+                { id: Date.now() + 101, description: 'Critical COBOL SME retiring Q4 2027 before knowledge transfer complete',
+                  category: 'organizational', likelihood: 4, impact: 5,
+                  mitigation: 'Accelerate video documentation program; offer retention bonus; hire contractor backup', status: 'open' },
+                { id: Date.now() + 102, description: 'Data reconciliation failure on core accounts cutover',
+                  category: 'technical', likelihood: 3, impact: 5,
+                  mitigation: 'Extend parallel run to 120 days; implement automated hourly reconciliation checks', status: 'open' },
+                { id: Date.now() + 103, description: 'DORA compliance deadline (Dec 2027) conflicts with Wave 2 timeline',
+                  category: 'regulatory', likelihood: 2, impact: 5,
+                  mitigation: 'Fast-track resilience testing; engage Swedish FSA early for phased compliance approval', status: 'open' },
+                { id: Date.now() + 104, description: 'Batch window overrun during dual-run prevents business processing',
+                  category: 'technical', likelihood: 3, impact: 4,
+                  mitigation: 'Provision 30% headroom in batch capacity; implement CDC async replication'start, status: 'open' }
+            ];
+            
+            // Populate all UI elements
             populateUI();
-            showToast('Example banking scenario loaded successfully', 'success');
-            console.log('✅ Example data loaded');
+            renderChallenges();
+            renderOpportunities();
+            updateMaturityRadar();
+            renderWorkloads();
+            updateWorkloadSummary();
+            updateWaveSummary();
+            renderRisks();
+            updateRiskSummary();
+            
+            // Populate CAPEX form fields
+            ['software', 'services', 'infra', 'training'].forEach(category => {
+                ['discovery', 'build', 'migrate', 'stabilize'].forEach(phase => {
+                    const inputId = `capex-${category}-${phase}`;
+                    const input = document.getElementById(inputId);
+                    if (input && modernizationProgram.capex[category]) {
+                        input.value = modernizationProgram.capex[category][phase] || 0;
+                    }
+                });
+            });
+            
+            // Populate benefits
+            if (modernizationProgram.capex.benefits) {
+                document.getElementById('benefit-mips').value = modernizationProgram.capex.benefits.mipsSavings;
+                document.getElementById('benefit-licenses').value = modernizationProgram.capex.benefits.licenseSavings;
+                document.getElementById('benefit-infrastructure').value = modernizationProgram.capex.benefits.infraSavings;
+                document.getElementById('benefit-revenue').value = modernizationProgram.capex.benefits.newRevenue;
+            }
+            
+            updateCAPEX();
+            calculateROI();
+            
+            showToast('Complete banking modernization scenario loaded across all tabs', 'success');
+            console.log('✅ Example data loaded - all tabs populated');
+        }
+
+        function clearExampleData() {
+            // Reset modernization program to initial state
+            modernizationProgram = {
+                id: '',
+                name: '',
+                created: '',
+                lastModified: '',
+                assessment: {
+                    orgProfile: {},
+                    mainframeEnv: {},
+                    constraints: {},
+                    challenges: [],
+                    opportunities: []
+                },
+                maturity: {
+                    organizationalReadiness: 0,
+                    technicalCapability: 0,
+                    changeManagement: 0,
+                    dataQuality: 0
+                },
+                classification: {},
+                waves: [],
+                tollgates: [],
+                capex: {}
+            };
+            
+            // Clear all form fields
+            document.getElementById('program-name').value = '';
+            
+            // Clear org profile fields
+            document.getElementById('org-name').value = '';
+            document.getElementById('org-industry').value = '';
+            document.getElementById('org-region').value = '';
+            document.getElementById('org-revenue').value = '';
+            document.getElementById('org-employees').value = '';
+            document.getElementById('org-it-size').value = '';
+            document.getElementById('org-jurisdictions').value = '';
+            
+            // Clear mainframe environment fields
+            document.getElementById('mf-platform').value = '';
+            document.getElementById('mf-version').value = '';
+            document.getElementById('mf-mips').value = '';
+            document.getElementById('mf-cost').value = '';
+            document.getElementById('mf-cobol').value = '';
+            document.getElementById('mf-jcl').value = '';
+            document.getElementById('mf-cics').value = '';
+            document.getElementById('mf-databases').value = '';
+            document.getElementById('mf-integrations').value = '';
+            document.getElementById('mf-batch-window').value = '';
+            document.getElementById('mf-tps').value = '';
+            
+            // Clear constraints fields
+            document.getElementById('constraint-budget').value = '';
+            document.getElementById('constraint-timeline').value = '';
+            document.getElementById('constraint-regulatory').value = '';
+            document.getElementById('constraint-sla').value = '';
+            document.getElementById('constraint-decommission').value = '';
+            document.getElementById('constraint-skills').value = '';
+            
+            // Refresh UI
+            renderChallenges();
+            renderOpportunities();
+            updateMaturityDisplay();
+            
+            showToast('All data cleared successfully', 'info');
+            console.log('✅ Data cleared');
         }
 
         function populateUI() {
@@ -3137,6 +3469,218 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // CAPEX MODEL & ROI CALCULATION
+        // ═══════════════════════════════════════════════════════════════
+        function updateCAPEX() {
+            const categories = ['software', 'services', 'infra', 'training'];
+            const phases = ['discovery', 'build', 'migrate', 'stabilize'];
+            
+            // Initialize capex object if not exists
+            if (!modernizationProgram.capex) {
+                modernizationProgram.capex = {};
+            }
+            
+            let grandTotal = 0;
+            const phaseTotals = {};
+            
+            // Calculate category totals and phase totals
+            categories.forEach(category => {
+                let categoryTotal = 0;
+                phases.forEach(phase => {
+                    const inputId = `capex-${category}-${phase}`;
+                    const value = parseFloat(document.getElementById(inputId)?.value || 0);
+                    categoryTotal += value;
+                    phaseTotals[phase] = (phaseTotals[phase] || 0) + value;
+                    
+                    // Store in data model
+                    if (!modernizationProgram.capex[category]) {
+                        modernizationProgram.capex[category] = {};
+                    }
+                    modernizationProgram.capex[category][phase] = value;
+                });
+                grandTotal += categoryTotal;
+                
+                // Update category total
+                const categoryTotalEl = document.getElementById(`capex-${category}-total`);
+                if (categoryTotalEl) {
+                    categoryTotalEl.textContent = `€${categoryTotal.toLocaleString()}`;
+                }
+            });
+            
+            // Calculate contingency (15%)
+            const contingency = grandTotal * 0.15;
+            grandTotal += contingency;
+            
+            // Update contingency display
+            const contingencyEl = document.getElementById('capex-contingency-total');
+            if (contingencyEl) {
+                contingencyEl.textContent = `€${contingency.toLocaleString()}`;
+            }
+            
+            // Update phase totals
+            phases.forEach(phase => {
+                const phaseEl = document.getElementById(`capex-phase-${phase}`);
+                if (phaseEl) {
+                    phaseEl.textContent = `€${(phaseTotals[phase] || 0).toLocaleString()}`;
+                }
+            });
+            
+            // Update grand total with contingency
+            const grandTotalEl = document.getElementById('capex-grand-total');
+            if (grandTotalEl) {
+                grandTotalEl.textContent = `€${grandTotal.toLocaleString()}`;
+            }
+            
+            const totalCapexEl = document.getElementById('total-capex');
+            if (totalCapexEl) {
+                totalCapexEl.textContent = `€${(grandTotal / 1000).toFixed(1)}M`;
+            }
+            
+            // Store totals
+            modernizationProgram.capex.contingency = contingency;
+            modernizationProgram.capex.grandTotal = grandTotal;
+            modernizationProgram.capex.phaseTotals = phaseTotals;
+            
+            // Save and recalculate ROI
+            modernizationProgram.lastModified = new Date().toISOString();
+        }
+
+        function calculateROI() {
+            // Get annual benefits
+            const mipsSavings = parseFloat(document.getElementById('benefit-mips')?.value || 0);
+            const licenseSavings = parseFloat(document.getElementById('benefit-licenses')?.value || 0);
+            const infraSavings = parseFloat(document.getElementById('benefit-infrastructure')?.value || 0);
+            const newRevenue = parseFloat(document.getElementById('benefit-revenue')?.value || 0);
+            
+            const totalAnnualBenefits = mipsSavings + licenseSavings + infraSavings + newRevenue;
+            
+            // Store in model
+            modernizationProgram.capex.benefits = {
+                mipsSavings,
+                licenseSavings,
+                infraSavings,
+                newRevenue,
+                totalAnnual: totalAnnualBenefits
+            };
+            
+            // Get CAPEX
+            const totalCAPEX = modernizationProgram.capex.grandTotal || 0;
+            
+            // Calculate 3-year cumulative benefits
+            const year1 = totalAnnualBenefits * 0.4; // 40% benefits in year 1 (ramp-up)
+            const year2 = totalAnnualBenefits * 0.8; // 80% in year 2
+            const year3 = totalAnnualBenefits * 1.0; // 100% in year 3
+            const cumulativeBenefits = year1 + year2 + year3;
+            
+            // Calculate net benefit
+            const netBenefit = cumulativeBenefits - totalCAPEX;
+            
+            // Calculate ROI percentage
+            const roiPercent = totalCAPEX > 0 ? ((netBenefit / totalCAPEX) * 100) : 0;
+            
+            // Calculate payback period (months)
+            let paybackMonths = 0;
+            if (totalAnnualBenefits > 0) {
+                const monthlyBenefit = totalAnnualBenefits / 12 * 0.7; // Assuming 70% ramp-up average
+                paybackMonths = Math.ceil(totalCAPEX / monthlyBenefit);
+            }
+            
+            // Update displays
+            document.getElementById('total-annual-benefits').textContent = `€${totalAnnualBenefits.toLocaleString()}`;
+            document.getElementById('cumulative-benefits').textContent = `€${cumulativeBenefits.toLocaleString()}`;
+            document.getElementById('net-benefit').textContent = `€${netBenefit.toLocaleString()}`;
+            document.getElementById('annual-savings').textContent = `€${(totalAnnualBenefits / 1000).toFixed(1)}M`;
+            document.getElementById('payback-period').textContent = paybackMonths > 0 ? `${paybackMonths} months` : '—';
+            document.getElementById('roi-percentage').textContent = totalCAPEX > 0 ? `${roiPercent.toFixed(0)}%` : '—';
+            
+            modernizationProgram.capex.roi = {
+                year1,
+                year2,
+                year3,
+                cumulativeBenefits,
+                netBenefit,
+                roiPercent,
+                paybackMonths
+            };
+            
+            saveProgram();
+            showToast('ROI calculated successfully', 'success');
+        }
+
+        function generateCAPEXWithAI() {
+            // Get current assessment data
+            const mf = modernizationProgram.assessment.mainframeEnv || {};
+            const workloads = modernizationProgram.workloads || [];
+            const totalMIPS = parseInt(mf.mips) || 0;
+            const cobolPrograms = parseInt(mf.cobolPrograms) || 0;
+            
+            if (totalMIPS === 0) {
+                showToast('Please complete the Assessment tab first', 'error');
+                return;
+            }
+            
+            // Benchmark-based estimation formula
+            // Sources: Kyndryl 2025, Gartner reports, industry averages
+            
+            // Base cost per MIPS: €4-8K depending on complexity
+            const costPerMIPS = 6;  // Mid-range
+            const baseCost = totalMIPS * costPerMIPS;
+            
+            // Discovery phase: 10-15% of total
+            const discovery = {
+                software: baseCost * 0.03,     // Scanning tools, analysis tools
+                services: baseCost * 0.08,     // Assessment consultancy
+                infra: baseCost * 0.01,        // POC infrastructure
+                training: baseCost * 0.02      // Initial team training
+            };
+            
+            // Build phase: 30-40% of total
+            const build = {
+                software: baseCost * 0.08,     // Refactoring tools, CDC,API gateway
+                services: baseCost * 0.18,     // SI partner, architecture services
+                infra: baseCost * 0.06,        // Cloud landing zone
+                training: baseCost * 0.04      // Developer training
+            };
+            
+            // Migrate phase: 35-45% of total
+            const migrate = {
+                software: baseCost * 0.06,     // Data migration tools
+                services:baseCost * 0.22,     // Migration services, testing
+                infra: baseCost * 0.08,        // Dual running infrastructure
+                training: baseCost * 0.02      // Operations training
+            };
+            
+            // Stabilize phase: 10-15% of total
+            const stabilize = {
+                software: baseCost * 0.02,     // Monitoring, observability
+                services: baseCost * 0.06,     // Hypercare support
+                infra: baseCost * 0.03,        // Production optimization
+                training: baseCost * 0.02      // End user training
+            };
+            
+            // Populate the form
+            ['software', 'services', 'infra', 'training'].forEach(category => {
+                document.getElementById(`capex-${category}-discovery`).value = Math.round(discovery[category]);
+                document.getElementById(`capex-${category}-build`).value = Math.round(build[category]);
+                document.getElementById(`capex-${category}-migrate`).value = Math.round(migrate[category]);
+                document.getElementById(`capex-${category}-stabilize`).value = Math.round(stabilize[category]);
+            });
+            
+            // Estimate benefits based on current mainframe cost
+            const currentMFCost = parseFloat((mf.annualCost || '').replace(/[^0-9]/g, '')) || baseCost * 0.15;
+            
+            document.getElementById('benefit-mips').value = Math.round(currentMFCost * 0.5); // 50% MIPS reduction
+            document.getElementById('benefit-licenses').value = Math.round(currentMFCost * 0.15); // 15% license savings
+            document.getElementById('benefit-infrastructure').value = Math.round(currentMFCost * 0.10); // 10% infra savings
+            document.getElementById('benefit-revenue').value = Math.round(currentMFCost * 0.30); // 30% new revenue opportunity
+            
+            updateCAPEX();
+            calculateROI();
+            
+            showToast('AI-estimated CAPEX and benefits based on industry benchmarks', 'success');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // AI ASSISTANT
         // ═══════════════════════════════════════════════════════════════
         function initializeAI() {
@@ -3151,16 +3695,55 @@ You have deep knowledge of:
 - APQC Process Classification Framework
 - Industry benchmarks from Gartner, AWS, Kyndryl, Capgemini
 - Regulatory requirements (DORA, GDPR, Basel IV, EU AI Act)
+- Financial modeling: CAPEX vs OPEX, ROI calculations, payback period, NPV
 
-When providing advice:
-- Reference specific frameworks and patterns
-- Provide concrete examples from banking/insurance
-- Consider risk, cost, and timeline trade-offs
-- Cite industry benchmarks when available
-- Be practical and execution-focused`;
+**CAPEX (Capital Expenditure) Context:**
+CAPEX represents one-time upfront investment costs for the modernization program including:
+- Software & Tooling: Refactoring tools, CDC platforms (Qlik, AWS DMS), API gateways, migration tools
+- Services & Consulting: SI partner fees, assessment consultancy, migration services, testing  
+- Infrastructure & Cloud: Cloud landing zone setup, dual-running infrastructure during coexistence
+- Training & Change Management: Developer training (cloud, DevOps), COBOL knowledge transfer, end-user training
+- PMO & Contingency: Program management overhead, typically 15-20% buffer for unknowns
+
+Typical CAPEX distribution by phase:
+- Discovery (10-15%): Assessment tools, inventory scanning, consultancy
+- Build (30-40%): Architecture, CDC setup, API gateway, cloud landing zone
+- Migrate (35-45%): Data migration, workload migration, parallel running costs
+- Stabilize (10-15%): Hypercare support, observability, optimization
+
+**OPEX (Operating Expenditure) Context:**
+OPEX represents ongoing annual running costs. Modernization aims to REDUCE mainframe OPEX:
+- Current Mainframe OPEX sources:
+  * MIPS licensing costs (typically €4-8K per MIPS annually)
+  * Software licenses (DB2, CICS, ISV tools) - often 15-25% of total mainframe cost
+  * Mainframe infrastructure (hardware maintenance, cooling, data center space)
+  * Mainframe staff salaries (COBOL developers, system programmers)
+- Target Cloud OPEX (typically 30-50% lower than mainframe):
+  * Cloud compute (pay-per-use model with elasticity)
+  * Managed services (RDS, Kafka, API Gateway)
+  * Modern development team (cloud-native skills, more widely available)
+
+**ROI Calculation Framework:**
+- Payback Period = Total CAPEX ÷ (Annual OPEX Savings)
+- 3-Year ROI = ((3-Year Cumulative Savings - Total CAPEX) / Total CAPEX) × 100
+- Industry benchmarks (Kyndryl 2025): 288-362% ROI over 3 years for phased hybrid modernization
+- Typical payback: 24-36 months for well-executed programs
+
+**Benefits Beyond OPEX Savings:**
+- New revenue opportunities: API banking, BaaS partnerships, real-time products
+- Fraud reduction: AI/ML-enabled real-time fraud detection (10-25% reduction)
+- Time-to-market acceleration: 3-5x faster feature delivery
+- Regulatory fine avoidance: DORA compliance, audit trail improvements
+
+When providing financial advice:
+- Distinguish clearly between CAPEX (one-time investment) and OPEX (ongoing annual costs)
+- Calculate payback periods based on annual OPEX savings
+- Reference industry benchmarks for cost estimates (€4-8K per MIPS for CAPEX)
+- Consider both cost reduction AND revenue generation in ROI
+- Account for ramp-up: Year 1 typically achieves 40% of target savings, Year 2: 80%, Year 3: 100%`;
 
                 AdvisyAI.updateIndustryLayer('financial-services');
-                console.log('✅ AI Assistant initialized for Mainframe Modernization');
+                console.log('✅ AI Assistant initialized with CAPEX/OPEX knowledge for Mainframe Modernization');
             }
         }
 
