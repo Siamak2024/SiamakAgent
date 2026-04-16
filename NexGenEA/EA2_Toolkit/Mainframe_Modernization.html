@@ -1190,9 +1190,14 @@
                 <!-- TAB 2: M4 MATURITY MODEL -->
                 <div id="view-maturity" class="section-view">
                     <div class="panel">
-                        <div class="panel-title">
-                            <i class="fas fa-chart-radar"></i>
-                            Mainframe Modernization Maturity Model (M4)
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <i class="fas fa-chart-radar"></i>
+                                Mainframe Modernization Maturity Model (M4)
+                            </div>
+                            <button class="btn btn-primary" onclick="loadExampleData()" title="Load realistic banking scenario">
+                                <i class="fas fa-flask"></i> Load Example
+                            </button>
                         </div>
                         <p class="panel-description">
                             Assess organizational readiness across five dimensions before and during transformation. 
@@ -1508,6 +1513,13 @@
 
                 <!-- TAB 3: WORKLOAD CLASSIFICATION -->
                 <div id="view-classification" class="section-view">
+                    <!-- Action Bar -->
+                    <div style="padding: 16px; background: white; border-radius: 12px; margin-bottom: 16px; display: flex; justify-content: flex-end; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <button class="btn btn-primary" onclick="loadExampleData()" title="Load realistic banking scenario">
+                            <i class="fas fa-flask"></i> Load Example
+                        </button>
+                    </div>
+                    
                     <!-- Summary Cards -->
                     <div class="summary-cards">
                         <div class="summary-card">
@@ -1641,9 +1653,14 @@
                                 <i class="fas fa-wave-square"></i>
                                 Migration Wave Planning
                             </div>
-                            <button class="btn btn-primary" onclick="generateWaves()">
-                                <i class="fas fa-magic"></i> Auto-Generate Waves
-                            </button>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-primary" onclick="loadExampleData()" title="Load realistic banking scenario">
+                                    <i class="fas fa-flask"></i> Load Example
+                                </button>
+                                <button class="btn btn-secondary" onclick="generateWaves()">
+                                    <i class="fas fa-magic"></i> Auto-Generate Waves
+                                </button>
+                            </div>
                         </div>
                         <p class="panel-description">
                             Organize workloads into migration waves. Wave 1: Quick wins (3-6 months), Wave 2-3: Core systems (12-24 months), Wave 4+: Final domains.
@@ -1664,10 +1681,14 @@
                             </div>
                         </div>
 
-                        <div style="padding: 40px; text-align: center; background: rgba(217, 119, 6, 0.05); border-radius: 12px; margin-top: 24px;">
-                            <i class="fas fa-wave-square" style="font-size: 48px; color: var(--mm-accent); margin-bottom: 16px;"></i>
-                            <p style="color: #94a3b8; margin: 0;">Wave planning feature will allow drag-and-drop workload assignment, Gantt chart visualization, and dependency validation.</p>
-                            <p style="color: #64748b; font-size: 13px; margin-top: 8px;">Classify workloads first, then return here to generate waves.</p>
+                        <!-- Waves Timeline Container -->
+                        <div id="waves-container">
+                            <!-- Wave cards will be rendered here by renderWaves() -->
+                            <div style="padding: 40px; text-align: center; background: rgba(217, 119, 6, 0.05); border-radius: 12px; margin-top: 24px;">
+                                <i class="fas fa-wave-square" style="font-size: 48px; color: var(--mm-accent); margin-bottom: 16px;"></i>
+                                <p style="color: #94a3b8; margin: 0;">Click "Load Example" or "Auto-Generate Waves" to create migration waves.</p>
+                                <p style="color: #64748b; font-size: 13px; margin-top: 8px;">Classify workloads first for best results.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1876,10 +1897,13 @@
                                 Program Risk Register
                             </div>
                             <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-primary" onclick="loadExampleData()" title="Load realistic banking scenario">
+                                    <i class="fas fa-flask"></i> Load Example
+                                </button>
                                 <button class="btn btn-secondary" onclick="addRisk()">
                                     <i class="fas fa-plus"></i> Add Risk
                                 </button>
-                                <button class="btn btn-primary" onclick="generateRisksWithAI()">
+                                <button class="btn btn-secondary" onclick="generateRisksWithAI()">
                                     <i class="fas fa-magic"></i> AI Generate Risks
                                 </button>
                             </div>
@@ -2463,6 +2487,7 @@
             renderWorkloads();
             updateWorkloadSummary();
             updateWaveSummary();
+            renderWaves();
             renderRisks();
             updateRiskSummary();
             
@@ -3282,6 +3307,7 @@
             });
             
             updateWaveSummary();
+            renderWaves();
             saveProgram();
             showToast('Waves generated successfully', 'success');
         }
@@ -3294,6 +3320,75 @@
             document.getElementById('wave-count').textContent = waves.length;
             document.getElementById('wave-workloads').textContent = totalWorkloads;
             document.getElementById('wave-duration').textContent = totalDuration;
+        }
+
+        function renderWaves() {
+            const waves = modernizationProgram.waves || [];
+            const container = document.getElementById('waves-container');
+            
+            if (waves.length === 0) {
+                container.innerHTML = `
+                    <div style="padding: 40px; text-align: center; background: rgba(217, 119, 6, 0.05); border-radius: 12px; margin-top: 24px;">
+                        <i class="fas fa-wave-square" style="font-size: 48px; color: var(--mm-accent); margin-bottom: 16px;"></i>
+                        <p style="color: #94a3b8; margin: 0;">Click "Load Example" or "Auto-Generate Waves" to create migration waves.</p>
+                        <p style="color: #64748b; font-size: 13px; margin-top: 8px;">Classify workloads first for best results.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Build wave cards
+            let html = '<div style="display: flex; flex-direction: column; gap: 24px;">';
+            
+            waves.forEach((wave, index) => {
+                const workloadNames = wave.workloads.map(wid => {
+                    const workload = modernizationProgram.workloads?.find(w => w.id === wid);
+                    return workload ? workload.name : `Workload ${wid}`;
+                }).join(', ');
+                
+                const waveIcon = index === 0 ? 'rocket' : index === waves.length - 1 ? 'flag-checkered' : 'wave-square';
+                const waveColor = index === 0 ? '#10b981' : index === waves.length - 1 ? '#f59e0b' : '#3b82f6';
+                
+                html += `
+                    <div class="panel" style="border-left: 4px solid ${waveColor};">
+                        <div style="display: flex; justify-content: between; align-items: flex-start; margin-bottom: 16px;">
+                            <div style="flex: 1;">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                                    <i class="fas fa-${waveIcon}" style="color: ${waveColor}; font-size: 24px;"></i>
+                                    <h3 style="margin: 0; color: var(--mm-primary); font-size: 18px;">${wave.name}</h3>
+                                </div>
+                                <p style="color: #64748b; margin: 0 0 12px 36px; font-size: 14px;">${wave.description || ''}</p>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Duration</div>
+                                <div style="font-size: 24px; font-weight: 700; color: ${waveColor};">${wave.duration} mo</div>
+                                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">${wave.startMonth || ''}</div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #f9fafb; padding: 16px; border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <span style="font-weight: 600; color: var(--mm-text); font-size: 13px;">
+                                    <i class="fas fa-cubes"></i> ${wave.workloads.length} Workload${wave.workloads.length !== 1 ? 's' : ''}
+                                </span>
+                                ${wave.workloads.length > 0 ? `
+                                    <span style="font-size: 12px; color: #64748b;">
+                                        ${modernizationProgram.workloads?.filter(w => wave.workloads.includes(w.id)).reduce((sum, w) => sum + (w.mips || 0), 0) || 0} MIPS
+                                    </span>
+                                ` : ''}
+                            </div>
+                            ${wave.workloads.length > 0 ? `
+                                <div style="font-size: 13px; color: #475569; line-height: 1.6;">
+                                    ${workloadNames}
+                                </div>
+                            ` : '<div style="color: #94a3b8; font-size: 13px; font-style: italic;">No workloads assigned yet</div>'}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
         }
 
         // ═══════════════════════════════════════════════════════════════
