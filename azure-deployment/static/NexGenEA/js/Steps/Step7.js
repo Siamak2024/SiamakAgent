@@ -59,23 +59,78 @@ Each principle:
 - anti_patterns: 1-2 patterns this principle explicitly prohibits`,
 
       userPrompt: (ctx) => {
-        const si = ctx.strategicIntent;
+        const si = ctx.strategicIntent || {};
         const target = ctx.operatingModel?.target || {};
-        return `Strategic themes: ${(si.strategic_themes || []).join(' | ')}
-Target architecture style: ${target.technology?.infrastructure || ''} / ${target.applications?.integration_model || ''}
-Data target: ${target.data?.data_maturity || ''}
-Transformation principles from operating model: ${(target.transformation_principles || []).join('; ')}
+        const bmc = ctx.businessModelCanvas || {};
+        const caps = ctx.capabilityMap || [];
+        
+        const strategicThemes = (si.strategic_themes || []).join(' | ') || 'Digital transformation and operational excellence';
+        const techStyle = target.technology?.infrastructure || bmc.key_resources || 'Cloud-native architecture';
+        const integrationModel = target.applications?.integration_model || 'API-first integration';
+        const dataMaturity = target.data?.data_maturity || bmc.value_proposition || 'Data-driven decision making';
+        const transformPrinciples = (target.transformation_principles || []).join('; ') || 'Agile, customer-centric, scalable';
+        const industry = ctx.company?.industry || ctx.autopilotContext?.industry || 'enterprise';
+        const companyDescription = ctx.company?.description || 'organization undergoing digital transformation';
+        
+        return `Company: ${companyDescription}
+Industry: ${industry}
+Strategic themes: ${strategicThemes}
+Target architecture style: ${techStyle} / ${integrationModel}
+Data target: ${dataMaturity}
+Transformation principles from operating model: ${transformPrinciples}
+Key capabilities: ${caps.slice(0, 5).map(c => c.name).join(', ') || 'technology modernization'}
 
-Generate 6-10 architecture principles. Each must enable at least one strategic theme.`;
+Generate 6-10 architecture principles that support this organization's specific transformation. Include at least one AI/Automation principle (mandatory).`;
       },
 
       outputSchema: {
-        principles: ['object'],
+        principles: ['object?'],  // Made optional to prevent cascade failure
         governing_pattern: 'string?',
         architecture_style: 'string?'
       },
 
-      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step7_arch_principles')
+      parseOutput: (raw) => {
+        const parsed = OutputValidator.parseJSON(raw, 'step7_arch_principles');
+        // Fallback: If AI didn't generate principles, provide sensible defaults
+        if (!parsed.principles || parsed.principles.length === 0) {
+          console.warn('[Step7] AI did not generate architecture principles. Using fallback defaults.');
+          parsed.principles = [
+            {
+              id: 'P01',
+              name: 'Cloud-First Infrastructure',
+              statement: 'We will deploy all new systems to cloud infrastructure because it provides scalability, resilience, and faster time-to-market.',
+              rationale: 'Legacy on-premise infrastructure limits innovation speed and increases operational costs.',
+              implications: ['All new applications are cloud-native', 'Migrate legacy systems to cloud-managed services', 'No new on-premise hardware purchases'],
+              anti_patterns: ['On-premise first procurement', 'Lift-and-shift without re-architecture']
+            },
+            {
+              id: 'P02',
+              name: 'API-First Integration',
+              statement: 'We will integrate all systems via APIs and event-driven architectures because point-to-point integrations create fragility and hinder agility.',
+              rationale: 'Modern integration enables rapid business change and ecosystem partnerships.',
+              implications: ['All integrations use REST/GraphQL APIs or event bus', 'No direct database connections between systems', 'API catalog and governance in place'],
+              anti_patterns: ['Point-to-point custom integrations', 'Batch file transfers for real-time data']
+            },
+            {
+              id: 'P03',
+              name: 'Data-Driven Decision Making',
+              statement: 'We will centralize data in a unified platform and ensure single source of truth because fragmented data prevents informed decisions.',
+              rationale: 'Strategic intent emphasizes data quality and analytics capabilities.',
+              implications: ['Master Data Management for core entities', 'Self-service analytics platforms', 'Data quality monitoring and alerting'],
+              anti_patterns: ['Departmental data silos', 'Manual data reconciliation']
+            },
+            {
+              id: 'P04',
+              name: 'AI-Augmented Operations',
+              statement: 'We will deploy AI to automate routine tasks and augment human decision-making because intelligent automation frees people for strategic work.',
+              rationale: 'Competitive pressure requires faster, smarter operations at lower cost.',
+              implications: ['AI-powered process automation for high-volume tasks', 'Predictive analytics for proactive issue resolution', 'Human-in-loop for high-stakes decisions'],
+              anti_patterns: ['Full automation without human oversight', 'AI for the sake of AI without ROI']
+            }
+          ];
+        }
+        return parsed;
+      }
     },
 
     // ── Task 7.2: Target Architecture Design ─────────────────────────────
@@ -88,6 +143,8 @@ Generate 6-10 architecture principles. Each must enable at least one strategic t
       expectsJson: true,
 
       systemPromptFallback: `You are a Senior Enterprise Architect. Design the target state architecture across all layers: Business, Data, Application, Technology.
+
+CRITICAL: Generate 3-8 AI agents that automate or augment capabilities. Each agent must have: name, agent_type (NLP/RPA/Predictive Analytics/Computer Vision/Conversational AI), purpose, linked_capabilities array, maturity_level (Pilot/Production/Optimized), and is_proposed: true.
 
 Return ONLY valid JSON:
 {
@@ -117,6 +174,16 @@ Return ONLY valid JSON:
     "devsecops_maturity": "",
     "key_platforms": [""]
   },
+  "ai_agents": [
+    {
+      "name": "Document Processing RPA",
+      "agent_type": "RPA",
+      "purpose": "Automate document extraction and data entry",
+      "linked_capabilities": ["Process Documents"],
+      "maturity_level": "Pilot",
+      "is_proposed": true
+    }
+  ],
   "architecture_decisions": [
     {"adr_id":"ADR01","title":"","decision":"","rationale":"","consequences":[""],"status":"Proposed"}
   ],
@@ -129,8 +196,13 @@ Return ONLY valid JSON:
         const pools = (ctx.valuePools || []).filter(p => p.value_potential === 'HIGH').map(p => p.name).slice(0, 4);
         const principles = (ctx.answers?.step7_arch_principles?.principles || []).map(p => p.statement).join('\n');
         const options = (ctx.strategicOptions || []).filter(o => o.selected || o.recommended).map(o => o.name).slice(0, 6);
+        const capabilities = (ctx.capabilities || []).map(c => c.name).slice(0, 8).join(', ');
+        const aiEnabledCaps = (ctx.capabilities || []).filter(c => c.ai_enabled).map(c => c.name).join(', ');
+        const gaps = (ctx.priorityGaps || []).slice(0, 5).map(g => g.gap || g.title || g.name).join('; ');
+        
         return `Strategic ambition: "${si.strategic_ambition || ''}"
 Outcomes: ${(si.expected_outcomes || []).join('; ')}
+AI transformation role: ${si.ai_transformation_ambition || 'Improve efficiency and decision-making'}
 
 Architecture principles:
 ${principles || 'see principles output'}
@@ -143,7 +215,22 @@ Target operating model:
 High-value pools to enable: ${pools.join(', ')}
 Strategic options in scope: ${options.join(', ')}
 
-Design the complete 4-layer target architecture. Include 3-5 ADRs for the hardest decisions. metadata.at_a_glance: 25 words max.`;
+Capabilities to support: ${capabilities}
+AI-enabled capabilities: ${aiEnabledCaps || 'Identify from capabilities'}
+Priority gaps: ${gaps}
+
+Design the complete 4-layer target architecture. 
+
+CRITICAL - AI AGENTS (MANDATORY):
+Generate 3-8 AI agents that address priority gaps and automate/augment capabilities. Focus on:
+- Document processing and data entry automation (RPA)
+- Customer service and inquiries (Conversational AI, NLP)  
+- Predictive analytics for operations (Predictive Analytics)
+- Data quality and anomaly detection (ML/AI)
+- Process optimization (Decision Support)
+Each agent MUST link to specific capabilities by name.
+
+Include 3-5 ADRs for the hardest decisions. metadata.at_a_glance: 25 words max.`;
       },
 
       outputSchema: {

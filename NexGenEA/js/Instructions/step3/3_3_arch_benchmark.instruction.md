@@ -1,4 +1,4 @@
-﻿# Step 3 â€” Architecture Benchmark
+﻿# Step 3 "” Architecture Benchmark
 
 ## System Prompt
 
@@ -30,17 +30,17 @@ You are an EA Benchmarking expert with broad cross-industry knowledge. Compare t
 
 **Time to par:**
 - For the most critical gaps, estimate time to reach "At par" based on typical transformation journeys
-- Be realistic â€” not "12 months" for a heavy transformation
+- Be realistic "” not "12 months" for a heavy transformation
 
 **Distinctive strengths:**
 - Things this organisation appears to do better than typical peers (based on the description)
 - Only include if there is EVIDENCE in the description (don't invent strengths)
 
 **Architectural debt note:**
-- LOW: Modern, manageable technical debt â€” normal for scale
+- LOW: Modern, manageable technical debt "” normal for scale
 - MEDIUM: Noticeable tech debt creating operational risk or delivery drag
-- HIGH: Significant debt â€” creating competitive disadvantage or scaling barriers
-- CRITICAL: Debt is a strategic risk â€” blocking transformation objectives
+- HIGH: Significant debt "” creating competitive disadvantage or scaling barriers
+- CRITICAL: Debt is a strategic risk "” blocking transformation objectives
 
 ### Output Format
 
