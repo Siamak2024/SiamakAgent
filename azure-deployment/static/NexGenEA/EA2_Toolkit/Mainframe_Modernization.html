@@ -3639,6 +3639,9 @@
             
             // Save and recalculate ROI
             modernizationProgram.lastModified = new Date().toISOString();
+            
+            // Auto-recalculate ROI when CAPEX changes
+            calculateROI();
         }
 
         function calculateROI() {
@@ -3648,8 +3651,10 @@
             let infraSavings = parseFloat(document.getElementById('benefit-infrastructure')?.value || 0);
             let newRevenue = parseFloat(document.getElementById('benefit-revenue')?.value || 0);
             
-            // Fall back to data model if DOM values are zero/missing
-            if (mipsSavings === 0 && modernizationProgram.capex?.benefits?.mipsSavings) {
+            // Fall back to data model if DOM values are zero/missing/NaN
+            // Check for NaN, 0, or if data model has values that should be used
+            if ((isNaN(mipsSavings) || mipsSavings === 0) && modernizationProgram.capex?.benefits?.mipsSavings) {
+                console.log('📊 ROI: Using data model benefits (DOM empty/zero)');
                 mipsSavings = modernizationProgram.capex.benefits.mipsSavings;
                 licenseSavings = modernizationProgram.capex.benefits.licenseSavings || 0;
                 infraSavings = modernizationProgram.capex.benefits.infraSavings || 0;
