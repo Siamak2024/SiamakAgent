@@ -1,4 +1,4 @@
-# Step 1 — Q1: Trigger & Pain Point Question Generator
+﻿# Step 1 — Q1: Trigger & Pain Point Question Generator
 
 ## System Prompt
 

@@ -1,4 +1,4 @@
-# Step 3 "” Architecture Benchmark
+﻿# Step 3 "” Architecture Benchmark
 
 ## System Prompt
 

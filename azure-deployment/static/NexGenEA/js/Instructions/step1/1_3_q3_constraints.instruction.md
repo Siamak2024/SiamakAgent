@@ -1,4 +1,4 @@
-# Step 1 — Q3: Constraints
+﻿# Step 1 — Q3: Constraints
 
 ## System Prompt
 

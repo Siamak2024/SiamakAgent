@@ -1,4 +1,4 @@
-# Step 1 — Q2: Scale & Current Systems
+﻿# Step 1 — Q2: Scale & Current Systems
 
 ## System Prompt
 

@@ -1,4 +1,4 @@
-# Step 1 — Q6: Scope Definition
+﻿# Step 1 — Q6: Scope Definition
 
 ## System Prompt
 

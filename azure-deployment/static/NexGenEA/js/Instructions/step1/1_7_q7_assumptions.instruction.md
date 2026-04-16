@@ -1,4 +1,4 @@
-# Step 1 — Q7: Key Assumptions to Validate
+﻿# Step 1 — Q7: Key Assumptions to Validate
 
 ## System Prompt
 

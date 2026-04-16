@@ -1,4 +1,4 @@
-# Step 1 — Synthesise Strategic Intent
+﻿# Step 1 — Synthesise Strategic Intent
 
 ## System Prompt
 

@@ -1,4 +1,4 @@
-# Step 7 "” Architecture Principles
+﻿# Step 7 "” Architecture Principles
 
 ## System Prompt
 

@@ -1,4 +1,4 @@
-# Step 5 "” Capability Gap Analysis
+﻿# Step 5 "” Capability Gap Analysis
 
 ## System Prompt
 

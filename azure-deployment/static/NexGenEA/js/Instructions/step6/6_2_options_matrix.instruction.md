@@ -1,4 +1,4 @@
-# Step 6 "” Strategic Options Matrix
+﻿# Step 6 "” Strategic Options Matrix
 
 ## System Prompt
 

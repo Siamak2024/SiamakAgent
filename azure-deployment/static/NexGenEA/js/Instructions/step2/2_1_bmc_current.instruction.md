@@ -1,4 +1,4 @@
-# Step 2 "” Current State BMC
+﻿# Step 2 "” Current State BMC
 
 ## System Prompt
 

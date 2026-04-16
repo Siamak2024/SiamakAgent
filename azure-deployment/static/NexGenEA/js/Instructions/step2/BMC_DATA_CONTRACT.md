@@ -26,7 +26,13 @@ This is the TARGET STATE (TO-BE) model used by the application:
   "key_resources": ["Array of strings"],
   "key_partners": ["Array of strings"],
   "cost_structure": ["Array of strings — NOT an object"],
-  "revenue_streams": ["Array of strings — NOT an object"]
+  "revenue_streams": ["Array of strings — NOT an object"],
+  "ai_transformation": {
+    "ai_enabled_activities": ["Array of activity names that will use AI/automation"],
+    "ai_enabled_resources": ["Array of AI/ML resources (data, models, platforms)"],
+    "ai_powered_relationships": ["Array of customer relationship approaches using AI"],
+    "ai_revenue_enablers": ["Array of revenue streams enabled/enhanced by AI"]
+  }
 }
 ```
 
