@@ -1,0 +1,3478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legacy Mainframe Modernization · EA Toolkit</title>
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+    <script src="../../js/EA_Config.js"></script>
+    <script src="../../js/EA_DataManager.js"></script>
+    <script src="../../js/Advicy_AI.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
+    <style>
+        /* === MAINFRAME MODERNIZATION THEME === */
+        :root {
+            --mm-primary: #92400e;
+            --mm-primary-light: #b45309;
+            --mm-accent: #d97706;
+            --mm-dark: #451a03;
+            --mm-surface: #ffffff;
+            --mm-border: #e5e7eb;
+            --mm-text: #1f2937;
+            --mm-success: #10b981;
+            --mm-warning: #f59e0b;
+            --mm-danger: #ef4444;
+        }
+
+        /* === LAYOUT === */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f9fafb;
+            color: var(--mm-text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        #main-content {
+            flex: 1;
+            transition: margin-right 0.3s ease;
+        }
+
+        body.chat-sidebar-open #main-content {
+            margin-right: 380px;
+        }
+
+        /* === HEADER === */
+        .ea-header {
+            background: linear-gradient(135deg, var(--mm-primary) 0%, var(--mm-primary-light) 100%);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .ea-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .ea-brand-mark {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            color: white;
+            font-size: 28px;
+        }
+
+        .ea-header-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+            margin: 0;
+        }
+
+        .ea-header-title p {
+            font-size: 12px;
+            color: rgba(255,255,255,0.85);
+            margin: 0;
+        }
+
+        .ea-header-right {
+            display: flex;
+            gap: 8px;
+        }
+
+        .ea-header-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .ea-header-icon:hover {
+            background: rgba(255,255,255,0.18);
+        }
+
+        /* === TAB BAR === */
+        .tab-bar {
+            background: #ffffff;
+            border-bottom: 1px solid var(--mm-border);
+            padding: 0 24px;
+            overflow-x: auto;
+        }
+
+        .tab-bar-inner {
+            display: flex;
+            gap: 4px;
+            min-width: max-content;
+        }
+
+        .tab-btn {
+            padding: 14px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            color: var(--mm-accent);
+            background: rgba(217, 119, 6, 0.05);
+        }
+
+        .tab-btn.active {
+            color: var(--mm-accent);
+            border-bottom-color: var(--mm-accent);
+            background: rgba(217, 119, 6, 0.08);
+        }
+
+        .tab-btn i {
+            margin-right: 6px;
+        }
+
+        /* === CONTENT AREA === */
+        .content-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .section-view {
+            display: none;
+        }
+
+        .section-view.active {
+            display: block;
+        }
+
+        /* === CARDS & PANELS === */
+        .panel {
+            background: var(--mm-surface);
+            border: 1px solid var(--mm-border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-title i {
+            color: var(--mm-accent);
+        }
+
+        .panel-description {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        /* === FORMS === */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .form-field {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #4b5563;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: #ffffff;
+            border: 1px solid var(--mm-border);
+            border-radius: 8px;
+            color: var(--mm-text);
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+           box-sizing: border-box;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--mm-accent);
+        }
+
+        .form-textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        /* === BUTTONS === */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--mm-accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #ea580c;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #4b5563;
+            border: 1px solid var(--mm-border);
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+            color: var(--mm-text);
+        }
+
+        .btn-success {
+            background: var(--mm-success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: var(--mm-danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        /* === TABLES === */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+
+        .data-table thead {
+            background: rgba(217, 119, 6, 0.1);
+        }
+
+        .data-table th {
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--mm-accent);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--mm-border);
+        }
+
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--mm-border);
+            color: var(--mm-text);
+            font-size: 14px;
+        }
+
+        .data-table tbody tr:hover {
+            background: rgba(217, 119, 6, 0.05);
+        }
+
+        .data-table input,
+        .data-table select,
+        .data-table textarea {
+            width: 100%;
+            padding: 6px 8px;
+            background: #ffffff;
+            border: 1px solid var(--mm-border);
+            border-radius: 6px;
+            color: var(--mm-text);
+            font-size: 13px;
+        }
+
+        /* === SUMMARY CARDS === */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1) 0%, rgba(146, 64, 14, 0.1) 100%);
+            border: 1px solid var(--mm-border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .summary-card-value {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--mm-accent);
+            margin-bottom: 8px;
+        }
+
+        .summary-card-label {
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .summary-card-detail {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 8px;
+        }
+
+        /* === APQC BANNER === */
+        .apqc-banner {
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            border: 1px solid #3b82f6;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .apqc-banner-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .apqc-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+        }
+
+        .apqc-text h3 {
+            margin: 0;
+            font-size: 15px;
+            color: white;
+            font-weight: 700;
+        }
+
+        .apqc-text p {
+            margin: 4px 0 0 0;
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .apqc-close {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .apqc-close:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* === MODAL === */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--mm-surface);
+            border: 1px solid var(--mm-border);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #6b7280;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: #f3f4f6;
+            color: var(--mm-text);
+        }
+
+        /* === TOAST === */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--mm-surface);
+            border: 1px solid var(--mm-border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            display: none;
+            align-items: center;
+            gap: 12px;
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.active {
+            display: flex;
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--mm-success);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--mm-danger);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* === AI CHAT PANEL === */
+        #ai-chat-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 380px;
+            background: var(--mm-surface);
+            border-left: 1px solid var(--mm-border);
+            box-shadow: -4px 0 24px rgba(0,0,0,0.08);
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        body.chat-sidebar-open #ai-chat-panel {
+            display: flex;
+        }
+
+        /* Resize handle on left edge */
+        #chat-resize-handle {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 20;
+            transition: background 0.15s;
+        }
+        #chat-resize-handle:hover,
+        #chat-resize-handle.dragging {
+            background: #d97706;
+        }
+
+        #chat-header {
+            height: 64px;
+            background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        #chat-header-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        #chat-controls {
+            display: flex;
+            gap: 6px;
+        }
+        #chat-controls button {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.15s;
+        }
+        #chat-controls button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 16px;
+            background: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            scrollbar-width: thin;
+            scrollbar-color: #404040 transparent;
+        }
+        #chat-messages::-webkit-scrollbar { width: 6px; }
+        #chat-messages::-webkit-scrollbar-thumb { background: #404040; border-radius: 3px; }
+
+        /* Chat messages - dark theme styling */
+        .chat-message {
+            display: flex;
+            gap: 0;
+            animation: chatSlideIn 0.2s ease;
+            margin-bottom: 16px;
+        }
+        @keyframes chatSlideIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message-avatar { display: none; }
+        .message-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            min-width: 0;
+        }
+        .message-text {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #e0e0e0;
+            white-space: normal;
+            word-break: break-word;
+        }
+        .user-message {
+            flex-direction: row;
+            margin-bottom: 16px;
+        }
+        .user-message .message-content { align-items: flex-start; }
+        .user-message .message-text {
+            background: rgba(55, 65, 81, 0.85);
+            color: #e2e8f0;
+            border: 1px solid rgba(75, 85, 99, 0.4);
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .assistant-message .message-text {
+            color: #e0e0e0;
+        }
+        .message-time {
+            font-size: 11px;
+            color: #666;
+            padding: 4px 0 0 0;
+        }
+
+        #chat-input-container {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border-top: 1px solid #2d2d2d;
+            flex-shrink: 0;
+        }
+        #chat-input {
+            flex: 1;
+            border: 1px solid #404040;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 14px;
+            resize: none;
+            height: 72px;
+            outline: none;
+            background: #2d2d2d;
+            color: #e0e0e0;
+            font-family: inherit;
+        }
+        #chat-input::placeholder { color: #808080; }
+        #chat-input:focus {
+            border-color: #d97706;
+            box-shadow: 0 0 0 1px #d97706;
+        }
+        #send-chat {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 6px;
+            background: #d97706;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            align-self: flex-end;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+        #send-chat:hover { background: #c2410c; }
+
+        /* Quick Actions */
+        .quick-actions {
+            padding: 16px;
+            border-bottom: 1px solid #2d2d2d;
+            background: #1a1a1a;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .qa-btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 8px 12px;
+            background: #2d2d2d;
+            border: 1px solid #404040;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .qa-btn:hover {
+            background: #374151;
+            border-color: #d97706;
+            color: #fbbf24;
+        }
+        .qa-btn i {
+            margin-right: 4px;
+        }
+
+        /* === MATURITY RADAR === */
+        #maturity-radar {
+            max-width: 500px;
+            margin: 24px auto;
+        }
+
+        /* === PROGRESS INDICATOR === */
+        .progress-indicator {
+            background: rgba(217, 119, 6, 0.1);
+            border: 1px solid var(--mm-border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--mm-accent) 0%, var(--mm-primary-light) 100%);
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--mm-accent);
+            white-space: nowrap;
+        }
+
+        /* === UTILITY CLASSES === */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-16 {
+            margin-top: 16px;
+        }
+
+        .mb-16 {
+            margin-bottom: 16px;
+        }
+
+        .gap-16 {
+            gap: 16px;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--mm-success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--mm-warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--mm-danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .badge-info {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <!-- HEADER -->
+        <header class="ea-header">
+            <div class="ea-header-left">
+                <div class="ea-brand-mark">
+                    <i class="fas fa-server"></i>
+                </div>
+                <div class="ea-header-title">
+                    <h1>Legacy Mainframe Modernization</h1>
+                    <p>Banking & Insurance Enterprise Transformation</p>
+                </div>
+            </div>
+            <div class="ea-header-right">
+                <button class="ea-header-icon" onclick="window.location.href='../Integration_Workflow_Hub.html'" title="Back to Workflow Hub">
+                    <i class="fas fa-th-large"></i>
+                </button>
+                <button class="ea-header-icon" onclick="window.location.href='../NexGen_EA_V4.html'" title="Go to EA Platform">
+                    <i class="fas fa-home"></i>
+                </button>
+                <button class="ea-header-icon" id="toggle-chat-btn" onclick="toggleChatPanel()" title="AI Assistant (Ctrl+K)">
+                    <i class="fas fa-robot"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- TAB BAR -->
+        <div class="tab-bar">
+            <div class="tab-bar-inner">
+                <button class="tab-btn active" onclick="switchTab('assessment', this)">
+                    <i class="fas fa-clipboard-check"></i> Assessment
+                </button>
+                <button class="tab-btn" onclick="switchTab('maturity', this)">
+                    <i class="fas fa-chart-line"></i> M4 Maturity
+                </button>
+                <button class="tab-btn" onclick="switchTab('classification', this)">
+                    <i class="fas fa-sitemap"></i> Classification
+                </button>
+                <button class="tab-btn" onclick="switchTab('waves', this)">
+                    <i class="fas fa-wave-square"></i> Waves
+                </button>
+                <button class="tab-btn" onclick="switchTab('tollgates', this)">
+                    <i class="fas fa-gate-open"></i> Tollgates
+                </button>
+                <button class="tab-btn" onclick="switchTab('capex', this)">
+                    <i class="fas fa-dollar-sign"></i> CAPEX
+                </button>
+                <button class="tab-btn" onclick="switchTab('risks', this)">
+                    <i class="fas fa-triangle-exclamation"></i> Risks
+                </button>
+                <button class="tab-btn" onclick="switchTab('export', this)">
+                    <i class="fas fa-file-export"></i> Export
+                </button>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div id="main-content">
+            <div class="content-wrapper">
+                
+                <!-- TAB 1: ASSESSMENT -->
+                <div id="view-assessment" class="section-view active">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <i class="fas fa-building"></i>
+                                Program Overview
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-primary" onclick="loadExampleData()" title="Load realistic banking scenario for testing">
+                                    <i class="fas fa-flask"></i> Load Example
+                                </button>
+                                <button class="btn btn-secondary" onclick="saveProgram()">
+                                    <i class="fas fa-save"></i> Save Progress
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Program Name</label>
+                            <input type="text" class="form-input" id="program-name" placeholder="e.g., Core Banking Modernization 2026" onchange="updateProgramData('name', this.value)">
+                        </div>
+                    </div>
+
+                    <!-- APQC Banner -->
+                    <div id="apqc-banner" class="apqc-banner hidden">
+                        <div class="apqc-banner-left">
+                            <div class="apqc-icon">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div class="apqc-text">
+                                <h3>APQC Framework Available</h3>
+                                <p>Import industry-standard process templates for Banking & Insurance</p>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-primary" onclick="showAPQCImportModal()">
+                                <i class="fas fa-download"></i> Import APQC
+                            </button>
+                            <button class="apqc-close" onclick="hideAPQCBanner()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Organisation Profile -->
+                    <div class="panel">
+                        <div class="panel-title">
+                            <i class="fas fa-id-card"></i>
+                            Organisation Profile
+                        </div>
+                        <p class="panel-description">Basic information about your organization and mainframe transformation context</p>
+                        
+                        <div class="form-grid">
+                            <div class="form-field">
+                                <label class="form-label">Organisation Name</label>
+                                <input type="text" class="form-input" id="org-name" onchange="updateAssessment('orgProfile', 'name', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Industry</label>
+                                <select class="form-select" id="org-industry" onchange="updateAssessment('orgProfile', 'industry', this.value); AdvisyAI.updateIndustryLayer(this.value)">
+                                    <option value="">Select...</option>
+                                    <option value="banking">Banking</option>
+                                    <option value="insurance">Insurance</option>
+                                    <option value="financial-services">Financial Services (Mixed)</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Headquarters Region</label>
+                                <input type="text" class="form-input" id="org-region" placeholder="e.g., Nordics, EU, North America" onchange="updateAssessment('orgProfile', 'region', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Annual Revenue (approx)</label>
+                                <input type="text" class="form-input" id="org-revenue" placeholder="e.g., €500M, $2B" onchange="updateAssessment('orgProfile', 'revenue', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Number of Employees</label>
+                                <input type="number" class="form-input" id="org-employees" onchange="updateAssessment('orgProfile', 'employees', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">IT Department Size</label>
+                                <input type="number" class="form-input" id="org-it-size" onchange="updateAssessment('orgProfile', 'itSize', this.value)">
+                            </div>
+                        </div>
+                        
+                        <div class="form-field">
+                            <label class="form-label">Regulatory Jurisdictions</label>
+                            <input type="text" class="form-input" id="org-jurisdictions" placeholder="e.g., EU (GDPR, DORA), UK FCA, US Federal" onchange="updateAssessment('orgProfile', 'jurisdictions', this.value)">
+                        </div>
+                    </div>
+
+                    <!-- Mainframe Environment -->
+                    <div class="panel">
+                        <div class="panel-title">
+                            <i class="fas fa-server"></i>
+                            Current Mainframe Environment
+                        </div>
+                        <p class="panel-description">Technical details about your legacy mainframe infrastructure</p>
+                        
+                        <div class="form-grid">
+                            <div class="form-field">
+                                <label class="form-label">Mainframe Platform</label>
+                                <select class="form-select" id="mf-platform" onchange="updateAssessment('mainframeEnv', 'platform', this.value)">
+                                    <option value="">Select...</option>
+                                    <option value="ibm-zseries">IBM z-Series</option>
+                                    <option value="unisys">Unisys</option>
+                                    <option value="bull-atos">Bull/Atos</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">IBM z-Version (if applicable)</label>
+                                <input type="text" class="form-input" id="mf-version" placeholder="e.g., z15, z16" onchange="updateAssessment('mainframeEnv', 'version', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Estimated MIPS</label>
+                                <input type="number" class="form-input" id="mf-mips" onchange="updateAssessment('mainframeEnv', 'mips', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Annual Mainframe Cost</label>
+                                <input type="text" class="form-input" id="mf-cost" placeholder="e.g., €5M, $10M" onchange="updateAssessment('mainframeEnv', 'annualCost', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Number of COBOL Programs (approx)</label>
+                                <input type="number" class="form-input" id="mf-cobol" onchange="updateAssessment('mainframeEnv', 'cobolPrograms', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Number of JCL Batch Jobs</label>
+                                <input type="number" class="form-input" id="mf-jcl" onchange="updateAssessment('mainframeEnv', 'jclJobs', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Number of CICS Transactions</label>
+                                <input type="number" class="form-input" id="mf-cics" onchange="updateAssessment('mainframeEnv', 'cicsTransactions', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Primary Databases</label>
+                                <input type="text" class="form-input" id="mf-databases" placeholder="e.g., DB2, IMS, VSAM" onchange="updateAssessment('mainframeEnv', 'databases', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Integration Points (count)</label>
+                                <input type="number" class="form-input" id="mf-integrations" onchange="updateAssessment('mainframeEnv', 'integrationPoints', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Avg Nightly Batch Window (hours)</label>
+                                <input type="number" class="form-input" id="mf-batch-window" step="0.5" onchange="updateAssessment('mainframeEnv', 'batchWindow', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Peak Transaction Volume (TPS)</label>
+                                <input type="number" class="form-input" id="mf-tps" onchange="updateAssessment('mainframeEnv', 'peakTPS', this.value)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Business Challenges -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                Business Challenges
+                            </div>
+                            <button class="btn btn-secondary" onclick="addChallenge()">
+                                <i class="fas fa-plus"></i> Add Challenge
+                            </button>
+                        </div>
+                        <p class="panel-description">Document the primary challenges driving this transformation</p>
+                        
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40%;">Challenge</th>
+                                    <th style="width: 35%;">Business Impact</th>
+                                    <th style="width: 15%;">Priority</th>
+                                    <th style="width: 10%;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="challenges-table">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Business Opportunities -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <i class="fas fa-lightbulb"></i>
+                                Business Opportunities
+                            </div>
+                            <button class="btn btn-secondary" onclick="addOpportunity()">
+                                <i class="fas fa-plus"></i> Add Opportunity
+                            </button>
+                        </div>
+                        <p class="panel-description">Identify value opportunities enabled by modernization</p>
+                        
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40%;">Opportunity</th>
+                                    <th style="width: 35%;">Value Potential</th>
+                                    <th style="width: 15%;">Enabled By</th>
+                                    <th style="width: 10%;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="opportunities-table">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Constraints -->
+                    <div class="panel">
+                        <div class="panel-title">
+                            <i class="fas fa-lock"></i>
+                            Constraints
+                        </div>
+                        <p class="panel-description">Define key constraints that will shape the transformation program</p>
+                        
+                        <div class="form-grid">
+                            <div class="form-field">
+                                <label class="form-label">Budget Envelope (CAPEX)</label>
+                                <input type="text" class="form-input" id="constraint-budget" placeholder="e.g., €20M, $50M" onchange="updateAssessment('constraints', 'budget', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Program Timeline Constraint</label>
+                                <input type="text" class="form-input" id="constraint-timeline" placeholder="e.g., Must reduce MIPS 30% within 18 months" onchange="updateAssessment('constraints', 'timeline', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Regulatory Hard Deadlines</label>
+                                <input type="text" class="form-input" id="constraint-regulatory" placeholder="e.g., DORA Jan 2025, EU AI Act Aug 2026" onchange="updateAssessment('constraints', 'regulatory', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Business Continuity SLA</label>
+                                <input type="text" class="form-input" id="constraint-sla" placeholder="e.g., 99.99% uptime, zero batch failures" onchange="updateAssessment('constraints', 'sla', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Decommission Targets</label>
+                                <input type="text" class="form-input" id="constraint-decommission" placeholder="e.g., Hardware EOL Q4 2027" onchange="updateAssessment('constraints', 'decommissionTargets', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Skills Constraints</label>
+                                <input type="text" class="form-input" id="constraint-skills" placeholder="e.g., 2 COBOL developers retiring Q4 2026" onchange="updateAssessment('constraints', 'skills', this.value)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: M4 MATURITY MODEL -->
+                <div id="view-maturity" class="section-view">
+                    <div class="panel">
+                        <div class="panel-title">
+                            <i class="fas fa-chart-radar"></i>
+                            Mainframe Modernization Maturity Model (M4)
+                        </div>
+                        <p class="panel-description">
+                            Assess organizational readiness across five dimensions before and during transformation. 
+                            Rate each capability from 1 (Initial/Ad-hoc) to 5 (Optimizing).
+                        </p>
+
+                        <!-- Maturity Radar Chart -->
+                        <div id="maturity-radar">
+                            <canvas id="radar-chart"></canvas>
+                        </div>
+
+                        <!-- Tollgate Threshold Checklist -->
+                        <div class="summary-cards mt-16">
+                            <div class="summary-card">
+                                <div class="summary-card-label">Overall Score</div>
+                                <div class="summary-card-value" id="overall-score">0.0</div>
+                                <div class="summary-card-detail">Average across all dimensions</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-label">TG1 Ready</div>
+                                <div class="summary-card-value" id="tg1-status">
+                                    <span class="badge badge-danger">Not Ready</span>
+                                </div>
+                                <div class="summary-card-detail">Architecture ≥4, Discovery ≥3</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-label">TG2 Ready</div>
+                                <div class="summary-card-value" id="tg2-status">
+                                    <span class="badge badge-danger">Not Ready</span>
+                                </div>
+                                <div class="summary-card-detail">Data ≥3, Ops ≥3</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-label">TG3-5 Ready</div>
+                                <div class="summary-card-value" id="tg3-status">
+                                    <span class="badge badge-danger">Not Ready</span>
+                                </div>
+                                <div class="summary-card-detail">All dimensions ≥3</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dimension 1: Discovery & Inventory -->
+                    <div class="panel">
+                        <div class="panel-title">
+                            <i class="fas fa-search"></i>
+                            Dimension 1: Discovery & Inventory
+                        </div>
+                        
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 45%;">Capability</th>
+                                    <th style="width: 15%;">Score (1-5)</th>
+                                    <th style="width: 40%;">Evidence / Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Complete COBOL program inventory exists</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('discovery', 0, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('discovery', 0, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>JCL batch job catalog with dependencies documented</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('discovery', 1, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('discovery', 1, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>CICS/IMS transaction inventory complete</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('discovery', 2, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('discovery', 2, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Data dictionary / schema documentation current</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('discovery', 3, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('discovery', 3, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Integration point map (mainframe ↔ external) complete</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('discovery', 4, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('discovery', 4, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Business criticality ratings assigned to all applications</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('discovery', 5, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('discovery', 5, this.value)"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="mt-16">
+                            <strong>Dimension Average: </strong>
+                            <span id="discovery-avg" class="badge badge-warning">0.0</span>
+                        </div>
+                    </div>
+
+                    <!-- Dimension 2: Architecture Readiness -->
+                    <div class="panel">
+                        <div class="panel-title">
+                            <i class="fas fa-drafting-compass"></i>
+                            Dimension 2: Architecture Readiness
+                        </div>
+                        
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 45%;">Capability</th>
+                                    <th style="width: 15%;">Score (1-5)</th>
+                                    <th style="width: 40%;">Evidence / Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Target architecture defined and approved</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('architecture', 0, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('architecture', 0, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Modernization patterns selected per workload</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('architecture', 1, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('architecture', 1, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Coexistence / transitional architecture designed</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('architecture', 2, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('architecture', 2, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>API strategy and gateway design complete</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('architecture', 3, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('architecture', 3, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Event streaming / CDC architecture defined</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('architecture', 4, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('architecture', 4, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Cloud landing zone designed and provisioned</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('architecture', 5, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('architecture', 5, this.value)"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="mt-16">
+                            <strong>Dimension Average: </strong>
+                            <span id="architecture-avg" class="badge badge-warning">0.0</span>
+                        </div>
+                    </div>
+
+                    <!-- Dimension 3: Data Readiness -->
+                    <div class="panel">
+                        <div class="panel-title">
+                            <i class="fas fa-database"></i>
+                            Dimension 3: Data Readiness
+                        </div>
+                        
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 45%;">Capability</th>
+                                    <th style="width: 15%;">Score (1-5)</th>
+                                    <th style="width: 40%;">Evidence / Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Data quality baseline assessment complete</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('data', 0, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('data', 0, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Data lineage mapped for critical data domains</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('data', 1, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('data', 1, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>CDC tooling selected and tested</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('data', 2, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('data', 2, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Data governance framework in place</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('data', 3, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('data', 3, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Data migration tooling selected</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('data', 4, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('data', 4, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Reconciliation framework designed</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('data', 5, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('data', 5, this.value)"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="mt-16">
+                            <strong>Dimension Average: </strong>
+                            <span id="data-avg" class="badge badge-warning">0.0</span>
+                        </div>
+                    </div>
+
+                    <!-- Dimension 4: Organizational Readiness -->
+                    <div class="panel">
+                        <div class="panel-title">
+                            <i class="fas fa-users"></i>
+                            Dimension 4: Organizational Readiness
+                        </div>
+                        
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 45%;">Capability</th>
+                                    <th style="width: 15%;">Score (1-5)</th>
+                                    <th style="width: 40%;">Evidence / Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Program team structure defined and staffed</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('organizational', 0, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('organizational', 0, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>COBOL/mainframe knowledge transfer plan active</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('organizational', 1, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('organizational', 1, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Cloud/modern skills training program underway</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('organizational', 2, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('organizational', 2, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Vendor/SI partner selected and contracted</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('organizational', 3, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('organizational', 3, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Change management plan approved</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('organizational', 4, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('organizational', 4, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Executive sponsorship confirmed</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('organizational', 5, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('organizational', 5, this.value)"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="mt-16">
+                            <strong>Dimension Average: </strong>
+                            <span id="organizational-avg" class="badge badge-warning">0.0</span>
+                        </div>
+                    </div>
+
+                    <!-- Dimension 5: Operational Readiness -->
+                    <div class="panel">
+                        <div class="panel-title">
+                            <i class="fas fa-cogs"></i>
+                            Dimension 5: Operational Readiness
+                        </div>
+                        
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 45%;">Capability</th>
+                                    <th style="width: 15%;">Score (1-5)</th>
+                                    <th style="width: 40%;">Evidence / Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>DevSecOps pipeline established for new workloads</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('operational', 0, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('operational', 0, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Dual observability (mainframe + target) in place</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('operational', 1, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('operational', 1, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Automated testing framework (regression + functional) ready</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('operational', 2, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('operational', 2, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Runbooks for coexistence operations documented</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('operational', 3, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('operational', 3, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Rollback procedures defined and tested</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('operational', 4, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('operational', 4, this.value)"></td>
+                                </tr>
+                                <tr>
+                                    <td>SLA monitoring for both environments active</td>
+                                    <td><input type="number" class="form-input" min="1" max="5" onchange="updateMaturityScore('operational', 5, this.value)"></td>
+                                    <td><input type="text" class="form-input" placeholder="Evidence..." onchange="updateMaturityEvidence('operational', 5, this.value)"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="mt-16">
+                            <strong>Dimension Average: </strong>
+                            <span id="operational-avg" class="badge badge-warning">0.0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: WORKLOAD CLASSIFICATION -->
+                <div id="view-classification" class="section-view">
+                    <!-- Summary Cards -->
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <div class="summary-card-value" id="total-workloads">0</div>
+                            <div class="summary-card-label">Total Workloads</div>
+                            <div class="summary-card-detail" id="apqc-workloads-count">0 from APQC</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-card-value" id="classified-count">0</div>
+                            <div class="summary-card-label">Classified</div>
+                            <div class="summary-card-detail" id="classification-percent">0% complete</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-card-value" id="critical-count">0</div>
+                            <div class="summary-card-label">Critical</div>
+                            <div class="summary-card-detail">Business critical workloads</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-card-value" id="migrate-count">0</div>
+                            <div class="summary-card-label">Migrate/Eliminate</div>
+                            <div class="summary-card-detail">Priority for migration</div>
+                        </div>
+                    </div>
+
+                    <!-- Workload Inventory Panel -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <i class="fas fa-sitemap"></i>
+                                Workload Inventory
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary" onclick="addWorkload()">
+                                    <i class="fas fa-plus"></i> Add Workload
+                                </button>
+                                <button class="btn btn-primary" onclick="showAPQCImportModal()">
+                                    <i class="fas fa-database"></i> Import APQC
+                                </button>
+                                <button class="btn btn-primary" onclick="classifyAllWithAI()">
+                                    <i class="fas fa-magic"></i> AI Classify All
+                                </button>
+                            </div>
+                        </div>
+                        <p class="panel-description">
+                            Manage your mainframe workloads. Use APQC templates or add manually. 
+                            TIME Framework: <strong>T</strong>olerate (keep on mainframe), <strong>I</strong>nvest (modernize in place), 
+                            <strong>M</strong>igrate (move to cloud/platform), <strong>E</strong>liminate (retire).
+                        </p>
+
+                        <!-- Filters -->
+                        <div class="form-grid mb-16">
+                            <div class="form-field">
+                                <label class="form-label">Filter by Domain</label>
+                                <select class="form-select" id="filter-domain" onchange="filterWorkloads()">
+                                    <option value="">All Domains</option>
+                                    <option value="payments">Payments</option>
+                                    <option value="accounts">Accounts</option>
+                                    <option value="lending">Lending</option>
+                                    <option value="claims">Claims (Insurance)</option>
+                                    <option value="policy">Policy Management</option>
+                                    <option value="risk">Risk & Compliance</option>
+                                    <option value="reporting">Reporting</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Filter by TIME Category</label>
+                                <select class="form-select" id="filter-time" onchange="filterWorkloads()">
+                                    <option value="">All Categories</option>
+                                    <option value="tolerate">Tolerate</option>
+                                    <option value="invest">Invest</option>
+                                    <option value="migrate">Migrate</option>
+                                    <option value="eliminate">Eliminate</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">Filter by Criticality</label>
+                                <select class="form-select" id="filter-criticality" onchange="filterWorkloads()">
+                                    <option value="">All Levels</option>
+                                    <option value="critical">Critical</option>
+                                    <option value="high">High</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="low">Low</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Workload Table -->
+                        <div style="overflow-x: auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 20%;">Workload Name</th>
+                                        <th style="width: 15%;">Domain</th>
+                                        <th style="width: 10%;">Criticality</th>
+                                        <th style="width: 12%;">TIME</th>
+                                        <th style="width: 12%;">Pattern</th>
+                                        <th style="width: 10%;">APQC Code</th>
+                                        <th style="width: 11%;">Est MIPS</th>
+                                        <th style="width: 10%;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="workloads-table">
+                                    <tr>
+                                        <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
+                                            No workloads added yet. Click "Add Workload" or "Import APQC" to get started.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TIME Distribution Chart -->
+                    <div class="panel">
+                        <div class="panel-title">
+                            <i class="fas fa-chart-pie"></i>
+                            TIME Framework Distribution
+                        </div>
+                        <div style="max-width: 600px; margin: 24px auto;">
+                            <canvas id="time-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 4: MIGRATION WAVES -->
+                <div id="view-waves" class="section-view">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <i class="fas fa-wave-square"></i>
+                                Migration Wave Planning
+                            </div>
+                            <button class="btn btn-primary" onclick="generateWaves()">
+                                <i class="fas fa-magic"></i> Auto-Generate Waves
+                            </button>
+                        </div>
+                        <p class="panel-description">
+                            Organize workloads into migration waves. Wave 1: Quick wins (3-6 months), Wave 2-3: Core systems (12-24 months), Wave 4+: Final domains.
+                        </p>
+
+                        <div class="summary-cards">
+                            <div class="summary-card">
+                                <div class="summary-card-value" id="wave-count">0</div>
+                                <div class="summary-card-label">Total Waves</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-value" id="wave-workloads">0</div>
+                                <div class="summary-card-label">Workloads Assigned</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-value" id="wave-duration">0</div>
+                                <div class="summary-card-label">Total Months</div>
+                            </div>
+                        </div>
+
+                        <div style="padding: 40px; text-align: center; background: rgba(217, 119, 6, 0.05); border-radius: 12px; margin-top: 24px;">
+                            <i class="fas fa-wave-square" style="font-size: 48px; color: var(--mm-accent); margin-bottom: 16px;"></i>
+                            <p style="color: #94a3b8; margin: 0;">Wave planning feature will allow drag-and-drop workload assignment, Gantt chart visualization, and dependency validation.</p>
+                            <p style="color: #64748b; font-size: 13px; margin-top: 8px;">Classify workloads first, then return here to generate waves.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 5: TOLLGATE GOVERNANCE -->
+                <div id="view-tollgates" class="section-view">
+                    <div class="panel">
+                        <div class="panel-title">
+                            <i class="fas fa-gate-open"></i>
+                            Tollgate Governance Framework
+                        </div>
+                        <p class="panel-description">
+                            Track program tollgates (TG0: Initiation → TG5: Decommission). Each tollgate has entry criteria, exit criteria, and stakeholder approvals.
+                        </p>
+
+                        <div class="summary-cards">
+                            <div class="summary-card">
+                                <div class="summary-card-label">TG0: Program Initiation</div>
+                                <div class="summary-card-value"><span class="badge badge-success">Approved</span></div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-label">TG1: Discovery Complete</div>
+                                <div class="summary-card-value" id="tg1-progress"><span class="badge badge-warning">In Progress</span></div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-label">TG2: Architecture Approved</div>
+                                <div class="summary-card-value" id="tg2-progress"><span class="badge badge-danger">Not Started</span></div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-label">TG3-5: Migration Phases</div>
+                                <div class="summary-card-value" id="tg3-progress"><span class="badge badge-danger">Not Started</span></div>
+                            </div>
+                        </div>
+
+                        <div style="padding: 40px; text-align: center; background: rgba(217, 119, 6, 0.05); border-radius: 12px; margin-top: 24px;">
+                            <i class="fas fa-clipboard-check" style="font-size: 48px; color: var(--mm-accent); margin-bottom: 16px;"></i>
+                            <p style="color: #94a3b8; margin: 0;">Tollgate tracking includes entry/exit checklists, approval workflows, and maturity threshold validation.</p>
+                            <p style="color: #64748b; font-size: 13px; margin-top: 8px;">Maturity scores from Tab 2 determine tollgate readiness.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 6: CAPEX MODEL -->
+                <div id="view-capex" class="section-view">
+                    <div class="panel">
+                        <div class="panel-title">
+                            <i class="fas fa-dollar-sign"></i>
+                            CAPEX Model & Business Case
+                        </div>
+                        <p class="panel-description">
+                            Model transformation costs by phase and category. Calculate ROI based on mainframe cost reduction and business benefits.
+                        </p>
+
+                        <div class="summary-cards">
+                            <div class="summary-card">
+                                <div class="summary-card-value">€0</div>
+                                <div class="summary-card-label">Total Investment</div>
+                                <div class="summary-card-detail">Program CAPEX</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-value">€0</div>
+                                <div class="summary-card-label">Annual Savings</div>
+                                <div class="summary-card-detail">Projected Year 1</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-value">—</div>
+                                <div class="summary-card-label">Payback Period</div>
+                                <div class="summary-card-detail">Months to break even</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-value">—</div>
+                                <div class="summary-card-label">5-Year NPV</div>
+                                <div class="summary-card-detail">Net present value</div>
+                            </div>
+                        </div>
+
+                        <div style="padding: 40px; text-align: center; background: rgba(217, 119, 6, 0.05); border-radius: 12px; margin-top: 24px;">
+                            <i class="fas fa-chart-line" style="font-size: 48px; color: var(--mm-accent); margin-bottom: 16px;"></i>
+                            <p style="color: #94a3b8; margin: 0;">CAPEX model includes costs by phase (Discovery, Build, Migrate, Stabilize, Decommission) and category (Software, Services, Infrastructure, Training).</p>
+                            <p style="color: #64748b; font-size: 13px; margin-top: 8px;">AI can estimate costs based on industry benchmarks and workload complexity.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 7: RISK REGISTER -->
+                <div id="view-risks" class="section-view">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <i class="fas fa-triangle-exclamation"></i>
+                                Program Risk Register
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary" onclick="addRisk()">
+                                    <i class="fas fa-plus"></i> Add Risk
+                                </button>
+                                <button class="btn btn-primary" onclick="generateRisksWithAI()">
+                                    <i class="fas fa-magic"></i> AI Generate Risks
+                                </button>
+                            </div>
+                        </div>
+                        <p class="panel-description">
+                            Document program risks with likelihood (1-5), impact (1-5), and mitigation actions. Heat map visualization shows risk severity.
+                        </p>
+
+                        <div class="summary-cards">
+                            <div class="summary-card">
+                                <div class="summary-card-value" id="total-risks">0</div>
+                                <div class="summary-card-label">Total Risks</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-value" id="critical-risks">0</div>
+                                <div class="summary-card-label">Critical (L×I ≥ 20)</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-value" id="open-risks">0</div>
+                                <div class="summary-card-label">Open Risks</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-value" id="mitigated-risks">0</div>
+                                <div class="summary-card-label">Mitigated</div>
+                            </div>
+                        </div>
+
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%;">Risk Description</th>
+                                    <th style="width: 15%;">Category</th>
+                                    <th style="width: 10%;">Likelihood</th>
+                                    <th style="width: 10%;">Impact</th>
+                                    <th style="width: 10%;">Score</th>
+                                    <th style="width: 20%;">Mitigation</th>
+                                    <th style="width: 10%;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="risks-table">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 40px; color: #64748b;">
+                                        No risks added yet. Click "Add Risk" or use AI to generate common risks.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB 8: EXPORT -->
+                <div id="view-export" class="section-view">
+                    <div class="panel">
+                        <div class="panel-title">
+                            <i class="fas fa-file-export"></i>
+                            Export & Reports
+                        </div>
+                        <p class="panel-description">
+                            Export program data as JSON, Excel workbook, or PDF-ready report. Import saved programs.
+                        </p>
+                    </div>
+                    
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <button class="btn btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="exportJSON()">
+                                <i class="fas fa-code"></i> Export JSON
+                            </button>
+                            <div class="summary-card-detail">Full program data for backup and re-import</div>
+                        </div>
+                        <div class="summary-card">
+                            <button class="btn btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="exportExcel()">
+                                <i class="fas fa-file-excel"></i>Export Excel
+                            </button>
+                            <div class="summary-card-detail">Multi-sheet workbook with all data</div>
+                        </div>
+                        <div class="summary-card">
+                            <button class="btn btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="window.print()">
+                                <i class="fas fa-file-pdf"></i> Print PDF
+                            </button>
+                            <div class="summary-card-detail">Print-friendly comprehensive report</div>
+                        </div>
+                        <div class="summary-card">
+                            <button class="btn btn-secondary" style="width: 100%; margin-bottom: 12px;" onclick="document.getElementById('import-file').click()">
+                                <i class="fas fa-file-import"></i> Import JSON
+                            </button>
+                            <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importJSON(event)">
+                            <div class="summary-card-detail">Restore saved program state</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- AI CHAT PANEL -->
+        <div id="ai-chat-panel">
+            <div id="chat-resize-handle" title="Drag to resize"></div>
+            <div id="chat-header">
+                <div id="chat-header-title">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Assistant</span>
+                </div>
+                <div id="chat-controls">
+                    <button onclick="startNewChat()" title="New conversation">+</button>
+                    <button onclick="clearChat()" title="Clear history">&#x21BA;</button>
+                    <button onclick="toggleChatPanel()" title="Close sidebar">&times;</button>
+                </div>
+            </div>
+            
+            <div class="quick-actions">
+                <button class="qa-btn" onclick="quickAsk('Analyze my modernization program and suggest optimization opportunities')">
+                    <i class="fas fa-chart-line"></i> Analyze
+                </button>
+                <button class="qa-btn" onclick="quickAsk('What are the biggest risks in my mainframe transformation?')">
+                    <i class="fas fa-triangle-exclamation"></i> Risks
+                </button>
+                <button class="qa-btn" onclick="quickAsk('Suggest the best migration patterns for my workloads')">
+                    <i class="fas fa-route"></i> Patterns
+                </button>
+            </div>
+            
+            <div id="chat-messages">
+                <div class="chat-message assistant-message">
+                    <div class="message-content">
+                        <div class="message-text">
+                            <strong style="color:#ffffff;font-weight:700;">Welcome to Mainframe Modernization AI Assistant</strong>
+                            <div style="height:10px;"></div>
+                            <p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">I can help you with:</p>
+                            <ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">
+                                <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Workload classification (TIME framework)</li>
+                                <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Pattern selection guidance</li>
+                                <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Wave planning optimization</li>
+                                <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Risk identification</li>
+                                <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Cost estimation</li>
+                            </ul>
+                            <div style="height:10px;"></div>
+                            <em>Ask me anything about your modernization program!</em>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="chat-input-container">
+                <textarea id="chat-input" placeholder="Ask about modernization patterns, risks, best practices..." rows="2"></textarea>
+                <button id="send-chat" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- APQC IMPORT MODAL -->
+        <div id="apqc-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">
+                        <i class="fas fa-database"></i> Import APQC Workloads
+                    </div>
+                    <button class="modal-close" onclick="closeAPQCModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <p style="color: #94a3b8; margin-bottom: 24px;">
+                    Load industry-standard workload templates based on APQC Process Classification Framework.
+                </p>
+                
+                <div class="form-field">
+                    <label class="form-label">Industry Template</label>
+                    <select class="form-select" id="apqc-industry">
+                        <option value="">Select...</option>
+                        <option value="banking">Banking (15 workloads)</option>
+                        <option value="insurance">Insurance (12 workloads)</option>
+                    </select>
+                </div>
+                
+                <div class="form-field">
+                    <label class="form-label">Strategic Focus</label>
+                    <select class="form-select" id="apqc-focus">
+                        <option value="efficiency">Efficiency (Cost Reduction)</option>
+                        <option value="compliance">Compliance (Regulatory)</option>
+                        <option value="innovation">Innovation (Digital Transformation)</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button class="btn btn-primary" style="flex: 1;" onclick="importAPQCWorkloads()">
+                        <i class="fas fa-download"></i> Import Workloads
+                    </button>
+                    <button class="btn btn-secondary" onclick="closeAPQCModal()">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOAST NOTIFICATION -->
+        <div id="toast" class="toast">
+            <i class="fas fa-check-circle"></i>
+            <span id="toast-message"></span>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════
+        // GLOBAL STATE
+        // ═══════════════════════════════════════════════════════════════
+        let modernizationProgram = {
+            id: null,
+            name: '',
+            created: null,
+            lastModified: null,
+            assessment: {
+                orgProfile: {},
+                mainframeEnv: {},
+                challenges: [],
+                opportunities: [],
+                constraints: {}
+            },
+            maturity: {
+                discovery: Array(6).fill({ score: 0, evidence: '' }),
+                architecture: Array(6).fill({ score: 0, evidence: '' }),
+                data: Array(6).fill({ score: 0, evidence: '' }),
+                organizational: Array(6).fill({ score: 0, evidence: '' }),
+                operational: Array(6).fill({ score: 0, evidence: '' })
+            },
+            workloads: [],
+            classification: [],
+            waves: [],
+            tollgates: [],
+            capex: {},
+            risks: [],
+            apqcIntegration: {
+                loaded: false,
+                industry: '',
+                strategicFocus: '',
+                workloadsFromAPQC: 0,
+                lastSync: null
+            }
+        };
+
+        let apqcFramework = null;
+        let radarChart = null;
+        let dataManager = null;
+
+        // ═══════════════════════════════════════════════════════════════
+        // INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Mainframe Modernization Toolkit initialized');
+            
+            // Initialize data manager
+            try {
+                dataManager = new EA_DataManager();
+            } catch(e) {
+                console.warn('EA_DataManager not available, using localStorage directly');
+            }
+
+            // Load saved program or create new
+            loadProgram();
+            
+            // Initialize APQC
+            initializeAPQC();
+            
+            // Initialize maturity radar chart
+            initializeMaturityRadar();
+            
+            // Initialize TIME chart
+            updateTIMEChart();
+            
+            // Initialize chat sidebar resize
+            initChatSidebarResize();
+            
+            // Render workloads
+            renderWorkloads();
+            updateWorkloadSummary();
+            
+            // Render risks
+            renderRisks();
+            updateRiskSummary();
+            
+            // Update wave summary
+            updateWaveSummary();
+            
+            // Initialize AI assistant
+            initializeAI();
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.key === 'k') {
+                    e.preventDefault();
+                    toggleChatPanel();
+                }
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    saveProgram();
+                }
+            });
+        });
+
+        // ═══════════════════════════════════════════════════════════════
+        // TAB NAVIGATION
+        // ═══════════════════════════════════════════════════════════════
+        function switchTab(tabName, button) {
+            // Hide all views
+            document.querySelectorAll('.section-view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            
+            // Show selected view
+            document.getElementById('view-' + tabName).classList.add('active');
+            button.classList.add('active');
+            
+            // Update AI context
+            if (typeof AdvisyAI !== 'undefined') {
+                AdvisyAI.setActiveView(tabName);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // DATA MANAGEMENT
+        // ═══════════════════════════════════════════════════════════════
+        function updateProgramData(field, value) {
+            modernizationProgram[field] = value;
+            modernizationProgram.lastModified = new Date().toISOString();
+            saveProgram();
+        }
+
+        function updateAssessment(section, field, value) {
+            if (!modernizationProgram.assessment[section]) {
+                modernizationProgram.assessment[section] = {};
+            }
+            modernizationProgram.assessment[section][field] = value;
+            modernizationProgram.lastModified = new Date().toISOString();
+        }
+
+        function saveProgram() {
+            modernizationProgram.lastModified = new Date().toISOString();
+            if (!modernizationProgram.id) {
+                modernizationProgram.id = 'mm_' + Date.now();
+                modernizationProgram.created = new Date().toISOString();
+            }
+            
+            localStorage.setItem('mainframe_modernization_program', JSON.stringify(modernizationProgram));
+            showToast('Program saved successfully', 'success');
+            console.log('✅ Program saved:', modernizationProgram.id);
+        }
+
+        function loadProgram() {
+            const saved = localStorage.getItem('mainframe_modernization_program');
+            if (saved) {
+                try {
+                    modernizationProgram = JSON.parse(saved);
+                    console.log('✅ Program loaded:', modernizationProgram.id);
+                    
+                    // Populate UI
+                    populateUI();
+                    showToast('Program loaded', 'success');
+                } catch(e) {
+                    console.error('Failed to load program:', e);
+                }
+            } else {
+                // Initialize new program
+                modernizationProgram.id = 'mm_' + Date.now();
+                modernizationProgram.created = new Date().toISOString();
+                
+                // Add default challenges
+                addChallenge();
+                addOpportunity();
+            }
+        }
+
+        function loadExampleData() {
+            // Realistic banking scenario - Nordic Regional Bank
+            modernizationProgram.name = 'Nordic Banking Core Modernization 2026';
+            modernizationProgram.assessment.orgProfile = {
+                name: 'Nordiska Banken AB',
+                industry: 'banking',
+                region: 'Nordics (Sweden, Norway, Denmark)',
+                revenue: '€2.4B',
+                employees: 4200,
+                itSize: 320,
+                jurisdictions: 'EU (GDPR, DORA, MiFID II), Swedish FSA, Norwegian FSA'
+            };
+            
+            modernizationProgram.assessment.mainframeEnv = {
+                platform: 'ibm-zseries',
+                version: 'z15',
+                mips: 850,
+                annualCost: '€7.2M',
+                cobolPrograms: 2400,
+                jclJobs: 340,
+                cicsTransactions: 180,
+                databases: 'DB2, IMS DB, VSAM',
+                integrationPoints: 67,
+                batchWindow: 5.5,
+                peakTPS: 2800
+            };
+            
+            modernizationProgram.assessment.constraints = {
+                budget: '€45M over 4 years',
+                timeline: '48 months (Q2 2026 - Q2 2030)',
+                regulatory: 'Zero downtime for core banking; DORA compliance by Dec 2027',
+                sla: '99.95% uptime; max 2h planned maintenance windows',
+                decommissionTargets: 'Full mainframe decommission by Q4 2029',
+                skills: '12 COBOL developers (avg age 58); limited cloud expertise'
+            };
+            
+            modernizationProgram.assessment.challenges = [
+                {
+                    id: Date.now() + 1,
+                    challenge: 'Rising mainframe licensing costs (+15% annually)',
+                    impact: 'Budget pressure; €1.2M annual increase',
+                    priority: 'High'
+                },
+                {
+                    id: Date.now() + 2,
+                    challenge: 'Aging COBOL developer workforce (retirement risk)',
+                    impact: 'Knowledge loss; critical talent gap by 2028',
+                    priority: 'High'
+                },
+                {
+                    id: Date.now() + 3,
+                    challenge: 'Inability to launch new digital products quickly',
+                    impact: 'Competitive disadvantage; 9-12 month time-to-market',
+                    priority: 'High'
+                },
+                {
+                    id: Date.now() + 4,
+                    challenge: 'Batch window constraints limit real-time capabilities',
+                    impact: 'Cannot support 24/7 customer expectations',
+                    priority: 'Medium'
+                }
+            ];
+            
+            modernizationProgram.assessment.opportunities = [
+                {
+                    id: Date.now() + 5,
+                    opportunity: 'Cloud-native architecture enables API banking platform',
+                    valuePotential: '€8M annual revenue from BaaS partnerships',
+                    enabledBy: 'Microservices + API gateway on AWS/Azure'
+                },
+                {
+                    id: Date.now() + 6,
+                    opportunity: 'Real-time fraud detection and analytics',
+                    valuePotential: '€3.5M annual fraud reduction',
+                    enabledBy: 'Event streaming + ML models in cloud'
+                },
+                {
+                    id: Date.now() + 7,
+                    opportunity: 'Reduce infrastructure cost by 40%',
+                    valuePotential: '€2.9M annual savings',
+                    enabledBy: 'Cloud elasticity + infrastructure automation'
+                }
+            ];
+            
+            // Maturity scores
+            modernizationProgram.maturity = {
+                organizationalReadiness: 2.8,
+                technicalCapability: 2.5,
+                changeManagement: 3.0,
+                dataQuality: 2.3
+            };
+            
+            populateUI();
+            showToast('Example banking scenario loaded successfully', 'success');
+            console.log('✅ Example data loaded');
+        }
+
+        function populateUI() {
+            // Program name
+            if (modernizationProgram.name) {
+                document.getElementById('program-name').value = modernizationProgram.name;
+            }
+            
+            // Org profile
+            const org = modernizationProgram.assessment.orgProfile || {};
+            if (org.name) document.getElementById('org-name').value = org.name;
+            if (org.industry) document.getElementById('org-industry').value = org.industry;
+            if (org.region) document.getElementById('org-region').value = org.region;
+            if (org.revenue) document.getElementById('org-revenue').value = org.revenue;
+            if (org.employees) document.getElementById('org-employees').value = org.employees;
+            if (org.itSize) document.getElementById('org-it-size').value = org.itSize;
+            if (org.jurisdictions) document.getElementById('org-jurisdictions').value = org.jurisdictions;
+            
+            // Mainframe environment
+            const mf = modernizationProgram.assessment.mainframeEnv || {};
+            if (mf.platform) document.getElementById('mf-platform').value = mf.platform;
+            if (mf.version) document.getElementById('mf-version').value = mf.version;
+            if (mf.mips) document.getElementById('mf-mips').value = mf.mips;
+            if (mf.annualCost) document.getElementById('mf-cost').value = mf.annualCost;
+            if (mf.cobolPrograms) document.getElementById('mf-cobol').value = mf.cobolPrograms;
+            if (mf.jclJobs) document.getElementById('mf-jcl').value = mf.jclJobs;
+            if (mf.cicsTransactions) document.getElementById('mf-cics').value = mf.cicsTransactions;
+            if (mf.databases) document.getElementById('mf-databases').value = mf.databases;
+            if (mf.integrationPoints) document.getElementById('mf-integrations').value = mf.integrationPoints;
+            if (mf.batchWindow) document.getElementById('mf-batch-window').value = mf.batchWindow;
+            if (mf.peakTPS) document.getElementById('mf-tps').value = mf.peakTPS;
+            
+            // Constraints
+            const constraints = modernizationProgram.assessment.constraints || {};
+            if (constraints.budget) document.getElementById('constraint-budget').value = constraints.budget;
+            if (constraints.timeline) document.getElementById('constraint-timeline').value = constraints.timeline;
+            if (constraints.regulatory) document.getElementById('constraint-regulatory').value = constraints.regulatory;
+            if (constraints.sla) document.getElementById('constraint-sla').value = constraints.sla;
+            if (constraints.decommissionTargets) document.getElementById('constraint-decommission').value = constraints.decommissionTargets;
+            if (constraints.skills) document.getElementById('constraint-skills').value = constraints.skills;
+            
+            // Challenges and opportunities
+            renderChallenges();
+            renderOpportunities();
+            
+            // Maturity scores
+            updateMaturityDisplay();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // CHALLENGES & OPPORTUNITIES
+        // ═══════════════════════════════════════════════════════════════
+        function addChallenge() {
+            modernizationProgram.assessment.challenges.push({
+                id: Date.now(),
+                challenge: '',
+                impact: '',
+                priority: 'Medium'
+            });
+            renderChallenges();
+        }
+
+        function removeChallenge(id) {
+            modernizationProgram.assessment.challenges = modernizationProgram.assessment.challenges.filter(c => c.id !== id);
+            renderChallenges();
+            saveProgram();
+        }
+
+        function renderChallenges() {
+            const tbody = document.getElementById('challenges-table');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            modernizationProgram.assessment.challenges.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="text" class="form-input" value="${c.challenge || ''}" onchange="updateChallengeField(${c.id}, 'challenge', this.value)"></td>
+                    <td><input type="text" class="form-input" value="${c.impact || ''}" onchange="updateChallengeField(${c.id}, 'impact', this.value)"></td>
+                    <td>
+                        <select class="form-select" onchange="updateChallengeField(${c.id}, 'priority', this.value)">
+                            <option value="High" ${c.priority === 'High' ? 'selected' : ''}>High</option>
+                            <option value="Medium" ${c.priority === 'Medium' ? 'selected' : ''}>Medium</option>
+                            <option value="Low" ${c.priority === 'Low' ? 'selected' : ''}>Low</option>
+                        </select>
+                    </td>
+                    <td>
+                        <button class="btn btn-danger" onclick="removeChallenge(${c.id})" style="padding: 6px 12px;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateChallengeField(id, field, value) {
+            const challenge = modernizationProgram.assessment.challenges.find(c => c.id === id);
+            if (challenge) {
+                challenge[field] = value;
+                modernizationProgram.lastModified = new Date().toISOString();
+            }
+        }
+
+        function addOpportunity() {
+            modernizationProgram.assessment.opportunities.push({
+                id: Date.now(),
+                opportunity: '',
+                valuePotential: '',
+                enabledBy: ''
+            });
+            renderOpportunities();
+        }
+
+        function removeOpportunity(id) {
+            modernizationProgram.assessment.opportunities = modernizationProgram.assessment.opportunities.filter(o => o.id !== id);
+            renderOpportunities();
+            saveProgram();
+        }
+
+        function renderOpportunities() {
+            const tbody = document.getElementById('opportunities-table');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            modernizationProgram.assessment.opportunities.forEach(o => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="text" class="form-input" value="${o.opportunity || ''}" onchange="updateOpportunityField(${o.id}, 'opportunity', this.value)"></td>
+                    <td><input type="text" class="form-input" value="${o.valuePotential || ''}" onchange="updateOpportunityField(${o.id}, 'valuePotential', this.value)"></td>
+                    <td><input type="text" class="form-input" value="${o.enabledBy || ''}" onchange="updateOpportunityField(${o.id}, 'enabledBy', this.value)"></td>
+                    <td>
+                        <button class="btn btn-danger" onclick="removeOpportunity(${o.id})" style="padding: 6px 12px;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateOpportunityField(id, field, value) {
+            const opportunity = modernizationProgram.assessment.opportunities.find(o => o.id === id);
+            if (opportunity) {
+                opportunity[field] = value;
+                modernizationProgram.lastModified = new Date().toISOString();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // MATURITY MODEL
+        // ═══════════════════════════════════════════════════════════════
+        function updateMaturityScore(dimension, index, value) {
+            if (!modernizationProgram.maturity[dimension]) {
+                modernizationProgram.maturity[dimension] = Array(6).fill({ score: 0, evidence: '' });
+            }
+            
+            modernizationProgram.maturity[dimension][index] = {
+                ...modernizationProgram.maturity[dimension][index],
+                score: parseInt(value) || 0
+            };
+            
+            updateMaturityDisplay();
+            saveProgram();
+        }
+
+        function updateMaturityEvidence(dimension, index, value) {
+            if (!modernizationProgram.maturity[dimension]) {
+                modernizationProgram.maturity[dimension] = Array(6).fill({ score: 0, evidence: '' });
+            }
+            
+            modernizationProgram.maturity[dimension][index] = {
+                ...modernizationProgram.maturity[dimension][index],
+                evidence: value
+            };
+            
+            modernizationProgram.lastModified = new Date().toISOString();
+        }
+
+        function calculateDimensionAverage(dimension) {
+            const scores = modernizationProgram.maturity[dimension] || [];
+            const validScores = scores.filter(s => s && s.score > 0).map(s => s.score);
+            if (validScores.length === 0) return 0;
+            return (validScores.reduce((a, b) => a + b, 0) / validScores.length).toFixed(1);
+        }
+
+        function updateMaturityDisplay() {
+            // Calculate dimension averages
+            const dimensions = ['discovery', 'architecture', 'data', 'organizational', 'operational'];
+            const averages = {};
+            
+            dimensions.forEach(dim => {
+                const avg = calculateDimensionAverage(dim);
+                averages[dim] = parseFloat(avg);
+                
+                const badge = document.getElementById(`${dim}-avg`);
+                if (badge) {
+                    badge.textContent = avg;
+                    badge.className = 'badge';
+                    if (avg < 2) {
+                        badge.classList.add('badge-danger');
+                    } else if (avg < 3) {
+                        badge.classList.add('badge-warning');
+                    } else {
+                        badge.classList.add('badge-success');
+                    }
+                }
+            });
+            
+            // Calculate overall score
+            const overallScore = (Object.values(averages).reduce((a, b) => a + b, 0) / 5).toFixed(1);
+            const overallElem = document.getElementById('overall-score');
+            if (overallElem) {
+                overallElem.textContent = overallScore;
+            }
+            
+            // Check tollgate readiness
+            updateTollgateStatus(averages);
+            
+            // Update radar chart
+            if (radarChart) {
+                radarChart.data.datasets[0].data = [
+                    averages.discovery,
+                    averages.architecture,
+                    averages.data,
+                    averages.organizational,
+                    averages.operational
+                ];
+                radarChart.update();
+            }
+        }
+
+        function updateTollgateStatus(averages) {
+            // TG1: Architecture ≥4, Discovery ≥3
+            const tg1Ready = averages.architecture >= 4 && averages.discovery >= 3;
+            const tg1Elem = document.getElementById('tg1-status');
+            if (tg1Elem) {
+                tg1Elem.innerHTML = tg1Ready 
+                    ? '<span class="badge badge-success">Ready</span>'
+                    : '<span class="badge badge-danger">Not Ready</span>';
+            }
+            
+            // TG2: Data ≥3, Ops ≥3
+            const tg2Ready = averages.data >= 3 && averages.operational >= 3;
+            const tg2Elem = document.getElementById('tg2-status');
+            if (tg2Elem) {
+                tg2Elem.innerHTML = tg2Ready 
+                    ? '<span class="badge badge-success">Ready</span>'
+                    : '<span class="badge badge-danger">Not Ready</span>';
+            }
+            
+            // TG3-5: All dimensions ≥3
+            const tg3Ready = Object.values(averages).every(v => v >= 3);
+            const tg3Elem = document.getElementById('tg3-status');
+            if (tg3Elem) {
+                tg3Elem.innerHTML = tg3Ready 
+                    ? '<span class="badge badge-success">Ready</span>'
+                    : '<span class="badge badge-danger">Not Ready</span>';
+            }
+        }
+
+        function initializeMaturityRadar() {
+            const ctx = document.getElementById('radar-chart');
+            if (!ctx) return;
+            
+            radarChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Discovery', 'Architecture', 'Data', 'Org', 'Ops'],
+                    datasets: [{
+                        label: 'Maturity Score',
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: 'rgba(217, 119, 6, 0.2)',
+                        borderColor: 'rgba(217, 119, 6, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(217, 119, 6, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(217, 119, 6, 1)'
+                    }]
+                },
+                options: {
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 5,
+                            ticks: {
+                                stepSize: 1,
+                                color: '#94a3b8'
+                            },
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.2)'
+                            },
+                            pointLabels: {
+                                color: '#e2e8f0',
+                                font: {
+                                    size: 13,
+                                    weight: 600
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // APQC INTEGRATION
+        // ═══════════════════════════════════════════════════════════════
+        async function initializeAPQC() {
+            try {
+                if (dataManager && typeof dataManager.loadAPQCFramework === 'function') {
+                    apqcFramework = await dataManager.loadAPQCFramework();
+                    if (apqcFramework) {
+                        document.getElementById('apqc-banner').classList.remove('hidden');
+                        console.log('✅ APQC Framework loaded:', apqcFramework.total_categories, 'categories');
+                    }
+                }
+            } catch(e) {
+                console.warn('APQC Framework not available:', e.message);
+            }
+        }
+
+        function showAPQCImportModal() {
+            document.getElementById('apqc-modal').classList.add('active');
+        }
+
+        function closeAPQCModal() {
+            document.getElementById('apqc-modal').classList.remove('active');
+        }
+
+        function hideAPQCBanner() {
+            document.getElementById('apqc-banner').classList.add('hidden');
+        }
+
+        function importAPQCWorkloads() {
+            const industry = document.getElementById('apqc-industry').value;
+            const focus = document.getElementById('apqc-focus').value;
+            
+            if (!industry) {
+                alert('Please select an industry template');
+                return;
+            }
+            
+            // APQC-to-Mainframe Workload Templates
+            const apqcTemplates = {
+                banking: [
+                    { name: 'Payment Processing', domain: 'payments', apqcCode: '8.2', apqcCategory: 'Manage Financial Resources', time: 'invest', pattern: 'reimagine', criticality: 'critical', mips: 450 },
+                    { name: 'Core Accounts System', domain: 'accounts', apqcCode: '8.0', apqcCategory: 'Manage Financial Resources', time: 'migrate', pattern: 'replatform', criticality: 'critical', mips: 800 },
+                    { name: 'Loan Origination', domain: 'lending', apqcCode: '2.1', apqcCategory: 'Develop Products/Services', time: 'migrate', pattern: 'replace', criticality: 'high', mips: 320 },
+                    { name: 'Mortgage Servicing', domain: 'lending', apqcCode: '5.0', apqcCategory: 'Deliver Products', time: 'invest', pattern: 'refactor', criticality: 'high', mips: 280 },
+                    { name: 'Credit Card Authorization', domain: 'payments', apqcCode: '5.3', apqcCategory: 'Deliver Products', time: 'migrate', pattern: 'replatform', criticality: 'critical', mips: 600 },
+                    { name: 'Wire Transfer Hub', domain: 'payments', apqcCode: '8.2', apqcCategory: 'Manage Financial Resources', time: 'invest', pattern: 'reimagine', criticality: 'critical', mips: 220 },
+                    { name: 'General Ledger', domain: 'accounts', apqcCode: '8.1', apqcCategory: 'Manage Financial Resources', time: 'tolerate', pattern: 'invest', criticality: 'critical', mips: 140 },
+                    { name: 'Trade Finance', domain: 'lending', apqcCode: '3.0', apqcCategory: 'Market & Sell', time: 'migrate', pattern: 'replace', criticality: 'medium', mips: 180 },
+                    { name: 'AML/KYC Screening', domain: 'risk', apqcCode: '10.1', apqcCategory: 'Manage Risk', time: 'invest', pattern: 'reimagine', criticality: 'critical', mips: 260 },
+                    { name: 'Customer Master Data', domain: 'accounts', apqcCode: '7.3', apqcCategory: 'Manage Information', time: 'migrate', pattern: 'replatform', criticality: 'high', mips: 110 },
+                    { name: 'Regulatory Reporting', domain: 'reporting', apqcCode: '10.0', apqcCategory: 'Manage Risk/Compliance', time: 'invest', pattern: 'refactor', criticality: 'critical', mips: 200 },
+                    { name: 'Interest Calculation Engine', domain: 'accounts', apqcCode: '8.2', apqcCategory: 'Manage Financial Resources', time: 'tolerate', pattern: 'invest', criticality: 'high', mips: 90 },
+                    { name: 'Statement Generation', domain: 'reporting', apqcCode: '5.0', apqcCategory: 'Deliver Products', time: 'eliminate', pattern: 'replace', criticality: 'low', mips: 50 },
+                    { name: 'Data Warehouse ETL', domain: 'reporting', apqcCode: '7.0', apqcCategory: 'Manage IT', time: 'migrate', pattern: 'replace', criticality: 'medium', mips: 150 },
+                    { name: 'Legacy Document Archive', domain: 'other', apqcCode: '7.3', apqcCategory: 'Manage Information', time: 'eliminate', pattern: 'replace', criticality: 'low', mips: 40 }
+                ],
+                insurance: [
+                    { name: 'Policy Administration', domain: 'policy', apqcCode: '5.0', apqcCategory: 'Deliver Products', time: 'migrate', pattern: 'replatform', criticality: 'critical', mips: 520 },
+                    { name: 'Claims Processing', domain: 'claims', apqcCode: '5.4', apqcCategory: 'Manage Customer Service', time: 'invest', pattern: 'reimagine', criticality: 'critical', mips: 680 },
+                    { name: 'Underwriting Engine', domain: 'policy', apqcCode: '2.0', apqcCategory: 'Develop Products/Services', time: 'invest', pattern: 'refactor', criticality: 'critical', mips: 440 },
+                    { name: 'Billing & Premium Calculation', domain: 'payments', apqcCode: '8.2', apqcCategory: 'Manage Financial Resources', time: 'migrate', pattern: 'replatform', criticality: 'high', mips: 310 },
+                    { name: 'Actuarial Models', domain: 'risk', apqcCode: '10.1', apqcCategory: 'Manage Risk', time: 'tolerate', pattern: 'invest', criticality: 'critical', mips: 200 },
+                    { name: 'Reinsurance Processing', domain: 'risk', apqcCode: '8.3', apqcCategory: 'Manage Financial Resources', time: 'migrate', pattern: 'replace', criticality: 'medium', mips: 120 },
+                    { name: 'Agent Commission System', domain: 'payments', apqcCode: '8.2', apqcCategory: 'Manage Financial Resources', time: 'invest', pattern: 'refactor', criticality: 'high', mips: 90 },
+                    { name: 'Fraud Detection', domain: 'risk', apqcCode: '10.1', apqcCategory: 'Manage Risk', time: 'invest', pattern: 'reimagine', criticality: 'critical', mips: 280 },
+                    { name: 'Customer Portal Backend', domain: 'policy', apqcCode: '5.4', apqcCategory: 'Manage Customer Service', time: 'migrate', pattern: 'replace', criticality: 'high', mips: 160 },
+                    { name: 'Regulatory Submission', domain: 'reporting', apqcCode: '10.0', apqcCategory: 'Manage Risk/Compliance', time: 'invest', pattern: 'refactor', criticality: 'critical', mips: 140 },
+                    { name: 'Legacy Policy Archive', domain: 'other', apqcCode: '7.3', apqcCategory: 'Manage Information', time: 'eliminate', pattern: 'replace', criticality: 'low', mips: 60 },
+                    { name: 'Investment Portfolio Tracking', domain: 'risk', apqcCode: '8.4', apqcCategory: 'Manage Financial Resources', time: 'tolerate', pattern: 'invest', criticality: 'medium', mips: 100 }
+                ]
+            };
+            
+            const template = apqcTemplates[industry] || [];
+            
+            if (template.length === 0) {
+                showToast('No template available for selected industry', 'error');
+                return;
+            }
+            
+            // Import workloads
+            let imported = 0;
+            template.forEach((w, idx) => {
+                const workload = {
+                    id: Date.now() + idx,
+                    name: w.name,
+                    description: `${w.apqcCategory} workload imported from APQC framework`,
+                    domain: w.domain,
+                    apqcCode: w.apqcCode,
+                    apqcCategory: w.apqcCategory,
+                    apqcSource: 'template',
+                    time: w.time,
+                    pattern: w.pattern,
+                    criticality: w.criticality,
+                    mips: w.mips,
+                    dependencies: [],
+                    cost: 0
+                };
+                
+                modernizationProgram.workloads.push(workload);
+                imported++;
+            });
+            
+            modernizationProgram.apqcIntegration = {
+                loaded: true,
+                industry: industry,
+                strategicFocus: focus,
+                workloadsFromAPQC: imported,
+                lastSync: new Date().toISOString()
+            };
+            
+            renderWorkloads();
+            updateWorkloadSummary();
+            updateTIMEChart();
+            saveProgram();
+            
+            showToast(`Successfully imported ${imported} ${industry} workloads from APQC`, 'success');
+            closeAPQCModal();
+            hideAPQCBanner();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // WORKLOAD MANAGEMENT
+        // ═══════════════════════════════════════════════════════════════
+        let timeChart = null;
+
+        function addWorkload() {
+            const workload = {
+                id: Date.now(),
+                name: 'New Workload',
+                description: '',
+                domain: 'other',
+                apqcCode: '',
+                apqcCategory: '',
+                apqcSource: 'manual',
+                time: '',
+                pattern: '',
+                criticality: 'medium',
+                mips: 0,
+                dependencies: [],
+                cost: 0
+            };
+            
+            modernizationProgram.workloads.push(workload);
+            renderWorkloads();
+            updateWorkloadSummary();
+            saveProgram();
+        }
+
+        function removeWorkload(id) {
+            if (!confirm('Remove this workload? This cannot be undone.')) return;
+            
+            modernizationProgram.workloads = modernizationProgram.workloads.filter(w => w.id !== id);
+            renderWorkloads();
+            updateWorkloadSummary();
+            updateTIMEChart();
+            saveProgram();
+            showToast('Workload removed', 'success');
+        }
+
+        function updateWorkloadField(id, field, value) {
+            const workload = modernizationProgram.workloads.find(w => w.id === id);
+            if (workload) {
+                workload[field] = value;
+                modernizationProgram.lastModified = new Date().toISOString();
+                updateWorkloadSummary();
+                updateTIMEChart();
+            }
+        }
+
+        function renderWorkloads() {
+            const tbody = document.getElementById('workloads-table');
+            if (!tbody) return;
+            
+            const filters = {
+                domain: document.getElementById('filter-domain')?.value || '',
+                time: document.getElementById('filter-time')?.value || '',
+                criticality: document.getElementById('filter-criticality')?.value || ''
+            };
+            
+            let workloads = modernizationProgram.workloads || [];
+            
+            // Apply filters
+            if (filters.domain) {
+                workloads = workloads.filter(w => w.domain === filters.domain);
+            }
+            if (filters.time) {
+                workloads = workloads.filter(w => w.time === filters.time);
+            }
+            if (filters.criticality) {
+                workloads = workloads.filter(w => w.criticality === filters.criticality);
+            }
+            
+            if (workloads.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
+                            ${modernizationProgram.workloads.length === 0 
+                                ? 'No workloads added yet. Click "Add Workload" or "Import APQC" to get started.'
+                                : 'No workloads match the current filters.'}
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            workloads.forEach(w => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <input type="text" class="form-input" value="${w.name || ''}" 
+                               onchange="updateWorkloadField(${w.id}, 'name', this.value)"
+                               placeholder="Workload name">
+                        ${w.apqcSource === 'template' ? '<span class="badge badge-info" style="margin-left: 6px; font-size: 9px;">APQC</span>' : ''}
+                    </td>
+                    <td>
+                        <select class="form-select" onchange="updateWorkloadField(${w.id}, 'domain', this.value)">
+                            <option value="payments" ${w.domain === 'payments' ? 'selected' : ''}>Payments</option>
+                            <option value="accounts" ${w.domain === 'accounts' ? 'selected' : ''}>Accounts</option>
+                            <option value="lending" ${w.domain === 'lending' ? 'selected' : ''}>Lending</option>
+                            <option value="claims" ${w.domain === 'claims' ? 'selected' : ''}>Claims</option>
+                            <option value="policy" ${w.domain === 'policy' ? 'selected' : ''}>Policy</option>
+                            <option value="risk" ${w.domain === 'risk' ? 'selected' : ''}>Risk</option>
+                            <option value="reporting" ${w.domain === 'reporting' ? 'selected' : ''}>Reporting</option>
+                            <option value="other" ${w.domain === 'other' ? 'selected' : ''}>Other</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select class="form-select" onchange="updateWorkloadField(${w.id}, 'criticality', this.value)">
+                            <option value="critical" ${w.criticality === 'critical' ? 'selected' : ''}>Critical</option>
+                            <option value="high" ${w.criticality === 'high' ? 'selected' : ''}>High</option>
+                            <option value="medium" ${w.criticality === 'medium' ? 'selected' : ''}>Medium</option>
+                            <option value="low" ${w.criticality === 'low' ? 'selected' : ''}>Low</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select class="form-select" onchange="updateWorkloadField(${w.id}, 'time', this.value)">
+                            <option value="" ${!w.time ? 'selected' : ''}>— Select —</option>
+                            <option value="tolerate" ${w.time === 'tolerate' ? 'selected' : ''}>Tolerate</option>
+                            <option value="invest" ${w.time === 'invest' ? 'selected' : ''}>Invest</option>
+                            <option value="migrate" ${w.time === 'migrate' ? 'selected' : ''}>Migrate</option>
+                            <option value="eliminate" ${w.time === 'eliminate' ? 'selected' : ''}>Eliminate</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select class="form-select" onchange="updateWorkloadField(${w.id}, 'pattern', this.value)">
+                            <option value="" ${!w.pattern ? 'selected' : ''}>— Select —</option>
+                            <option value="replatform" ${w.pattern === 'replatform' ? 'selected' : ''}>Replatform</option>
+                            <option value="refactor" ${w.pattern === 'refactor' ? 'selected' : ''}>Refactor</option>
+                            <option value="replace" ${w.pattern === 'replace' ? 'selected' : ''}>Replace</option>
+                            <option value="reimagine" ${w.pattern === 'reimagine' ? 'selected' : ''}>Reimagine</option>
+                            <option value="invest" ${w.pattern === 'invest' ? 'selected' : ''}>Invest</option>
+                        </select>
+                    </td>
+                    <td style="font-size: 12px; color: #94a3b8;">${w.apqcCode || '—'}</td>
+                    <td>
+                        <input type="number" class="form-input" value="${w.mips || 0}" min="0"
+                               onchange="updateWorkloadField(${w.id}, 'mips', parseInt(this.value))"
+                               placeholder="MIPS">
+                    </td>
+                    <td>
+                        <button class="btn btn-danger" onclick="removeWorkload(${w.id})" style="padding: 6px 10px; font-size: 12px;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterWorkloads() {
+            renderWorkloads();
+        }
+
+        function updateWorkloadSummary() {
+            const workloads = modernizationProgram.workloads || [];
+            const classified = workloads.filter(w => w.time && w.pattern);
+            const critical = workloads.filter(w => w.criticality === 'critical');
+            const migrate = workloads.filter(w => w.time === 'migrate' || w.time === 'eliminate');
+            const apqcCount = workloads.filter(w => w.apqcSource === 'template').length;
+            
+            document.getElementById('total-workloads').textContent = workloads.length;
+            document.getElementById('apqc-workloads-count').textContent = `${apqcCount} from APQC`;
+            document.getElementById('classified-count').textContent = classified.length;
+            const pct = workloads.length > 0 ? Math.round((classified.length / workloads.length) * 100) : 0;
+            document.getElementById('classification-percent').textContent = `${pct}% complete`;
+            document.getElementById('critical-count').textContent = critical.length;
+            document.getElementById('migrate-count').textContent = migrate.length;
+        }
+
+        function updateTIMEChart() {
+            const canvas = document.getElementById('time-chart');
+            if (!canvas) return;
+            
+            const workloads = modernizationProgram.workloads || [];
+            const timeCounts = {
+                tolerate: workloads.filter(w => w.time === 'tolerate').length,
+                invest: workloads.filter(w => w.time === 'invest').length,
+                migrate: workloads.filter(w => w.time === 'migrate').length,
+                eliminate: workloads.filter(w => w.time === 'eliminate').length
+            };
+            
+            if (timeChart) {
+                timeChart.data.datasets[0].data = [timeCounts.tolerate, timeCounts.invest, timeCounts.migrate, timeCounts.eliminate];
+                timeChart.update();
+            } else {
+                timeChart = new Chart(canvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Tolerate', 'Invest', 'Migrate', 'Eliminate'],
+                        datasets: [{
+                            data: [timeCounts.tolerate, timeCounts.invest, timeCounts.migrate, timeCounts.eliminate],
+                            backgroundColor: [
+                                'rgba(100, 116, 139, 0.8)',
+                                'rgba(59, 130, 246, 0.8)',
+                                'rgba(217, 119, 6, 0.8)',
+                                'rgba(239, 68, 68, 0.8)'
+                            ],
+                            borderColor: '#1a1a2e',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#e2e8f0',
+                                    padding: 16,
+                                    font: {
+                                        size: 13,
+                                        weight: 600
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        async function classifyAllWithAI() {
+            const unclassified = modernizationProgram.workloads.filter(w => !w.time || !w.pattern);
+            
+            if (unclassified.length === 0) {
+                showToast('All workloads are already classified', 'success');
+                return;
+            }
+            
+            showToast(`Classifying ${unclassified.length} workloads with AI...`, 'success');
+            
+            // Placeholder for AI classification
+            // In production, this would call AdvisyAI.call() with workload context
+            // For now, apply heuristic classification
+            
+            unclassified.forEach(w => {
+                // Heuristic: critical systems → invest or migrate, high → migrate, medium+ → tolerate/invest, low → eliminate
+                if (w.criticality === 'critical' && w.domain === 'payments') {
+                    w.time = 'invest';
+                    w.pattern = 'reimagine';
+                } else if (w.criticality === 'critical') {
+                    w.time = 'migrate';
+                    w.pattern = 'replatform';
+                } else if (w.criticality === 'high') {
+                    w.time = 'migrate';
+                    w.pattern = 'refactor';
+                } else if (w.criticality === 'low') {
+                    w.time = 'eliminate';
+                    w.pattern = 'replace';
+                } else {
+                    w.time = 'tolerate';
+                    w.pattern = 'invest';
+                }
+            });
+            
+            renderWorkloads();
+            updateWorkloadSummary();
+            updateTIMEChart();
+            saveProgram();
+            
+            showToast(`Successfully classified ${unclassified.length} workloads`, 'success');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // WAVE PLANNING
+        // ═══════════════════════════════════════════════════════════════
+        function generateWaves() {
+            const workloads = modernizationProgram.workloads.filter(w => w.time === 'migrate' || w.time === 'eliminate');
+            
+            if (workloads.length === 0) {
+                showToast('No workloads classified for migration. Classify workloads first.', 'error');
+                return;
+            }
+            
+            // Simple wave generation: Quick wins → Core → Final
+            modernizationProgram.waves = [
+                { id: 1, name: 'Wave 1: Quick Wins', duration: 6, workloads: [] },
+                { id: 2, name: 'Wave 2: Core Systems', duration: 12, workloads: [] },
+                { id: 3, name: 'Wave 3: Final Migration', duration: 6, workloads: [] }
+            ];
+            
+            // Assign workloads to waves based on criticality
+            workloads.forEach(w => {
+                if (w.criticality === 'low' || w.time === 'eliminate') {
+                    modernizationProgram.waves[0].workloads.push(w.id);
+                } else if (w.criticality === 'critical') {
+                    modernizationProgram.waves[1].workloads.push(w.id);
+                } else {
+                    modernizationProgram.waves[2].workloads.push(w.id);
+                }
+            });
+            
+            updateWaveSummary();
+            saveProgram();
+            showToast('Waves generated successfully', 'success');
+        }
+
+        function updateWaveSummary() {
+            const waves = modernizationProgram.waves || [];
+            const totalWorkloads = waves.reduce((sum, w) => sum + w.workloads.length, 0);
+            const totalDuration = waves.reduce((sum, w) => sum + w.duration, 0);
+            
+            document.getElementById('wave-count').textContent = waves.length;
+            document.getElementById('wave-workloads').textContent = totalWorkloads;
+            document.getElementById('wave-duration').textContent = totalDuration;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // RISK REGISTER
+        // ═══════════════════════════════════════════════════════════════
+        function addRisk() {
+            modernizationProgram.risks.push({
+                id: Date.now(),
+                description: '',
+                category: 'technical',
+                likelihood: 3,
+                impact: 3,
+                mitigation: '',
+                status: 'open'
+            });
+            renderRisks();
+            updateRiskSummary();
+            saveProgram();
+        }
+
+        function removeRisk(id) {
+            if (!confirm('Remove this risk? This cannot be undone.')) return;
+            
+            modernizationProgram.risks = modernizationProgram.risks.filter(r => r.id !== id);
+            renderRisks();
+            updateRiskSummary();
+            saveProgram();
+            showToast('Risk removed', 'success');
+        }
+
+        function updateRiskField(id, field, value) {
+            const risk = modernizationProgram.risks.find(r => r.id === id);
+            if (risk) {
+                risk[field] = value;
+                modernizationProgram.lastModified = new Date().toISOString();
+                updateRiskSummary();
+            }
+        }
+
+        function renderRisks() {
+            const tbody = document.getElementById('risks-table');
+            if (!tbody) return;
+            
+            const risks = modernizationProgram.risks || [];
+            
+            if (risks.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #64748b;">
+                            No risks added yet. Click "Add Risk" or use AI to generate common risks.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            risks.forEach(r => {
+                const score = r.likelihood * r.impact;
+                let scoreClass = 'badge-warning';
+                if (score >= 20) scoreClass = 'badge-danger';
+                else if (score <= 8) scoreClass = 'badge-success';
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><textarea class="form-input" rows="2" onchange="updateRiskField(${r.id}, 'description', this.value)" placeholder="Risk description...">${r.description || ''}</textarea></td>
+                    <td>
+                        <select class="form-select" onchange="updateRiskField(${r.id}, 'category', this.value)">
+                            <option value="technical" ${r.category === 'technical' ? 'selected' : ''}>Technical</option>
+                            <option value="organizational" ${r.category === 'organizational' ? 'selected' : ''}>Organizational</option>
+                            <option value="financial" ${r.category === 'financial' ? 'selected' : ''}>Financial</option>
+                            <option value="regulatory" ${r.category === 'regulatory' ? 'selected' : ''}>Regulatory</option>
+                            <option value="schedule" ${r.category === 'schedule' ? 'selected' : ''}>Schedule</option>
+                        </select>
+                    </td>
+                    <td><input type="number" class="form-input" min="1" max="5" value="${r.likelihood}" onchange="updateRiskField(${r.id}, 'likelihood', parseInt(this.value)); renderRisks();"></td>
+                    <td><input type="number" class="form-input" min="1" max="5" value="${r.impact}" onchange="updateRiskField(${r.id}, 'impact', parseInt(this.value)); renderRisks();"></td>
+                    <td><span class="badge ${scoreClass}">${score}</span></td>
+                    <td><input type="text" class="form-input" value="${r.mitigation || ''}" onchange="updateRiskField(${r.id}, 'mitigation', this.value)" placeholder="Mitigation action..."></td>
+                    <td>
+                        <button class="btn btn-danger" onclick="removeRisk(${r.id})" style="padding: 6px 10px; font-size: 12px;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateRiskSummary() {
+            const risks = modernizationProgram.risks || [];
+            const critical = risks.filter(r => (r.likelihood * r.impact) >= 20);
+            const open = risks.filter(r => r.status === 'open');
+            const mitigated = risks.filter(r => r.status === 'mitigated');
+            
+            document.getElementById('total-risks').textContent = risks.length;
+            document.getElementById('critical-risks').textContent = critical.length;
+            document.getElementById('open-risks').textContent = open.length;
+            document.getElementById('mitigated-risks').textContent = mitigated.length;
+        }
+
+        function generateRisksWithAI() {
+            // Common mainframe modernization risks
+            const commonRisks = [
+                {
+                    description: 'Inadequate COBOL program documentation causing rework during migration',
+                    category: 'technical',
+                    likelihood: 4,
+                    impact: 4,
+                    mitigation: 'Allocate 20% buffer in discovery phase for knowledge transfer. Use automated code analysis tools.',
+                    status: 'open'
+                },
+                {
+                    description: 'Critical mainframe subject matter experts (SMEs) retire before program completion',
+                    category: 'organizational',
+                    likelihood: 3,
+                    impact: 5,
+                    mitigation: 'Implement immediate knowledge transfer program. Record all decision rationale. Create video tutorials.',
+                    status: 'open'
+                },
+                {
+                    description: 'Data quality issues discovered late in migration, delaying go-live',
+                    category: 'technical',
+                    likelihood: 4,
+                    impact: 4,
+                    mitigation: 'Conduct data quality assessment in TG1. Implement CDC early. Build automated reconciliation framework.',
+                    status: 'open'
+                },
+                {
+                    description: 'Scope creep as business requests new features during rebuild',
+                    category: 'schedule',
+                    likelihood: 5,
+                    impact: 3,
+                    mitigation: 'Establish strict change control. Use Strangler Fig pattern to separate modernization from enhancements.',
+                    status: 'open'
+                },
+                {
+                    description: 'Regulatory compliance gaps in target architecture (DORA, GDPR)',
+                    category: 'regulatory',
+                    likelihood: 2,
+                    impact: 5,
+                    mitigation: 'Engage compliance team in TG1. Conduct formal compliance review before TG2 architecture approval.',
+                    status: 'open'
+                },
+                {
+                    description: 'Batch window constraints prevent parallel running during coexistence',
+                    category: 'technical',
+                    likelihood: 3,
+                    impact: 4,
+                    mitigation: 'Design CDC-based async replication. Optimize batch jobs. Consider cloud batch processing.',
+                    status: 'open'
+                },
+                {
+                    description: 'Vendor/SI partner underestimates complexity, leading to cost overruns',
+                    category: 'financial',
+                    likelihood: 3,
+                    impact: 4,
+                    mitigation: 'Fixed-price contracts with penalty clauses. Conduct independent estimate. Retain 15-20% contingency.',
+                    status: 'open'
+                }
+            ];
+            
+            commonRisks.forEach((r, idx) => {
+                modernizationProgram.risks.push({
+                    id: Date.now() + idx,
+                    ...r
+                });
+            });
+            
+            renderRisks();
+            updateRiskSummary();
+            saveProgram();
+            showToast(`Generated ${commonRisks.length} common mainframe modernization risks`, 'success');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // AI ASSISTANT
+        // ═══════════════════════════════════════════════════════════════
+        function initializeAI() {
+            if (typeof AdvisyAI !== 'undefined') {
+                // Set custom system prompt for mainframe modernization
+                const customPrompt = `You are an expert Enterprise Architect specializing in legacy mainframe modernization for Banking and Insurance enterprises.
+
+You have deep knowledge of:
+- Gartner TIME Framework (Tolerate, Invest, Migrate, Eliminate)
+- Modernization Patterns (Replatform, Refactor, Replace, Reimagine)
+- Strangler Fig Pattern for incremental migration
+- APQC Process Classification Framework
+- Industry benchmarks from Gartner, AWS, Kyndryl, Capgemini
+- Regulatory requirements (DORA, GDPR, Basel IV, EU AI Act)
+
+When providing advice:
+- Reference specific frameworks and patterns
+- Provide concrete examples from banking/insurance
+- Consider risk, cost, and timeline trade-offs
+- Cite industry benchmarks when available
+- Be practical and execution-focused`;
+
+                AdvisyAI.updateIndustryLayer('financial-services');
+                console.log('✅ AI Assistant initialized for Mainframe Modernization');
+            }
+        }
+
+        function toggleChatPanel() {
+            const panel = document.getElementById('ai-chat-panel');
+            if (!panel) return;
+            const isOpen = !panel.classList.contains('hidden');
+            if (isOpen) {
+                panel.classList.add('hidden');
+                document.body.classList.remove('chat-sidebar-open');
+            } else {
+                panel.classList.remove('hidden');
+                document.body.classList.add('chat-sidebar-open');
+                const input = document.getElementById('chat-input');
+                if (input) input.focus();
+            }
+        }
+
+        // Initialize Chat Sidebar Resize
+        function initChatSidebarResize() {
+            const handle = document.getElementById('chat-resize-handle');
+            const panel = document.getElementById('ai-chat-panel');
+            if (!handle || !panel) return;
+            let startX, startW;
+
+            // Restore saved width
+            const saved = parseInt(localStorage.getItem('mainframe_sidebar_w') || '0', 10);
+            if (saved >= 280 && saved <= 800) applySidebarWidth(saved);
+
+            handle.addEventListener('mousedown', (e) => {
+                startX = e.clientX;
+                startW = panel.offsetWidth;
+                handle.classList.add('dragging');
+                document.body.style.userSelect = 'none';
+                document.body.style.cursor = 'col-resize';
+
+                function onMove(ev) {
+                    const diff = startX - ev.clientX;
+                    const newW = Math.max(280, Math.min(800, startW + diff));
+                    applySidebarWidth(newW);
+                }
+                function onUp() {
+                    localStorage.setItem('mainframe_sidebar_w', panel.offsetWidth);
+                    handle.classList.remove('dragging');
+                    document.body.style.userSelect = '';
+                    document.body.style.cursor = '';
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                }
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+        }
+
+        function applySidebarWidth(w) {
+            const panel = document.getElementById('ai-chat-panel');
+            if (!panel) return;
+            panel.style.width = w + 'px';
+            // Update main content margin to match sidebar width
+            const style = document.getElementById('_sidebar-width-style') || (() => {
+                const s = document.createElement('style');
+                s.id = '_sidebar-width-style';
+                document.head.appendChild(s);
+                return s;
+            })();
+            style.textContent = `body.chat-sidebar-open #main-content{margin-right:${w}px!important;}`;
+        }
+
+        function startNewChat() {
+            if (confirm('Start a new conversation? Current chat will be cleared.')) {
+                clearChat();
+                showToast('New conversation started', 'success');
+            }
+        }
+
+        function clearChat() {
+            const messagesDiv = document.getElementById('chat-messages');
+            if (!messagesDiv) return;
+            messagesDiv.innerHTML = `
+                <div class="chat-message assistant-message">
+                    <div class="message-content">
+                        <div class="message-text">
+                            <strong style="color:#ffffff;font-weight:700;">Welcome to Mainframe Modernization AI Assistant</strong>
+                            <div style="height:10px;"></div>
+                            <p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">I can help you with:</p>
+                            <ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">
+                                <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Workload classification (TIME framework)</li>
+                                <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Pattern selection guidance</li>
+                                <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Wave planning optimization</li>
+                                <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Risk identification</li>
+                                <li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">Cost estimation</li>
+                            </ul>
+                            <div style="height:10px;"></div>
+                            <em>Ask me anything about your modernization program!</em>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function quickAsk(question) {
+            const input = document.getElementById('chat-input');
+            if (input) {
+                input.value = question;
+                sendMessage();
+            }
+        }
+
+        // Markdown parser
+        function escapeHtml(text) {
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function parseMarkdown(text) {
+            if (!text) return '';
+            let t = escapeHtml(text);
+            
+            // Inline formatting
+            t = t.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+            t = t.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff;font-weight:700;">$1</strong>');
+            t = t.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            t = t.replace(/`([^`]+)`/g, '<code style="font-family:monospace;background:#1a1a1a;padding:2px 6px;border-radius:4px;font-size:12px;color:#66d9ef;font-weight:500;border:1px solid #404040;">$1</code>');
+            
+            // Block processing
+            const lines = t.split('\n');
+            const out = [];
+            let inUL = false, inOL = false, inCodeBlock = false, codeLines = [];
+            
+            const closeList = () => {
+                if (inUL) { out.push('</ul>'); inUL = false; }
+                if (inOL) { out.push('</ol>'); inOL = false; }
+            };
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const trimmed = line.trim();
+                
+                // Headings
+                const h3m = trimmed.match(/^### (.+)$/);
+                const h2m = trimmed.match(/^## (.+)$/);
+                if (h2m || h3m) {
+                    closeList();
+                    if (h3m) out.push(`<div style="font-size:14px;font-weight:600;color:#d97706;margin:16px 0 8px;">${h3m[1]}</div>`);
+                    else out.push(`<div style="font-size:15px;font-weight:700;color:#ffffff;border-bottom:2px solid #d97706;padding-bottom:6px;margin:18px 0 10px;">${h2m[1]}</div>`);
+                    continue;
+                }
+                
+                // Unordered list
+                const ulm = trimmed.match(/^[-*—] (.+)$/);
+                if (ulm) {
+                    if (!inUL) { closeList(); out.push('<ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">'); inUL = true; }
+                    out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${ulm[1]}</li>`);
+                    continue;
+                }
+                
+                // Empty line
+                if (trimmed === '') {
+                    closeList();
+                    out.push('<div style="height:10px;"></div>');
+                    continue;
+                }
+                
+                // Regular paragraph
+                closeList();
+                out.push(`<p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">${trimmed}</p>`);
+            }
+            
+            closeList();
+            return out.join('');
+        }
+
+        // Chat Functions
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            addChatMessage(message, 'user');
+            input.value = '';
+            
+            // Call AI
+            processAIRequest(message);
+        }
+        
+        function addChatMessage(text, role) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `chat-message ${role}-message`;
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            const messageText = document.createElement('div');
+            messageText.className = 'message-text';
+            messageText.innerHTML = role === 'assistant' ? parseMarkdown(text) : escapeHtml(text);
+            
+            const messageTime = document.createElement('div');
+            messageTime.className = 'message-time';
+            messageTime.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            
+            messageContent.appendChild(messageText);
+            messageContent.appendChild(messageTime);
+            msgDiv.appendChild(messageContent);
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        async function processAIRequest(userMessage) {
+            // Show typing indicator
+            addChatMessage('Analyzing...', 'assistant');
+            
+            try {
+                if (typeof AdvisyAI !== 'undefined') {
+                    const response = await AdvisyAI.call(userMessage, {
+                        taskType: 'mainframe_expert',
+                        includeProjectContext: true
+                    });
+                    
+                    // Remove typing indicator
+                    const msgs = document.getElementById('chat-messages');
+                    msgs.removeChild(msgs.lastChild);
+                    
+                    addChatMessage(response, 'assistant');
+                } else {
+                    // Remove typing indicator
+                    const msgs = document.getElementById('chat-messages');
+                    msgs.removeChild(msgs.lastChild);
+                    
+                    addChatMessage('⚠️ AI Assistant is not available. Please ensure server is running with OpenAI API key configured.', 'assistant');
+                }
+            } catch(e) {
+                // Remove typing indicator
+                const msgs = document.getElementById('chat-messages');
+                if (msgs.lastChild) msgs.removeChild(msgs.lastChild);
+                
+                const errorMsg = e.message.includes('API key not configured') 
+                    ? '⚠️ OpenAI API key is not configured on the server. Please set OPENAI_API_KEY environment variable.'
+                    : `Error: ${e.message}`;
+                addChatMessage(errorMsg, 'assistant');
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                toggleChatPanel();
+            }
+            if (e.key === 'Enter' && e.target.id === 'chat-input' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════════════
+        // EXPORT FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════
+        function exportJSON() {
+            const dataStr = JSON.stringify(modernizationProgram, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Mainframe_Modernization_${modernizationProgram.id}_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToast('JSON exported successfully', 'success');
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    modernizationProgram = imported;
+                    populateUI();
+                    saveProgram();
+                    showToast('Program imported successfully', 'success');
+                } catch(err) {
+                    showToast('Error importing file: ' + err.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function exportExcel() {
+            // Placeholder - will implement with XLSX.js
+            showToast('Excel export - Coming soon!', 'success');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // UTILITY FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const messageElem = document.getElementById('toast-message');
+            
+            messageElem.textContent = message;
+            toast.className = `toast ${type} active`;
+            
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
