@@ -6,6 +6,153 @@
  */
 
 // ═══════════════════════════════════════════════════════════════════
+// CANVAS 2: STAKEHOLDER MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════
+
+function openStakeholderModal(id = null) {
+    document.getElementById('stakeholder-edit-id').value = id || '';
+    
+    if (id) {
+        const stakeholder = engagementManager.getEntity('stakeholders', id);
+        if (stakeholder) {
+            document.getElementById('stakeholder-modal-title').textContent = 'Edit Stakeholder';
+            document.getElementById('stakeholder-name').value = stakeholder.name || '';
+            document.getElementById('stakeholder-role').value = stakeholder.role || '';
+            document.getElementById('stakeholder-orgunit').value = stakeholder.orgUnit || '';
+            document.getElementById('stakeholder-influence').value = stakeholder.influence || 'medium';
+            document.getElementById('stakeholder-power').value = stakeholder.decisionPower || 'medium';
+            document.getElementById('stakeholder-priorities').value = (stakeholder.priorities || []).join('\n');
+        }
+    } else {
+        document.getElementById('stakeholder-modal-title').textContent = 'Add Stakeholder';
+        document.getElementById('stakeholder-name').value = '';
+        document.getElementById('stakeholder-role').value = '';
+        document.getElementById('stakeholder-orgunit').value = '';
+        document.getElementById('stakeholder-influence').value = 'medium';
+        document.getElementById('stakeholder-power').value = 'medium';
+        document.getElementById('stakeholder-priorities').value = '';
+    }
+    
+    document.getElementById('stakeholderModal').classList.remove('hidden');
+}
+
+function closeStakeholderModal() {
+    document.getElementById('stakeholderModal').classList.add('hidden');
+}
+
+function saveStakeholder() {
+    const id = document.getElementById('stakeholder-edit-id').value;
+    const name = document.getElementById('stakeholder-name').value;
+    const role = document.getElementById('stakeholder-role').value;
+    const orgUnit = document.getElementById('stakeholder-orgunit').value;
+    const influence = document.getElementById('stakeholder-influence').value;
+    const decisionPower = document.getElementById('stakeholder-power').value;
+    const prioritiesText = document.getElementById('stakeholder-priorities').value;
+    const priorities = prioritiesText.split('\n').filter(p => p.trim()).map(p => p.trim());
+    
+    if (!name || !role) {
+        showToast('Validation Error', 'Please fill in name and role', 'error');
+        return;
+    }
+    
+    const stakeholder = {
+        name, role, orgUnit, influence, decisionPower, priorities,
+        interest: 'medium',  // Default values for schema compatibility
+        sentiment: 'neutral'
+    };
+    
+    if (id) {
+        engagementManager.updateEntity('stakeholders', id, stakeholder);
+    } else {
+        engagementManager.addEntity('stakeholders', stakeholder);
+    }
+    
+    currentEngagement = engagementManager.getCurrentEngagement();
+    closeStakeholderModal();
+    renderStakeholders();
+    updateKPIs();
+    
+    showToast('Stakeholder Saved', id ? `Updated ${name}` : `Added ${name}`, 'success');
+}
+
+function renderStakeholders() {
+    const stakeholders = engagementManager.getEntities('stakeholders') || [];
+    const container = document.getElementById('stakeholders-container');
+    
+    // Apply filters
+    const searchTerm = document.getElementById('filter-stakeholder')?.value.toLowerCase() || '';
+    const influenceFilter = document.getElementById('filter-influence')?.value || '';
+    
+    const filtered = stakeholders.filter(s => {
+        const matchesSearch = !searchTerm || 
+            s.name.toLowerCase().includes(searchTerm) ||
+            s.role.toLowerCase().includes(searchTerm) ||
+            (s.orgUnit && s.orgUnit.toLowerCase().includes(searchTerm));
+        const matchesInfluence = !influenceFilter || s.influence === influenceFilter;
+        return matchesSearch && matchesInfluence;
+    });
+    
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="fas fa-users"></i></div>
+                <div class="empty-state-title">${stakeholders.length === 0 ? 'No stakeholders defined' : 'No matching stakeholders'}</div>
+                <div class="empty-state-text">${stakeholders.length === 0 ? 'Add stakeholders to track influence and decision power' : 'Try adjusting your filters'}</div>
+                ${stakeholders.length === 0 ? '<button class="btn btn-primary" onclick="openStakeholderModal()"><i class="fas fa-plus"></i> Add First Stakeholder</button>' : ''}
+            </div>
+        `;
+        return;
+    }
+    
+    const getInfluenceColor = (level) => {
+        return level === 'high' ? '#ef4444' : level === 'medium' ? '#f59e0b' : '#10b981';
+    };
+    
+    container.innerHTML = filtered.map(s => `
+        <div class="entity-card">
+            <div class="entity-card-header">
+                <div>
+                    <div class="entity-card-title">${s.name}</div>
+                    <div class="entity-card-subtitle">${s.role}${s.orgUnit ? ' • ' + s.orgUnit : ''}</div>
+                </div>
+                <button class="btn btn-sm btn-ghost" onclick="openStakeholderModal('${s.id}')" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </div>
+            <div class="entity-card-body">
+                <div class="entity-metrics">
+                    <div class="metric-item">
+                        <div class="metric-label">Influence</div>
+                        <div class="metric-badge" style="background: ${getInfluenceColor(s.influence)}20; color: ${getInfluenceColor(s.influence)};">
+                            ${s.influence}
+                        </div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Decision Power</div>
+                        <div class="metric-badge" style="background: ${getInfluenceColor(s.decisionPower)}20; color: ${getInfluenceColor(s.decisionPower)};">
+                            ${s.decisionPower}
+                        </div>
+                    </div>
+                    ${s.priorities && s.priorities.length > 0 ? `
+                    <div class="metric-item" style="grid-column: 1 / -1;">
+                        <div class="metric-label">Priorities</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">
+                            ${s.priorities.slice(0, 3).map(p => `
+                                <span class="tag" style="background: #3b82f620; color: #3b82f6; font-size: 11px; padding: 2px 8px;">
+                                    ${p}
+                                </span>
+                            `).join('')}
+                            ${s.priorities.length > 3 ? `<span class="tag" style="background: #6b728020; color: #6b7280; font-size: 11px; padding: 2px 8px;">+${s.priorities.length - 3} more</span>` : ''}
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // CANVAS 3: APPLICATION MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════
 
@@ -118,15 +265,15 @@ function renderApplications() {
                 ${applications.map(app => `
                     <tr>
                         <td>
-                            <strong>${app.name}</strong>
+                            <strong>${app.name || 'Unnamed'}</strong>
                             ${app.sunsetCandidate ? '<span class="badge badge-high" style="margin-left: 8px;">Sunset</span>' : ''}
                             ${app.modernizationCandidate ? '<span class="badge badge-medium" style="margin-left: 8px;">Modernize</span>' : ''}
                         </td>
-                        <td>${app.businessDomain}</td>
-                        <td><span class="badge badge-${app.lifecycle}">${app.lifecycle}</span></td>
-                        <td><span class="badge badge-${app.riskLevel}">${app.riskLevel}</span></td>
-                        <td><span class="badge badge-${app.technicalDebt}">${app.technicalDebt}</span></td>
-                        <td>${app.annualCost ? app.annualCost.toLocaleString() + ' SEK' : '-'}</td>
+                        <td>${app.businessDomain || '-'}</td>
+                        <td><span class="badge badge-${app.lifecycle || 'tolerate'}">${app.lifecycle || 'tolerate'}</span></td>
+                        <td><span class="badge badge-${app.riskLevel || 'medium'}">${app.riskLevel || 'medium'}</span></td>
+                        <td><span class="badge badge-${app.technicalDebt || 'medium'}">${app.technicalDebt || 'medium'}</span></td>
+                        <td>${app.annualCost ? (app.annualCost || 0).toLocaleString() + ' SEK' : '-'}</td>
                         <td>
                             <button class="btn btn-ghost" style="padding: 4px 8px;" onclick="openApplicationModal('${app.id}')">
                                 <i class="fas fa-edit"></i>
@@ -229,8 +376,9 @@ function renderWhitespace() {
     }
     
     const gapStats = capabilities.reduce((acc, cap) => {
-        if (cap.gap > 0) acc.hasGap++;
-        if (cap.gap >= 2) acc.critical++;
+        const gap = cap.gap || 0;
+        if (gap > 0) acc.hasGap++;
+        if (gap >= 2) acc.critical++;
         return acc;
     }, { hasGap: 0, critical: 0 });
     
@@ -270,16 +418,17 @@ function renderWhitespace() {
             </thead>
             <tbody>
                 ${capabilities.map(cap => {
-                    const gapClass = cap.gap >= 2 ? 'badge-high' : cap.gap === 1 ? 'badge-medium' : 'badge-low';
+                    const gap = cap.gap || 0;
+                    const gapClass = gap >= 2 ? 'badge-high' : gap === 1 ? 'badge-medium' : 'badge-low';
                     return `
                         <tr>
-                            <td><strong>${cap.name}</strong></td>
-                            <td>${cap.domain}</td>
-                            <td><span class="badge badge-draft">${cap.level}</span></td>
-                            <td>${cap.maturity}</td>
-                            <td>${cap.targetMaturity}</td>
-                            <td><span class="badge ${gapClass}">${cap.gap > 0 ? '+' + cap.gap : cap.gap}</span></td>
-                            <td><span class="badge badge-${cap.strategicImportance}">${cap.strategicImportance}</span></td>
+                            <td><strong>${cap.name || 'Unnamed'}</strong></td>
+                            <td>${cap.domain || '-'}</td>
+                            <td><span class="badge badge-draft">${cap.level || 'L2'}</span></td>
+                            <td>${cap.maturity || 0}</td>
+                            <td>${cap.targetMaturity || 0}</td>
+                            <td><span class="badge ${gapClass}">${gap > 0 ? '+' + gap : gap}</span></td>
+                            <td><span class="badge badge-${cap.strategicImportance || 'medium'}">${cap.strategicImportance || 'medium'}</span></td>
                             <td>
                                 <button class="btn btn-ghost" style="padding: 4px 8px;" onclick="openCapabilityModal('${cap.id}')">
                                     <i class="fas fa-edit"></i>
@@ -383,8 +532,8 @@ function renderTarget() {
                 <div>
                     <h3 style="font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 8px;">${arch.name}</h3>
                     <div style="display: flex; gap: 8px;">
-                        <span class="badge badge-${arch.type === 'target' ? 'active' : arch.type === 'as-is' ? 'draft' : 'medium'}">${arch.type.toUpperCase()}</span>
-                        <span class="badge badge-draft">${arch.diagramType.replace('-', ' ')}</span>
+                        <span class="badge badge-${arch.type === 'target' ? 'active' : arch.type === 'as-is' ? 'draft' : 'medium'}">${(arch.type || 'other').toUpperCase()}</span>
+                        ${arch.diagramType ? `<span class="badge badge-draft">${arch.diagramType.replace('-', ' ')}</span>` : ''}
                     </div>
                 </div>
                 <button class="btn btn-ghost" onclick="openArchitectureModal('${arch.id}')">
@@ -426,23 +575,36 @@ function renderTarget() {
 function openInitiativeModal(id = null) {
     document.getElementById('initiative-edit-id').value = id || '';
     
+    // Reset value type checkboxes
+    ['cost', 'risk', 'speed', 'compliance', 'revenue', 'quality'].forEach(type => {
+        document.getElementById('value-' + type).checked = false;
+    });
+    
     if (id) {
         const init = engagementManager.getEntity('initiatives', id);
         if (init) {
             document.getElementById('initiative-modal-title').textContent = 'Edit Initiative';
             document.getElementById('initiative-name').value = init.name || '';
             document.getElementById('initiative-description').value = init.description || '';
+            document.getElementById('initiative-themes').value = (init.linkedThemes || []).join(', ');
             document.getElementById('initiative-horizon').value = init.timeHorizon || 'mid';
             document.getElementById('initiative-status').value = init.status || 'option';
             document.getElementById('initiative-effort').value = init.effort || 'M';
             document.getElementById('initiative-cost').value = init.estimatedCost || 0;
             document.getElementById('initiative-outcomes').value = (init.businessOutcomes || []).join('\n');
             document.getElementById('initiative-owner').value = init.owner || '';
+            
+            // Check value type checkboxes
+            (init.valueType || []).forEach(type => {
+                const checkbox = document.getElementById('value-' + type);
+                if (checkbox) checkbox.checked = true;
+            });
         }
     } else {
         document.getElementById('initiative-modal-title').textContent = 'Add Initiative';
         document.getElementById('initiative-name').value = '';
         document.getElementById('initiative-description').value = '';
+        document.getElementById('initiative-themes').value = '';
         document.getElementById('initiative-horizon').value = 'mid';
         document.getElementById('initiative-status').value = 'option';
         document.getElementById('initiative-effort').value = 'M';
@@ -462,6 +624,8 @@ function saveInitiative() {
     const id = document.getElementById('initiative-edit-id').value;
     const name = document.getElementById('initiative-name').value;
     const description = document.getElementById('initiative-description').value;
+    const themesInput = document.getElementById('initiative-themes').value;
+    const linkedThemes = themesInput.split(',').map(t => t.trim()).filter(t => t);
     const timeHorizon = document.getElementById('initiative-horizon').value;
     const status = document.getElementById('initiative-status').value;
     const effort = document.getElementById('initiative-effort').value;
@@ -469,16 +633,35 @@ function saveInitiative() {
     const businessOutcomes = document.getElementById('initiative-outcomes').value.split('\n').filter(o => o.trim());
     const owner = document.getElementById('initiative-owner').value;
     
-    if (!name || businessOutcomes.length === 0) {
-        showToast('Validation Error', 'Please enter a name and at least one business outcome', 'error');
+    // Get checked value types
+    const valueType = [];
+    ['cost', 'risk', 'speed', 'compliance', 'revenue', 'quality'].forEach(type => {
+        if (document.getElementById('value-' + type).checked) {
+            valueType.push(type);
+        }
+    });
+    
+    // Validation
+    if (!name) {
+        showToast('Validation Error', 'Please enter an initiative name', 'error');
+        return;
+    }
+    if (linkedThemes.length === 0) {
+        showToast('Validation Error', 'Please enter at least one theme', 'error');
+        return;
+    }
+    if (businessOutcomes.length === 0) {
+        showToast('Validation Error', 'Please enter at least one business outcome', 'error');
+        return;
+    }
+    if (valueType.length === 0) {
+        showToast('Validation Error', 'Please select at least one value driver', 'error');
         return;
     }
     
     const initiative = {
-        name, description, timeHorizon, status, effort, estimatedCost,
-        businessOutcomes, owner,
-        linkedThemes: [],
-        valueType: ['cost'],
+        name, description, linkedThemes, timeHorizon, status, effort, estimatedCost,
+        businessOutcomes, valueType, owner,
         dependencies: [],
         risks: []
     };
@@ -513,12 +696,19 @@ function renderRoadmap() {
     }
     
     const byHorizon = initiatives.reduce((acc, init) => {
-        if (!acc[init.timeHorizon]) acc[init.timeHorizon] = [];
-        acc[init.timeHorizon].push(init);
+        const horizon = init.timeHorizon || 'short'; // Default to short if undefined
+        if (!acc[horizon]) acc[horizon] = [];
+        acc[horizon].push(init);
         return acc;
     }, {});
     
     container.innerHTML = `
+        <div style="margin-bottom: 16px; padding: 12px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-info-circle" style="color: #0284c7;"></i>
+            <span style="font-size: 13px; color: #0c4a6e;">
+                <strong>Tip:</strong> Drag and drop initiatives between time horizons to reorganize your roadmap
+            </span>
+        </div>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
             ${['short', 'mid', 'long'].map(horizon => {
                 const inits = byHorizon[horizon] || [];
@@ -526,36 +716,156 @@ function renderRoadmap() {
                 const horizonColor = horizon === 'short' ? '#10b981' : horizon === 'mid' ? '#f59e0b' : '#3b82f6';
                 
                 return `
-                    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px;">
-                        <h3 style="font-size: 14px; font-weight: 700; color: ${horizonColor}; margin-bottom: 16px; text-transform: uppercase;">
-                            ${horizonLabel}
+                    <div class="roadmap-column" data-horizon="${horizon}" 
+                         style="background: white; border: 2px dashed #e5e7eb; border-radius: 12px; padding: 20px; min-height: 400px;"
+                         ondragover="allowDrop(event)" ondrop="dropInitiative(event, '${horizon}')">
+                        <h3 style="font-size: 14px; font-weight: 700; color: ${horizonColor}; margin-bottom: 16px; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between;">
+                            <span>${horizonLabel}</span>
+                            <span style="background: ${horizonColor}20; color: ${horizonColor}; padding: 4px 8px; border-radius: 6px; font-size: 12px;">${inits.length}</span>
                         </h3>
-                        ${inits.length === 0 ? `
-                            <div style="text-align: center; padding: 40px 20px; color: #9ca3af;">
-                                <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 8px; display: block;"></i>
-                                <div style="font-size: 13px;">No initiatives</div>
-                            </div>
-                        ` : inits.map(init => `
-                            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                                    <strong style="font-size: 14px; color: #111827;">${init.name}</strong>
-                                    <button class="btn btn-ghost" style="padding: 2px 6px; font-size: 12px;" onclick="openInitiativeModal('${init.id}')">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
+                        <div class="roadmap-items" style="display: flex; flex-direction: column; gap: 12px;">
+                            ${inits.length === 0 ? `
+                                <div style="text-align: center; padding: 40px 20px; color: #9ca3af; border: 2px dashed #e5e7eb; border-radius: 8px; background: #f9fafb;">
+                                    <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 8px; display: block;"></i>
+                                    <div style="font-size: 13px;">Drop initiatives here</div>
                                 </div>
-                                <div style="display: flex; gap: 6px; margin-bottom: 8px;">
-                                    <span class="badge badge-${init.status === 'approved' ? 'active' : init.status === 'option' ? 'draft' : 'medium'}">${init.status}</span>
-                                    <span class="badge badge-draft">${init.effort}</span>
+                            ` : inits.map(init => `
+                                <div class="initiative-card" draggable="true" data-id="${init.id}" data-horizon="${horizon}"
+                                     ondragstart="dragInitiative(event)"
+                                     style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; cursor: move; transition: all 0.2s;">
+                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                                        <div style="flex: 1;">
+                                            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                                                <i class="fas fa-grip-vertical" style="color: #9ca3af; font-size: 12px;"></i>
+                                                <strong style="font-size: 14px; color: #111827;">${init.name || 'Unnamed'}</strong>
+                                            </div>
+                                            ${init.description ? `<div style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">${init.description}</div>` : ''}
+                                        </div>
+                                        <button class="btn btn-ghost" style="padding: 2px 6px; font-size: 12px;" onclick="openInitiativeModal('${init.id}')">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
+                                    <div style="display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;">
+                                        <span class="badge badge-${init.status === 'approved' ? 'active' : init.status === 'option' ? 'draft' : 'medium'}">${init.status || 'draft'}</span>
+                                        <span class="badge badge-draft">${init.effort || 'medium'}</span>
+                                        ${init.owner ? `<span class="badge" style="background: #e0e7ff; color: #4338ca;"><i class="fas fa-user" style="font-size: 10px;"></i> ${init.owner}</span>` : ''}
+                                    </div>
+                                    ${init.estimatedCost > 0 ? `
+                                        <div style="font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 6px;">
+                                            <i class="fas fa-coins" style="color: #f59e0b;"></i>
+                                            <strong>${((init.estimatedCost || 0) / 1000000).toFixed(1)}M SEK</strong>
+                                        </div>
+                                    ` : ''}
+                                    ${init.businessOutcomes && init.businessOutcomes.length > 0 ? `
+                                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+                                            <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">
+                                                <i class="fas fa-bullseye" style="color: #10b981;"></i> Outcomes:
+                                            </div>
+                                            <div style="font-size: 11px; color: #374151;">
+                                                ${init.businessOutcomes.slice(0, 2).join(' • ')}${init.businessOutcomes.length > 2 ? '...' : ''}
+                                            </div>
+                                        </div>
+                                    ` : ''}
                                 </div>
-                                ${init.estimatedCost > 0 ? `<div style="font-size: 12px; color: #6b7280;">Cost: ${init.estimatedCost.toLocaleString()} SEK</div>` : ''}
-                            </div>
-                        `).join('')}
+                            `).join('')}
+                        </div>
                     </div>
                 `;
             }).join('')}
         </div>
     `;
+    
+    // Add hover effects via CSS
+    addRoadmapStyles();
 }
+
+function addRoadmapStyles() {
+    if (!document.getElementById('roadmap-drag-styles')) {
+        const style = document.createElement('style');
+        style.id = 'roadmap-drag-styles';
+        style.textContent = `
+            .initiative-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                border-color: #3b82f6 !important;
+            }
+            .initiative-card.dragging {
+                opacity: 0.5;
+            }
+            .roadmap-column.drag-over {
+                background: #f0f9ff !important;
+                border-color: #3b82f6 !important;
+                border-style: solid !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+function dragInitiative(event) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('initiativeId', event.target.dataset.id);
+    event.dataTransfer.setData('sourceHorizon', event.target.dataset.horizon);
+    event.target.classList.add('dragging');
+}
+
+function allowDrop(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    
+    // Add visual feedback
+    const column = event.currentTarget;
+    if (column.classList.contains('roadmap-column')) {
+        column.classList.add('drag-over');
+    }
+}
+
+function dropInitiative(event, targetHorizon) {
+    event.preventDefault();
+    
+    const initiativeId = event.dataTransfer.getData('initiativeId');
+    const sourceHorizon = event.dataTransfer.getData('sourceHorizon');
+    
+    // Remove visual feedback
+    document.querySelectorAll('.roadmap-column').forEach(col => col.classList.remove('drag-over'));
+    document.querySelectorAll('.initiative-card').forEach(card => card.classList.remove('dragging'));
+    
+    if (sourceHorizon === targetHorizon) {
+        return; // No change needed
+    }
+    
+    // Update the initiative's timeHorizon
+    const success = engagementManager.updateEntity('initiatives', initiativeId, {
+        timeHorizon: targetHorizon
+    });
+    
+    if (success) {
+        currentEngagement = engagementManager.getCurrentEngagement();
+        renderRoadmap();
+        
+        const horizonLabels = {
+            short: 'Short-term (0-12mo)',
+            mid: 'Mid-term (12-24mo)',
+            long: 'Long-term (24mo+)'
+        };
+        
+        showToast('Initiative Moved', `Moved to ${horizonLabels[targetHorizon]}`, 'success');
+    } else {
+        showToast('Error', 'Failed to move initiative', 'error');
+    }
+}
+
+// Clean up drag feedback when drag leaves column
+document.addEventListener('dragleave', function(event) {
+    if (event.target.classList.contains('roadmap-column')) {
+        event.target.classList.remove('drag-over');
+    }
+});
+
+document.addEventListener('dragend', function(event) {
+    document.querySelectorAll('.initiative-card').forEach(card => card.classList.remove('dragging'));
+    document.querySelectorAll('.roadmap-column').forEach(col => col.classList.remove('drag-over'));
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // CANVAS 7: LEADERSHIP VIEW
