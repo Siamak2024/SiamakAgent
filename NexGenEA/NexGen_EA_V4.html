@@ -7091,6 +7091,13 @@ function toggleChatPanel() {
     document.body.classList.add('chat-sidebar-open');
     _updateSidebarToggleIcon(true);
     clearUnreadCount();
+    
+    // Add welcome message if chat is empty
+    const messagesContainer = document.getElementById('chat-messages');
+    if (messagesContainer && messagesContainer.children.length === 0) {
+      addWelcomeMessage();
+    }
+    
     const input = document.getElementById('chat-input');
     if (input) input.focus({ preventScroll: true });
   }
@@ -7113,6 +7120,38 @@ function closeChatPanel() {
   document.body.classList.remove('chat-sidebar-open');
   _updateSidebarToggleIcon(false);
 }
+
+function addWelcomeMessage() {
+  const welcomeHtml = `
+    <div class="chat-message assistant" style="animation: fadeIn 0.3s ease-in;">
+      <div class="chat-message-header">
+        <i class="fas fa-robot" style="color: #10b981;"></i>
+        <span class="chat-message-sender">Advicy AI</span>
+        <span class="chat-message-time">${formatTime(Date.now())}</span>
+      </div>
+      <div class="chat-message-content" style="line-height: 1.6;">
+        <p style="margin: 0 0 12px 0;">👋 <strong>Welcome to Advicy AI Assistant!</strong></p>
+        <p style="margin: 0 0 12px 0;">I'm here to help you with your Enterprise Architecture projects. I can:</p>
+        <ul style="margin: 0 0 12px 0; padding-left: 20px;">
+          <li>Generate strategic intent and business model canvas</li>
+          <li>Create capability maps and operating models</li>
+          <li>Perform gap analysis and maturity assessments</li>
+          <li>Build transformation roadmaps</li>
+          <li>Answer questions about EA best practices</li>
+          <li>Help with APQC framework integration</li>
+        </ul>
+        <p style="margin: 0; color: #94a3b8; font-size: 12px;">💡 <strong>Quick tips:</strong> Use <kbd style="background: #334155; padding: 2px 6px; border-radius: 4px; font-size: 11px;">Ctrl+K</kbd> to toggle this panel • Press <kbd style="background: #334155; padding: 2px 6px; border-radius: 4px; font-size: 11px;">Enter</kbd> to send messages</p>
+      </div>
+    </div>
+  `;
+  
+  const messagesContainer = document.getElementById('chat-messages');
+  if (messagesContainer) {
+    messagesContainer.innerHTML = welcomeHtml;
+    scrollToBottom();
+  }
+}
+
 
 function getDefaultEaAssistantWelcome() {
   // Default welcome message in English
@@ -17772,6 +17811,11 @@ function runPortfolioOptimisation() {
   @keyframes pulse {
     0%, 100% { opacity: 1; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3); }
     50% { opacity: 0.9; box-shadow: 0 2px 12px rgba(245, 158, 11, 0.5); }
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   /* -- AI AGENT STYLING (Phase 1.1: AI Transformation) ---------------- */
