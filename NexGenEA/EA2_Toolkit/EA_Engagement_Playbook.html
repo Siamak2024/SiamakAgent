@@ -13,10 +13,16 @@
     <script src="../../js/EA_DataManager.js"></script>
     <script src="../../js/EA_EngagementManager.js"></script>
     <script src="../../js/Advicy_AI.js"></script>
+    <script src="../../js/EA_StorageManager.js"></script>
+    <script src="../../js/EA_MarkdownGenerator.js"></script>
     <script src="engagement_schema.js"></script>
     <script src="ea_engagement_core.js"></script>
     <script src="ea_engagement_canvas_impl.js"></script>
     <script src="ea_engagement_ui.js"></script>
+    <script src="ea_engagement_phase1_additions.js"></script>
+    <script src="ea_engagement_phase3_additions.js"></script>
+    <script src="ea_stakeholder_enhanced.js"></script>
+    <script src="ea_output_generator.js"></script>
     <style>
         /* === EA PLATFORM LAYOUT === */
         #app-container { display: flex; flex-direction: column; min-height: 100vh; background: #f8f9fa; }
@@ -277,6 +283,39 @@
         .badge-high { background: #fee2e2; color: #991b1b; }
         .badge-medium { background: #fef3c7; color: #92400e; }
         .badge-low { background: #dbeafe; color: #1e40af; }
+        
+        /* === SUB-TAB NAVIGATION === */
+        .sub-tabs {
+            display: flex; gap: 8px; padding: 0 0 16px 0;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 24px;
+        }
+        
+        .sub-tab {
+            display: flex; align-items: center; gap: 6px;
+            padding: 10px 18px; border: none;
+            background: #f9fafb; color: #6b7280;
+            font-size: 13px; font-weight: 600;
+            cursor: pointer; border-radius: 6px;
+            transition: all 0.2s;
+        }
+        
+        .sub-tab:hover {
+            background: #f3f4f6; color: #065f46;
+        }
+        
+        .sub-tab.active {
+            background: #10b981; color: white;
+            box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+        }
+        
+        .sub-tab-content {
+            display: none;
+        }
+        
+        .sub-tab-content.active {
+            display: block;
+        }
         
         /* === EMPTY STATE === */
         .empty-state {
@@ -626,6 +665,21 @@
                     </button>
                 </div>
                 
+                <!-- SUB-TAB NAVIGATION -->
+                <div class="sub-tabs">
+                    <button class="sub-tab active" onclick="switchSubTab('overview')">
+                        <i class="fas fa-clipboard-list"></i> Overview
+                    </button>
+                    <button class="sub-tab" onclick="switchSubTab('governance')">
+                        <i class="fas fa-balance-scale"></i> Governance
+                    </button>
+                    <button class="sub-tab" onclick="switchSubTab('execution')">
+                        <i class="fas fa-tasks"></i> Execution
+                    </button>
+                </div>
+                
+                <!-- OVERVIEW TAB -->
+                <div id="subtab-overview" class="sub-tab-content active">
                 <div class="form-group">
                     <label class="form-label">Engagement ID *</label>
                     <input type="text" id="engagement-id" class="form-input" placeholder="e.g., SEG-INS-2026Q2-001">
@@ -634,6 +688,11 @@
                 <div class="form-group">
                     <label class="form-label">Engagement Name *</label>
                     <input type="text" id="engagement-name" class="form-input" placeholder="e.g., Insurance Portfolio Modernization">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Customer Name</label>
+                    <input type="text" id="engagement-customer-name" class="form-input" placeholder="e.g., Acme Insurance Corp">
                 </div>
                 
                 <div class="form-group">
@@ -678,6 +737,103 @@
                     <textarea id="engagement-criteria" class="form-textarea" placeholder="Enter one criterion per line"></textarea>
                     <p style="font-size: 12px; color: #6b7280; margin-top: 4px;">Enter one criterion per line</p>
                 </div>
+                </div>
+                <!-- END OVERVIEW TAB -->
+                
+                <!-- GOVERNANCE TAB -->
+                <div id="subtab-governance" class="sub-tab-content">
+                <div class="section-header" style="margin-top: 0;">
+                    <div class="section-title" style="font-size: 18px;">
+                        <i class="fas fa-clipboard-check" style="color: #10b981;"></i>
+                        Governance Tracking
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+                    <button class="btn btn-secondary" onclick="openDecisionModal()">
+                        <i class="fas fa-gavel"></i> Add Decision
+                    </button>
+                    <button class="btn btn-secondary" onclick="openConstraintModal()">
+                        <i class="fas fa-ban"></i> Add Constraint
+                    </button>
+                    <button class="btn btn-secondary" onclick="openAssumptionModal()">
+                        <i class="fas fa-question-circle"></i> Add Assumption
+                    </button>
+                </div>
+                
+                <div id="decisions-container" style="margin-bottom: 24px;">
+                    <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #374151;">
+                        <i class="fas fa-gavel"></i> Decisions
+                    </h4>
+                    <div class="empty-state" style="padding: 20px;">
+                        <div class="empty-state-text">No decisions recorded</div>
+                    </div>
+                </div>
+                
+                <div id="constraints-container" style="margin-bottom: 24px;">
+                    <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #374151;">
+                        <i class="fas fa-ban"></i> Constraints
+                    </h4>
+                    <div class="empty-state" style="padding: 20px;">
+                        <div class="empty-state-text">No constraints defined</div>
+                    </div>
+                </div>
+                
+                <div id="assumptions-container" style="margin-bottom: 24px;">
+                    <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #374151;">
+                        <i class="fas fa-question-circle"></i> Assumptions
+                    </h4>
+                    <div class="empty-state" style="padding: 20px;">
+                        <div class="empty-state-text">No assumptions defined</div>
+                    </div>
+                </div>
+                </div>
+                <!-- END GOVERNANCE TAB -->
+                
+                <!-- EXECUTION TAB -->
+                <div id="subtab-execution" class="sub-tab-content">
+                <div class="section-header" style="margin-top: 0;">
+                    <div class="section-title" style="font-size: 18px;">
+                        <i class="fas fa-tasks" style="color: #6366f1;"></i>
+                        Agile Execution Model
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 24px;">
+                    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #111827;">
+                        <i class="fas fa-calendar-alt"></i> Phase Board
+                    </h3>
+                    <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+                        <button class="btn btn-primary" onclick="openPhaseModal()">
+                            <i class="fas fa-plus"></i> Add Phase
+                        </button>
+                    </div>
+                    <div id="phase-board" style="margin-bottom: 48px;">
+                        <div class="empty-state" style="padding: 40px;">
+                            <div class="empty-state-icon"><i class="fas fa-calendar-alt"></i></div>
+                            <div class="empty-state-title">No phases defined</div>
+                            <div class="empty-state-text">Create phases to organize your engagement execution</div>
+                        </div>
+                    </div>
+                    
+                    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #111827;">
+                        <i class="fas fa-clipboard-list"></i> Story Board
+                    </h3>
+                    <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+                        <button class="btn btn-primary" onclick="openStoryModal()">
+                            <i class="fas fa-plus"></i> Add Story
+                        </button>
+                    </div>
+                    <div id="story-board" style="margin-bottom: 32px;">
+                        <div class="empty-state" style="padding: 40px;">
+                            <div class="empty-state-icon"><i class="fas fa-clipboard-list"></i></div>
+                            <div class="empty-state-title">No stories defined</div>
+                            <div class="empty-state-text">Create user stories and track them on the Kanban board</div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+                <!-- END EXECUTION TAB -->
             </div>
             
             <!-- CANVAS 2: STAKEHOLDERS -->
@@ -722,8 +878,11 @@
                         AS-IS Application Portfolio
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button class="btn btn-secondary" onclick="importAPMData()">
+                        <button class="btn btn-secondary" onclick="importAPMData()" title="Import applications and capabilities from APM Toolkit">
                             <i class="fas fa-download"></i> Import from APM
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportToAPM()" title="Export applications and capabilities to APM Toolkit">
+                            <i class="fas fa-upload"></i> Export to APM
                         </button>
                         <button class="btn btn-primary" onclick="openApplicationModal()">
                             <i class="fas fa-plus"></i> Add Application
@@ -763,8 +922,37 @@
                 <div id="whitespace-container">
                     <div class="empty-state">
                         <div class="empty-state-icon"><i class="fas fa-chart-line"></i></div>
-                        <div class="empty-state-title">No capability gaps defined</div>
-                        <div class="empty-state-text">Define capabilities to identify white-spots and opportunities</div>
+                        <div class="empty-state-title">No capability gaps defined yet</div>
+                        <div class="empty-state-text">Identify capability gaps, white-spots, and opportunities for improvement</div>
+                        <button class="btn btn-primary" onclick="openCapabilityModal()" style="margin-top: 16px;">
+                            <i class="fas fa-plus"></i> Add First Capability Gap
+                        </button>
+                        <button class="btn btn-secondary" onclick="openAPQCBrowser()" style="margin-top: 12px; margin-left: 8px;">
+                            <i class="fas fa-book"></i> Browse APQC Framework
+                        </button>
+                        <p style="color: #6b7280; font-size: 12px; margin-top: 12px;">or <button onclick="loadExampleEngagement()" style="background: none; border: none; color: #10b981; text-decoration: underline; cursor: pointer; font-size: 12px;">load example analysis</button></p>
+                    </div>
+                </div>
+                
+                <!-- RISK REGISTER -->
+                <div class="section-header" style="margin-top: 40px;">
+                    <div class="section-title">
+                        <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                        Risk Register
+                    </div>
+                    <button class="btn btn-primary" onclick="openRiskModal()">
+                        <i class="fas fa-plus"></i> Add Risk
+                    </button>
+                </div>
+                
+                <div id="risk-container">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="empty-state-title">No risks identified yet</div>
+                        <div class="empty-state-text">Track technical, business, and organizational risks with mitigation plans</div>
+                        <button class="btn btn-primary" onclick="openRiskModal()" style="margin-top: 16px;">
+                            <i class="fas fa-plus"></i> Add First Risk
+                        </button>
                     </div>
                 </div>
             </div>
@@ -784,8 +972,12 @@
                 <div id="target-container">
                     <div class="empty-state">
                         <div class="empty-state-icon"><i class="fas fa-bullseye"></i></div>
-                        <div class="empty-state-title">No target architecture defined</div>
-                        <div class="empty-state-text">Define principles, patterns, and reference architectures</div>
+                        <div class="empty-state-title">No target architecture defined yet</div>
+                        <div class="empty-state-text">Define your future state: architecture principles, patterns, and reference designs</div>
+                        <button class="btn btn-primary" onclick="openArchitectureModal()" style="margin-top: 16px;">
+                            <i class="fas fa-plus"></i> Add Architecture View
+                        </button>
+                        <p style="color: #6b7280; font-size: 12px; margin-top: 12px;">or <button onclick="loadExampleEngagement()" style="background: none; border: none; color: #10b981; text-decoration: underline; cursor: pointer; font-size: 12px;">load example architecture</button></p>
                     </div>
                 </div>
             </div>
@@ -797,16 +989,52 @@
                         <i class="fas fa-road" style="color: #10b981;"></i>
                         Roadmap Planning
                     </div>
-                    <button class="btn btn-primary" onclick="openInitiativeModal()">
-                        <i class="fas fa-plus"></i> Add Initiative
-                    </button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-secondary" onclick="openRoadmapItemModal()">
+                            <i class="fas fa-calendar-plus"></i> Add Roadmap Item
+                        </button>
+                        <button class="btn btn-primary" onclick="openInitiativeModal()">
+                            <i class="fas fa-plus"></i> Add Initiative
+                        </button>
+                    </div>
                 </div>
                 
                 <div id="roadmap-container">
                     <div class="empty-state">
                         <div class="empty-state-icon"><i class="fas fa-road"></i></div>
-                        <div class="empty-state-title">No initiatives defined</div>
-                        <div class="empty-state-text">Create initiatives and sequence them on the roadmap</div>
+                        <div class="empty-state-title">No initiatives defined yet</div>
+                        <div class="empty-state-text">Create strategic initiatives with business outcomes, effort estimates, and value types</div>
+                        <button class="btn btn-primary" onclick="openInitiativeModal()" style="margin-top: 16px;">
+                            <i class="fas fa-plus"></i> Add First Initiative
+                        </button>
+                        <p style="color: #6b7280; font-size: 12px; margin-top: 12px;">or <button onclick="loadExampleEngagement()" style="background: none; border: none; color: #10b981; text-decoration: underline; cursor: pointer; font-size: 12px;">load example roadmap</button></p>
+                    </div>
+                </div>
+                
+                <!-- ROADMAP TIMELINE -->
+                <div style="margin-top: 48px;" id="roadmap-timeline-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e5e7eb;">
+                        <div>
+                            <h3 style="font-size: 18px; font-weight: 700; color: #111827; margin: 0;">
+                                <i class="fas fa-calendar-alt" style="color: #10b981; margin-right: 8px;"></i>
+                                Quarterly Roadmap Timeline
+                            </h3>
+                            <p style="font-size: 13px; color: #6b7280; margin-top: 4px;">Organize initiatives into quarterly delivery waves with dependency tracking</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="openRoadmapItemModal()">
+                            <i class="fas fa-calendar-plus"></i> Add Roadmap Item
+                        </button>
+                    </div>
+                    <div id="roadmap-timeline-container">
+                        <div class="empty-state">
+                            <div class="empty-state-icon"><i class="fas fa-calendar-alt"></i></div>
+                            <div class="empty-state-title">No roadmap items in timeline yet</div>
+                            <div class="empty-state-text">Link initiatives to quarters and waves to create your delivery timeline</div>
+                            <button class="btn btn-primary" onclick="openRoadmapItemModal()" style="margin-top: 16px;">
+                                <i class="fas fa-calendar-plus"></i> Add First Roadmap Item
+                            </button>
+                            <p style="color: #6b7280; font-size: 12px; margin-top: 12px;">or <button onclick="loadExampleEngagement()" style="background: none; border: none; color: #10b981; text-decoration: underline; cursor: pointer; font-size: 12px;">load example timeline</button></p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -846,6 +1074,22 @@
                 <input type="hidden" id="stakeholder-edit-id">
                 
                 <div class="form-group">
+                    <label class="form-label">Stakeholder Type *</label>
+                    <select id="stakeholder-type" class="form-select" onchange="updateStakeholderRelationshipField()">
+                        <option value="internal">Internal Team (Vivicta IT Company Staff)</option>
+                        <option value="engagement-team">Engagement Team (Marketing/Sales Representatives)</option>
+                        <option value="customer">Customer Team (Client Organization)</option>
+                    </select>
+                    <div style="margin-top: 8px; padding: 12px; background: #f9fafb; border-radius: 6px; border-left: 3px solid #3b82f6;">
+                        <p style="font-size: 11px; color: #374151; margin: 0; line-height: 1.5;">
+                            <strong style="color: #3b82f6;">🏢 Internal Team:</strong> Technical staff from Vivicta (Enterprise Architects, Solution Architects, Technical Leads)<br>
+                            <strong style="color: #8b5cf6;">👔 Engagement Team:</strong> Customer-facing roles from Vivicta Marketing/Sales (Account Managers, Sales Reps, Customer Success)<br>
+                            <strong style="color: #10b981;">🤝 Customer Team:</strong> Stakeholders from the client organization receiving services
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="form-group">
                     <label class="form-label">Name *</label>
                     <input type="text" id="stakeholder-name" class="form-input">
                 </div>
@@ -882,6 +1126,16 @@
                     <label class="form-label">Priorities *</label>
                     <textarea id="stakeholder-priorities" class="form-textarea" placeholder="One priority per line"></textarea>
                 </div>
+                
+                <div class="form-group" id="stakeholder-relationships-group" style="display: none;">
+                    <label class="form-label">Customer Relationships</label>
+                    <select id="stakeholder-relationships" class="form-select" multiple size="5" style="height: auto;">
+                        <!-- Populated dynamically with customer stakeholders -->
+                    </select>
+                    <p style="font-size: 11px; color: #6b7280; margin-top: 4px;">
+                        Hold Ctrl (Windows) or Cmd (Mac) to select multiple customer stakeholders this person works with
+                    </p>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-ghost" onclick="closeStakeholderModal()">Cancel</button>
@@ -892,64 +1146,166 @@
 
     <!-- APPLICATION MODAL -->
     <div id="applicationModal" class="modal-overlay hidden" onclick="if(event.target===this) closeApplicationModal()">
-        <div class="modal-box">
+        <div class="modal-box" style="max-width: 700px;">
             <div class="modal-header">
                 <div class="modal-title" id="application-modal-title">Add Application</div>
                 <button class="modal-close" onclick="closeApplicationModal()"><i class="fas fa-times"></i></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="max-height: 600px; overflow-y: auto;">
                 <input type="hidden" id="application-edit-id">
                 
-                <div class="form-group">
-                    <label class="form-label">Application Name *</label>
-                    <input type="text" id="application-name" class="form-input" placeholder="e.g., Customer Portal">
+                <!-- BASIC INFO -->
+                <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 12px;">BASIC INFORMATION</div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Application Name *</label>
+                        <input type="text" id="application-name" class="form-input" placeholder="e.g., Customer Portal">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea id="application-description" class="form-textarea" placeholder="Brief description of the application" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Business Domain *</label>
+                        <input type="text" id="application-domain" class="form-input" placeholder="e.g., Customer Service">
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">Owner</label>
+                            <input type="text" id="application-owner" class="form-input" placeholder="e.g., John Doe">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Vendor</label>
+                            <input type="text" id="application-vendor" class="form-input" placeholder="e.g., SAP, Microsoft">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Technology Stack</label>
+                        <input type="text" id="application-technology" class="form-input" placeholder="e.g., .NET, Java, React">
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label class="form-label">Business Domain *</label>
-                    <input type="text" id="application-domain" class="form-input" placeholder="e.g., Customer Service">
+                <!-- LIFECYCLE & ASSESSMENT -->
+                <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 12px;">LIFECYCLE & ASSESSMENT</div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">Lifecycle *</label>
+                            <select id="application-lifecycle" class="form-select">
+                                <option value="invest">Invest</option>
+                                <option value="tolerate" selected>Tolerate</option>
+                                <option value="migrate">Migrate</option>
+                                <option value="retire">Retire</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Recommended Action</label>
+                            <select id="application-action" class="form-select">
+                                <option value="retain" selected>Retain</option>
+                                <option value="invest">Invest</option>
+                                <option value="replace">Replace</option>
+                                <option value="consolidate">Consolidate</option>
+                                <option value="retire">Retire</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">Risk Level *</label>
+                            <select id="application-risk" class="form-select">
+                                <option value="critical">Critical</option>
+                                <option value="high">High</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Technical Debt *</label>
+                            <select id="application-debt" class="form-select">
+                                <option value="critical">Critical</option>
+                                <option value="high">High</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">Technical Fit (1-10)</label>
+                            <input type="number" id="application-technical-fit" class="form-input" min="1" max="10" placeholder="5">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Business Value (1-10)</label>
+                            <input type="number" id="application-business-value" class="form-input" min="1" max="10" placeholder="5">
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label class="form-label">Owner</label>
-                    <input type="text" id="application-owner" class="form-input" placeholder="e.g., John Doe">
+                <!-- FINANCIAL & METRICS -->
+                <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 12px;">FINANCIAL & METRICS</div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">Currency</label>
+                            <select id="application-currency" class="form-select">
+                                <option value="SEK" selected>SEK</option>
+                                <option value="EUR">EUR</option>
+                                <option value="USD">USD</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">CAPEX (Annual)</label>
+                            <input type="number" id="application-capex" class="form-input" placeholder="0" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">OPEX (Annual)</label>
+                            <input type="number" id="application-opex" class="form-input" placeholder="0" min="0">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Active Users</label>
+                        <input type="number" id="application-users" class="form-input" placeholder="0" min="0">
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label class="form-label">Lifecycle *</label>
-                    <select id="application-lifecycle" class="form-select">
-                        <option value="invest">Invest</option>
-                        <option value="tolerate" selected>Tolerate</option>
-                        <option value="migrate">Migrate</option>
-                        <option value="retire">Retire</option>
-                    </select>
+                <!-- AI TRANSFORMATION -->
+                <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 12px;">AI TRANSFORMATION READINESS</div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">AI Maturity (1-5)</label>
+                            <input type="number" id="application-ai-maturity" class="form-input" min="1" max="5" placeholder="3">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">AI Potential</label>
+                            <select id="application-ai-potential" class="form-select">
+                                <option value="High">High</option>
+                                <option value="Medium" selected>Medium</option>
+                                <option value="Low">Low</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label class="form-label">Risk Level *</label>
-                    <select id="application-risk" class="form-select">
-                        <option value="critical">Critical</option>
-                        <option value="high">High</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="low">Low</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Technical Debt *</label>
-                    <select id="application-debt" class="form-select">
-                        <option value="critical">Critical</option>
-                        <option value="high">High</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="low">Low</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Annual Cost</label>
-                    <input type="number" id="application-cost" class="form-input" placeholder="0" min="0">
-                </div>
-                
+                <!-- FLAGS -->
                 <div class="form-group">
                     <label class="form-label">
                         <input type="checkbox" id="application-sunset"> Sunset Candidate
@@ -957,6 +1313,11 @@
                     <label class="form-label" style="margin-left: 20px;">
                         <input type="checkbox" id="application-modernize"> Modernization Candidate
                     </label>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Additional Notes</label>
+                    <textarea id="application-notes" class="form-textarea" placeholder="Any additional notes or comments" rows="2"></textarea>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1245,6 +1606,11 @@
                 </div>
                 
                 <div class="form-group">
+                    <label class="form-label">Customer Name</label>
+                    <input type="text" id="new-engagement-customer-name" class="form-input" placeholder="e.g., Acme Insurance Corp">
+                </div>
+                
+                <div class="form-group">
                     <label class="form-label">Segment *</label>
                     <select id="new-engagement-segment" class="form-select">
                         <option value="">Select segment...</option>
@@ -1270,6 +1636,545 @@
         </div>
     </div>
 
+    <!-- RISK MODAL -->
+    <div id="riskModal" class="modal-overlay hidden" onclick="if(event.target===this) closeRiskModal()">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title" id="risk-modal-title">Add Risk</div>
+                <button class="modal-close" onclick="closeRiskModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="risk-edit-id">
+                
+                <div class="form-group">
+                    <label class="form-label">Title *</label>
+                    <input type="text" id="risk-title" class="form-input" placeholder="e.g., Legacy system integration complexity">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description *</label>
+                    <textarea id="risk-description" class="form-textarea" placeholder="Detailed description of the risk"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Category *</label>
+                    <select id="risk-category" class="form-select">
+                        <option value="technical">Technical</option>
+                        <option value="business">Business</option>
+                        <option value="regulatory">Regulatory</option>
+                        <option value="organizational">Organizational</option>
+                        <option value="financial">Financial</option>
+                        <option value="timeline">Timeline</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Probability *</label>
+                    <select id="risk-probability" class="form-select">
+                        <option value="high">High (> 70%)</option>
+                        <option value="medium" selected>Medium (30-70%)</option>
+                        <option value="low">Low (< 30%)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Impact *</label>
+                    <select id="risk-impact" class="form-select">
+                        <option value="high">High (Critical)</option>
+                        <option value="medium" selected>Medium (Significant)</option>
+                        <option value="low">Low (Minor)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Status *</label>
+                    <select id="risk-status" class="form-select">
+                        <option value="open" selected>Open</option>
+                        <option value="mitigating">Mitigating</option>
+                        <option value="closed">Closed</option>
+                        <option value="accepted">Accepted</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Owner *</label>
+                    <input type="text" id="risk-owner" class="form-input" placeholder="e.g., John Doe">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Mitigation Plan</label>
+                    <textarea id="risk-mitigation" class="form-textarea" placeholder="Steps to mitigate or reduce this risk"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeRiskModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveRisk()">Save Risk</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DECISION MODAL -->
+    <div id="decisionModal" class="modal-overlay hidden" onclick="if(event.target===this) closeDecisionModal()">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title" id="decision-modal-title">Add Decision</div>
+                <button class="modal-close" onclick="closeDecisionModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="decision-edit-id">
+                
+                <div class="form-group">
+                    <label class="form-label">Title *</label>
+                    <input type="text" id="decision-title" class="form-input" placeholder="e.g., Migrate to cloud-native architecture">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description *</label>
+                    <textarea id="decision-description" class="form-textarea" placeholder="Detailed description of the decision"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Status *</label>
+                    <select id="decision-status" class="form-select">
+                        <option value="proposed" selected>Proposed</option>
+                        <option value="under-review">Under Review</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="deferred">Deferred</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Owner *</label>
+                    <input type="text" id="decision-owner" class="form-input" placeholder="e.g., Jane Smith">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Impact *</label>
+                    <textarea id="decision-impact" class="form-textarea" placeholder="Expected impact of this decision"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Rationale</label>
+                    <textarea id="decision-rationale" class="form-textarea" placeholder="Why this decision is being made"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Decision Date</label>
+                    <input type="date" id="decision-date" class="form-input">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeDecisionModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveDecision()">Save Decision</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONSTRAINT MODAL -->
+    <div id="constraintModal" class="modal-overlay hidden" onclick="if(event.target===this) closeConstraintModal()">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title" id="constraint-modal-title">Add Constraint</div>
+                <button class="modal-close" onclick="closeConstraintModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="constraint-edit-id">
+                
+                <div class="form-group">
+                    <label class="form-label">Title *</label>
+                    <input type="text" id="constraint-title" class="form-input" placeholder="e.g., Budget cap for 2026">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description *</label>
+                    <textarea id="constraint-description" class="form-textarea" placeholder="Detailed description of the constraint"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Type *</label>
+                    <select id="constraint-type" class="form-select">
+                        <option value="regulatory">Regulatory</option>
+                        <option value="technical">Technical</option>
+                        <option value="budgetary">Budgetary</option>
+                        <option value="timeline">Timeline</option>
+                        <option value="resource">Resource</option>
+                        <option value="organizational">Organizational</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Severity *</label>
+                    <select id="constraint-severity" class="form-select">
+                        <option value="critical">Critical (Blocker)</option>
+                        <option value="high">High (Major Impact)</option>
+                        <option value="medium" selected>Medium (Moderate Impact)</option>
+                        <option value="low">Low (Minor Impact)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Owner</label>
+                    <input type="text" id="constraint-owner" class="form-input" placeholder="e.g., John Doe">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Workaround</label>
+                    <textarea id="constraint-workaround" class="form-textarea" placeholder="Possible workarounds or mitigation strategies"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeConstraintModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveConstraint()">Save Constraint</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ASSUMPTION MODAL -->
+    <div id="assumptionModal" class="modal-overlay hidden" onclick="if(event.target===this) closeAssumptionModal()">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title" id="assumption-modal-title">Add Assumption</div>
+                <button class="modal-close" onclick="closeAssumptionModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="assumption-edit-id">
+                
+                <div class="form-group">
+                    <label class="form-label">Title *</label>
+                    <input type="text" id="assumption-title" class="form-input" placeholder="e.g., Cloud infrastructure will be available">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description *</label>
+                    <textarea id="assumption-description" class="form-textarea" placeholder="Detailed description of the assumption"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Status *</label>
+                    <select id="assumption-status" class="form-select">
+                        <option value="active" selected>Active</option>
+                        <option value="validated">Validated</option>
+                        <option value="invalidated">Invalidated</option>
+                        <option value="retired">Retired</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Impact *</label>
+                    <select id="assumption-impact" class="form-select">
+                        <option value="high">High (Critical to success)</option>
+                        <option value="medium" selected>Medium (Important)</option>
+                        <option value="low">Low (Minor)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Validated By</label>
+                    <input type="text" id="assumption-validated-by" class="form-input" placeholder="e.g., Jane Smith">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Validation Date</label>
+                    <input type="date" id="assumption-validation-date" class="form-input">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeAssumptionModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveAssumption()">Save Assumption</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- PHASE 3: AGILE EXECUTION MODALS -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+
+    <!-- PHASE MODAL -->
+    <div id="phaseModal" class="modal-overlay hidden" onclick="if(event.target===this) closePhaseModal()">
+        <div class="modal-box" style="max-width: 600px;">
+            <div class="modal-header">
+                <div class="modal-title" id="phaseModalTitle"><i class="fas fa-calendar-alt"></i> Create Phase</div>
+                <button class="modal-close" onclick="closePhaseModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="phaseForm">
+                    <div class="form-group">
+                        <label class="form-label">Phase ID *</label>
+                        <input type="text" id="phase-id" class="form-input" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Phase Name *</label>
+                        <input type="text" id="phase-name" class="form-input" placeholder="e.g., Discovery & Analysis" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea id="phase-description" class="form-textarea" rows="3" placeholder="What will be accomplished in this phase?"></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Status *</label>
+                            <select id="phase-status" class="form-select" required>
+                                <option value="not-started">Not Started</option>
+                                <option value="in-progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Order *</label>
+                            <input type="number" id="phase-order" class="form-input" min="0" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" id="phase-start-date" class="form-input">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">End Date</label>
+                            <input type="date" id="phase-end-date" class="form-input">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closePhaseModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="savePhase()">Save Phase</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- STORY MODAL -->
+    <div id="storyModal" class="modal-overlay hidden" onclick="if(event.target===this) closeStoryModal()">
+        <div class="modal-box" style="max-width: 700px;">
+            <div class="modal-header">
+                <div class="modal-title" id="storyModalTitle"><i class="fas fa-tasks"></i> Create Story</div>
+                <button class="modal-close" onclick="closeStoryModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="storyForm">
+                    <div class="form-group">
+                        <label class="form-label">Story ID *</label>
+                        <input type="text" id="story-id" class="form-input" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Title *</label>
+                        <input type="text" id="story-title" class="form-input" placeholder="As a [role], I want [goal] so that [benefit]" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea id="story-description" class="form-textarea" rows="3" placeholder="Additional context and details"></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Phase *</label>
+                            <select id="story-phase" class="form-select" required>
+                                <option value="">Select Phase...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Status *</label>
+                            <select id="story-status" class="form-select" required>
+                                <option value="backlog">Backlog</option>
+                                <option value="in-progress">In Progress</option>
+                                <option value="review">Review</option>
+                                <option value="done">Done</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Assigned To</label>
+                        <input type="text" id="story-assigned" class="form-input" placeholder="Team member name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Acceptance Criteria</label>
+                        <textarea id="story-acceptance" class="form-textarea" rows="4" placeholder="One criterion per line&#10;- Given [context]&#10;- When [action]&#10;- Then [outcome]"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeStoryModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveStory()">Save Story</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROADMAP ITEM MODAL -->
+    <div id="roadmapItemModal" class="modal-overlay hidden" onclick="if(event.target===this) closeRoadmapItemModal()">
+        <div class="modal-box" style="max-width: 700px;">
+            <div class="modal-header">
+                <div class="modal-title" id="roadmapItemModalTitle"><i class="fas fa-map-marked-alt"></i> Create Roadmap Item</div>
+                <button class="modal-close" onclick="closeRoadmapItemModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="roadmapItemForm">
+                    <div class="form-group">
+                        <label class="form-label">Roadmap Item ID *</label>
+                        <input type="text" id="roadmapitem-id" class="form-input" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Initiative *</label>
+                        <select id="roadmapitem-initiative" class="form-select" required>
+                            <option value="">Select Initiative...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Name *</label>
+                        <input type="text" id="roadmapitem-name" class="form-input" placeholder="e.g., Phase 1: Legacy System Assessment" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Quarter *</label>
+                            <input type="text" id="roadmapitem-quarter" class="form-input" placeholder="e.g., 2026Q2" pattern="\d{4}Q[1-4]" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Wave</label>
+                            <input type="number" id="roadmapitem-wave" class="form-input" min="1" placeholder="e.g., 1">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Status *</label>
+                        <select id="roadmapitem-status" class="form-select" required>
+                            <option value="planned">Planned</option>
+                            <option value="active">Active</option>
+                            <option value="completed">Completed</option>
+                            <option value="delayed">Delayed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" id="roadmapitem-start-date" class="form-input">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">End Date</label>
+                            <input type="date" id="roadmapitem-end-date" class="form-input">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Dependencies (comma-separated)</label>
+                        <input type="text" id="roadmapitem-dependencies" class="form-input" placeholder="e.g., RM-001, RM-002">
+                        <p style="font-size: 12px; color: #6b7280; margin-top: 4px;">Enter roadmap item IDs separated by commas</p>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeRoadmapItemModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveRoadmapItem()">Save Roadmap Item</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- OUTPUT GENERATION MODAL -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div id="outputModal" class="modal-overlay hidden" onclick="if(event.target===this) closeOutputModal()">
+        <div class="modal-box" style="max-width: 700px;">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fas fa-file-export"></i> Generate Outputs</div>
+                <button class="modal-close" onclick="closeOutputModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Output Type *</label>
+                    <div style="display: grid; gap: 8px; margin-top: 8px;">
+                        <label style="display: flex; align-items: center; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer; background: white;">
+                            <input type="checkbox" id="output-executive-summary" checked style="margin-right: 12px;">
+                            <div>
+                                <div style="font-weight: 600; color: #111827;">Executive Summary</div>
+                                <div style="font-size: 12px; color: #6b7280;">High-level overview with key findings and metrics</div>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: center; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer; background: white;">
+                            <input type="checkbox" id="output-whitespace" checked style="margin-right: 12px;">
+                            <div>
+                                <div style="font-weight: 600; color: #111827;">White-Spot Analysis</div>
+                                <div style="font-size: 12px; color: #6b7280;">Capability gaps, risks, and modernization opportunities</div>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: center; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer; background: white;">
+                            <input type="checkbox" id="output-target-arch" style="margin-right: 12px;">
+                            <div>
+                                <div style="font-weight: 600; color: #111827;">Target Architecture</div>
+                                <div style="font-size: 12px; color: #6b7280;">Future state architecture, principles, and decisions</div>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: center; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer; background: white;">
+                            <input type="checkbox" id="output-roadmap" checked style="margin-right: 12px;">
+                            <div>
+                                <div style="font-weight: 600; color: #111827;">Strategic Roadmap</div>
+                                <div style="font-size: 12px; color: #6b7280;">Initiative timeline, dependencies, and value delivery</div>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: center; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer; background: white;">
+                            <input type="checkbox" id="output-sales-extract" style="margin-right: 12px;">
+                            <div>
+                                <div style="font-weight: 600; color: #111827;">Sales Extract</div>
+                                <div style="font-size: 12px; color: #6b7280;">Business value summary for account planning</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-top: 24px;">
+                    <label class="form-label">Output Format *</label>
+                    <div style="display: flex; gap: 12px; margin-top: 8px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="output-format" id="format-markdown" value="md" checked style="margin-right: 8px;">
+                            <span style="font-weight: 500;">Markdown (.md)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="output-format" id="format-html" value="html" style="margin-right: 8px;">
+                            <span style="font-weight: 500;">HTML (.html)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="output-progress" class="hidden" style="margin-top: 24px; padding: 16px; background: #f3f4f6; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                        <div class="spinner" style="margin-right: 12px;"></div>
+                        <span id="output-progress-text" style="font-weight: 500; color: #374151;">Generating outputs...</span>
+                    </div>
+                    <div style="background: white; height: 4px; border-radius: 2px; overflow: hidden;">
+                        <div id="output-progress-bar" style="height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+
+                <div id="output-preview" class="hidden" style="margin-top: 24px; max-height: 300px; overflow-y: auto; padding: 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeOutputModal()">Cancel</button>
+                <button class="btn btn-primary" id="generate-outputs-btn" onclick="executeOutputGeneration()">
+                    <i class="fas fa-magic"></i> Generate & Download
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- MAIN SCRIPT -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
     <script>
 
         // ═══════════════════════════════════════════════════════════════════
@@ -1516,6 +2421,7 @@
         function saveEngagement() {
             const id = document.getElementById('engagement-id').value;
             const name = document.getElementById('engagement-name').value;
+            const customerName = document.getElementById('engagement-customer-name').value;
             const segment = document.getElementById('engagement-segment').value;
             const theme = document.getElementById('engagement-theme').value;
             const cadence = document.getElementById('engagement-cadence').value;
@@ -1531,7 +2437,7 @@
             if (currentEngagement) {
                 currentEngagement.engagement = {
                     ...currentEngagement.engagement,
-                    id, name, segment, theme,
+                    id, name, customerName, segment, theme,
                     sprintCadence: cadence,
                     governance: { decisionForum: forum, reviewCadence: review },
                     successCriteria: criteria
@@ -1539,7 +2445,7 @@
                 engagementManager.saveEngagement(id, currentEngagement);
             } else {
                 engagementManager.createEngagement({
-                    id, name, segment, theme,
+                    id, name, customerName, segment, theme,
                     customers: [],
                     status: 'draft',
                     sprintCadence: cadence,
@@ -1560,6 +2466,7 @@
             const eng = currentEngagement.engagement;
             document.getElementById('engagement-id').value = eng.id || '';
             document.getElementById('engagement-name').value = eng.name || '';
+            document.getElementById('engagement-customer-name').value = eng.customerName || '';
             document.getElementById('engagement-segment').value = eng.segment || '';
             document.getElementById('engagement-theme').value = eng.theme || '';
             document.getElementById('engagement-cadence').value = eng.sprintCadence || '2w';
@@ -1614,9 +2521,9 @@
                 // Create fresh example engagement
                 engagementManager.createEngagement({
                     id: exampleId,
-                    name: 'Insurance Portfolio Modernization',
+                    name: 'Nordic Insurance - EA Transformation Program',
                     segment: 'Insurance',
-                    theme: 'Application sunsetting & legacy modernization',
+                    theme: 'Enterprise Architecture Modernization & Digital Transformation',
                     customers: ['Nordic Insurance Group AB'],
                     status: 'active',
                     sprintCadence: '2w',
@@ -1629,7 +2536,8 @@
                         'Modernize 15 legacy applications',
                         'Sunset 8 redundant applications',
                         'Achieve 85% stakeholder satisfaction',
-                        'Deliver cloud migration roadmap'
+                        'Deliver cloud migration roadmap',
+                        'Establish Vivicta as strategic EA partner'
                 ]
             });
             
@@ -1637,49 +2545,180 @@
             
             // Add stakeholders
             const stakeholders = [
+                // === VIVICTA INTERNAL TEAM (Technical Staff) ===
                 {
-                    name: 'Anna Bergström',
-                    role: 'CIO',
-                    orgUnit: 'IT Department',
+                    name: 'Marcus Holmberg',
+                    role: 'Chief Enterprise Architect',
+                    orgUnit: 'Vivicta - Enterprise Architecture',
+                    type: 'internal',
                     influence: 'high',
                     decisionPower: 'high',
-                    priorities: ['Cost reduction', 'Digital transformation', 'Risk mitigation']
+                    priorities: ['Architecture governance', 'Technical excellence', 'Innovation'],
+                    customerRelationships: [] // Will be populated after stakeholders are created
+                },
+                {
+                    name: 'Lisa Andersson',
+                    role: 'Solution Architect',
+                    orgUnit: 'Vivicta - Solution Design',
+                    type: 'internal',
+                    influence: 'high',
+                    decisionPower: 'medium',
+                    priorities: ['Cloud architecture', 'Integration patterns', 'Technical documentation'],
+                    customerRelationships: [] // Will be populated after stakeholders are created
+                },
+                {
+                    name: 'Per Svensson',
+                    role: 'Technical Lead',
+                    orgUnit: 'Vivicta - Delivery Team',
+                    type: 'internal',
+                    influence: 'medium',
+                    decisionPower: 'medium',
+                    priorities: ['Implementation quality', 'DevOps practices', 'Team productivity'],
+                    customerRelationships: [] // Will be populated after stakeholders are created
+                },
+                
+                // === VIVICTA ENGAGEMENT TEAM (Marketing/Sales) ===
+                {
+                    name: 'Emma Bergström',
+                    role: 'Customer Engagement Manager',
+                    orgUnit: 'Vivicta - Marketing & Sales',
+                    type: 'engagement-team',
+                    influence: 'high',
+                    decisionPower: 'medium',
+                    priorities: ['Customer satisfaction', 'Account growth', 'Relationship building'],
+                    customerRelationships: [] // Will be populated after stakeholders are created
+                },
+                {
+                    name: 'Johan Karlsson',
+                    role: 'Enterprise Sales Representative',
+                    orgUnit: 'Vivicta - Marketing & Sales',
+                    type: 'engagement-team',
+                    influence: 'high',
+                    decisionPower: 'medium',
+                    priorities: ['Revenue targets', 'Solution selling', 'Client acquisition'],
+                    customerRelationships: [] // Will be populated after stakeholders are created
+                },
+                {
+                    name: 'Sara Lindqvist',
+                    role: 'Customer Success Manager',
+                    orgUnit: 'Vivicta - Marketing & Sales',
+                    type: 'engagement-team',
+                    influence: 'medium',
+                    decisionPower: 'low',
+                    priorities: ['Client retention', 'Value realization', 'Issue resolution'],
+                    customerRelationships: [] // Will be populated after stakeholders are created
+                },
+                
+                // === CUSTOMER TEAM (Client Organization - Insurance Company) ===
+                {
+                    name: 'Anna Nilsson',
+                    role: 'CIO',
+                    orgUnit: 'Nordic Insurance - IT Department',
+                    type: 'customer',
+                    influence: 'high',
+                    decisionPower: 'high',
+                    priorities: ['Digital transformation', 'Cost reduction', 'Risk mitigation']
                 },
                 {
                     name: 'Erik Johansson',
-                    role: 'Enterprise Architect',
-                    orgUnit: 'Enterprise Architecture',
+                    role: 'Head of Enterprise Architecture',
+                    orgUnit: 'Nordic Insurance - Enterprise Architecture',
+                    type: 'customer',
+                    influence: 'high',
+                    decisionPower: 'high',
+                    priorities: ['Technical standardization', 'Cloud migration', 'API strategy']
+                },
+                {
+                    name: 'Maria Lundgren',
+                    role: 'Head of Claims Processing',
+                    orgUnit: 'Nordic Insurance - Claims',
+                    type: 'customer',
                     influence: 'high',
                     decisionPower: 'medium',
-                    priorities: ['Technical standardization', 'Cloud migration', 'API-first architecture']
+                    priorities: ['Process efficiency', 'Customer experience', 'Automation']
                 },
                 {
-                    name: 'Maria Andersson',
-                    role: 'Head of Claims',
-                    orgUnit: 'Claims Processing',
-                    influence: 'medium',
-                    decisionPower: 'medium',
-                    priorities: ['Process efficiency', 'Customer satisfaction', 'Real-time processing']
-                },
-                {
-                    name: 'Lars Nielsen',
+                    name: 'Lars Hansen',
                     role: 'IT Security Manager',
-                    orgUnit: 'IT Security',
+                    orgUnit: 'Nordic Insurance - Security',
+                    type: 'customer',
                     influence: 'medium',
                     decisionPower: 'high',
                     priorities: ['Compliance', 'Data protection', 'Zero trust security']
                 },
                 {
-                    name: 'Karin Svensson',
+                    name: 'Karin Pettersson',
                     role: 'CFO',
-                    orgUnit: 'Finance',
+                    orgUnit: 'Nordic Insurance - Finance',
+                    type: 'customer',
                     influence: 'high',
                     decisionPower: 'high',
                     priorities: ['Cost optimization', 'ROI', 'Budget compliance']
                 }
             ];
             
+            // Add stakeholders first
             stakeholders.forEach(s => engagementManager.addEntity('stakeholders', s));
+            
+            // Get created stakeholder IDs
+            const allStakeholders = engagementManager.getEntities('stakeholders');
+            
+            // Vivicta Internal Team
+            const marcusId = allStakeholders.find(s => s.name === 'Marcus Holmberg')?.id;
+            const lisaId = allStakeholders.find(s => s.name === 'Lisa Andersson')?.id;
+            const perId = allStakeholders.find(s => s.name === 'Per Svensson')?.id;
+            
+            // Vivicta Engagement Team
+            const emmaId = allStakeholders.find(s => s.name === 'Emma Bergström')?.id;
+            const johanId = allStakeholders.find(s => s.name === 'Johan Karlsson')?.id;
+            const saraId = allStakeholders.find(s => s.name === 'Sara Lindqvist')?.id;
+            
+            // Customer Team (Nordic Insurance)
+            const annaId = allStakeholders.find(s => s.name === 'Anna Nilsson')?.id;
+            const erikId = allStakeholders.find(s => s.name === 'Erik Johansson')?.id;
+            const mariaId = allStakeholders.find(s => s.name === 'Maria Lundgren')?.id;
+            const larsId = allStakeholders.find(s => s.name === 'Lars Hansen')?.id;
+            const karinId = allStakeholders.find(s => s.name === 'Karin Pettersson')?.id;
+            
+            // === UPDATE VIVICTA INTERNAL TEAM with customer relationships ===
+            // Chief EA works with CIO and Head of EA
+            if (marcusId && annaId && erikId) {
+                engagementManager.updateEntity('stakeholders', marcusId, {
+                    customerRelationships: [annaId, erikId]
+                });
+            }
+            // Solution Architect works with Head of EA and Head of Claims
+            if (lisaId && erikId && mariaId) {
+                engagementManager.updateEntity('stakeholders', lisaId, {
+                    customerRelationships: [erikId, mariaId]
+                });
+            }
+            // Technical Lead works with Security Manager
+            if (perId && larsId) {
+                engagementManager.updateEntity('stakeholders', perId, {
+                    customerRelationships: [larsId]
+                });
+            }
+            
+            // === UPDATE VIVICTA ENGAGEMENT TEAM with customer relationships ===
+            // Customer Engagement Manager works with CIO, CFO (executive relationships)
+            if (emmaId && annaId && karinId) {
+                engagementManager.updateEntity('stakeholders', emmaId, {
+                    customerRelationships: [annaId, karinId]
+                });
+            }
+            // Sales Rep works with CIO, Head of EA, CFO (sales relationships)
+            if (johanId && annaId && erikId && karinId) {
+                engagementManager.updateEntity('stakeholders', johanId, {
+                    customerRelationships: [annaId, erikId, karinId]
+                });
+            }
+            // Customer Success Manager works with all customer stakeholders (day-to-day contact)
+            if (saraId && annaId && erikId && mariaId && larsId && karinId) {
+                engagementManager.updateEntity('stakeholders', saraId, {
+                    customerRelationships: [annaId, erikId, mariaId, larsId, karinId]
+                });
+            }
             
             // Add applications
             const applications = [
@@ -2044,6 +3083,533 @@
             
             initiatives.forEach(init => engagementManager.addEntity('initiatives', init));
             
+            // Add risks
+            const risks = [
+                {
+                    title: 'Legacy System Data Migration Failure',
+                    description: 'Risk of data loss or corruption during migration from legacy policy system to new cloud platform. Complex data structures and 15+ years of historical data.',
+                    category: 'technical',
+                    probability: 'high',
+                    impact: 'high',
+                    severity: 9,
+                    status: 'open',
+                    owner: 'Erik Johansson',
+                    mitigationPlan: 'Implement comprehensive data validation framework, conduct multiple dry-run migrations, establish rollback procedures, and maintain parallel systems during transition.',
+                    identifiedDate: '2026-04-01',
+                    lastReviewDate: '2026-04-15',
+                    relatedObjects: []
+                },
+                {
+                    title: 'Stakeholder Resistance to Cloud Migration',
+                    description: 'Key stakeholders in IT Operations may resist cloud migration due to concerns about job security and unfamiliar technology.',
+                    category: 'organizational',
+                    probability: 'medium',
+                    impact: 'high',
+                    severity: 6,
+                    status: 'mitigating',
+                    owner: 'Anna Bergström',
+                    mitigationPlan: 'Launch change management program, provide cloud training and certification opportunities, communicate benefits clearly, involve team in migration planning.',
+                    identifiedDate: '2026-03-20',
+                    lastReviewDate: '2026-04-10',
+                    relatedObjects: []
+                },
+                {
+                    title: 'Regulatory Compliance Delays',
+                    description: 'New cloud architecture may require regulatory approval from financial authorities. Process can take 6-12 months and delay go-live.',
+                    category: 'regulatory',
+                    probability: 'medium',
+                    impact: 'medium',
+                    severity: 4,
+                    status: 'open',
+                    owner: 'Lars Nielsen',
+                    mitigationPlan: 'Engage with regulatory authorities early, prepare comprehensive compliance documentation, schedule pre-approval consultations, build buffer time into roadmap.',
+                    identifiedDate: '2026-04-05',
+                    lastReviewDate: '2026-04-15',
+                    relatedObjects: []
+                },
+                {
+                    title: 'Budget Overrun on Claims Modernization',
+                    description: 'Claims modernization project scope is expanding with additional AI/ML requirements. Current budget may be insufficient.',
+                    category: 'financial',
+                    probability: 'high',
+                    impact: 'medium',
+                    severity: 6,
+                    status: 'open',
+                    owner: 'Karin Svensson',
+                    mitigationPlan: 'Implement phased approach with MVP scope, establish strict change control process, secure contingency budget approval, monitor spending weekly.',
+                    identifiedDate: '2026-04-12',
+                    lastReviewDate: '2026-04-18',
+                    relatedObjects: []
+                },
+                {
+                    title: 'Vendor Lock-in with Cloud Provider',
+                    description: 'Over-reliance on Azure-specific services may create vendor lock-in and limit future flexibility.',
+                    category: 'strategic',
+                    probability: 'low',
+                    impact: 'medium',
+                    severity: 2,
+                    status: 'accepted',
+                    owner: 'Erik Johansson',
+                    mitigationPlan: 'Use containerization (Kubernetes) where possible, avoid proprietary services for core business logic, document migration paths, maintain multi-cloud competency.',
+                    identifiedDate: '2026-03-15',
+                    lastReviewDate: '2026-04-01',
+                    relatedObjects: []
+                }
+            ];
+            
+            risks.forEach(risk => engagementManager.addEntity('risks', risk));
+            
+            // Add decisions
+            const decisions = [
+                {
+                    title: 'Cloud Platform Selection: Microsoft Azure',
+                    description: 'Selected Microsoft Azure as primary cloud platform over AWS and Google Cloud. Decision based on existing Microsoft EA, regional data center availability in Nordics, and integration with current tooling.',
+                    status: 'approved',
+                    owner: 'Anna Bergström',
+                    impact: 'Commits organization to Azure ecosystem for next 3-5 years. Enables leveraging existing Microsoft skills and licenses. Sets direction for all cloud migrations.',
+                    rationale: 'Azure provides best integration with existing Microsoft stack, has Nordic data centers for compliance, offers competitive enterprise pricing through existing EA. Team has Azure certifications.',
+                    decisionDate: '2026-03-01',
+                    reviewDate: '2026-04-15',
+                    relatedObjects: [],
+                    alternatives: ['AWS (strong but lacks Nordic presence)', 'Google Cloud (innovative but less enterprise adoption)'],
+                    evidenceRefs: ['Cloud vendor comparison matrix', 'TCO analysis', 'Compliance review']
+                },
+                {
+                    title: 'API Gateway Standard: Azure API Management',
+                    description: 'Standardized on Azure API Management (APIM) as enterprise API gateway for all integrations.',
+                    status: 'approved',
+                    owner: 'Erik Johansson',
+                    impact: 'All new integrations must use APIM. Legacy point-to-point integrations will be refactored. Central governance and monitoring.',
+                    rationale: 'Native Azure integration, enterprise-grade features, supports OpenAPI standards, provides developer portal and analytics.',
+                    decisionDate: '2026-03-15',
+                    reviewDate: '2026-04-10',
+                    relatedObjects: [],
+                    alternatives: ['Kong Gateway', 'MuleSoft', 'Custom solution'],
+                    evidenceRefs: ['API gateway evaluation', 'POC results']
+                },
+                {
+                    title: 'Legacy Policy System Replacement vs Replatform',
+                    description: 'Decision to replace legacy policy system with SaaS solution rather than replatforming existing codebase.',
+                    status: 'under-review',
+                    owner: 'Anna Bergström',
+                    impact: 'Major decision affecting 18-month timeline and €5M budget. Requires business process reengineering and data migration.',
+                    rationale: 'Replatforming would preserve technical debt. Modern SaaS provides best practices, faster time-to-market for new products, and lower TCO. Risk of disruption is manageable.',
+                    decisionDate: '',
+                    reviewDate: '2026-04-18',
+                    relatedObjects: [],
+                    alternatives: ['Replatform to cloud', 'Gradual modernization', 'Continue with legacy'],
+                    evidenceRefs: ['TCO comparison', 'Vendor demos', 'Reference customer interviews']
+                },
+                {
+                    title: 'Microservices Architecture for New Services',
+                    description: 'Adopt microservices architecture pattern for all new business services, moving away from monolithic architecture.',
+                    status: 'approved',
+                    owner: 'Erik Johansson',
+                    impact: 'Changes development approach, requires new DevOps practices, impacts team organization and skills.',
+                    rationale: 'Enables independent deployment, better scalability, technology flexibility, and aligns with cloud-native best practices.',
+                    decisionDate: '2026-02-20',
+                    reviewDate: '2026-04-05',
+                    relatedObjects: [],
+                    alternatives: ['Continue monolithic', 'Service-oriented architecture', 'Serverless-first'],
+                    evidenceRefs: ['Architecture principles', 'Industry best practices', 'Team capability assessment']
+                },
+                {
+                    title: 'Sunset Timeline for Document Management System',
+                    description: 'Approved 12-month sunset timeline for legacy document management system with migration to SharePoint Online.',
+                    status: 'proposed',
+                    owner: 'IT Operations',
+                    impact: 'Affects 200+ users, requires data migration of 5TB documents, needs change management.',
+                    rationale: 'System reaching end-of-support, high maintenance costs, poor user experience. SharePoint offers better collaboration and mobile access.',
+                    decisionDate: '',
+                    reviewDate: '2026-04-20',
+                    relatedObjects: [],
+                    alternatives: ['Extend support contract', 'Alternative DMS solutions', 'Build custom solution'],
+                    evidenceRefs: ['User survey', 'Cost analysis', 'Vendor EOL notice']
+                }
+            ];
+            
+            decisions.forEach(decision => engagementManager.addEntity('decisions', decision));
+            
+            // Add constraints
+            const constraints = [
+                {
+                    title: 'GDPR Data Residency Requirement',
+                    description: 'All customer data must remain within EU boundaries per GDPR regulations. Cannot use US-based cloud regions.',
+                    type: 'regulatory',
+                    severity: 'critical',
+                    owner: 'Lars Nielsen',
+                    workaround: 'Use Azure North Europe (Ireland) and West Europe (Netherlands) regions exclusively. Implement data governance controls to prevent accidental data export.',
+                    relatedObjects: []
+                },
+                {
+                    title: 'Limited IT Budget FY2026',
+                    description: 'IT budget frozen at FY2025 levels. Capital budget for new investments limited to €8M for entire year.',
+                    type: 'budgetary',
+                    severity: 'high',
+                    owner: 'Karin Svensson',
+                    workaround: 'Prioritize high-ROI initiatives, leverage OpEx cloud spending instead of CapEx, phase projects across fiscal years.',
+                    relatedObjects: []
+                },
+                {
+                    title: 'Mainframe Cannot Be Decommissioned Until 2028',
+                    description: 'Core banking partner integration requires mainframe connectivity. Contract lock-in until end of 2028.',
+                    type: 'technical',
+                    severity: 'high',
+                    owner: 'Erik Johansson',
+                    workaround: 'Maintain mainframe integration layer, build modern API facade, plan partner migration discussions for 2027.',
+                    relatedObjects: []
+                },
+                {
+                    title: 'Security Team Review Required for All External APIs',
+                    description: 'Company policy requires security team approval for any API exposed externally. Review process takes 4-6 weeks.',
+                    type: 'organizational',
+                    severity: 'medium',
+                    owner: 'Lars Nielsen',
+                    workaround: 'Build security review into project timelines, pre-approve standard patterns, maintain close coordination with security team.',
+                    relatedObjects: []
+                },
+                {
+                    title: 'No Production Changes During Q4',
+                    description: 'Business mandates zero production changes during November-December due to year-end processing and holiday coverage.',
+                    type: 'timeline',
+                    severity: 'medium',
+                    owner: 'Anna Bergström',
+                    workaround: 'Plan major releases for Q1-Q3, use Q4 for planning and testing, schedule cutover dates accordingly.',
+                    relatedObjects: []
+                },
+                {
+                    title: 'Limited Azure Cloud Skills in Team',
+                    description: 'Only 3 out of 15 developers have Azure certification. Team primarily experienced with on-premises infrastructure.',
+                    type: 'resource',
+                    severity: 'medium',
+                    owner: 'Anna Bergström',
+                    workaround: 'Invest in Azure training program, hire contractors for initial migrations, implement knowledge transfer requirements, build centers of excellence.',
+                    relatedObjects: []
+                }
+            ];
+            
+            constraints.forEach(constraint => engagementManager.addEntity('constraints', constraint));
+            
+            // Add assumptions
+            const assumptions = [
+                {
+                    title: 'Business Stakeholders Will Participate in UAT',
+                    description: 'Assumption that business stakeholders from Claims and Policy departments will dedicate 20% time for user acceptance testing during migration phases.',
+                    status: 'active',
+                    impact: 'high',
+                    validatedBy: '',
+                    validationDate: '',
+                    relatedObjects: [],
+                    evidenceRefs: []
+                },
+                {
+                    title: 'Azure Regional Services Available When Needed',
+                    description: 'Assumes that required Azure services (Container Apps, Cosmos DB, AI Services) will be generally available in North Europe region throughout project timeline.',
+                    status: 'validated',
+                    impact: 'high',
+                    validatedBy: 'Erik Johansson',
+                    validationDate: '2026-03-25',
+                    relatedObjects: [],
+                    evidenceRefs: ['Azure roadmap review', 'Microsoft TAM confirmation']
+                },
+                {
+                    title: 'Legacy System Documentation is Accurate',
+                    description: 'Assuming existing technical documentation for legacy policy system accurately reflects current implementation and data structures.',
+                    status: 'invalidated',
+                    impact: 'high',
+                    validatedBy: 'Development Team',
+                    validationDate: '2026-04-10',
+                    relatedObjects: [],
+                    evidenceRefs: ['Code review findings', 'Documentation audit']
+                },
+                {
+                    title: 'Regulatory Approval Process Takes 6 Months',
+                    description: 'Based on previous submissions, assuming regulatory approval for cloud architecture will take approximately 6 months.',
+                    status: 'active',
+                    impact: 'medium',
+                    validatedBy: '',
+                    validationDate: '',
+                    relatedObjects: [],
+                    evidenceRefs: ['Historical approval timelines']
+                },
+                {
+                    title: 'External Vendor APIs Will Remain Stable',
+                    description: 'Assumption that external partner APIs (payment gateways, credit bureaus) will maintain backward compatibility during migration period.',
+                    status: 'active',
+                    impact: 'medium',
+                    validatedBy: '',
+                    validationDate: '',
+                    relatedObjects: [],
+                    evidenceRefs: []
+                },
+                {
+                    title: 'Cloud Cost Estimates Based on Current Usage',
+                    description: 'Azure cost projections assume workload patterns similar to current on-premises usage. No significant growth or seasonality anticipated.',
+                    status: 'active',
+                    impact: 'medium',
+                    validatedBy: '',
+                    validationDate: '',
+                    relatedObjects: [],
+                    evidenceRefs: ['Usage analysis Q4 2025']
+                }
+            ];
+            
+            assumptions.forEach(assumption => engagementManager.addEntity('assumptions', assumption));
+            
+            // Add phases
+            const phases = [
+                {
+                    id: 'E0',
+                    name: 'Discovery & Analysis',
+                    description: 'Initial assessment of current state, stakeholder interviews, and gap analysis',
+                    status: 'completed',
+                    order: 0,
+                    startDate: '2026-04-01',
+                    endDate: '2026-05-15',
+                    stories: ['STORY-0001', 'STORY-0002', 'STORY-0003']
+                },
+                {
+                    id: 'E1',
+                    name: 'Architecture Design',
+                    description: 'Define target architecture, principles, and migration patterns',
+                    status: 'in-progress',
+                    order: 1,
+                    startDate: '2026-05-16',
+                    endDate: '2026-07-01',
+                    stories: ['STORY-0004', 'STORY-0005', 'STORY-0006', 'STORY-0007']
+                },
+                {
+                    id: 'E2',
+                    name: 'Proof of Concept',
+                    description: 'Validate key technical decisions with working prototypes',
+                    status: 'not-started',
+                    order: 2,
+                    startDate: '2026-07-02',
+                    endDate: '2026-08-15',
+                    stories: ['STORY-0008', 'STORY-0009']
+                },
+                {
+                    id: 'E3',
+                    name: 'Pilot Implementation',
+                    description: 'Migrate first application to validate full process',
+                    status: 'not-started',
+                    order: 3,
+                    startDate: '2026-08-16',
+                    endDate: '2026-10-31',
+                    stories: []
+                },
+                {
+                    id: 'E4',
+                    name: 'Scaled Rollout',
+                    description: 'Execute migration of remaining applications in waves',
+                    status: 'not-started',
+                    order: 4,
+                    startDate: '2026-11-01',
+                    endDate: '2027-03-31',
+                    stories: []
+                }
+            ];
+            
+            phases.forEach(phase => engagementManager.addEntity('phases', phase));
+            
+            // Add stories
+            const stories = [
+                {
+                    id: 'STORY-0001',
+                    phaseId: 'E0',
+                    title: 'As an EA, I want to interview all key stakeholders so that I understand their priorities and concerns',
+                    description: 'Conduct structured interviews with CIO, Enterprise Architect, and business leads',
+                    status: 'done',
+                    assignedTo: 'Erik Johansson',
+                    acceptanceCriteria: ['All stakeholders interviewed', 'Priorities documented', 'Concerns captured in risk register'],
+                    artifactId: null
+                },
+                {
+                    id: 'STORY-0002',
+                    phaseId: 'E0',
+                    title: 'As an EA, I want to document the current application landscape so that we know what needs to be modernized',
+                    description: 'Create comprehensive inventory of all applications with lifecycle status',
+                    status: 'done',
+                    assignedTo: 'Erik Johansson',
+                    acceptanceCriteria: ['Application inventory complete', 'Lifecycle status assigned', 'Technical debt assessed'],
+                    artifactId: null
+                },
+                {
+                    id: 'STORY-0003',
+                    phaseId: 'E0',
+                    title: 'As an EA, I want to identify capability gaps so that we can prioritize improvements',
+                    description: 'Perform capability maturity assessment and identify white-spots',
+                    status: 'done',
+                    assignedTo: 'Maria Andersson',
+                    acceptanceCriteria: ['Capability model defined', 'Maturity levels assessed', 'Gap analysis completed'],
+                    artifactId: null
+                },
+                {
+                    id: 'STORY-0004',
+                    phaseId: 'E1',
+                    title: 'As an EA, I want to define target architecture principles so that all teams follow consistent patterns',
+                    description: 'Establish cloud-first, API-first, and security-first principles',
+                    status: 'in-progress',
+                    assignedTo: 'Erik Johansson',
+                    acceptanceCriteria: ['Principles documented', 'Approved by architecture board', 'Communicated to teams'],
+                    artifactId: null
+                },
+                {
+                    id: 'STORY-0005',
+                    phaseId: 'E1',
+                    title: 'As an EA, I want to design the integration architecture so that applications can communicate securely',
+                    description: 'Design API gateway, event bus, and service mesh architecture',
+                    status: 'in-progress',
+                    assignedTo: 'Erik Johansson',
+                    acceptanceCriteria: ['Integration patterns defined', 'Technology stack selected', 'Security model approved'],
+                    artifactId: null
+                },
+                {
+                    id: 'STORY-0006',
+                    phaseId: 'E1',
+                    title: 'As a developer, I want a reference architecture so that I know how to build cloud-native applications',
+                    description: 'Create reference implementation with best practices and templates',
+                    status: 'review',
+                    assignedTo: 'Development Team',
+                    acceptanceCriteria: ['Reference app deployed', 'Documentation complete', 'Templates available in repo'],
+                    artifactId: null
+                },
+                {
+                    id: 'STORY-0007',
+                    phaseId: 'E1',
+                    title: 'As an EA, I want to define the migration strategy so that we minimize risk during transition',
+                    description: 'Document lift-and-shift vs refactor vs rebuild decision framework',
+                    status: 'backlog',
+                    assignedTo: '',
+                    acceptanceCriteria: ['Migration patterns defined', 'Decision tree created', 'Risk mitigation plans ready'],
+                    artifactId: null
+                },
+                {
+                    id: 'STORY-0008',
+                    phaseId: 'E2',
+                    title: 'As a developer, I want to build a claims processing POC so that we validate the microservices approach',
+                    description: 'Implement end-to-end claim submission and processing with new architecture',
+                    status: 'backlog',
+                    assignedTo: '',
+                    acceptanceCriteria: ['POC deployed to dev environment', 'Performance meets SLA', 'Security review passed'],
+                    artifactId: null
+                },
+                {
+                    id: 'STORY-0009',
+                    phaseId: 'E2',
+                    title: 'As an EA, I want to validate cloud costs so that we confirm ROI assumptions',
+                    description: 'Run POC workload for full month and measure actual Azure consumption',
+                    status: 'backlog',
+                    assignedTo: '',
+                    acceptanceCriteria: ['Cost tracking enabled', 'Usage patterns measured', 'Extrapolation model validated'],
+                    artifactId: null
+                }
+            ];
+            
+            stories.forEach(story => engagementManager.addEntity('stories', story));
+            
+            // Add roadmap items
+            const roadmapItems = [
+                {
+                    id: 'RM-001',
+                    initiativeId: 'INIT-001',
+                    name: 'Policy System Phase 1: Assessment & Design',
+                    quarter: '2026Q2',
+                    wave: 1,
+                    status: 'active',
+                    startDate: '2026-04-01',
+                    endDate: '2026-06-30',
+                    dependencies: [],
+                    milestones: []
+                },
+                {
+                    id: 'RM-002',
+                    initiativeId: 'INIT-001',
+                    name: 'Policy System Phase 2: Data Migration',
+                    quarter: '2026Q3',
+                    wave: 1,
+                    status: 'planned',
+                    startDate: '2026-07-01',
+                    endDate: '2026-09-30',
+                    dependencies: ['RM-001'],
+                    milestones: []
+                },
+                {
+                    id: 'RM-003',
+                    initiativeId: 'INIT-002',
+                    name: 'Customer Portal MVP Launch',
+                    quarter: '2026Q2',
+                    wave: 1,
+                    status: 'active',
+                    startDate: '2026-04-15',
+                    endDate: '2026-06-30',
+                    dependencies: [],
+                    milestones: []
+                },
+                {
+                    id: 'RM-004',
+                    initiativeId: 'INIT-003',
+                    name: 'API Gateway Implementation',
+                    quarter: '2026Q3',
+                    wave: 2,
+                    status: 'planned',
+                    startDate: '2026-07-01',
+                    endDate: '2026-09-15',
+                    dependencies: [],
+                    milestones: []
+                },
+                {
+                    id: 'RM-005',
+                    initiativeId: 'INIT-004',
+                    name: 'Claims Modernization Phase 1',
+                    quarter: '2026Q3',
+                    wave: 2,
+                    status: 'planned',
+                    startDate: '2026-08-01',
+                    endDate: '2026-10-31',
+                    dependencies: ['RM-004'],
+                    milestones: []
+                },
+                {
+                    id: 'RM-006',
+                    initiativeId: 'INIT-005',
+                    name: 'Data Lake Foundation Setup',
+                    quarter: '2026Q4',
+                    wave: 3,
+                    status: 'planned',
+                    startDate: '2026-10-01',
+                    endDate: '2026-12-31',
+                    dependencies: ['RM-004'],
+                    milestones: []
+                },
+                {
+                    id: 'RM-007',
+                    initiativeId: 'INIT-004',
+                    name: 'Claims Modernization Phase 2: AI Integration',
+                    quarter: '2027Q1',
+                    wave: 4,
+                    status: 'planned',
+                    startDate: '2027-01-01',
+                    endDate: '2027-03-31',
+                    dependencies: ['RM-005', 'RM-006'],
+                    milestones: []
+                },
+                {
+                    id: 'RM-008',
+                    initiativeId: 'INIT-008',
+                    name: 'AI-Powered Underwriting Pilot',
+                    quarter: '2027Q2',
+                    wave: 5,
+                    status: 'planned',
+                    startDate: '2027-04-01',
+                    endDate: '2027-06-30',
+                    dependencies: ['RM-006'],
+                    milestones: []
+                }
+            ];
+            
+            roadmapItems.forEach(item => engagementManager.addEntity('roadmapItems', item));
+            
             // Refresh current engagement reference after adding all entities - force reload from storage
             currentEngagement = engagementManager.getCurrentEngagement();
             
@@ -2096,8 +3662,172 @@
                 renderApplications();
                 showToast('Import Successful', `Imported ${count} applications from APM Toolkit`, 'success');
             } else {
-                showToast('No Data Available', 'No APM data found. Please open APM Toolkit and export data first.', 'warning');
+                // Provide helpful guidance with option to generate sample data
+                const msg = 'No APM data found. Choose an option:\n\n' +
+                    '1. Open APM Toolkit to create your portfolio\n' +
+                    '2. Generate sample data for testing (3 apps)\n' +
+                    '3. Add applications manually';
+                
+                const choice = confirm(msg + '\n\nGenerate sample data for testing? (Click OK)\nOr add manually? (Click Cancel)');
+                
+                if (choice) {
+                    // Generate sample data
+                    generateSampleAPMData();
+                    // Immediately import it
+                    setTimeout(() => {
+                        const sampleCount = engagementManager.importFromAPMToolkit();
+                        if (sampleCount > 0) {
+                            currentEngagement = engagementManager.getCurrentEngagement();
+                            updateKPIs();
+                            renderApplications();
+                            showToast('Sample Data Imported', `Imported ${sampleCount} sample applications`, 'success');
+                        }
+                    }, 500);
+                } else {
+                    openApplicationModal();
+                }
             }
+        }
+        
+        function exportToAPM() {
+            if (!currentEngagement) {
+                showToast('No Engagement', 'No engagement to export', 'warning');
+                return;
+            }
+            
+            const applications = engagementManager.getEntities('applications') || [];
+            if (applications.length === 0) {
+                showToast('No Applications', 'No applications to export. Add or import applications first.', 'warning');
+                return;
+            }
+            
+            const exportData = engagementManager.exportToAPMToolkit();
+            if (exportData) {
+                // Also download as JSON file for manual import if needed
+                const json = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const filename = `apm_export_${currentEngagement.engagement.id}_${new Date().toISOString().split('T')[0]}.json`;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                showToast('Export Successful', 
+                    `Exported ${exportData.applications.length} applications and ${exportData.capabilities.length} capabilities to APM Toolkit`, 
+                    'success');
+            } else {
+                showToast('Export Failed', 'Could not export data. Please try again.', 'error');
+            }
+        }
+        
+        /**
+         * Generate sample APM data for testing integration
+         * Creates realistic application portfolio data in APM format
+         */
+        function generateSampleAPMData() {
+            const sampleData = {
+                applications: [
+                    {
+                        id: 'app_sample_001',
+                        name: 'SAP ERP Core',
+                        description: 'Enterprise Resource Planning system for finance, HR, and operations',
+                        department: 'IT Operations',
+                        owner: 'John Anderson',
+                        vendor: 'SAP',
+                        technology: 'ABAP, Fiori',
+                        currency: 'SEK',
+                        capex: 2500000,
+                        opex: 1500000,
+                        users: 450,
+                        lifecycle: 'active',
+                        action: 'retain',
+                        technicalFit: 7,
+                        businessValue: 9,
+                        aiMaturity: 2,
+                        aiPotential: 'High',
+                        businessCapabilities: ['cap_fin_001', 'cap_hr_001'],
+                        notes: 'Core system - critical for operations',
+                        metadata: { source: 'APM', createdAt: new Date().toISOString() }
+                    },
+                    {
+                        id: 'app_sample_002',
+                        name: 'Customer Portal',
+                        description: 'Self-service portal for customers',
+                        department: 'Customer Service',
+                        owner: 'Lisa Chen',
+                        vendor: 'Custom Development',
+                        technology: 'React, Node.js, PostgreSQL',
+                        currency: 'SEK',
+                        capex: 800000,
+                        opex: 400000,
+                        users: 15000,
+                        lifecycle: 'active',
+                        action: 'invest',
+                        technicalFit: 8,
+                        businessValue: 8,
+                        aiMaturity: 3,
+                        aiPotential: 'High',
+                        businessCapabilities: ['cap_cust_001'],
+                        notes: 'Strategic system for digital transformation',
+                        metadata: { source: 'APM', createdAt: new Date().toISOString() }
+                    },
+                    {
+                        id: 'app_sample_003',
+                        name: 'Legacy Claims System',
+                        description: 'Mainframe-based claims processing',
+                        department: 'Claims',
+                        owner: 'Robert Miller',
+                        vendor: 'IBM',
+                        technology: 'COBOL, DB2',
+                        currency: 'SEK',
+                        capex: 500000,
+                        opex: 1200000,
+                        users: 200,
+                        lifecycle: 'legacy',
+                        action: 'replace',
+                        technicalFit: 3,
+                        businessValue: 7,
+                        aiMaturity: 1,
+                        aiPotential: 'Medium',
+                        businessCapabilities: ['cap_claims_001'],
+                        notes: 'Modernization candidate - high maintenance cost',
+                        metadata: { source: 'APM', createdAt: new Date().toISOString() }
+                    }
+                ],
+                capabilities: [
+                    {
+                        id: 'cap_fin_001',
+                        name: 'Financial Management',
+                        level: 'L1',
+                        domain: 'Finance',
+                        maturity: 4,
+                        strategicImportance: 'critical',
+                        aiPotential: 'High',
+                        linkedApplications: ['app_sample_001'],
+                        description: 'Core financial processes'
+                    },
+                    {
+                        id: 'cap_cust_001',
+                        name: 'Customer Self-Service',
+                        level: 'L2',
+                        domain: 'Customer Service',
+                        maturity: 3,
+                        strategicImportance: 'high',
+                        aiPotential: 'High',
+                        linkedApplications: ['app_sample_002'],
+                        description: 'Digital customer engagement'
+                    }
+                ]
+            };
+            
+            // Save to integration storage
+            const dataManager = new EA_DataManager();
+            dataManager.saveIntegrationData('apm_latest', sampleData);
+            
+            console.log('✓ Sample APM data generated');
+            showToast('Sample Data Generated', 'Sample APM data created. You can now test the import feature.', 'success');
         }
         
         function exportEngagementJSON() {
@@ -2132,7 +3862,125 @@
                 return;
             }
             
-            showToast('Coming Soon', 'Output generation will be implemented in Phase 5', 'info');
+            // Open output generation modal
+            document.getElementById('outputModal').classList.remove('hidden');
+            
+            // Ensure progress is hidden when opening modal
+            const progressDiv = document.getElementById('output-progress');
+            if (progressDiv) {
+                progressDiv.classList.add('hidden');
+            }
+            const previewDiv = document.getElementById('output-preview');
+            if (previewDiv) {
+                previewDiv.classList.add('hidden');
+            }
+            
+            // Reset progress bar
+            const progressBar = document.getElementById('output-progress-bar');
+            if (progressBar) {
+                progressBar.style.width = '0%';
+            }
+            
+            // Enable the generate button
+            const generateBtn = document.getElementById('generate-outputs-btn');
+            if (generateBtn) {
+                generateBtn.disabled = false;
+            }
+        }
+
+        function closeOutputModal() {
+            document.getElementById('outputModal').classList.add('hidden');
+            document.getElementById('output-progress').classList.add('hidden');
+            document.getElementById('output-preview').classList.add('hidden');
+            document.getElementById('output-progress-bar').style.width = '0%';
+        }
+
+        async function executeOutputGeneration() {
+            if (!currentEngagement) {
+                showToast('No Engagement', 'No engagement selected', 'error');
+                return;
+            }
+
+            // Get selected output types
+            const outputTypes = [];
+            if (document.getElementById('output-executive-summary').checked) outputTypes.push('executive_summary');
+            if (document.getElementById('output-whitespace').checked) outputTypes.push('whitespace_analysis');
+            if (document.getElementById('output-target-arch').checked) outputTypes.push('target_architecture');
+            if (document.getElementById('output-roadmap').checked) outputTypes.push('roadmap');
+            if (document.getElementById('output-sales-extract').checked) outputTypes.push('sales_extract');
+
+            if (outputTypes.length === 0) {
+                showToast('Select Output Type', 'Please select at least one output type', 'warning');
+                return;
+            }
+
+            // Get selected format
+            const format = document.querySelector('input[name="output-format"]:checked').value;
+
+            // Show progress
+            document.getElementById('output-progress').classList.remove('hidden');
+            document.getElementById('generate-outputs-btn').disabled = true;
+            
+            try {
+                // Initialize output generator
+                const generator = new EA_OutputGenerator(currentEngagement);
+                
+                // Generate each selected output
+                const outputs = {};
+                let progress = 0;
+                const increment = 100 / outputTypes.length;
+
+                for (const templateName of outputTypes) {
+                    document.getElementById('output-progress-text').textContent = `Generating ${templateName.replace(/_/g, ' ')}...`;
+                    
+                    const content = await generator.generate(templateName);
+                    outputs[templateName] = content;
+                    
+                    progress += increment;
+                    document.getElementById('output-progress-bar').style.width = `${progress}%`;
+                    
+                    // Small delay for visual feedback
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+
+                // Download each output
+                document.getElementById('output-progress-text').textContent = 'Downloading files...';
+                
+                for (const [name, content] of Object.entries(outputs)) {
+                    let finalContent = content;
+                    let finalFormat = format;
+                    
+                    // Convert to HTML if requested
+                    if (format === 'html') {
+                        finalContent = generator.markdownToHTML(content);
+                        finalFormat = 'html';
+                    }
+                    
+                    // Download file
+                    const filename = `${currentEngagement.engagement.id}_${name}_${new Date().toISOString().split('T')[0]}`;
+                    generator.downloadOutput(finalContent, filename, finalFormat);
+                    
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+
+                // Success
+                document.getElementById('output-progress-text').textContent = 'Complete! Files downloaded.';
+                document.getElementById('output-progress-bar').style.width = '100%';
+                
+                showToast('Outputs Generated', `Successfully generated ${outputTypes.length} document(s)`, 'success');
+                
+                // Close modal after delay
+                setTimeout(() => {
+                    closeOutputModal();
+                    document.getElementById('generate-outputs-btn').disabled = false;
+                }, 1500);
+
+            } catch (error) {
+                console.error('Output generation error:', error);
+                showToast('Generation Failed', error.message, 'error');
+                document.getElementById('output-progress').classList.add('hidden');
+                document.getElementById('generate-outputs-btn').disabled = false;
+            }
         }
         
         function generateLeadershipView() {
@@ -2360,72 +4208,55 @@
                 });
             }
         });
+
+        // ═══════════════════════════════════════════════════════════════
+        // OUTPUT GENERATION
+        // ═══════════════════════════════════════════════════════════════
+
+        // Global instances
+        let outputGenerator = null;
+        let markdownGenerator = null;
+
+        /**
+         * Initialize output generator
+         */
+        async function initOutputGenerator() {
+            if (!outputGenerator) {
+                // Get or create storage manager
+                let storage = window.EA_StorageManager_Instance;
+                if (!storage) {
+                    storage = new EA_StorageManager();
+                    await storage.init();
+                    window.EA_StorageManager_Instance = storage;
+                }
+                
+                // Get AI service if available
+                const aiService = window.Advicy_AI_Instance || null;
+                
+                // Create generators
+                markdownGenerator = new EA_MarkdownGenerator(aiService);
+                outputGenerator = new EA_OutputGenerator(storage, markdownGenerator);
+                
+                console.log('✅ Output Generator initialized');
+            }
+            return outputGenerator;
+        }
+
+        /**
+         * Open output generation modal (removed - use generateOutputs() instead)
+         */
+
     </script>
     
-    <!-- AI CHAT PANEL -->
-    <div id="ai-chat-panel">
-        <div id="chat-resize-handle"></div>
-        
-        <div id="chat-header">
-            <div id="chat-header-title">
-                <i class="fas fa-robot"></i>
-                <span>EA Assistant</span>
-            </div>
-            <div id="chat-controls">
-                <button onclick="document.getElementById('chat-messages').innerHTML = ''" title="Clear chat">
-                    <i class="fas fa-trash"></i>
-                </button>
-                <button onclick="toggleChatPanel()" title="Close (Ctrl+K)">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        </div>
-        
-        <div class="quick-actions">
-            <button class="qa-btn" onclick="sendQuickAction('Analyze the current engagement completeness and suggest next steps')">
-                <i class="fas fa-chart-line"></i> Analyze Progress
-            </button>
-            <button class="qa-btn" onclick="sendQuickAction('Identify gaps in stakeholder coverage')">
-                <i class="fas fa-users"></i> Stakeholder Gaps
-            </button>
-            <button class="qa-btn" onclick="sendQuickAction('Suggest key initiatives based on the current setup')">
-                <i class="fas fa-lightbulb"></i> Suggest Initiatives
-            </button>
-            <button class="qa-btn" onclick="sendQuickAction('Generate an executive summary of this engagement')">
-                <i class="fas fa-file-alt"></i> Executive Summary
-            </button>
-        </div>
-        
-        <div id="chat-messages">
-            <div class="chat-message ai-message">
-                <div class="message-content">
-                    <div class="message-text">Hello! I'm your EA Assistant. I can help you analyze engagements, identify gaps, suggest improvements, and answer questions about your EA Playbook. Try one of the quick actions above or ask me anything!</div>
-                    <div class="message-time">AI Assistant - Now</div>
-                </div>
-            </div>
-        </div>
-        
-        <div id="chat-input-container">
-            <textarea id="chat-input" placeholder="Ask about engagement planning, stakeholders, architecture..."></textarea>
-            <button id="send-chat" onclick="sendChatMessage()" title="Send (Enter)">
-                <i class="fas fa-paper-plane"></i>
-            </button>
-        </div>
+    <!-- FLOATING GENERATE OUTPUTS BUTTON -->
+    <div style="position:fixed;bottom:20px;right:20px;z-index:200">
+        <button class="btn btn-primary" onclick="generateOutputs()" 
+            style="padding:16px 24px;font-size:14px;font-weight:700;box-shadow:0 4px 16px rgba(6,95,70,0.3);border-radius:12px;display:flex;align-items:center;gap:10px"
+            title="Generate engagement documents (MD/HTML)">
+            <i class="fas fa-file-export" style="font-size:18px"></i>
+            <span>Generate Outputs</span>
+        </button>
     </div>
 
-    <!-- Chat Panel -->
-    <div id="chat-panel"ðŸ‘‹ Hello! I'm your EA Assistant. I can help you analyze engagements, identify gaps, suggest improvements, and answer questions about your EA Playbook. Try one of the quick actions above or ask me anything!</div>
-                    <div class="message-time">AI Assistant Â· Now</div>
-                </div>
-            </div>
-        </div>
-        
-        <div id="chat-input-container">
-            <textarea id="chat-input" placeholder="Ask about engagement planning, stakeholders, architecture..."></textarea>
-            <button id="send-chat" onclick="sendChatMessage()" title="Send (Enter)">
-                <i class="fas fa-paper-plane"></i>
-            </button>
-        </div>
-    </div>
 </body>
 </html>

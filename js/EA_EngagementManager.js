@@ -592,43 +592,321 @@ class EA_EngagementManager {
 
   /**
    * Import applications from APM Toolkit
+   * PRESERVES ALL APM DATA using unified schema
    * @returns {number} - Number of applications imported
    */
   importFromAPMToolkit() {
     const dataManager = new EA_DataManager();
-    const apmData = dataManager.getIntegrationData('apm_latest');
+    let apmData = dataManager.getIntegrationData('apm_latest');
     
+    // Fallback: Check if there's EA export data available (for testing/demo)
     if (!apmData || !apmData.applications) {
-      console.warn('No APM data available for import');
-      return 0;
+      console.warn('No APM data available for import at integration_apm_latest');
+      
+      // Try to find EA export data as alternative
+      const eaExport = dataManager.getIntegrationData('ea_export_latest');
+      if (eaExport && eaExport.applications) {
+        console.info('Found EA export data - using for demo/testing purposes');
+        apmData = eaExport;
+      } else {
+        console.warn('No APM or EA export data found. Please ensure APM Toolkit has exported data first.');
+        return 0;
+      }
     }
 
     let importCount = 0;
+    const timestamp = new Date().toISOString();
     
     apmData.applications.forEach(app => {
-      // Map APM application to engagement application schema
+      // UNIFIED MAPPING: Preserve ALL APM fields using extended schema
       const engagementApp = {
-        id: app.id,
+        // Core identifiers
+        id: app.id, // Keep original APM ID (app_timestamp)
         name: app.name,
-        businessDomain: app.department || 'Unknown',
-        lifecycle: this.mapAPMLifecycle(app.lifecycle),
-        riskLevel: this.mapAPMRisk(app.technicalFit, app.businessValue),
-        technicalDebt: app.technicalFit < 5 ? 'high' : 'medium',
+        description: app.description || '',
+        
+        // Organizational context
+        businessDomain: app.department || app.businessDomain || 'Unknown',
+        department: app.department,
         owner: app.owner,
         vendor: app.vendor,
-        annualCost: (app.capex || 0) + (app.opex || 0),
-        modernizationCandidate: app.action === 'invest' || app.action === 'replace',
+        technology: app.technology,
+        
+        // Lifecycle management (support both EA and APM enums)
+        lifecycle: app.lifecycle || 'active', // Keep original APM lifecycle
+        action: app.action, // retain/invest/replace/consolidate/retire
         sunsetCandidate: app.action === 'retire',
+        modernizationCandidate: app.action === 'invest' || app.action === 'replace',
+        
+        // Financial data (preserve separate capex/opex AND calculate combined)
+        currency: app.currency || 'SEK',
+        capex: app.capex || 0,
+        opex: app.opex || 0,
+        annualCost: (app.capex || 0) + (app.opex || 0),
+        
+        // Quality and risk assessment
+        riskLevel: this.mapAPMRisk(app.technicalFit, app.businessValue),
+        technicalDebt: app.technicalFit < 5 ? 'high' : app.technicalFit < 7 ? 'medium' : 'low',
+        technicalFit: app.technicalFit,
+        businessValue: app.businessValue,
+        regulatorySensitivity: app.regulatorySensitivity || 'medium',
+        
+        // User and adoption metrics
+        users: app.users || 0,
+        
+        // AI transformation readiness
+        aiMaturity: app.aiMaturity,
+        aiPotential: app.aiPotential,
+        
+        // Capability mapping (preserve APM capability links)
+        businessCapabilities: app.businessCapabilities || [],
+        linkedCapabilities: app.businessCapabilities || [],
+        
+        // EA-specific relationships
         constraints: [],
-        evidenceRefs: ['imported-from-apm']
+        evidenceRefs: ['imported-from-apm'],
+        
+        // Additional notes
+        notes: app.notes || '',
+        
+        // Metadata (track origin and preserve APM metadata)
+        metadata: {
+          createdAt: app.metadata?.createdAt || timestamp,
+          updatedAt: timestamp,
+          createdBy: app.metadata?.createdBy || 'apm-import',
+          source: 'APM',
+          apmId: app.id // Track original APM ID for re-export
+        }
       };
 
       this.addEntity('applications', engagementApp);
       importCount++;
     });
 
-    console.log(`✓ Imported ${importCount} applications from APM Toolkit`);
+    // Also import capabilities if available
+    if (apmData.capabilities && Array.isArray(apmData.capabilities)) {
+      this.importCapabilitiesFromAPM(apmData.capabilities);
+    }
+
+    console.log(`✓ Imported ${importCount} applications from APM Toolkit (full data preserved)`);
     return importCount;
+  }
+
+  /**
+   * Import capabilities from APM Toolkit
+   * @param {Array} apmCapabilities - APM capabilities array
+   */
+  importCapabilitiesFromAPM(apmCapabilities) {
+    let importCount = 0;
+    
+    apmCapabilities.forEach(cap => {
+      // Check if capability already exists
+      const existing = this.getEntities('capabilities').find(c => 
+        c.id === cap.id || c.name === cap.name
+      );
+      
+      if (!existing) {
+        const engagementCap = {
+          id: cap.id,
+          name: cap.name,
+          level: cap.level || 'L1',
+          parentId: cap.parentId,
+          domain: cap.domain || 'Unknown',
+          maturity: cap.maturity || 3,
+          targetMaturity: cap.maturity || 3,
+          gap: 0,
+          strategicImportance: cap.strategicImportance || 'medium',
+          linkedApplications: cap.linkedApplications || [],
+          description: cap.description || '',
+          metadata: {
+            source: 'APM',
+            apmId: cap.id
+          }
+        };
+        
+        this.addEntity('capabilities', engagementCap);
+        importCount++;
+      }
+    });
+    
+    if (importCount > 0) {
+      console.log(`✓ Imported ${importCount} capabilities from APM Toolkit`);
+    }
+  }
+
+  /**
+   * Export applications to APM Toolkit format
+   * CONVERTS EA data to APM-compatible format for seamless integration
+   * @returns {Object} - APM-compatible data structure { applications: [], capabilities: [] }
+   */
+  exportToAPMToolkit() {
+    const model = this.getCurrentEngagement();
+    
+    if (!model || !model.applications) {
+      console.warn('No engagement data to export');
+      return null;
+    }
+
+    const timestamp = new Date().toISOString();
+    const apmApplications = [];
+    
+    // Convert EA applications to APM format
+    model.applications.forEach(app => {
+      const apmApp = {
+        // Use original APM ID if available, otherwise generate one
+        id: app.metadata?.apmId || app.id.startsWith('app_') ? app.id : `app_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        
+        // Core fields
+        name: app.name,
+        description: app.description || '',
+        
+        // Organizational
+        department: app.department || app.businessDomain,
+        owner: app.owner || '',
+        vendor: app.vendor || '',
+        technology: app.technology || '',
+        
+        // Financial
+        currency: app.currency || 'SEK',
+        capex: app.capex || 0,
+        opex: app.opex || 0,
+        
+        // User metrics
+        users: app.users || 0,
+        
+        // Lifecycle (convert EA lifecycle back to APM if needed)
+        lifecycle: this.mapEALifecycleToAPM(app.lifecycle),
+        action: app.action || this.deriveAPMAction(app),
+        
+        // Assessment scores
+        technicalFit: app.technicalFit || this.deriveTechnicalFit(app),
+        businessValue: app.businessValue || this.deriveBusinessValue(app),
+        
+        // AI readiness
+        aiMaturity: app.aiMaturity || 3,
+        aiPotential: app.aiPotential || 'Medium',
+        
+        // Capability links
+        businessCapabilities: app.businessCapabilities || app.linkedCapabilities || [],
+        
+        // Additional notes
+        notes: app.notes || '',
+        
+        // Metadata
+        metadata: {
+          createdAt: app.metadata?.createdAt || timestamp,
+          updatedAt: timestamp,
+          createdBy: app.metadata?.createdBy || 'ea-export',
+          eaId: app.id // Track original EA ID for re-import
+        }
+      };
+      
+      apmApplications.push(apmApp);
+    });
+
+    // Convert EA capabilities to APM format
+    const apmCapabilities = [];
+    if (model.capabilities && Array.isArray(model.capabilities)) {
+      model.capabilities.forEach(cap => {
+        const apmCap = {
+          id: cap.metadata?.apmId || cap.id,
+          name: cap.name,
+          level: cap.level || 'L1',
+          parentId: cap.parentId,
+          domain: cap.domain,
+          industryTag: model.engagement?.segment || 'General',
+          strategicImportance: cap.strategicImportance || 'medium',
+          maturity: cap.maturity || 3,
+          aiPotential: cap.aiPotential || 'Medium',
+          linkedApplications: cap.linkedApplications || [],
+          description: cap.description || '',
+          metadata: {
+            createdAt: cap.metadata?.createdAt || timestamp,
+            updatedAt: timestamp,
+            source: 'EA',
+            eaId: cap.id
+          }
+        };
+        
+        apmCapabilities.push(apmCap);
+      });
+    }
+
+    const exportData = {
+      applications: apmApplications,
+      capabilities: apmCapabilities,
+      metadata: {
+        exportedAt: timestamp,
+        exportedFrom: 'EA_Engagement_Toolkit',
+        engagementId: model.engagement?.id,
+        engagementName: model.engagement?.name,
+        version: '1.0'
+      }
+    };
+
+    // Save to integration storage for APM Toolkit to access
+    const dataManager = new EA_DataManager();
+    dataManager.saveIntegrationData('ea_export_latest', exportData);
+
+    console.log(`✓ Exported ${apmApplications.length} applications and ${apmCapabilities.length} capabilities to APM format`);
+    return exportData;
+  }
+
+  /**
+   * Map EA lifecycle to APM lifecycle
+   * @param {string} eaLifecycle - EA lifecycle value
+   * @returns {string} - APM lifecycle value
+   */
+  mapEALifecycleToAPM(eaLifecycle) {
+    const mapping = {
+      'tolerate': 'active',
+      'invest': 'phaseIn',
+      'migrate': 'legacy',
+      'retire': 'phaseOut',
+      // Pass through APM values if already in APM format
+      'phaseIn': 'phaseIn',
+      'active': 'active',
+      'legacy': 'legacy',
+      'phaseOut': 'phaseOut',
+      'retired': 'retired'
+    };
+    return mapping[eaLifecycle] || 'active';
+  }
+
+  /**
+   * Derive APM action from EA application data
+   * @param {Object} app - EA application object
+   * @returns {string} - APM action
+   */
+  deriveAPMAction(app) {
+    if (app.sunsetCandidate) return 'retire';
+    if (app.modernizationCandidate) return 'replace';
+    if (app.lifecycle === 'invest') return 'invest';
+    if (app.lifecycle === 'migrate') return 'replace';
+    if (app.lifecycle === 'retire') return 'retire';
+    return 'retain';
+  }
+
+  /**
+   * Derive technical fit score from EA risk and debt levels
+   * @param {Object} app - EA application object
+   * @returns {number} - Technical fit score (1-10)
+   */
+  deriveTechnicalFit(app) {
+    // Convert qualitative assessments to numeric score
+    const debtScores = { 'low': 9, 'medium': 6, 'high': 3, 'critical': 1 };
+    return debtScores[app.technicalDebt] || 5;
+  }
+
+  /**
+   * Derive business value score from EA risk level
+   * @param {Object} app - EA application object
+   * @returns {number} - Business value score (1-10)
+   */
+  deriveBusinessValue(app) {
+    // Invert risk level to get value (low risk = high value for critical systems)
+    const valueScores = { 'low': 6, 'medium': 7, 'high': 8, 'critical': 9 };
+    return valueScores[app.riskLevel] || 5;
   }
 
   /**

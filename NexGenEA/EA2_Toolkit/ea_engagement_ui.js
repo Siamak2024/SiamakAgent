@@ -105,6 +105,7 @@ function openNewEngagementModal() {
     // Clear form
     document.getElementById('new-engagement-id').value = '';
     document.getElementById('new-engagement-name').value = '';
+    document.getElementById('new-engagement-customer-name').value = '';
     document.getElementById('new-engagement-segment').value = '';
     document.getElementById('new-engagement-theme').value = '';
 }
@@ -116,6 +117,7 @@ function closeNewEngagementModal() {
 function createNewEngagementFromModal() {
     const id = document.getElementById('new-engagement-id').value.trim();
     const name = document.getElementById('new-engagement-name').value.trim();
+    const customerName = document.getElementById('new-engagement-customer-name').value.trim();
     const segment = document.getElementById('new-engagement-segment').value;
     const theme = document.getElementById('new-engagement-theme').value.trim();
     
@@ -137,6 +139,7 @@ function createNewEngagementFromModal() {
         const engagementId = engagementManager.createEngagement({
             id,
             name,
+            customerName,
             segment,
             theme,
             status: 'active',

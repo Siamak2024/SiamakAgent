@@ -30,10 +30,42 @@ function switchTab(tabName, btn) {
     renderTabContent(tabName);
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// SUB-TAB NAVIGATION (Canvas 1: Engagement Setup)
+// ═══════════════════════════════════════════════════════════════════
+
+function switchSubTab(subtabName) {
+    // Hide all sub-tab contents
+    document.querySelectorAll('.sub-tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.sub-tab').forEach(btn => btn.classList.remove('active'));
+    
+    // Show selected sub-tab
+    const targetContent = document.getElementById('subtab-' + subtabName);
+    const targetButton = event.target.closest('.sub-tab');
+    
+    if (targetContent) targetContent.classList.add('active');
+    if (targetButton) targetButton.classList.add('active');
+    
+    // Trigger renders for specific sub-tabs
+    if (subtabName === 'governance') {
+        if (typeof renderDecisions === 'function') renderDecisions();
+        if (typeof renderConstraints === 'function') renderConstraints();
+        if (typeof renderAssumptions === 'function') renderAssumptions();
+    } else if (subtabName === 'execution') {
+        if (typeof renderPhases === 'function') renderPhases();
+        if (typeof renderStories === 'function') renderStories();
+    }
+}
+
 function renderTabContent(tabName) {
     switch(tabName) {
-        case 'setup':
+        case 'engagement':
             // Canvas 1 already populated on load
+            if (typeof renderDecisions === 'function') renderDecisions();
+            if (typeof renderConstraints === 'function') renderConstraints();
+            if (typeof renderAssumptions === 'function') renderAssumptions();
+            if (typeof renderPhases === 'function') renderPhases();
+            if (typeof renderStories === 'function') renderStories();
             break;
         case 'stakeholders':
             renderStakeholders();
@@ -43,12 +75,14 @@ function renderTabContent(tabName) {
             break;
         case 'whitespace':
             renderWhitespace();
+            if (typeof renderRisks === 'function') renderRisks();
             break;
         case 'target':
             renderTarget();
             break;
         case 'roadmap':
             renderRoadmap();
+            if (typeof renderRoadmapTimeline === 'function') renderRoadmapTimeline();
             break;
         case 'leadership':
             renderLeadership();

@@ -1,19 +1,36 @@
 /**
  * EA_StorageManager.js
- * IndexedDB wrapper with localStorage fallback for Decision Engine
- * Manages 5 core entities: Application, Decision, Score, OptimizationCandidate, TransformationInitiative
+ * IndexedDB wrapper with localStorage fallback for Decision Engine & Engagement Playbook
+ * Manages core entities: Applications, Decisions, Scores, Engagements, Stakeholders, etc.
  * 
- * @version 1.0
+ * @version 1.1
  * @date 2026-04-17
  */
 
 class EA_StorageManager {
   constructor() {
     this.dbName = 'EA_DecisionEngine';
-    this.dbVersion = 1;
+    this.dbVersion = 2;  // Incremented for new stores
     this.db = null;
     this.useLocalStorage = false;
-    this.stores = ['applications', 'decisions', 'scores', 'optimizationCandidates', 'transformationInitiatives'];
+    this.stores = [
+      'applications', 
+      'decisions', 
+      'scores', 
+      'optimizationCandidates', 
+      'transformationInitiatives',
+      // New stores for Engagement Playbook
+      'engagements',
+      'stakeholders',
+      'capabilities',
+      'initiatives',
+      'roadmapItems',
+      'risks',
+      'constraints',
+      'assumptions',
+      'artifacts',
+      'generationHistory'
+    ];
   }
 
   /**
@@ -64,6 +81,7 @@ class EA_StorageManager {
           const appStore = db.createObjectStore('applications', { keyPath: 'id' });
           appStore.createIndex('lifecycle', 'lifecycle', { unique: false });
           appStore.createIndex('department', 'department', { unique: false });
+          appStore.createIndex('engagementId', 'engagementId', { unique: false });
         }
 
         if (!db.objectStoreNames.contains('decisions')) {
@@ -71,6 +89,7 @@ class EA_StorageManager {
           decisionStore.createIndex('appId', 'appId', { unique: false });
           decisionStore.createIndex('status', 'status', { unique: false });
           decisionStore.createIndex('approvalStatus', 'approvalStatus', { unique: false });
+          decisionStore.createIndex('engagementId', 'engagementId', { unique: false });
         }
 
         if (!db.objectStoreNames.contains('scores')) {
@@ -87,6 +106,63 @@ class EA_StorageManager {
           const transStore = db.createObjectStore('transformationInitiatives', { keyPath: 'id' });
           transStore.createIndex('type', 'type', { unique: false });
           transStore.createIndex('status', 'status', { unique: false });
+        }
+
+        // New stores for Engagement Playbook
+        if (!db.objectStoreNames.contains('engagements')) {
+          const engStore = db.createObjectStore('engagements', { keyPath: 'id' });
+          engStore.createIndex('segment', 'segment', { unique: false });
+          engStore.createIndex('status', 'status', { unique: false });
+        }
+
+        if (!db.objectStoreNames.contains('stakeholders')) {
+          const stakeStore = db.createObjectStore('stakeholders', { keyPath: 'id' });
+          stakeStore.createIndex('engagementId', 'engagementId', { unique: false });
+          stakeStore.createIndex('role', 'role', { unique: false });
+        }
+
+        if (!db.objectStoreNames.contains('capabilities')) {
+          const capStore = db.createObjectStore('capabilities', { keyPath: 'id' });
+          capStore.createIndex('engagementId', 'engagementId', { unique: false });
+          capStore.createIndex('domain', 'domain', { unique: false });
+        }
+
+        if (!db.objectStoreNames.contains('initiatives')) {
+          const initStore = db.createObjectStore('initiatives', { keyPath: 'id' });
+          initStore.createIndex('engagementId', 'engagementId', { unique: false });
+          initStore.createIndex('timeHorizon', 'timeHorizon', { unique: false });
+        }
+
+        if (!db.objectStoreNames.contains('roadmapItems')) {
+          const roadmapStore = db.createObjectStore('roadmapItems', { keyPath: 'id' });
+          roadmapStore.createIndex('engagementId', 'engagementId', { unique: false });
+        }
+
+        if (!db.objectStoreNames.contains('risks')) {
+          const riskStore = db.createObjectStore('risks', { keyPath: 'id' });
+          riskStore.createIndex('engagementId', 'engagementId', { unique: false });
+          riskStore.createIndex('likelihood', 'likelihood', { unique: false });
+        }
+
+        if (!db.objectStoreNames.contains('constraints')) {
+          const constraintStore = db.createObjectStore('constraints', { keyPath: 'id' });
+          constraintStore.createIndex('engagementId', 'engagementId', { unique: false });
+        }
+
+        if (!db.objectStoreNames.contains('assumptions')) {
+          const assumptionStore = db.createObjectStore('assumptions', { keyPath: 'id' });
+          assumptionStore.createIndex('engagementId', 'engagementId', { unique: false });
+        }
+
+        if (!db.objectStoreNames.contains('artifacts')) {
+          const artifactStore = db.createObjectStore('artifacts', { keyPath: 'id' });
+          artifactStore.createIndex('engagementId', 'engagementId', { unique: false });
+          artifactStore.createIndex('type', 'type', { unique: false });
+        }
+
+        if (!db.objectStoreNames.contains('generationHistory')) {
+          const histStore = db.createObjectStore('generationHistory', { keyPath: 'id' });
+          histStore.createIndex('engagementId', 'engagementId', { unique: false });
         }
       };
     });

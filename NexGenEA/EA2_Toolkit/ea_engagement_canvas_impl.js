@@ -163,27 +163,57 @@ function openApplicationModal(id = null) {
         const app = engagementManager.getEntity('applications', id);
         if (app) {
             document.getElementById('application-modal-title').textContent = 'Edit Application';
+            // Basic info
             document.getElementById('application-name').value = app.name || '';
+            document.getElementById('application-description').value = app.description || '';
             document.getElementById('application-domain').value = app.businessDomain || '';
             document.getElementById('application-owner').value = app.owner || '';
+            document.getElementById('application-vendor').value = app.vendor || '';
+            document.getElementById('application-technology').value = app.technology || '';
+            // Lifecycle & assessment
             document.getElementById('application-lifecycle').value = app.lifecycle || 'tolerate';
+            document.getElementById('application-action').value = app.action || 'retain';
             document.getElementById('application-risk').value = app.riskLevel || 'medium';
             document.getElementById('application-debt').value = app.technicalDebt || 'medium';
-            document.getElementById('application-cost').value = app.annualCost || 0;
+            document.getElementById('application-technical-fit').value = app.technicalFit || '';
+            document.getElementById('application-business-value').value = app.businessValue || '';
+            // Financial & metrics
+            document.getElementById('application-currency').value = app.currency || 'SEK';
+            document.getElementById('application-capex').value = app.capex || 0;
+            document.getElementById('application-opex').value = app.opex || 0;
+            document.getElementById('application-users').value = app.users || 0;
+            // AI transformation
+            document.getElementById('application-ai-maturity').value = app.aiMaturity || '';
+            document.getElementById('application-ai-potential').value = app.aiPotential || 'Medium';
+            // Flags & notes
             document.getElementById('application-sunset').checked = app.sunsetCandidate || false;
             document.getElementById('application-modernize').checked = app.modernizationCandidate || false;
+            document.getElementById('application-notes').value = app.notes || '';
         }
     } else {
         document.getElementById('application-modal-title').textContent = 'Add Application';
+        // Reset all fields to defaults
         document.getElementById('application-name').value = '';
+        document.getElementById('application-description').value = '';
         document.getElementById('application-domain').value = '';
         document.getElementById('application-owner').value = '';
+        document.getElementById('application-vendor').value = '';
+        document.getElementById('application-technology').value = '';
         document.getElementById('application-lifecycle').value = 'tolerate';
+        document.getElementById('application-action').value = 'retain';
         document.getElementById('application-risk').value = 'medium';
         document.getElementById('application-debt').value = 'medium';
-        document.getElementById('application-cost').value = 0;
+        document.getElementById('application-technical-fit').value = '';
+        document.getElementById('application-business-value').value = '';
+        document.getElementById('application-currency').value = 'SEK';
+        document.getElementById('application-capex').value = 0;
+        document.getElementById('application-opex').value = 0;
+        document.getElementById('application-users').value = 0;
+        document.getElementById('application-ai-maturity').value = '';
+        document.getElementById('application-ai-potential').value = 'Medium';
         document.getElementById('application-sunset').checked = false;
         document.getElementById('application-modernize').checked = false;
+        document.getElementById('application-notes').value = '';
     }
     
     document.getElementById('applicationModal').classList.remove('hidden');
@@ -197,23 +227,62 @@ function saveApplication() {
     const id = document.getElementById('application-edit-id').value;
     const name = document.getElementById('application-name').value;
     const businessDomain = document.getElementById('application-domain').value;
-    const owner = document.getElementById('application-owner').value;
-    const lifecycle = document.getElementById('application-lifecycle').value;
-    const riskLevel = document.getElementById('application-risk').value;
-    const technicalDebt = document.getElementById('application-debt').value;
-    const annualCost = parseFloat(document.getElementById('application-cost').value) || 0;
-    const sunsetCandidate = document.getElementById('application-sunset').checked;
-    const modernizationCandidate = document.getElementById('application-modernize').checked;
     
     if (!name || !businessDomain) {
         showToast('Validation Error', 'Please fill in all required fields', 'error');
         return;
     }
     
+    // Collect all APM-compatible fields
+    const capex = parseFloat(document.getElementById('application-capex').value) || 0;
+    const opex = parseFloat(document.getElementById('application-opex').value) || 0;
+    
     const application = {
-        name, businessDomain, owner, lifecycle, riskLevel, technicalDebt,
-        annualCost, sunsetCandidate, modernizationCandidate,
-        regulatorySensitivity: 'medium'
+        // Basic info
+        name,
+        description: document.getElementById('application-description').value,
+        businessDomain,
+        department: businessDomain, // Alias for APM compatibility
+        owner: document.getElementById('application-owner').value,
+        vendor: document.getElementById('application-vendor').value,
+        technology: document.getElementById('application-technology').value,
+        
+        // Lifecycle & assessment
+        lifecycle: document.getElementById('application-lifecycle').value,
+        action: document.getElementById('application-action').value,
+        riskLevel: document.getElementById('application-risk').value,
+        technicalDebt: document.getElementById('application-debt').value,
+        technicalFit: parseInt(document.getElementById('application-technical-fit').value) || undefined,
+        businessValue: parseInt(document.getElementById('application-business-value').value) || undefined,
+        regulatorySensitivity: 'medium',
+        
+        // Financial & metrics
+        currency: document.getElementById('application-currency').value,
+        capex,
+        opex,
+        annualCost: capex + opex, // Calculate combined cost
+        users: parseInt(document.getElementById('application-users').value) || 0,
+        
+        // AI transformation
+        aiMaturity: parseInt(document.getElementById('application-ai-maturity').value) || undefined,
+        aiPotential: document.getElementById('application-ai-potential').value,
+        
+        // Flags & relationships
+        sunsetCandidate: document.getElementById('application-sunset').checked,
+        modernizationCandidate: document.getElementById('application-modernize').checked,
+        businessCapabilities: [], // Preserved for capability links
+        linkedCapabilities: [],
+        constraints: [],
+        evidenceRefs: [],
+        
+        // Additional notes
+        notes: document.getElementById('application-notes').value,
+        
+        // Metadata
+        metadata: {
+            source: 'Manual',
+            updatedAt: new Date().toISOString()
+        }
     };
     
     if (id) {
@@ -875,6 +944,7 @@ function renderLeadership() {
     const initiatives = engagementManager.getEntities('initiatives') || [];
     const applications = engagementManager.getEntities('applications') || [];
     const capabilities = engagementManager.getEntities('capabilities') || [];
+    const risks = engagementManager.getEntities('risks') || [];
     const container = document.getElementById('leadership-container');
     
     if (initiatives.length === 0 && applications.length === 0) {
@@ -895,7 +965,8 @@ function renderLeadership() {
         totalInitiatives: initiatives.length,
         approvedInitiatives: initiatives.filter(i => i.status === 'approved' || i.status === 'in-progress').length,
         totalCost: initiatives.reduce((sum, i) => sum + (i.estimatedCost || 0), 0),
-        criticalGaps: capabilities.filter(c => c.gap >= 2).length
+        criticalGaps: capabilities.filter(c => (c.gap || 0) >= 2).length,
+        highRisks: risks.filter(r => (r.severity || 0) >= 6).length
     };
     
     container.innerHTML = `
@@ -919,53 +990,231 @@ function renderLeadership() {
             </div>
             <div class="kpi-card">
                 <div class="kpi-value">${(stats.totalCost / 1000000).toFixed(1)}M</div>
-                <div class="kpi-label">Total Investment (SEK)</div>
+                <div class="kpi-label">Total Investment (€)</div>
             </div>
         </div>
         
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 24px;">
+            <!-- Application Lifecycle Chart -->
             <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px;">
                 <h3 style="font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 16px;">
-                    <i class="fas fa-cubes" style="color: #10b981; margin-right: 8px;"></i>Application Portfolio
+                    <i class="fas fa-chart-pie" style="color: #10b981; margin-right: 8px;"></i>Application Lifecycle
                 </h3>
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
-                    <div>
-                        <div style="font-size: 24px; font-weight: 700; color: #dc2626;">${stats.sunsetCandidates}</div>
-                        <div style="font-size: 12px; color: #6b7280;">Sunset Candidates</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 24px; font-weight: 700; color: #f59e0b;">${stats.modernizeCandidates}</div>
-                        <div style="font-size: 12px; color: #6b7280;">Modernization Targets</div>
-                    </div>
-                </div>
+                <canvas id="appLifecycleChart" style="max-height: 250px;"></canvas>
             </div>
             
+            <!-- Initiative Timeline Chart -->
             <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px;">
                 <h3 style="font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 16px;">
-                    <i class="fas fa-chart-line" style="color: #10b981; margin-right: 6px;"></i>Capability Gaps
+                    <i class="fas fa-chart-bar" style="color: #3b82f6; margin-right: 8px;"></i>Initiative Timeline
                 </h3>
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
-                    <div>
-                        <div style="font-size: 24px; font-weight: 700; color: #dc2626;">${stats.criticalGaps}</div>
-                        <div style="font-size: 12px; color: #6b7280;">Critical Gaps</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 24px; font-weight: 700; color: #10b981;">${capabilities.length}</div>
-                        <div style="font-size: 12px; color: #6b7280;">Total Capabilities</div>
-                    </div>
-                </div>
+                <canvas id="initiativeTimelineChart" style="max-height: 250px;"></canvas>
             </div>
         </div>
         
-        <div style="margin-top: 24px; padding: 20px; background: #eff6ff; border: 1px solid #93c5fd; border-radius: 12px;">
-            <h4 style="font-size: 14px; font-weight: 600; color: #1e40af; margin-bottom: 8px;">
-                <i class="fas fa-info-circle" style="margin-right: 6px;"></i>Next Steps
-            </h4>
-            <ul style="margin: 0; padding-left: 20px; color: #1e40af; font-size: 13px;">
-                <li style="margin-bottom: 4px;">Review and approve ${stats.totalInitiatives - stats.approvedInitiatives} pending initiatives</li>
-                <li style="margin-bottom: 4px;">Address ${stats.criticalGaps} critical capability gaps</li>
-                <li>Complete sunset planning for ${stats.sunsetCandidates} applications</li>
-            </ul>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 24px;">
+            <!-- Capability Maturity Chart -->
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px;">
+                <h3 style="font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 16px;">
+                    <i class="fas fa-chart-line" style="color: #8b5cf6; margin-right: 8px;"></i>Capability Maturity
+                </h3>
+                <canvas id="capabilityMaturityChart" style="max-height: 250px;"></canvas>
+            </div>
+            
+            <!-- Risk Distribution Chart -->
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px;">
+                <h3 style="font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 16px;">
+                    <i class="fas fa-exclamation-triangle" style="color: #ef4444; margin-right: 8px;"></i>Risk Distribution
+                </h3>
+                <canvas id="riskDistributionChart" style="max-height: 250px;"></canvas>
+            </div>
+        </div>
+        
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 16px;">
+                <i class="fas fa-flag" style="color: #f59e0b; margin-right: 8px;"></i>Key Highlights
+            </h3>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                <div style="padding: 16px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                    <div style="font-size: 20px; font-weight: 700; color: #92400e;">${stats.sunsetCandidates}</div>
+                    <div style="font-size: 13px; color: #78350f;">Applications to Sunset</div>
+                    <div style="font-size: 11px; color: #92400e; margin-top: 4px;">Retire legacy systems</div>
+                </div>
+                <div style="padding: 16px; background: #dbeafe; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                    <div style="font-size: 20px; font-weight: 700; color: #1e40af;">${stats.modernizeCandidates}</div>
+                    <div style="font-size: 13px; color: #1e3a8a;">Modernization Targets</div>
+                    <div style="font-size: 11px; color: #1e40af; margin-top: 4px;">Technical debt reduction</div>
+                </div>
+                <div style="padding: 16px; background: #fee2e2; border-radius: 8px; border-left: 4px solid #ef4444;">
+                    <div style="font-size: 20px; font-weight: 700; color: #991b1b;">${stats.highRisks}</div>
+                    <div style="font-size: 13px; color: #7f1d1d;">High-Severity Risks</div>
+                    <div style="font-size: 11px; color: #991b1b; margin-top: 4px;">Requires immediate attention</div>
+                </div>
+            </div>
         </div>
     `;
+    
+    // Render charts after DOM is updated
+    setTimeout(() => {
+        renderAppLifecycleChart(applications);
+        renderInitiativeTimelineChart(initiatives);
+        renderCapabilityMaturityChart(capabilities);
+        renderRiskDistributionChart(risks);
+    }, 100);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART RENDERING FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════
+
+function renderAppLifecycleChart(applications) {
+    const canvas = document.getElementById('appLifecycleChart');
+    if (!canvas) return;
+    
+    const lifecycleCounts = {
+        retire: applications.filter(a => a.lifecycle === 'retire').length,
+        tolerate: applications.filter(a => a.lifecycle === 'tolerate').length,
+        invest: applications.filter(a => a.lifecycle === 'invest').length,
+        migrate: applications.filter(a => a.lifecycle === 'migrate').length
+    };
+    
+    new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            labels: ['Retire', 'Tolerate', 'Invest', 'Migrate'],
+            datasets: [{
+                data: [lifecycleCounts.retire, lifecycleCounts.tolerate, lifecycleCounts.invest, lifecycleCounts.migrate],
+                backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6'],
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: { size: 12 }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderInitiativeTimelineChart(initiatives) {
+    const canvas = document.getElementById('initiativeTimelineChart');
+    if (!canvas) return;
+    
+    const timeHorizonCounts = {
+        short: initiatives.filter(i => i.timeHorizon === 'short').length,
+        mid: initiatives.filter(i => i.timeHorizon === 'mid').length,
+        long: initiatives.filter(i => i.timeHorizon === 'long').length
+    };
+    
+    new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: ['Short-Term\n(0-12mo)', 'Mid-Term\n(12-24mo)', 'Long-Term\n(24mo+)'],
+            datasets: [{
+                label: 'Initiatives',
+                data: [timeHorizonCounts.short, timeHorizonCounts.mid, timeHorizonCounts.long],
+                backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6'],
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
+                }
+            }
+        }
+    });
+}
+
+function renderCapabilityMaturityChart(capabilities) {
+    const canvas = document.getElementById('capabilityMaturityChart');
+    if (!canvas) return;
+    
+    if (capabilities.length === 0) {
+        canvas.getContext('2d').fillText('No capability data', 10, 10);
+        return;
+    }
+    
+    const avgCurrentMaturity = capabilities.reduce((sum, c) => sum + (c.maturity || 0), 0) / capabilities.length;
+    const avgTargetMaturity = capabilities.reduce((sum, c) => sum + (c.targetMaturity || 0), 0) / capabilities.length;
+    
+    new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: ['Current', 'Target'],
+            datasets: [{
+                label: 'Avg Maturity',
+                data: [avgCurrentMaturity.toFixed(1), avgTargetMaturity.toFixed(1)],
+                backgroundColor: ['#f59e0b', '#10b981'],
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 5,
+                    ticks: { stepSize: 1 }
+                }
+            }
+        }
+    });
+}
+
+function renderRiskDistributionChart(risks) {
+    const canvas = document.getElementById('riskDistributionChart');
+    if (!canvas) return;
+    
+    const severityCounts = {
+        critical: risks.filter(r => (r.severity || 0) >= 7).length,
+        high: risks.filter(r => (r.severity || 0) >= 4 && (r.severity || 0) < 7).length,
+        low: risks.filter(r => (r.severity || 0) > 0 && (r.severity || 0) < 4).length
+    };
+    
+    new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: ['Critical\n(7-9)', 'High\n(4-6)', 'Low\n(1-3)'],
+            datasets: [{
+                label: 'Risks',
+                data: [severityCounts.critical, severityCounts.high, severityCounts.low],
+                backgroundColor: ['#dc2626', '#f59e0b', '#10b981'],
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
+                }
+            }
+        }
+    });
 }

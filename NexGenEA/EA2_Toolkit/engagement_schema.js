@@ -17,6 +17,7 @@
 const EngagementSchema = {
   id: { type: 'string', required: true, pattern: /^[A-Z]{3}-[A-Z]{3}-\d{4}Q\d-\d{3}$/ }, // e.g., SEG-INS-2026Q2-001
   name: { type: 'string', required: true },
+  customerName: { type: 'string', required: false }, // Customer organization name
   segment: { type: 'string', required: true, enum: ['Insurance', 'Banking', 'Manufacturing', 'Retail', 'Healthcare', 'Public Sector', 'Custom'] },
   theme: { type: 'string', required: true },
   customers: { type: 'array', required: true, items: 'string' }, // Customer IDs
@@ -116,16 +117,33 @@ const StorySchema = {
 
 /**
  * Stakeholder Entity
- * Stakeholder management with influence mapping
+ * Stakeholder management with influence mapping and relationship tracking
+ * 
+ * Type definitions:
+ * - internal: Technical staff from Vivicta (IT service provider) - Enterprise Architects, Solution Architects, Technical Leads
+ * - engagement-team: Customer-facing roles from Vivicta Marketing/Sales - Account Managers, Sales Representatives, Customer Success
+ * - customer: Stakeholders from the client organization receiving services
  */
 const StakeholderSchema = {
   id: { type: 'string', required: true, pattern: /^STK-\d{3}$/ },
   name: { type: 'string', required: true },
   role: { type: 'string', required: true },
   orgUnit: { type: 'string', required: true },
+  type: { 
+    type: 'string', 
+    required: true, 
+    enum: ['internal', 'engagement-team', 'customer'], 
+    default: 'internal',
+    description: 'internal=Vivicta IT staff | engagement-team=Vivicta Marketing/Sales | customer=Client organization'
+  },
   influence: { type: 'string', required: true, enum: ['high', 'medium', 'low'] },
   decisionPower: { type: 'string', required: true, enum: ['high', 'medium', 'low'] },
   priorities: { type: 'array', required: true, items: 'string' },
+  customerRelationships: { 
+    type: 'array', 
+    items: 'string',
+    description: 'Array of customer stakeholder IDs that this internal/engagement-team member works with'
+  },
   notes: { type: 'string' },
   contactEmail: { type: 'string', format: 'email' },
   workshopAttendance: { type: 'array', items: 'string' } // Workshop dates
@@ -134,22 +152,70 @@ const StakeholderSchema = {
 /**
  * Application Entity
  * Application portfolio items (can import from APM Toolkit)
+ * UNIFIED SCHEMA: Compatible with APM Toolkit for seamless import/export
  */
 const ApplicationSchema = {
-  id: { type: 'string', required: true, pattern: /^APP-\d{3}$/ },
+  // Core identifiers (supports both EA and APM ID patterns)
+  id: { type: 'string', required: true }, // Pattern: APP-\d{3} (EA) or app_\d+ (APM)
   name: { type: 'string', required: true },
-  businessDomain: { type: 'string', required: true },
-  lifecycle: { type: 'string', required: true, enum: ['tolerate', 'invest', 'migrate', 'retire'] },
-  riskLevel: { type: 'string', required: true, enum: ['critical', 'high', 'medium', 'low'] },
-  technicalDebt: { type: 'string', required: true, enum: ['critical', 'high', 'medium', 'low'] },
-  regulatorySensitivity: { type: 'string', enum: ['high', 'medium', 'low'] },
-  sunsetCandidate: { type: 'boolean', default: false },
-  modernizationCandidate: { type: 'boolean', default: false },
-  constraints: { type: 'array', items: 'string' }, // Constraint IDs
-  evidenceRefs: { type: 'array', items: 'string' },
+  description: { type: 'string' },
+  
+  // Organizational context
+  businessDomain: { type: 'string', required: true }, // EA: domain, APM: maps to department
+  department: { type: 'string' }, // APM field
   owner: { type: 'string' },
   vendor: { type: 'string' },
-  annualCost: { type: 'number' }
+  technology: { type: 'string' }, // APM: technology stack (e.g., ".NET", "Java")
+  
+  // Lifecycle management
+  lifecycle: { type: 'string', required: true, enum: ['tolerate', 'invest', 'migrate', 'retire', 'phaseIn', 'active', 'legacy', 'phaseOut', 'retired'] }, // EA + APM enums
+  action: { type: 'string', enum: ['retain', 'invest', 'replace', 'consolidate', 'retire'] }, // APM: recommended action
+  sunsetCandidate: { type: 'boolean', default: false }, // EA specific
+  modernizationCandidate: { type: 'boolean', default: false }, // EA specific
+  
+  // Financial data (supports both combined and separate formats)
+  currency: { type: 'string', enum: ['SEK', 'EUR', 'USD'], default: 'SEK' },
+  capex: { type: 'number' }, // APM: average yearly license cost
+  opex: { type: 'number' }, // APM: average yearly support/consulting cost
+  annualCost: { type: 'number' }, // EA: combined cost (calculated from capex+opex if not provided)
+  
+  // Quality and risk assessment
+  riskLevel: { type: 'string', required: true, enum: ['critical', 'high', 'medium', 'low'] },
+  technicalDebt: { type: 'string', required: true, enum: ['critical', 'high', 'medium', 'low'] },
+  technicalFit: { type: 'number', min: 1, max: 10 }, // APM: 1-10 scale
+  businessValue: { type: 'number', min: 1, max: 10 }, // APM: 1-10 scale
+  regulatorySensitivity: { type: 'string', enum: ['high', 'medium', 'low'] },
+  
+  // User and adoption metrics
+  users: { type: 'number' }, // APM: active user count
+  
+  // AI transformation readiness
+  aiMaturity: { type: 'number', min: 1, max: 5 }, // APM: 1-5 scale
+  aiPotential: { type: 'string', enum: ['High', 'Medium', 'Low'] },
+  
+  // Capability mapping
+  businessCapabilities: { type: 'array', items: 'string' }, // APM: array of capability IDs
+  linkedCapabilities: { type: 'array', items: 'string' }, // EA: array of capability IDs (alias)
+  
+  // EA-specific relationships
+  constraints: { type: 'array', items: 'string' }, // Constraint IDs
+  evidenceRefs: { type: 'array', items: 'string' },
+  
+  // Additional notes
+  notes: { type: 'string' },
+  
+  // Metadata
+  metadata: {
+    type: 'object',
+    properties: {
+      createdAt: { type: 'string', format: 'datetime' },
+      updatedAt: { type: 'string', format: 'datetime' },
+      createdBy: { type: 'string' },
+      source: { type: 'string', enum: ['EA', 'APM', 'Manual'], default: 'Manual' }, // Track data origin
+      apmId: { type: 'string' }, // Original APM ID if imported
+      eaId: { type: 'string' } // Original EA ID if exported
+    }
+  }
 };
 
 /**
