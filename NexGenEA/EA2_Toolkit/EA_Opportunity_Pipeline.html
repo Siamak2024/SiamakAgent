@@ -663,11 +663,6 @@
             }
         }
 
-        function viewOpportunity(oppId) {
-            // TODO: Open opportunity details modal
-            alert('Opportunity details view coming soon');
-        }
-
         function openNewOppModal() {
             document.getElementById('new-opp-modal').classList.add('open');
         }
@@ -760,6 +755,188 @@
                 crossNav.goToOpportunity(id);
             } else if (type === 'engagement') {
                 crossNav.goToEngagement(id);
+            }
+        }
+    </script>
+
+    <!-- Opportunity Details Modal -->
+    <div id="opp-details-modal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="opp-details-title">Opportunity Details</h2>
+                <button class="close-modal" onclick="closeOppDetailsModal()"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div id="opp-details-content">
+                <!-- Overview Section -->
+                <div style="margin-bottom: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px;">
+                        <div style="flex: 1;">
+                            <h3 style="font-size: 20px; color: #1f2937; margin-bottom: 8px;" id="detail-opp-name"></h3>
+                            <p style="color: #6b7280; font-size: 14px; margin-bottom: 4px;">
+                                <i class="fas fa-building" style="margin-right: 6px;"></i>
+                                <span id="detail-account-name"></span>
+                            </p>
+                            <p style="color: #6b7280; font-size: 14px;">
+                                <i class="fas fa-user" style="margin-right: 6px;"></i>
+                                Sponsor: <span id="detail-sponsor"></span>
+                            </p>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 28px; font-weight: 700; color: #7c3aed;" id="detail-value"></div>
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+                                <span id="detail-probability"></span>% probability
+                            </div>
+                            <div style="font-size: 14px; color: #6b7280; margin-top: 8px;">
+                                Expected: <span id="detail-close-date"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Badge -->
+                    <div style="display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase;" id="detail-status-badge"></div>
+                </div>
+
+                <!-- Metrics Grid -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+                    <div style="background: #f9fafb; padding: 16px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">WEIGHTED VALUE</div>
+                        <div style="font-size: 20px; font-weight: 700; color: #1f2937;" id="detail-weighted-value"></div>
+                    </div>
+                    <div style="background: #f9fafb; padding: 16px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">DAYS OPEN</div>
+                        <div style="font-size: 20px; font-weight: 700; color: #1f2937;" id="detail-days-open"></div>
+                    </div>
+                    <div style="background: #f9fafb; padding: 16px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">STAGE</div>
+                        <div style="font-size: 14px; font-weight: 600; color: #1f2937;" id="detail-stage-name"></div>
+                    </div>
+                </div>
+
+                <!-- Additional Details -->
+                <div style="background: #f9fafb; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+                    <h4 style="font-size: 14px; color: #1f2937; font-weight: 600; margin-bottom: 12px;">Additional Information</h4>
+                    <div style="display: grid; gap: 8px; font-size: 13px;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #6b7280;">Created:</span>
+                            <span style="color: #1f2937; font-weight: 500;" id="detail-created"></span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #6b7280;">Created By:</span>
+                            <span style="color: #1f2937; font-weight: 500;" id="detail-created-by"></span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #6b7280;">Opportunity ID:</span>
+                            <span style="color: #1f2937; font-weight: 500; font-family: monospace;" id="detail-opp-id"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="btn btn-secondary" onclick="deleteOpportunity()" style="background: #ef4444; color: white;">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                    <button class="btn btn-secondary" onclick="editOpportunity()">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-primary" onclick="navigateToAccount()">
+                        <i class="fas fa-arrow-right"></i> View Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentOppId = null;
+
+        function viewOpportunity(oppId) {
+            currentOppId = oppId;
+            const opportunity = accountManager.getOpportunity(oppId);
+            
+            if (!opportunity) {
+                alert('Opportunity not found');
+                return;
+            }
+
+            const account = accountManager.getAccount(opportunity.accountId);
+            
+            // Populate modal
+            document.getElementById('detail-opp-name').textContent = opportunity.name;
+            document.getElementById('detail-account-name').textContent = account ? account.name : 'Unknown Account';
+            document.getElementById('detail-sponsor').textContent = opportunity.sponsor || 'Not specified';
+            document.getElementById('detail-value').textContent = '$' + (opportunity.estimatedValue || 0).toLocaleString();
+            document.getElementById('detail-probability').textContent = opportunity.probability || 0;
+            document.getElementById('detail-close-date').textContent = opportunity.closeDate || 'Not set';
+            
+            // Weighted value
+            const weightedValue = (opportunity.estimatedValue || 0) * (opportunity.probability || 0) / 100;
+            document.getElementById('detail-weighted-value').textContent = '$' + weightedValue.toLocaleString();
+            
+            // Days open
+            const createdDate = new Date(opportunity.createdAt || Date.now());
+            const daysOpen = Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+            document.getElementById('detail-days-open').textContent = daysOpen;
+            
+            // Stage name
+            const stageNames = {
+                'discovery': 'Discovery',
+                'qualify': 'Qualification',
+                'propose': 'Proposal',
+                'negotiate': 'Negotiation',
+                'close-won': 'Closed Won',
+                'close-lost': 'Closed Lost'
+            };
+            document.getElementById('detail-stage-name').textContent = stageNames[opportunity.status] || opportunity.status;
+            
+            // Status badge
+            const statusColors = {
+                'discovery': { bg: '#dbeafe', text: '#1e40af' },
+                'qualify': { bg: '#e0e7ff', text: '#4338ca' },
+                'propose': { bg: '#fce7f3', text: '#be185d' },
+                'negotiate': { bg: '#fed7aa', text: '#c2410c' },
+                'close-won': { bg: '#d1fae5', text: '#065f46' },
+                'close-lost': { bg: '#fee2e2', text: '#991b1b' }
+            };
+            const statusColor = statusColors[opportunity.status] || { bg: '#f3f4f6', text: '#1f2937' };
+            const statusBadge = document.getElementById('detail-status-badge');
+            statusBadge.textContent = stageNames[opportunity.status] || opportunity.status;
+            statusBadge.style.background = statusColor.bg;
+            statusBadge.style.color = statusColor.text;
+            
+            // Additional details
+            document.getElementById('detail-created').textContent = createdDate.toLocaleDateString();
+            document.getElementById('detail-created-by').textContent = opportunity.createdBy || 'Unknown';
+            document.getElementById('detail-opp-id').textContent = opportunity.id;
+            
+            // Show modal
+            document.getElementById('opp-details-modal').classList.add('open');
+        }
+
+        function closeOppDetailsModal() {
+            document.getElementById('opp-details-modal').classList.remove('open');
+            currentOppId = null;
+        }
+
+        function deleteOpportunity() {
+            if (!currentOppId) return;
+            
+            if (confirm('Are you sure you want to delete this opportunity? This action cannot be undone.')) {
+                accountManager.deleteOpportunity(currentOppId);
+                closeOppDetailsModal();
+                loadData();
+            }
+        }
+
+        function editOpportunity() {
+            alert('Edit opportunity feature coming soon!\n\nYou will be able to:\n- Update opportunity details\n- Change status/stage\n- Adjust value and probability\n- Modify close date');
+        }
+
+        function navigateToAccount() {
+            const opportunity = accountManager.getOpportunity(currentOppId);
+            if (opportunity && opportunity.accountId) {
+                window.location.href = `EA_Account_Dashboard.html?accountId=${opportunity.accountId}`;
             }
         }
     </script>
