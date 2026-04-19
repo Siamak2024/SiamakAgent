@@ -181,7 +181,7 @@ embed the change as a \`\`\`json block for automatic application.`;
     ],
     'fintech': [
       'fintech', 'payment', 'betalning', 'open banking', 'digital wallet',
-      'neobank', 'crypto', 'payment gateway'
+      'neobank', 'crypto', 'payment gateway', 'payment platform', 'banking apis'
     ],
     'healthcare': [
       'healthcare', 'hospital', 'clinic', 'patient', 'medical record',
@@ -197,7 +197,8 @@ embed the change as a \`\`\`json block for automatic application.`;
     ],
     'insurance': [
       'insurance', 'försäkring', 'underwriting', 'claims management',
-      'actuarial', 'solvency'
+      'actuarial', 'solvency', 'insurtech', 'policy holder', 'premium',
+      'life insurance', 'property insurance', 'claims process', 'risk assessment'
     ],
     'startup': [
       'startup', 'scale-up', 'seed round', 'series a', 'venture capital',
@@ -368,6 +369,96 @@ embed the change as a \`\`\`json block for automatic application.`;
     return response.output_text || '';
   }
 
+  // ── DECISION ENGINE: AI-ENHANCED RATIONALE ─────────────────────────────────
+
+  /**
+   * Generate detailed, AI-enhanced rationale for a portfolio decision.
+   *
+   * @param {Object} application   The full application object
+   * @param {Object} score         The 4-criteria score breakdown
+   * @param {Object} decision      The recommended decision (status, confidence, rationale)
+   * @param {Object} [context]     Additional context (consolidation candidates, etc.)
+   * @returns {Promise<string>}    Enhanced rationale with specific, actionable insights
+   */
+  async function generateDecisionRationale(application, score, decision, context = {}) {
+    const systemPrompt = `You are an expert application portfolio advisor. Your task is to generate \
+a clear, actionable rationale for an application rationalization decision.
+
+You will be provided with:
+- Application details (name, description, lifecycle, costs, users, etc.)
+- 4-criteria scoring breakdown (Business Fit, Technical Health, Cost Efficiency, Risk)
+- Initial decision recommendation (Invest, Tolerate, Migrate, Eliminate)
+- Additional context (consolidation candidates, portfolio patterns)
+
+**Your output MUST:**
+1. Be concise (2-4 sentences max)
+2. Reference SPECIFIC data points (scores, costs, lifecycle stage)
+3. Explain the PRIMARY driver for this decision
+4. Suggest ONE concrete next action
+5. Use business-friendly language (avoid jargon)
+6. Be confident but not absolute (acknowledge uncertainty if confidence < 0.7)
+
+**DO NOT:**
+- Use generic phrases like "based on the data" or "it appears that"
+- Repeat the decision status (it's already shown in the UI)
+- Make unsubstantiated claims
+- Suggest multiple conflicting actions
+
+**Example output:**
+"This application's strong business alignment (82/100) is undermined by poor technical health (28/100) \
+due to its legacy mainframe architecture and aging vendor support. The modernization cost is justified \
+by the 450+ active users across Finance and Procurement. Recommend cloud migration to AWS/Azure within \
+the next 12-18 months to preserve business value while improving maintainability."
+
+Now generate the rationale.`;
+
+    const userInput = `
+**APPLICATION:**
+- Name: ${application.name}
+- Description: ${application.description || 'N/A'}
+- Lifecycle: ${application.lifecycle}
+- Users: ${application.users || 'N/A'}
+- Annual Cost: $${((application.capex || 0) + (application.opex || 0)).toLocaleString()}
+- Vendor: ${application.vendor || 'Unknown'}
+- Department: ${application.department || 'N/A'}
+
+**SCORES:**
+- Business Fit: ${score.businessFit}/100
+- Technical Health: ${score.technicalHealth}/100
+- Cost Efficiency: ${score.costEfficiency}/100
+- Risk: ${score.risk}/100
+- **Total: ${score.total}/100**
+
+**DECISION:**
+- Recommendation: ${decision.status}
+- Confidence: ${Math.round(decision.confidence * 100)}%
+- Initial Rationale: ${decision.rationale}
+
+**ADDITIONAL CONTEXT:**
+${context.consolidationCandidates?.length > 0 
+  ? `- Consolidation candidates: ${context.consolidationCandidates.map(c => c.name).join(', ')}` 
+  : '- No significant capability overlap detected'}
+${context.portfolioSize ? `- Portfolio size: ${context.portfolioSize} applications` : ''}
+${context.departmentAppCount ? `- Other apps in ${application.department}: ${context.departmentAppCount}` : ''}
+
+Generate a clear, data-driven rationale for this ${decision.status} decision.`;
+
+    try {
+      const enhancedRationale = await call(userInput, {
+        stepOverridePrompt: systemPrompt,
+        taskType: 'lightweight',
+        includeProjectContext: false,
+        silentOnNoKey: true
+      });
+
+      return enhancedRationale.trim();
+    } catch (error) {
+      console.warn('⚠️ AI rationale generation failed, using basic rationale:', error);
+      // Fallback to original rationale if AI call fails
+      return decision.rationale;
+    }
+  }
+
   // ── PUBLIC API SURFACE ─────────────────────────────────────────────────────
   return {
     updateIndustryLayer,
@@ -375,6 +466,7 @@ embed the change as a \`\`\`json block for automatic application.`;
     updateDescriptionContext,
     buildSystemPrompt,
     call,
+    generateDecisionRationale,
     /** Returns a snapshot of current context state (useful for debugging). */
     getState: () => ({ ..._state })
   };

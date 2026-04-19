@@ -1023,6 +1023,213 @@ class EA_DataManager {
       message: `Powered by APQC PCF ${apqcData.framework_version}`
     };
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // DECISION ENGINE INTEGRATION
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Initialize Decision Engine for current project
+   * @returns {Promise<boolean>}
+   */
+  async initDecisionEngine() {
+    try {
+      // Load decision rules configuration
+      const config = await this.loadDecisionConfig();
+      
+      // Initialize storage manager
+      if (!window.EA_StorageManager_Instance) {
+        window.EA_StorageManager_Instance = new EA_StorageManager();
+        await window.EA_StorageManager_Instance.init();
+        
+        // Migrate existing APM data
+        await window.EA_StorageManager_Instance.migrateFromAPM();
+      }
+      
+      // Initialize scoring engine
+      const apqcFramework = await this.loadAPQCFramework();
+      window.EA_ScoringEngine_Instance = new EA_ScoringEngine(
+        apqcFramework,
+        config.industryBenchmarks
+      );
+      
+      // Initialize decision engine
+      window.EA_DecisionEngine_Instance = new EA_DecisionEngine(
+        window.EA_ScoringEngine_Instance,
+        window.EA_StorageManager_Instance,
+        config
+      );
+      
+      console.log('✅ Decision Engine initialized');
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to initialize Decision Engine:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Load decision rules configuration
+   * @returns {Promise<object>}
+   */
+  async loadDecisionConfig() {
+    try {
+      const response = await fetch('data/decision_rules.json');
+      if (!response.ok) {
+        throw new Error(`Failed to load decision config: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('❌ Failed to load decision config, using defaults:', error);
+      // Return default config if file not found
+      return new EA_DecisionEngine(null, null).getDefaultConfig();
+    }
+  }
+
+  /**
+   * Get Decision Engine instance (lazy initialization)
+   * @returns {Promise<EA_DecisionEngine>}
+   */
+  async getDecisionEngine() {
+    if (!window.EA_DecisionEngine_Instance) {
+      await this.initDecisionEngine();
+    }
+    return window.EA_DecisionEngine_Instance;
+  }
+
+  /**
+   * Get Scoring Engine instance
+   * @returns {Promise<EA_ScoringEngine>}
+   */
+  async getScoringEngine() {
+    if (!window.EA_ScoringEngine_Instance) {
+      await this.initDecisionEngine();
+    }
+    return window.EA_ScoringEngine_Instance;
+  }
+
+  /**
+   * Get Storage Manager instance
+   * @returns {Promise<EA_StorageManager>}
+   */
+  async getStorageManager() {
+    if (!window.EA_StorageManager_Instance) {
+      await this.initDecisionEngine();
+    }
+    return window.EA_StorageManager_Instance;
+  }
+
+  /**
+   * Run portfolio analysis and generate decisions
+   * @param {Array} applications - Array of application objects
+   * @returns {Promise<object>} - Analysis results
+   */
+  async analyzePortfolio(applications) {
+    try {
+      const decisionEngine = await this.getDecisionEngine();
+      const decisions = await decisionEngine.analyzePortfolio(applications);
+      
+      const summary = await decisionEngine.getPortfolioSummary();
+      
+      return {
+        success: true,
+        decisions: decisions,
+        summary: summary,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('❌ Portfolio analysis failed:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Get decision for specific application
+   * @param {string} appId - Application ID
+   * @returns {Promise<object|null>}
+   */
+  async getDecisionForApp(appId) {
+    try {
+      const decisionEngine = await this.getDecisionEngine();
+      return await decisionEngine.getDecisionForApp(appId);
+    } catch (error) {
+      console.error('❌ Failed to get decision:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update decision status (approve/reject)
+   * @param {string} decisionId - Decision ID
+   * @param {string} action - 'approve' or 'reject'
+   * @param {string} user - User making the change
+   * @param {string} reason - Rejection reason (optional)
+   * @returns {Promise<boolean>}
+   */
+  async updateDecisionStatus(decisionId, action, user, reason = null) {
+    try {
+      const decisionEngine = await this.getDecisionEngine();
+      
+      if (action === 'approve') {
+        await decisionEngine.approveDecision(decisionId, user);
+      } else if (action === 'reject') {
+        await decisionEngine.rejectDecision(decisionId, user, reason);
+      } else {
+        throw new Error(`Invalid action: ${action}`);
+      }
+      
+      console.log(`✅ Decision ${decisionId} ${action}ed by ${user}`);
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to update decision status:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get portfolio decision summary
+   * @returns {Promise<object>}
+   */
+  async getPortfolioDecisionSummary() {
+    try {
+      const decisionEngine = await this.getDecisionEngine();
+      return await decisionEngine.getPortfolioSummary();
+    } catch (error) {
+      console.error('❌ Failed to get portfolio summary:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Export decisions to JSON
+   * @returns {Promise<string>}
+   */
+  async exportDecisions() {
+    try {
+      const decisionEngine = await this.getDecisionEngine();
+      return await decisionEngine.exportDecisions();
+    } catch (error) {
+      console.error('❌ Failed to export decisions:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Create backup of decision data
+   * @returns {Promise<string>}
+   */
+  async backupDecisionData() {
+    try {
+      const storage = await this.getStorageManager();
+      return await storage.createBackup();
+    } catch (error) {
+      console.error('❌ Failed to create backup:', error);
+      return null;
+    }
+  }
 }
 
 // Make available globally

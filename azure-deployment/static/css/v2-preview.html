@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EA Design v2 — Preview</title>
+<link rel="stylesheet" href="ea-design-v2.css" />
+<style>
+  body { padding: 0; margin: 0; }
+
+  /* ── Layout shell ── */
+  .preview-layout {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── Sidebar ── */
+  .preview-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--v2-bg-sidebar);
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .preview-sidebar .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px 20px;
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.02em;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 8px;
+  }
+
+  .preview-sidebar .brand span {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--v2-primary-grad);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 900;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--v2-radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--v2-text-muted);
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+  }
+
+  .nav-item:hover {
+    background: var(--v2-bg-sidebar-hover);
+    color: #fff;
+  }
+
+  .nav-item.active {
+    background: var(--v2-primary-grad);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(67, 24, 255, 0.35);
+  }
+
+  .nav-item .icon {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+  }
+
+  .nav-section-label {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(163,174,208,0.55);
+    padding: 16px 12px 6px;
+  }
+
+  /* ── Main area ── */
+  .preview-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  /* ── Top-bar ── */
+  .preview-topbar {
+    background: var(--v2-bg-header);
+    border-bottom: 1px solid var(--v2-border);
+    padding: 0 28px;
+    height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: var(--v2-shadow-xs);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .topbar-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--v2-text-heading);
+    letter-spacing: -0.02em;
+  }
+
+  .topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── Content ── */
+  .preview-content {
+    padding: 32px 28px;
+    max-width: 1200px;
+    width: 100%;
+  }
+
+  /* ── Section headers ── */
+  .section-title {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--v2-text-muted);
+    margin: 36px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--v2-border);
+  }
+
+  .section-title:first-child { margin-top: 0; }
+
+  /* ── KPI row ── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .kpi-box {
+    background: var(--v2-bg-surface);
+    border: 1px solid var(--v2-border);
+    border-radius: var(--v2-radius-md);
+    box-shadow: var(--v2-shadow-sm);
+    padding: 20px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    transition: transform 0.18s, box-shadow 0.18s;
+  }
+
+  .kpi-box:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--v2-shadow-md);
+  }
+
+  .kpi-main {}
+
+  .kpi-num {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--v2-text-heading);
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+
+  .kpi-name {
+    font-size: 12px;
+    color: var(--v2-text-muted);
+    margin-top: 4px;
+  }
+
+  .kpi-trend-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .trend-up   { background: var(--v2-success-soft); color: var(--v2-success); }
+  .trend-warn { background: var(--v2-warning-soft); color: #C07B00; }
+  .trend-down { background: var(--v2-danger-soft);  color: var(--v2-danger); }
+
+  /* ── Two-column grid ── */
+  .two-col { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+
+  /* ── Chart placeholder ── */
+  .chart-placeholder {
+    background: var(--v2-bg-surface);
+    border: 1px solid var(--v2-border);
+    border-radius: var(--v2-radius-md);
+    box-shadow: var(--v2-shadow-sm);
+    padding: 22px;
+  }
+
+  .chart-placeholder .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .chart-placeholder .chart-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--v2-text-heading);
+  }
+
+  .chart-area {
+    height: 180px;
+    background: linear-gradient(180deg, var(--v2-primary-soft) 0%, var(--v2-bg-surface-alt) 100%);
+    border-radius: var(--v2-radius-sm);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 8px;
+    gap: 4px;
+  }
+
+  .bar {
+    flex: 1;
+    background: linear-gradient(180deg, var(--v2-primary-light) 0%, var(--v2-primary) 100%);
+    border-radius: 4px 4px 0 0;
+    opacity: 0.75;
+    transition: opacity 0.2s;
+  }
+  .bar:hover { opacity: 1; }
+  .bar.hi { opacity: 1; }
+
+  /* ── Donut legend ── */
+  .donut-card {
+    background: var(--v2-bg-surface);
+    border: 1px solid var(--v2-border);
+    border-radius: var(--v2-radius-md);
+    box-shadow: var(--v2-shadow-sm);
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .donut-ring {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: conic-gradient(
+      var(--v2-primary) 0% 50%,
+      var(--v2-warning) 50% 85%,
+      var(--v2-danger)  85% 100%
+    );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  .donut-ring::after {
+    content: '';
+    position: absolute;
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: var(--v2-bg-surface);
+  }
+
+  .donut-legend { display: flex; flex-direction: column; gap: 8px; }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--v2-text-body);
+  }
+
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; flex-shrink: 0;
+  }
+
+  .legend-left { display: flex; align-items: center; }
+
+  /* ── Table card ── */
+  .table-card {
+    background: var(--v2-bg-surface);
+    border: 1px solid var(--v2-border);
+    border-radius: var(--v2-radius-md);
+    box-shadow: var(--v2-shadow-sm);
+    overflow: hidden;
+    margin-top: 20px;
+  }
+
+  .table-header {
+    padding: 16px 22px 14px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--v2-text-heading);
+    border-bottom: 1px solid var(--v2-border);
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  thead th {
+    background: var(--v2-bg-surface-alt);
+    padding: 10px 22px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--v2-text-muted);
+    border-bottom: 1px solid var(--v2-border);
+  }
+
+  tbody td {
+    padding: 13px 22px;
+    border-bottom: 1px solid var(--v2-border);
+    font-size: 13px;
+    color: var(--v2-text-body);
+    vertical-align: middle;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody tr:hover td { background: var(--v2-primary-soft); }
+
+  .td-id { color: var(--v2-primary); font-weight: 700; }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .status-pill::before {
+    content:''; width:6px; height:6px; border-radius:50%; background: currentColor; flex-shrink:0;
+  }
+
+  .pill-paid    { background: var(--v2-success-soft); color: var(--v2-success); }
+  .pill-pending { background: var(--v2-warning-soft); color: #C07B00; }
+  .pill-overdue { background: var(--v2-danger-soft);  color: var(--v2-danger);  }
+
+  /* ── Component showcase section ── */
+  .component-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .color-swatch-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .swatch {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--v2-radius-sm);
+    display: flex;
+    align-items: flex-end;
+    padding: 6px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #fff;
+    box-shadow: var(--v2-shadow-sm);
+    mix-blend-mode: normal;
+  }
+
+  .swatch-label { opacity: 0.85; line-height: 1.2; }
+
+  .accent-cards-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .accent-demo {
+    border-radius: var(--v2-radius-md);
+    padding: 18px 16px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .accent-demo .label { font-size: 10px; opacity: 0.7; margin-bottom: 4px; }
+  .accent-demo .val   { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+
+  /* ── Chat preview ── */
+  .chat-preview {
+    width: 340px;
+    border: 1px solid var(--v2-border);
+    border-radius: var(--v2-radius-lg);
+    overflow: hidden;
+    box-shadow: var(--v2-shadow-md);
+  }
+
+  .chat-head {
+    background: linear-gradient(135deg, var(--v2-bg-sidebar) 0%, #2B3674 100%);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .chat-head .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--v2-primary-grad);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: #fff; font-weight: 700;
+  }
+
+  .chat-head .info .name { color: #fff; font-size: 13px; font-weight: 700; }
+  .chat-head .info .sub  { color: var(--v2-text-muted); font-size: 11px; }
+
+  .chat-msgs {
+    background: var(--v2-bg-canvas);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 140px;
+  }
+
+  .chat-msg { display: flex; gap: 8px; align-items: flex-end; }
+  .chat-msg.user { flex-direction: row-reverse; }
+
+  .chat-bubble {
+    background: var(--v2-bg-surface);
+    border: 1px solid var(--v2-border);
+    border-radius: var(--v2-radius-sm);
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--v2-text-body);
+    max-width: 220px;
+    line-height: 1.4;
+  }
+
+  .chat-msg.user .chat-bubble {
+    background: var(--v2-bg-sidebar);
+    color: #fff;
+    border-color: var(--v2-bg-sidebar);
+  }
+
+  .chat-av {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff;
+  }
+
+  .chat-av.ai   { background: var(--v2-primary); }
+  .chat-av.user { background: var(--v2-bg-sidebar); }
+
+  .chat-foot {
+    background: var(--v2-bg-surface);
+    border-top: 1px solid var(--v2-border);
+    padding: 10px;
+    display: flex;
+    gap: 8px;
+  }
+
+  .chat-input-demo {
+    flex: 1;
+    border: 1.5px solid var(--v2-border);
+    border-radius: var(--v2-radius-sm);
+    background: var(--v2-bg-surface-alt);
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--v2-text-muted);
+  }
+
+  .chat-send {
+    width: 36px; height: 36px; border-radius: var(--v2-radius-xs);
+    background: var(--v2-primary-grad);
+    border: none; cursor: pointer; color: #fff; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Token grid */
+  .token-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+
+  .token-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--v2-bg-surface);
+    border: 1px solid var(--v2-border);
+    border-radius: var(--v2-radius-sm);
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+
+  .token-swatch {
+    width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+
+  .token-name  { font-weight: 700; color: var(--v2-text-heading); }
+  .token-value { color: var(--v2-text-muted); font-size: 10px; margin-top: 1px; }
+</style>
+</head>
+<body class="ea-app-shell">
+
+<div class="preview-layout">
+
+  <!-- ── SIDEBAR ──────────────────────────────── -->
+  <aside class="preview-sidebar">
+    <div class="brand">
+      <span>EA</span>
+      EA Platform
+    </div>
+
+    <div class="nav-section-label">Main</div>
+
+    <button class="nav-item active">
+      <span class="icon">⬛</span> Dashboard
+    </button>
+    <button class="nav-item">
+      <span class="icon">📊</span> Analytics
+    </button>
+    <button class="nav-item">
+      <span class="icon">🗺️</span> Capability Map
+    </button>
+    <button class="nav-item">
+      <span class="icon">🧩</span> Business Model
+    </button>
+    <button class="nav-item">
+      <span class="icon">⛓️</span> Value Chain
+    </button>
+
+    <div class="nav-section-label">Strategy</div>
+
+    <button class="nav-item">
+      <span class="icon">🎯</span> Workbench
+    </button>
+    <button class="nav-item">
+      <span class="icon">📋</span> Maturity
+    </button>
+    <button class="nav-item">
+      <span class="icon">⚙️</span> Settings
+    </button>
+  </aside>
+
+  <!-- ── MAIN ─────────────────────────────────── -->
+  <main class="preview-main">
+
+    <!-- Top-bar -->
+    <div class="preview-topbar">
+      <div class="topbar-title">Welcome Back, Ali Husni</div>
+      <div class="topbar-actions">
+        <button class="v2-btn v2-btn-outline v2-btn-sm">🔑 API Key</button>
+        <button class="v2-btn v2-btn-outline v2-btn-sm">＋ New</button>
+        <button class="v2-btn v2-btn-primary v2-btn-sm">→ Save</button>
+        <button class="v2-btn v2-btn-outline v2-btn-sm">↓ Load</button>
+        <button class="v2-btn v2-btn-dark v2-btn-sm">↑ Import</button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="preview-content">
+
+      <!-- KPI ROW -->
+      <div class="section-title">KPI Overview</div>
+      <div class="kpi-row">
+        <div class="kpi-box">
+          <div class="kpi-main">
+            <div class="kpi-num">$8,920</div>
+            <div class="kpi-name">Total Revenue</div>
+          </div>
+          <span class="kpi-trend-pill trend-up">▲ 16.5%</span>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-main">
+            <div class="kpi-num">34</div>
+            <div class="kpi-name">Total Invoices</div>
+          </div>
+          <span class="kpi-trend-pill trend-up">▲ 4</span>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-main">
+            <div class="kpi-num">12</div>
+            <div class="kpi-name">Unpaid Invoices</div>
+          </div>
+          <span class="status-pill pill-pending">Pending</span>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-main">
+            <div class="kpi-num">5</div>
+            <div class="kpi-name">Overdue Invoices</div>
+          </div>
+          <span class="status-pill pill-overdue">Overdue</span>
+        </div>
+      </div>
+
+      <!-- CHARTS -->
+      <div class="section-title">Visualizations</div>
+      <div class="two-col">
+        <div class="chart-placeholder">
+          <div class="chart-header">
+            <div class="chart-title">Invoice Statistics</div>
+            <div style="display:flex;gap:6px;">
+              <button class="v2-btn v2-btn-ghost v2-btn-sm">≡</button>
+              <button class="v2-btn v2-btn-ghost v2-btn-sm">›</button>
+            </div>
+          </div>
+          <div class="chart-area">
+            <div class="bar" style="height:35%"></div>
+            <div class="bar" style="height:45%"></div>
+            <div class="bar" style="height:40%"></div>
+            <div class="bar" style="height:58%"></div>
+            <div class="bar" style="height:62%"></div>
+            <div class="bar hi" style="height:88%"></div>
+            <div class="bar hi" style="height:95%"></div>
+            <div class="bar" style="height:72%"></div>
+            <div class="bar" style="height:68%"></div>
+            <div class="bar" style="height:74%"></div>
+            <div class="bar" style="height:70%"></div>
+            <div class="bar hi" style="height:90%"></div>
+          </div>
+        </div>
+
+        <div class="donut-card">
+          <div class="chart-title" style="font-size:16px;font-weight:700;color:var(--v2-text-heading);">Recent Invoices</div>
+          <div class="donut-ring"></div>
+          <div class="donut-legend">
+            <div class="legend-item">
+              <div class="legend-left"><div class="legend-dot" style="background:var(--v2-primary)"></div> Paid</div>
+              <span style="font-weight:800;color:var(--v2-text-heading)">50%</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-left"><div class="legend-dot" style="background:var(--v2-warning)"></div> Pending</div>
+              <span style="font-weight:800;color:var(--v2-text-heading)">35%</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-left"><div class="legend-dot" style="background:var(--v2-danger)"></div> Overdue</div>
+              <span style="font-weight:800;color:var(--v2-text-heading)">15%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLE -->
+      <div class="table-card v2-animate-in">
+        <div class="table-header">Recent Invoices</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Invoice ID ↓</th>
+              <th>Client</th>
+              <th>Amount</th>
+              <th>Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="td-id">#INV-00460</td><td>Tech Dynamics</td><td>$1,076</td><td>April 20, 2024</td><td><span class="status-pill pill-paid">Paid</span></td></tr>
+            <tr><td class="td-id">#INV-00462</td><td>Apex Innovations</td><td>$1,185</td><td>April 22, 2024</td><td><span class="status-pill pill-pending">Pending</span></td></tr>
+            <tr><td class="td-id">#INV-00451</td><td>Stellar Marketing</td><td>$1,570</td><td>April 19, 2024</td><td><span class="status-pill pill-overdue">Overdue</span></td></tr>
+            <tr><td class="td-id">#INV-00450</td><td>Visionary Designs</td><td>$1,705</td><td>April 18, 2024</td><td><span class="status-pill pill-overdue">Overdue</span></td></tr>
+            <tr><td class="td-id">#INV-00456</td><td>Quantum Enterprises</td><td>$335</td><td>April 13, 2024</td><td><span class="status-pill pill-paid">Paid</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- COMPONENT GUIDE -->
+      <div class="section-title">Buttons</div>
+      <div class="component-row">
+        <button class="v2-btn v2-btn-primary">Primary Action</button>
+        <button class="v2-btn v2-btn-dark">Dark / Import</button>
+        <button class="v2-btn v2-btn-outline">Outline / New</button>
+        <button class="v2-btn v2-btn-ghost">Ghost</button>
+        <button class="v2-btn v2-btn-primary v2-btn-sm">Small</button>
+        <button class="v2-btn v2-btn-outline v2-btn-sm">Small Outline</button>
+        <button class="v2-btn v2-btn-primary v2-btn-lg">Large CTA</button>
+      </div>
+
+      <div class="section-title">Badges &amp; Status</div>
+      <div class="component-row">
+        <span class="v2-badge v2-badge-success">Paid</span>
+        <span class="v2-badge v2-badge-warning">Pending</span>
+        <span class="v2-badge v2-badge-danger">Overdue</span>
+        <span class="v2-badge v2-badge-info">Syncing</span>
+        <span class="v2-badge v2-badge-primary">Active</span>
+        <span class="v2-badge v2-badge-muted">Draft</span>
+      </div>
+
+      <div class="section-title">Tabs</div>
+      <div class="v2-tab-bar" style="display:inline-flex;">
+        <button class="tab-btn active" style="padding:8px 16px">Overview</button>
+        <button class="tab-btn" style="padding:8px 16px">Analytics</button>
+        <button class="tab-btn" style="padding:8px 16px">Strategy</button>
+        <button class="tab-btn" style="padding:8px 16px">Reports</button>
+      </div>
+
+      <div class="section-title">Accent Cards</div>
+      <div class="accent-cards-row">
+        <div class="accent-demo v2-card-accent indigo">
+          <div class="label">Primary</div>
+          <div class="val">4,318</div>
+        </div>
+        <div class="accent-demo v2-card-accent navy">
+          <div class="label">Navy</div>
+          <div class="val">1,125</div>
+        </div>
+        <div class="accent-demo v2-card-accent teal">
+          <div class="label">Success</div>
+          <div class="val">98.4%</div>
+        </div>
+        <div class="accent-demo v2-card-accent amber">
+          <div class="label">Warning</div>
+          <div class="val">12 / 34</div>
+        </div>
+        <div class="accent-demo v2-card-accent rose">
+          <div class="label">Danger</div>
+          <div class="val">5</div>
+        </div>
+      </div>
+
+      <div class="section-title">Form Controls</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:640px;">
+        <input type="text" placeholder="Type something…" />
+        <select><option>Select option</option><option>Option A</option></select>
+        <input type="text" value="Focused look" style="border-color:var(--v2-primary)!important;box-shadow:0 0 0 3px rgba(67,24,255,0.14)!important;" />
+      </div>
+
+      <div class="section-title">AI Chat Panel</div>
+      <div class="chat-preview">
+        <div class="chat-head">
+          <div class="avatar">EA</div>
+          <div class="info">
+            <div class="name">EA AI Assistant</div>
+            <div class="sub">● Online</div>
+          </div>
+        </div>
+        <div class="chat-msgs">
+          <div class="chat-msg">
+            <div class="chat-av ai">EA</div>
+            <div class="chat-bubble">Hello! How can I help with your EA strategy today?</div>
+          </div>
+          <div class="chat-msg user">
+            <div class="chat-av user">AH</div>
+            <div class="chat-bubble">Show me the capability map gaps.</div>
+          </div>
+          <div class="chat-msg">
+            <div class="chat-av ai">EA</div>
+            <div class="chat-bubble">Found 3 critical gaps in your Digital layer. Want a deep dive?</div>
+          </div>
+        </div>
+        <div class="chat-foot">
+          <div class="chat-input-demo">Ask anything…</div>
+          <button class="chat-send">↑</button>
+        </div>
+      </div>
+
+      <div class="section-title">Colour Tokens</div>
+      <div class="token-grid">
+        <div class="token-row"><div class="token-swatch" style="background:#4318FF"></div><div><div class="token-name">--v2-primary</div><div class="token-value">#4318FF</div></div></div>
+        <div class="token-row"><div class="token-swatch" style="background:#868CFF"></div><div><div class="token-name">--v2-primary-light</div><div class="token-value">#868CFF</div></div></div>
+        <div class="token-row"><div class="token-swatch" style="background:#111C44"></div><div><div class="token-name">--v2-bg-sidebar</div><div class="token-value">#111C44</div></div></div>
+        <div class="token-row"><div class="token-swatch" style="background:#1B2559"></div><div><div class="token-name">--v2-text-heading</div><div class="token-value">#1B2559</div></div></div>
+        <div class="token-row"><div class="token-swatch" style="background:#F4F7FE"></div><div><div class="token-name">--v2-bg-canvas</div><div class="token-value">#F4F7FE</div></div></div>
+        <div class="token-row"><div class="token-swatch" style="background:#A3AED0"></div><div><div class="token-name">--v2-text-muted</div><div class="token-value">#A3AED0</div></div></div>
+        <div class="token-row"><div class="token-swatch" style="background:#01B574"></div><div><div class="token-name">--v2-success</div><div class="token-value">#01B574</div></div></div>
+        <div class="token-row"><div class="token-swatch" style="background:#FFB547"></div><div><div class="token-name">--v2-warning</div><div class="token-value">#FFB547</div></div></div>
+        <div class="token-row"><div class="token-swatch" style="background:#EE5D50"></div><div><div class="token-name">--v2-danger</div><div class="token-value">#EE5D50</div></div></div>
+        <div class="token-row"><div class="token-swatch" style="background:#E0E5F2"></div><div><div class="token-name">--v2-border</div><div class="token-value">#E0E5F2</div></div></div>
+      </div>
+
+      <div style="height:48px"></div>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

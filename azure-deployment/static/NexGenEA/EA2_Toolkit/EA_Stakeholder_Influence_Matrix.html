@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stakeholder Influence Matrix</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #F8FAFC;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #92400E;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #64748B;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #EA580C;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #DC2626;
+        }
+
+        .btn-secondary {
+            background: #F1F5F9;
+            color: #475569;
+            border: 1px solid #CBD5E1;
+        }
+
+        .btn-secondary:hover {
+            background: #E2E8F0;
+        }
+
+        .matrix-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            background: #FFFFFF;
+            border: 2px solid #CBD5E1;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .matrix-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Quadrant backgrounds */
+        .quadrant {
+            position: absolute;
+            border: 1px dashed #CBD5E1;
+        }
+
+        .quadrant-1 {
+            top: 0;
+            right: 0;
+            width: 50%;
+            height: 50%;
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .quadrant-2 {
+            top: 0;
+            left: 0;
+            width: 50%;
+            height: 50%;
+            background: rgba(251, 191, 36, 0.05);
+        }
+
+        .quadrant-3 {
+            bottom: 0;
+            left: 0;
+            width: 50%;
+            height: 50%;
+            background: rgba(148, 163, 184, 0.05);
+        }
+
+        .quadrant-4 {
+            bottom: 0;
+            right: 0;
+            width: 50%;
+            height: 50%;
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        /* Axis labels */
+        .axis-label {
+            position: absolute;
+            font-weight: 600;
+            color: #475569;
+            font-size: 14px;
+        }
+
+        .x-axis-label {
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .y-axis-label {
+            left: -80px;
+            top: 50%;
+            transform: translateY(-50%) rotate(-90deg);
+        }
+
+        .quadrant-label {
+            position: absolute;
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748B;
+            padding: 8px;
+        }
+
+        .ql-1 {
+            top: 10px;
+            right: 10px;
+            color: #10B981;
+        }
+
+        .ql-2 {
+            top: 10px;
+            left: 10px;
+            color: #F59E0B;
+        }
+
+        .ql-3 {
+            bottom: 10px;
+            left: 10px;
+            color: #94A3B8;
+        }
+
+        .ql-4 {
+            bottom: 10px;
+            right: 10px;
+            color: #EF4444;
+        }
+
+        /* Stakeholder nodes */
+        .stakeholder-node {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: move;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 10;
+        }
+
+        .stakeholder-node:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            z-index: 20;
+        }
+
+        .stakeholder-node.dragging {
+            opacity: 0.7;
+            z-index: 30;
+        }
+
+        /* Stakeholder type colors */
+        .type-internal {
+            background: linear-gradient(135deg, #3B82F6, #60A5FA);
+            color: white;
+        }
+
+        .type-engagement-team {
+            background: linear-gradient(135deg, #10B981, #34D399);
+            color: white;
+        }
+
+        .type-customer {
+            background: linear-gradient(135deg, #F59E0B, #FBBF24);
+            color: white;
+        }
+
+        .type-external {
+            background: linear-gradient(135deg, #8B5CF6, #A78BFA);
+            color: white;
+        }
+
+        .stakeholder-initials {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .stakeholder-name {
+            font-size: 10px;
+            margin-top: 4px;
+            text-align: center;
+            max-width: 70px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: #1E293B;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.2s;
+            max-width: 250px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+        }
+
+        .tooltip .name {
+            font-weight: 700;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        .tooltip .role {
+            color: #CBD5E1;
+            margin-bottom: 8px;
+        }
+
+        .tooltip .section {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #475569;
+        }
+
+        .tooltip .section-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #F1F5F9;
+        }
+
+        .tooltip ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .tooltip li {
+            padding: 2px 0;
+            color: #E2E8F0;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            padding: 15px;
+            background: #F8FAFC;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+
+        .legend-label {
+            font-size: 13px;
+            color: #475569;
+            font-weight: 500;
+        }
+
+        /* Stats */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #F8FAFC;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #EA580C;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #64748B;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1E293B;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Stakeholder Influence Matrix</h1>
+        <p class="subtitle">Power/Interest Grid - Drag stakeholders to reposition</p>
+
+        <div class="controls">
+            <button class="btn btn-primary" onclick="loadEngagementStakeholders()">Load Stakeholders</button>
+            <button class="btn btn-secondary" onclick="addStakeholder()">+ Add Stakeholder</button>
+            <button class="btn btn-secondary" onclick="resetPositions()">Reset Positions</button>
+            <button class="btn btn-secondary" onclick="exportToPNG()">Export as PNG</button>
+            <button class="btn btn-secondary" onclick="exportToSVG()">Export as SVG</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-label">Total Stakeholders</div>
+                <div class="stat-value" id="stat-total">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Key Players (High Power/Interest)</div>
+                <div class="stat-value" id="stat-key">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Keep Satisfied (High Power/Low Interest)</div>
+                <div class="stat-value" id="stat-satisfied">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Keep Informed (Low Power/High Interest)</div>
+                <div class="stat-value" id="stat-informed">0</div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color type-internal"></div>
+                <span class="legend-label">Internal</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color type-engagement-team"></div>
+                <span class="legend-label">Engagement Team</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color type-customer"></div>
+                <span class="legend-label">Customer</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color type-external"></div>
+                <span class="legend-label">External</span>
+            </div>
+        </div>
+
+        <div class="matrix-container" id="matrix-container">
+            <!-- Quadrants -->
+            <div class="quadrant quadrant-1">
+                <div class="quadrant-label ql-1">Key Players<br>Manage Closely</div>
+            </div>
+            <div class="quadrant quadrant-2">
+                <div class="quadrant-label ql-2">Keep Satisfied<br>High Power</div>
+            </div>
+            <div class="quadrant quadrant-3">
+                <div class="quadrant-label ql-3">Monitor<br>Minimal Effort</div>
+            </div>
+            <div class="quadrant quadrant-4">
+                <div class="quadrant-label ql-4">Keep Informed<br>High Interest</div>
+            </div>
+
+            <!-- Axis labels -->
+            <div class="axis-label x-axis-label">Interest →</div>
+            <div class="axis-label y-axis-label">Power →</div>
+        </div>
+
+        <!-- Tooltip -->
+        <div class="tooltip" id="tooltip">
+            <div class="name"></div>
+            <div class="role"></div>
+            <div class="section">
+                <div class="section-title">Priorities:</div>
+                <ul class="priorities-list"></ul>
+            </div>
+            <div class="section">
+                <div class="section-title">Details:</div>
+                <ul class="details-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let stakeholders = [];
+        let draggingNode = null;
+        let dragOffset = { x: 0, y: 0 };
+
+        /**
+         * Load stakeholders from engagement
+         */
+        function loadEngagementStakeholders() {
+            // Get current engagement from parent window or localStorage
+            const engagementId = localStorage.getItem('currentEngagementId');
+            if (!engagementId) {
+                alert('No engagement loaded. Please select an engagement first.');
+                return;
+            }
+
+            // Load stakeholders from localStorage
+            const engagementData = JSON.parse(localStorage.getItem(`ea_engagement_model_${engagementId}`));
+            if (!engagementData || !engagementData.stakeholders) {
+                alert('No stakeholders found for this engagement.');
+                return;
+            }
+
+            stakeholders = engagementData.stakeholders.map(s => ({
+                ...s,
+                // Map decision power and influence to coordinates
+                power: mapPowerToCoordinate(s.decisionPower),
+                interest: mapInfluenceToCoordinate(s.influence)
+            }));
+
+            renderStakeholders();
+            updateStats();
+        }
+
+        /**
+         * Map power/influence strings to coordinates (0-100)
+         */
+        function mapPowerToCoordinate(power) {
+            const mapping = {
+                'low': 25,
+                'medium': 50,
+                'high': 75,
+                'very-high': 90
+            };
+            return mapping[power] || 50;
+        }
+
+        function mapInfluenceToCoordinate(influence) {
+            const mapping = {
+                'low': 25,
+                'medium': 50,
+                'high': 75,
+                'very-high': 90
+            };
+            return mapping[influence] || 50;
+        }
+
+        /**
+         * Render stakeholders on matrix
+         */
+        function renderStakeholders() {
+            const container = document.getElementById('matrix-container');
+            
+            // Remove existing nodes
+            const existingNodes = container.querySelectorAll('.stakeholder-node');
+            existingNodes.forEach(node => node.remove());
+
+            // Add stakeholder nodes
+            stakeholders.forEach((stakeholder, index) => {
+                const node = createStakeholderNode(stakeholder, index);
+                container.appendChild(node);
+            });
+        }
+
+        /**
+         * Create stakeholder node element
+         */
+        function createStakeholderNode(stakeholder, index) {
+            const node = document.createElement('div');
+            node.className = `stakeholder-node type-${stakeholder.type || 'internal'}`;
+            node.dataset.index = index;
+
+            // Position based on power (y-axis, inverted) and interest (x-axis)
+            const containerWidth = document.getElementById('matrix-container').offsetWidth;
+            const containerHeight = document.getElementById('matrix-container').offsetHeight;
+            
+            const x = (stakeholder.interest / 100) * containerWidth - 40; // Center on node
+            const y = containerHeight - (stakeholder.power / 100) * containerHeight - 40; // Inverted y-axis
+
+            node.style.left = `${x}px`;
+            node.style.top = `${y}px`;
+
+            // Initials
+            const initials = getInitials(stakeholder.name);
+            node.innerHTML = `
+                <div class="stakeholder-initials">${initials}</div>
+                <div class="stakeholder-name">${stakeholder.name}</div>
+            `;
+
+            // Drag events
+            node.addEventListener('mousedown', startDrag);
+            node.addEventListener('mouseenter', showTooltip);
+            node.addEventListener('mouseleave', hideTooltip);
+
+            return node;
+        }
+
+        /**
+         * Get initials from name
+         */
+        function getInitials(name) {
+            const parts = name.split(' ');
+            if (parts.length >= 2) {
+                return parts[0][0] + parts[1][0];
+            }
+            return name.substring(0, 2).toUpperCase();
+        }
+
+        /**
+         * Start dragging
+         */
+        function startDrag(e) {
+            draggingNode = e.currentTarget;
+            draggingNode.classList.add('dragging');
+
+            const rect = draggingNode.getBoundingClientRect();
+            dragOffset.x = e.clientX - rect.left;
+            dragOffset.y = e.clientY - rect.top;
+
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
+
+            e.preventDefault();
+        }
+
+        /**
+         * Drag node
+         */
+        function drag(e) {
+            if (!draggingNode) return;
+
+            const container = document.getElementById('matrix-container');
+            const rect = container.getBoundingClientRect();
+
+            let x = e.clientX - rect.left - dragOffset.x;
+            let y = e.clientY - rect.top - dragOffset.y;
+
+            // Constrain to container
+            x = Math.max(0, Math.min(x, rect.width - 80));
+            y = Math.max(0, Math.min(y, rect.height - 80));
+
+            draggingNode.style.left = `${x}px`;
+            draggingNode.style.top = `${y}px`;
+        }
+
+        /**
+         * Stop dragging
+         */
+        function stopDrag(e) {
+            if (!draggingNode) return;
+
+            draggingNode.classList.remove('dragging');
+
+            // Update stakeholder position
+            const index = parseInt(draggingNode.dataset.index);
+            const container = document.getElementById('matrix-container');
+            const rect = container.getBoundingClientRect();
+
+            const x = parseFloat(draggingNode.style.left);
+            const y = parseFloat(draggingNode.style.top);
+
+            // Convert to 0-100 coordinates
+            stakeholders[index].interest = (x + 40) / rect.width * 100;
+            stakeholders[index].power = 100 - ((y + 40) / rect.height * 100); // Inverted y-axis
+
+            updateStats();
+
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDrag);
+
+            draggingNode = null;
+        }
+
+        /**
+         * Show tooltip
+         */
+        function showTooltip(e) {
+            const index = parseInt(e.currentTarget.dataset.index);
+            const stakeholder = stakeholders[index];
+
+            const tooltip = document.getElementById('tooltip');
+            tooltip.querySelector('.name').textContent = stakeholder.name;
+            tooltip.querySelector('.role').textContent = stakeholder.role || 'No role specified';
+
+            const prioritiesList = tooltip.querySelector('.priorities-list');
+            prioritiesList.innerHTML = '';
+            (stakeholder.priorities || []).forEach(priority => {
+                const li = document.createElement('li');
+                li.textContent = priority;
+                prioritiesList.appendChild(li);
+            });
+
+            const detailsList = tooltip.querySelector('.details-list');
+            detailsList.innerHTML = '';
+            detailsList.innerHTML = `
+                <li>Power: ${stakeholder.decisionPower || 'N/A'}</li>
+                <li>Influence: ${stakeholder.influence || 'N/A'}</li>
+                <li>Type: ${stakeholder.type || 'N/A'}</li>
+            `;
+
+            tooltip.classList.add('visible');
+
+            // Position tooltip
+            const rect = e.currentTarget.getBoundingClientRect();
+            tooltip.style.left = `${rect.right + 10}px`;
+            tooltip.style.top = `${rect.top}px`;
+        }
+
+        /**
+         * Hide tooltip
+         */
+        function hideTooltip() {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.classList.remove('visible');
+        }
+
+        /**
+         * Update stats
+         */
+        function updateStats() {
+            const total = stakeholders.length;
+            const keyPlayers = stakeholders.filter(s => s.power >= 50 && s.interest >= 50).length;
+            const keepSatisfied = stakeholders.filter(s => s.power >= 50 && s.interest < 50).length;
+            const keepInformed = stakeholders.filter(s => s.power < 50 && s.interest >= 50).length;
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-key').textContent = keyPlayers;
+            document.getElementById('stat-satisfied').textContent = keepSatisfied;
+            document.getElementById('stat-informed').textContent = keepInformed;
+        }
+
+        /**
+         * Reset positions
+         */
+        function resetPositions() {
+            if (!confirm('Reset all stakeholder positions to default?')) return;
+            
+            stakeholders.forEach(s => {
+                s.power = mapPowerToCoordinate(s.decisionPower);
+                s.interest = mapInfluenceToCoordinate(s.influence);
+            });
+
+            renderStakeholders();
+            updateStats();
+        }
+
+        /**
+         * Add stakeholder manually
+         */
+        function addStakeholder() {
+            const name = prompt('Enter stakeholder name:');
+            if (!name) return;
+
+            const role = prompt('Enter role:');
+            const type = prompt('Enter type (internal/engagement-team/customer/external):', 'internal');
+
+            stakeholders.push({
+                name,
+                role,
+                type: type || 'internal',
+                power: 50,
+                interest: 50,
+                decisionPower: 'medium',
+                influence: 'medium',
+                priorities: []
+            });
+
+            renderStakeholders();
+            updateStats();
+        }
+
+        /**
+         * Export to PNG
+         */
+        async function exportToPNG() {
+            // Use html2canvas library (needs to be included)
+            if (!window.html2canvas) {
+                alert('html2canvas library not loaded. Cannot export to PNG.');
+                return;
+            }
+
+            const container = document.getElementById('matrix-container');
+            const canvas = await html2canvas(container);
+            
+            const link = document.createElement('a');
+            link.download = 'stakeholder-influence-matrix.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        /**
+         * Export to SVG
+         */
+        function exportToSVG() {
+            alert('SVG export not yet implemented. Coming soon!');
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Auto-load if engagement is selected
+            const engagementId = localStorage.getItem('currentEngagementId');
+            if (engagementId) {
+                loadEngagementStakeholders();
+            }
+        });
+    </script>
+
+    <!-- Optional: Include html2canvas for PNG export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</body>
+</html>

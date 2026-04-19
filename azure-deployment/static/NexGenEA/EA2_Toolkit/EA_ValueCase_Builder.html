@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Value Case Builder – EA Commercial Platform</title>
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+    <script src="../../AzureOpenAIProxy.js"></script>
+    <script src="../../js/EA_AccountManager.js"></script>
+    <script src="engagement_schema.js"></script>
+    <style>
+        body { margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f8f9fa; }
+        #app-container { display: flex; flex-direction: column; min-height: 100vh; }
+        #main-content { flex: 1; padding: 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
+        
+        .ea-header {
+            background: linear-gradient(135deg, #dc2626 0%, #f87171 100%);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .ea-header h1 { color: white; margin: 0; font-size: 24px; font-weight: 600; }
+        .btn { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: 500; }
+        .btn-primary { background: white; color: #dc2626; }
+        .btn-secondary { background: rgba(255,255,255,0.2); color: white; }
+        
+        .value-case-header {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .value-case-header h2 { margin: 0 0 16px 0; font-size: 28px; color: #1f2937; }
+        .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        .meta-item { display: flex; flex-direction: column; }
+        .meta-label { font-size: 12px; color: #6b7280; text-transform: uppercase; margin-bottom: 4px; }
+        .meta-value { font-size: 16px; font-weight: 600; color: #1f2937; }
+        
+        .section-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .section-title { font-size: 18px; font-weight: 600; color: #1f2937; margin: 0 0 20px 0; }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 6px; text-transform: uppercase; }
+        .form-input, .form-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .form-textarea { min-height: 120px; resize: vertical; }
+        
+        .metrics-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 24px;
+        }
+        .metric-box {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .metric-box-label { font-size: 12px; color: #6b7280; text-transform: uppercase; margin-bottom: 8px; }
+        .metric-box-value { font-size: 32px; font-weight: 700; color: #dc2626; }
+        
+        .value-drivers-list { list-style: none; padding: 0; margin: 0; }
+        .value-driver-item {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr auto;
+            gap: 12px;
+            align-items: center;
+        }
+        .driver-name { font-weight: 600; color: #1f2937; }
+        .driver-category { font-size: 12px; color: #6b7280; text-transform: uppercase; }
+        .driver-value { font-weight: 700; color: #10b981; }
+        .driver-confidence {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .confidence-high { background: #d1fae5; color: #065f46; }
+        .confidence-medium { background: #fef3c7; color: #92400e; }
+        .confidence-low { background: #fee2e2; color: #991b1b; }
+        
+        .btn-add { background: #10b981; color: white; }
+        .btn-remove { background: #ef4444; color: white; padding: 6px 12px; }
+        
+        .ai-generate-section {
+            background: linear-gradient(135deg, #10b981 0%, #065f46 100%);
+            border-radius: 12px;
+            padding: 24px;
+            color: white;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .ai-generate-section h3 { margin: 0 0 12px 0; }
+        .ai-generate-section p { margin: 0 0 20px 0; opacity: 0.9; }
+        .btn-ai { background: white; color: #065f46; font-size: 16px; padding: 12px 32px; }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <header class="ea-header">
+            <h1><i class="fas fa-chart-line"></i> Value Case Builder</h1>
+            <div style="display: flex; gap: 12px;">
+                <button class="btn btn-secondary" onclick="window.location.href='EA_Opportunity_Pipeline.html'">
+                    <i class="fas fa-bullseye"></i> Pipeline
+                </button>
+                <button class="btn btn-primary" onclick="saveValueCase()">
+                    <i class="fas fa-save"></i> Save
+                </button>
+            </div>
+        </header>
+
+        <main id="main-content">
+            <!-- Header -->
+            <div class="value-case-header">
+                <h2 id="valuecase-name">New Value Case</h2>
+                <div class="meta-grid">
+                    <div class="meta-item">
+                        <span class="meta-label">Opportunity</span>
+                        <span class="meta-value" id="opp-name">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Account</span>
+                        <span class="meta-value" id="account-name">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Created</span>
+                        <span class="meta-value" id="created-date">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Generation -->
+            <div class="ai-generate-section">
+                <h3><i class="fas fa-robot"></i> AI-Powered Value Case Generation</h3>
+                <p>Let AI analyze your opportunity and generate a comprehensive value case with ROI calculations, value drivers, and executive narratives.</p>
+                <button class="btn btn-ai" onclick="generateWithAI()">
+                    <i class="fas fa-magic"></i> Generate Value Case with AI
+                </button>
+            </div>
+
+            <!-- Financial Summary -->
+            <div class="section-card">
+                <h3 class="section-title">Financial Summary</h3>
+                <div class="metrics-summary">
+                    <div class="metric-box">
+                        <div class="metric-box-label">Total Value</div>
+                        <div class="metric-box-value" id="total-value">$0</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-box-label">Total Investment</div>
+                        <div class="metric-box-value" id="total-investment">$0</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-box-label">ROI</div>
+                        <div class="metric-box-value" id="roi-value">0%</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-box-label">Payback</div>
+                        <div class="metric-box-value" id="payback-value">0</div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">months</div>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-top: 24px;">
+                    <label class="form-label">Total Business Value ($)</label>
+                    <input type="number" id="input-total-value" class="form-input" oninput="updateFinancials()" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Total Investment Required ($)</label>
+                    <input type="number" id="input-total-investment" class="form-input" oninput="updateFinancials()" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Payback Period (months)</label>
+                    <input type="number" id="input-payback" class="form-input" placeholder="0">
+                </div>
+            </div>
+
+            <!-- Value Drivers -->
+            <div class="section-card">
+                <h3 class="section-title">Value Drivers</h3>
+                <ul class="value-drivers-list" id="value-drivers-list">
+                    <li style="text-align: center; color: #9ca3af; padding: 20px;">No value drivers added yet</li>
+                </ul>
+                <button class="btn btn-add" onclick="addValueDriver()">
+                    <i class="fas fa-plus"></i> Add Value Driver
+                </button>
+            </div>
+
+            <!-- Executive Narrative -->
+            <div class="section-card">
+                <h3 class="section-title">Executive Narrative (CXO-Level)</h3>
+                <div class="form-group">
+                    <label class="form-label">Executive Summary</label>
+                    <textarea id="narrative-executive" class="form-textarea" placeholder="Strategic business case for C-level executives..."></textarea>
+                </div>
+            </div>
+
+            <!-- Technical Narrative -->
+            <div class="section-card">
+                <h3 class="section-title">Technical Narrative (CTO/CIO-Level)</h3>
+                <div class="form-group">
+                    <label class="form-label">Technical Justification</label>
+                    <textarea id="narrative-technical" class="form-textarea" placeholder="Technical architecture and implementation rationale..."></textarea>
+                </div>
+            </div>
+
+            <!-- Financial Narrative -->
+            <div class="section-card">
+                <h3 class="section-title">Financial Narrative (CFO-Level)</h3>
+                <div class="form-group">
+                    <label class="form-label">Financial Case</label>
+                    <textarea id="narrative-financial" class="form-textarea" placeholder="Financial analysis, ROI calculations, and investment justification..."></textarea>
+                </div>
+            </div>
+
+            <!-- Risks & Assumptions -->
+            <div class="section-card">
+                <h3 class="section-title">Risks & Assumptions</h3>
+                <div class="form-group">
+                    <label class="form-label">Key Assumptions</label>
+                    <textarea id="assumptions" class="form-textarea" placeholder="List key assumptions underlying this value case..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Risk Factors</label>
+                    <textarea id="risks" class="form-textarea" placeholder="Identify potential risks and mitigation strategies..."></textarea>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let accountManager;
+        let currentOpportunity = null;
+        let currentValueCase = null;
+        let valueDrivers = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            accountManager = new EA_AccountManager();
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const oppId = urlParams.get('opportunityId');
+            const vcId = urlParams.get('valueCaseId');
+            
+            if (vcId) {
+                loadValueCase(vcId);
+            } else if (oppId) {
+                loadOpportunity(oppId);
+            }
+        });
+
+        function loadOpportunity(oppId) {
+            currentOpportunity = accountManager.getOpportunity(oppId);
+            if (!currentOpportunity) {
+                alert('Opportunity not found');
+                return;
+            }
+            
+            const account = accountManager.getAccount(currentOpportunity.accountId);
+            
+            document.getElementById('opp-name').textContent = currentOpportunity.name;
+            document.getElementById('account-name').textContent = account ? account.name : 'Unknown';
+            document.getElementById('created-date').textContent = new Date().toLocaleDateString();
+            document.getElementById('valuecase-name').textContent = `Value Case: ${currentOpportunity.name}`;
+        }
+
+        function loadValueCase(vcId) {
+            currentValueCase = accountManager.getValueCase(vcId);
+            if (!currentValueCase) {
+                alert('Value Case not found');
+                return;
+            }
+            
+            loadOpportunity(currentValueCase.opportunityId);
+            
+            // Populate form fields
+            document.getElementById('input-total-value').value = currentValueCase.totalValue;
+            document.getElementById('input-total-investment').value = currentValueCase.totalInvestment;
+            document.getElementById('input-payback').value = currentValueCase.paybackMonths;
+            document.getElementById('narrative-executive').value = currentValueCase.narratives.executive || '';
+            document.getElementById('narrative-technical').value = currentValueCase.narratives.technical || '';
+            document.getElementById('narrative-financial').value = currentValueCase.narratives.financial || '';
+            document.getElementById('assumptions').value = currentValueCase.assumptions.join('\n') || '';
+            document.getElementById('risks').value = currentValueCase.risks.map(r => r.risk).join('\n') || '';
+            
+            valueDrivers = currentValueCase.valueDrivers || [];
+            updateFinancials();
+            renderValueDrivers();
+        }
+
+        function updateFinancials() {
+            const totalValue = parseFloat(document.getElementById('input-total-value').value) || 0;
+            const totalInvestment = parseFloat(document.getElementById('input-total-investment').value) || 0;
+            const roi = totalInvestment > 0 ? ((totalValue - totalInvestment) / totalInvestment) * 100 : 0;
+            const payback = parseFloat(document.getElementById('input-payback').value) || 0;
+            
+            document.getElementById('total-value').textContent = `$${(totalValue / 1000000).toFixed(1)}M`;
+            document.getElementById('total-investment').textContent = `$${(totalInvestment / 1000000).toFixed(1)}M`;
+            document.getElementById('roi-value').textContent = `${roi.toFixed(0)}%`;
+            document.getElementById('payback-value').textContent = payback;
+        }
+
+        function addValueDriver() {
+            const driver = prompt('Value Driver Name:');
+            if (!driver) return;
+            
+            const category = prompt('Category (cost-reduction, revenue-growth, risk-mitigation, efficiency, strategic):');
+            const value = parseFloat(prompt('Estimated Value ($):') || '0');
+            const confidence = prompt('Confidence (low, medium, high):') || 'medium';
+            
+            valueDrivers.push({ driver, category: category || 'efficiency', value, confidence });
+            renderValueDrivers();
+        }
+
+        function removeValueDriver(index) {
+            valueDrivers.splice(index, 1);
+            renderValueDrivers();
+        }
+
+        function renderValueDrivers() {
+            const list = document.getElementById('value-drivers-list');
+            
+            if (valueDrivers.length === 0) {
+                list.innerHTML = '<li style="text-align: center; color: #9ca3af; padding: 20px;">No value drivers added yet</li>';
+                return;
+            }
+            
+            list.innerHTML = valueDrivers.map((driver, index) => `
+                <li class="value-driver-item">
+                    <div>
+                        <div class="driver-name">${driver.driver}</div>
+                        <div class="driver-category">${driver.category}</div>
+                    </div>
+                    <div class="driver-value">$${(driver.value / 1000000).toFixed(2)}M</div>
+                    <div>
+                        <span class="driver-confidence confidence-${driver.confidence}">${driver.confidence}</span>
+                    </div>
+                    <button class="btn btn-remove" onclick="removeValueDriver(${index})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </li>
+            `).join('');
+        }
+
+        function saveValueCase() {
+            if (!currentOpportunity) {
+                alert('Please select an opportunity first');
+                return;
+            }
+            
+            const valueCaseData = {
+                opportunityId: currentOpportunity.id,
+                name: `Value Case: ${currentOpportunity.name}`,
+                narratives: {
+                    executive: document.getElementById('narrative-executive').value,
+                    technical: document.getElementById('narrative-technical').value,
+                    financial: document.getElementById('narrative-financial').value
+                },
+                totalValue: parseFloat(document.getElementById('input-total-value').value) || 0,
+                totalInvestment: parseFloat(document.getElementById('input-total-investment').value) || 0,
+                paybackMonths: parseFloat(document.getElementById('input-payback').value) || 0,
+                valueDrivers: valueDrivers,
+                assumptions: document.getElementById('assumptions').value.split('\n').filter(a => a.trim()),
+                risks: document.getElementById('risks').value.split('\n').filter(r => r.trim()).map(risk => ({
+                    risk,
+                    probability: 'medium',
+                    impact: 'medium',
+                    mitigation: ''
+                })),
+                generatedBy: 'manual'
+            };
+            
+            if (currentValueCase) {
+                const updated = accountManager.updateValueCase(currentValueCase.id, valueCaseData);
+                alert('Value Case updated: ' + updated.id);
+            } else {
+                const created = accountManager.createValueCase(valueCaseData);
+                currentValueCase = created;
+                window.history.pushState({}, '', `?valueCaseId=${created.id}`);
+                alert('Value Case created: ' + created.id);
+            }
+        }
+
+        function generateWithAI() {
+            alert('AI-powered value case generation coming soon!\n\nThis will analyze your opportunity data and automatically generate:\n- ROI calculations\n- Value drivers by category\n- Executive/Technical/Financial narratives\n- Risk assessment\n- Assumptions');
+        }
+    </script>
+</body>
+</html>

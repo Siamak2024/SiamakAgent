@@ -1,0 +1,214 @@
+# EA Engagement Report: {{engagement.name}}
+
+**Engagement ID:** {{engagement.id}}  
+**Customer:** {{engagement.customerName}}  
+**Segment:** {{engagement.segment}}  
+**Status:** {{engagement.status}}  
+**Period:** {{engagement.startDate}} to {{engagement.endDate}}
+
+---
+
+## Executive Summary
+
+### Theme
+{{engagement.theme}}
+
+### Success Criteria
+{{#each engagement.successCriteria}}
+- {{this}}
+{{/each}}
+
+### Governance
+- **Decision Forum:** {{engagement.governance.decisionForum}}
+- **Review Cadence:** {{engagement.governance.reviewCadence}}
+- **Sprint Cadence:** {{engagement.sprintCadence}}
+
+---
+
+## Stakeholder Landscape
+
+### Key Stakeholders ({{stakeholders.length}} identified)
+
+{{#each stakeholders}}
+#### {{this.name}} - {{this.role}}
+- **Type:** {{this.type}}
+- **Level:** {{this.level}}
+- **Decision Power:** {{this.decisionPower}}
+- **Influence:** {{this.influence}}
+- **Priorities:** {{#each this.priorities}}{{this}}, {{/each}}
+- **Pain Points:** {{#each this.painPoints}}{{this}}, {{/each}}
+
+{{/each}}
+
+---
+
+## Application Portfolio
+
+### Portfolio Overview ({{applications.length}} applications)
+
+{{#each applications}}
+#### {{this.name}}
+- **Category:** {{this.category}}
+- **Technology:** {{this.technology}}
+- **Business Value:** {{this.businessValue}}
+- **Technical Fit:** {{this.technicalFit}}
+- **Lifecycle Stage:** {{this.lifecycleStage}}
+- **Decision:** {{this.recommendation}}
+{{#if this.rationale}}
+- **Rationale:** {{this.rationale}}
+{{/if}}
+
+{{/each}}
+
+---
+
+## Capability Assessment
+
+### Capability Landscape ({{capabilities.length}} capabilities)
+
+{{#each capabilities}}
+#### {{this.name}} ({{this.category}})
+- **Current Maturity:** {{this.maturity}}/5
+- **Target Maturity:** {{this.targetMaturity}}/5
+- **Gap:** {{this.gap}}
+- **Strategic Importance:** {{this.strategicImportance}}
+{{#if this.gapDescription}}
+- **Gap Analysis:** {{this.gapDescription}}
+{{/if}}
+
+{{/each}}
+
+---
+
+## Risk & Constraint Register
+
+### Risks ({{risks.length}} identified)
+
+{{#each risks}}
+#### {{this.name}}
+- **Category:** {{this.category}}
+- **Probability:** {{this.probability}} | **Impact:** {{this.impact}}
+- **Description:** {{this.description}}
+- **Mitigation:** {{this.mitigation}}
+- **Owner:** {{this.owner}}
+- **Status:** {{this.status}}
+
+{{/each}}
+
+### Constraints ({{constraints.length}} identified)
+
+{{#each constraints}}
+#### {{this.name}}
+- **Type:** {{this.type}}
+- **Impact Level:** {{this.impactLevel}}
+- **Description:** {{this.description}}
+- **Workaround:** {{this.workaround}}
+
+{{/each}}
+
+---
+
+## Architecture Vision
+
+### Target Architecture Principles
+
+{{#each architectureViews}}
+#### {{this.name}}
+- **Type:** {{this.viewType}}
+- **Description:** {{this.description}}
+{{#if this.diagram}}
+- **Diagram:** [View Architecture Diagram]({{this.diagram}})
+{{/if}}
+{{#if this.notes}}
+- **Notes:** {{this.notes}}
+{{/if}}
+
+{{/each}}
+
+---
+
+## Transformation Roadmap
+
+### Initiatives ({{initiatives.length}} defined)
+
+{{#each initiatives}}
+#### {{this.name}}
+- **Time Horizon:** {{this.timeHorizon}}
+- **Status:** {{this.status}}
+- **Business Outcomes:** {{#each this.businessOutcomes}}{{this}}, {{/each}}
+- **Value Type:** {{#each this.valueType}}{{this}}, {{/each}}
+- **Effort:** {{this.effort}}
+- **Estimated Cost:** ${{this.estimatedCost}}
+- **Estimated Value:** ${{this.estimatedValue}}
+{{#if this.dependencies.length}}
+- **Dependencies:** {{#each this.dependencies}}{{this}}, {{/each}}
+{{/if}}
+{{#if this.owner}}
+- **Owner:** {{this.owner}}
+{{/if}}
+
+{{/each}}
+
+---
+
+## Key Decisions
+
+### Decision Log ({{decisions.length}} decisions)
+
+{{#each decisions}}
+#### {{this.title}}
+- **Date:** {{this.decisionDate}}
+- **Status:** {{this.status}}
+- **Description:** {{this.description}}
+- **Options Considered:** {{#each this.optionsConsidered}}{{this}}, {{/each}}
+- **Decision:** {{this.decision}}
+- **Rationale:** {{this.rationale}}
+- **Decided By:** {{this.decidedBy}}
+
+{{/each}}
+
+---
+
+## Assumptions & Dependencies
+
+### Assumptions ({{assumptions.length}} logged)
+
+{{#each assumptions}}
+- **{{this.category}}:** {{this.description}}
+{{/each}}
+
+---
+
+## Artifacts & Deliverables
+
+{{#each artifacts}}
+### {{this.name}}
+- **Type:** {{this.type}}
+- **Format:** {{this.format}}
+- **Status:** {{this.status}}
+- **Generated:** {{this.generatedAt}} by {{this.generatedBy}}
+{{#if this.version}}
+- **Version:** {{this.version}}
+{{/if}}
+{{#if this.url}}
+- **Access:** [View Artifact]({{this.url}})
+{{/if}}
+
+{{/each}}
+
+---
+
+## Engagement Metrics
+
+- **Total Stakeholders:** {{stakeholders.length}}
+- **Total Applications:** {{applications.length}}
+- **Total Capabilities Assessed:** {{capabilities.length}}
+- **Total Initiatives:** {{initiatives.length}}
+- **Total Risks:** {{risks.length}}
+- **Total Decisions:** {{decisions.length}}
+- **Engagement Completeness:** {{engagement.metadata.completeness}}%
+
+---
+
+**Report Generated:** {{generatedDate}}  
+**Generated By:** EA Toolkit v2.0

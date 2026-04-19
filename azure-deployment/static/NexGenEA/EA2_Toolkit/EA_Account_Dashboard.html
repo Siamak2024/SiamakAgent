@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Dashboard – EA Commercial Platform</title>
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+    <script src="../../AzureOpenAIProxy.js"></script>
+    <script src="../../js/EA_Config.js"></script>
+    <script src="../../js/EA_DataManager.js"></script>
+    <script src="../../js/EA_EngagementManager.js"></script>
+    <script src="../../js/EA_AccountManager.js"></script>
+    <script src="../../js/EA_CrossNavigation.js"></script>
+    <script src="../../js/EA_GlobalSearch.js"></script>
+    <script src="../../js/EA_Analytics.js"></script>
+    <script src="../../js/EA_DataBackupManager.js"></script>
+    <script src="../../js/EA_UserGuide.js"></script>
+    <script src="../../js/EA_AIAssistant.js"></script>
+    <script src="../../js/EA_WorkflowEngine.js"></script>
+    <script src="../../js/EA_IntegrationBridge.js"></script>
+    <script src="engagement_schema.js"></script>
+    <style>
+        /* === LAYOUT === */
+        body { margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f8f9fa; }
+        #app-container { display: flex; flex-direction: column; min-height: 100vh; }
+        #main-content { flex: 1; padding: 24px; max-width: 1600px; margin: 0 auto; width: 100%; }
+        
+        /* === HEADER === */
+        .ea-header {
+            background: linear-gradient(135deg, #065f46 0%, #10b981 100%);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .ea-header h1 { color: white; margin: 0; font-size: 24px; font-weight: 600; }
+        .header-actions { display: flex; gap: 12px; }
+        .btn { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+        .btn-primary { background: white; color: #065f46; }
+        .btn-primary:hover { background: #f0fdf4; }
+        .btn-secondary { background: rgba(255,255,255,0.2); color: white; }
+        .btn-secondary:hover { background: rgba(255,255,255,0.3); }
+        
+        /* === ACCOUNT HEADER === */
+        .account-header {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .account-header-top { display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px; }
+        .account-title { display: flex; align-items: center; gap: 12px; }
+        .account-title h2 { margin: 0; font-size: 28px; color: #1f2937; }
+        .health-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .health-excellent { background: #d1fae5; color: #065f46; }
+        .health-good { background: #dbeafe; color: #1e40af; }
+        .health-at-risk { background: #fef3c7; color: #92400e; }
+        .health-critical { background: #fee2e2; color: #991b1b; }
+        
+        .account-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px; }
+        .meta-item { display: flex; flex-direction: column; }
+        .meta-label { font-size: 12px; color: #6b7280; text-transform: uppercase; margin-bottom: 4px; }
+        .meta-value { font-size: 16px; font-weight: 600; color: #1f2937; }
+        
+        /* === METRICS GRID === */
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .metric-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .metric-label { font-size: 14px; color: #6b7280; font-weight: 500; }
+        .metric-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+        .metric-value { font-size: 32px; font-weight: 700; color: #1f2937; margin-bottom: 4px; }
+        .metric-subtext { font-size: 12px; color: #6b7280; }
+        
+        .icon-green { background: #d1fae5; color: #065f46; }
+        .icon-blue { background: #dbeafe; color: #1e40af; }
+        .icon-purple { background: #e0e7ff; color: #4338ca; }
+        .icon-orange { background: #fed7aa; color: #9a3412; }
+        
+        /* === SECTION CARDS === */
+        .section-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .section-title { font-size: 18px; font-weight: 600; color: #1f2937; margin: 0; }
+        
+        /* === GLOBAL SEARCH === */
+        .global-search-container {
+            position: relative;
+            max-width: 350px;
+            margin: 0 16px;
+        }
+        .global-search-input {
+            width: 100%;
+            padding: 8px 36px 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            background: rgba(255,255,255,0.9);
+        }
+        .global-search-input:focus { outline: 2px solid white; background: white; }
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+            pointer-events: none;
+        }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-top: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+        .search-results.active { display: block; }
+        .search-result-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .search-result-item:hover { background: #f9fafb; }
+        .search-result-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .search-result-content { flex: 1; }
+        .search-result-title { font-weight: 600; color: #1f2937; margin-bottom: 2px; }
+        .search-result-subtitle { font-size: 12px; color: #6b7280; }
+        
+        /* === BREADCRUMBS === */
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255,255,255,0.9);
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        .breadcrumb-link {
+            color: rgba(255,255,255,0.9);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .breadcrumb-link:hover { color: white; text-decoration: underline; }
+        .breadcrumb-separator { opacity: 0.5; }
+        
+        /* === TOOLBAR BUTTONS === */
+        .toolbar-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .toolbar-btn:hover { background: rgba(255,255,255,0.3); }
+        .toolbar-btn i { font-size: 16px; }
+        
+        /* === TABLE === */
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px; background: #f9fafb; color: #6b7280; font-size: 12px; text-transform: uppercase; font-weight: 600; }
+        td { padding: 12px; border-top: 1px solid #e5e7eb; color: #1f2937; }
+        tbody tr:hover { background: #f9fafb; cursor: pointer; }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-discovery { background: #e0e7ff; color: #4338ca; }
+        .status-qualify { background: #dbeafe; color: #1e40af; }
+        .status-propose { background: #fef3c7; color: #92400e; }
+        .status-negotiate { background: #fed7aa; color: #9a3412; }
+        .status-close-won { background: #d1fae5; color: #065f46; }
+        .status-close-lost { background: #fee2e2; color: #991b1b; }
+        .status-active { background: #d1fae5; color: #065f46; }
+        .status-draft { background: #f3f4f6; color: #4b5563; }
+        
+        /* === EMPTY STATE === */
+        .empty-state { text-align: center; padding: 40px; color: #9ca3af; }
+        .empty-state i { font-size: 48px; margin-bottom: 16px; }
+        .empty-state p { margin: 8px 0; }
+        
+        /* === TABS === */
+        .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; }
+        .tab {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            color: #6b7280;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+        .tab:hover { color: #1f2937; }
+        .tab.active { color: #065f46; border-bottom-color: #10b981; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* === AI PANEL === */
+        #ai-chat-panel {
+            position: fixed;
+            right: -400px;
+            top: 0;
+            width: 400px;
+            height: 100vh;
+            background: white;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+            transition: right 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+        #ai-chat-panel.open { right: 0; }
+        .chat-header { background: #065f46; color: white; padding: 16px; display: flex; justify-content: space-between; align-items: center; }
+        .chat-header h3 { margin: 0; font-size: 16px; }
+        .close-chat { background: none; border: none; color: white; cursor: pointer; font-size: 20px; }
+        #chat-messages { flex: 1; overflow-y: auto; padding: 16px; }
+        .chat-input-area { padding: 16px; border-top: 1px solid #e5e7eb; }
+        #chat-input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; resize: none; }
+        #send-chat { width: 100%; margin-top: 8px; background: #10b981; color: white; }
+        
+        .message { margin-bottom: 16px; }
+        .message-user { text-align: right; }
+        .message-content {
+            display: inline-block;
+            padding: 12px;
+            border-radius: 12px;
+            max-width: 80%;
+        }
+        .message-user .message-content { background: #10b981; color: white; }
+        .message-assistant .message-content { background: #f3f4f6; color: #1f2937; }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <!-- Header -->
+        <header class="ea-header">
+            <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <h1><i class="fas fa-building"></i> Account Dashboard</h1>
+                    
+                    <!-- Global Search -->
+                    <div class="global-search-container">
+                        <input type="text" class="global-search-input" id="global-search-input" placeholder="Search..." autocomplete="off">
+                        <i class="fas fa-search search-icon"></i>
+                        <div class="search-results" id="search-results"></div>
+                    </div>
+                </div>
+                
+                <!-- Breadcrumbs -->
+                <div class="breadcrumbs" id="breadcrumbs-container">
+                    <a href="EA_Growth_Dashboard.html" class="breadcrumb-link"><i class="fas fa-home"></i> Home</a>
+                    <span class="breadcrumb-separator">›</span>
+                    <span>Account</span>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <button class="toolbar-btn" onclick="userGuide.showContextHelp('account_dashboard')" title="Help">
+                    <i class="fas fa-question"></i>
+                </button>
+                <button class="btn btn-secondary" onclick="window.location.href='EA_Engagement_Playbook.html'">
+                    <i class="fas fa-diagram-project"></i> EA Playbook
+                </button>
+                <button class="btn btn-primary" onclick="toggleChatPanel()">
+                    <i class="fas fa-robot"></i> AI Assistant
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main id="main-content">
+            <!-- Account Header -->
+            <div class="account-header">
+                <div class="account-header-top">
+                    <div class="account-title">
+                        <h2 id="account-name">Select an Account</h2>
+                        <span id="account-health-badge" class="health-badge health-good">Good</span>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" onclick="showAccountSelector()">
+                            <i class="fas fa-exchange-alt"></i> Switch Account
+                        </button>
+                        <button class="btn btn-primary" onclick="createNewAccount()">
+                            <i class="fas fa-plus"></i> New Account
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="account-meta" id="account-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">Account Manager</span>
+                        <span class="meta-value" id="account-manager">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Industry</span>
+                        <span class="meta-value" id="account-industry">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Region</span>
+                        <span class="meta-value" id="account-region">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Size</span>
+                        <span class="meta-value" id="account-size">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metrics Grid -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Annual Contract Value</span>
+                        <div class="metric-icon icon-green">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="metric-acv">$0</div>
+                    <div class="metric-subtext">Contracted revenue</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Pipeline Value</span>
+                        <div class="metric-icon icon-blue">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="metric-pipeline">$0</div>
+                    <div class="metric-subtext" id="pipeline-subtext">Weighted forecast</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Active Opportunities</span>
+                        <div class="metric-icon icon-purple">
+                            <i class="fas fa-bullseye"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="metric-opps">0</div>
+                    <div class="metric-subtext" id="opps-subtext">In pipeline</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Win Rate</span>
+                        <div class="metric-icon icon-orange">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="metric-winrate">0%</div>
+                    <div class="metric-subtext" id="winrate-subtext">Historical</div>
+                </div>
+            </div>
+
+            <!-- Tabs Section -->
+            <div class="section-card">
+                <div class="tabs">
+                    <button class="tab active" onclick="switchAccountTab('opportunities')">
+                        <i class="fas fa-bullseye"></i> Opportunities
+                    </button>
+                    <button class="tab" onclick="switchAccountTab('engagements')">
+                        <i class="fas fa-diagram-project"></i> Engagements
+                    </button>
+                    <button class="tab" onclick="switchAccountTab('stakeholders')">
+                        <i class="fas fa-users"></i> Stakeholders
+                    </button>
+                    <button class="tab" onclick="switchAccountTab('insights')">
+                        <i class="fas fa-lightbulb"></i> AI Insights
+                    </button>
+                </div>
+
+                <!-- Opportunities Tab -->
+                <div id="tab-opportunities" class="tab-content active">
+                    <div class="section-header">
+                        <h3 class="section-title">Sales Opportunities</h3>
+                        <button class="btn btn-primary" onclick="createNewOpportunity()">
+                            <i class="fas fa-plus"></i> New Opportunity
+                        </button>
+                    </div>
+                    <table id="opportunities-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Value</th>
+                                <th>Probability</th>
+                                <th>Close Date</th>
+                                <th>Sponsor</th>
+                            </tr>
+                        </thead>
+                        <tbody id="opportunities-tbody">
+                            <tr><td colspan="6" class="empty-state">
+                                <i class="fas fa-bullseye"></i>
+                                <p>No opportunities yet</p>
+                                <p style="font-size: 12px;">Create your first opportunity to start tracking sales pipeline</p>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Engagements Tab -->
+                <div id="tab-engagements" class="tab-content">
+                    <div class="section-header">
+                        <h3 class="section-title">EA Engagements</h3>
+                        <button class="btn btn-primary" onclick="linkEngagement()">
+                            <i class="fas fa-link"></i> Link Engagement
+                        </button>
+                    </div>
+                    <table id="engagements-table">
+                        <thead>
+                            <tr>
+                                <th>Engagement ID</th>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Phase</th>
+                                <th>Theme</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="engagements-tbody">
+                            <tr><td colspan="6" class="empty-state">
+                                <i class="fas fa-diagram-project"></i>
+                                <p>No engagements linked</p>
+                                <p style="font-size: 12px;">Link EA engagements to this account</p>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Stakeholders Tab -->
+                <div id="tab-stakeholders" class="tab-content">
+                    <div class="section-header">
+                        <h3 class="section-title">Stakeholder Network</h3>
+                        <p style="color: #6b7280; font-size: 14px; margin: 0;">Aggregated from all linked engagements</p>
+                    </div>
+                    <table id="stakeholders-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Level</th>
+                                <th>Influence</th>
+                                <th>Source Engagement</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stakeholders-tbody">
+                            <tr><td colspan="5" class="empty-state">
+                                <i class="fas fa-users"></i>
+                                <p>No stakeholders yet</p>
+                                <p style="font-size: 12px;">Stakeholders will appear here from linked engagements</p>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- AI Insights Tab -->
+                <div id="tab-insights" class="tab-content">
+                    <div class="section-header">
+                        <h3 class="section-title">AI-Powered Insights</h3>
+                        <button class="btn btn-primary" onclick="generateAccountInsights()">
+                            <i class="fas fa-robot"></i> Generate Insights
+                        </button>
+                    </div>
+                    <div id="insights-content" class="empty-state">
+                        <i class="fas fa-lightbulb"></i>
+                        <p>No insights generated yet</p>
+                        <p style="font-size: 12px;">Click "Generate Insights" to get AI-powered recommendations</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- AI Chat Panel (Sidebar) -->
+    <div id="ai-chat-panel">
+        <div class="chat-header">
+            <h3><i class="fas fa-robot"></i> AI Assistant</h3>
+            <button class="close-chat" onclick="toggleChatPanel()"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="chat-messages"></div>
+        <div class="chat-input-area">
+            <textarea id="chat-input" rows="3" placeholder="Ask me anything about this account..."></textarea>
+            <button id="send-chat" class="btn btn-primary" onclick="sendChatMessage()">
+                <i class="fas fa-paper-plane"></i> Send
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let accountManager;
+        let currentAccountId = null;
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            accountManager = new EA_AccountManager();
+            
+            // Check if account ID is in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const accountId = urlParams.get('accountId');
+            
+            if (accountId) {
+                loadAccount(accountId);
+            } else {
+                showAccountSelector();
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════════════════
+        // ACCOUNT LOADING
+        // ═══════════════════════════════════════════════════════════════════
+
+        function loadAccount(accountId) {
+            const account = accountManager.getAccount(accountId);
+            if (!account) {
+                alert('Account not found: ' + accountId);
+                return;
+            }
+
+            currentAccountId = accountId;
+            
+            // Update header
+            document.getElementById('account-name').textContent = account.name;
+            document.getElementById('account-health-badge').textContent = account.health.charAt(0).toUpperCase() + account.health.slice(1);
+            document.getElementById('account-health-badge').className = `health-badge health-${account.health}`;
+            
+            // Update meta
+            document.getElementById('account-manager').textContent = account.accountManager;
+            document.getElementById('account-industry').textContent = account.industry;
+            document.getElementById('account-region').textContent = account.region;
+            document.getElementById('account-size').textContent = account.size;
+            
+            // Update metrics
+            const health = accountManager.getAccountHealthMetrics(accountId);
+            document.getElementById('metric-acv').textContent = `$${(health.ACV / 1000000).toFixed(1)}M`;
+            document.getElementById('metric-pipeline').textContent = `$${(health.weightedPipelineValue / 1000000).toFixed(1)}M`;
+            document.getElementById('metric-opps').textContent = health.openOpportunities;
+            document.getElementById('metric-winrate').textContent = health.winRate + '%';
+            document.getElementById('opps-subtext').textContent = `${health.totalOpportunities} total`;
+            document.getElementById('winrate-subtext').textContent = `${health.wonOpportunities} won / ${health.lostOpportunities} lost`;
+            
+            // Update breadcrumbs
+            updateBreadcrumbs();
+            
+            // Load tab data
+            loadOpportunities(accountId);
+            loadEngagements(accountId);
+            loadStakeholders(accountId);
+        }
+
+        function loadOpportunities(accountId) {
+            const opportunities = accountManager.listOpportunities(accountId);
+            const tbody = document.getElementById('opportunities-tbody');
+            
+            if (opportunities.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="empty-state">
+                    <i class="fas fa-bullseye"></i>
+                    <p>No opportunities yet</p>
+                    <p style="font-size: 12px;">Create your first opportunity to start tracking sales pipeline</p>
+                </td></tr>`;
+                return;
+            }
+            
+            tbody.innerHTML = opportunities.map(opp => `
+                <tr onclick="viewOpportunity('${opp.id}')">
+                    <td>${opp.name}</td>
+                    <td><span class="status-badge status-${opp.status}">${opp.status}</span></td>
+                    <td>$${(opp.estimatedValue / 1000000).toFixed(2)}M</td>
+                    <td>${opp.probability}%</td>
+                    <td>${new Date(opp.closeDate).toLocaleDateString()}</td>
+                    <td>${opp.sponsor}</td>
+                </tr>
+            `).join('');
+        }
+
+        function loadEngagements(accountId) {
+            const account = accountManager.getAccount(accountId);
+            const tbody = document.getElementById('engagements-tbody');
+            
+            if (!account.engagements || account.engagements.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="empty-state">
+                    <i class="fas fa-diagram-project"></i>
+                    <p>No engagements linked</p>
+                    <p style="font-size: 12px;">Link EA engagements to this account</p>
+                </td></tr>`;
+                return;
+            }
+            
+            // Load engagement details from localStorage
+            const engagements = account.engagements.map(id => {
+                const data = localStorage.getItem('ea_engagement_model_' + id);
+                return data ? JSON.parse(data) : null;
+            }).filter(e => e !== null);
+            
+            tbody.innerHTML = engagements.map(eng => `
+                <tr onclick="window.open('EA_Engagement_Playbook.html?engagementId=${eng.id}', '_blank')">
+                    <td>${eng.id}</td>
+                    <td>${eng.name}</td>
+                    <td><span class="status-badge status-${eng.status}">${eng.status}</span></td>
+                    <td>${eng.workflowState?.currentPhase || 'E0'}</td>
+                    <td>${eng.theme}</td>
+                    <td><button class="btn btn-secondary" onclick="event.stopPropagation(); unlinkEngagement('${eng.id}')">Unlink</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function loadStakeholders(accountId) {
+            const account = accountManager.getAccount(accountId);
+            const tbody = document.getElementById('stakeholders-tbody');
+            
+            if (!account.stakeholders || account.stakeholders.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="empty-state">
+                    <i class="fas fa-users"></i>
+                    <p>No stakeholders yet</p>
+                    <p style="font-size: 12px;">Stakeholders will appear here from linked engagements</p>
+                </td></tr>`;
+                return;
+            }
+            
+            // TODO: Load stakeholder details from engagement data
+            tbody.innerHTML = `<tr><td colspan="5" class="empty-state">
+                <i class="fas fa-users"></i>
+                <p>Stakeholder aggregation in progress</p>
+            </td></tr>`;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // TAB SWITCHING
+        // ═══════════════════════════════════════════════════════════════════
+
+        function switchAccountTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.closest('.tab').classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // ACTIONS
+        // ═══════════════════════════════════════════════════════════════════
+
+        function showAccountSelector() {
+            const accounts = accountManager.listAccounts();
+            
+            if (accounts.length === 0) {
+                if (confirm('No accounts found. Create your first account?')) {
+                    createNewAccount();
+                }
+                return;
+            }
+            
+            const accountList = accounts.map((a, i) => `${i + 1}. ${a.name} (${a.id})`).join('\n');
+            const selection = prompt(`Select an account:\n\n${accountList}\n\nEnter account number or ID:`);
+            
+            if (selection) {
+                const index = parseInt(selection) - 1;
+                const accountId = isNaN(index) ? selection : accounts[index].id;
+                loadAccount(accountId);
+                
+                // Update URL
+                window.history.pushState({}, '', `?accountId=${accountId}`);
+            }
+        }
+
+        function createNewAccount() {
+            const name = prompt('Account Name:');
+            if (!name) return;
+            
+            const accountManager_temp = prompt('Account Manager:');
+            const industry = prompt('Industry:');
+            const region = prompt('Region:');
+            const ACV = parseFloat(prompt('Annual Contract Value ($):') || '0');
+            
+            const account = accountManager.createAccount({
+                name,
+                accountManager: accountManager_temp || 'Unknown',
+                industry: industry || 'Unknown',
+                region: region || 'Unknown',
+                ACV: ACV,
+                createdBy: 'user'
+            });
+            
+            loadAccount(account.id);
+            window.history.pushState({}, '', `?accountId=${account.id}`);
+            alert('Account created: ' + account.id);
+        }
+
+        function createNewOpportunity() {
+            if (!currentAccountId) {
+                alert('Please select an account first');
+                return;
+            }
+            
+            const name = prompt('Opportunity Name:');
+            if (!name) return;
+            
+            const estimatedValue = parseFloat(prompt('Estimated Value ($):') || '0');
+            const closeDate = prompt('Expected Close Date (YYYY-MM-DD):');
+            const sponsor = prompt('Executive Sponsor:');
+            
+            const opportunity = accountManager.createOpportunity({
+                accountId: currentAccountId,
+                name,
+                estimatedValue,
+                closeDate: closeDate || new Date().toISOString().split('T')[0],
+                sponsor: sponsor || 'Unknown',
+                createdBy: 'user'
+            });
+            
+            loadOpportunities(currentAccountId);
+            alert('Opportunity created: ' + opportunity.id);
+        }
+
+        function viewOpportunity(opportunityId) {
+            window.location.href = `EA_Opportunity_Pipeline.html?opportunityId=${opportunityId}`;
+        }
+
+        function linkEngagement() {
+            // TODO: Show engagement picker
+            alert('Engagement linking UI coming soon');
+        }
+
+        function unlinkEngagement(engagementId) {
+            if (confirm('Unlink this engagement from the account?')) {
+                const account = accountManager.getAccount(currentAccountId);
+                account.engagements = account.engagements.filter(id => id !== engagementId);
+                accountManager.updateAccount(currentAccountId, { engagements: account.engagements });
+                loadEngagements(currentAccountId);
+            }
+        }
+
+        function generateAccountInsights() {
+            const insightsContent = document.getElementById('insights-content');
+            insightsContent.innerHTML = '<p>Generating AI insights... (AI integration required)</p>';
+            
+            // TODO: Call AI Assistant to generate account insights
+            setTimeout(() => {
+                insightsContent.innerHTML = `
+                    <div style="text-align: left; padding: 20px;">
+                        <h4>Account Intelligence Summary</h4>
+                        <p><strong>Health Status:</strong> Account is in good health with active engagement.</p>
+                        <p><strong>Growth Opportunities:</strong> Consider expanding to additional business units.</p>
+                        <p><strong>Risks:</strong> No major risks identified at this time.</p>
+                        <p><strong>Next Actions:</strong> Schedule quarterly business review with stakeholders.</p>
+                    </div>
+                `;
+            }, 1000);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // AI CHAT PANEL
+        // ═══════════════════════════════════════════════════════════════════
+
+        function toggleChatPanel() {
+            const panel = document.getElementById('ai-chat-panel');
+            panel.classList.toggle('open');
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            addChatMessage(message, 'user');
+            input.value = '';
+            
+            // TODO: Call AI Assistant
+            setTimeout(() => {
+                addChatMessage('AI Assistant integration coming soon. I can help you analyze account health, identify opportunities, and generate insights.', 'assistant');
+            }, 500);
+        }
+
+        function addChatMessage(content, role) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message message-${role}`;
+            messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // GLOBAL SEARCH
+        // ═══════════════════════════════════════════════════════════════════
+
+        let globalSearch;
+        document.getElementById('global-search-input')?.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            const resultsDiv = document.getElementById('search-results');
+            
+            if (!query) {
+                resultsDiv.classList.remove('active');
+                return;
+            }
+
+            if (!globalSearch) {
+                globalSearch = new EA_GlobalSearch();
+                globalSearch.buildSearchIndex();
+            }
+
+            const results = globalSearch.search(query, {}).slice(0, 5);
+            
+            if (results.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #9ca3af;">No results found</div>';
+            } else {
+                resultsDiv.innerHTML = results.map(result => {
+                    const iconMap = {
+                        account: { icon: 'building', color: '#10b981' },
+                        opportunity: { icon: 'bullseye', color: '#7c3aed' },
+                        engagement: { icon: 'diagram-project', color: '#3b82f6' }
+                    };
+                    const icon = iconMap[result.type] || { icon: 'file', color: '#6b7280' };
+                    
+                    return `
+                        <div class="search-result-item" onclick="navigateToResult('${result.type}', '${result.id}')">
+                            <div class="search-result-icon" style="background: ${icon.color}20; color: ${icon.color};">
+                                <i class="fas fa-${icon.icon}"></i>
+                            </div>
+                            <div class="search-result-content">
+                                <div class="search-result-title">${result.name}</div>
+                                <div class="search-result-subtitle">${result.type.toUpperCase()}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            resultsDiv.classList.add('active');
+        });
+
+        document.addEventListener('click', function(e) {
+            const searchContainer = document.querySelector('.global-search-container');
+            if (!searchContainer?.contains(e.target)) {
+                document.getElementById('search-results')?.classList.remove('active');
+            }
+        });
+
+        function navigateToResult(type, id) {
+            const crossNav = new EA_CrossNavigation();
+            
+            if (type === 'account') {
+                crossNav.goToAccount(id);
+            } else if (type === 'opportunity') {
+                crossNav.goToOpportunity(id);
+            } else if (type === 'engagement') {
+                crossNav.goToEngagement(id);
+            }
+        }
+
+        // Update breadcrumbs with account name
+        function updateBreadcrumbs() {
+            if (currentAccountId) {
+                const account = accountManager.getAccount(currentAccountId);
+                if (account) {
+                    const breadcrumbs = document.getElementById('breadcrumbs-container');
+                    breadcrumbs.innerHTML = `
+                        <a href="EA_Growth_Dashboard.html" class="breadcrumb-link"><i class="fas fa-home"></i> Home</a>
+                        <span class="breadcrumb-separator">›</span>
+                        <span><i class="fas fa-building"></i> ${account.name}</span>
+                    `;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
