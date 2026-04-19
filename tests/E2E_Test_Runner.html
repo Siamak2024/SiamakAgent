@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E2E Test Runner - Sales + EA Collaboration Platform</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .controls {
+      padding: 20px 30px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #5568d3;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: white;
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+
+    .btn-secondary:hover {
+      background: #f8f9fa;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status {
+      padding: 20px 30px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+    }
+
+    .status-card {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+
+    .status-card.success {
+      border-left-color: #10b981;
+    }
+
+    .status-card.error {
+      border-left-color: #ef4444;
+    }
+
+    .status-label {
+      font-size: 12px;
+      color: #6b7280;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .status-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1f2937;
+    }
+
+    .console-output {
+      padding: 30px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    .console-line {
+      margin-bottom: 4px;
+      padding: 2px 0;
+    }
+
+    .console-line.pass {
+      color: #4ade80;
+    }
+
+    .console-line.fail {
+      color: #f87171;
+    }
+
+    .console-line.info {
+      color: #60a5fa;
+    }
+
+    .console-line.warn {
+      color: #fbbf24;
+    }
+
+    .console-line.section {
+      color: #a78bfa;
+      font-weight: 600;
+      margin-top: 12px;
+      margin-bottom: 8px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #e0e0e0;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🧪 E2E Test Runner</h1>
+      <p>Sales + EA Collaboration Platform - Complete Test Suite</p>
+    </div>
+
+    <div class="controls">
+      <button id="runTestsBtn" class="btn btn-primary">
+        <span>▶️</span>
+        <span>Run All Tests</span>
+      </button>
+      <button id="clearConsoleBtn" class="btn btn-secondary">
+        <span>🗑️</span>
+        <span>Clear Console</span>
+      </button>
+      <div id="testSpinner" class="spinner hidden"></div>
+    </div>
+
+    <div class="status">
+      <div class="status-grid">
+        <div class="status-card">
+          <div class="status-label">Total Tests</div>
+          <div class="status-value" id="totalTests">0</div>
+        </div>
+        <div class="status-card success">
+          <div class="status-label">Passed</div>
+          <div class="status-value" id="passedTests">0</div>
+        </div>
+        <div class="status-card error">
+          <div class="status-label">Failed</div>
+          <div class="status-value" id="failedTests">0</div>
+        </div>
+        <div class="status-card">
+          <div class="status-label">Pass Rate</div>
+          <div class="status-value" id="passRate">0%</div>
+        </div>
+        <div class="status-card">
+          <div class="status-label">Duration</div>
+          <div class="status-value" id="duration">0ms</div>
+        </div>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <div id="consoleOutput" class="console-output">
+      <div class="console-line info">Ready to run tests. Click "Run All Tests" to begin.</div>
+      <div class="console-line info">Loading modules...</div>
+    </div>
+  </div>
+
+  <!-- Load all required modules -->
+  <script src="../js/EA_AccountManager.js"></script>
+  <script src="../js/EA_EngagementManager.js"></script>
+  <script src="../js/EA_WorkflowEngine.js"></script>
+  <script src="../js/EA_CustomerSuccess.js"></script>
+  <script src="../js/EA_AccountTeam.js"></script>
+  <script src="../js/EA_UserGuide.js"></script>
+
+  <!-- Load E2E Test Suite -->
+  <script src="E2E_SalesEA_Collaboration_Test.js"></script>
+
+  <script>
+    // Console output management
+    const consoleOutput = document.getElementById('consoleOutput');
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
+
+    function appendToConsole(message, type = 'info') {
+      const line = document.createElement('div');
+      line.className = `console-line ${type}`;
+      line.textContent = message;
+      consoleOutput.appendChild(line);
+      consoleOutput.scrollTop = consoleOutput.scrollHeight;
+    }
+
+    // Intercept console methods
+    console.log = function(...args) {
+      const message = args.join(' ');
+      
+      if (message.includes('✅ PASS')) {
+        appendToConsole(message, 'pass');
+      } else if (message.includes('❌ FAIL')) {
+        appendToConsole(message, 'fail');
+      } else if (message.includes('Phase')) {
+        appendToConsole(message, 'section');
+      } else if (message.includes('🧪') || message.includes('📊') || message.includes('🎉')) {
+        appendToConsole(message, 'info');
+      } else if (message.startsWith('   ')) {
+        appendToConsole(message, 'info');
+      } else {
+        appendToConsole(message, 'info');
+      }
+      
+      originalConsoleLog.apply(console, args);
+    };
+
+    console.error = function(...args) {
+      const message = args.join(' ');
+      appendToConsole(message, 'fail');
+      originalConsoleError.apply(console, args);
+    };
+
+    console.warn = function(...args) {
+      const message = args.join(' ');
+      appendToConsole(message, 'warn');
+      originalConsoleWarn.apply(console, args);
+    };
+
+    // Verify modules loaded
+    const requiredModules = [
+      'EA_AccountManager',
+      'EA_EngagementManager',
+      'EA_CustomerSuccess',
+      'EA_AccountTeam',
+      'EA_UserGuide',
+      'SalesEACollaborationE2ETest'
+    ];
+
+    let allModulesLoaded = true;
+    requiredModules.forEach(moduleName => {
+      if (typeof window[moduleName] === 'undefined') {
+        console.error(`❌ Module not loaded: ${moduleName}`);
+        allModulesLoaded = false;
+      } else {
+        console.log(`✅ Module loaded: ${moduleName}`);
+      }
+    });
+
+    if (allModulesLoaded) {
+      console.log('✅ All modules loaded successfully!');
+    } else {
+      console.error('❌ Some modules failed to load. Check file paths.');
+    }
+
+    // Test runner
+    let testInstance = null;
+    let isRunning = false;
+
+    document.getElementById('runTestsBtn').addEventListener('click', async () => {
+      if (isRunning) return;
+
+      if (!allModulesLoaded) {
+        alert('Cannot run tests: Some modules failed to load. Check console for details.');
+        return;
+      }
+
+      isRunning = true;
+      document.getElementById('runTestsBtn').disabled = true;
+      document.getElementById('testSpinner').classList.remove('hidden');
+      
+      // Clear previous output
+      consoleOutput.innerHTML = '';
+      
+      // Reset counters
+      document.getElementById('totalTests').textContent = '0';
+      document.getElementById('passedTests').textContent = '0';
+      document.getElementById('failedTests').textContent = '0';
+      document.getElementById('passRate').textContent = '0%';
+      document.getElementById('duration').textContent = '0ms';
+      document.getElementById('progressFill').style.width = '0%';
+
+      // Run tests
+      testInstance = new SalesEACollaborationE2ETest();
+      
+      try {
+        await testInstance.runAllTests();
+        
+        // Update UI with results
+        const report = testInstance.generateReport();
+        document.getElementById('totalTests').textContent = report.totalTests;
+        document.getElementById('passedTests').textContent = report.passedTests;
+        document.getElementById('failedTests').textContent = report.failedTests;
+        document.getElementById('passRate').textContent = report.passRate + '%';
+        document.getElementById('duration').textContent = report.duration + 'ms';
+        
+        // Update progress bar
+        const progressPercent = (report.passedTests / report.totalTests) * 100;
+        document.getElementById('progressFill').style.width = progressPercent + '%';
+        
+        // Update status card colors
+        const passRateCard = document.getElementById('passRate').closest('.status-card');
+        if (report.passRate === 100) {
+          passRateCard.classList.add('success');
+          passRateCard.classList.remove('error');
+        } else if (report.passRate < 50) {
+          passRateCard.classList.add('error');
+          passRateCard.classList.remove('success');
+        }
+
+      } catch (error) {
+        console.error('Test execution failed:', error);
+      }
+
+      isRunning = false;
+      document.getElementById('runTestsBtn').disabled = false;
+      document.getElementById('testSpinner').classList.add('hidden');
+    });
+
+    document.getElementById('clearConsoleBtn').addEventListener('click', () => {
+      consoleOutput.innerHTML = '<div class="console-line info">Console cleared.</div>';
+      document.getElementById('totalTests').textContent = '0';
+      document.getElementById('passedTests').textContent = '0';
+      document.getElementById('failedTests').textContent = '0';
+      document.getElementById('passRate').textContent = '0%';
+      document.getElementById('duration').textContent = '0ms';
+      document.getElementById('progressFill').style.width = '0%';
+    });
+
+    // Ready message
+    console.log('🚀 Test runner ready. Click "Run All Tests" to begin.');
+  </script>
+</body>
+</html>

@@ -18,6 +18,7 @@ const EngagementSchema = {
   id: { type: 'string', required: true, pattern: /^[A-Z]{3}-[A-Z]{3}-\d{4}Q\d-\d{3}$/ }, // e.g., SEG-INS-2026Q2-001
   name: { type: 'string', required: true },
   customerName: { type: 'string', required: false }, // Customer organization name
+  accountId: { type: 'string', required: false, pattern: /^ACC-\d{3}$/, description: 'Link to Account entity (for commercial features)' },
   segment: { type: 'string', required: true, enum: ['Insurance', 'Banking', 'Manufacturing', 'Retail', 'Healthcare', 'Public Sector', 'Custom'] },
   theme: { type: 'string', required: true },
   customers: { type: 'array', required: true, items: 'string' }, // Customer IDs
@@ -312,6 +313,7 @@ const AssumptionSchema = {
  */
 const InitiativeSchema = {
   id: { type: 'string', required: true, pattern: /^INIT-\d{3}$/ },
+  opportunityId: { type: 'string', required: false, pattern: /^OPP-\d{3}$/, description: 'Link to Opportunity entity (for commercial features)' },
   name: { type: 'string', required: true },
   description: { type: 'string' },
   linkedThemes: { type: 'array', required: true, items: 'string' },
@@ -385,6 +387,288 @@ const ArtifactSchema = {
   generatedAt: { type: 'string', format: 'datetime' },
   version: { type: 'string' },
   status: { type: 'string', enum: ['draft', 'review', 'approved', 'published'], default: 'draft' }
+};
+
+/**
+ * WorkflowState Entity
+ * Tracks engagement workflow progression through E0-E5 phases
+ * Stores step completion, AI conversations, and integration status
+ */
+const WorkflowStateSchema = {
+  currentPhase: { type: 'string', required: true, enum: ['E0', 'E1', 'E2', 'E3', 'E4', 'E5'], default: 'E0' },
+  currentStep: { type: 'string', required: true, pattern: /^E[0-5]\.[1-9]$/, default: 'E0.1' }, // E0.1, E1.2, etc.
+  completedSteps: { type: 'array', items: 'string', default: [] }, // ['E0.1', 'E0.2', ...]
+  phaseCompleteness: {
+    type: 'object',
+    required: true,
+    properties: {
+      E0: { type: 'number', min: 0, max: 100, default: 0 },
+      E1: { type: 'number', min: 0, max: 100, default: 0 },
+      E2: { type: 'number', min: 0, max: 100, default: 0 },
+      E3: { type: 'number', min: 0, max: 100, default: 0 },
+      E4: { type: 'number', min: 0, max: 100, default: 0 },
+      E5: { type: 'number', min: 0, max: 100, default: 0 }
+    },
+    default: { E0: 0, E1: 0, E2: 0, E3: 0, E4: 0, E5: 0 }
+  },
+  stepData: {
+    type: 'object',
+    required: false,
+    description: 'Step-specific data (checklists, notes, AI recommendations)',
+    default: {}
+    // Structure: { 'E0.1': { checklist: [...], notes: '', aiRecommendations: [...] }, ... }
+  },
+  aiConversations: {
+    type: 'array',
+    required: false,
+    items: {
+      type: 'object',
+      properties: {
+        stepId: { type: 'string', required: true },
+        userMessage: { type: 'string', required: true },
+        aiResponse: { type: 'string', required: true },
+        context: { type: 'object' },
+        timestamp: { type: 'string', format: 'datetime', required: true }
+      }
+    },
+    default: []
+  },
+  integrations: {
+    type: 'object',
+    required: false,
+    properties: {
+      apqc: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', enum: ['connected', 'not_connected'], default: 'not_connected' },
+          lastSync: { type: 'string', format: 'datetime' },
+          frameworkVersion: { type: 'string' }
+        }
+      },
+      apm: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', enum: ['connected', 'not_connected'], default: 'not_connected' },
+          lastSync: { type: 'string', format: 'datetime' },
+          projectId: { type: 'string' }
+        }
+      },
+      bmc: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', enum: ['connected', 'not_connected'], default: 'not_connected' },
+          lastSync: { type: 'string', format: 'datetime' },
+          bmcId: { type: 'string' }
+        }
+      },
+      capability: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', enum: ['connected', 'not_connected'], default: 'not_connected' },
+          lastSync: { type: 'string', format: 'datetime' },
+          capMapId: { type: 'string' }
+        }
+      }
+    },
+    default: {
+      apqc: { status: 'not_connected', lastSync: null },
+      apm: { status: 'not_connected', lastSync: null, projectId: null },
+      bmc: { status: 'not_connected', lastSync: null },
+      capability: { status: 'not_connected', lastSync: null, capMapId: null }
+    }
+  },
+  createdAt: { type: 'string', format: 'datetime', required: false },
+  lastUpdated: { type: 'string', format: 'datetime', required: false }
+};
+
+/**
+ * Account Entity
+ * Commercial account tracking (top-level entity for sales/account teams)
+ */
+const AccountSchema = {
+  id: { type: 'string', required: true, pattern: /^ACC-\d{3}$/ }, // ACC-001
+  name: { type: 'string', required: true },
+  accountManager: { type: 'string', required: true },
+  ACV: { type: 'number', min: 0, default: 0 }, // Annual Contract Value
+  industry: { type: 'string', required: true },
+  region: { type: 'string', required: true },
+  size: { type: 'string', enum: ['SME', 'MidMarket', 'Enterprise', 'Global'], default: 'MidMarket' },
+  health: { 
+    type: 'string', 
+    enum: ['excellent', 'good', 'at-risk', 'critical'], 
+    default: 'good',
+    description: 'Account health status'
+  },
+  strategicPriorities: { type: 'array', items: 'string', default: [] },
+  businessStrategy: { type: 'string', default: '' },
+  painPoints: { type: 'array', items: 'string', default: [] },
+  engagements: { 
+    type: 'array', 
+    items: 'string', 
+    default: [],
+    description: 'Array of engagement IDs linked to this account'
+  },
+  opportunities: { 
+    type: 'array', 
+    items: 'string', 
+    default: [],
+    description: 'Array of opportunity IDs'
+  },
+  stakeholders: { 
+    type: 'array', 
+    items: 'string', 
+    default: [],
+    description: 'Array of stakeholder IDs (aggregated from engagements)'
+  },
+  applications: { 
+    type: 'array', 
+    items: 'string', 
+    default: [],
+    description: 'Array of application IDs (aggregated from engagements)'
+  },
+  capabilities: { 
+    type: 'array', 
+    items: 'string', 
+    default: [],
+    description: 'Array of capability IDs (aggregated from engagements)'
+  },
+  metadata: {
+    type: 'object',
+    properties: {
+      createdAt: { type: 'string', format: 'datetime' },
+      updatedAt: { type: 'string', format: 'datetime' },
+      createdBy: { type: 'string' },
+      lastContactDate: { type: 'string', format: 'date' }
+    }
+  }
+};
+
+/**
+ * Opportunity Entity
+ * Sales opportunity tracking (links to engagements and initiatives)
+ */
+const OpportunitySchema = {
+  id: { type: 'string', required: true, pattern: /^OPP-\d{3}$/ }, // OPP-001
+  accountId: { type: 'string', required: true, pattern: /^ACC-\d{3}$/ },
+  name: { type: 'string', required: true },
+  status: { 
+    type: 'string', 
+    required: true, 
+    enum: ['discovery', 'qualify', 'propose', 'negotiate', 'close-won', 'close-lost'], 
+    default: 'discovery' 
+  },
+  stage: { 
+    type: 'string', 
+    enum: ['1-discovery', '2-qualification', '3-proposal', '4-negotiation', '5-closed'], 
+    default: '1-discovery' 
+  },
+  estimatedValue: { type: 'number', min: 0, required: true },
+  probability: { type: 'number', min: 0, max: 100, default: 50 }, // Win probability %
+  closeDate: { type: 'string', format: 'date', required: true },
+  sponsor: { type: 'string', required: true, description: 'Executive sponsor name' },
+  linkedInitiatives: { 
+    type: 'array', 
+    items: 'string', 
+    default: [],
+    description: 'Array of initiative IDs from engagements'
+  },
+  linkedEngagements: { 
+    type: 'array', 
+    items: 'string', 
+    default: [],
+    description: 'Array of engagement IDs supporting this opportunity'
+  },
+  valueCase: { 
+    type: 'string', 
+    pattern: /^VC-\d{3}$/,
+    description: 'Reference to ValueCase entity'
+  },
+  competitors: { type: 'array', items: 'string', default: [] },
+  nextSteps: { type: 'array', items: 'string', default: [] },
+  risks: { type: 'array', items: 'string', default: [] },
+  metadata: {
+    type: 'object',
+    properties: {
+      createdAt: { type: 'string', format: 'datetime' },
+      updatedAt: { type: 'string', format: 'datetime' },
+      createdBy: { type: 'string' },
+      winReason: { type: 'string' },
+      lossReason: { type: 'string' }
+    }
+  }
+};
+
+/**
+ * ValueCase Entity
+ * Business case and value justification for opportunities
+ */
+const ValueCaseSchema = {
+  id: { type: 'string', required: true, pattern: /^VC-\d{3}$/ }, // VC-001
+  opportunityId: { type: 'string', required: true, pattern: /^OPP-\d{3}$/ },
+  name: { type: 'string', required: true },
+  narratives: {
+    type: 'object',
+    required: true,
+    properties: {
+      executive: { type: 'string', description: 'Executive summary (CXO-level)' },
+      technical: { type: 'string', description: 'Technical justification (CTO/CIO-level)' },
+      financial: { type: 'string', description: 'Financial case (CFO-level)' }
+    }
+  },
+  totalValue: { type: 'number', min: 0, required: true, description: 'Total business value (currency)' },
+  totalInvestment: { type: 'number', min: 0, required: true, description: 'Total investment required' },
+  ROI: { type: 'number', description: 'Return on Investment %' },
+  paybackMonths: { type: 'number', min: 0, description: 'Payback period in months' },
+  NPV: { type: 'number', description: 'Net Present Value' },
+  IRR: { type: 'number', description: 'Internal Rate of Return %' },
+  valueDrivers: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        driver: { type: 'string', required: true },
+        category: { type: 'string', enum: ['cost-reduction', 'revenue-growth', 'risk-mitigation', 'efficiency', 'strategic'], required: true },
+        value: { type: 'number', min: 0 },
+        confidence: { type: 'string', enum: ['low', 'medium', 'high'], default: 'medium' }
+      }
+    },
+    default: []
+  },
+  risks: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        risk: { type: 'string', required: true },
+        probability: { type: 'string', enum: ['low', 'medium', 'high'], default: 'medium' },
+        impact: { type: 'string', enum: ['low', 'medium', 'high'], default: 'medium' },
+        mitigation: { type: 'string' }
+      }
+    },
+    default: []
+  },
+  assumptions: { type: 'array', items: 'string', default: [] },
+  stakeholderViews: {
+    type: 'object',
+    description: 'Customized views for different stakeholder types',
+    properties: {
+      CEO: { type: 'string' },
+      CFO: { type: 'string' },
+      CIO: { type: 'string' },
+      COO: { type: 'string' }
+    }
+  },
+  generatedBy: { type: 'string', enum: ['ai', 'manual', 'template'], default: 'manual' },
+  metadata: {
+    type: 'object',
+    properties: {
+      createdAt: { type: 'string', format: 'datetime' },
+      updatedAt: { type: 'string', format: 'datetime' },
+      createdBy: { type: 'string' },
+      approvedBy: { type: 'string' },
+      approvalDate: { type: 'string', format: 'date' }
+    }
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -518,6 +802,10 @@ if (typeof window !== 'undefined') {
     RoadmapItem: RoadmapItemSchema,
     ArchitectureView: ArchitectureViewSchema,
     Artifact: ArtifactSchema,
+    WorkflowState: WorkflowStateSchema,
+    Account: AccountSchema,
+    Opportunity: OpportunitySchema,
+    ValueCase: ValueCaseSchema,
     ValidationRules,
     DefaultPhases,
     DefaultSegmentTemplates
@@ -542,6 +830,10 @@ if (typeof module !== 'undefined' && module.exports) {
     RoadmapItemSchema,
     ArchitectureViewSchema,
     ArtifactSchema,
+    WorkflowStateSchema,
+    AccountSchema,
+    OpportunitySchema,
+    ValueCaseSchema,
     ValidationRules,
     DefaultPhases,
     DefaultSegmentTemplates

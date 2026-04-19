@@ -134,24 +134,62 @@ function createNewEngagementFromModal() {
         return;
     }
     
+    // Create engagement data object
+    const engagementData = {
+        id,
+        name,
+        customerName,
+        segment,
+        theme,
+        status: 'active',
+        startDate: new Date().toISOString().split('T')[0],
+        forum: '',
+        reviewCadence: '',
+        successCriteria: []
+    };
+    
+    // Link to account if coming from Growth Dashboard
+    if (window.pendingAccountLink) {
+        engagementData.accountId = window.pendingAccountLink;
+        console.log(`✓ Linking engagement to account: ${window.pendingAccountLink}`);
+        
+        // Import account stakeholders if available
+        if (window.accountManager && window.currentAccountContext) {
+            const account = window.currentAccountContext;
+            if (account.stakeholders && account.stakeholders.length > 0) {
+                console.log(`✓ Will import ${account.stakeholders.length} stakeholders from account`);
+            }
+        }
+    }
+    
     // Create engagement
     try {
-        const engagementId = engagementManager.createEngagement({
-            id,
-            name,
-            customerName,
-            segment,
-            theme,
-            status: 'active',
-            startDate: new Date().toISOString().split('T')[0],
-            forum: '',
-            reviewCadence: '',
-            successCriteria: []
-        });
+        const engagementId = engagementManager.createEngagement(engagementData);
+        
+        // Import stakeholders from account if linked
+        if (window.pendingAccountLink && window.currentAccountContext) {
+            const account = window.currentAccountContext;
+            if (account.stakeholders && account.stakeholders.length > 0) {
+                account.stakeholders.forEach(sh => {
+                    engagementManager.addEntity('stakeholders', {
+                        name: sh.name,
+                        role: sh.role || 'Stakeholder',
+                        influence: sh.influence || 'medium',
+                        sentiment: sh.sentiment || 'neutral',
+                        concerns: sh.concerns || [],
+                        linkedApplications: []
+                    });
+                });
+                console.log(`✓ Imported ${account.stakeholders.length} stakeholders`);
+            }
+        }
         
         // Load the new engagement
         const model = engagementManager.getCurrentEngagement();
         currentEngagement = model;
+        
+        // Clear pending link
+        window.pendingAccountLink = null;
         
         // Update UI
         updateEngagementSelector();

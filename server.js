@@ -38,6 +38,11 @@ app.get('/NexGenEA/', (req, res) => {
   res.redirect('/NexGenEA/NexGen_EA_V4.html');
 });
 
+// Redirect /NexGenEA/EA2_Toolkit/ to start page
+app.get('/NexGenEA/EA2_Toolkit/', (req, res) => {
+  res.redirect('/NexGenEA/EA2_Toolkit/EA_Start_Page.html');
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

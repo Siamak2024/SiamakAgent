@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Opportunity Pipeline – EA Commercial Platform</title>
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+    <script src="../../js/EA_AccountManager.js"></script>
+    <script src="../../js/EA_CrossNavigation.js"></script>
+    <script src="../../js/EA_GlobalSearch.js"></script>
+    <script src="../../js/EA_Analytics.js"></script>
+    <script src="../../js/EA_DataBackupManager.js"></script>
+    <script src="../../js/EA_UserGuide.js"></script>
+    <script src="engagement_schema.js"></script>
+    <style>
+        /* === LAYOUT === */
+        body { margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f8f9fa; }
+        #app-container { display: flex; flex-direction: column; min-height: 100vh; }
+        #main-content { flex: 1; padding: 24px; }
+        
+        /* === HEADER === */
+        .ea-header {
+            background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .ea-header h1 { color: white; margin: 0; font-size: 24px; font-weight: 600; }
+        .header-actions { display: flex; gap: 12px; }
+        .btn { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+        .btn-primary { background: white; color: #7c3aed; }
+        .btn-primary:hover { background: #faf5ff; }
+        .btn-secondary { background: rgba(255,255,255,0.2); color: white; }
+        .btn-secondary:hover { background: rgba(255,255,255,0.3); }
+        
+        /* === METRICS BAR === */
+        .metrics-bar {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .metric-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .metric-label {
+            font-size: 12px;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .metric-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .metric-subtext {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        
+        /* === PIPELINE KANBAN === */
+        .pipeline-kanban {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .pipeline-stage {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 16px;
+            min-height: 400px;
+        }
+        .stage-header {
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .stage-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .stage-stats {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        /* === OPPORTUNITY CARD === */
+        .opp-card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .opp-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+        .opp-name {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .opp-account {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+        .opp-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #7c3aed;
+            margin-bottom: 4px;
+        }
+        .opp-probability {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .opp-meta {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 11px;
+            color: #9ca3af;
+        }
+        
+        /* === FILTERS === */
+        .filters {
+            background: white;
+            border-radius: 12px;
+            padding: 16px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .filter-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+        }
+        select {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+        }
+        
+        /* === MODAL === */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.open {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        /* === GLOBAL SEARCH === */
+        .global-search-container {
+            position: relative;
+            max-width: 350px;
+            margin: 0 16px;
+        }
+        .global-search-input {
+            width: 100%;
+            padding: 8px 36px 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            background: rgba(255,255,255,0.9);
+        }
+        .global-search-input:focus { outline: 2px solid white; background: white; }
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+            pointer-events: none;
+        }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-top: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+        .search-results.active { display: block; }
+        .search-result-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .search-result-item:hover { background: #f9fafb; }
+        .search-result-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .search-result-content { flex: 1; }
+        .search-result-title { font-weight: 600; color: #1f2937; margin-bottom: 2px; }
+        .search-result-subtitle { font-size: 12px; color: #6b7280; }
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255,255,255,0.9);
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        .breadcrumb-link {
+            color: rgba(255,255,255,0.9);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .breadcrumb-link:hover { color: white; text-decoration: underline; }
+        .breadcrumb-separator { opacity: 0.5; }
+        .toolbar-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .toolbar-btn:hover { background: rgba(255,255,255,0.3); }
+        .toolbar-btn i { font-size: 16px; }
+        
+        /* === RESPONSIVE === */
+        @media (max-width: 1400px) {
+            .pipeline-kanban {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        @media (max-width: 900px) {
+            .pipeline-kanban {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <!-- Header -->
+        <header class="ea-header">
+            <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <h1><i class="fas fa-bullseye"></i> Opportunity Pipeline</h1>
+                    
+                    <!-- Global Search -->
+                    <div class="global-search-container">
+                        <input type="text" class="global-search-input" id="global-search-input" placeholder="Search..." autocomplete="off">
+                        <i class="fas fa-search search-icon"></i>
+                        <div class="search-results" id="search-results"></div>
+                    </div>
+                </div>
+                
+                <!-- Breadcrumbs -->
+                <div class="breadcrumbs">
+                    <a href="EA_Growth_Dashboard.html" class="breadcrumb-link"><i class="fas fa-home"></i> Home</a>
+                    <span class="breadcrumb-separator">›</span>
+                    <span>Pipeline</span>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <button class="toolbar-btn" onclick="userGuide.showContextHelp('opportunity_pipeline')" title="Help">
+                    <i class="fas fa-question"></i>
+                </button>
+                <button class="btn btn-secondary" onclick="window.location.href='EA_Account_Dashboard.html'">
+                    <i class="fas fa-building"></i> Accounts
+                </button>
+                <button class="btn btn-primary" onclick="openNewOppModal()">
+                    <i class="fas fa-plus"></i> New Opportunity
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main id="main-content">
+            <!-- Metrics Bar -->
+            <div class="metrics-bar">
+                <div class="metric-item">
+                    <span class="metric-label">Total Pipeline</span>
+                    <span class="metric-value" id="total-pipeline">$0</span>
+                    <span class="metric-subtext" id="pipeline-count">0 opportunities</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Weighted Value</span>
+                    <span class="metric-value" id="weighted-value">$0</span>
+                    <span class="metric-subtext">Probability-adjusted</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">This Quarter</span>
+                    <span class="metric-value" id="quarter-forecast">$0</span>
+                    <span class="metric-subtext" id="quarter-name">Q2 2026</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Win Rate</span>
+                    <span class="metric-value" id="win-rate">0%</span>
+                    <span class="metric-subtext" id="win-count">0 won / 0 lost</span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filters">
+                <div class="filter-group">
+                    <span class="filter-label">Account:</span>
+                    <select id="filter-account" onchange="applyFilters()">
+                        <option value="">All Accounts</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Status:</span>
+                    <select id="filter-status" onchange="applyFilters()">
+                        <option value="">All Statuses</option>
+                        <option value="discovery">Discovery</option>
+                        <option value="qualify">Qualify</option>
+                        <option value="propose">Propose</option>
+                        <option value="negotiate">Negotiate</option>
+                        <option value="close-won">Close Won</option>
+                        <option value="close-lost">Close Lost</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">View:</span>
+                    <select id="view-mode" onchange="switchView()">
+                        <option value="kanban">Kanban Board</option>
+                        <option value="list">List View</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Pipeline Kanban -->
+            <div class="pipeline-kanban" id="kanban-view">
+                <!-- Discovery Stage -->
+                <div class="pipeline-stage">
+                    <div class="stage-header">
+                        <div class="stage-title">1. Discovery</div>
+                        <div class="stage-stats" id="stats-discovery">0 opportunities • $0</div>
+                    </div>
+                    <div id="stage-discovery"></div>
+                </div>
+
+                <!-- Qualification Stage -->
+                <div class="pipeline-stage">
+                    <div class="stage-header">
+                        <div class="stage-title">2. Qualification</div>
+                        <div class="stage-stats" id="stats-qualify">0 opportunities • $0</div>
+                    </div>
+                    <div id="stage-qualify"></div>
+                </div>
+
+                <!-- Proposal Stage -->
+                <div class="pipeline-stage">
+                    <div class="stage-header">
+                        <div class="stage-title">3. Proposal</div>
+                        <div class="stage-stats" id="stats-propose">0 opportunities • $0</div>
+                    </div>
+                    <div id="stage-propose"></div>
+                </div>
+
+                <!-- Negotiation Stage -->
+                <div class="pipeline-stage">
+                    <div class="stage-header">
+                        <div class="stage-title">4. Negotiation</div>
+                        <div class="stage-stats" id="stats-negotiate">0 opportunities • $0</div>
+                    </div>
+                    <div id="stage-negotiate"></div>
+                </div>
+
+                <!-- Closed Stage -->
+                <div class="pipeline-stage">
+                    <div class="stage-header">
+                        <div class="stage-title">5. Closed</div>
+                        <div class="stage-stats" id="stats-closed">0 opportunities • $0</div>
+                    </div>
+                    <div id="stage-closed"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- New Opportunity Modal -->
+    <div id="new-opp-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">New Opportunity</h2>
+                <button class="close-modal" onclick="closeNewOppModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="new-opp-form" onsubmit="createOpportunity(event)">
+                <div class="form-group">
+                    <label class="form-label">Account</label>
+                    <select id="opp-account" class="form-input" required></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Opportunity Name</label>
+                    <input type="text" id="opp-name" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Estimated Value ($)</label>
+                    <input type="number" id="opp-value" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Probability (%)</label>
+                    <input type="number" id="opp-probability" class="form-input" min="0" max="100" value="50">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Expected Close Date</label>
+                    <input type="date" id="opp-close-date" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Executive Sponsor</label>
+                    <input type="text" id="opp-sponsor" class="form-input" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Create Opportunity</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let accountManager;
+        let allOpportunities = [];
+        let filteredOpportunities = [];
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            accountManager = new EA_AccountManager();
+            loadData();
+        });
+
+        function loadData() {
+            // Load all opportunities
+            allOpportunities = accountManager.listOpportunities();
+            filteredOpportunities = [...allOpportunities];
+            
+            // Populate account filter
+            const accounts = accountManager.listAccounts();
+            const accountSelect = document.getElementById('filter-account');
+            const oppAccountSelect = document.getElementById('opp-account');
+            
+            accounts.forEach(account => {
+                const option = new Option(account.name, account.id);
+                accountSelect.add(option.cloneNode(true));
+                oppAccountSelect.add(option);
+            });
+            
+            // Update metrics
+            updateMetrics();
+            
+            // Render kanban
+            renderKanban();
+        }
+
+        function updateMetrics() {
+            const totalValue = filteredOpportunities
+                .filter(o => !['close-won', 'close-lost'].includes(o.status))
+                .reduce((sum, o) => sum + o.estimatedValue, 0);
+            
+            const weightedValue = filteredOpportunities
+                .filter(o => !['close-won', 'close-lost'].includes(o.status))
+                .reduce((sum, o) => sum + (o.estimatedValue * (o.probability / 100)), 0);
+            
+            const won = allOpportunities.filter(o => o.status === 'close-won');
+            const lost = allOpportunities.filter(o => o.status === 'close-lost');
+            const winRate = (won.length + lost.length) > 0 ? (won.length / (won.length + lost.length)) * 100 : 0;
+            
+            // Current quarter
+            const now = new Date();
+            const currentQuarter = `${now.getFullYear()}Q${Math.ceil((now.getMonth() + 1) / 3)}`;
+            const quarterOpps = filteredOpportunities.filter(o => {
+                const closeDate = new Date(o.closeDate);
+                const oppQuarter = `${closeDate.getFullYear()}Q${Math.ceil((closeDate.getMonth() + 1) / 3)}`;
+                return oppQuarter === currentQuarter && !['close-won', 'close-lost'].includes(o.status);
+            });
+            const quarterValue = quarterOpps.reduce((sum, o) => sum + o.estimatedValue, 0);
+            
+            document.getElementById('total-pipeline').textContent = `$${(totalValue / 1000000).toFixed(1)}M`;
+            document.getElementById('pipeline-count').textContent = `${filteredOpportunities.length} opportunities`;
+            document.getElementById('weighted-value').textContent = `$${(weightedValue / 1000000).toFixed(1)}M`;
+            document.getElementById('quarter-forecast').textContent = `$${(quarterValue / 1000000).toFixed(1)}M`;
+            document.getElementById('quarter-name').textContent = currentQuarter;
+            document.getElementById('win-rate').textContent = `${winRate.toFixed(0)}%`;
+            document.getElementById('win-count').textContent = `${won.length} won / ${lost.length} lost`;
+        }
+
+        function renderKanban() {
+            const stages = {
+                discovery: { container: 'stage-discovery', opps: [], total: 0 },
+                qualify: { container: 'stage-qualify', opps: [], total: 0 },
+                propose: { container: 'stage-propose', opps: [], total: 0 },
+                negotiate: { container: 'stage-negotiate', opps: [], total: 0 },
+                closed: { container: 'stage-closed', opps: [], total: 0 }
+            };
+            
+            // Group opportunities by stage
+            filteredOpportunities.forEach(opp => {
+                let stage = opp.status;
+                if (stage === 'close-won' || stage === 'close-lost') {
+                    stage = 'closed';
+                }
+                
+                if (stages[stage]) {
+                    stages[stage].opps.push(opp);
+                    stages[stage].total += opp.estimatedValue;
+                }
+            });
+            
+            // Render each stage
+            Object.keys(stages).forEach(stageName => {
+                const stage = stages[stageName];
+                const container = document.getElementById(stage.container);
+                
+                // Update stats
+                const statsId = stageName === 'closed' ? 'stats-closed' : `stats-${stageName}`;
+                document.getElementById(statsId).textContent = 
+                    `${stage.opps.length} opportunities • $${(stage.total / 1000000).toFixed(1)}M`;
+                
+                // Render cards
+                if (stage.opps.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 20px; font-size: 12px;">No opportunities</div>';
+                    return;
+                }
+                
+                container.innerHTML = stage.opps.map(opp => {
+                    const account = accountManager.getAccount(opp.accountId);
+                    return `
+                        <div class="opp-card" onclick="viewOpportunity('${opp.id}')">
+                            <div class="opp-name">${opp.name}</div>
+                            <div class="opp-account">${account ? account.name : 'Unknown Account'}</div>
+                            <div class="opp-value">$${(opp.estimatedValue / 1000000).toFixed(2)}M</div>
+                            <div class="opp-probability">${opp.probability}% probability</div>
+                            <div class="opp-meta">
+                                <i class="fas fa-calendar"></i> ${new Date(opp.closeDate).toLocaleDateString()}
+                                <br><i class="fas fa-user"></i> ${opp.sponsor}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            });
+        }
+
+        function applyFilters() {
+            const accountFilter = document.getElementById('filter-account').value;
+            const statusFilter = document.getElementById('filter-status').value;
+            
+            filteredOpportunities = allOpportunities.filter(opp => {
+                if (accountFilter && opp.accountId !== accountFilter) return false;
+                if (statusFilter && opp.status !== statusFilter) return false;
+                return true;
+            });
+            
+            updateMetrics();
+            renderKanban();
+        }
+
+        function switchView() {
+            const viewMode = document.getElementById('view-mode').value;
+            if (viewMode === 'kanban') {
+                document.getElementById('kanban-view').style.display = 'grid';
+            } else {
+                alert('List view coming soon');
+            }
+        }
+
+        function viewOpportunity(oppId) {
+            // TODO: Open opportunity details modal
+            alert('Opportunity details view coming soon');
+        }
+
+        function openNewOppModal() {
+            document.getElementById('new-opp-modal').classList.add('open');
+        }
+
+        function closeNewOppModal() {
+            document.getElementById('new-opp-modal').classList.remove('open');
+        }
+
+        function createOpportunity(event) {
+            event.preventDefault();
+            
+            const opportunity = accountManager.createOpportunity({
+                accountId: document.getElementById('opp-account').value,
+                name: document.getElementById('opp-name').value,
+                estimatedValue: parseFloat(document.getElementById('opp-value').value),
+                probability: parseInt(document.getElementById('opp-probability').value),
+                closeDate: document.getElementById('opp-close-date').value,
+                sponsor: document.getElementById('opp-sponsor').value,
+                status: 'discovery',
+                createdBy: 'user'
+            });
+            
+            alert('Opportunity created: ' + opportunity.id);
+            closeNewOppModal();
+            loadData();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // GLOBAL SEARCH
+        // ═══════════════════════════════════════════════════════════════════
+
+        let globalSearch;
+        document.getElementById('global-search-input')?.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            const resultsDiv = document.getElementById('search-results');
+            
+            if (!query) {
+                resultsDiv.classList.remove('active');
+                return;
+            }
+
+            if (!globalSearch) {
+                globalSearch = new EA_GlobalSearch();
+                globalSearch.buildSearchIndex();
+            }
+
+            const results = globalSearch.search(query, {}).slice(0, 5);
+            
+            if (results.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #9ca3af;">No results found</div>';
+            } else {
+                resultsDiv.innerHTML = results.map(result => {
+                    const iconMap = {
+                        account: { icon: 'building', color: '#10b981' },
+                        opportunity: { icon: 'bullseye', color: '#7c3aed' },
+                        engagement: { icon: 'diagram-project', color: '#3b82f6' }
+                    };
+                    const icon = iconMap[result.type] || { icon: 'file', color: '#6b7280' };
+                    
+                    return `
+                        <div class="search-result-item" onclick="navigateToResult('${result.type}', '${result.id}')">
+                            <div class="search-result-icon" style="background: ${icon.color}20; color: ${icon.color};">
+                                <i class="fas fa-${icon.icon}"></i>
+                            </div>
+                            <div class="search-result-content">
+                                <div class="search-result-title">${result.name}</div>
+                                <div class="search-result-subtitle">${result.type.toUpperCase()}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            resultsDiv.classList.add('active');
+        });
+
+        document.addEventListener('click', function(e) {
+            const searchContainer = document.querySelector('.global-search-container');
+            if (!searchContainer?.contains(e.target)) {
+                document.getElementById('search-results')?.classList.remove('active');
+            }
+        });
+
+        function navigateToResult(type, id) {
+            const crossNav = new EA_CrossNavigation();
+            
+            if (type === 'account') {
+                crossNav.goToAccount(id);
+            } else if (type === 'opportunity') {
+                crossNav.goToOpportunity(id);
+            } else if (type === 'engagement') {
+                crossNav.goToEngagement(id);
+            }
+        }
+    </script>
+</body>
+</html>
