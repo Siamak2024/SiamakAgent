@@ -18,7 +18,7 @@
     <script src="../../js/EA_Analytics.js"></script>
     <script src="../../js/EA_DataBackupManager.js"></script>
     <script src="../../js/EA_UserGuide.js"></script>
-    <script src="../../js/EA_AIAssistant.js"></script>
+    <script src="../../js/EA_UnifiedAIAssistant.js"></script>
     <script src="../../js/EA_WorkflowEngine.js"></script>
     <script src="../../js/EA_IntegrationBridge.js"></script>
     <script src="engagement_schema.js"></script>
@@ -247,9 +247,9 @@
         /* === AI PANEL === */
         #ai-chat-panel {
             position: fixed;
-            right: -400px;
+            right: -500px;
             top: 0;
-            width: 400px;
+            width: 500px;
             height: 100vh;
             background: white;
             box-shadow: -2px 0 8px rgba(0,0,0,0.1);
@@ -268,6 +268,17 @@
         #send-chat { width: 100%; margin-top: 8px; background: #10b981; color: white; }
         
         .message { margin-bottom: 16px; }
+        .message-user { display: flex; justify-content: flex-end; }
+        .message-assistant { display: flex; justify-content: flex-start; }
+        .message-content { padding: 12px 16px; border-radius: 12px; max-width: 85%; }
+        .message-user .message-content { background: #10b981; color: white; }
+        .message-assistant .message-content { background: #f3f4f6; color: #1f2937; }
+        .quick-prompts { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; }
+        .quick-prompts-label { font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; }
+        .quick-prompt-btn { display: block; width: 100%; text-align: left; padding: 8px 12px; margin-bottom: 6px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer; font-size: 13px; color: #4b5563; transition: all 0.2s; }
+        .quick-prompt-btn:hover { background: #f3f4f6; border-color: #10b981; color: #10b981; }
+        .typing-indicator { display: none; padding: 12px; color: #6b7280; font-style: italic; font-size: 13px; }
+        .typing-indicator.active { display: block; }
         .message-user { text-align: right; }
         .message-content {
             display: inline-block;
@@ -527,9 +538,18 @@
             <h3><i class="fas fa-robot"></i> AI Assistant</h3>
             <button class="close-chat" onclick="toggleChatPanel()"><i class="fas fa-times"></i></button>
         </div>
+        <div class="quick-prompts">
+            <div class="quick-prompts-label">Quick Actions</div>
+            <button class="quick-prompt-btn" onclick="sendQuickPrompt(0)">Analyze account health and suggest improvements</button>
+            <button class="quick-prompt-btn" onclick="sendQuickPrompt(1)">What are the key risks for this account?</button>
+            <button class="quick-prompt-btn" onclick="sendQuickPrompt(2)">Suggest next best actions to expand this account</button>
+        </div>
         <div id="chat-messages"></div>
+        <div class="typing-indicator" id="typing-indicator">
+            <i class="fas fa-circle-notch fa-spin"></i> AI is thinking...
+        </div>
         <div class="chat-input-area">
-            <textarea id="chat-input" rows="3" placeholder="Ask me anything about this account..."></textarea>
+            <textarea id="chat-input" rows="3" placeholder="Ask me anything about this account..." onkeypress="handleChatKeypress(event)"></textarea>
             <button id="send-chat" class="btn btn-primary" onclick="sendChatMessage()">
                 <i class="fas fa-paper-plane"></i> Send
             </button>
@@ -540,10 +560,17 @@
         // Global variables
         let accountManager;
         let currentAccountId = null;
+        let aiAssistant;
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             accountManager = new EA_AccountManager();
+            
+            // Initialize AI Assistant
+            setTimeout(() => {
+                aiAssistant = new EA_UnifiedAIAssistant();
+                console.log('AI Assistant ready');
+            }, 500);
             
             // Check if account ID is in URL
             const urlParams = new URLSearchParams(window.location.search);
@@ -807,28 +834,94 @@
         function toggleChatPanel() {
             const panel = document.getElementById('ai-chat-panel');
             panel.classList.toggle('open');
+            
+            // Show welcome message on first open
+            const messagesDiv = document.getElementById('chat-messages');
+            if (panel.classList.contains('open') && messagesDiv.children.length === 0) {
+                addChatMessage('Hello! I\'m your EA assistant. I can help you analyze this account, identify opportunities, assess risks, and provide strategic guidance. How can I help you today?', 'assistant');
+            }
         }
 
-        function sendChatMessage() {
+        async function sendChatMessage() {
             const input = document.getElementById('chat-input');
             const message = input.value.trim();
             
             if (!message) return;
             
+            if (!aiAssistant) {
+                addChatMessage('AI Assistant is still initializing. Please wait a moment and try again.', 'assistant');
+                return;
+            }
+            
+            // Add user message
             addChatMessage(message, 'user');
             input.value = '';
             
-            // TODO: Call AI Assistant
-            setTimeout(() => {
-                addChatMessage('AI Assistant integration coming soon. I can help you analyze account health, identify opportunities, and generate insights.', 'assistant');
-            }, 500);
+            // Show typing indicator
+            const typingIndicator = document.getElementById('typing-indicator');
+            typingIndicator.classList.add('active');
+            
+            // Disable send button
+            const sendBtn = document.getElementById('send-chat');
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending...';
+            
+            try {
+                // Refresh context before sending
+                aiAssistant.refreshContext();
+                
+                // Send to AI
+                const response = await aiAssistant.chat(message);
+                
+                // Add assistant response
+                addChatMessage(response.message, 'assistant');
+                
+            } catch (error) {
+                console.error('Chat error:', error);
+                addChatMessage('I encountered an error processing your request. Please try again.', 'assistant');
+            } finally {
+                // Hide typing indicator
+                typingIndicator.classList.remove('active');
+                
+                // Re-enable send button
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
+            }
+        }
+
+        async function sendQuickPrompt(index) {
+            if (!aiAssistant) {
+                addChatMessage('AI Assistant is still initializing. Please wait a moment and try again.', 'assistant');
+                return;
+            }
+            
+            const prompt = aiAssistant.getSuggestedPrompt(index);
+            if (prompt) {
+                document.getElementById('chat-input').value = prompt;
+                await sendChatMessage();
+            }
+        }
+
+        function handleChatKeypress(event) {
+            // Send on Enter (without Shift)
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendChatMessage();
+            }
         }
 
         function addChatMessage(content, role) {
             const messagesDiv = document.getElementById('chat-messages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message message-${role}`;
-            messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
+            
+            // Convert markdown-style formatting to HTML
+            const formattedContent = content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>');
+            
+            messageDiv.innerHTML = `<div class="message-content">${formattedContent}</div>`;
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
