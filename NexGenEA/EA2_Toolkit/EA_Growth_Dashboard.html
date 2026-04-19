@@ -156,6 +156,31 @@
             flex-direction: column;
         }
         #ai-chat-panel.open { right: 0; }
+        #ai-chat-panel.resizing { transition: none; }
+        .resize-handle {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 8px;
+            cursor: ew-resize;
+            background: transparent;
+            z-index: 10;
+        }
+        .resize-handle:hover {
+            background: rgba(94, 140, 106, 0.2);
+        }
+        .resize-handle::before {
+            content: '';
+            position: absolute;
+            left: 3px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 2px;
+            height: 40px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 1px;
+        }
         .chat-header { background: var(--ea-primary); color: white; padding: 16px; display: flex; justify-content: space-between; align-items: center; }
         .chat-header h3 { margin: 0; font-size: 16px; }
         .close-chat { background: none; border: none; color: white; cursor: pointer; font-size: 20px; }
@@ -733,6 +758,9 @@
             console.log('✅ UserGuide initialized:', userGuide);
             console.log('✅ startTutorial method exists:', typeof userGuide.startTutorial === 'function');
             
+            // Initialize resizable panel
+            initializeResizablePanel();
+            
             templateManager = new EA_TemplateManager();
             console.log('✅ TemplateManager initialized');
             
@@ -767,14 +795,79 @@
         // AI CHAT PANEL
         // ═══════════════════════════════════════════════════════════════════
 
+        function initializeResizablePanel() {
+            const panel = document.getElementById('ai-chat-panel');
+            const resizeHandle = document.getElementById('resize-handle');
+            let isResizing = false;
+            let startX = 0;
+            let startWidth = 0;
+            
+            // Load saved width from localStorage
+            const savedWidth = localStorage.getItem('ea_ai_panel_width');
+            if (savedWidth) {
+                const width = parseInt(savedWidth);
+                panel.style.width = width + 'px';
+                panel.style.right = '-' + width + 'px';
+            }
+            
+            resizeHandle.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                startX = e.clientX;
+                startWidth = panel.offsetWidth;
+                panel.classList.add('resizing');
+                document.body.style.cursor = 'ew-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                
+                const delta = startX - e.clientX;
+                let newWidth = startWidth + delta;
+                
+                // Constrain width between 300px and 800px
+                newWidth = Math.max(300, Math.min(800, newWidth));
+                
+                panel.style.width = newWidth + 'px';
+                
+                // Update right position if panel is open
+                if (panel.classList.contains('open')) {
+                    panel.style.right = '0px';
+                } else {
+                    panel.style.right = '-' + newWidth + 'px';
+                }
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    panel.classList.remove('resizing');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                    
+                    // Save width to localStorage
+                    localStorage.setItem('ea_ai_panel_width', panel.offsetWidth);
+                }
+            });
+        }
+
         function toggleChatPanel() {
             const panel = document.getElementById('ai-chat-panel');
-            panel.classList.toggle('open');
+            const width = panel.offsetWidth;
             
-            // Show welcome message on first open
-            const messagesDiv = document.getElementById('chat-messages');
-            if (panel.classList.contains('open') && messagesDiv.children.length === 0) {
-                addChatMessage('Hello! I\'m your Growth Sprint AI assistant. I can help you prioritize accounts, analyze your pipeline, improve win rates, and optimize your portfolio strategy. How can I help you today?', 'assistant');
+            if (panel.classList.contains('open')) {
+                panel.style.right = '-' + width + 'px';
+                panel.classList.remove('open');
+            } else {
+                panel.style.right = '0px';
+                panel.classList.add('open');
+                
+                // Show welcome message on first open
+                const messagesDiv = document.getElementById('chat-messages');
+                if (messagesDiv.children.length === 0) {
+                    addChatMessage('Hello! I\'m your Growth Sprint AI assistant. I can help you prioritize accounts, analyze your pipeline, improve win rates, and optimize your portfolio strategy. How can I help you today?', 'assistant');
+                }
             }
         }
 
@@ -1621,6 +1714,7 @@
 
     <!-- AI Chat Panel (Sidebar) -->
     <div id="ai-chat-panel">
+        <div class="resize-handle" id="resize-handle"></div>
         <div class="chat-header">
             <h3><i class="fas fa-robot"></i> AI Assistant</h3>
             <button class="close-chat" onclick="toggleChatPanel()"><i class="fas fa-times"></i></button>
