@@ -608,7 +608,7 @@ const QuestionCard = (() => {
                       font-weight:600;padding:12px 16px;background:rgba(99,102,241,0.08);border-left:3px solid #6366f1;
                       border-radius:6px;">
             <span style="font-size:11px;font-weight:700;color:#818cf8;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px;">
-              📋 Fråga
+              📋 QUESTION
             </span>
             ${_formatQuestionText(opts.question)}
           </div>

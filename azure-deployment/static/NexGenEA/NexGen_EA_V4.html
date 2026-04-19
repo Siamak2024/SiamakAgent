@@ -10682,6 +10682,25 @@ Want to follow the structured approach instead? Say "start step 1" or "begin sta
     return { content: response, metadata: null };
   }
 
+  // -- START STEP 1 (Strategic Intent) ----------------------------------------
+  if (/\b(start|begin|börja)\s+(step 1|steg 1|strategic intent)\b/i.test(userMessage)) {
+    // Start preliminary questionnaire before Step 1
+    setTimeout(() => {
+      startPreliminaryQuestionnaire();
+    }, 500);
+    
+    const lang = getAppLanguage();
+    const response = lang === 'sv'
+      ? `## 🎯 Startar Strategic Intent (Step 1)!
+
+Innan vi börjar behöver jag lite kontext om din organisation...`
+      : `## 🎯 Starting Strategic Intent (Step 1)!
+
+Before we begin, I need some context about your organization...`;
+    
+    return { content: response, metadata: null };
+  }
+
   // If a step-focused chat is active, route through step-specific handler
   if (window._stepChatContext) {
     if (/\b(exit|close|back|general|reset context)\b/i.test(userMessage)) {
@@ -12064,6 +12083,113 @@ function _showClarificationGate(hypothesis, questions) {
   });
 }
 
+// -- PRELIMINARY QUESTIONNAIRE (Before Step 1) ---------------------------------
+async function startPreliminaryQuestionnaire() {
+  const lang = getAppLanguage();
+  
+  // Question 1: Industry
+  const industry = await QuestionCard.show({
+    taskId: 'preliminary_industry',
+    title: lang === 'sv' ? 'Fråga 1 av 3' : 'Question 1 of 3',
+    question: lang === 'sv' 
+      ? 'Vilken bransch verkar din organisation i?' 
+      : 'What industry does your organization operate in?',
+    options: [
+      'Financial Services / Banking',
+      'Insurance',
+      'Healthcare',
+      'Retail / E-commerce',
+      'Manufacturing',
+      'Technology / Software',
+      'Telecommunications',
+      'Energy / Utilities',
+      'Government / Public Sector',
+      'Real Estate / Property',
+      'Transportation / Logistics',
+      'Professional Services',
+      'Education',
+      'Other'
+    ],
+    allowSkip: false,
+    taskIndex: 0,
+    totalTasks: 3
+  });
+  
+  // Question 2: Company Size
+  const companySize = await QuestionCard.show({
+    taskId: 'preliminary_size',
+    title: lang === 'sv' ? 'Fråga 2 av 3' : 'Question 2 of 3',
+    question: lang === 'sv'
+      ? 'Hur stor är er organisation?'
+      : 'What is the size of your organization?',
+    options: [
+      'Startup (< 50 employees)',
+      'Small (50-250 employees)',
+      'Medium (250-1,000 employees)',
+      'Large (1,000-5,000 employees)',
+      'Enterprise (5,000+ employees)',
+      'Government / Public Sector'
+    ],
+    allowSkip: false,
+    taskIndex: 1,
+    totalTasks: 3
+  });
+  
+  // Question 3: Geographic Region
+  const geography = await QuestionCard.show({
+    taskId: 'preliminary_geography',
+    title: lang === 'sv' ? 'Fråga 3 av 3' : 'Question 3 of 3',
+    question: lang === 'sv'
+      ? 'Vilken geografisk region verkar ni i?'
+      : 'What geographic region do you operate in?',
+    options: [
+      'Sweden',
+      'Nordics (Sweden, Norway, Denmark, Finland)',
+      'Europe',
+      'North America',
+      'Asia Pacific',
+      'Middle East',
+      'Africa',
+      'Latin America',
+      'Global / Multi-region'
+    ],
+    allowSkip: false,
+    taskIndex: 2,
+    totalTasks: 3
+  });
+  
+  // Store preliminary context
+  if (!model.masterData) model.masterData = {};
+  model.masterData.industry = industry;
+  model.masterData.companySize = companySize;
+  model.masterData.geography = geography;
+  
+  // Show confirmation and proceed to Step 1
+  const confirmMsg = lang === 'sv'
+    ? `## ✅ Kontext mottagen!
+
+**Din organisations profil:**
+- 🏢 **Bransch:** ${industry}
+- 📊 **Storlek:** ${companySize}
+- 🌍 **Region:** ${geography}
+
+Nu går vi vidare till **Step 1: Strategic Intent** där du beskriver din organisations strategiska utmaning...`
+    : `## ✅ Context Received!
+
+**Your organization profile:**
+- 🏢 **Industry:** ${industry}
+- 📊 **Size:** ${companySize}
+- 🌍 **Region:** ${geography}
+
+Now proceeding to **Step 1: Strategic Intent** where you'll describe your organization's strategic challenge...`;
+  
+  addAssistantMessage(confirmMsg);
+  
+  // Small delay then start Step 1
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  await clarifyStrategicIntent();
+}
+
 async function clarifyStrategicIntent() {
   // -- Ensure chat panel is open --
   const panel = document.getElementById('ai-chat-panel');
@@ -12071,6 +12197,13 @@ async function clarifyStrategicIntent() {
     toggleChatPanel();
     // Small delay to let chat panel animate open before showing content
     await new Promise(resolve => setTimeout(resolve, 200));
+  }
+
+  // -- Check if preliminary context is needed --
+  if (!model.masterData || !model.masterData.industry || !model.masterData.companySize || !model.masterData.geography) {
+    // First time starting Step 1 - collect preliminary context
+    await startPreliminaryQuestionnaire();
+    return; // startPreliminaryQuestionnaire will call clarifyStrategicIntent again
   }
 
   // -- Get or request description via chat --
