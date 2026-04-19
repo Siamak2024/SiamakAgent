@@ -11775,6 +11775,8 @@ Each step prompt must be a complete system prompt string � not a title, not a 
 
 CRITICAL � COMPANY ATTRIBUTE RULE: Do NOT invent specific service lines, geographic corridors, system names, customer types, or revenue figures that the user did not state. If an attribute is unknown, mark it with [to be confirmed] rather than fabricating a plausible-sounding value. Only use details explicitly stated by the user in the company description.
 
+CRITICAL � LANGUAGE RULE: ALL clarification_questions, options, and text content MUST be in English. Never use Swedish, Norwegian, Danish, Finnish, or any other language. The platform's default language is English.
+
 Return ONLY valid JSON � no prose, no markdown outside the JSON structure.`;
 
   const metaUser = `Company description: "${desc}"
@@ -11924,15 +11926,23 @@ function _showClarificationGate(hypothesis, questions) {
 
     const questionsHtml = (questions || []).map((q, qi) => `
       <div style="margin-bottom:10px;" id="cg-q-${qi}">
-        <div style="font-size:10px;font-weight:700;color:#334155;margin-bottom:5px;">${qi + 1}. ${q.question}</div>
+        <div style="font-size:10px;font-weight:700;color:#334155;margin-bottom:5px;">
+          ${qi + 1}. ${q.question}
+          <span style="font-size:8px;color:#94a3b8;font-weight:400;margin-left:4px;">(Select one or more)</span>
+        </div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;">
           ${(q.options || []).map((opt, oi) => `
             <button type="button"
-              onclick="_cgSelectOption(${qi}, '${q.id}', ${oi}, this)"
+              onclick="_cgSelectOption(${qi}, '${q.id}', ${oi}, this, '${opt.replace(/'/g, "\\'")}')"
               style="font-size:9px;padding:3px 8px;border-radius:6px;border:1px solid #cbd5e1;background:#fff;color:#475569;cursor:pointer;transition:all 0.15s;"
-              data-qi="${qi}" data-oi="${oi}">
+              data-qi="${qi}" data-oi="${oi}" data-option="${opt}">
               ${opt}
             </button>`).join('')}
+        </div>
+        <div id="cg-q-${qi}-custom" style="margin-top:6px;display:none;">
+          <input type="text" id="cg-q-${qi}-custom-input" placeholder="Type your custom answer..."
+            style="width:100%;font-size:9px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;color:#334155;"
+            oninput="_cgUpdateCustomInput(${qi}, '${q.id}', this.value)">
         </div>
       </div>`).join('');
 
@@ -11943,7 +11953,7 @@ function _showClarificationGate(hypothesis, questions) {
       <div class="message-avatar"><i class="fas fa-robot"></i></div>
       <div class="message-content" style="width:100%;">
         <div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:8px;">Before generating � confirm a few key details</div>
-        <div style="font-size:10px;color:#64748b;margin-bottom:10px;line-height:1.4;">Answer what you can. Skip questions that aren't relevant. The AI will use your answers to produce a sharper, more grounded output.</div>
+        <div style="font-size:10px;color:#64748b;margin-bottom:10px;line-height:1.4;">Answer what you can. You can select multiple options per question. Choose "Other" to add your own custom answer. Skip questions that aren't relevant. The AI will use your answers to produce a sharper, more grounded output.</div>
         ${hypothesisHtml}
         ${questionsHtml}
         <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
@@ -11968,15 +11978,72 @@ function _showClarificationGate(hypothesis, questions) {
     window._cgAnswers = answers;
     window._cgResolve = resolve;
 
-    window._cgSelectOption = (qi, id, oi, btn) => {
-      // Deselect others in same question
-      const group = card.querySelectorAll(`[data-qi="${qi}"]`);
-      group.forEach(b => { b.style.background = '#fff'; b.style.color = '#475569'; b.style.borderColor = '#cbd5e1'; });
-      // Select this one
-      btn.style.background = '#4f46e5';
-      btn.style.color = '#fff';
-      btn.style.borderColor = '#4f46e5';
-      window._cgAnswers[id] = btn.textContent.trim();
+    window._cgSelectOption = (qi, id, oi, btn, optionText) => {
+      const isSelected = btn.style.background === 'rgb(79, 70, 229)' || btn.style.background === '#4f46e5';
+      
+      // Toggle selection
+      if (isSelected) {
+        // Deselect
+        btn.style.background = '#fff';
+        btn.style.color = '#475569';
+        btn.style.borderColor = '#cbd5e1';
+        
+        // Remove from answers - handle both single and multi-select
+        if (Array.isArray(window._cgAnswers[id])) {
+          window._cgAnswers[id] = window._cgAnswers[id].filter(v => v !== optionText);
+          if (window._cgAnswers[id].length === 0) delete window._cgAnswers[id];
+        } else if (window._cgAnswers[id] === optionText) {
+          delete window._cgAnswers[id];
+        }
+        
+        // Hide custom input if deselecting "Other"
+        if (optionText.toLowerCase().includes('other')) {
+          const customDiv = document.getElementById(`cg-q-${qi}-custom`);
+          if (customDiv) customDiv.style.display = 'none';
+        }
+      } else {
+        // Select
+        btn.style.background = '#4f46e5';
+        btn.style.color = '#fff';
+        btn.style.borderColor = '#4f46e5';
+        
+        // Add to answers - support multi-select by using array
+        if (window._cgAnswers[id]) {
+          // Already has an answer - convert to array if needed
+          if (!Array.isArray(window._cgAnswers[id])) {
+            window._cgAnswers[id] = [window._cgAnswers[id]];
+          }
+          if (!window._cgAnswers[id].includes(optionText)) {
+            window._cgAnswers[id].push(optionText);
+          }
+        } else {
+          window._cgAnswers[id] = optionText;
+        }
+        
+        // Show custom input if selecting "Other"
+        if (optionText.toLowerCase().includes('other')) {
+          const customDiv = document.getElementById(`cg-q-${qi}-custom`);
+          if (customDiv) {
+            customDiv.style.display = 'block';
+            const input = document.getElementById(`cg-q-${qi}-custom-input`);
+            if (input) input.focus();
+          }
+        }
+      }
+    };
+
+    window._cgUpdateCustomInput = (qi, id, value) => {
+      if (value.trim()) {
+        // Update the answer with custom value
+        const currentAnswer = window._cgAnswers[id];
+        if (Array.isArray(currentAnswer)) {
+          // Remove any previous "Other" entries and add custom value
+          window._cgAnswers[id] = currentAnswer.filter(v => !v.toLowerCase().includes('other'));
+          window._cgAnswers[id].push(value.trim());
+        } else {
+          window._cgAnswers[id] = value.trim();
+        }
+      }
     };
 
     window._cgSubmit = () => {
