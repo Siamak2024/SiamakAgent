@@ -622,3 +622,100 @@ async function generateDemoForAllCustomers() {
     showNotification(`Generated ${count} demo heatmap(s)`, 'success');
     renderWhiteSpotHeatmap();
 }
+
+/**
+ * Generate WhiteSpot demo data for standalone mode
+ * Creates demo customers and heatmaps compatible with standalone manager
+ */
+async function generateWhiteSpotDemoData() {
+    // Check if we're in standalone mode
+    const isStandalone = typeof window.whitespotStandaloneManager !== 'undefined';
+    const manager = isStandalone ? window.whitespotStandaloneManager : window.engagementManager;
+    
+    if (!manager) {
+        showNotification('No data manager available', 'error');
+        return;
+    }
+    
+    try {
+        // Demo customers for standalone mode
+        const demoCustomers = [
+            {
+                id: 'demo-cust-001',
+                name: 'Global Bank International',
+                industry: 'Financial Services',
+                segment: 'Enterprise',
+                region: 'EMEA',
+                description: 'Leading retail and commercial bank with digital transformation initiative',
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: 'demo-cust-002',
+                name: 'TechCorp Solutions',
+                industry: 'Technology',
+                segment: 'Mid-Market',
+                region: 'North America',
+                description: 'Software development company seeking managed services',
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: 'demo-cust-003',
+                name: 'HealthFirst Medical Group',
+                industry: 'Healthcare',
+                segment: 'Enterprise',
+                region: 'North America',
+                description: 'Healthcare provider modernizing IT infrastructure',
+                createdAt: new Date().toISOString()
+            }
+        ];
+        
+        const scenarios = ['mature', 'emerging', 'mixed'];
+        let customersAdded = 0;
+        let heatmapsGenerated = 0;
+        
+        // Add demo customers and generate heatmaps
+        for (let i = 0; i < demoCustomers.length; i++) {
+            const customer = demoCustomers[i];
+            
+            // Add customer if it doesn't exist
+            const existingCustomer = manager.getCustomers().find(c => c.id === customer.id);
+            if (!existingCustomer) {
+                if (isStandalone) {
+                    manager.addCustomer(customer);
+                } else {
+                    manager.addEntity('customers', customer);
+                }
+                customersAdded++;
+            }
+            
+            // Generate heatmap if it doesn't exist
+            const existingHeatmap = manager.getHeatmaps().find(h => h.customerId === customer.id);
+            if (!existingHeatmap) {
+                const customerObj = existingCustomer || customer;
+                const scenario = scenarios[i % scenarios.length];
+                const heatmap = await generateDemoHeatmap(customerObj, scenario);
+                
+                if (isStandalone) {
+                    manager.addHeatmap(heatmap);
+                } else {
+                    manager.addEntity('whiteSpotHeatmaps', heatmap);
+                }
+                heatmapsGenerated++;
+            }
+        }
+        
+        showNotification(
+            `Demo loaded: ${customersAdded} customer(s), ${heatmapsGenerated} heatmap(s)`, 
+            'success'
+        );
+        
+        // Refresh the UI
+        if (typeof renderWhiteSpotHeatmap === 'function') {
+            renderWhiteSpotHeatmap();
+        }
+        
+    } catch (error) {
+        console.error('Failed to generate demo data:', error);
+        showNotification(`Demo generation failed: ${error.message}`, 'error');
+    }
+}
