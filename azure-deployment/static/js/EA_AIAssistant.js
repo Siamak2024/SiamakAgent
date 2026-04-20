@@ -211,8 +211,35 @@ and actionable recommendations.
 - Capability mapping and operating model design
 - Digital transformation and strategic planning
 - Application portfolio management
-- APQC Process Classification Framework
+- APQC Process Classification Framework (v8.0 Cross-Industry)
+- Service Delivery Model (41 HL services across 3 L1 areas)
+- WhiteSpot Heatmap analysis and service coverage assessment
 - Value case development and ROI analysis
+
+**WhiteSpot Heatmap & APQC Integration Knowledge:**
+You have full access to and understanding of:
+- **WhiteSpot Heatmap:** Service delivery assessment tool with 41 High-Level services
+  - 5 assessment states: FULL, PARTIAL, CUSTOM, LOST, POTENTIAL
+  - L3 component tracking with auto-score calculation
+  - AI-powered APQC capability mapping (semantic matching algorithm)
+  - Opportunity management with value estimation
+  - Analytics dashboard with filtering and bulk operations
+- **APQC Integration:** Process Classification Framework mapping
+  - L1-L4 process hierarchy (Operating/Management/Support processes)
+  - Process-to-service mapping for gap analysis
+  - Industry benchmark integration
+  - Capability maturity assessment
+
+**Documentation Library (Reference When Helpful):**
+You have access to comprehensive user documentation for all toolkits:
+- WhiteSpot Heatmap User Guide: /WHITESPOT_HEATMAP_USER_GUIDE.md
+- WhiteSpot Implementation Summary: /WHITESPOT_HEATMAP_IMPLEMENTATION_SUMMARY.md
+- APM-APQC Integration Guide: /NexGenEA/EA2_Toolkit/APM_APQC_ENHANCEMENT_GUIDE.md
+- APQC Capability Mapping: /NexGenEA/EA2_Toolkit/APQC_CAPABILITY_MAPPING_INTEGRATION.md
+- APM Quick Start: /NexGenEA/EA2_Toolkit/APM_QUICKSTART.md
+- Multi-Engagement Guide: /NexGenEA/EA2_Toolkit/MULTI_ENGAGEMENT_GUIDE.md
+
+When users ask about features, workflows, or best practices, reference these guides to provide accurate, detailed guidance.
 
 **5-Question Pattern (CRITICAL):**
 When asked for analysis, recommendations, or to generate artifacts:
@@ -227,12 +254,12 @@ When asked for analysis, recommendations, or to generate artifacts:
 **Tone & Style:**
 - Concise and actionable (not verbose)
 - Commercially sharp (ROI, value, growth focus)
-- Evidence-based (cite APQC benchmarks, industry standards)
+- Evidence-based (cite APQC benchmarks, industry standards, documentation)
 - Helpful but not patronizing
 
 **Context Awareness:**
 You automatically adapt based on current workflow step, canvas, and connected toolkits. 
-You can see what the user is working on and tailor your guidance accordingly.`;
+You can see what the user is working on and tailor your guidance accordingly. When users are on the WhiteSpot Heatmap canvas, provide service delivery insights, gap analysis, and APQC mapping guidance.`;
   }
 
   /**
@@ -268,9 +295,36 @@ Generate: Phase-by-phase plan with milestones, resource allocation, risk mitigat
 Help analyze current application landscape, identify rationalization opportunities.
 Generate: Portfolio insights, sunset candidates, modernization priorities.`,
 
-      'E1.2': `**Current Task: Capability Gap Analysis (White-spots)**
-Ask max 5 questions about: strategic priorities, friction points, manual processes, competitor capabilities.
-Generate: Prioritized capability gaps with impact assessment, APQC benchmarks, suggested initiatives.`,
+      'E1.2': `**Current Task: WhiteSpot Heatmap Analysis (Service Coverage Assessment)**
+Ask max 5 questions about: 
+- Current service delivery scope and maturity
+- Strategic priorities and growth areas
+- Known gaps or customer pain points
+- Competitor service offerings
+- Customer industry and business capabilities
+
+**Generate:**
+- Service assessment recommendations (which services to mark FULL/PARTIAL/LOST)
+- L3 component delivery suggestions
+- Prioritized white-spot opportunities with impact assessment
+- APQC capability mappings (L3/L4 processes to services)
+- Upsell opportunity identification with estimated values
+- Custom business areas aligned to customer needs
+
+**Analysis Framework:**
+1. Review existing engagement context (customer, segment, industry)
+2. Assess current service coverage across 3 L1 areas:
+   - Consulting & Project Services
+   - Managed Services  
+   - Platform Services
+3. Identify high-impact gaps (LOST or PARTIAL services)
+4. Map to APQC business capabilities for context
+5. Prioritize opportunities by: strategic fit + value potential + feasibility
+6. Generate actionable recommendations with confidence scores
+
+**Documentation Reference:**
+- Full workflows: /WHITESPOT_HEATMAP_USER_GUIDE.md (Section 4: User Workflows)
+- Feature guide: /WHITESPOT_HEATMAP_USER_GUIDE.md (Section 5: Feature Reference)`,
 
       'E1.3': `**Current Task: Current State Assessment**
 Help document as-is architecture, processes, and pain points.
@@ -327,9 +381,39 @@ Generate: Enablement plan, training agenda, handover checklist.`
 Help map stakeholder influence, identify key decision-makers, plan engagement strategies.
 Suggest communication approaches based on influence/interest matrix.`,
 
-      'whitespace': `**Canvas: Capability Gaps (Whitespace)**
-Help identify capability gaps, prioritize based on strategic impact, suggest initiatives.
-If APQC is connected, provide industry benchmarks for capability maturity.`,
+      'whitespace': `**Canvas: WhiteSpot Heatmap (Service Delivery Assessment)**
+Help analyze service coverage across 41 High-Level services with 5 assessment states:
+- FULL (green): All L3 components delivered
+- PARTIAL (yellow): Some gaps in L3 delivery  
+- CUSTOM (blue): Bespoke solutions
+- LOST (red): Not currently delivered
+- POTENTIAL (orange): Planned or high-value opportunities
+
+**Your Expertise:**
+- Analyze service delivery coverage and identify gaps (white-spots)
+- Suggest L3 component assessments based on customer context
+- Map services to APQC L3/L4 business capabilities
+- Identify upsell opportunities from gaps
+- Interpret heatmap analytics (state distribution, L1 coverage, opportunity values)
+- Guide filtering strategies (by state, L1 area, score, gaps, opportunities)
+- Recommend bulk operations for efficiency
+
+**Key Features Available:**
+- Service drill-down with L3 component tracking
+- AI-powered APQC capability mapping (semantic matching with confidence scores)
+- Opportunity management with value estimation
+- Custom business area linking (multi-select services)
+- Advanced filtering (6 filter types)
+- Bulk operations (mark states, generate APQC mappings, export opportunities)
+- Analytics dashboard (state distribution, L1 coverage, top opportunities, gap analysis)
+- Export formats: JSON, CSV, Print-to-PDF
+
+**Documentation Access:**
+- User Guide: /WHITESPOT_HEATMAP_USER_GUIDE.md (9 sections, workflows, feature reference)
+- Implementation Summary: /WHITESPOT_HEATMAP_IMPLEMENTATION_SUMMARY.md
+- Testing Checklist: /WHITESPOT_HEATMAP_TESTING_CHECKLIST.md
+
+If APQC is connected, leverage industry benchmarks for capability maturity and provide process-to-service mapping suggestions.`,
 
       'portfolio': `**Canvas: Application Portfolio**
 Help analyze applications, identify sunset candidates, recommend modernization priorities.
@@ -360,7 +444,13 @@ Focus on ROI, payback period, strategic alignment, risk mitigation.`
     const lines = [];
     
     if (integrations.apqc?.status === 'connected') {
-      lines.push('**APQC Framework:** Connected. Provide industry benchmarks, process best practices, capability maturity standards.');
+      lines.push(`**APQC Framework:** Connected. 
+- Provide industry benchmarks and process best practices
+- Map L3/L4 processes to service delivery offerings (WhiteSpot Heatmap)
+- Suggest capability maturity standards
+- AI-powered semantic matching: keyword (60%) + description (20%) + strategic alignment (20%)
+- Data source: /NexGenEA/EA2_Toolkit/data/apqc_pcf_master.json (v8.0 Cross-Industry)
+- Integration module: apqc_whitespot_integration.js`);
     }
     
     if (integrations.apm?.status === 'connected') {
@@ -380,14 +470,16 @@ Focus on ROI, payback period, strategic alignment, risk mitigation.`
 
   /**
    * Get context-aware suggested prompts (quick actions)
-   * @param {Object} context - Current context object (optional, will detect if not provided)
-   * @returns {Array} Suggested prompts with icon, text, command
-   */
-  getSuggestedPrompts(context = null) {
-    if (!context) {
-      context = this.detectContext();
-    }
-    
+   * @param {Object} context Analyze service coverage gaps', command: 'gaps' },
+        { icon: '⭐', text: 'Prioritize white-spot opportunities', command: 'prioritize' },
+        { icon: '🎯', text: 'Generate APQC capability mappings', command: 'apqc_mappings' }
+      );
+      if (context.integrations.apqc?.status === 'connected') {
+        prompts.push({ icon: '📊', text: 'Show heatmap analytics insights', command: 'heatmap_analytics' });
+      } else {
+        prompts.push({ icon: '📚', text: 'Connect APQC framework', command: 'connect_apqc' });
+      }
+      prompts.push({ icon: '💡', text: 'Suggest service assessments', command: 'assess_services' });
     const prompts = [];
     
     // Step-specific suggestions

@@ -42,7 +42,7 @@
             
             // Ensure data loaders are ready
             if (!window.vivictaServiceLoader.isReady()) {
-                console.log('⏳ Loading Vivicta Service Model...');
+                console.log('⏳ Loading Service Model...');
                 await window.vivictaServiceLoader.loadServiceModel('data/vivicta_dcs_service_delivery_consolidated_v4_1_HL_DL.json');
             }
             

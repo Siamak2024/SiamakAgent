@@ -75,7 +75,8 @@ class EA_EngagementManager {
       initiatives: [],
       roadmapItems: [],
       architectureViews: [],
-      artifacts: []
+      artifacts: [],
+      whiteSpotHeatmaps: []
     };
 
     // Save to localStorage

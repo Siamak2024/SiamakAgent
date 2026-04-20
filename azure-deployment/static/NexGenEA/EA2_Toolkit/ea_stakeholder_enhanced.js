@@ -48,8 +48,8 @@ window.renderStakeholders = function() {
     
     const getTypeConfig = (type) => {
         const configs = {
-            'internal': { icon: 'fa-building', color: '#3b82f6', label: 'Vivicta Internal Team', description: 'Technical Staff', bgColor: '#eff6ff' },
-            'engagement-team': { icon: 'fa-user-tie', color: '#8b5cf6', label: 'Vivicta Engagement Team', description: 'Marketing & Sales', bgColor: '#f5f3ff' },
+            'internal': { icon: 'fa-building', color: '#3b82f6', label: 'Consulting Internal Team', description: 'Technical Staff', bgColor: '#eff6ff' },
+            'engagement-team': { icon: 'fa-user-tie', color: '#8b5cf6', label: 'Consulting Engagement Team', description: 'Marketing & Sales', bgColor: '#f5f3ff' },
             'customer': { icon: 'fa-handshake', color: '#10b981', label: 'Customer Team', description: 'Client Organization', bgColor: '#f0fdf4' }
         };
         return configs[type] || configs['internal'];
@@ -119,7 +119,7 @@ window.renderStakeholders = function() {
                             <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 8px; margin-bottom: 12px;">
                                 <i class="fas fa-building" style="color: #3b82f6; font-size: 16px;"></i>
                                 <div>
-                                    <h3 style="font-size: 14px; font-weight: 700; color: #3b82f6; margin: 0;">Vivicta Internal Team</h3>
+                                    <h3 style="font-size: 14px; font-weight: 700; color: #3b82f6; margin: 0;">Consulting Internal Team</h3>
                                     <p style="font-size: 11px; color: #6b7280; margin: 0;">${grouped['internal'].length} technical staff • Enterprise Architecture & Solution Design</p>
                                 </div>
                             </div>
@@ -132,7 +132,7 @@ window.renderStakeholders = function() {
                             <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f5f3ff; border-left: 4px solid #8b5cf6; border-radius: 8px; margin-bottom: 12px;">
                                 <i class="fas fa-user-tie" style="color: #8b5cf6; font-size: 16px;"></i>
                                 <div>
-                                    <h3 style="font-size: 14px; font-weight: 700; color: #8b5cf6; margin: 0;">Vivicta Engagement Team</h3>
+                                    <h3 style="font-size: 14px; font-weight: 700; color: #8b5cf6; margin: 0;">Consulting Engagement Team</h3>
                                     <p style="font-size: 11px; color: #6b7280; margin: 0;">${grouped['engagement-team'].length} customer-facing staff • Marketing & Sales</p>
                                 </div>
                             </div>
@@ -174,7 +174,7 @@ window.renderStakeholders = function() {
         <div style="margin-top: 24px; padding: 16px; background: #f9fafb; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
             <p style="font-size: 12px; color: #6b7280; margin: 0;">
                 <i class="fas fa-info-circle" style="color: #3b82f6;"></i> 
-                <strong>Click on any Vivicta team member</strong> to highlight their customer relationships. Click again to clear.
+                <strong>Click on any consulting team member</strong> to highlight their customer relationships. Click again to clear.
             </p>
             <button id="clear-selection-btn" onclick="clearStakeholderSelection()" style="display: none; padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600; transition: background 0.2s;">
                 <i class="fas fa-times"></i> Clear Selection

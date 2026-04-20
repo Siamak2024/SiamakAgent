@@ -22,7 +22,7 @@ async function renderWhiteSpotHeatmap() {
     if (!window.vivictaServiceLoader.isReady()) {
         const loaded = await window.vivictaServiceLoader.loadServiceModel('data/vivicta_dcs_service_delivery_consolidated_v4_1_HL_DL.json');
         if (!loaded) {
-            container.innerHTML = renderErrorState('Failed to load Vivicta Service Model. Check console for details.');
+            container.innerHTML = renderErrorState('Failed to load Service Model. Check console for details.');
             return;
         }
     }
@@ -101,7 +101,7 @@ function renderCreateHeatmapState(customer, allCustomers) {
             <div class="empty-state-icon"><i class="fas fa-th"></i></div>
             <div class="empty-state-title">No WhiteSpot Heatmap for ${customer.name}</div>
             <div class="empty-state-text">
-                Create a new heatmap to assess Vivicta DCS service delivery coverage and identify opportunities.
+                Create a new heatmap to assess service delivery coverage and identify opportunities.
             </div>
             <div style="display: flex; gap: 12px; justify-content: center; margin-top: 16px;">
                 <button class="btn btn-primary" onclick="createNewHeatmap('${customer.id}')">
@@ -116,7 +116,7 @@ function renderCreateHeatmapState(customer, allCustomers) {
                     <i class="fas fa-info-circle" style="margin-right: 6px;"></i>What is WhiteSpot Heatmap?
                 </h4>
                 <ul style="font-size: 13px; color: #047857; margin-left: 20px; line-height: 1.6;">
-                    <li>Assess service delivery coverage across 41 Vivicta DCS High-Level services</li>
+                    <li>Assess service delivery coverage across 41 High-Level services</li>
                     <li>Track 5 states: FULL, PARTIAL, CUSTOM, LOST, POTENTIAL</li>
                     <li>Map to APQC capabilities for business alignment</li>
                     <li>Identify white-spots and growth opportunities</li>

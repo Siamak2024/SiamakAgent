@@ -33,14 +33,14 @@ class VivictaServiceLoader {
       this._parseServiceData();
       this.isLoaded = true;
       
-      console.log(`✓ Vivicta Service Model loaded (v${this.serviceData.schemaVersion || 'unknown'})`);
+      console.log(`✓ Service Model loaded (v${this.serviceData.schemaVersion || 'unknown'})`);
       console.log(`  L1 Service Areas: ${this.l1ServiceAreas.length}`);
       console.log(`  L2 HL Offerings: ${this.getHLServices().length}`);
       console.log(`  L3 Components: ${this.l3Components.length}`);
       
       return true;
     } catch (error) {
-      console.error('✗ Failed to load Vivicta Service Model:', error);
+      console.error('✗ Failed to load Service Model:', error);
       this.isLoaded = false;
       return false;
     }

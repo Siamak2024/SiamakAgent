@@ -121,8 +121,8 @@ const StorySchema = {
  * Stakeholder management with influence mapping and relationship tracking
  * 
  * Type definitions:
- * - internal: Technical staff from Vivicta (IT service provider) - Enterprise Architects, Solution Architects, Technical Leads
- * - engagement-team: Customer-facing roles from Vivicta Marketing/Sales - Account Managers, Sales Representatives, Customer Success
+ * - internal: Technical staff from consulting firm - Enterprise Architects, Solution Architects, Technical Leads
+ * - engagement-team: Customer-facing roles from consulting Marketing/Sales - Account Managers, Sales Representatives, Customer Success
  * - customer: Stakeholders from the client organization receiving services
  */
 const StakeholderSchema = {
@@ -135,7 +135,7 @@ const StakeholderSchema = {
     required: true, 
     enum: ['internal', 'engagement-team', 'customer'], 
     default: 'internal',
-    description: 'internal=Vivicta IT staff | engagement-team=Vivicta Marketing/Sales | customer=Client organization'
+    description: 'internal=Consulting IT staff | engagement-team=Consulting Marketing/Sales | customer=Client organization'
   },
   influence: { type: 'string', required: true, enum: ['high', 'medium', 'low'] },
   decisionPower: { type: 'string', required: true, enum: ['high', 'medium', 'low'] },
@@ -671,6 +671,133 @@ const ValueCaseSchema = {
   }
 };
 
+/**
+ * WhiteSpotHeatmap Entity
+ * WhiteSpot Heatmap assessment per customer using Service Delivery model
+ * Tracks delivery coverage across 41 HL services with APQC capability mapping
+ */
+const WhiteSpotHeatmapSchema = {
+  id: { type: 'string', required: true, pattern: /^WSH-\d{3}$/ }, // WSH-001
+  customerId: { type: 'string', required: true, pattern: /^CUST-\d{3}$/, description: 'Link to Customer entity' },
+  customerName: { type: 'string', required: true },
+  assessmentDate: { type: 'string', format: 'date', required: true },
+  assessedBy: { type: 'string', required: true, description: 'Name/ID of person who performed assessment' },
+  hlAssessments: {
+    type: 'array',
+    required: true,
+    items: {
+      type: 'object',
+      properties: {
+        l2ServiceId: { type: 'string', required: true, description: 'DCS L2 Delivery Offering ID' },
+        l2ServiceName: { type: 'string', required: true },
+        l1ServiceArea: { type: 'string', required: true, description: 'Parent L1 category (Consulting, Managed, Platform)' },
+        assessmentState: { 
+          type: 'string', 
+          required: true, 
+          enum: ['FULL', 'PARTIAL', 'CUSTOM', 'LOST', 'POTENTIAL'],
+          description: 'FULL=all L3 delivered | PARTIAL=gaps exist | CUSTOM=bespoke | LOST=not delivered | POTENTIAL=planned'
+        },
+        l3Components: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              l3Id: { type: 'string', required: true },
+              l3Name: { type: 'string', required: true },
+              isDelivered: { type: 'boolean', default: false },
+              notes: { type: 'string' }
+            }
+          },
+          default: []
+        },
+        score: { type: 'number', min: 0, max: 100, description: 'Calculated delivery percentage (L3 coverage)' },
+        apqcMappedCapabilities: { 
+          type: 'array', 
+          items: 'string', 
+          default: [],
+          description: 'Array of APQC capability IDs mapped to this L2 service'
+        },
+        opportunityValue: { type: 'number', min: 0, description: 'Estimated opportunity value for PARTIAL/POTENTIAL/LOST states' },
+        notes: { type: 'string' }
+      }
+    },
+    default: []
+  },
+  opportunities: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', required: true },
+        l2ServiceId: { type: 'string', required: true, description: 'Linked DCS L2 service' },
+        title: { type: 'string', required: true },
+        description: { type: 'string' },
+        estimatedValue: { type: 'number', min: 0 },
+        priority: { type: 'string', enum: ['high', 'medium', 'low'], default: 'medium' },
+        status: { type: 'string', enum: ['identified', 'qualified', 'pitched', 'won', 'lost'], default: 'identified' }
+      }
+    },
+    default: []
+  },
+  customBusinessAreas: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', required: true },
+        name: { type: 'string', required: true },
+        description: { type: 'string' },
+        linkedL2Services: { 
+          type: 'array', 
+          items: 'string', 
+          default: [],
+          description: 'Array of DCS L2 service IDs this business area maps to'
+        },
+        apqcCapabilities: { 
+          type: 'array', 
+          items: 'string', 
+          default: [],
+          description: 'Array of APQC capability IDs for this business area'
+        }
+      }
+    },
+    default: [],
+    description: 'Customer-specific business areas/capabilities that map to service areas'
+  },
+  apqcMappings: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        apqcId: { type: 'string', required: true },
+        apqcLevel: { type: 'string', required: true, enum: ['L1', 'L2', 'L3', 'L4'], description: 'APQC PCF level' },
+        apqcName: { type: 'string', required: true },
+        mapsToL3: { 
+          type: 'array', 
+          items: 'string', 
+          default: [],
+          description: 'Array of DCS L3 component IDs this APQC process maps to'
+        },
+        rationale: { type: 'string', description: 'Why this mapping makes sense' },
+        isCustom: { type: 'boolean', default: false, description: 'True if user overrode default AI mapping' }
+      }
+    },
+    default: [],
+    description: 'APQC L3-L4 processes mapped to DCS L3 components (per golden rule)'
+  },
+  description: { type: 'string', description: 'Overall heatmap description and context' },
+  comments: { type: 'string', description: 'Additional notes and observations' },
+  metadata: {
+    type: 'object',
+    properties: {
+      createdAt: { type: 'string', format: 'datetime' },
+      updatedAt: { type: 'string', format: 'datetime' },
+      createdBy: { type: 'string' },
+      version: { type: 'string', default: '1.0' }
+    }
+  }
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // VALIDATION RULES
 // ═══════════════════════════════════════════════════════════════════
@@ -806,6 +933,7 @@ if (typeof window !== 'undefined') {
     Account: AccountSchema,
     Opportunity: OpportunitySchema,
     ValueCase: ValueCaseSchema,
+    WhiteSpotHeatmap: WhiteSpotHeatmapSchema,
     ValidationRules,
     DefaultPhases,
     DefaultSegmentTemplates
@@ -834,6 +962,7 @@ if (typeof module !== 'undefined' && module.exports) {
     AccountSchema,
     OpportunitySchema,
     ValueCaseSchema,
+    WhiteSpotHeatmapSchema,
     ValidationRules,
     DefaultPhases,
     DefaultSegmentTemplates

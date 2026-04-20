@@ -22,7 +22,7 @@
  */
 async function generateDemoHeatmap(customer, scenario = 'mixed') {
     if (!window.vivictaServiceLoader || !window.apqcWhiteSpotIntegration) {
-        throw new Error('Service loaders not initialized. Please ensure vivicta_service_loader.js and apqc_whitespot_integration.js are loaded.');
+        throw new Error('Service loaders not initialized. Please ensure service loader and APQC integration modules are loaded.');
     }
     
     const hlServices = window.vivictaServiceLoader.getHLServices();

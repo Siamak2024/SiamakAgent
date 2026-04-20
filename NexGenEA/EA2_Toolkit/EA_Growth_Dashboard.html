@@ -963,6 +963,45 @@
             }
         });
 
+        /**
+         * Open AI Assistant User Guide
+         */
+        function openAIAssistantGuide() {
+            const guideUrl = 'AI_ASSISTANT_USER_GUIDE.md';
+            const newWindow = window.open('', 'AI_Guide', 'width=1200,height=800,scrollbars=yes');
+            
+            if (newWindow) {
+                fetch(guideUrl).then(r => r.text()).then(md => {
+                    newWindow.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>AI Assistant User Guide</title>
+<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:0 auto;padding:40px 20px;line-height:1.6;background:#f8f9fa}
+h1{color:#065f46;border-bottom:3px solid #10b981;padding-bottom:10px}h2{color:#047857;margin-top:30px}
+pre{background:#1f2937;color:#e5e7eb;padding:16px;border-radius:8px;overflow-x:auto;white-space:pre-wrap}
+code{background:#e7f5ec;padding:2px 6px;border-radius:4px;color:#065f46}
+table{border-collapse:collapse;width:100%;margin:20px 0}th,td{border:1px solid #d1d5db;padding:12px}
+th{background:#065f46;color:white}a{color:#059669}</style></head><body>
+<div style="background:white;padding:40px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1)">
+<pre>${md.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+<div style="margin-top:30px;text-align:center"><a href="${guideUrl}" download 
+style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block">
+📄 Download Guide</a></div></div></body></html>`);
+                    newWindow.document.close();
+                }).catch(() => {
+                    const a = document.createElement('a');
+                    a.href = guideUrl;
+                    a.download = 'AI_ASSISTANT_USER_GUIDE.md';
+                    a.click();
+                    newWindow.close();
+                    alert('📄 Downloading AI Guide...');
+                });
+            } else {
+                const a = document.createElement('a');
+                a.href = guideUrl;
+                a.download = 'AI_ASSISTANT_USER_GUIDE.md';
+                a.click();
+                alert('📄 Downloading AI Guide...');
+            }
+        }
+
         // ═══════════════════════════════════════════════════════════════════
         // DASHBOARD LOADING
         // ═══════════════════════════════════════════════════════════════════
@@ -1717,7 +1756,12 @@
         <div class="resize-handle" id="resize-handle"></div>
         <div class="chat-header">
             <h3><i class="fas fa-robot"></i> AI Assistant</h3>
-            <button class="close-chat" onclick="toggleChatPanel()"><i class="fas fa-times"></i></button>
+            <div style="display: flex; gap: 8px;">
+                <button class="close-chat" onclick="openAIAssistantGuide()" title="Help & Examples">
+                    <i class="fas fa-question-circle"></i>
+                </button>
+                <button class="close-chat" onclick="toggleChatPanel()"><i class="fas fa-times"></i></button>
+            </div>
         </div>
         <div class="quick-prompts">
             <div class="quick-prompts-label">Quick Actions</div>

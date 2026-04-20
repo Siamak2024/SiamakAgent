@@ -53,7 +53,7 @@ function showWhiteSpotHelp() {
                     WhiteSpot Heatmap is a comprehensive service delivery assessment tool that helps you:
                 </p>
                 <ul style="color: #374151; line-height: 1.8; margin-bottom: 24px;">
-                    <li><strong>Assess Coverage:</strong> Evaluate delivery status across 41 Vivicta DCS High-Level services</li>
+                    <li><strong>Assess Coverage:</strong> Evaluate delivery status across 41 High-Level services</li>
                     <li><strong>Track Service States:</strong> Classify services as FULL, PARTIAL, CUSTOM, LOST, or POTENTIAL</li>
                     <li><strong>Identify Gaps:</strong> Discover service delivery gaps and white-spots (undelivered capabilities)</li>
                     <li><strong>Map to APQC:</strong> Align services to APQC business capabilities for strategic context</li>
@@ -245,7 +245,7 @@ function showWhiteSpotHelp() {
                 
                 ${renderFAQItem(
                     'How many High-Level services should I see?',
-                    'The heatmap assesses 41 Vivicta DCS High-Level (HL) services across 3 main L1 service areas: Consulting & Project Services, Managed Services, and Platform Services.'
+                    'The heatmap assesses 41 High-Level (HL) services across 3 main L1 service areas: Consulting & Project Services, Managed Services, and Platform Services.'
                 )}
                 
                 ${renderFAQItem(
