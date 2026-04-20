@@ -625,16 +625,13 @@ function exportAllData() {
 /**
  * Load demo data for testing
  */
-function loadDemoData() {
+async function loadDemoData() {
     if (typeof generateWhiteSpotDemoData === 'function') {
         // Use existing demo generator if available
-        generateWhiteSpotDemoData();
-        showNotification('Demo data loaded successfully', 'success');
-        if (typeof renderWhiteSpotHeatmap === 'function') {
-            renderWhiteSpotHeatmap();
-        }
+        await generateWhiteSpotDemoData();
     } else {
-        showNotification('Demo data generator not available', 'warning');
+        showNotification('Demo data generator not available. Please ensure whitespot_demo_data_generator.js is loaded.', 'warning');
+        console.error('generateWhiteSpotDemoData function not found. Check script loading order.');
     }
 }
 
