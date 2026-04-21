@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
     <link rel="stylesheet" href="../Stylesheets/ai-strategy-workbench.css">
+    <script src="../AzureOpenAIProxy.js"></script>
     <script src="../../js/EA_Config.js"></script>
     <script src="../../js/EA_DataManager.js"></script>
 
@@ -1156,21 +1157,16 @@ Steg 1–3 med tydlig prioritering och förväntad ROI eller riskminskningseffek
         const userPrompt = `Organisation: ${org}\nStrategiskt fokus: ${focus}\nTidshorisont: ${horizon}\n\nWardley Map-komponenter:\n${compSummary}`;
 
         try {
-            const res = await fetch('/api/openai/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: 'gpt-5',
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userPrompt }
-                    ]
-                })
+            const fullInput = `${userPrompt}`;
+            const response = await AzureOpenAIProxy.create(fullInput, {
+                model: 'gpt-5',
+                instructions: systemPrompt,
+                timeout: 60000,
+                reasoning: { summary: 'auto', effort: 'high' }
             });
-            const json = await res.json();
-            if (json.error) throw new Error(json.error.message);
+            
             document.getElementById('model-badge').textContent = 'gpt-5';
-            content.innerHTML = formatMarkdown(json.choices[0].message.content);
+            content.innerHTML = formatMarkdown(response.output_text);
         } catch (e) {
             content.innerHTML = `
                 <div class="bg-red-900/30 border border-red-700 text-red-300 text-xs p-4 rounded m-4">
@@ -1341,22 +1337,18 @@ async function sendWardMessage() {
     loadingDiv.innerHTML = '<i class="fas fa-spinner spinner"></i> Analyserar...';
     document.getElementById('ward-chat-messages').appendChild(loadingDiv);
 
+    const systemPrompt = `Du är en senior enterprise-arkitekt och Wardley Mapping-expert specialiserad på fastighet och PropTech. Svara alltid på svenska. Var konkret och affärsfokuserad — koppla alltid till kostnadsbesparing, riskreduktion, konkurrensfördel eller regulatorisk efterlevnad.\n\n${context || 'Kartan är tom.'}`;
+
     try {
-        const res = await fetch('/api/openai/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: 'gpt-5',
-                messages: [
-                    { role: 'system', content: `Du är en senior enterprise-arkitekt och Wardley Mapping-expert specialiserad på fastighet och PropTech. Svara alltid på svenska. Var konkret och affärsfokuserad — koppla alltid till kostnadsbesparing, riskreduktion, konkurrensfördel eller regulatorisk efterlevnad.\n\n${context || 'Kartan är tom.'}` },
-                    { role: 'user', content: text }
-                ]
-            })
+        const response = await AzureOpenAIProxy.create(text, {
+            model: 'gpt-5',
+            instructions: systemPrompt,
+            timeout: 45000,
+            reasoning: { summary: 'auto', effort: 'medium' }
         });
-        const data = await res.json();
+        
         loadingDiv.remove();
-        if (data.error) throw new Error(data.error.message);
-        addWardMsg(data.choices[0].message.content
+        addWardMsg(response.output_text
             .replace(/\n/g, '<br>')
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'), 'ai');
     } catch(e) {
