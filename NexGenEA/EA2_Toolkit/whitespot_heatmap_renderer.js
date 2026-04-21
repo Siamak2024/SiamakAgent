@@ -168,6 +168,52 @@ function autoCreateDefaultHeatmap(customer, manager) {
     }
 }
 
+/**
+ * Manually populate default services for a customer
+ * Provides user control if auto-population doesn't trigger
+ * @param {string} customerId - Customer ID to populate services for
+ */
+async function populateDefaultServices(customerId) {
+    try {
+        console.log('🔄 Manually populating default services...');
+        
+        // Determine manager
+        const isStandalone = typeof window.whitespotStandaloneManager !== 'undefined';
+        const manager = isStandalone ? window.whitespotStandaloneManager : window.engagementManager;
+        
+        // Get customer
+        const customers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
+        const customer = customers.find(c => c.id === customerId);
+        
+        if (!customer) {
+            console.error('⚠️ Customer not found:', customerId);
+            alert('Customer not found!');
+            return;
+        }
+        
+        // Create heatmap
+        const heatmap = autoCreateDefaultHeatmap(customer, manager);
+        
+        if (!heatmap) {
+            alert('Failed to populate services. Check console for details.');
+            return;
+        }
+        
+        // Re-render the view
+        await renderWhiteSpotHeatmap();
+        
+        // Show success message
+        if (typeof showNotification === 'function') {
+            showNotification(`✅ Populated ${heatmap.hlAssessments.length} services for ${customer.name}`, 'success');
+        } else {
+            alert(`✅ Successfully populated ${heatmap.hlAssessments.length} services!`);
+        }
+    } catch (error) {
+        console.error('❌ Error populating default services:', error);
+        alert('Error populating services: ' + error.message);
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // EMPTY STATES
 // ═══════════════════════════════════════════════════════════════════
@@ -238,12 +284,15 @@ function renderCreateHeatmapState(customer, allCustomers) {
             <div class="empty-state-text">
                 Create a new heatmap to assess service delivery coverage and identify opportunities.
             </div>
-            <div style="display: flex; gap: 12px; justify-content: center; margin-top: 16px;">
-                <button class="btn btn-primary" onclick="createNewHeatmap('${customer.id}')">
-                    <i class="fas fa-plus"></i> Create Heatmap for ${customer.name}
+            <div style="display: flex; gap: 12px; justify-content: center; margin-top: 16px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="populateDefaultServices('${customer.id}')">
+                    <i class="fas fa-magic"></i> Populate Default Services (41)
+                </button>
+                <button class="btn btn-secondary" onclick="createNewHeatmap('${customer.id}')">
+                    <i class="fas fa-plus"></i> Create Empty Heatmap
                 </button>
                 <button class="btn btn-secondary" onclick="generateDemoHeatmapForCustomer('${customer.id}')">
-                    <i class="fas fa-magic"></i> Generate Demo Data
+                    <i class="fas fa-flask"></i> Generate Demo Data
                 </button>
             </div>
             <div style="margin-top: 24px; padding: 16px; background: #f0fdf4; border-radius: 8px; max-width: 600px; margin-left: auto; margin-right: auto;">
