@@ -813,6 +813,7 @@
       const objectivesReview = document.getElementById('objectivesReview');
       const objectivesList = document.getElementById('objectivesList');
       const proceedStep2Btn = document.getElementById('proceedStep2Btn');
+      const editObjectivesBtn = document.getElementById('editObjectivesBtn');
       const resetWorkflowBtn = document.getElementById('resetWorkflowBtn');
       const workflowPanelTitle = document.getElementById('workflowPanelTitle');
       const workflowPanelDescription = document.getElementById('workflowPanelDescription');
@@ -828,6 +829,9 @@
           }
         });
         proceedStep2Btn.addEventListener('click', proceedToStep2);
+        editObjectivesBtn.addEventListener('click', () => {
+          alert('Edit functionality is not yet implemented. You can click "Next Step →" to proceed to Step 2, or use "Reset Workflow" to start over.');
+        });
         resetWorkflowBtn.addEventListener('click', resetWorkflow);
 
         console.log('✅ Business Objectives Toolkit initialized');
@@ -921,15 +925,24 @@
           
           addAIMessage(`Great! I've synthesized ${synthesis.objectives.length} business objectives based on our conversation. Please review them below.`);
 
+          // Hide chat interface, show objectives review
+          chatContainer.classList.add('hidden');
+          questionCounter.style.display = 'none';
+
           // Update context panel
           updateStep1Context(synthesis.strategicContext, synthesis.objectives);
 
           // Show objectives review panel
           displayObjectives(synthesis.objectives);
           objectivesReview.classList.add('active');
+          
+          // Mark Step 1 as complete
+          updateStepIndicator(1, true);
 
           // Save objectives
           await EA_BusinessObjectivesWorkflow.completeStep1(synthesis.objectives);
+          
+          console.log('✅ Step 1 complete - objectives displayed for review');
 
         } else if (step === 2) {
           // Step 2 complete - show capability mapping
@@ -1025,11 +1038,20 @@
             </div>
           </div>
         `).join('');
+        
+        console.log(`✅ Displayed ${objectives.length} objectives for review`);
+        
+        // Scroll to objectives review panel
+        setTimeout(() => {
+          objectivesReview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
       }
 
       // Proceed to Step 2
       async function proceedToStep2() {
+        // Hide objectives review, show chat interface
         objectivesReview.classList.remove('active');
+        chatContainer.classList.remove('hidden');
         questionCounter.style.display = 'flex';
         chatInput.disabled = false;
         chatSendBtn.disabled = false;
@@ -1044,6 +1066,8 @@
           addAIMessage(response.question);
           currentQuestionEl.textContent = response.questionCount;
           chatInput.focus();
+          
+          console.log('✅ Step 2 started');
 
         } catch (error) {
           console.error('Error starting Step 2:', error);
