@@ -39,9 +39,11 @@ async function renderWhiteSpotHeatmap() {
     const customers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
     const heatmaps = manager.getHeatmaps ? manager.getHeatmaps() : (manager.getEntities('whiteSpotHeatmaps') || []);
     
-    // Check if we have customers
+    // NO CUSTOMERS: Show service delivery model as reference catalog (doesn't require customer)
     if (customers.length === 0) {
-        container.innerHTML = renderEmptyCustomerState();
+        console.log('📋 No customers defined - showing Service Delivery Model as reference catalog');
+        container.innerHTML = renderServiceCatalogView();
+        initializeAccordions();
         return;
     }
     
@@ -264,6 +266,101 @@ function renderEmptyCustomerState() {
             </div>
         </div>
     `;
+}
+
+/**
+ * Render Service Delivery Model as reference catalog (no customer required)
+ * Shows all 41 HL services from Vivicta model as a base reference
+ */
+function renderServiceCatalogView() {
+    // Get all HL services from Vivicta model
+    const hlServices = window.vivictaServiceLoader.getHLServices();
+    
+    if (!hlServices || hlServices.length === 0) {
+        return renderErrorState('Service Model not loaded. Please refresh the page.');
+    }
+    
+    // Group services by L1 service area
+    const servicesByArea = {};
+    hlServices.forEach(service => {
+        const area = service.l1ParentName || 'Other Services';
+        if (!servicesByArea[area]) {
+            servicesByArea[area] = [];
+        }
+        servicesByArea[area].push(service);
+    });
+    
+    // Build header
+    let html = `
+        <div style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 8px;">
+                        <i class="fas fa-th" style="color: #10b981; margin-right: 8px;"></i>
+                        Service Delivery Model - Reference Catalog
+                    </h3>
+                    <p style="font-size: 14px; color: #6b7280; margin: 0;">
+                        ${hlServices.length} high-level services across ${Object.keys(servicesByArea).length} service areas
+                        <span style="margin-left: 16px;">📋 This is your internal service catalog - add customers to create assessments</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Render services grouped by area
+    Object.keys(servicesByArea).sort().forEach(areaName => {
+        const services = servicesByArea[areaName];
+        
+        html += `
+            <div class="service-area-section" style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <h4 style="font-size: 16px; font-weight: 700; color: #065f46; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #d1fae5;">
+                    <i class="fas fa-folder-open" style="margin-right: 8px;"></i>
+                    ${areaName} (${services.length} services)
+                </h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+        `;
+        
+        services.forEach(service => {
+            html += `
+                <div class="service-card-reference" style="background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; padding: 16px; transition: all 0.2s;">
+                    <div style="font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 8px;">
+                        ${service.name}
+                    </div>
+                    <div style="font-size: 12px; color: #6b7280;">
+                        Service ID: ${service.id}
+                    </div>
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af;">
+                        <i class="fas fa-info-circle"></i> Reference service - assign to customers for assessment
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    });
+    
+    // Add action buttons at bottom
+    html += `
+        <div style="text-align: center; margin-top: 32px; padding: 24px; background: #f0fdf4; border-radius: 12px;">
+            <h4 style="font-size: 16px; font-weight: 600; color: #065f46; margin-bottom: 16px;">
+                Ready to start customer assessments?
+            </h4>
+            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="switchTab('engagement', document.querySelector('[data-tab=engagement]'))">
+                    <i class="fas fa-user-plus"></i> Add Customer in Engagement Setup
+                </button>
+                <button class="btn btn-secondary" onclick="loadWhiteSpotDemoData()">
+                    <i class="fas fa-flask"></i> Load Demo Data
+                </button>
+            </div>
+        </div>
+    `;
+    
+    return html;
 }
 
 function renderCreateHeatmapState(customer, allCustomers) {
