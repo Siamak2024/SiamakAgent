@@ -911,6 +911,7 @@
             'use strict';
 
             // State
+            let dataManager = null; // EA_DataManager instance
             let currentStep = 'welcome'; // welcome | discovery | mapping | complete
             let apqcData = null;
             let synthesizedObjectives = null;
@@ -935,6 +936,9 @@
 
             // Initialize
             function init() {
+                // Initialize Data Manager
+                dataManager = new EA_DataManager();
+                
                 startWorkflowBtn.addEventListener('click', startWorkflow);
                 resetBtn.addEventListener('click', resetWorkflow);
                 chatSendBtn.addEventListener('click', sendMessage);
@@ -957,8 +961,8 @@
             // Load APQC Framework Data
             async function loadAPQCData() {
                 try {
-                    await EA_DataManager.loadAPQCFramework();
-                    apqcData = EA_DataManager.getAPQCData();
+                    await dataManager.loadAPQCFramework();
+                    apqcData = await dataManager.getAPQCFramework();
                     console.log('✅ APQC Framework loaded:', apqcData?.categories?.length, 'categories');
                 } catch (error) {
                     console.error('❌ Error loading APQC data:', error);
