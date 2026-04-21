@@ -1242,9 +1242,22 @@
 
             // Update Capability Highlighting (progressive)
             async function updateCapabilityHighlighting() {
-                showLoading('Analyzing and updating capability map...');
+                showLoading('Analyzing loaded capabilities...');
 
                 try {
+                    // Build list of available capabilities from already-loaded APQC data
+                    const availableCapabilities = [];
+                    if (apqcData && apqcData.categories) {
+                        apqcData.categories.forEach(category => {
+                            availableCapabilities.push(`${category.code}: ${category.name}`);
+                            if (category.children) {
+                                category.children.forEach(child => {
+                                    availableCapabilities.push(`${child.code}: ${child.name}`);
+                                });
+                            }
+                        });
+                    }
+
                     // Build cumulative context including industry selection
                     const industryContext = `Industry: ${userIndustry}`;
                     const conversationText = conversationContext.map(qa => 
@@ -1252,17 +1265,11 @@
                     ).join('\n\n');
                     const fullContext = `${industryContext}\n\n${conversationText}`;
 
-                    // Use AI to identify relevant capabilities based on current context
-                    const prompt = `Based on this business context, identify the most relevant APQC capability codes (e.g., "1.1", "2.3", "3.2"):
-
-${fullContext}
-
-Return ONLY a JSON array of capability codes that are relevant: ["1.1", "2.2", ...]
-
-Focus on capabilities that align with the industry, challenges, and goals mentioned.`;
+                    // Use AI to identify relevant capabilities from the loaded list
+                    const prompt = `Based on this business context, select relevant APQC capabilities from the loaded framework:\n\nCONTEXT:\n${fullContext}\n\nAVAILABLE CAPABILITIES (already loaded):\n${availableCapabilities.slice(0, 50).join('\n')}\n...and ${availableCapabilities.length - 50} more\n\nReturn ONLY a JSON array of relevant codes: ["1.0", "2.1", "3.2", ...]`;
 
                     const response = await AzureOpenAIProxy.create(prompt, {
-                        instructions: 'You are an APQC framework expert. Analyze the conversation and return only a JSON array of relevant capability codes.',
+                        instructions: 'Select capability codes from the provided list that align with the context. Return only JSON array.',
                         model: 'gpt-5',
                         timeout: 30000
                     });
@@ -1282,7 +1289,7 @@ Focus on capabilities that align with the industry, challenges, and goals mentio
                     const confidence = Math.min((conversationContext.length + 1) / 5, 1); // +1 for industry
                     highlightCapabilities(capabilityCodes, confidence);
 
-                    // Update summary chip
+                    // Update summary with progress indicator
                     objectivesSummary.innerHTML = `
                         <div class="objective-chip" style="background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);">
                             <i class="fas fa-${getIndustryIcon(userIndustry)}"></i>
@@ -1290,7 +1297,7 @@ Focus on capabilities that align with the industry, challenges, and goals mentio
                         </div>
                         <div class="objective-chip" style="background: linear-gradient(135deg, var(--ea-accent) 0%, #3d6956 100%);">
                             <i class="fas fa-lightbulb"></i>
-                            ${capabilityCodes.length} Relevant Capabilities
+                            ${highlightedCapabilities.length} Highlighted (click to toggle)
                         </div>
                         <div class="objective-chip" style="background: rgba(0, 102, 204, 0.1); color: #0066cc; border: 1px solid #0066cc;">
                             <i class="fas fa-comments"></i>
@@ -1300,7 +1307,7 @@ Focus on capabilities that align with the industry, challenges, and goals mentio
 
                     hideLoading();
 
-                    console.log(`🔄 Updated highlighting: ${capabilityCodes.length} capabilities, confidence: ${(confidence * 100).toFixed(0)}%`);
+                    console.log(`🔄 Updated highlighting: ${capabilityCodes.length} capabilities from loaded data, confidence: ${(confidence * 100).toFixed(0)}%`);
                 } catch (error) {
                     console.error('Error updating capability highlighting:', error);
                     hideLoading();
@@ -1350,7 +1357,7 @@ Focus on capabilities that align with the industry, challenges, and goals mentio
                 }
 
                 return capabilities.map(cap => `
-                    <div class="capability-item" data-capability-id="${cap.id}">
+                    <div class="capability-item" data-capability-id="${cap.id}" data-capability-code="${cap.code}" onclick="toggleCapabilityHighlight('${cap.code}')" style="cursor: pointer;" title="Click to toggle highlight">
                         <div class="capability-item-header">
                             <span class="capability-code">${cap.code}</span>
                             <span class="capability-name">${cap.name}</span>
@@ -1367,6 +1374,56 @@ Focus on capabilities that align with the industry, challenges, and goals mentio
                     </div>
                 `).join('');
             }
+            
+            // Toggle Capability Highlight (Manual Selection)
+            window.toggleCapabilityHighlight = function(code) {
+                const capabilityEl = document.querySelector(`[data-capability-code="${code}"]`);
+                if (!capabilityEl) return;
+                
+                const isHighlighted = capabilityEl.classList.contains('highlighted');
+                
+                if (isHighlighted) {
+                    // Remove highlight
+                    capabilityEl.classList.remove('highlighted', 'confidence-low', 'confidence-medium', 'confidence-high');
+                    highlightedCapabilities = highlightedCapabilities.filter(c => c !== code);
+                    console.log(`🔴 Removed highlight: ${code}`);
+                } else {
+                    // Add highlight (user manual = high confidence)
+                    capabilityEl.classList.add('highlighted', 'confidence-high');
+                    if (!highlightedCapabilities.includes(code)) {
+                        highlightedCapabilities.push(code);
+                    }
+                    console.log(`🟢 Added highlight: ${code}`);
+                }
+                
+                // Update summary
+                updateCapabilitySummary();
+            }
+            
+            // Update Capability Summary
+            function updateCapabilitySummary() {
+                if (!userIndustry) return;
+                
+                const summaryEl = document.getElementById('objectivesSummary');
+                if (!summaryEl) return;
+                
+                summaryEl.innerHTML = `
+                    <div class="objective-chip" style="background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);">
+                        <i class="fas fa-${getIndustryIcon(userIndustry)}"></i>
+                        ${userIndustry}
+                    </div>
+                    <div class="objective-chip" style="background: linear-gradient(135deg, var(--ea-accent) 0%, #3d6956 100%);">
+                        <i class="fas fa-lightbulb"></i>
+                        ${highlightedCapabilities.length} Highlighted Capabilities
+                    </div>
+                    ${synthesizedObjectives ? `
+                        <div class="objective-chip" style="background: rgba(0, 102, 204, 0.1); color: #0066cc; border: 1px solid #0066cc;">
+                            <i class="fas fa-bullseye"></i>
+                            ${synthesizedObjectives.length} Business Objectives
+                        </div>
+                    ` : ''}
+                `;
+            }
 
             // Toggle Category Expansion
             window.toggleCategory = function(categoryId) {
@@ -1379,27 +1436,59 @@ Focus on capabilities that align with the industry, challenges, and goals mentio
 
             // Start Capability Mapping (Step 2)
             async function startCapabilityMapping() {
-                showLoading('Analyzing capabilities with AI...');
+                showLoading('Analyzing loaded APQC capabilities...');
 
                 try {
-                    // Use AI to identify relevant capabilities
-                    const workflowState = EA_BusinessObjectivesWorkflow.getWorkflowState();
-                    
-                    // Build prompt for AI
+                    // Build list of available capabilities from already-loaded APQC data
+                    const availableCapabilities = [];
+                    if (apqcData && apqcData.categories) {
+                        apqcData.categories.forEach(category => {
+                            availableCapabilities.push({
+                                code: category.code,
+                                name: category.name,
+                                description: category.description
+                            });
+                            
+                            if (category.children) {
+                                category.children.forEach(child => {
+                                    availableCapabilities.push({
+                                        code: child.code,
+                                        name: child.name,
+                                        description: child.description
+                                    });
+                                });
+                            }
+                        });
+                    }
+
+                    console.log(`📊 Analyzing ${availableCapabilities.length} loaded APQC capabilities`);
+
+                    // Build objectives summary
                     const objectivesText = synthesizedObjectives.map(obj => 
                         `${obj.name}: ${obj.description}`
                     ).join('\n');
 
-                    const prompt = `Based on these business objectives, identify the most relevant APQC capability codes (from 1.0 to 13.0 and their sub-capabilities):
+                    // Build available capabilities list for AI
+                    const capabilitiesList = availableCapabilities.map(cap =>
+                        `${cap.code}: ${cap.name}`
+                    ).join('\n');
 
+                    const prompt = `You are analyzing business objectives against the APQC Process Classification Framework.
+
+BUSINESS OBJECTIVES:
 ${objectivesText}
 
-Return ONLY a JSON array of capability codes: ["1.1", "2.2", "3.3", ...]`;
+AVAILABLE APQC CAPABILITIES (already loaded and displayed):
+${capabilitiesList}
+
+Select the most relevant capability codes from the list above that align with the business objectives.
+
+Return ONLY a JSON array of codes: ["1.0", "2.1", "3.2", ...]`;
 
                     const response = await AzureOpenAIProxy.create(prompt, {
-                        instructions: 'You are an expert in APQC Process Classification Framework. Return only the JSON array of relevant capability codes.',
+                        instructions: 'Analyze the objectives and return ONLY the JSON array of relevant capability codes from the provided list. Focus on strategic alignment.',
                         model: 'gpt-5',
-                        timeout: 60000
+                        timeout: 45000 // Faster since analyzing pre-loaded data
                     });
 
                     // Parse AI response
@@ -1413,19 +1502,30 @@ Return ONLY a JSON array of capability codes: ["1.1", "2.2", "3.3", ...]`;
                         console.error('Error parsing AI capability codes:', e);
                     }
 
-                    // Highlight capabilities
-                    highlightCapabilities(capabilityCodes);
+                    // Validate codes exist in loaded data
+                    const validCodes = capabilityCodes.filter(code => 
+                        availableCapabilities.some(cap => cap.code === code)
+                    );
+
+                    console.log(`✅ AI selected ${validCodes.length} capabilities from ${availableCapabilities.length} loaded`);
+
+                    // Highlight capabilities with high confidence (final mapping)
+                    highlightCapabilities(validCodes, 1.0);
 
                     hideLoading();
 
-                    addAIMessage(`I've highlighted ${capabilityCodes.length} APQC capabilities that align with your business objectives. These are shown in green on the map. 
+                    addAIMessage(`I've analyzed the ${availableCapabilities.length} loaded APQC capabilities and highlighted ${validCodes.length} that align with your business objectives.
 
-Click on any category to expand and see detailed capabilities. The highlighted ones are the most relevant to your strategic goals.`);
+<div style="background: rgba(74, 119, 99, 0.1); border-left: 3px solid var(--ea-accent); padding: 12px; margin: 12px 0; border-radius: 4px;">
+    <strong>💡 Pro Tip:</strong> Click on any capability to manually toggle highlighting. You can refine the AI's selections based on your expertise.
+</div>
+
+The highlighted capabilities (shown in green) are the most strategically relevant. Expand categories to see detailed sub-capabilities.`);
 
                 } catch (error) {
                     console.error('Error in capability mapping:', error);
                     hideLoading();
-                    addAIMessage('I encountered an error while mapping capabilities. The map shows all APQC categories - you can explore them manually.');
+                    addAIMessage('I encountered an error while analyzing capabilities. The map shows all loaded APQC categories - you can manually select relevant ones by clicking on them.');
                 }
             }
 
