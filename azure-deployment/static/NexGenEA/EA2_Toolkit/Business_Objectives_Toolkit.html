@@ -629,6 +629,40 @@
             box-shadow: 0 0 0 3px rgba(74, 119, 99, 0.15);
         }
 
+        /* Industry Selection Buttons */
+        .industry-selection {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+        
+        .industry-btn {
+            padding: 16px;
+            background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0, 102, 204, 0.2);
+        }
+        
+        .industry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+            background: linear-gradient(135deg, #0052a3 0%, #003d7a 100%);
+        }
+        
+        .industry-btn i {
+            font-size: 20px;
+        }
+
         .capability-item-header {
             display: flex;
             align-items: center;
@@ -913,12 +947,13 @@
 
             // State
             let dataManager = null; // EA_DataManager instance
-            let currentStep = 'welcome'; // welcome | discovery | mapping | complete
+            let currentStep = 'welcome'; // welcome | industry_select | discovery | mapping | complete
             let apqcData = null;
             let synthesizedObjectives = null;
             let highlightedCapabilities = [];
             let conversationContext = []; // Track all Q&A for progressive analysis
-            let userIndustry = null; // Store industry from question 1
+            let userIndustry = null; // Store industry selection
+            let availableIndustries = ['Manufacturing', 'Services', 'Retail', 'Financial Services', 'Healthcare', 'Technology', 'All']; // From APQC metadata
 
             // DOM Elements
             const welcomeScreen = document.getElementById('welcomeScreen');
@@ -970,27 +1005,86 @@
                 }
             }
 
-            // Start Workflow
+            // Start Workflow - Show Industry Selection First
             async function startWorkflow() {
                 try {
-                    currentStep = 'discovery';
+                    // Open AI chat panel
+                    openChatPanel();
                     
-                    // Enable chat
-                    chatInput.disabled = false;
-                    chatSendBtn.disabled = false;
-                    questionCounter.style.display = 'block';
-
-                    // Start Step 1 workflow
-                    const response = await EA_BusinessObjectivesWorkflow.startStep1();
+                    currentStep = 'industry_select';
                     
-                    addAIMessage(response.question);
-                    currentQuestionEl.textContent = response.questionCount;
-                    chatInput.focus();
+                    // Show industry selection message
+                    addAIMessage('Let\'s start by selecting your industry. This helps me map your objectives to the right APQC capabilities.');
+                    
+                    // Create industry selection buttons
+                    const industryButtons = availableIndustries.map(industry => 
+                        `<button class="industry-btn" onclick="selectIndustry('${industry}')">
+                            <i class="fas fa-${getIndustryIcon(industry)}"></i>
+                            ${industry}
+                        </button>`
+                    ).join('');
+                    
+                    addAIMessage(`
+                        <div class="industry-selection">
+                            ${industryButtons}
+                        </div>
+                    `);
 
-                    console.log('🚀 Workflow started');
+                    console.log('🚀 Workflow started - Industry selection');
                 } catch (error) {
                     console.error('Error starting workflow:', error);
                     alert('Error starting workflow. Please try again.');
+                }
+            }
+            
+            // Get Industry Icon
+            function getIndustryIcon(industry) {
+                const icons = {
+                    'Manufacturing': 'industry',
+                    'Services': 'concierge-bell',
+                    'Retail': 'shopping-cart',
+                    'Financial Services': 'chart-line',
+                    'Healthcare': 'heartbeat',
+                    'Technology': 'laptop-code',
+                    'All': 'globe'
+                };
+                return icons[industry] || 'building';
+            }
+            
+            // Select Industry (called by button click)
+            window.selectIndustry = async function(industry) {
+                userIndustry = industry;
+                
+                // Add user selection as message
+                addUserMessage(`Selected: ${industry}`);
+                
+                // Show loading
+                showLoading('Loading APQC capability map...');
+                
+                // Load capability map immediately
+                await showCapabilityMapEarly();
+                
+                hideLoading();
+                
+                // Now start AI questionnaire (4 questions about challenges, goals, priorities, vision)
+                addAIMessage(`Perfect! I've loaded the APQC capability framework for ${industry}. Now let's understand your specific context.`);
+                
+                currentStep = 'discovery';
+                
+                // Enable chat input
+                chatInput.disabled = false;
+                chatSendBtn.disabled = false;
+                questionCounter.style.display = 'block';
+                
+                // Start AI questionnaire
+                try {
+                    const response = await EA_BusinessObjectivesWorkflow.startStep1();
+                    addAIMessage(response.question);
+                    currentQuestionEl.textContent = response.questionCount;
+                    chatInput.focus();
+                } catch (error) {
+                    console.error('Error starting AI questionnaire:', error);
+                    addAIMessage('Sorry, I encountered an error. Please try again.');
                 }
             }
 
@@ -1013,7 +1107,7 @@
                     const currentWorkflowStep = workflowState.currentStep;
                     const questionCount = workflowState.step1Data?.questionCount || 0;
 
-                    // Store Q&A in conversation context
+                    // Store Q&A in conversation context (include industry as Q0)
                     const lastAIMessage = document.querySelectorAll('.chat-message.ai');
                     const lastQuestion = lastAIMessage[lastAIMessage.length - 1]?.textContent.trim() || '';
                     conversationContext.push({
@@ -1031,15 +1125,8 @@
 
                     hideLoading();
 
-                    // Check if this is the first question (industry)
-                    if (questionCount === 1 && currentWorkflowStep === 1) {
-                        userIndustry = message;
-                        // Show capability map immediately after industry question
-                        await showCapabilityMapEarly();
-                        addAIMessage(`Perfect! I've loaded the APQC capability framework. Watch as I highlight relevant capabilities based on your responses.\n\n${response.question || ''}`);
-                    }
-                    // Progressive highlighting for subsequent questions (2-4)
-                    else if (questionCount >= 2 && questionCount <= 4 && currentWorkflowStep === 1) {
+                    // Progressive highlighting for questions 1-4 (after industry already selected)
+                    if (questionCount >= 1 && questionCount <= 4 && currentWorkflowStep === 1) {
                         // Update capability highlighting based on cumulative context
                         await updateCapabilityHighlighting();
                         if (response.question) {
@@ -1109,29 +1196,31 @@
                 currentStep = 'mapping';
             }
 
-            // Show Capability Map Early (after industry question)
+            // Show Capability Map Early (after industry selection)
             async function showCapabilityMapEarly() {
                 welcomeScreen.style.display = 'none';
                 capabilityMap.classList.add('active');
 
-                // Show industry info instead of objectives summary
+                // Show industry info
                 objectivesSummary.innerHTML = `
                     <div class="objective-chip" style="background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);">
-                        <i class="fas fa-industry"></i>
-                        Industry: ${userIndustry}
+                        <i class="fas fa-${getIndustryIcon(userIndustry)}"></i>
+                        ${userIndustry}
                     </div>
                     <div class="objective-chip" style="background: rgba(0, 102, 204, 0.1); color: #0066cc; border: 1px solid #0066cc;">
-                        <i class="fas fa-chart-line"></i>
-                        Analyzing your context...
+                        <i class="fas fa-map"></i>
+                        APQC Framework Loaded
+                    </div>
+                    <div class="objective-chip" style="background: rgba(74, 119, 99, 0.1); color: var(--ea-accent); border: 1px solid var(--ea-accent);">
+                        <i class="fas fa-comments"></i>
+                        Ready for discovery questions
                     </div>
                 `;
 
                 // Render APQC categories (all visible initially)
                 renderAPQCMap();
 
-                currentStep = 'discovery'; // Still in discovery, but showing map
-
-                console.log('🗺️ Capability map shown early after industry question');
+                console.log('🗺️ Capability map loaded for industry:', userIndustry);
             }
 
             // Update Capability Highlighting (progressive)
@@ -1139,15 +1228,17 @@
                 showLoading('Analyzing and updating capability map...');
 
                 try {
-                    // Build cumulative context from all Q&A so far
-                    const contextText = conversationContext.map(qa => 
+                    // Build cumulative context including industry selection
+                    const industryContext = `Industry: ${userIndustry}`;
+                    const conversationText = conversationContext.map(qa => 
                         `Q: ${qa.question}\nA: ${qa.answer}`
                     ).join('\n\n');
+                    const fullContext = `${industryContext}\n\n${conversationText}`;
 
                     // Use AI to identify relevant capabilities based on current context
-                    const prompt = `Based on this business context conversation, identify the most relevant APQC capability codes (e.g., "1.1", "2.3", "3.2"):
+                    const prompt = `Based on this business context, identify the most relevant APQC capability codes (e.g., "1.1", "2.3", "3.2"):
 
-${contextText}
+${fullContext}
 
 Return ONLY a JSON array of capability codes that are relevant: ["1.1", "2.2", ...]
 
@@ -1171,13 +1262,13 @@ Focus on capabilities that align with the industry, challenges, and goals mentio
                     }
 
                     // Update highlighting with confidence levels (more answers = more confidence)
-                    const confidence = Math.min(conversationContext.length / 5, 1); // 0 to 1
+                    const confidence = Math.min((conversationContext.length + 1) / 5, 1); // +1 for industry
                     highlightCapabilities(capabilityCodes, confidence);
 
                     // Update summary chip
                     objectivesSummary.innerHTML = `
                         <div class="objective-chip" style="background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);">
-                            <i class="fas fa-industry"></i>
+                            <i class="fas fa-${getIndustryIcon(userIndustry)}"></i>
                             ${userIndustry}
                         </div>
                         <div class="objective-chip" style="background: linear-gradient(135deg, var(--ea-accent) 0%, #3d6956 100%);">
