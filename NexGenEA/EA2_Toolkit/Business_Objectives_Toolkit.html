@@ -1077,11 +1077,27 @@
                 chatSendBtn.disabled = false;
                 questionCounter.style.display = 'block';
                 
-                // Start AI questionnaire
+                // Start AI questionnaire and auto-answer Q1 (industry) since already selected
                 try {
                     const response = await EA_BusinessObjectivesWorkflow.startStep1();
-                    addAIMessage(response.question);
-                    currentQuestionEl.textContent = response.questionCount;
+                    
+                    // The workflow asks about industry as Q1, but we already selected it
+                    // So auto-answer Q1 with the selected industry and move to Q2
+                    console.log('Auto-answering Q1 (industry) with:', industry);
+                    
+                    // Store Q1 in conversation context
+                    conversationContext.push({
+                        question: response.question,
+                        answer: industry,
+                        questionNumber: 1
+                    });
+                    
+                    // Auto-submit the industry answer to get Q2
+                    const nextResponse = await EA_BusinessObjectivesWorkflow.handleStep1UserResponse(industry);
+                    
+                    // Show Q2 to the user
+                    addAIMessage(nextResponse.question);
+                    currentQuestionEl.textContent = nextResponse.questionCount;
                     chatInput.focus();
                 } catch (error) {
                     console.error('Error starting AI questionnaire:', error);
