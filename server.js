@@ -80,7 +80,7 @@ app.post('/api/openai/chat', async (req, res) => {
 
     // Transform Responses API format to Chat Completions format
     if (isResponsesAPI) {
-      const { input, instructions, ...rest } = requestBody;
+      const { input, instructions, reasoning, ...rest } = requestBody;
       requestBody = {
         ...rest,
         messages: [
@@ -94,6 +94,12 @@ app.post('/api/openai/chat', async (req, res) => {
         requestBody.response_format = requestBody.text.format;
         delete requestBody.text;
       }
+      
+      // Filter out unsupported parameters for Chat Completions API
+      delete requestBody.reasoning;  // Only supported in o1/o3 models via different endpoint
+      delete requestBody.include;    // Responses API specific
+      delete requestBody.store;       // Responses API specific
+      delete requestBody.previous_response_id;  // Responses API specific
     }
 
     // Debug: Log what we're sending to OpenAI
