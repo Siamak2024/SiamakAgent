@@ -270,7 +270,7 @@ function renderEmptyCustomerState() {
 
 /**
  * Render Service Delivery Model as reference catalog (no customer required)
- * Shows all 41 HL services from Vivicta model as a base reference
+ * Shows all 44 HL services from Vivicta model as a base reference
  */
 function renderServiceCatalogView() {
     // Get all HL services from Vivicta model
@@ -280,14 +280,19 @@ function renderServiceCatalogView() {
         return renderErrorState('Service Model not loaded. Please refresh the page.');
     }
     
-    // Group services by L1 service area
+    // Group services by L1 service area, then by sub-domain
     const servicesByArea = {};
     hlServices.forEach(service => {
         const area = service.l1ParentName || 'Other Services';
+        const subArea = service.l1SubArea || 'Other';
+        
         if (!servicesByArea[area]) {
-            servicesByArea[area] = [];
+            servicesByArea[area] = {};
         }
-        servicesByArea[area].push(service);
+        if (!servicesByArea[area][subArea]) {
+            servicesByArea[area][subArea] = [];
+        }
+        servicesByArea[area][subArea].push(service);
     });
     
     // Build header
@@ -297,48 +302,65 @@ function renderServiceCatalogView() {
                 <div>
                     <h3 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 8px;">
                         <i class="fas fa-th" style="color: #10b981; margin-right: 8px;"></i>
-                        Service Delivery Model - Reference Catalog
+                        Vivicta Service Delivery Model - Reference Catalog
                     </h3>
                     <p style="font-size: 14px; color: #6b7280; margin: 0;">
                         ${hlServices.length} high-level services across ${Object.keys(servicesByArea).length} service areas
-                        <span style="margin-left: 16px;">📋 This is your internal service catalog - add customers to create assessments</span>
+                        <span style="margin-left: 16px;">📋 Internal service catalog - add customers to create WhiteSpot assessments</span>
                     </p>
                 </div>
             </div>
         </div>
     `;
     
-    // Render services grouped by area
+    // Render services grouped by area and sub-domain
     Object.keys(servicesByArea).sort().forEach(areaName => {
-        const services = servicesByArea[areaName];
+        const subDomains = servicesByArea[areaName];
+        const totalInArea = Object.values(subDomains).flat().length;
         
         html += `
             <div class="service-area-section" style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <h4 style="font-size: 16px; font-weight: 700; color: #065f46; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #d1fae5;">
-                    <i class="fas fa-folder-open" style="margin-right: 8px;"></i>
-                    ${areaName} (${services.length} services)
+                <h4 style="font-size: 18px; font-weight: 700; color: #065f46; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #d1fae5;">
+                    <i class="fas fa-layer-group" style="margin-right: 8px;"></i>
+                    ${areaName} (${totalInArea} services)
                 </h4>
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
         `;
         
-        services.forEach(service => {
+        // Render each sub-domain within the area
+        Object.keys(subDomains).sort().forEach(subAreaName => {
+            const services = subDomains[subAreaName];
+            
             html += `
-                <div class="service-card-reference" style="background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; padding: 16px; transition: all 0.2s;">
-                    <div style="font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 8px;">
-                        ${service.name}
+                <div style="margin-bottom: 24px;">
+                    <h5 style="font-size: 14px; font-weight: 600; color: #059669; margin-bottom: 12px; padding-left: 12px; border-left: 3px solid #10b981;">
+                        ${subAreaName} (${services.length})
+                    </h5>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+            `;
+            
+            services.forEach(service => {
+                html += `
+                    <div class="service-card-reference" style="background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; padding: 16px; transition: all 0.2s;">
+                        <div style="font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 8px;">
+                            ${service.name}
+                        </div>
+                        <div style="font-size: 12px; color: #6b7280;">
+                            Service ID: ${service.id}
+                        </div>
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af;">
+                            <i class="fas fa-info-circle"></i> Reference service - assign to customers for assessment
+                        </div>
                     </div>
-                    <div style="font-size: 12px; color: #6b7280;">
-                        Service ID: ${service.id}
-                    </div>
-                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af;">
-                        <i class="fas fa-info-circle"></i> Reference service - assign to customers for assessment
+                `;
+            });
+            
+            html += `
                     </div>
                 </div>
             `;
         });
         
         html += `
-                </div>
             </div>
         `;
     });

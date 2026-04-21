@@ -55,11 +55,12 @@ class VivictaServiceLoader {
     // Parse L2 Delivery Offerings
     if (this.serviceData.deliveryOfferings_L2) {
       this.l2Offerings = this.serviceData.deliveryOfferings_L2.map((offering, index) => ({
-        id: `L2-${String(index + 1).padStart(3, '0')}`, // L2-001, L2-002, etc.
+        id: offering.id || `L2-${String(index + 1).padStart(3, '0')}`, // Use id from JSON or generate
         name: offering.name,
         heatmapLevel: offering.heatmapLevel || 'DL',
         l1ParentId: offering.l1ServiceArea || this._inferL1Category(offering.name),
         l1ParentName: offering.l1ServiceAreaName || this._inferL1CategoryName(offering.name),
+        l1SubArea: offering.l1SubArea || null, // Sub-domain grouping (Data & AI, Cloud, etc.)
         l3ComponentIds: offering.l3Components || [],
         description: offering.description || '',
         isHL: (offering.heatmapLevel === 'HL')
