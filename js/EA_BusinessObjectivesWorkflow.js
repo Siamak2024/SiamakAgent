@@ -144,7 +144,8 @@ After receiving the user's final answer, respond with ONLY this JSON structure (
         userMessage,
         {
           instructions: systemPrompt,
-          model: 'gpt-5'
+          model: 'gpt-5',
+          timeout: 45000  // 45 seconds for question generation
         }
       );
 
@@ -213,7 +214,8 @@ Respond with ONLY this JSON structure (no other text):
         "Please synthesize the objectives now.",
         {
           instructions: synthesisPrompt,
-          model: 'gpt-5'
+          model: 'gpt-5',
+          timeout: 90000  // 90 seconds for complex synthesis
         }
       );
 
@@ -435,7 +437,8 @@ After receiving the user's final answer, respond with ONLY this JSON structure (
         userMessage,
         {
           instructions: systemPrompt,
-          model: 'gpt-5'
+          model: 'gpt-5',
+          timeout: 45000  // 45 seconds for question generation
         }
       );
 
@@ -508,7 +511,8 @@ Respond with ONLY this JSON structure (no other text):
         "Please synthesize the capability mapping now.",
         {
           instructions: synthesisPrompt,
-          model: 'gpt-5'
+          model: 'gpt-5',
+          timeout: 90000  // 90 seconds for complex synthesis
         }
       );
 
@@ -766,7 +770,8 @@ After receiving the user's final answer, respond with ONLY this JSON structure (
         userMessage,
         {
           instructions: systemPrompt,
-          model: 'gpt-5'
+          model: 'gpt-5',
+          timeout: 45000  // 45 seconds for question generation
         }
       );
 
@@ -842,7 +847,8 @@ Respond with ONLY this JSON structure (no other text):
         "Please synthesize the integration plan now.",
         {
           instructions: synthesisPrompt,
-          model: 'gpt-5'
+          model: 'gpt-5',
+          timeout: 90000  // 90 seconds for complex synthesis
         }
       );
 
