@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
     <link rel="stylesheet" href="../../css/ea-design-engine.css" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../../AzureOpenAIProxy.js"></script>
     <script src="../../js/EA_Config.js"></script>
     <script src="../../js/EA_DataManager.js"></script>
     <script src="../../js/Advicy_AI.js"></script>
@@ -3207,34 +3208,21 @@ async function processAIRequest(userMessage) {
         });
         const context = `Current Capability Map: ${JSON.stringify(all, null, 2)}`;
         
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: 'gpt-4',
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'You are an expert in capability mapping, APQC framework, enterprise architecture, and strategic assessment. Help users analyze their capability maps, identify gaps, assess maturity levels, and provide actionable insights. Be concise, actionable, and insightful.'
-                    },
-                    {
-                        role: 'user',
-                        content: `${userMessage}\n\nContext:\n${context}`
-                    }
-                ],
-                temperature: 0.7,
-                max_tokens: 800
-            })
+        // Use Responses API via AzureOpenAIProxy (correct format)
+        const systemPrompt = 'You are an expert in capability mapping, APQC framework, enterprise architecture, and strategic assessment. Help users analyze their capability maps, identify gaps, assess maturity levels, and provide actionable insights. Be concise, actionable, and insightful.';
+        const fullMessage = `${userMessage}\n\nContext:\n${context}`;
+        
+        const response = await AzureOpenAIProxy.create(fullMessage, {
+            model: 'gpt-5',
+            instructions: systemPrompt,
+            timeout: 45000,
+            reasoning: { summary: 'auto', effort: 'medium' }
         });
         
-        const data = await response.json();
         document.getElementById('thinking-indicator')?.remove();
         
-        if (data.choices && data.choices[0]) {
-            addChatMessage(data.choices[0].message.content, 'assistant');
+        if (response && response.output_text) {
+            addChatMessage(response.output_text, 'assistant');
         } else {
             addChatMessage('Sorry, I encountered an error. Please try again.', 'assistant');
         }

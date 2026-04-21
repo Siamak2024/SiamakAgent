@@ -1054,36 +1054,20 @@
                 const bmcData = getBMCData();
                 const context = `Current BMC: ${JSON.stringify(bmcData, null, 2)}`;
                 
-                // Use the server proxy endpoint (keeps API key secure on server)
-                const response = await fetch('/api/openai/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: 'gpt-4',
-                        messages: [
-                            {
-                                role: 'system',
-                                content: 'You are an expert business model strategist. Help users design, analyze, and improve their Business Model Canvas. Be concise, actionable, and insightful.'
-                            },
-                            {
-                                role: 'user',
-                                content: `${userMessage}\n\nContext:\n${context}`
-                            }
-                        ],
-                        temperature: 0.7,
-                        max_tokens: 800
-                    })
-                });
+                // Use Responses API via AdvisyAI (correct format)
+                const systemPrompt = 'You are an expert business model strategist. Help users design, analyze, and improve their Business Model Canvas. Be concise, actionable, and insightful.';
+                const fullMessage = `${userMessage}\n\nContext:\n${context}`;
                 
-                const data = await response.json();
+                const response = await AdvisyAI.call(fullMessage, {
+                    stepOverridePrompt: systemPrompt,
+                    includeProjectContext: false
+                });
                 
                 // Remove thinking indicator
                 document.getElementById('thinking-indicator')?.remove();
                 
-                if (data.choices && data.choices[0]) {
-                    addChatMessage(data.choices[0].message.content, 'assistant');
+                if (response) {
+                    addChatMessage(response, 'assistant');
                 } else {
                     addChatMessage('Sorry, I encountered an error. Please try again.', 'assistant');
                 }
@@ -1108,34 +1092,18 @@
             document.getElementById('chat-messages').appendChild(thinkingDiv);
             
             try {
-                // Use the server proxy endpoint (keeps API key secure on server)
-                const response = await fetch('/api/openai/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: 'gpt-4',
-                        messages: [
-                            {
-                                role: 'system',
-                                content: 'You are a Business Model Canvas expert. Generate complete, realistic BMC blocks based on business description. Return ONLY valid JSON with keys: partners, activities, resources, value, relationships, channels, segments, costs, revenue. Each value should be a concise but detailed string (2-4 sentences).'
-                            },
-                            {
-                                role: 'user',
-                                content: `Generate a complete Business Model Canvas for: ${description}`
-                            }
-                        ],
-                        temperature: 0.8,
-                        max_tokens: 1500
-                    })
+                // Use Responses API via AdvisyAI (correct format)
+                const systemPrompt = 'You are a Business Model Canvas expert. Generate complete, realistic BMC blocks based on business description. Return ONLY valid JSON with keys: partners, activities, resources, value, relationships, channels, segments, costs, revenue. Each value should be a concise but detailed string (2-4 sentences).';
+                
+                const response = await AdvisyAI.call(`Generate a complete Business Model Canvas for: ${description}`, {
+                    stepOverridePrompt: systemPrompt,
+                    includeProjectContext: false
                 });
                 
-                const data = await response.json();
                 document.getElementById('thinking-indicator')?.remove();
                 
-                if (data.choices && data.choices[0]) {
-                    const content = data.choices[0].message.content;
+                if (response) {
+                    const content = response;
                     // Try to parse JSON
                     const jsonMatch = content.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {

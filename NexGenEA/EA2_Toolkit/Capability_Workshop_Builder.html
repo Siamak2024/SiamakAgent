@@ -6,6 +6,7 @@
     <title>Capability Mapping Workshop Builder – EA 2.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+    <script src="../AzureOpenAIProxy.js"></script>
     <script src="../js/EA_Config.js"></script>
     <script src="../js/EA_DataManager.js"></script>
     <style>
@@ -482,26 +483,17 @@ async function aiLookupIndustry() {
     btn.innerHTML = '<i class="fas fa-spinner spinner"></i> Söker...';
     
     try {
-        const res = await fetch('/api/openai/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: 'gpt-4o',
-                messages: [{
-                    role: 'system',
-                    content: `Du är en bransch-klassificerings-expert. Analysera organisationsnamnet och returnera bransch i ren text (max 3 ord). Exempel: "Fastighet", "SaaS", "Fintech", "Retail", "Public Sector". Svara ENDAST med branschnamnet.`
-                }, {
-                    role: 'user',
-                    content: `Organisation: ${org}`
-                }],
-                temperature: 0.3
-            })
+        // Use Responses API via AzureOpenAIProxy (correct format)
+        const systemPrompt = `Du är en bransch-klassificerings-expert. Analysera organisationsnamnet och returnera bransch i ren text (max 3 ord). Exempel: "Fastighet", "SaaS", "Fintech", "Retail", "Public Sector". Svara ENDAST med branschnamnet.`;
+        
+        const response = await AzureOpenAIProxy.create(`Organisation: ${org}`, {
+            model: 'gpt-5',
+            instructions: systemPrompt,
+            timeout: 30000,
+            reasoning: { summary: 'auto', effort: 'low' }
         });
         
-        const data = await res.json();
-        if (data.error) throw new Error(data.error.message);
-        
-        const industry = data.choices[0].message.content.trim();
+        const industry = response.output_text.trim();
         document.getElementById('f-industry').value = industry;
         toast(`✓ Bransch detekterad: ${industry}`);
     } catch (e) {
@@ -549,15 +541,8 @@ ${st.orgDesc ? 'Beskrivning: ' + st.orgDesc : ''}
         const scenario = st.orgDesc ? 'Scenario 2 (AI-Assisted)' : 'Scenario 1 (Manual)';
         st.apqcScenario = scenario;
         
-        // Call AI to suggest capabilities
-        const res = await fetch('/api/openai/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: 'gpt-4o',
-                messages: [{
-                    role: 'system',
-                    content: `Du är APQC Framework expert. Baserat på organisationskontext, föreslå 15-25 relevanta L2 capabilities från APQC Process Classification Framework.
+        // Call AI to suggest capabilities using Responses API
+        const systemPrompt = `Du är APQC Framework expert. Baserat på organisationskontext, föreslå 15-25 relevanta L2 capabilities från APQC Process Classification Framework.
 
 INSTRUKTIONER:
 1. Fokusera på capabilities relaterade till: ${st.industry} bransch och ${st.focus} strategisk fokus
@@ -565,19 +550,16 @@ INSTRUKTIONER:
 3. För varje capability: namn (verb + objekt format), prioritet (strategic/important/commodity), mognad (1-5)
 4. Returnera JSON array med format: [{"domain":"customer","name":"Manage Customer Relationships","priority":"strategic","maturity":2}]
 
-Svara ENDAST med JSON array, ingen annan text.`
-                }, {
-                    role: 'user',
-                    content: context
-                }],
-                temperature: 0.7
-            })
+Svara ENDAST med JSON array, ingen annan text.`;
+        
+        const response = await AzureOpenAIProxy.create(context, {
+            model: 'gpt-5',
+            instructions: systemPrompt,
+            timeout: 60000,
+            reasoning: { summary: 'auto', effort: 'medium' }
         });
         
-        const data = await res.json();
-        if (data.error) throw new Error(data.error.message);
-        
-        const aiResponse = data.choices[0].message.content.trim();
+        const aiResponse = response.output_text.trim();
         let capabilities;
         
         // Extract JSON from response
