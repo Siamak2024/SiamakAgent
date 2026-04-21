@@ -9,17 +9,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
     <script src="../../AzureOpenAIProxy.js"></script>
-    
-    <!-- Markdown Rendering (for AI chat) -->
-    <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
-    
-    <!-- Syntax Highlighting (for AI chat code blocks) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-    
-    <!-- EA Chat Component (Universal AI Assistant) -->
-    <script src="ea_chat_component.js"></script>
-    
     <script src="../../js/EA_Config.js"></script>
     <script src="../../js/EA_AccountManager.js?v=2026"></script>
     <script src="../../js/EA_DataManager.js"></script>
@@ -717,6 +706,95 @@
             padding: 6px 12px;
             font-size: 12px;
         }
+        
+        /* === AI CHAT PANEL - WELCOME MESSAGE & QUICK ACTIONS === */
+        .chat-welcome-message {
+            padding: 24px 20px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-bottom: 1px solid #334155;
+            text-align: center;
+            animation: fadeInWelcome 0.3s ease-out;
+        }
+        
+        .chat-welcome-message .welcome-icon {
+            font-size: 48px;
+            color: #60a5fa;
+            margin-bottom: 16px;
+            opacity: 0.9;
+        }
+        
+        .chat-welcome-message h4 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #e0e0e0;
+            margin-bottom: 12px;
+        }
+        
+        .chat-welcome-message p {
+            font-size: 13px;
+            color: #94a3b8;
+            line-height: 1.6;
+            max-width: 90%;
+            margin: 0 auto;
+        }
+        
+        .chat-quick-actions {
+            padding: 16px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #2d2d2d;
+        }
+        
+        .quick-actions-label {
+            font-size: 11px;
+            color: #888;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+        
+        .quick-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            text-align: left;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            background: #252525;
+            border: 1px solid #333;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #d4d4d4;
+            transition: all 0.2s ease;
+        }
+        
+        .quick-action-btn:hover {
+            background: #2d2d2d;
+            border-color: #0066cc;
+            color: #60a5fa;
+        }
+        
+        .quick-action-btn i {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+        
+        .quick-action-btn:hover i {
+            opacity: 1;
+            color: #60a5fa;
+        }
+        
+        #chat-messages:not(:empty) ~ * .chat-welcome-message,
+        #chat-messages:not(:empty) ~ * .chat-quick-actions {
+            display: none;
+        }
+        
+        @keyframes fadeInWelcome {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -732,7 +810,7 @@
                 </div>
                 <div class="ea-header-title">
                     <h1>EA Engagement Playbook</h1>
-                    <p id="engagement-subtitle">Canvas-Based � Multi-Customer � Auto-Generated Outputs</p>
+                    <p id="engagement-subtitle">Canvas-Based � Multi-Customer � Auto-Generated Outputs</p>
                 </div>
             </div>
             <div class="ea-header-right">
@@ -764,7 +842,7 @@
                 <button class="ea-header-icon" onclick="openAIAssistantGuide()" title="AI Assistant Help & Examples" style="background: rgba(255,255,255,0.15);">
                     <i class="fas fa-question-circle"></i>
                 </button>
-                <button class="ea-header-icon" id="toggle-chat-btn" onclick="eaChat && eaChat.toggle()" title="AI Assistant (Ctrl+K)">
+                <button class="ea-header-icon" id="toggle-chat-btn" onclick="toggleChatPanel()" title="AI Assistant (Ctrl+K)">
                     <i class="fas fa-robot"></i>
                 </button>
             </div>
@@ -2322,35 +2400,39 @@
             // Initialize AccountManager for integration
             if (typeof EA_AccountManager !== 'undefined') {
                 window.accountManager = new EA_AccountManager();
-                console.log('? EA_AccountManager initialized for account integration');
+                console.log('✅ EA_AccountManager initialized for account integration');
             } else {
-                console.warn('EA_AccountManager not loaded - account linking disabled');
+                console.warn('⚠️ EA_AccountManager not loaded - account linking disabled');
             }
             
-            // Initialize engagement manager
-            engagementManager = new EA_EngagementManager();
-            console.log('? EA_EngagementManager initialized');
+            // Initialize engagement manager (assign to both local and window for global access)
+            window.engagementManager = engagementManager = new EA_EngagementManager();
+            console.log('✅ EA_EngagementManager initialized');
             
             // Initialize workflow engine
             if (typeof EA_WorkflowEngine !== 'undefined') {
                 workflowEngine = new EA_WorkflowEngine(engagementManager);
                 window.workflowEngine = workflowEngine;
-                console.log('? EA_WorkflowEngine initialized');
+                console.log('✅ EA_WorkflowEngine initialized');
             } else {
-                console.warn('EA_WorkflowEngine not loaded');
+                console.warn('⚠️ EA_WorkflowEngine not loaded');
             }
             
             // Initialize integration bridge (requires dataManager from EA_EngagementManager)
-            if (typeof EA_IntegrationBridge !== 'undefined' && engagementManager.dataManager) {
-                integrationBridge = new EA_IntegrationBridge(
-                    engagementManager,
-                    engagementManager.dataManager,
-                    workflowEngine
-                );
-                window.integrationBridge = integrationBridge;
-                console.log('? EA_IntegrationBridge initialized');
+            if (typeof EA_IntegrationBridge !== 'undefined') {
+                if (engagementManager.dataManager) {
+                    integrationBridge = new EA_IntegrationBridge(
+                        engagementManager,
+                        engagementManager.dataManager,
+                        workflowEngine
+                    );
+                    window.integrationBridge = integrationBridge;
+                    console.log('✅ EA_IntegrationBridge initialized');
+                } else {
+                    console.warn('⚠️ EA_DataManager not available - integration features disabled');
+                }
             } else {
-                console.warn('EA_IntegrationBridge not loaded or dataManager not available');
+                console.warn('⚠️ EA_IntegrationBridge not loaded - integration features disabled');
             }
             
             // Initialize EA_AIAssistant (context-aware AI with full functionality)
@@ -2360,7 +2442,7 @@
                     workflowEngine,
                     integrationBridge
                 );
-                console.log('? EA_AIAssistant initialized with workflow and integration support');
+                console.log('✅ EA_AIAssistant initialized with workflow and integration support');
                 
                 // Update AI context after a brief delay to let DOM settle
                 setTimeout(() => {
@@ -2369,11 +2451,40 @@
                     }
                 }, 500);
             } else {
-                console.warn('EA_AIAssistant not loaded - AI features will be limited');
+                console.warn('⚠️ EA_AIAssistant not loaded - AI features will be limited');
             }
             
             // Load APQC data
             loadAPQCData();
+            
+            // Initialize WhiteSpot Heatmap dependencies (Vivicta service model + APQC framework)
+            if (window.vivictaServiceLoader && typeof window.vivictaServiceLoader.loadServiceModel === 'function') {
+                window.vivictaServiceLoader.loadServiceModel('data/vivicta_dcs_service_delivery_consolidated_v4_1_HL_DL.json')
+                    .then(success => {
+                        if (success) {
+                            console.log('✅ Vivicta Service Model loaded (ready for WhiteSpot Heatmap auto-population)');
+                        } else {
+                            console.warn('⚠️ Failed to load Vivicta Service Model - WhiteSpot Heatmap auto-population may not work');
+                        }
+                    })
+                    .catch(error => console.error('❌ Error loading Vivicta Service Model:', error));
+            } else {
+                console.warn('⚠️ VivictaServiceLoader not available - WhiteSpot Heatmap features may be limited');
+            }
+            
+            if (window.apqcWhiteSpotIntegration && typeof window.apqcWhiteSpotIntegration.loadAPQCFramework === 'function') {
+                window.apqcWhiteSpotIntegration.loadAPQCFramework('data/apqc_pcf_master.json')
+                    .then(success => {
+                        if (success) {
+                            console.log('✅ APQC Framework loaded (ready for capability mapping)');
+                        } else {
+                            console.warn('⚠️ Failed to load APQC Framework - capability mapping may not work');
+                        }
+                    })
+                    .catch(error => console.error('❌ Error loading APQC Framework:', error));
+            } else {
+                console.warn('⚠️ APQCWhiteSpotIntegration not available - APQC mapping features may be limited');
+            }
             
             // Check for accountId in URL (coming from Growth Dashboard)
             const urlParams = new URLSearchParams(window.location.search);
@@ -2424,14 +2535,14 @@
                     const engagement = engagementManager.getCurrentEngagement();
                     if (engagement && workflowEngine) {
                         workflowEngine.initializeWorkflowState(engagement.engagement || engagement);
-                        console.log('? Workflow state initialized');
+                        console.log('✅ Workflow state initialized');
                     }
                 }
             }
             
             updateKPIs();
-            console.log('? EA Engagement Playbook fully initialized');
-            console.log('?? Phase 2 features enabled: Workflow Engine, Integration Bridge, Enhanced AI, Account Linking');
+            console.log('✅ EA Engagement Playbook fully initialized');
+            console.log('🚀 Phase 2 features enabled: Workflow Engine, Integration Bridge, Enhanced AI, Account Linking');
         });
 
         // -------------------------------------------------------------------
@@ -2481,7 +2592,7 @@
             try {
                 const response = await fetch('../../APAQ_Data/apqc_pcf_master.json');
                 apqcData = await response.json();
-                console.log('? APQC Framework loaded:', apqcData.total_categories, 'categories');
+                console.log('✅ APQC Framework loaded:', apqcData.total_categories, 'categories');
             } catch (error) {
                 console.warn('APQC data not available:', error);
             }
@@ -2661,7 +2772,7 @@
                 currentEngagement = model;
                 loadEngagementData();
                 updateEngagementSelector();
-                console.log('Auto-loaded engagement:', latest.name);
+                console.log('✅ Auto-loaded engagement:', latest.name);
                 return true;
             }
             
@@ -2839,7 +2950,7 @@
                 
                 // === ENGAGEMENT TEAM (Marketing/Sales) ===
                 {
-                    name: 'Emma Bergstr�m',
+                    name: 'Emma Bergstr�m',
                     role: 'Customer Engagement Manager',
                     orgUnit: 'Consulting - Marketing & Sales',
                     type: 'engagement-team',
@@ -2929,7 +3040,7 @@
             const perId = allStakeholders.find(s => s.name === 'Per Svensson')?.id;
             
             // Engagement Team
-            const emmaId = allStakeholders.find(s => s.name === 'Emma Bergstr�m')?.id;
+            const emmaId = allStakeholders.find(s => s.name === 'Emma Bergstr�m')?.id;
             const johanId = allStakeholders.find(s => s.name === 'Johan Karlsson')?.id;
             const saraId = allStakeholders.find(s => s.name === 'Sara Lindqvist')?.id;
             
@@ -3250,7 +3361,7 @@
                     estimatedCost: 5000000,
                     businessOutcomes: ['Eliminate technical debt', 'Reduce annual costs by 30%', 'Improve time-to-market'],
                     valueType: ['cost', 'risk'],
-                    owner: 'Anna Bergstr�m',
+                    owner: 'Anna Bergstr�m',
                     dependencies: ['Claims system integration', 'Data migration'],
                     risks: ['Data migration complexity', 'Business disruption']
                 },
@@ -3367,7 +3478,7 @@
                     impact: 'high',
                     severity: 6,
                     status: 'mitigating',
-                    owner: 'Anna Bergstr�m',
+                    owner: 'Anna Bergstr�m',
                     mitigationPlan: 'Launch change management program, provide cloud training and certification opportunities, communicate benefits clearly, involve team in migration planning.',
                     identifiedDate: '2026-03-20',
                     lastReviewDate: '2026-04-10',
@@ -3425,7 +3536,7 @@
                     title: 'Cloud Platform Selection: Microsoft Azure',
                     description: 'Selected Microsoft Azure as primary cloud platform over AWS and Google Cloud. Decision based on existing Microsoft EA, regional data center availability in Nordics, and integration with current tooling.',
                     status: 'approved',
-                    owner: 'Anna Bergstr�m',
+                    owner: 'Anna Bergstr�m',
                     impact: 'Commits organization to Azure ecosystem for next 3-5 years. Enables leveraging existing Microsoft skills and licenses. Sets direction for all cloud migrations.',
                     rationale: 'Azure provides best integration with existing Microsoft stack, has Nordic data centers for compliance, offers competitive enterprise pricing through existing EA. Team has Azure certifications.',
                     decisionDate: '2026-03-01',
@@ -3451,8 +3562,8 @@
                     title: 'Legacy Policy System Replacement vs Replatform',
                     description: 'Decision to replace legacy policy system with SaaS solution rather than replatforming existing codebase.',
                     status: 'under-review',
-                    owner: 'Anna Bergstr�m',
-                    impact: 'Major decision affecting 18-month timeline and �5M budget. Requires business process reengineering and data migration.',
+                    owner: 'Anna Bergstr�m',
+                    impact: 'Major decision affecting 18-month timeline and �5M budget. Requires business process reengineering and data migration.',
                     rationale: 'Replatforming would preserve technical debt. Modern SaaS provides best practices, faster time-to-market for new products, and lower TCO. Risk of disruption is manageable.',
                     decisionDate: '',
                     reviewDate: '2026-04-18',
@@ -3503,7 +3614,7 @@
                 },
                 {
                     title: 'Limited IT Budget FY2026',
-                    description: 'IT budget frozen at FY2025 levels. Capital budget for new investments limited to �8M for entire year.',
+                    description: 'IT budget frozen at FY2025 levels. Capital budget for new investments limited to �8M for entire year.',
                     type: 'budgetary',
                     severity: 'high',
                     owner: 'Karin Svensson',
@@ -3533,7 +3644,7 @@
                     description: 'Business mandates zero production changes during November-December due to year-end processing and holiday coverage.',
                     type: 'timeline',
                     severity: 'medium',
-                    owner: 'Anna Bergstr�m',
+                    owner: 'Anna Bergstr�m',
                     workaround: 'Plan major releases for Q1-Q3, use Q4 for planning and testing, schedule cutover dates accordingly.',
                     relatedObjects: []
                 },
@@ -3542,7 +3653,7 @@
                     description: 'Only 3 out of 15 developers have Azure certification. Team primarily experienced with on-premises infrastructure.',
                     type: 'resource',
                     severity: 'medium',
-                    owner: 'Anna Bergstr�m',
+                    owner: 'Anna Bergstr�m',
                     workaround: 'Invest in Azure training program, hire contractors for initial migrations, implement knowledge transfer requirements, build centers of excellence.',
                     relatedObjects: []
                 }
@@ -4444,12 +4555,110 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
             sendBtn.disabled = true;
             
             try {
+                // Get context data
+                const customers = engagementManager.getEntities('customers') || [];
+                const stakeholders = engagementManager.getEntities('stakeholders') || [];
+                const applications = engagementManager.getEntities('applications') || [];
+                const initiatives = engagementManager.getEntities('initiatives') || [];
+                
+                // ⚠️ SMART VALIDATION: Check if WhiteSpot query requires customer data
+                const isWhiteSpotQuery = /\b(whitespot|white.spot|service coverage|gap|apqc|capability|map.*service|service.*deliver|coverage|heatmap)\b/i.test(message);
+                
+                if (isWhiteSpotQuery && customers.length === 0) {
+                    // No customers exist - guide user to create one
+                    const helpMessage = `### 🎯 Customer Required for WhiteSpot Analysis
+
+I'd love to help with **"${message}"**, but I need at least one customer defined first!
+
+WhiteSpot heatmap analysis requires customer context to assess service coverage, map APQC capabilities, and identify opportunities.
+
+**Quick Options:**
+
+**1. Go to Engagement Setup Tab:**
+   - Click the "Engagement Setup" tab
+   - Add customer details in the Customers section
+
+**2. Or tell me to create a demo customer:**
+   - Just type: **"Create demo customer"**
+   - I'll set up a sample customer automatically
+
+**3. Load complete demo data:**
+   - Click the "Load Demo Data" button in WhiteSpot Heatmap tab
+   - Creates 3 customers with full heatmaps
+
+Once you have a customer, I can help with:
+- Service coverage gap analysis
+- APQC capability mapping  
+- Opportunity prioritization
+- Cross-sell/upsell recommendations
+
+Ready when you are! 🚀`;
+                    
+                    addChatMessage(helpMessage, 'ai');
+                    sendBtn.innerHTML = originalHTML;
+                    sendBtn.disabled = false;
+                    return;
+                }
+                
+                // Handle special command: Create demo customer
+                if (message.toLowerCase().includes('create demo customer') || message.toLowerCase().includes('add demo customer')) {
+                    const demoCustomer = {
+                        id: `CUST-${Date.now()}`,
+                        name: 'Demo Customer Inc.',
+                        industry: 'Financial Services',
+                        region: 'Nordics',
+                        segment: 'Enterprise',
+                        employees: 5000,
+                        revenue: 500000000,
+                        description: 'AI-generated demo customer for testing',
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    engagementManager.createEntity('customers', demoCustomer);
+                    
+                    const confirmMessage = `### ✅ Demo Customer Created!
+
+**Customer Details:**
+- **Name:** Demo Customer Inc.
+- **Industry:** Financial Services
+- **Region:** Nordics
+- **Segment:** Enterprise
+- **Employees:** 5,000
+- **Revenue:** $500M
+
+Perfect! Now I can help you with:
+- **WhiteSpot Analysis**: "Analyze service coverage gaps"
+- **APQC Mapping**: "Map services to APQC capabilities"
+- **Opportunity Identification**: "Identify expansion opportunities"
+
+**Next Steps:**
+1. Go to the **WhiteSpot Heatmap** tab to see auto-populated services
+2. Click any service card to assess coverage
+3. Map to APQC capabilities for business alignment
+
+What would you like to do next?`;
+                    
+                    addChatMessage(confirmMessage, 'ai');
+                    
+                    // Refresh WhiteSpot view if on that tab
+                    setTimeout(() => {
+                        if (typeof renderWhiteSpotHeatmap === 'function') {
+                            renderWhiteSpotHeatmap();
+                        }
+                    }, 500);
+                    
+                    sendBtn.innerHTML = originalHTML;
+                    sendBtn.disabled = false;
+                    return;
+                }
+                
                 // Call AI via AzureOpenAIProxy
                 const context = {
                     engagement: currentEngagement,
-                    stakeholders: engagementManager.getEntities('stakeholders') || [],
-                    applications: engagementManager.getEntities('applications') || [],
-                    initiatives: engagementManager.getEntities('initiatives') || []
+                    customers: customers,
+                    stakeholders: stakeholders,
+                    applications: applications,
+                    initiatives: initiatives
                 };
                 
                 const response = await AzureOpenAIProxy.create({
@@ -4473,15 +4682,86 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
         function addChatMessage(text, sender) {
             const messagesDiv = document.getElementById('chat-messages');
             const messageDiv = document.createElement('div');
-            messageDiv.className = `chat-message ${sender}-message`;
+            const role = sender === 'user' ? 'user' : 'assistant';
+            messageDiv.className = `chat-message chat-message-${role}`;
             
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+            // Enhanced markdown-to-HTML conversion
+            let formattedContent = text;
+            
+            // Convert code blocks first (```language\ncode\n```)
+            formattedContent = formattedContent.replace(/```(\w+)?\n([\s\S]+?)```/g, '<pre><code>$2</code></pre>');
+            
+            // Convert inline code
+            formattedContent = formattedContent.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // Convert headers (# to ######)
+            formattedContent = formattedContent.replace(/^######\s+(.+)$/gm, '<h6>$1</h6>');
+            formattedContent = formattedContent.replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>');
+            formattedContent = formattedContent.replace(/^####\s+(.+)$/gm, '<h4>$1</h4>');
+            formattedContent = formattedContent.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+            formattedContent = formattedContent.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+            formattedContent = formattedContent.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+            
+            // Convert bold and italic
+            formattedContent = formattedContent.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+            formattedContent = formattedContent.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            formattedContent = formattedContent.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            
+            // Convert blockquotes
+            formattedContent = formattedContent.replace(/^>\s+(.+)$/gm, '<blockquote>$1</blockquote>');
+            
+            // Convert horizontal rules
+            formattedContent = formattedContent.replace(/^---$/gm, '<hr>');
+            formattedContent = formattedContent.replace(/^\*\*\*$/gm, '<hr>');
+            
+            // Convert links [text](url)
+            formattedContent = formattedContent.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+            
+            // Convert unordered lists (- or *)
+            formattedContent = formattedContent.replace(/^[\-\*]\s+(.+)$/gm, '<li>$1</li>');
+            
+            // Convert ordered lists (1. 2. 3.)
+            formattedContent = formattedContent.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+            
+            // Wrap consecutive <li> items in <ul> or <ol>
+            formattedContent = formattedContent.replace(/(<li>.*<\/li>\n?)+/g, function(match) {
+                if (/^\d+\./.test(text)) {
+                    return '<ol>' + match + '</ol>';
+                }
+                return '<ul>' + match + '</ul>';
+            });
+            
+            // Convert simple tables (| col | col |)
+            const tableRegex = /(\|.+\|\n)+/g;
+            formattedContent = formattedContent.replace(tableRegex, function(match) {
+                const rows = match.trim().split('\n');
+                if (rows.length < 2) return match;
+                
+                let tableHTML = '<table>';
+                rows.forEach((row, i) => {
+                    const cells = row.split('|').filter(cell => cell.trim());
+                    if (i === 0) {
+                        tableHTML += '<tr>' + cells.map(cell => `<th>${cell.trim()}</th>`).join('') + '</tr>';
+                    } else if (!/^[\s\-\:]+$/.test(row)) {
+                        tableHTML += '<tr>' + cells.map(cell => `<td>${cell.trim()}</td>`).join('') + '</tr>';
+                    }
+                });
+                tableHTML += '</table>';
+                return tableHTML;
+            });
+            
+            // Convert paragraphs (double newlines)
+            formattedContent = formattedContent.replace(/\n\n+/g, '</p><p>');
+            
+            // Convert single newlines to <br>
+            formattedContent = formattedContent.replace(/\n/g, '<br>');
             
             messageDiv.innerHTML = `
-                <div class="message-content">
-                    <div class="message-text">${text}</div>
-                    <div class="message-time">${sender === 'user' ? 'You' : 'AI Assistant'} - ${timeStr}</div>
+                <div class="chat-message-avatar">
+                    <i class="fas fa-${role === 'user' ? 'user' : 'robot'}"></i>
+                </div>
+                <div class="chat-message-content">
+                    <p>${formattedContent}</p>
                 </div>
             `;
             
@@ -4557,73 +4837,151 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
         </button>
     </div>
 
-    <!-- EA Chat Component will render here dynamically -->
+    <!-- ADVICY AI SIDEBAR (VS Code Copilot style - Same as NexGen EA Platform) -->
+    <div id="ai-chat-panel" class="hidden">
+        <div id="chat-resize-handle" title="Drag to resize"></div>
+        <div id="chat-header">
+            <div id="chat-header-title">
+                <i class="fas fa-robot"></i>
+                <span id="chat-title-text">EA Engagement AI</span>
+            </div>
+            <div id="chat-controls">
+                <button id="new-chat" onclick="startNewConversationChat()" title="New conversation">+</button>
+                <button id="clear-chat" onclick="clearActiveConversationHistory()" title="Clear history">&#x21BA;</button>
+                <button id="close-chat" onclick="closeChatPanel()" title="Close sidebar">&times;</button>
+            </div>
+        </div>
+        <!-- Welcome Message -->
+        <div id="chat-welcome" class="chat-welcome-message">
+            <div class="welcome-icon"><i class="fas fa-lightbulb"></i></div>
+            <h4>EA Engagement Assistant</h4>
+            <p>I can help you with engagement planning, capability mapping, stakeholder analysis, and strategic recommendations for your EA engagements.</p>
+        </div>
+        <!-- Quick Action Prompts -->
+        <div id="chat-quick-actions" class="chat-quick-actions">
+            <div class="quick-actions-label">Quick Actions</div>
+            <button class="quick-action-btn" onclick="sendQuickPromptEngagement(0)">
+                <i class="fas fa-tasks"></i> Guide me through this engagement
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPromptEngagement(1)">
+                <i class="fas fa-users"></i> Analyze stakeholder landscape
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPromptEngagement(2)">
+                <i class="fas fa-project-diagram"></i> Suggest capability mapping approach
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPromptEngagement(3)">
+                <i class="fas fa-chart-line"></i> Identify value creation opportunities
+            </button>
+        </div>
+        <div id="chat-messages"></div>
+        <div id="chat-input-container">
+            <textarea id="chat-input" placeholder="Ask EA Engagement AI anything..."></textarea>
+            <button id="send-chat" title="Send (Enter)">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
 
     <script>
-        // ---------------------------------------------------------------
-        // EA CHAT COMPONENT INITIALIZATION
-        // ---------------------------------------------------------------
+        // ═══════════════════════════════════════════════════════════════
+        // AI CHAT PANEL FUNCTIONS (Same as NexGen EA Platform)
+        // ═══════════════════════════════════════════════════════════════
         
-        let eaChat = null;
+        // Quick Action Prompts for EA Engagement
+        const EA_ENGAGEMENT_QUICK_PROMPTS = [
+            'Guide me through this engagement - what should I focus on at each stage?',
+            'Analyze the stakeholder landscape and suggest engagement strategies',
+            'What approach should I take for capability mapping based on this engagement context?',
+            'Identify the top value creation opportunities and how to communicate them to stakeholders'
+        ];
         
-        // Initialize EA Chat Component after DOM is ready
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('?? Initializing EA Chat Component...');
+        function sendQuickPromptEngagement(index) {
+            const prompt = EA_ENGAGEMENT_QUICK_PROMPTS[index];
+            if (!prompt) {
+                console.error('Invalid quick prompt index:', index);
+                return;
+            }
             
-            eaChat = new EAChatComponent({
-                panelId: 'engagement-ai-chat',
-                title: 'EA Engagement AI',
-                icon: 'fa-robot',
-                
-                // Context provider - returns current engagement state
-                contextProvider: () => {
-                    const activeTab = document.querySelector('.tab-btn.active');
-                    const tabText = activeTab ? activeTab.textContent.trim() : 'Unknown';
+            // Hide welcome message and quick actions once first message is sent
+            const welcome = document.getElementById('chat-welcome');
+            const quickActions = document.getElementById('chat-quick-actions');
+            if (welcome) welcome.style.display = 'none';
+            if (quickActions) quickActions.style.display = 'none';
+            
+            // Set input value and trigger send
+            const input = document.getElementById('chat-input');
+            if (input) {
+                input.value = prompt;
+                // Trigger the send button click
+                const sendBtn = document.getElementById('send-chat');
+                if (sendBtn) {
+                    sendBtn.click();
+                }
+            }
+        }
+        
+        function toggleChatPanel() {
+            const panel = document.getElementById('ai-chat-panel');
+            if (!panel) return;
+            const isOpen = !panel.classList.contains('hidden');
+            if (isOpen) {
+                panel.classList.add('hidden');
+                document.body.classList.remove('chat-sidebar-open');
+                _updateSidebarToggleIcon(false);
+            } else {
+                panel.classList.remove('hidden');
+                document.body.classList.add('chat-sidebar-open');
+                _updateSidebarToggleIcon(true);
+                const input = document.getElementById('chat-input');
+                if (input) input.focus({ preventScroll: true });
+            }
+        }
+
+        function _updateSidebarToggleIcon(open) {
+            const btn = document.getElementById('toggle-chat-btn');
+            if (!btn) return;
+            btn.style.background = open ? 'rgba(14,122,254,0.18)' : '';
+            btn.style.color = open ? '#60a5fa' : '';
+        }
+
+        function closeChatPanel() {
+            const panel = document.getElementById('ai-chat-panel');
+            if (panel) panel.classList.add('hidden');
+            document.body.classList.remove('chat-sidebar-open');
+            _updateSidebarToggleIcon(false);
+        }
+
+        function startNewConversationChat() {
+            if (typeof Advicy_AI_Instance !== 'undefined' && Advicy_AI_Instance.startNewConversation) {
+                Advicy_AI_Instance.startNewConversation();
+            } else {
+                // Fallback: clear messages
+                const messagesDiv = document.getElementById('chat-messages');
+                if (messagesDiv) messagesDiv.innerHTML = '';
+            }
+        }
+
+        function clearActiveConversationHistory() {
+            if (typeof Advicy_AI_Instance !== 'undefined' && Advicy_AI_Instance.clearHistory) {
+                Advicy_AI_Instance.clearHistory();
+            } else {
+                // Fallback: clear messages
+                const messagesDiv = document.getElementById('chat-messages');
+                if (messagesDiv) messagesDiv.innerHTML = '';
+            }
+        }
+
+        // Initialize AI Assistant when Advicy_AI loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Wait for Advicy_AI to be ready
+            const initAI = setInterval(function() {
+                if (typeof Advicy_AI_Instance !== 'undefined') {
+                    clearInterval(initAI);
+                    console.log('✅ Advicy AI ready for EA Engagement Playbook');
                     
-                    return {
-                        tool: 'EA Engagement Playbook',
-                        currentCanvas: tabText,
-                        engagement: window.engagementManager ? {
-                            customers: engagementManager.getEntities('customers').length,
-                            applications: engagementManager.getEntities('applications').length,
-                            stakeholders: engagementManager.getEntities('stakeholders').length,
-                            initiatives: engagementManager.getEntities('initiatives').length
-                        } : null,
-                        summary: `Working on: ${tabText}`,
-                        
-                        // Quick action buttons
-                        quickActions: [
-                            {
-                                label: 'Engagement Overview',
-                                icon: 'fa-info-circle',
-                                prompt: 'Summarize the current engagement setup and provide recommendations'
-                            },
-                            {
-                                label: 'Stakeholder Analysis',
-                                icon: 'fa-users',
-                                prompt: 'Analyze stakeholders and suggest engagement strategies'
-                            },
-                            {
-                                label: 'Gap Analysis',
-                                icon: 'fa-search',
-                                prompt: 'Identify gaps and improvement opportunities'
-                            },
-                            {
-                                label: 'Roadmap Help',
-                                icon: 'fa-road',
-                                prompt: 'Help me create a realistic EA roadmap'
-                            },
-                            {
-                                label: 'Decision Support',
-                                icon: 'fa-lightbulb',
-                                prompt: 'Help me make an architectural decision'
-                            }
-                        ]
-                    };
-                },
-                
-                // System prompt for AI
-                systemPrompt: `You are an expert Enterprise Architecture consultant helping with engagement planning and execution.
+                    // Set context-aware system prompt
+                    if (Advicy_AI_Instance.setSystemPrompt) {
+                        Advicy_AI_Instance.setSystemPrompt(`You are an expert Enterprise Architecture consultant helping with engagement planning and execution.
 Focus on practical EA methodologies, stakeholder management, capability analysis, and roadmap planning.
 Provide concise, actionable insights adapted to the current canvas/tab.
 Format your responses using markdown for better readability.
@@ -4635,23 +4993,317 @@ You have access to:
 - WhiteSpot Heatmap (service delivery)
 - Target EA vision
 - Roadmap planning
-- Portfolio/Leadership documentation`
-            });
-            
-            // Render the chat panel
-            eaChat.render();
-            console.log('? EA Chat Component initialized');
+- Portfolio/Leadership documentation`);
+                    }
+                }
+            }, 100);
         });
         
         // Keyboard shortcut Ctrl+K to toggle chat
         document.addEventListener('keydown', function(e) {
             if (e.ctrlKey && e.key === 'k') {
                 e.preventDefault();
-                if (eaChat) {
-                    eaChat.toggle();
-                }
+                toggleChatPanel();
             }
         });
+        
+        // Resize handle functionality - Initialize after DOM is loaded
+        function initializeChatResize() {
+            const handle = document.getElementById('chat-resize-handle');
+            const panel = document.getElementById('ai-chat-panel');
+            
+            if (!handle || !panel) {
+                console.warn('Chat resize elements not found');
+                return;
+            }
+
+            let isResizing = false;
+            let startX = 0;
+            let startWidth = 0;
+
+            handle.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                startX = e.clientX;
+                startWidth = panel.offsetWidth;
+                handle.classList.add('dragging');
+                document.body.style.userSelect = 'none'; // Prevent text selection
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                const delta = startX - e.clientX;
+                const newWidth = Math.max(240, Math.min(700, startWidth + delta));
+                panel.style.width = newWidth + 'px';
+                
+                // Update main content margin dynamically
+                if (document.body.classList.contains('chat-sidebar-open')) {
+                    const mainContent = document.getElementById('main-content');
+                    if (mainContent) mainContent.style.marginRight = newWidth + 'px';
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    handle.classList.remove('dragging');
+                    document.body.style.userSelect = ''; // Re-enable text selection
+                }
+            });
+        }
+        
+        // Initialize resize after DOM loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeChatResize);
+        } else {
+            initializeChatResize();
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // WHITESPOT HEATMAP DEMO DATA LOADER
+        // ═══════════════════════════════════════════════════════════════════
+        
+        /**
+         * Load demo data for WhiteSpot Heatmap
+         * Creates sample customers and generates realistic heatmaps with APQC mappings
+         */
+        async function loadWhiteSpotDemoData() {
+            try {
+                console.log('📊 Loading WhiteSpot demo data...');
+                
+                // Ensure engagement exists
+                if (!window.engagementManager || !window.engagementManager.getCurrentEngagementId()) {
+                    showNotification('Please create or select an engagement first', 'warning');
+                    return;
+                }
+                
+                // Show loading indicator
+                const container = document.getElementById('whitespot-heatmap-container');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon"><i class="fas fa-spinner fa-spin"></i></div>
+                            <div class="empty-state-title">Generating Demo Data...</div>
+                            <div class="empty-state-text">Creating sample customers and heatmaps with APQC mappings</div>
+                        </div>
+                    `;
+                }
+                
+                // Ensure service loader and APQC integration are initialized
+                if (!window.vivictaServiceLoader || !window.vivictaServiceLoader.isReady()) {
+                    await window.vivictaServiceLoader.loadServiceModel('data/vivicta_dcs_service_delivery_consolidated_v4_1_HL_DL.json');
+                }
+                
+                if (!window.apqcWhiteSpotIntegration || !window.apqcWhiteSpotIntegration.isReady()) {
+                    await window.apqcWhiteSpotIntegration.loadAPQCFramework('data/apqc_pcf_master.json');
+                }
+                
+                // Create demo customers if none exist
+                const existingCustomers = window.engagementManager.getEntities('customers') || [];
+                const demoCustomers = [];
+                
+                if (existingCustomers.length === 0) {
+                    // Create 3 demo customers with different scenarios
+                    const customerData = [
+                        {
+                            name: 'Nordic Insurance AB',
+                            segment: 'Financial Services',
+                            region: 'Nordics',
+                            employees: 5000,
+                            revenue: 500000000,
+                            scenario: 'mature'
+                        },
+                        {
+                            name: 'TechStart Solutions',
+                            segment: 'Technology',
+                            region: 'EMEA',
+                            employees: 250,
+                            revenue: 25000000,
+                            scenario: 'emerging'
+                        },
+                        {
+                            name: 'Global Retail Corp',
+                            segment: 'Retail',
+                            region: 'Global',
+                            employees: 15000,
+                            revenue: 1500000000,
+                            scenario: 'mixed'
+                        }
+                    ];
+                    
+                    for (const data of customerData) {
+                        const customer = {
+                            id: `CUST-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+                            name: data.name,
+                            segment: data.segment,
+                            region: data.region,
+                            employees: data.employees,
+                            revenue: data.revenue,
+                            createdAt: new Date().toISOString()
+                        };
+                        
+                        window.engagementManager.createEntity('customers', customer);
+                        demoCustomers.push({ ...customer, scenario: data.scenario });
+                        console.log(`✓ Created demo customer: ${customer.name}`);
+                    }
+                } else {
+                    // Use existing customers with default scenario
+                    existingCustomers.forEach(c => {
+                        demoCustomers.push({ ...c, scenario: 'mixed' });
+                    });
+                }
+                
+                // Generate heatmaps for all demo customers
+                const generatedHeatmaps = [];
+                for (const customer of demoCustomers) {
+                    const heatmap = await generateDemoHeatmap(customer, customer.scenario, window.engagementManager);
+                    
+                    // Save heatmap to engagement
+                    window.engagementManager.createEntity('whiteSpotHeatmaps', heatmap);
+                    generatedHeatmaps.push(heatmap);
+                    
+                    console.log(`✓ Generated heatmap for ${customer.name} (${heatmap.hlAssessments.length} services, ${heatmap.opportunities.length} opportunities)`);
+                }
+                
+                // Refresh the WhiteSpot display
+                await renderWhiteSpotHeatmap();
+                
+                // Show success notification
+                showNotification(
+                    `Successfully loaded ${demoCustomers.length} customers and ${generatedHeatmaps.length} WhiteSpot heatmaps with APQC mappings!`,
+                    'success'
+                );
+                
+                console.log('✅ WhiteSpot demo data loaded successfully');
+                
+            } catch (error) {
+                console.error('❌ Error loading WhiteSpot demo data:', error);
+                showNotification('Failed to load demo data: ' + error.message, 'error');
+                
+                // Show error state
+                const container = document.getElementById('whitespot-heatmap-container');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon"><i class="fas fa-exclamation-triangle" style="color: #dc2626;"></i></div>
+                            <div class="empty-state-title">Error Loading Demo Data</div>
+                            <div class="empty-state-text">${error.message}</div>
+                            <div style="margin-top: 20px;">
+                                <button class="btn btn-primary" onclick="loadWhiteSpotDemoData()">
+                                    <i class="fas fa-redo"></i> Retry
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        /**
+         * Import WhiteSpot heatmap from standalone toolkit
+         * Allows importing saved heatmaps from the standalone WhiteSpot tool
+         */
+        async function importFromStandalone() {
+            try {
+                // Create file input for JSON import
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                
+                input.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        try {
+                            const importedData = JSON.parse(event.target.result);
+                            
+                            // Validate import data structure
+                            if (!importedData.customers || !importedData.heatmaps) {
+                                throw new Error('Invalid import file format. Expected customers and heatmaps arrays.');
+                            }
+                            
+                            let importedCount = 0;
+                            
+                            // Import customers
+                            for (const customer of importedData.customers) {
+                                // Check if customer already exists
+                                const existing = window.engagementManager.getEntities('customers').find(c => c.id === customer.id);
+                                if (!existing) {
+                                    window.engagementManager.createEntity('customers', customer);
+                                    console.log(`✓ Imported customer: ${customer.name}`);
+                                }
+                            }
+                            
+                            // Import heatmaps
+                            for (const heatmap of importedData.heatmaps) {
+                                // Check if heatmap already exists
+                                const existing = window.engagementManager.getEntities('whiteSpotHeatmaps').find(h => h.id === heatmap.id);
+                                if (!existing) {
+                                    window.engagementManager.createEntity('whiteSpotHeatmaps', heatmap);
+                                    importedCount++;
+                                    console.log(`✓ Imported heatmap: ${heatmap.id} for ${heatmap.customerName}`);
+                                }
+                            }
+                            
+                            // Refresh display
+                            await renderWhiteSpotHeatmap();
+                            
+                            showNotification(
+                                `Successfully imported ${importedData.customers.length} customers and ${importedCount} heatmaps from standalone toolkit!`,
+                                'success'
+                            );
+                            
+                        } catch (error) {
+                            console.error('❌ Import error:', error);
+                            showNotification('Failed to import: ' + error.message, 'error');
+                        }
+                    };
+                    
+                    reader.readAsText(file);
+                };
+                
+                input.click();
+                
+            } catch (error) {
+                console.error('❌ Error importing from standalone:', error);
+                showNotification('Failed to import: ' + error.message, 'error');
+            }
+        }
+        
+        /**
+         * Export WhiteSpot heatmaps to JSON file
+         * Compatible with standalone WhiteSpot toolkit format
+         */
+        function exportWhiteSpotData() {
+            try {
+                const customers = window.engagementManager.getEntities('customers') || [];
+                const heatmaps = window.engagementManager.getEntities('whiteSpotHeatmaps') || [];
+                
+                const exportData = {
+                    exportDate: new Date().toISOString(),
+                    source: 'EA Engagement Playbook',
+                    engagementId: window.engagementManager.getCurrentEngagementId(),
+                    customers: customers,
+                    heatmaps: heatmaps
+                };
+                
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `whitespot-export-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                showNotification(`Exported ${heatmaps.length} WhiteSpot heatmaps`, 'success');
+                
+            } catch (error) {
+                console.error('❌ Export error:', error);
+                showNotification('Failed to export: ' + error.message, 'error');
+            }
+        }
     </script>
 
 </body>

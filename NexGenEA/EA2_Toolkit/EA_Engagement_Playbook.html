@@ -4555,12 +4555,110 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
             sendBtn.disabled = true;
             
             try {
+                // Get context data
+                const customers = engagementManager.getEntities('customers') || [];
+                const stakeholders = engagementManager.getEntities('stakeholders') || [];
+                const applications = engagementManager.getEntities('applications') || [];
+                const initiatives = engagementManager.getEntities('initiatives') || [];
+                
+                // ⚠️ SMART VALIDATION: Check if WhiteSpot query requires customer data
+                const isWhiteSpotQuery = /\b(whitespot|white.spot|service coverage|gap|apqc|capability|map.*service|service.*deliver|coverage|heatmap)\b/i.test(message);
+                
+                if (isWhiteSpotQuery && customers.length === 0) {
+                    // No customers exist - guide user to create one
+                    const helpMessage = `### 🎯 Customer Required for WhiteSpot Analysis
+
+I'd love to help with **"${message}"**, but I need at least one customer defined first!
+
+WhiteSpot heatmap analysis requires customer context to assess service coverage, map APQC capabilities, and identify opportunities.
+
+**Quick Options:**
+
+**1. Go to Engagement Setup Tab:**
+   - Click the "Engagement Setup" tab
+   - Add customer details in the Customers section
+
+**2. Or tell me to create a demo customer:**
+   - Just type: **"Create demo customer"**
+   - I'll set up a sample customer automatically
+
+**3. Load complete demo data:**
+   - Click the "Load Demo Data" button in WhiteSpot Heatmap tab
+   - Creates 3 customers with full heatmaps
+
+Once you have a customer, I can help with:
+- Service coverage gap analysis
+- APQC capability mapping  
+- Opportunity prioritization
+- Cross-sell/upsell recommendations
+
+Ready when you are! 🚀`;
+                    
+                    addChatMessage(helpMessage, 'ai');
+                    sendBtn.innerHTML = originalHTML;
+                    sendBtn.disabled = false;
+                    return;
+                }
+                
+                // Handle special command: Create demo customer
+                if (message.toLowerCase().includes('create demo customer') || message.toLowerCase().includes('add demo customer')) {
+                    const demoCustomer = {
+                        id: `CUST-${Date.now()}`,
+                        name: 'Demo Customer Inc.',
+                        industry: 'Financial Services',
+                        region: 'Nordics',
+                        segment: 'Enterprise',
+                        employees: 5000,
+                        revenue: 500000000,
+                        description: 'AI-generated demo customer for testing',
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    engagementManager.createEntity('customers', demoCustomer);
+                    
+                    const confirmMessage = `### ✅ Demo Customer Created!
+
+**Customer Details:**
+- **Name:** Demo Customer Inc.
+- **Industry:** Financial Services
+- **Region:** Nordics
+- **Segment:** Enterprise
+- **Employees:** 5,000
+- **Revenue:** $500M
+
+Perfect! Now I can help you with:
+- **WhiteSpot Analysis**: "Analyze service coverage gaps"
+- **APQC Mapping**: "Map services to APQC capabilities"
+- **Opportunity Identification**: "Identify expansion opportunities"
+
+**Next Steps:**
+1. Go to the **WhiteSpot Heatmap** tab to see auto-populated services
+2. Click any service card to assess coverage
+3. Map to APQC capabilities for business alignment
+
+What would you like to do next?`;
+                    
+                    addChatMessage(confirmMessage, 'ai');
+                    
+                    // Refresh WhiteSpot view if on that tab
+                    setTimeout(() => {
+                        if (typeof renderWhiteSpotHeatmap === 'function') {
+                            renderWhiteSpotHeatmap();
+                        }
+                    }, 500);
+                    
+                    sendBtn.innerHTML = originalHTML;
+                    sendBtn.disabled = false;
+                    return;
+                }
+                
                 // Call AI via AzureOpenAIProxy
                 const context = {
                     engagement: currentEngagement,
-                    stakeholders: engagementManager.getEntities('stakeholders') || [],
-                    applications: engagementManager.getEntities('applications') || [],
-                    initiatives: engagementManager.getEntities('initiatives') || []
+                    customers: customers,
+                    stakeholders: stakeholders,
+                    applications: applications,
+                    initiatives: initiatives
                 };
                 
                 const response = await AzureOpenAIProxy.create({

@@ -800,13 +800,95 @@ Current data model:
             try {
                 // Get WhiteSpot context
                 const context = {};
+                let customers = [];
                 if (window.whitespotStandaloneManager) {
-                    const customers = whitespotStandaloneManager.getCustomers();
+                    customers = whitespotStandaloneManager.getCustomers();
                     const heatmaps = whitespotStandaloneManager.getHeatmaps();
                     const stats = whitespotStandaloneManager.getStatistics();
                     context.customers = customers;
                     context.heatmapsCount = Object.keys(heatmaps || {}).length;
                     context.stats = stats;
+                }
+                
+                // ⚠️ SMART VALIDATION: Check if query requires customer data
+                const requiresCustomer = /\b(analyze|map|identify|suggest|coverage|gap|opportunity|service|apqc|process|customer|prospect|account)\b/i.test(message);
+                
+                if (requiresCustomer && customers.length === 0) {
+                    // No customers exist - guide user to create one
+                    const helpMessage = `### 🎯 Customer Required for Analysis
+
+I'd love to help with **"${message}"**, but I need a customer context first!
+
+WhiteSpot heatmap analysis requires at least one customer to assess service coverage and identify opportunities.
+
+**Let me help you create one quickly:**
+
+Please provide these details (you can copy/paste):
+\`\`\`
+Customer Name: [e.g., Acme Corp]
+Industry: [e.g., Financial Services, Manufacturing, Retail]
+Region: [e.g., Nordics, EMEA, North America]
+\`\`\`
+
+**Or use Quick Actions:**
+- **"Add Demo Customer"** - I'll create a sample customer automatically
+- Click **"+ Add Customer"** button (top left) for full form
+
+Once you have a customer, I can analyze service coverage, map to APQC capabilities, and identify expansion opportunities! 🚀`;
+                    
+                    addChatMessage(helpMessage, 'assistant');
+                    sendBtn.innerHTML = originalHTML;
+                    sendBtn.disabled = false;
+                    return;
+                }
+                
+                // Handle special commands
+                if (message.toLowerCase().includes('add demo customer') || message.toLowerCase().includes('create demo customer')) {
+                    // Create demo customer automatically
+                    const demoCustomer = {
+                        id: `CUST-${Date.now()}`,
+                        name: 'Demo Customer Inc.',
+                        industry: 'Financial Services',
+                        region: 'Nordics',
+                        segment: 'Enterprise',
+                        employees: 5000,
+                        revenue: 500000000,
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    whitespotStandaloneManager.addCustomer(demoCustomer);
+                    
+                    const confirmMessage = `### ✅ Demo Customer Created!
+
+**Customer Details:**
+- **Name:** Demo Customer Inc.
+- **Industry:** Financial Services
+- **Region:** Nordics
+- **Segment:** Enterprise
+
+I've created a demo customer for you. Now I can help you with:
+- Service coverage analysis
+- APQC capability mapping
+- Gap identification
+- Opportunity prioritization
+
+**What would you like to do next?**
+- "Analyze service coverage gaps"
+- "Map services to APQC capabilities"
+- "Identify expansion opportunities"`;
+                    
+                    addChatMessage(confirmMessage, 'assistant');
+                    
+                    // Refresh heatmap view
+                    setTimeout(() => {
+                        if (typeof renderWhiteSpotHeatmap === 'function') {
+                            renderWhiteSpotHeatmap();
+                        }
+                    }, 500);
+                    
+                    sendBtn.innerHTML = originalHTML;
+                    sendBtn.disabled = false;
+                    return;
                 }
                 
                 // Build system prompt
@@ -817,7 +899,7 @@ Format your responses using markdown for better readability.
 
 Current context:
 - Tool: WhiteSpot Standalone Heatmap
-- 41 Advicy services across 3 L1 areas (Consulting, Managed Services, Platform Services)
+- 44 Advicy services across 3 L1 areas (Consulting, Managed Services, Platform Services)
 - Service states: FULL (green), PARTIAL (yellow/orange), CUSTOM (blue), LOST (red), POTENTIAL (orange)
 - Context data: ${JSON.stringify(context, null, 2)}`;
                 
