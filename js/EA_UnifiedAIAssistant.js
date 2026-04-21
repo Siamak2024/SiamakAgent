@@ -394,10 +394,10 @@ Your Focus:
             const instructions = this.getSystemInstructions();
 
             // Call OpenAI Responses API via proxy (correct format!)
+            // Note: temperature is not included - gpt-5 only supports default (1)
             const response = await AzureOpenAIProxy.create(fullInput, {
                 model: 'gpt-5',
                 instructions: instructions,
-                temperature: 0.7,
                 timeout: 45000,
                 reasoning: { summary: 'auto', effort: 'medium' }
             });
