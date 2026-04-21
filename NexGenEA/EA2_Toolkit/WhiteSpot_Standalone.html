@@ -750,6 +750,108 @@ Current data model:
             }
         }
 
+        // Send chat message (using AdvisyAI)
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message
+            addChatMessage(message, 'user');
+            input.value = '';
+            
+            // Show loading state
+            const sendBtn = document.getElementById('send-chat');
+            const originalHTML = sendBtn.innerHTML;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            sendBtn.disabled = true;
+            
+            try {
+                // Get WhiteSpot context
+                const context = {};
+                if (window.whitespotStandaloneManager) {
+                    const customers = whitespotStandaloneManager.getCustomers();
+                    const heatmaps = whitespotStandaloneManager.getHeatmaps();
+                    const stats = whitespotStandaloneManager.getStatistics();
+                    context.customers = customers;
+                    context.heatmapsCount = Object.keys(heatmaps || {}).length;
+                    context.stats = stats;
+                }
+                
+                // Build system prompt
+                const systemPrompt = `You are an expert service delivery consultant helping with WhiteSpot heatmap analysis.
+Focus on service coverage opportunities, APQC process mapping, and sales strategy.
+Provide concise, actionable insights for prospect analysis and opportunity identification.
+Format your responses using markdown for better readability.
+
+Current context:
+- Tool: WhiteSpot Standalone Heatmap
+- 41 Advicy services across 3 L1 areas (Consulting, Managed Services, Platform Services)
+- Service states: FULL (green), PARTIAL (yellow/orange), CUSTOM (blue), LOST (red), POTENTIAL (orange)
+- Context data: ${JSON.stringify(context, null, 2)}`;
+                
+                // Call AI via AdvisyAI
+                const response = await AdvisyAI.call(message, {
+                    instructions: systemPrompt,
+                    includeProjectContext: false
+                });
+                
+                // Add AI response
+                addChatMessage(response, 'assistant');
+            } catch (error) {
+                console.error('AI Error:', error);
+                addChatMessage('Sorry, I encountered an error. Please try again. Error: ' + error.message, 'assistant');
+            } finally {
+                // Restore send button
+                sendBtn.innerHTML = originalHTML;
+                sendBtn.disabled = false;
+            }
+        }
+
+        // Add message to chat
+        function addChatMessage(content, role) {
+            const messagesDiv = document.getElementById('chat-messages');
+            if (!messagesDiv) return;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message chat-message-${role}`;
+            
+            // Simple markdown-to-HTML conversion
+            let formattedContent = content
+                .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/`(.+?)`/g, '<code>$1</code>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+            
+            messageDiv.innerHTML = `
+                <div class="chat-message-avatar">
+                    <i class="fas fa-${role === 'user' ? 'user' : 'robot'}"></i>
+                </div>
+                <div class="chat-message-content">
+                    <p>${formattedContent}</p>
+                </div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Handle Enter key to send
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatInput = document.getElementById('chat-input');
+            if (chatInput) {
+                chatInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendChatMessage();
+                    }
+                });
+            }
+        });
+
         // Resize handle functionality
         (function() {
             const handle = document.getElementById('chat-resize-handle');
@@ -849,7 +951,7 @@ Current data model:
         <div id="chat-messages"></div>
         <div id="chat-input-container">
             <textarea id="chat-input" placeholder="Ask WhiteSpot AI about service opportunities..."></textarea>
-            <button id="send-chat" title="Send (Enter)">
+            <button id="send-chat" title="Send (Enter)" onclick="sendChatMessage()">
                 <i class="fas fa-paper-plane"></i>
             </button>
         </div>
