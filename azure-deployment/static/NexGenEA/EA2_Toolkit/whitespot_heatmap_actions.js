@@ -388,13 +388,18 @@ function openServiceDrilldown(heatmapId, l2ServiceId) {
             <!-- APQC Mapping Tab -->
             <div id="tab-apqc-mapping" class="modal-tab-content">
                 <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                    <p style="font-size: 13px; color: #065f46;">
-                        <i class="fas fa-magic"></i> <strong>AI-Powered Mapping:</strong> 
-                        Get intelligent APQC capability suggestions based on semantic matching.
+                    <p style="font-size: 13px; color: #065f46; margin-bottom: 12px;">
+                        <i class="fas fa-layer-group"></i> <strong>3-Layer APQC Mapping:</strong> 
+                        Map this service to APQC capabilities with intelligent type recommendations (Primary, Secondary, Enabler, Industry-specific).
                     </p>
-                    <button class="btn btn-primary btn-sm" onclick="generateAPQCMappings('${heatmapId}', '${l2ServiceId}')" style="margin-top: 12px;">
-                        <i class="fas fa-magic"></i> Generate Mapping Suggestions
-                    </button>
+                    <div style="display: flex; gap: 12px;">
+                        <button class="btn btn-primary btn-sm" onclick="openAPQCMappingModal({id: '${l2ServiceId}', name: '${l2Service.name}', description: '${l2Service.description || ''}', mappedCapabilities: ${JSON.stringify(assessment.mappedCapabilities || [])}}, '${heatmap.customerId}')" style="flex: 1;">
+                            <i class="fas fa-edit"></i> Edit APQC Mappings
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="generateAPQCMappings('${heatmapId}', '${l2ServiceId}')">
+                            <i class="fas fa-magic"></i> AI Suggestions
+                        </button>
+                    </div>
                 </div>
                 
                 <div id="apqc-mappings-container">
@@ -501,45 +506,75 @@ function switchDrilldownTab(tabName) {
 
 function renderAPQCMappingsForService(heatmap, l2ServiceId) {
     const assessment = heatmap.hlAssessments.find(a => a.l2ServiceId === l2ServiceId);
-    const mappedCapabilities = assessment?.apqcMappedCapabilities || [];
+    const mappedCapabilities = assessment?.mappedCapabilities || [];
     
     if (mappedCapabilities.length === 0) {
         return `
-            <div class="empty-state" style="padding: 40px;">
-                <p style="color: #6b7280;">No APQC capabilities mapped yet</p>
-                <p style="color: #9ca3af; font-size: 12px; margin-top: 8px;">Use the "Generate Mapping Suggestions" button above</p>
+            <div class="empty-state" style="padding: 40px; text-align: center;">
+                <i class="fas fa-link" style="font-size: 48px; color: #d1d5db; margin-bottom: 16px;"></i>
+                <p style="color: #6b7280; font-size: 14px; font-weight: 600;">No APQC capabilities mapped yet</p>
+                <p style="color: #9ca3af; font-size: 12px; margin-top: 8px;">Click "Edit APQC Mappings" to map this service to APQC capabilities</p>
             </div>
         `;
     }
     
+    const typeColors = {
+        'Primary': '#10b981',
+        'Secondary': '#3b82f6',
+        'Enabler': '#8b5cf6',
+        'Industry-specific': '#f59e0b'
+    };
+    
     return `
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>APQC Process</th>
-                    <th>Level</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${mappedCapabilities.map(apqcId => {
-                    const apqcProcess = window.apqcWhiteSpotIntegration.getProcessById(apqcId);
+        <div style="background: #f9fafb; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+            <div style="font-size: 13px; color: #374151; margin-bottom: 12px;">
+                <strong>${mappedCapabilities.length}</strong> capability mapping${mappedCapabilities.length !== 1 ? 's' : ''}
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${mappedCapabilities.map(mapping => {
+                    const typeColor = typeColors[mapping.type] || '#6b7280';
+                    const customBadge = mapping.customCapability ? '<span style="margin-left: 6px; font-size: 10px; padding: 2px 6px; background: #fef3c7; color: #92400e; border-radius: 4px;">CUSTOM</span>' : '';
+                    
                     return `
-                        <tr>
-                            <td>${apqcProcess ? apqcProcess.name : apqcId}</td>
-                            <td><span class="badge badge-primary">L${apqcProcess?.level || '?'}</span></td>
-                            <td>
-                                <button class="btn btn-sm btn-ghost" onclick="removeAPQCMapping('${heatmap.id}', '${l2ServiceId}', '${apqcId}')">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </td>
-                        </tr>
+                        <div style="background: white; border: 1px solid #e5e7eb; border-left: 4px solid ${typeColor}; border-radius: 6px; padding: 10px; display: flex; align-items: center; justify-content: space-between;">
+                            <div style="flex: 1;">
+                                <div style="font-size: 11px; color: #6b7280; margin-bottom: 2px;">
+                                    ${mapping.apqcId}${customBadge}
+                                </div>
+                                <div style="font-size: 13px; font-weight: 600; color: #1f2937; margin-bottom: 4px;">
+                                    ${mapping.name}
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; font-size: 11px;">
+                                    <span style="padding: 2px 8px; background: ${typeColor}20; color: ${typeColor}; border-radius: 4px; font-weight: 600;">
+                                        ${mapping.type}
+                                    </span>
+                                    ${mapping.industry !== 'cross-industry' ? `<span style="color: #6b7280;">🎯 ${mapping.industry}</span>` : ''}
+                                    <span style="color: #9ca3af;">Confidence: ${Math.round(mapping.confidenceScore * 100)}%</span>
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-ghost" onclick="removeAPQCMapping('${heatmap.id}', '${l2ServiceId}', '${mapping.apqcId}')" title="Remove mapping">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
                     `;
                 }).join('')}
-            </tbody>
-        </table>
+            </div>
+        </div>
+        
+        <div style="padding: 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px;">
+            <div style="font-size: 12px; color: #1e40af;">
+                <strong>Mapping Types:</strong>
+                <div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px;">
+                    <div><span style="color: ${typeColors.Primary};">⬤</span> Primary - Core capability</div>
+                    <div><span style="color: ${typeColors.Secondary};">⬤</span> Secondary - Supporting capability</div>
+                    <div><span style="color: ${typeColors.Enabler};">⬤</span> Enabler - Platform/tech enablement</div>
+                    <div><span style="color: ${typeColors['Industry-specific']};">⬤</span> Industry-specific - Custom extension</div>
+                </div>
+            </div>
+        </div>
     `;
 }
+
 
 async function generateAPQCMappings(heatmapId, l2ServiceId) {
     const heatmap = engagementManager.getEntity('whiteSpotHeatmaps', heatmapId);
@@ -1402,6 +1437,54 @@ function getStatusBadge(status) {
 
 function formatCurrency(amount) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+}
+
+/**
+ * Generate demo heatmap for a specific customer
+ * Called from the "Generate Demo Data" button in empty heatmap state
+ */
+async function generateDemoHeatmapForCustomer(customerId) {
+    try {
+        const customer = engagementManager.getEntity('customers', customerId);
+        if (!customer) {
+            showNotification('Customer not found', 'error');
+            return;
+        }
+        
+        showNotification('Generating demo heatmap with APQC mappings...', 'info');
+        
+        // Ensure loaders are initialized
+        if (!window.vivictaServiceLoader || !window.vivictaServiceLoader.isReady()) {
+            await window.vivictaServiceLoader.loadServiceModel('data/vivicta_dcs_service_delivery_consolidated_v4_1_HL_DL.json');
+        }
+        
+        if (!window.apqcWhiteSpotIntegration || !window.apqcWhiteSpotIntegration.isReady()) {
+            await window.apqcWhiteSpotIntegration.loadAPQCFramework('data/apqc_pcf_master.json');
+        }
+        
+        // Generate heatmap with mixed scenario (balanced distribution)
+        const heatmap = await generateDemoHeatmap(customer, 'mixed', window.engagementManager);
+        
+        // Save to engagement
+        engagementManager.createEntity('whiteSpotHeatmaps', heatmap);
+        
+        console.log(`✓ Generated demo heatmap: ${heatmap.id} for ${customer.name}`);
+        console.log(`  - ${heatmap.hlAssessments.length} service assessments`);
+        console.log(`  - ${heatmap.opportunities.length} opportunities`);
+        console.log(`  - APQC mappings integrated`);
+        
+        // Refresh display
+        await renderWhiteSpotHeatmap();
+        
+        showNotification(
+            `Demo heatmap generated for ${customer.name} with ${heatmap.hlAssessments.length} services and ${heatmap.opportunities.length} opportunities!`,
+            'success'
+        );
+        
+    } catch (error) {
+        console.error('Error generating demo heatmap:', error);
+        showNotification('Failed to generate demo heatmap: ' + error.message, 'error');
+    }
 }
 
 /**

@@ -1,10 +1,17 @@
 # AI Enterprise Architecture Platform - Local Setup Guide
 
+> **📚 NEW! Complete Documentation Update (April 2026)**  
+> - **[CODEBASE_REFERENCE_2026.md](CODEBASE_REFERENCE_2026.md)** - Master architecture reference
+> - **[WHERE_TO_FIND_EVERYTHING.md](WHERE_TO_FIND_EVERYTHING.md)** - Navigation guide  
+> - **[DOCUMENTATION_UPDATE_SUMMARY_2026.md](DOCUMENTATION_UPDATE_SUMMARY_2026.md)** - What's changed
+> - **[ARCHITECTURE_VERIFICATION_GUIDE.md](ARCHITECTURE_VERIFICATION_GUIDE.md)** - Testing guide
+
 This guide will help you set up the EA Platform to run locally with:
 - ✅ Backend server (Node.js + Express)
 - ✅ SQLite database for data persistence
 - ✅ Secure OpenAI API key management (server-side)
 - ✅ Save/Load functionality for multiple models
+- ✅ GPT-5 Responses API integration (NEW)
 
 ## Prerequisites
 

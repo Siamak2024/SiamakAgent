@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Growth Sprint Dashboard – EA Commercial Platform</title>
     <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
     <script src="../../AzureOpenAIProxy.js"></script>
+    <script src="../../js/EA_ObjectivesManager.js"></script>
     <script src="../../js/EA_UnifiedAIAssistant.js?v=2026"></script>
     <script src="../../js/EA_AccountManager.js?v=2026"></script>
     <script src="../../js/EA_CrossNavigation.js?v=2026"></script>
@@ -43,7 +45,7 @@
         
         .entry-points {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 16px;
             margin-bottom: 32px;
         }
@@ -65,6 +67,7 @@
         .entry-card.green { border-left: 4px solid var(--ea-success); }
         .entry-card.purple { border-left: 4px solid #8B5CF6; }
         .entry-card.blue { border-left: 4px solid var(--ea-accent); }
+        .entry-card.orange { border-left: 4px solid #f59e0b; }
         
         .entry-icon {
             width: 72px;
@@ -80,6 +83,7 @@
         .entry-icon.green { background: rgba(94, 140, 106, 0.12); color: var(--ea-success); }
         .entry-icon.purple { background: rgba(139, 92, 246, 0.12); color: #8B5CF6; }
         .entry-icon.blue { background: rgba(74, 119, 99, 0.12); color: var(--ea-accent); }
+        .entry-icon.orange { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
         
         .entry-title { font-size: 18px; font-weight: 700; color: var(--ea-text-primary); margin-bottom: 8px; }
         .entry-desc { font-size: 13px; color: var(--ea-text-secondary); margin-bottom: 16px; }
@@ -87,6 +91,7 @@
         .metric-green { color: var(--ea-success); }
         .metric-purple { color: #8B5CF6; }
         .metric-blue { color: var(--ea-accent); }
+        .metric-orange { color: #f59e0b; }
         
         .metrics-grid {
             display: grid;
@@ -141,63 +146,7 @@
         .change-positive { background: rgba(94, 140, 106, 0.12); color: var(--ea-success); }
         .change-negative { background: rgba(176, 106, 106, 0.12); color: var(--ea-danger); }
         
-        /* === AI PANEL === */
-        #ai-chat-panel {
-            position: fixed;
-            right: -500px;
-            top: 0;
-            width: 500px;
-            height: 100vh;
-            background: white;
-            box-shadow: -2px 0 8px rgba(0,0,0,0.1);
-            transition: right 0.3s ease;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-        }
-        #ai-chat-panel.open { right: 0; }
-        #ai-chat-panel.resizing { transition: none; }
-        .resize-handle {
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 8px;
-            cursor: ew-resize;
-            background: transparent;
-            z-index: 10;
-        }
-        .resize-handle:hover {
-            background: rgba(94, 140, 106, 0.2);
-        }
-        .resize-handle::before {
-            content: '';
-            position: absolute;
-            left: 3px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 2px;
-            height: 40px;
-            background: rgba(0,0,0,0.1);
-            border-radius: 1px;
-        }
-        .chat-header { background: var(--ea-primary); color: white; padding: 16px; display: flex; justify-content: space-between; align-items: center; }
-        .chat-header h3 { margin: 0; font-size: 16px; }
-        .close-chat { background: none; border: none; color: white; cursor: pointer; font-size: 20px; }
-        #chat-messages { flex: 1; overflow-y: auto; padding: 16px; }
-        .chat-input-area { padding: 16px; border-top: 1px solid #e5e7eb; }
-        #chat-input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; resize: none; font-family: inherit; }
-        #send-chat { width: 100%; margin-top: 8px; }
-        .message { margin-bottom: 16px; }
-        .message-user { display: flex; justify-content: flex-end; }
-        .message-assistant { display: flex; justify-content: flex-start; }
-        .message-content { padding: 12px 16px; border-radius: 12px; max-width: 85%; }
-        .message-user .message-content { background: var(--ea-success); color: white; }
-        .message-assistant .message-content { background: #f3f4f6; color: #1f2937; line-height: 1.6; }
-        .quick-prompts { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; }
-        .quick-prompts-label { font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; }
-        .quick-prompt-btn { display: block; width: 100%; text-align: left; padding: 8px 12px; margin-bottom: 6px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer; font-size: 13px; color: #4b5563; transition: all 0.2s; }
-        .quick-prompt-btn:hover { background: #f3f4f6; border-color: var(--ea-success); color: var(--ea-success); }
+        /* AI Panel styles now in ea-design-engine.css */
         .typing-indicator { display: none; padding: 12px; color: #6b7280; font-style: italic; font-size: 13px; }
         .typing-indicator.active { display: block; }
         
@@ -618,6 +567,16 @@
         <main id="main-content">
             <!-- Entry Points -->
             <div class="entry-points">
+                <div class="entry-card orange" onclick="window.location.href='Business_Objectives_Toolkit.html'">
+                    <div class="entry-icon orange">
+                        <i class="fas fa-target"></i>
+                    </div>
+                    <div class="entry-title">0. Define Business Objectives</div>
+                    <div class="entry-desc">AI-assisted strategic alignment & capability mapping</div>
+                    <div class="entry-metric metric-orange" id="entry-objectives">0</div>
+                    <div style="font-size: 12px; color: #6b7280;">Defined Objectives</div>
+                </div>
+
                 <div class="entry-card green" onclick="window.location.href='EA_Account_Dashboard.html'">
                     <div class="entry-icon green">
                         <i class="fas fa-building"></i>
@@ -882,18 +841,21 @@
                 return;
             }
             
+            // Hide welcome message and quick actions once first message is sent
+            const welcome = document.getElementById('chat-welcome');
+            const quickActions = document.getElementById('chat-quick-actions');
+            if (welcome) welcome.style.display = 'none';
+            if (quickActions) quickActions.style.display = 'none';
+            
             // Add user message
             addChatMessage(message, 'user');
             input.value = '';
             
-            // Show typing indicator
-            const typingIndicator = document.getElementById('typing-indicator');
-            typingIndicator.classList.add('active');
-            
-            // Disable send button
+            // Disable send button with loading state
             const sendBtn = document.getElementById('send-chat');
+            const originalHTML = sendBtn.innerHTML;
             sendBtn.disabled = true;
-            sendBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending...';
+            sendBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
             
             try {
                 // Refresh context before sending
@@ -909,12 +871,9 @@
                 console.error('Chat error:', error);
                 addChatMessage('I encountered an error processing your request. Please try again.', 'assistant');
             } finally {
-                // Hide typing indicator
-                typingIndicator.classList.remove('active');
-                
                 // Re-enable send button
+                sendBtn.innerHTML = originalHTML;
                 sendBtn.disabled = false;
-                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
             }
         }
 
@@ -926,6 +885,13 @@
             
             const prompt = aiAssistant.getSuggestedPrompt(index);
             if (prompt) {
+                // Hide welcome message and quick actions
+                const welcome = document.getElementById('chat-welcome');
+                const quickActions = document.getElementById('chat-quick-actions');
+                if (welcome) welcome.style.display = 'none';
+                if (quickActions) quickActions.style.display = 'none';
+                
+                // Set input and send
                 document.getElementById('chat-input').value = prompt;
                 await sendChatMessage();
             }
@@ -942,17 +908,108 @@
         function addChatMessage(content, role) {
             const messagesDiv = document.getElementById('chat-messages');
             const messageDiv = document.createElement('div');
-            messageDiv.className = `message message-${role}`;
+            messageDiv.className = `chat-message chat-message-${role}`;
             
-            // Convert markdown-style formatting to HTML
-            const formattedContent = content
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/\n/g, '<br>');
+            // Enhanced markdown-to-HTML conversion
+            let formattedContent = content;
             
-            messageDiv.innerHTML = `<div class="message-content">${formattedContent}</div>`;
+            // Convert code blocks first (```language\ncode\n```)
+            formattedContent = formattedContent.replace(/```(\w+)?\n([\s\S]+?)```/g, '<pre><code>$2</code></pre>');
+            
+            // Convert inline code
+            formattedContent = formattedContent.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // Convert headers (# to ######)
+            formattedContent = formattedContent.replace(/^######\s+(.+)$/gm, '<h6>$1</h6>');
+            formattedContent = formattedContent.replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>');
+            formattedContent = formattedContent.replace(/^####\s+(.+)$/gm, '<h4>$1</h4>');
+            formattedContent = formattedContent.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+            formattedContent = formattedContent.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+            formattedContent = formattedContent.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+            
+            // Convert bold and italic
+            formattedContent = formattedContent.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+            formattedContent = formattedContent.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            formattedContent = formattedContent.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            
+            // Convert blockquotes
+            formattedContent = formattedContent.replace(/^>\s+(.+)$/gm, '<blockquote>$1</blockquote>');
+            
+            // Convert horizontal rules
+            formattedContent = formattedContent.replace(/^---$/gm, '<hr>');
+            formattedContent = formattedContent.replace(/^\*\*\*$/gm, '<hr>');
+            
+            // Convert links [text](url)
+            formattedContent = formattedContent.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+            
+            // Convert unordered lists (- or *)
+            formattedContent = formattedContent.replace(/^[\-\*]\s+(.+)$/gm, '<li>$1</li>');
+            
+            // Convert ordered lists (1. 2. 3.)
+            formattedContent = formattedContent.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+            
+            // Wrap consecutive <li> items in <ul>
+            formattedContent = formattedContent.replace(/(<li>.*<\/li>\n?)+/g, function(match) {
+                return '<ul>' + match + '</ul>';
+            });
+            
+            // Convert simple tables (| col | col |)
+            const tableRegex = /(\|.+\|\n)+/g;
+            formattedContent = formattedContent.replace(tableRegex, function(match) {
+                const rows = match.trim().split('\n');
+                if (rows.length < 2) return match;
+                
+                let tableHTML = '<table>';
+                rows.forEach((row, i) => {
+                    const cells = row.split('|').filter(cell => cell.trim());
+                    if (i === 0) {
+                        tableHTML += '<tr>' + cells.map(cell => `<th>${cell.trim()}</th>`).join('') + '</tr>';
+                    } else if (!/^[\s\-\:]+$/.test(row)) {
+                        tableHTML += '<tr>' + cells.map(cell => `<td>${cell.trim()}</td>`).join('') + '</tr>';
+                    }
+                });
+                tableHTML += '</table>';
+                return tableHTML;
+            });
+            
+            // Convert paragraphs (double newlines)
+            formattedContent = formattedContent.replace(/\n\n+/g, '</p><p>');
+            
+            // Convert single newlines to <br>
+            formattedContent = formattedContent.replace(/\n/g, '<br>');
+            
+            messageDiv.innerHTML = `
+                <div class="chat-message-avatar">
+                    <i class="fas fa-${role === 'user' ? 'user' : 'robot'}"></i>
+                </div>
+                <div class="chat-message-content">
+                    <p>${formattedContent}</p>
+                </div>
+            `;
+            
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function startNewChat() {
+            if (aiAssistant) {
+                aiAssistant.clearHistory();
+            }
+            document.getElementById('chat-messages').innerHTML = '';
+            
+            // Show welcome and quick actions again
+            const welcome = document.getElementById('chat-welcome');
+            const quickActions = document.getElementById('chat-quick-actions');
+            if (welcome) welcome.style.display = 'block';
+            if (quickActions) quickActions.style.display = 'block';
+            
+            console.log('Started new conversation');
+        }
+
+        function clearChat() {
+            if (confirm('Clear all messages from this conversation?')) {
+                startNewChat();
+            }
         }
 
         // Keyboard shortcut for AI assistant
@@ -1010,6 +1067,14 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
             const accounts = accountManager.listAccounts();
             const opportunities = accountManager.listOpportunities();
             const engagements = listEngagements();
+            
+            // Load business objectives count
+            let objectivesCount = 0;
+            if (typeof EA_ObjectivesManager !== 'undefined') {
+                EA_ObjectivesManager.listObjectives().then(objectives => {
+                    document.getElementById('entry-objectives').textContent = objectives.length;
+                }).catch(err => console.log('Could not load objectives:', err));
+            }
             
             // Entry points
             document.getElementById('entry-accounts').textContent = accounts.length;
@@ -1751,32 +1816,47 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
         </div>
     </div>
 
-    <!-- AI Chat Panel (Sidebar) -->
-    <div id="ai-chat-panel">
-        <div class="resize-handle" id="resize-handle"></div>
-        <div class="chat-header">
-            <h3><i class="fas fa-robot"></i> AI Assistant</h3>
-            <div style="display: flex; gap: 8px;">
-                <button class="close-chat" onclick="openAIAssistantGuide()" title="Help & Examples">
-                    <i class="fas fa-question-circle"></i>
-                </button>
-                <button class="close-chat" onclick="toggleChatPanel()"><i class="fas fa-times"></i></button>
+    <!-- AI Chat Panel (Sidebar - Same design as NexGen EA Platform) -->
+    <div id="ai-chat-panel" class="hidden">
+        <div id="chat-resize-handle" title="Drag to resize"></div>
+        <div id="chat-header">
+            <div id="chat-header-title">
+                <i class="fas fa-robot"></i>
+                <span id="chat-title-text">Growth Sprint AI</span>
+            </div>
+            <div id="chat-controls">
+                <button id="new-chat" onclick="startNewChat()" title="New conversation">+</button>
+                <button id="clear-chat" onclick="clearChat()" title="Clear history">&#x21BA;</button>
+                <button id="close-chat" onclick="toggleChatPanel()" title="Close sidebar">&times;</button>
             </div>
         </div>
-        <div class="quick-prompts">
-            <div class="quick-prompts-label">Quick Actions</div>
-            <button class="quick-prompt-btn" onclick="sendQuickPrompt(0)">Which accounts should I prioritize this quarter?</button>
-            <button class="quick-prompt-btn" onclick="sendQuickPrompt(1)">Analyze my pipeline health and coverage</button>
-            <button class="quick-prompt-btn" onclick="sendQuickPrompt(2)">Suggest strategies to improve win rates</button>
+        <!-- Welcome Message -->
+        <div id="chat-welcome" class="chat-welcome-message">
+            <div class="welcome-icon"><i class="fas fa-lightbulb"></i></div>
+            <h4>Growth Sprint AI Assistant</h4>
+            <p>I can help you analyze your portfolio, prioritize accounts, identify opportunities, and optimize your sales pipeline.</p>
+        </div>
+        <!-- Quick Action Prompts -->
+        <div id="chat-quick-actions" class="chat-quick-actions">
+            <div class="quick-actions-label">Quick Actions</div>
+            <button class="quick-action-btn" onclick="sendQuickPrompt(0)">
+                <i class="fas fa-chart-line"></i> Which accounts should I prioritize?
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPrompt(1)">
+                <i class="fas fa-project-diagram"></i> Analyze portfolio-wide service gaps
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPrompt(2)">
+                <i class="fas fa-trophy"></i> Suggest strategies to improve win rates
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPrompt(3)">
+                <i class="fas fa-bullseye"></i> Identify high-value expansion opportunities
+            </button>
         </div>
         <div id="chat-messages"></div>
-        <div class="typing-indicator" id="typing-indicator">
-            <i class="fas fa-circle-notch fa-spin"></i> AI is thinking...
-        </div>
-        <div class="chat-input-area">
-            <textarea id="chat-input" rows="3" placeholder="Ask me about your portfolio, accounts, or opportunities..." onkeypress="handleChatKeypress(event)"></textarea>
-            <button id="send-chat" class="btn btn-primary" onclick="sendChatMessage()">
-                <i class="fas fa-paper-plane"></i> Send
+        <div id="chat-input-container">
+            <textarea id="chat-input" placeholder="Ask Growth Sprint AI anything..." onkeypress="handleChatKeypress(event)"></textarea>
+            <button id="send-chat" onclick="sendChatMessage()" title="Send (Enter)">
+                <i class="fas fa-paper-plane"></i>
             </button>
         </div>
     </div>

@@ -1370,6 +1370,8 @@ function initializeAccordions() {
     // Expand first accordion by default
     const firstContent = document.querySelector('.accordion-content.active');
     if (firstContent) {
+        const accordionItem = firstContent.closest('.accordion-item');
+        if (accordionItem) accordionItem.classList.add('active');
         firstContent.style.maxHeight = firstContent.scrollHeight + 'px';
         const firstIcon = document.querySelector('.accordion-icon');
         if (firstIcon) firstIcon.style.transform = 'rotate(180deg)';
@@ -1379,13 +1381,16 @@ function initializeAccordions() {
 function toggleAccordion(groupId) {
     const content = document.getElementById(groupId);
     const icon = document.getElementById(`${groupId}-icon`);
+    const accordionItem = content.closest('.accordion-item');
     
     if (content.classList.contains('active')) {
         content.classList.remove('active');
+        if (accordionItem) accordionItem.classList.remove('active');
         content.style.maxHeight = '0';
         icon.style.transform = 'rotate(0deg)';
     } else {
         content.classList.add('active');
+        if (accordionItem) accordionItem.classList.add('active');
         content.style.maxHeight = content.scrollHeight + 'px';
         icon.style.transform = 'rotate(180deg)';
     }

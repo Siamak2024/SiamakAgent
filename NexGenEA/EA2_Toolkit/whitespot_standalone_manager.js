@@ -482,7 +482,7 @@ function addNewProspect() {
             
             <div class="form-group">
                 <label>Industry</label>
-                <input type="text" id="prospect-industry" class="form-input" placeholder="e.g., Financial Services">
+                <div id="industry-dropdown-container"></div>
             </div>
             
             <div class="form-group">
@@ -530,7 +530,16 @@ function addNewProspect() {
     `;
     
     showModal(modalContent);
-    setTimeout(() => document.getElementById('prospect-name').focus(), 100);
+    setTimeout(() => {
+        document.getElementById('prospect-name').focus();
+        // Initialize industry dropdown
+        if (typeof renderIndustryDropdown === 'function') {
+            const container = document.getElementById('industry-dropdown-container');
+            if (container) {
+                container.innerHTML = renderIndustryDropdown('', 'prospect-industry');
+            }
+        }
+    }, 100);
 }
 
 /**

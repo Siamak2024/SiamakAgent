@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
     <script src="../../AzureOpenAIProxy.js"></script>
+    <script src="../../js/EA_ObjectivesManager.js"></script>
     <script src="../../js/EA_UnifiedAIAssistant.js?v=2026"></script>
     <script src="../../js/EA_AccountManager.js?v=2026"></script>
     <script src="../../js/EA_CrossNavigation.js?v=2026"></script>
@@ -44,7 +45,7 @@
         
         .entry-points {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 16px;
             margin-bottom: 32px;
         }
@@ -66,6 +67,7 @@
         .entry-card.green { border-left: 4px solid var(--ea-success); }
         .entry-card.purple { border-left: 4px solid #8B5CF6; }
         .entry-card.blue { border-left: 4px solid var(--ea-accent); }
+        .entry-card.orange { border-left: 4px solid #f59e0b; }
         
         .entry-icon {
             width: 72px;
@@ -81,6 +83,7 @@
         .entry-icon.green { background: rgba(94, 140, 106, 0.12); color: var(--ea-success); }
         .entry-icon.purple { background: rgba(139, 92, 246, 0.12); color: #8B5CF6; }
         .entry-icon.blue { background: rgba(74, 119, 99, 0.12); color: var(--ea-accent); }
+        .entry-icon.orange { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
         
         .entry-title { font-size: 18px; font-weight: 700; color: var(--ea-text-primary); margin-bottom: 8px; }
         .entry-desc { font-size: 13px; color: var(--ea-text-secondary); margin-bottom: 16px; }
@@ -88,6 +91,7 @@
         .metric-green { color: var(--ea-success); }
         .metric-purple { color: #8B5CF6; }
         .metric-blue { color: var(--ea-accent); }
+        .metric-orange { color: #f59e0b; }
         
         .metrics-grid {
             display: grid;
@@ -563,6 +567,16 @@
         <main id="main-content">
             <!-- Entry Points -->
             <div class="entry-points">
+                <div class="entry-card orange" onclick="window.location.href='Business_Objectives_Toolkit.html'">
+                    <div class="entry-icon orange">
+                        <i class="fas fa-target"></i>
+                    </div>
+                    <div class="entry-title">0. Define Business Objectives</div>
+                    <div class="entry-desc">AI-assisted strategic alignment & capability mapping</div>
+                    <div class="entry-metric metric-orange" id="entry-objectives">0</div>
+                    <div style="font-size: 12px; color: #6b7280;">Defined Objectives</div>
+                </div>
+
                 <div class="entry-card green" onclick="window.location.href='EA_Account_Dashboard.html'">
                     <div class="entry-icon green">
                         <i class="fas fa-building"></i>
@@ -1053,6 +1067,14 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
             const accounts = accountManager.listAccounts();
             const opportunities = accountManager.listOpportunities();
             const engagements = listEngagements();
+            
+            // Load business objectives count
+            let objectivesCount = 0;
+            if (typeof EA_ObjectivesManager !== 'undefined') {
+                EA_ObjectivesManager.listObjectives().then(objectives => {
+                    document.getElementById('entry-objectives').textContent = objectives.length;
+                }).catch(err => console.log('Could not load objectives:', err));
+            }
             
             // Entry points
             document.getElementById('entry-accounts').textContent = accounts.length;

@@ -243,6 +243,151 @@ class APQCWhiteSpotIntegration {
     return results;
   }
 
+  /**
+   * Get all APQC L2 processes (process groups)
+   * @param {Object} filters - Optional filters
+   * @returns {Array} - Filtered L2 processes
+   */
+  getL2Processes(filters = {}) {
+    let results = [...this.l2Processes];
+
+    if (filters.l1ParentId) {
+      results = results.filter(p => p.parentId === filters.l1ParentId);
+    }
+
+    if (filters.industry) {
+      results = results.filter(p => 
+        p.industries.includes(filters.industry) || p.industries.includes('all')
+      );
+    }
+
+    return results;
+  }
+
+  /**
+   * Get unique industries from APQC data with Financial Services subdivisions
+   * Returns structured array with value, label, category for dropdown population
+   * 
+   * @returns {Array} - Array of industry objects {value, label, category, apqcBased}
+   */
+  getIndustries() {
+    // Collect unique industries from APQC L2-L4 processes
+    const uniqueIndustries = new Set();
+    
+    [...this.l2Processes, ...this.l3Processes, ...this.l4Processes].forEach(process => {
+      if (process.industries && Array.isArray(process.industries)) {
+        process.industries.forEach(ind => {
+          if (ind && ind !== 'all' && ind !== 'cross-industry') {
+            uniqueIndustries.add(ind.toLowerCase().trim());
+          }
+        });
+      }
+    });
+
+    // Define Financial Services subdivisions (user requirement: Banking, Insurance, Finance minimum)
+    const financialServicesGroup = [
+      { value: 'banking', label: 'Banking', category: 'Financial Services', apqcBased: true },
+      { value: 'insurance', label: 'Insurance', category: 'Financial Services', apqcBased: true },
+      { value: 'finance', label: 'Finance & Investment', category: 'Financial Services', apqcBased: true },
+      { value: 'wealth_management', label: 'Wealth Management', category: 'Financial Services', apqcBased: true },
+      { value: 'asset_management', label: 'Asset Management', category: 'Financial Services', apqcBased: true }
+    ];
+
+    // Map APQC industries to standardized categories
+    const industryMapping = {
+      // Technology & Telecommunications
+      'technology': { value: 'technology', label: 'Technology', category: 'Technology & Telecom', apqcBased: true },
+      'software': { value: 'software', label: 'Software', category: 'Technology & Telecom', apqcBased: true },
+      'telecommunications': { value: 'telecommunications', label: 'Telecommunications', category: 'Technology & Telecom', apqcBased: true },
+      'it_services': { value: 'it_services', label: 'IT Services', category: 'Technology & Telecom', apqcBased: true },
+      
+      // Manufacturing & Industrial
+      'manufacturing': { value: 'manufacturing', label: 'Manufacturing', category: 'Manufacturing & Industrial', apqcBased: true },
+      'automotive': { value: 'automotive', label: 'Automotive', category: 'Manufacturing & Industrial', apqcBased: true },
+      'aerospace': { value: 'aerospace', label: 'Aerospace & Defense', category: 'Manufacturing & Industrial', apqcBased: true },
+      'industrial': { value: 'industrial', label: 'Industrial Products', category: 'Manufacturing & Industrial', apqcBased: true },
+      
+      // Consumer & Retail
+      'retail': { value: 'retail', label: 'Retail', category: 'Consumer & Retail', apqcBased: true },
+      'consumer_goods': { value: 'consumer_goods', label: 'Consumer Goods', category: 'Consumer & Retail', apqcBased: true },
+      'hospitality': { value: 'hospitality', label: 'Hospitality & Tourism', category: 'Consumer & Retail', apqcBased: true },
+      
+      // Healthcare & Life Sciences
+      'healthcare': { value: 'healthcare', label: 'Healthcare', category: 'Healthcare & Life Sciences', apqcBased: true },
+      'pharmaceuticals': { value: 'pharmaceuticals', label: 'Pharmaceuticals', category: 'Healthcare & Life Sciences', apqcBased: true },
+      'biotechnology': { value: 'biotechnology', label: 'Biotechnology', category: 'Healthcare & Life Sciences', apqcBased: true },
+      'medical_devices': { value: 'medical_devices', label: 'Medical Devices', category: 'Healthcare & Life Sciences', apqcBased: true },
+      
+      // Energy & Utilities
+      'energy': { value: 'energy', label: 'Energy', category: 'Energy & Utilities', apqcBased: true },
+      'utilities': { value: 'utilities', label: 'Utilities', category: 'Energy & Utilities', apqcBased: true },
+      'oil_gas': { value: 'oil_gas', label: 'Oil & Gas', category: 'Energy & Utilities', apqcBased: true },
+      'renewable_energy': { value: 'renewable_energy', label: 'Renewable Energy', category: 'Energy & Utilities', apqcBased: true },
+      
+      // Public Sector
+      'government': { value: 'government', label: 'Government', category: 'Public Sector', apqcBased: true },
+      'public_sector': { value: 'public_sector', label: 'Public Sector', category: 'Public Sector', apqcBased: true },
+      'education': { value: 'education', label: 'Education', category: 'Public Sector', apqcBased: true },
+      'non_profit': { value: 'non_profit', label: 'Non-Profit', category: 'Public Sector', apqcBased: true },
+      
+      // Transportation & Logistics
+      'transportation': { value: 'transportation', label: 'Transportation', category: 'Transportation & Logistics', apqcBased: true },
+      'logistics': { value: 'logistics', label: 'Logistics', category: 'Transportation & Logistics', apqcBased: true },
+      'shipping': { value: 'shipping', label: 'Shipping', category: 'Transportation & Logistics', apqcBased: true },
+      
+      // Media & Entertainment
+      'media': { value: 'media', label: 'Media', category: 'Media & Entertainment', apqcBased: true },
+      'entertainment': { value: 'entertainment', label: 'Entertainment', category: 'Media & Entertainment', apqcBased: true },
+      'publishing': { value: 'publishing', label: 'Publishing', category: 'Media & Entertainment', apqcBased: true },
+      
+      // Real Estate & Construction
+      'real_estate': { value: 'real_estate', label: 'Real Estate', category: 'Real Estate & Construction', apqcBased: true },
+      'construction': { value: 'construction', label: 'Construction', category: 'Real Estate & Construction', apqcBased: true },
+      'property_management': { value: 'property_management', label: 'Property Management', category: 'Real Estate & Construction', apqcBased: true }
+    };
+
+    // Build final industry list
+    const industries = [...financialServicesGroup];
+
+    // Add APQC-based industries (filter out duplicates with financial services)
+    uniqueIndustries.forEach(ind => {
+      const normalized = ind.replace(/\s+/g, '_').toLowerCase();
+      
+      // Skip if already in financial services group
+      if (!financialServicesGroup.some(fs => fs.value === normalized)) {
+        if (industryMapping[normalized]) {
+          industries.push(industryMapping[normalized]);
+        } else {
+          // Unmapped industry - add to "Other Industries" category
+          industries.push({
+            value: normalized,
+            label: ind.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            category: 'Other Industries',
+            apqcBased: true
+          });
+        }
+      }
+    });
+
+    // Add cross-industry option
+    industries.push({
+      value: 'cross-industry',
+      label: 'Cross-Industry',
+      category: 'General',
+      apqcBased: true
+    });
+
+    // Sort by category, then label
+    industries.sort((a, b) => {
+      if (a.category === b.category) {
+        return a.label.localeCompare(b.label);
+      }
+      return a.category.localeCompare(b.category);
+    });
+
+    return industries;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   // PUBLIC API - AI-POWERED MAPPING SUGGESTIONS
   // ═══════════════════════════════════════════════════════════════════

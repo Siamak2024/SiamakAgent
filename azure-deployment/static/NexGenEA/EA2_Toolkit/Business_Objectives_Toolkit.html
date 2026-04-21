@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Business Objectives - AI-Assisted Strategic Alignment | EA Platform</title>
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="../../css/ea-design-engine.css">
+  
+  <style>
+    /* Business Objectives Toolkit Specific Styles */
+    
+    /* Workflow Progress Indicator */
+    .workflow-progress {
+      background: #2d2d2d;
+      border: 1px solid #3d3d3d;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .workflow-steps {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+    }
+
+    .workflow-step {
+      flex: 1;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .workflow-step-number {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #374151;
+      border: 2px solid #4b5563;
+      color: #9ca3af;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+      font-weight: 600;
+      font-size: 18px;
+      transition: all 0.3s ease;
+    }
+
+    .workflow-step.active .workflow-step-number {
+      background: #3b82f6;
+      border-color: #3b82f6;
+      color: white;
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+    }
+
+    .workflow-step.completed .workflow-step-number {
+      background: #10b981;
+      border-color: #10b981;
+      color: white;
+    }
+
+    .workflow-step.completed .workflow-step-number::after {
+      content: '✓';
+      font-size: 24px;
+    }
+
+    .workflow-step-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+
+    .workflow-step.active .workflow-step-title {
+      color: #3b82f6;
+    }
+
+    .workflow-step.completed .workflow-step-title {
+      color: #10b981;
+    }
+
+    .workflow-step-subtitle {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .workflow-connector {
+      position: absolute;
+      top: 24px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #374151;
+      z-index: 1;
+    }
+
+    .workflow-connector-progress {
+      height: 100%;
+      background: #10b981;
+      transition: width 0.5s ease;
+      width: 0%;
+    }
+
+    /* Main Content Layout */
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 24px;
+      min-height: calc(100vh - 250px);
+    }
+
+    .workflow-panel {
+      background: #2d2d2d;
+      border: 1px solid #3d3d3d;
+      border-radius: 8px;
+      padding: 24px;
+    }
+
+    .context-panel {
+      background: #2d2d2d;
+      border: 1px solid #3d3d3d;
+      border-radius: 8px;
+      padding: 24px;
+      max-height: calc(100vh - 250px);
+      overflow-y: auto;
+    }
+
+    /* AI Chat Interface */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 500px;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      background: #1a1a1a;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      max-height: 600px;
+    }
+
+    .chat-message {
+      margin-bottom: 16px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      max-width: 85%;
+    }
+
+    .chat-message.ai {
+      background: #2d2d2d;
+      border-left: 3px solid #3b82f6;
+      margin-right: auto;
+    }
+
+    .chat-message.user {
+      background: #374151;
+      border-left: 3px solid #10b981;
+      margin-left: auto;
+    }
+
+    .chat-message-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    .chat-message-header strong {
+      color: #e5e5e5;
+    }
+
+    .chat-message-content {
+      color: #e5e5e5;
+      line-height: 1.6;
+    }
+
+    .chat-input-container {
+      display: flex;
+      gap: 12px;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 12px 16px;
+      background: #1a1a1a;
+      border: 1px solid #3d3d3d;
+      border-radius: 8px;
+      color: #e5e5e5;
+      font-size: 14px;
+      resize: vertical;
+      min-height: 48px;
+      max-height: 120px;
+    }
+
+    .chat-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+
+    .chat-send-btn {
+      padding: 12px 24px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .chat-send-btn:hover {
+      background: #2563eb;
+    }
+
+    .chat-send-btn:disabled {
+      background: #374151;
+      cursor: not-allowed;
+    }
+
+    /* Context Summary */
+    .context-section {
+      margin-bottom: 24px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #3d3d3d;
+    }
+
+    .context-section:last-child {
+      border-bottom: none;
+    }
+
+    .context-section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #3b82f6;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .context-item {
+      background: #1a1a1a;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+
+    .context-item-label {
+      font-size: 11px;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .context-item-value {
+      font-size: 13px;
+      color: #e5e5e5;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+
+    .badge-high {
+      background: #dc2626;
+      color: white;
+    }
+
+    .badge-medium {
+      background: #f59e0b;
+      color: white;
+    }
+
+    .badge-low {
+      background: #10b981;
+      color: white;
+    }
+
+    /* Objectives Review Panel */
+    .objectives-review {
+      display: none;
+      background: #2d2d2d;
+      border: 1px solid #3d3d3d;
+      border-radius: 8px;
+      padding: 24px;
+      margin-top: 24px;
+    }
+
+    .objectives-review.active {
+      display: block;
+    }
+
+    .objective-card {
+      background: #1a1a1a;
+      border: 1px solid #3d3d3d;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .objective-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 12px;
+    }
+
+    .objective-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e5e5e5;
+    }
+
+    .objective-description {
+      font-size: 14px;
+      color: #9ca3af;
+      margin-bottom: 12px;
+      line-height: 1.6;
+    }
+
+    .objective-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+    }
+
+    .objective-meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .objective-meta-label {
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 10px;
+    }
+
+    .objective-meta-value {
+      color: #e5e5e5;
+    }
+
+    /* Question Counter */
+    .question-counter {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: #1a1a1a;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    .question-counter strong {
+      color: #3b82f6;
+    }
+
+    /* Loading State */
+    .loading-indicator {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: #2d2d2d;
+      border: 1px solid #3d3d3d;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .loading-indicator.active {
+      display: flex;
+    }
+
+    .loading-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #3d3d3d;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+
+      .context-panel {
+        max-height: 400px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .workflow-steps {
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .workflow-connector {
+        display: none;
+      }
+
+      .workflow-step {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body class="dark-mode">
+  <!-- Header -->
+  <header class="main-header">
+    <div class="header-content">
+      <h1>🎯 Business Objectives - AI-Assisted Strategic Alignment</h1>
+      <p class="header-subtitle">Define objectives, map capabilities, and link to EA insights</p>
+    </div>
+    <nav class="header-nav">
+      <a href="../EA2_Toolkit/EA_Growth_Dashboard.html" class="nav-link">← Back to Growth Dashboard</a>
+      <button id="resetWorkflowBtn" class="nav-link" style="background: none; border: none; cursor: pointer; color: #e5e5e5;">🔄 Reset Workflow</button>
+    </nav>
+  </header>
+
+  <!-- Main Container -->
+  <div class="container">
+    <!-- Workflow Progress Indicator -->
+    <div class="workflow-progress">
+      <div class="workflow-steps">
+        <div class="workflow-connector">
+          <div class="workflow-connector-progress" id="workflowProgressBar"></div>
+        </div>
+        
+        <div class="workflow-step" id="step1Indicator" data-step="1">
+          <div class="workflow-step-number">1</div>
+          <div class="workflow-step-title">Understand Goals</div>
+          <div class="workflow-step-subtitle">Define objectives</div>
+        </div>
+
+        <div class="workflow-step" id="step2Indicator" data-step="2">
+          <div class="workflow-step-number">2</div>
+          <div class="workflow-step-title">Map Capabilities</div>
+          <div class="workflow-step-subtitle">APQC alignment</div>
+        </div>
+
+        <div class="workflow-step" id="step3Indicator" data-step="3">
+          <div class="workflow-step-number">3</div>
+          <div class="workflow-step-title">Link Insights</div>
+          <div class="workflow-step-subtitle">Optional</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Workflow Panel (Left) -->
+      <div class="workflow-panel">
+        <h2 id="workflowPanelTitle">Step 1: Understand Goals</h2>
+        <p id="workflowPanelDescription" style="color: #9ca3af; margin-bottom: 24px;">
+          AI will ask you questions to understand your strategic context and define clear business objectives.
+        </p>
+
+        <!-- Question Counter -->
+        <div class="question-counter" id="questionCounter" style="display: none;">
+          <span>Question <strong id="currentQuestion">0</strong> of 5</span>
+          <span style="margin-left: auto; color: #6b7280;">Max 5 questions per step</span>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div class="loading-indicator" id="loadingIndicator">
+          <div class="loading-spinner"></div>
+          <span>AI is thinking...</span>
+        </div>
+
+        <!-- AI Chat Interface -->
+        <div class="chat-container">
+          <div class="chat-messages" id="chatMessages">
+            <div class="chat-message ai">
+              <div class="chat-message-header">
+                <strong>🤖 AI Assistant</strong>
+                <span>Ready to begin</span>
+              </div>
+              <div class="chat-message-content">
+                Welcome! I'll help you define business objectives and map them to capabilities.
+                Click "Start Workflow" below to begin.
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-input-container">
+            <textarea 
+              id="chatInput" 
+              class="chat-input" 
+              placeholder="Type your response here..."
+              disabled
+            ></textarea>
+            <button id="chatSendBtn" class="chat-send-btn" disabled>Send</button>
+          </div>
+        </div>
+
+        <!-- Start Workflow Button (shown initially) -->
+        <div id="startWorkflowContainer" style="text-align: center; margin-top: 24px;">
+          <button id="startWorkflowBtn" class="chat-send-btn" style="width: 100%; padding: 16px;">
+            🚀 Start Workflow
+          </button>
+        </div>
+
+        <!-- Objectives Review (shown after Step 1) -->
+        <div class="objectives-review" id="objectivesReview">
+          <h3 style="margin-bottom: 16px;">Review Generated Objectives</h3>
+          <div id="objectivesList"></div>
+          <div style="display: flex; gap: 12px; margin-top: 16px;">
+            <button id="editObjectivesBtn" class="chat-send-btn" style="flex: 1; background: #6b7280;">
+              ✏️ Edit Objectives
+            </button>
+            <button id="proceedStep2Btn" class="chat-send-btn" style="flex: 1;">
+              Next Step →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Context Panel (Right) -->
+      <div class="context-panel">
+        <h3 style="margin-bottom: 16px;">Workflow Context</h3>
+
+        <!-- Step 1 Context -->
+        <div class="context-section" id="step1Context" style="display: none;">
+          <div class="context-section-title">
+            ✅ Step 1: Strategic Context
+          </div>
+          <div class="context-item">
+            <div class="context-item-label">Industry</div>
+            <div class="context-item-value" id="contextIndustry">-</div>
+          </div>
+          <div class="context-item">
+            <div class="context-item-label">Company Size</div>
+            <div class="context-item-value" id="contextCompanySize">-</div>
+          </div>
+          <div class="context-item">
+            <div class="context-item-label">Key Challenges</div>
+            <div class="context-item-value" id="contextChallenges">-</div>
+          </div>
+          <div class="context-item">
+            <div class="context-item-label">Opportunities</div>
+            <div class="context-item-value" id="contextOpportunities">-</div>
+          </div>
+          <div class="context-item">
+            <div class="context-item-label">Objectives Defined</div>
+            <div class="context-item-value" id="contextObjectivesCount">0</div>
+          </div>
+        </div>
+
+        <!-- Step 2 Context -->
+        <div class="context-section" id="step2Context" style="display: none;">
+          <div class="context-section-title">
+            ✅ Step 2: Capability Mapping
+          </div>
+          <div class="context-item">
+            <div class="context-item-label">Capabilities Mapped</div>
+            <div class="context-item-value" id="contextCapabilitiesCount">0</div>
+          </div>
+          <div class="context-item">
+            <div class="context-item-label">Critical Gaps</div>
+            <div class="context-item-value" id="contextCriticalGaps">-</div>
+          </div>
+        </div>
+
+        <!-- Step 3 Context -->
+        <div class="context-section" id="step3Context" style="display: none;">
+          <div class="context-section-title">
+            ✅ Step 3: EA Integration
+          </div>
+          <div class="context-item">
+            <div class="context-item-label">Integrated Tools</div>
+            <div class="context-item-value" id="contextIntegrations">-</div>
+          </div>
+          <div class="context-item">
+            <div class="context-item-label">Roadmap Phases</div>
+            <div class="context-item-value" id="contextRoadmapPhases">-</div>
+          </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="context-section">
+          <div class="context-section-title">
+            ℹ️ How It Works
+          </div>
+          <div style="font-size: 13px; color: #9ca3af; line-height: 1.8;">
+            <p style="margin-bottom: 12px;">
+              <strong style="color: #e5e5e5;">Step 1:</strong> AI asks questions to understand your strategic goals and synthesizes clear business objectives.
+            </p>
+            <p style="margin-bottom: 12px;">
+              <strong style="color: #e5e5e5;">Step 2:</strong> AI maps objectives to APQC capabilities and identifies gaps.
+            </p>
+            <p>
+              <strong style="color: #e5e5e5;">Step 3:</strong> Optionally link to Growth Dashboard, WhiteSpot, or Engagement Playbook.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../../js/EA_ObjectivesManager.js"></script>
+  <script src="../../js/EA_BusinessObjectivesWorkflow.js"></script>
+  <script src="../../AzureOpenAIProxy.js"></script>
+  <script src="../../js/EA_DataManager.js"></script>
+  
+  <script>
+    // Business Objectives Toolkit UI Controller
+    (function() {
+      'use strict';
+
+      // State
+      let currentStep = 0;
+
+      // DOM Elements
+      const chatMessages = document.getElementById('chatMessages');
+      const chatInput = document.getElementById('chatInput');
+      const chatSendBtn = document.getElementById('chatSendBtn');
+      const startWorkflowBtn = document.getElementById('startWorkflowBtn');
+      const startWorkflowContainer = document.getElementById('startWorkflowContainer');
+      const questionCounter = document.getElementById('questionCounter');
+      const currentQuestionEl = document.getElementById('currentQuestion');
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      const objectivesReview = document.getElementById('objectivesReview');
+      const objectivesList = document.getElementById('objectivesList');
+      const proceedStep2Btn = document.getElementById('proceedStep2Btn');
+      const resetWorkflowBtn = document.getElementById('resetWorkflowBtn');
+      const workflowPanelTitle = document.getElementById('workflowPanelTitle');
+      const workflowPanelDescription = document.getElementById('workflowPanelDescription');
+
+      // Initialize
+      function init() {
+        startWorkflowBtn.addEventListener('click', startWorkflow);
+        chatSendBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+          }
+        });
+        proceedStep2Btn.addEventListener('click', proceedToStep2);
+        resetWorkflowBtn.addEventListener('click', resetWorkflow);
+
+        console.log('✅ Business Objectives Toolkit initialized');
+      }
+
+      // Start Workflow
+      async function startWorkflow() {
+        try {
+          startWorkflowContainer.style.display = 'none';
+          chatInput.disabled = false;
+          chatSendBtn.disabled = false;
+          questionCounter.style.display = 'flex';
+
+          updateStepIndicator(1);
+
+          // Start Step 1
+          const response = await EA_BusinessObjectivesWorkflow.startStep1();
+          
+          addAIMessage(response.question);
+          currentQuestionEl.textContent = response.questionCount;
+
+          console.log('🚀 Workflow started');
+        } catch (error) {
+          console.error('Error starting workflow:', error);
+          alert('Error starting workflow. Please try again.');
+        }
+      }
+
+      // Send Message
+      async function sendMessage() {
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        // Add user message to chat
+        addUserMessage(message);
+        chatInput.value = '';
+        chatInput.disabled = true;
+        chatSendBtn.disabled = true;
+
+        // Show loading
+        loadingIndicator.classList.add('active');
+
+        try {
+          const workflowState = EA_BusinessObjectivesWorkflow.getWorkflowState();
+          const currentStep = workflowState.currentStep;
+
+          let response;
+          if (currentStep === 1) {
+            response = await EA_BusinessObjectivesWorkflow.handleStep1UserResponse(message);
+          } else if (currentStep === 2) {
+            response = await EA_BusinessObjectivesWorkflow.handleStep2UserResponse(message);
+          } else if (currentStep === 3) {
+            response = await EA_BusinessObjectivesWorkflow.handleStep3UserResponse(message);
+          }
+
+          // Hide loading
+          loadingIndicator.classList.remove('active');
+
+          // Check if synthesis (final step output)
+          if (response.synthesis) {
+            handleSynthesis(response, currentStep);
+          } else {
+            // Add next question
+            addAIMessage(response.question);
+            currentQuestionEl.textContent = response.questionCount;
+            chatInput.disabled = false;
+            chatSendBtn.disabled = false;
+            chatInput.focus();
+          }
+
+        } catch (error) {
+          console.error('Error processing message:', error);
+          loadingIndicator.classList.remove('active');
+          alert('Error processing your response. Please try again.');
+          chatInput.disabled = false;
+          chatSendBtn.disabled = false;
+        }
+      }
+
+      // Handle Synthesis (AI final output)
+      async function handleSynthesis(response, step) {
+        if (step === 1) {
+          // Step 1 complete - show objectives review
+          const synthesis = response.synthesis;
+          
+          addAIMessage(`Great! I've synthesized ${synthesis.objectives.length} business objectives based on our conversation. Please review them below.`);
+
+          // Update context panel
+          updateStep1Context(synthesis.strategicContext, synthesis.objectives);
+
+          // Show objectives review panel
+          displayObjectives(synthesis.objectives);
+          objectivesReview.classList.add('active');
+
+          // Save objectives
+          await EA_BusinessObjectivesWorkflow.completeStep1(synthesis.objectives);
+
+        } else if (step === 2) {
+          // Step 2 complete - show capability mapping
+          const synthesis = response.synthesis;
+          
+          addAIMessage(`Excellent! I've mapped ${synthesis.capabilities.length} capabilities to your objectives and identified ${synthesis.gapAnalysis.criticalGaps.length} critical gaps.`);
+
+          // Update context panel
+          updateStep2Context(synthesis.capabilities, synthesis.gapAnalysis);
+
+          // Save capabilities
+          await EA_BusinessObjectivesWorkflow.completeStep2(synthesis.capabilities);
+
+          // Update indicators
+          updateStepIndicator(2, true);
+
+          // Offer Step 3 or complete
+          setTimeout(() => {
+            if (confirm('Would you like to proceed to Step 3 (Link to EA Insights)? This step is optional.')) {
+              proceedToStep3();
+            } else {
+              completeWorkflow();
+            }
+          }, 1000);
+
+        } else if (step === 3) {
+          // Step 3 complete - workflow done
+          const synthesis = response.synthesis;
+          
+          addAIMessage(`Perfect! I've created an integration plan with ${synthesis.integrations.length} EA tool links and a ${synthesis.executionRoadmap.phases.length}-phase roadmap.`);
+
+          // Update context panel
+          updateStep3Context(synthesis.integrations, synthesis.executionRoadmap);
+
+          // Save integration plan
+          await EA_BusinessObjectivesWorkflow.completeStep3(synthesis);
+
+          // Update indicators
+          updateStepIndicator(3, true);
+
+          completeWorkflow();
+        }
+      }
+
+      // Add AI Message to Chat
+      function addAIMessage(text) {
+        const messageEl = document.createElement('div');
+        messageEl.className = 'chat-message ai';
+        messageEl.innerHTML = `
+          <div class="chat-message-header">
+            <strong>🤖 AI Assistant</strong>
+            <span>${new Date().toLocaleTimeString()}</span>
+          </div>
+          <div class="chat-message-content">${text}</div>
+        `;
+        chatMessages.appendChild(messageEl);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      // Add User Message to Chat
+      function addUserMessage(text) {
+        const messageEl = document.createElement('div');
+        messageEl.className = 'chat-message user';
+        messageEl.innerHTML = `
+          <div class="chat-message-header">
+            <strong>You</strong>
+            <span>${new Date().toLocaleTimeString()}</span>
+          </div>
+          <div class="chat-message-content">${text}</div>
+        `;
+        chatMessages.appendChild(messageEl);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      // Display Objectives for Review
+      function displayObjectives(objectives) {
+        objectivesList.innerHTML = objectives.map(obj => `
+          <div class="objective-card">
+            <div class="objective-card-header">
+              <div class="objective-name">${obj.name}</div>
+              <span class="badge badge-${obj.priority}">${obj.priority.toUpperCase()}</span>
+            </div>
+            <div class="objective-description">${obj.description}</div>
+            <div class="objective-meta">
+              <div class="objective-meta-item">
+                <div class="objective-meta-label">Strategic Theme</div>
+                <div class="objective-meta-value">${obj.strategicTheme}</div>
+              </div>
+              <div class="objective-meta-item">
+                <div class="objective-meta-label">Outcome</div>
+                <div class="objective-meta-value">${obj.outcomeStatement}</div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Proceed to Step 2
+      async function proceedToStep2() {
+        objectivesReview.classList.remove('active');
+        questionCounter.style.display = 'flex';
+        chatInput.disabled = false;
+        chatSendBtn.disabled = false;
+
+        updateStepIndicator(2);
+        updateStepTitle(2);
+
+        try {
+          const workflowState = EA_BusinessObjectivesWorkflow.getWorkflowState();
+          const response = await EA_BusinessObjectivesWorkflow.startStep2(workflowState.step1Data);
+          
+          addAIMessage(response.question);
+          currentQuestionEl.textContent = response.questionCount;
+          chatInput.focus();
+
+        } catch (error) {
+          console.error('Error starting Step 2:', error);
+          alert('Error starting Step 2. Please try again.');
+        }
+      }
+
+      // Proceed to Step 3
+      async function proceedToStep3() {
+        questionCounter.style.display = 'flex';
+        chatInput.disabled = false;
+        chatSendBtn.disabled = false;
+
+        updateStepIndicator(3);
+        updateStepTitle(3);
+
+        try {
+          const workflowState = EA_BusinessObjectivesWorkflow.getWorkflowState();
+          const response = await EA_BusinessObjectivesWorkflow.startStep3({
+            step1: workflowState.step1Data,
+            step2: workflowState.step2Data
+          });
+          
+          addAIMessage(response.question);
+          currentQuestionEl.textContent = response.questionCount;
+          chatInput.focus();
+
+        } catch (error) {
+          console.error('Error starting Step 3:', error);
+          alert('Error starting Step 3. Please try again.');
+        }
+      }
+
+      // Update Step Indicator
+      function updateStepIndicator(step, complete = false) {
+        currentStep = step;
+
+        // Update progress bar
+        const progress = ((step - 1) / 2) * 100;
+        document.getElementById('workflowProgressBar').style.width = progress + '%';
+
+        // Update step indicators
+        for (let i = 1; i <= 3; i++) {
+          const indicator = document.getElementById(`step${i}Indicator`);
+          indicator.classList.remove('active', 'completed');
+          
+          if (i < step || (i === step && complete)) {
+            indicator.classList.add('completed');
+          } else if (i === step) {
+            indicator.classList.add('active');
+          }
+        }
+      }
+
+      // Update Step Title
+      function updateStepTitle(step) {
+        const titles = {
+          1: { title: 'Step 1: Understand Goals', desc: 'AI will ask questions to understand your strategic context and define clear business objectives.' },
+          2: { title: 'Step 2: Map Capabilities', desc: 'AI will map your objectives to APQC capabilities and identify gaps.' },
+          3: { title: 'Step 3: Link to EA Insights', desc: 'AI will help you link objectives to Growth Dashboard, WhiteSpot, and Engagement Playbook.' }
+        };
+
+        workflowPanelTitle.textContent = titles[step].title;
+        workflowPanelDescription.textContent = titles[step].desc;
+      }
+
+      // Update Context Panels
+      function updateStep1Context(context, objectives) {
+        document.getElementById('contextIndustry').textContent = context.industry || '-';
+        document.getElementById('contextCompanySize').textContent = context.companySize || '-';
+        document.getElementById('contextChallenges').textContent = (context.challenges || []).join(', ') || '-';
+        document.getElementById('contextOpportunities').textContent = (context.opportunities || []).join(', ') || '-';
+        document.getElementById('contextObjectivesCount').textContent = objectives.length;
+        document.getElementById('step1Context').style.display = 'block';
+      }
+
+      function updateStep2Context(capabilities, gapAnalysis) {
+        document.getElementById('contextCapabilitiesCount').textContent = capabilities.length;
+        document.getElementById('contextCriticalGaps').textContent = (gapAnalysis.criticalGaps || []).join(', ') || '-';
+        document.getElementById('step2Context').style.display = 'block';
+      }
+
+      function updateStep3Context(integrations, roadmap) {
+        document.getElementById('contextIntegrations').textContent = integrations.map(i => i.tool).join(', ') || '-';
+        document.getElementById('contextRoadmapPhases').textContent = roadmap.phases.length;
+        document.getElementById('step3Context').style.display = 'block';
+      }
+
+      // Complete Workflow
+      function completeWorkflow() {
+        chatInput.disabled = true;
+        chatSendBtn.disabled = true;
+        questionCounter.style.display = 'none';
+
+        addAIMessage('🎉 Workflow complete! Your business objectives have been defined, capabilities mapped, and insights linked. You can now view them in the Growth Dashboard or Engagement Playbook.');
+
+        setTimeout(() => {
+          if (confirm('Workflow complete! Would you like to view your objectives in the Growth Dashboard?')) {
+            window.location.href = '../EA2_Toolkit/EA_Growth_Dashboard.html';
+          }
+        }, 2000);
+      }
+
+      // Reset Workflow
+      function resetWorkflow() {
+        if (!confirm('Are you sure you want to reset the workflow? All progress will be lost.')) {
+          return;
+        }
+
+        EA_BusinessObjectivesWorkflow.resetWorkflow();
+        
+        // Reset UI
+        chatMessages.innerHTML = `
+          <div class="chat-message ai">
+            <div class="chat-message-header">
+              <strong>🤖 AI Assistant</strong>
+              <span>Ready to begin</span>
+            </div>
+            <div class="chat-message-content">
+              Welcome! I'll help you define business objectives and map them to capabilities.
+              Click "Start Workflow" below to begin.
+            </div>
+          </div>
+        `;
+        
+        chatInput.value = '';
+        chatInput.disabled = true;
+        chatSendBtn.disabled = true;
+        startWorkflowContainer.style.display = 'block';
+        questionCounter.style.display = 'none';
+        objectivesReview.classList.remove('active');
+        
+        document.getElementById('step1Context').style.display = 'none';
+        document.getElementById('step2Context').style.display = 'none';
+        document.getElementById('step3Context').style.display = 'none';
+        
+        updateStepIndicator(1);
+        updateStepTitle(1);
+
+        console.log('🔄 Workflow reset');
+      }
+
+      // Initialize on page load
+      init();
+    })();
+  </script>
+</body>
+</html>
