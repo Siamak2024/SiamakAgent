@@ -687,53 +687,262 @@ function renderL2ServiceRow(l2Service, heatmap) {
 // ═══════════════════════════════════════════════════════════════════
 
 function renderOpportunities(heatmap) {
+    // Group opportunities by priority
+    const critical = heatmap.opportunities.filter(o => o.priority === 'critical');
+    const high = heatmap.opportunities.filter(o => o.priority === 'high');
+    const medium = heatmap.opportunities.filter(o => o.priority === 'medium');
+    const low = heatmap.opportunities.filter(o => o.priority === 'low');
+    
+    // Calculate total value
+    const totalValue = heatmap.opportunities.reduce((sum, opp) => sum + (opp.estimatedValue || 0), 0);
+    
     return `
-        <div style="background: white; border-radius: 12px; padding: 24px; margin-top: 24px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <h4 style="font-size: 16px; font-weight: 700; color: #111827;">
-                    <i class="fas fa-lightbulb" style="color: #f59e0b; margin-right: 8px;"></i>
-                    Identified Opportunities (${heatmap.opportunities.length})
-                </h4>
-                <button class="btn btn-primary btn-sm" onclick="addOpportunity('${heatmap.id}')">
+        <div style="background: linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%); border-radius: 12px; padding: 24px; margin-top: 24px; border: 2px solid #fed7aa;">
+            <!-- Header with Stats -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+                <div>
+                    <h4 style="font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 8px;">
+                        <i class="fas fa-lightbulb" style="color: #f59e0b; margin-right: 8px;"></i>
+                        Identified Opportunities
+                    </h4>
+                    <div style="display: flex; gap: 20px; margin-top: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 8px; height: 8px; background: #ef4444; border-radius: 50%;"></div>
+                            <span style="font-size: 13px; color: #6b7280;"><strong>${critical.length}</strong> Critical</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 8px; height: 8px; background: #f59e0b; border-radius: 50%;"></div>
+                            <span style="font-size: 13px; color: #6b7280;"><strong>${high.length}</strong> High</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%;"></div>
+                            <span style="font-size: 13px; color: #6b7280;"><strong>${medium.length}</strong> Medium</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 8px; height: 8px; background: #6b7280; border-radius: 50%;"></div>
+                            <span style="font-size: 13px; color: #6b7280;"><strong>${low.length}</strong> Low</span>
+                        </div>
+                        <div style="margin-left: 12px; padding-left: 20px; border-left: 2px solid #e5e7eb;">
+                            <span style="font-size: 13px; color: #6b7280;">Total Value: </span>
+                            <strong style="font-size: 16px; color: #065f46;">${formatCurrency(totalValue)}</strong>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="addOpportunity('${heatmap.id}')">
                     <i class="fas fa-plus"></i> Add Opportunity
                 </button>
             </div>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Service</th>
-                        <th>Value</th>
-                        <th>Priority</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${heatmap.opportunities.map(opp => {
-                        const l2Service = window.vivictaServiceLoader.getHLServiceById(opp.l2ServiceId);
-                        return `
-                            <tr>
-                                <td><strong>${opp.title}</strong></td>
-                                <td>${l2Service ? l2Service.name : opp.l2ServiceId}</td>
-                                <td>${opp.estimatedValue ? formatCurrency(opp.estimatedValue) : '-'}</td>
-                                <td><span class="badge badge-${opp.priority || 'medium'}">${opp.priority || 'medium'}</span></td>
-                                <td><span class="badge badge-${getStatusBadge(opp.status)}">${opp.status || 'identified'}</span></td>
-                                <td>
-                                    <button class="btn btn-sm btn-ghost" onclick="editOpportunity('${heatmap.id}', '${opp.id}')">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-ghost" onclick="deleteOpportunity('${heatmap.id}', '${opp.id}')">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        `;
-                    }).join('')}
-                </tbody>
-            </table>
+            
+            <!-- Opportunities Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px;">
+                ${heatmap.opportunities.map(opp => renderOpportunityCard(opp, heatmap)).join('')}
+            </div>
         </div>
     `;
+}
+
+function renderOpportunityCard(opp, heatmap) {
+    const l2Service = window.vivictaServiceLoader.getHLServiceById(opp.l2ServiceId);
+    
+    // Priority styling
+    const priorityStyles = {
+        'critical': { 
+            bg: '#fef2f2', 
+            border: '#fca5a5', 
+            badge: '#dc2626', 
+            icon: 'exclamation-triangle',
+            dotColor: '#ef4444'
+        },
+        'high': { 
+            bg: '#fff7ed', 
+            border: '#fed7aa', 
+            badge: '#ea580c', 
+            icon: 'arrow-up',
+            dotColor: '#f59e0b'
+        },
+        'medium': { 
+            bg: '#eff6ff', 
+            border: '#bfdbfe', 
+            badge: '#2563eb', 
+            icon: 'minus',
+            dotColor: '#3b82f6'
+        },
+        'low': { 
+            bg: '#f9fafb', 
+            border: '#e5e7eb', 
+            badge: '#6b7280', 
+            icon: 'arrow-down',
+            dotColor: '#9ca3af'
+        }
+    };
+    const style = priorityStyles[opp.priority || 'medium'];
+    
+    // Status styling
+    const statusStyles = {
+        'identified': { color: '#3b82f6', bg: '#dbeafe', label: 'Identified' },
+        'evaluating': { color: '#f59e0b', bg: '#fef3c7', label: 'Evaluating' },
+        'approved': { color: '#10b981', bg: '#d1fae5', label: 'Approved' },
+        'in-progress': { color: '#8b5cf6', bg: '#ede9fe', label: 'In Progress' },
+        'completed': { color: '#059669', bg: '#a7f3d0', label: 'Completed' },
+        'on-hold': { color: '#dc2626', bg: '#fee2e2', label: 'On Hold' }
+    };
+    const statusStyle = statusStyles[opp.status || 'identified'];
+    
+    return `
+        <div 
+            class="opportunity-card"
+            style="
+                background: white;
+                border: 2px solid ${style.border};
+                border-left: 5px solid ${style.badge};
+                border-radius: 10px;
+                padding: 18px;
+                cursor: pointer;
+                transition: all 0.2s;
+                position: relative;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            "
+            onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.05)';"
+            onclick="editOpportunity('${heatmap.id}', '${opp.id}')"
+        >
+            <!-- Priority Badge -->
+            <div style="position: absolute; top: 14px; right: 14px;">
+                <span style="
+                    background: ${style.badge};
+                    color: white;
+                    font-size: 10px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    padding: 4px 10px;
+                    border-radius: 12px;
+                    letter-spacing: 0.5px;
+                ">
+                    <i class="fas fa-${style.icon}" style="margin-right: 4px;"></i>
+                    ${opp.priority || 'medium'}
+                </span>
+            </div>
+            
+            <!-- Title -->
+            <div style="font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 10px; padding-right: 90px; line-height: 1.4;">
+                ${opp.title}
+            </div>
+            
+            <!-- Description (if exists) -->
+            ${opp.description ? `
+                <div style="font-size: 13px; color: #6b7280; margin-bottom: 12px; line-height: 1.5;">
+                    ${truncateText(opp.description, 100)}
+                </div>
+            ` : ''}
+            
+            <!-- Service Tag -->
+            ${l2Service ? `
+                <div style="margin-bottom: 12px;">
+                    <span style="
+                        background: #f0fdf4;
+                        color: #065f46;
+                        font-size: 11px;
+                        font-weight: 600;
+                        padding: 4px 10px;
+                        border-radius: 6px;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                    ">
+                        <i class="fas fa-cubes" style="font-size: 10px;"></i>
+                        ${l2Service.name}
+                    </span>
+                </div>
+            ` : ''}
+            
+            <!-- Value & Status Row -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6;">
+                <!-- Value -->
+                <div>
+                    ${opp.estimatedValue ? `
+                        <div style="display: flex; align-items: baseline; gap: 4px;">
+                            <i class="fas fa-dollar-sign" style="font-size: 11px; color: #10b981;"></i>
+                            <span style="font-size: 18px; font-weight: 700; color: #065f46;">
+                                ${formatCurrency(opp.estimatedValue)}
+                            </span>
+                        </div>
+                        <div style="font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;">
+                            Estimated Value
+                        </div>
+                    ` : `
+                        <div style="font-size: 12px; color: #9ca3af;">
+                            Value not estimated
+                        </div>
+                    `}
+                </div>
+                
+                <!-- Status Badge -->
+                <div style="
+                    background: ${statusStyle.bg};
+                    color: ${statusStyle.color};
+                    font-size: 11px;
+                    font-weight: 600;
+                    padding: 6px 12px;
+                    border-radius: 20px;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                ">
+                    <div style="width: 6px; height: 6px; background: ${statusStyle.color}; border-radius: 50%;"></div>
+                    ${statusStyle.label}
+                </div>
+            </div>
+            
+            <!-- Target Date (if exists) -->
+            ${opp.targetDate ? `
+                <div style="margin-top: 10px; font-size: 11px; color: #6b7280; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-calendar" style="opacity: 0.5;"></i>
+                    Target: ${formatDate(opp.targetDate)}
+                </div>
+            ` : ''}
+            
+            <!-- Actions (on hover) -->
+            <div 
+                class="opportunity-actions"
+                style="
+                    position: absolute;
+                    bottom: 14px;
+                    right: 14px;
+                    display: flex;
+                    gap: 6px;
+                    opacity: 0;
+                    transition: opacity 0.2s;
+                "
+                onclick="event.stopPropagation();"
+            >
+                <button 
+                    class="btn btn-sm btn-ghost" 
+                    onclick="editOpportunity('${heatmap.id}', '${opp.id}')"
+                    title="Edit"
+                    style="padding: 6px 10px; background: white; border: 1px solid #e5e7eb;">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button 
+                    class="btn btn-sm btn-ghost" 
+                    onclick="deleteOpportunity('${heatmap.id}', '${opp.id}')"
+                    title="Delete"
+                    style="padding: 6px 10px; background: white; border: 1px solid #e5e7eb; color: #ef4444;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+        
+        <style>
+            .opportunity-card:hover .opportunity-actions {
+                opacity: 1 !important;
+            }
+        </style>
+    `;
+}
+
+function truncateText(text, maxLength) {
+    if (!text) return '';
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
 }
 
 // ═══════════════════════════════════════════════════════════════════
