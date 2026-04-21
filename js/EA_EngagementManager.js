@@ -11,6 +11,12 @@ class EA_EngagementManager {
   constructor() {
     this.currentEngagementId = null;
     this.storagePrefix = 'ea_engagement_';
+    
+    // Initialize EA_DataManager for integration support
+    if (typeof EA_DataManager !== 'undefined') {
+      this.dataManager = new EA_DataManager();
+    }
+    
     this.initializeStorage();
   }
 
@@ -107,7 +113,7 @@ class EA_EngagementManager {
         
         // Validate model structure
         if (!model || !model.engagement || !model.engagement.id) {
-          console.warn(`Invalid engagement model structure in ${key}, skipping`);
+          console.warn(`⚠️ Invalid engagement model structure in ${key}, skipping`);
           return null;
         }
         

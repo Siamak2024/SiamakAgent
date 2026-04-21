@@ -2400,35 +2400,39 @@
             // Initialize AccountManager for integration
             if (typeof EA_AccountManager !== 'undefined') {
                 window.accountManager = new EA_AccountManager();
-                console.log('? EA_AccountManager initialized for account integration');
+                console.log('✅ EA_AccountManager initialized for account integration');
             } else {
-                console.warn('EA_AccountManager not loaded - account linking disabled');
+                console.warn('⚠️ EA_AccountManager not loaded - account linking disabled');
             }
             
             // Initialize engagement manager
             engagementManager = new EA_EngagementManager();
-            console.log('? EA_EngagementManager initialized');
+            console.log('✅ EA_EngagementManager initialized');
             
             // Initialize workflow engine
             if (typeof EA_WorkflowEngine !== 'undefined') {
                 workflowEngine = new EA_WorkflowEngine(engagementManager);
                 window.workflowEngine = workflowEngine;
-                console.log('? EA_WorkflowEngine initialized');
+                console.log('✅ EA_WorkflowEngine initialized');
             } else {
-                console.warn('EA_WorkflowEngine not loaded');
+                console.warn('⚠️ EA_WorkflowEngine not loaded');
             }
             
             // Initialize integration bridge (requires dataManager from EA_EngagementManager)
-            if (typeof EA_IntegrationBridge !== 'undefined' && engagementManager.dataManager) {
-                integrationBridge = new EA_IntegrationBridge(
-                    engagementManager,
-                    engagementManager.dataManager,
-                    workflowEngine
-                );
-                window.integrationBridge = integrationBridge;
-                console.log('? EA_IntegrationBridge initialized');
+            if (typeof EA_IntegrationBridge !== 'undefined') {
+                if (engagementManager.dataManager) {
+                    integrationBridge = new EA_IntegrationBridge(
+                        engagementManager,
+                        engagementManager.dataManager,
+                        workflowEngine
+                    );
+                    window.integrationBridge = integrationBridge;
+                    console.log('✅ EA_IntegrationBridge initialized');
+                } else {
+                    console.warn('⚠️ EA_DataManager not available - integration features disabled');
+                }
             } else {
-                console.warn('EA_IntegrationBridge not loaded or dataManager not available');
+                console.warn('⚠️ EA_IntegrationBridge not loaded - integration features disabled');
             }
             
             // Initialize EA_AIAssistant (context-aware AI with full functionality)
@@ -2438,7 +2442,7 @@
                     workflowEngine,
                     integrationBridge
                 );
-                console.log('? EA_AIAssistant initialized with workflow and integration support');
+                console.log('✅ EA_AIAssistant initialized with workflow and integration support');
                 
                 // Update AI context after a brief delay to let DOM settle
                 setTimeout(() => {
@@ -2447,7 +2451,7 @@
                     }
                 }, 500);
             } else {
-                console.warn('EA_AIAssistant not loaded - AI features will be limited');
+                console.warn('⚠️ EA_AIAssistant not loaded - AI features will be limited');
             }
             
             // Load APQC data
@@ -2502,14 +2506,14 @@
                     const engagement = engagementManager.getCurrentEngagement();
                     if (engagement && workflowEngine) {
                         workflowEngine.initializeWorkflowState(engagement.engagement || engagement);
-                        console.log('? Workflow state initialized');
+                        console.log('✅ Workflow state initialized');
                     }
                 }
             }
             
             updateKPIs();
-            console.log('? EA Engagement Playbook fully initialized');
-            console.log('?? Phase 2 features enabled: Workflow Engine, Integration Bridge, Enhanced AI, Account Linking');
+            console.log('✅ EA Engagement Playbook fully initialized');
+            console.log('🚀 Phase 2 features enabled: Workflow Engine, Integration Bridge, Enhanced AI, Account Linking');
         });
 
         // -------------------------------------------------------------------
@@ -2559,7 +2563,7 @@
             try {
                 const response = await fetch('../../APAQ_Data/apqc_pcf_master.json');
                 apqcData = await response.json();
-                console.log('? APQC Framework loaded:', apqcData.total_categories, 'categories');
+                console.log('✅ APQC Framework loaded:', apqcData.total_categories, 'categories');
             } catch (error) {
                 console.warn('APQC data not available:', error);
             }
@@ -2739,7 +2743,7 @@
                 currentEngagement = model;
                 loadEngagementData();
                 updateEngagementSelector();
-                console.log('Auto-loaded engagement:', latest.name);
+                console.log('✅ Auto-loaded engagement:', latest.name);
                 return true;
             }
             
