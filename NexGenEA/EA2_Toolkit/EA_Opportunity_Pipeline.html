@@ -636,18 +636,21 @@
                 return;
             }
             
+            // Hide welcome message and quick actions once first message is sent
+            const welcome = document.getElementById('chat-welcome');
+            const quickActions = document.getElementById('chat-quick-actions');
+            if (welcome) welcome.style.display = 'none';
+            if (quickActions) quickActions.style.display = 'none';
+            
             // Add user message
             addChatMessage(message, 'user');
             input.value = '';
             
-            // Show typing indicator
-            const typingIndicator = document.getElementById('typing-indicator');
-            typingIndicator.classList.add('active');
-            
-            // Disable send button
+            // Disable send button with loading state
             const sendBtn = document.getElementById('send-chat');
+            const originalHTML = sendBtn.innerHTML;
             sendBtn.disabled = true;
-            sendBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending...';
+            sendBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
             
             try {
                 // Refresh context before sending
@@ -663,12 +666,9 @@
                 console.error('Chat error:', error);
                 addChatMessage('I encountered an error processing your request. Please try again.', 'assistant');
             } finally {
-                // Hide typing indicator
-                typingIndicator.classList.remove('active');
-                
                 // Re-enable send button
+                sendBtn.innerHTML = originalHTML;
                 sendBtn.disabled = false;
-                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
             }
         }
 
@@ -680,6 +680,13 @@
             
             const prompt = aiAssistant.getSuggestedPrompt(index);
             if (prompt) {
+                // Hide welcome message and quick actions
+                const welcome = document.getElementById('chat-welcome');
+                const quickActions = document.getElementById('chat-quick-actions');
+                if (welcome) welcome.style.display = 'none';
+                if (quickActions) quickActions.style.display = 'none';
+                
+                // Set input and send
                 document.getElementById('chat-input').value = prompt;
                 await sendChatMessage();
             }
@@ -696,17 +703,108 @@
         function addChatMessage(content, role) {
             const messagesDiv = document.getElementById('chat-messages');
             const messageDiv = document.createElement('div');
-            messageDiv.className = `message message-${role}`;
+            messageDiv.className = `chat-message chat-message-${role}`;
             
-            // Convert markdown-style formatting to HTML
-            const formattedContent = content
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/\n/g, '<br>');
+            // Enhanced markdown-to-HTML conversion
+            let formattedContent = content;
             
-            messageDiv.innerHTML = `<div class="message-content">${formattedContent}</div>`;
+            // Convert code blocks first (```language\ncode\n```)
+            formattedContent = formattedContent.replace(/```(\w+)?\n([\s\S]+?)```/g, '<pre><code>$2</code></pre>');
+            
+            // Convert inline code
+            formattedContent = formattedContent.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // Convert headers (# to ######)
+            formattedContent = formattedContent.replace(/^######\s+(.+)$/gm, '<h6>$1</h6>');
+            formattedContent = formattedContent.replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>');
+            formattedContent = formattedContent.replace(/^####\s+(.+)$/gm, '<h4>$1</h4>');
+            formattedContent = formattedContent.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+            formattedContent = formattedContent.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+            formattedContent = formattedContent.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+            
+            // Convert bold and italic
+            formattedContent = formattedContent.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+            formattedContent = formattedContent.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            formattedContent = formattedContent.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            
+            // Convert blockquotes
+            formattedContent = formattedContent.replace(/^>\s+(.+)$/gm, '<blockquote>$1</blockquote>');
+            
+            // Convert horizontal rules
+            formattedContent = formattedContent.replace(/^---$/gm, '<hr>');
+            formattedContent = formattedContent.replace(/^\*\*\*$/gm, '<hr>');
+            
+            // Convert links [text](url)
+            formattedContent = formattedContent.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+            
+            // Convert unordered lists (- or *)
+            formattedContent = formattedContent.replace(/^[\-\*]\s+(.+)$/gm, '<li>$1</li>');
+            
+            // Convert ordered lists (1. 2. 3.)
+            formattedContent = formattedContent.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+            
+            // Wrap consecutive <li> items in <ul>
+            formattedContent = formattedContent.replace(/(<li>.*<\/li>\n?)+/g, function(match) {
+                return '<ul>' + match + '</ul>';
+            });
+            
+            // Convert simple tables (| col | col |)
+            const tableRegex = /(\|.+\|\n)+/g;
+            formattedContent = formattedContent.replace(tableRegex, function(match) {
+                const rows = match.trim().split('\n');
+                if (rows.length < 2) return match;
+                
+                let tableHTML = '<table>';
+                rows.forEach((row, i) => {
+                    const cells = row.split('|').filter(cell => cell.trim());
+                    if (i === 0) {
+                        tableHTML += '<tr>' + cells.map(cell => `<th>${cell.trim()}</th>`).join('') + '</tr>';
+                    } else if (!/^[\s\-\:]+$/.test(row)) {
+                        tableHTML += '<tr>' + cells.map(cell => `<td>${cell.trim()}</td>`).join('') + '</tr>';
+                    }
+                });
+                tableHTML += '</table>';
+                return tableHTML;
+            });
+            
+            // Convert paragraphs (double newlines)
+            formattedContent = formattedContent.replace(/\n\n+/g, '</p><p>');
+            
+            // Convert single newlines to <br>
+            formattedContent = formattedContent.replace(/\n/g, '<br>');
+            
+            messageDiv.innerHTML = `
+                <div class="chat-message-avatar">
+                    <i class="fas fa-${role === 'user' ? 'user' : 'robot'}"></i>
+                </div>
+                <div class="chat-message-content">
+                    <p>${formattedContent}</p>
+                </div>
+            `;
+            
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function startNewChat() {
+            if (aiAssistant) {
+                aiAssistant.clearHistory();
+            }
+            document.getElementById('chat-messages').innerHTML = '';
+            
+            // Show welcome and quick actions again
+            const welcome = document.getElementById('chat-welcome');
+            const quickActions = document.getElementById('chat-quick-actions');
+            if (welcome) welcome.style.display = 'block';
+            if (quickActions) quickActions.style.display = 'block';
+            
+            console.log('Started new conversation');
+        }
+
+        function clearChat() {
+            if (confirm('Clear all messages from this conversation?')) {
+                startNewChat();
+            }
         }
 
         // Keyboard shortcut for AI assistant
@@ -1133,27 +1231,47 @@
         }
     </script>
 
-    <!-- AI Chat Panel (Sidebar) -->
-    <div id="ai-chat-panel">
-        <div class="resize-handle" id="resize-handle"></div>
-        <div class="chat-header">
-            <h3><i class="fas fa-robot"></i> AI Assistant</h3>
-            <button class="close-chat" onclick="toggleChatPanel()"><i class="fas fa-times"></i></button>
+    <!-- AI Chat Panel (Sidebar - Same design as NexGen EA Platform) -->
+    <div id="ai-chat-panel" class="hidden">
+        <div id="chat-resize-handle" title="Drag to resize"></div>
+        <div id="chat-header">
+            <div id="chat-header-title">
+                <i class="fas fa-robot"></i>
+                <span id="chat-title-text">Pipeline AI</span>
+            </div>
+            <div id="chat-controls">
+                <button id="new-chat" onclick="startNewChat()" title="New conversation">+</button>
+                <button id="clear-chat" onclick="clearChat()" title="Clear history">&#x21BA;</button>
+                <button id="close-chat" onclick="toggleChatPanel()" title="Close sidebar">&times;</button>
+            </div>
         </div>
-        <div class="quick-prompts">
-            <div class="quick-prompts-label">Quick Actions</div>
-            <button class="quick-prompt-btn" onclick="sendQuickPrompt(0)">Which opportunities are at risk of stalling?</button>
-            <button class="quick-prompt-btn" onclick="sendQuickPrompt(1)">Suggest strategies to accelerate deal closure</button>
-            <button class="quick-prompt-btn" onclick="sendQuickPrompt(2)">Analyze my win/loss patterns</button>
+        <!-- Welcome Message -->
+        <div id="chat-welcome" class="chat-welcome-message">
+            <div class="welcome-icon"><i class="fas fa-lightbulb"></i></div>
+            <h4>Pipeline AI Assistant</h4>
+            <p>I can help you identify at-risk deals, suggest closing strategies, analyze win/loss patterns, and optimize your opportunity management. How can I help you today?</p>
+        </div>
+        <!-- Quick Action Prompts -->
+        <div id="chat-quick-actions" class="chat-quick-actions">
+            <div class="quick-actions-label">Quick Actions</div>
+            <button class="quick-action-btn" onclick="sendQuickPrompt(0)">
+                <i class="fas fa-exclamation-triangle"></i> Which opportunities are at risk of stalling?
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPrompt(1)">
+                <i class="fas fa-rocket"></i> Suggest strategies to accelerate deal closure
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPrompt(2)">
+                <i class="fas fa-chart-bar"></i> Analyze my win/loss patterns
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPrompt(3)">
+                <i class="fas fa-lightbulb"></i> Help me qualify this opportunity
+            </button>
         </div>
         <div id="chat-messages"></div>
-        <div class="typing-indicator" id="typing-indicator">
-            <i class="fas fa-circle-notch fa-spin"></i> AI is thinking...
-        </div>
-        <div class="chat-input-area">
-            <textarea id="chat-input" rows="3" placeholder="Ask me about pipeline management, deal strategies, or best practices..." onkeypress="handleChatKeypress(event)"></textarea>
-            <button id="send-chat" class="btn btn-primary" onclick="sendChatMessage()">
-                <i class="fas fa-paper-plane"></i> Send
+        <div id="chat-input-container">
+            <textarea id="chat-input" placeholder="Ask Pipeline AI anything..." onkeypress="handleChatKeypress(event)"></textarea>
+            <button id="send-chat" onclick="sendChatMessage()" title="Send (Enter)">
+                <i class="fas fa-paper-plane"></i>
             </button>
         </div>
     </div>
