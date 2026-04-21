@@ -5,21 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WhiteSpot Service Delivery Heatmap - Standalone</title>
     
+    <!-- EA Design System (includes AI chat panel styling) -->
+    <link rel="stylesheet" href="../../css/ea-design-engine.css">
+    
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Azure OpenAI Proxy -->
     <script src="../../AzureOpenAIProxy.js"></script>
     
-    <!-- Markdown Rendering (for AI chat) -->
-    <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
-    
-    <!-- Syntax Highlighting (for AI chat code blocks) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-    
-    <!-- EA Chat Component (Universal AI Assistant) -->
-    <script src="ea_chat_component.js"></script>
+    <!-- Advicy AI Engine (handles chat streaming and markdown) -->
+    <script src="../../js/Advicy_AI.js"></script>
     
     <!-- Data Loaders & Integration Modules -->
     <script src="vivicta_service_loader.js"></script>
@@ -414,7 +410,7 @@
                 <button class="btn btn-secondary" onclick="showHelpGuide()">
                     <i class="fas fa-question-circle"></i> Help Guide
                 </button>
-                <button class="btn btn-primary" id="toggle-chat-btn" onclick="eaChat && eaChat.toggle()" title="AI Assistant (Ctrl+K)">
+                <button class="btn btn-primary" id="toggle-chat-btn" onclick="toggleChatPanel()" title="AI Assistant (Ctrl+K)">
                     <i class="fas fa-robot"></i> AI Assistant
                 </button>
                 <button class="btn btn-secondary" onclick="window.location.href='EA_Engagement_Playbook.html'">
@@ -521,8 +517,27 @@
                 renderWhiteSpotHeatmap();
             }
             
-            // Initialize AI Chat Component AFTER manager is ready
-            await initializeChatComponent();
+            // Initialize AI Assistant (Advicy_AI)
+            const initAI = setInterval(function() {
+                if (typeof Advicy_AI_Instance !== 'undefined') {
+                    clearInterval(initAI);
+                    console.log('✅ Advicy AI ready for WhiteSpot Standalone');
+                    
+                    // Set context-aware system prompt
+                    if (Advicy_AI_Instance.setSystemPrompt) {
+                        Advicy_AI_Instance.setSystemPrompt(`You are an expert service delivery consultant helping with WhiteSpot heatmap analysis. 
+Focus on service coverage opportunities, APQC process mapping, and sales strategy. 
+Provide concise, actionable insights for prospect analysis and opportunity identification.
+Format your responses using markdown for better readability.
+
+Current data model:
+- 41 Advicy services across 3 L1 areas (Consulting, Managed Services, Platform Services)
+- Service states: FULL (green), PARTIAL (yellow/orange), CUSTOM (blue), LOST (red), POTENTIAL (orange)
+- APQC integration: Semantic matching to process framework
+- Opportunities: Critical/High/Medium/Low priority with estimated values`);
+                    }
+                }
+            }, 100);
         });
         
         // Modal Functions
@@ -555,121 +570,97 @@
             }, 4000);
         }
         
+        // ═══════════════════════════════════════════════════════════════
+        // AI CHAT PANEL FUNCTIONS (Same as NexGen EA Platform)
+        // ═══════════════════════════════════════════════════════════════
+        
+        function toggleChatPanel() {
+            const panel = document.getElementById('ai-chat-panel');
+            if (!panel) return;
+            const isOpen = !panel.classList.contains('hidden');
+            if (isOpen) {
+                panel.classList.add('hidden');
+                document.body.classList.remove('chat-sidebar-open');
+                _updateSidebarToggleIcon(false);
+            } else {
+                panel.classList.remove('hidden');
+                document.body.classList.add('chat-sidebar-open');
+                _updateSidebarToggleIcon(true);
+                const input = document.getElementById('chat-input');
+                if (input) input.focus({ preventScroll: true });
+            }
+        }
+
+        function _updateSidebarToggleIcon(open) {
+            const btn = document.getElementById('toggle-chat-btn');
+            if (!btn) return;
+            btn.style.background = open ? 'rgba(14,122,254,0.18)' : '';
+            btn.style.color = open ? '#60a5fa' : '';
+        }
+
+        function closeChatPanel() {
+            const panel = document.getElementById('ai-chat-panel');
+            if (panel) panel.classList.add('hidden');
+            document.body.classList.remove('chat-sidebar-open');
+            _updateSidebarToggleIcon(false);
+        }
+
+        function startNewConversationChat() {
+            if (typeof Advicy_AI_Instance !== 'undefined' && Advicy_AI_Instance.startNewConversation) {
+                Advicy_AI_Instance.startNewConversation();
+            } else {
+                const messagesDiv = document.getElementById('chat-messages');
+                if (messagesDiv) messagesDiv.innerHTML = '';
+            }
+        }
+
+        function clearActiveConversationHistory() {
+            if (typeof Advicy_AI_Instance !== 'undefined' && Advicy_AI_Instance.clearHistory) {
+                Advicy_AI_Instance.clearHistory();
+            } else {
+                const messagesDiv = document.getElementById('chat-messages');
+                if (messagesDiv) messagesDiv.innerHTML = '';
+            }
+        }
+
+        // Resize handle functionality
+        (function() {
+            const handle = document.getElementById('chat-resize-handle');
+            const panel = document.getElementById('ai-chat-panel');
+            if (!handle || !panel) return;
+
+            let isResizing = false;
+            let startX = 0;
+            let startWidth = 0;
+
+            handle.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                startX = e.clientX;
+                startWidth = panel.offsetWidth;
+                handle.classList.add('dragging');
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                const delta = startX - e.clientX;
+                const newWidth = Math.max(240, Math.min(700, startWidth + delta));
+                panel.style.width = newWidth + 'px';
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    handle.classList.remove('dragging');
+                }
+            });
+        })();
+        
         // Show Help Guide
         function showHelpGuide() {
             const guideUrl = 'AI_ASSISTANT_USER_GUIDE.md';
             window.open(guideUrl, 'WhiteSpot_Help', 'width=1200,height=800,scrollbars=yes');
         }
-        
-        // ═══════════════════════════════════════════════════════════════
-        // EA CHAT COMPONENT INITIALIZATION
-        // ═══════════════════════════════════════════════════════════════
-        - called after manager is ready
-        async function initializeChatComponent() {
-            console.log('🤖 Initializing EA Chat Component...');
-            
-            // Ensure manager is available
-            if (!window.whitespotStandaloneManager) {
-                console.error('Cannot initialize chat: whitespotStandaloneManager not found');
-                return;
-            }
-            
-        
-        // Initialize EA Chat Component on page load
-        window.addEventListener('DOMContentLoaded', function() {
-            eaChat = new EAChatComponent({
-                panelId: 'whitespot-ai-chat',
-                title: 'WhiteSpot AI Assistant',
-                icon: 'fa-th',
-                
-                // Context provider - returns current WhiteSpot state
-                contextProvider: () => {
-                    const customers = whitespotStandaloneManager.getCustomers();
-                    const heatmaps = whitespotStandaloneManager.getHeatmaps();
-                    const stats = whitespotStandaloneManager.getStatistics();
-                    
-                    return {
-                        tool: 'WhiteSpot Service Delivery Heatmap',
-                        customers: customers.map(c => ({ 
-                            name: c.name, 
-                            industry: c.industry, 
-                            region: c.region 
-                        })),
-                        heatmapCount: heatmaps.length,
-                        statistics: stats,
-                        summary: customers.length === 0 
-                            ? 'No prospects loaded'
-                            : `${customers.length} prospect(s), ${heatmaps.length} heatmap(s)`,
-                        
-                        // Quick action buttons
-                        quickActions: customers.length === 0 ? [
-                            {
-                                label: 'Getting Started',
-                                icon: 'fa-rocket',
-                                prompt: 'How do I start analyzing a new prospect?'
-                            },
-                            {
-                                label: 'Service Offerings',
-                                icon: 'fa-th',
-                                prompt: 'What are the 41 service offerings?'
-                            },
-                            {
-                                label: 'APQC Matching',
-                                icon: 'fa-sitemap',
-                                prompt: 'Explain the APQC semantic matching algorithm'
-                            },
-                            {
-                                label: 'Service States',
-                                icon: 'fa-info-circle',
-                                prompt: 'What do FULL, PARTIAL, LOST, POTENTIAL states mean?'
-                            }
-                        ] : [
-                            {
-                                label: `Analyze ${customers[0].name}`,
-                                icon: 'fa-lightbulb',
-                                prompt: `Identify top 5 service opportunities for ${customers[0].name}`
-                            },
-                            {
-                                label: 'Coverage Score',
-                                icon: 'fa-chart-line',
-                                prompt: 'How can I improve my service coverage score?'
-                            },
-                            {
-                                label: 'APQC Gaps',
-                                icon: 'fa-search',
-                                prompt: 'Which APQC processes have the most gaps?'
-                            },
-                            {
-                                label: 'Value Estimates',
-                                icon: 'fa-dollar-sign',
-                                prompt: 'Generate opportunity value estimates'
-                            },
-                            {
-                                label: 'Compare Prospects',
-                                icon: 'fa-balance-scale',
-                                prompt: 'Compare coverage across all prospects'
-                            }
-                        ]
-                    };
-                },
-                
-                // System prompt for AI
-                systemPrompt: `You are an expert service delivery consultant helping with WhiteSpot heatmap analysis. 
-Focus on service coverage opportunities, APQC process mapping, and sales strategy. 
-Provide concise, actionable insights for prospect analysis and opportunity identification.
-Format your responses using markdown for better readability.
-
-Current data model:
-- 41 HL     console.log('✅ EA Chat Component initialized and rendered');
-        }vices across 3 L1 areas (Consulting, Managed Services, Platform Services)
-- Service states: FULL (green), PARTIAL (yellow/orange), CUSTOM (blue), LOST (red), POTENTIAL (orange)
-- APQC integration: Semantic matching to process framework
-- Opportunities: Critical/High/Medium/Low priority with estimated values`
-            });
-            
-            // Render the chat panel
-            eaChat.render();
-        });
         
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
@@ -681,14 +672,33 @@ Current data model:
             // Ctrl+K to toggle AI chat
             if (e.ctrlKey && e.key === 'k') {
                 e.preventDefault();
-                if (eaChat) {
-                    eaChat.toggle();
-                }
+                toggleChatPanel();
             }
         });
     </script>
     
-    <!-- EA Chat Component will render here dynamically -->
-    
+    <!-- ADVICY AI SIDEBAR (VS Code Copilot style - Same as NexGen EA Platform) -->
+    <div id="ai-chat-panel" class="hidden">
+        <div id="chat-resize-handle" title="Drag to resize"></div>
+        <div id="chat-header">
+            <div id="chat-header-title">
+                <i class="fas fa-robot"></i>
+                <span id="chat-title-text">WhiteSpot AI</span>
+            </div>
+            <div id="chat-controls">
+                <button id="new-chat" onclick="startNewConversationChat()" title="New conversation">+</button>
+                <button id="clear-chat" onclick="clearActiveConversationHistory()" title="Clear history">&#x21BA;</button>
+                <button id="close-chat" onclick="closeChatPanel()" title="Close sidebar">&times;</button>
+            </div>
+        </div>
+        <div id="chat-messages"></div>
+        <div id="chat-input-container">
+            <textarea id="chat-input" placeholder="Ask WhiteSpot AI about service opportunities..."></textarea>
+            <button id="send-chat" title="Send (Enter)">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
 </body>
 </html>
