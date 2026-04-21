@@ -114,59 +114,36 @@
             flex: 1;
             padding: 24px;
             overflow-y: auto;
+            transition: margin-right 0.2s ease;
         }
 
-        /* AI Chat Panel (Right) */
+        /* Content shift when chat is open */
+        body.chat-sidebar-open #main-content {
+            margin-right: 360px;
+        }
+
+        /* Override ea-design-engine.css for this toolkit */
         #ai-chat-panel {
-            width: 420px;
-            background: var(--ea-surface);
-            border-left: 1px solid var(--ea-border);
-            display: flex;
-            flex-direction: column;
-            box-shadow: -2px 0 8px rgba(0,0,0,0.05);
+            top: 64px !important;
         }
 
-        .chat-header {
-            padding: 20px;
-            border-bottom: 1px solid var(--ea-border);
-            background: linear-gradient(180deg, #f8f9fa 0%, var(--ea-surface) 100%);
-        }
-
-        .chat-header h2 {
-            margin: 0 0 8px 0;
-            font-size: 18px;
-            color: var(--ea-text-primary);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .chat-header p {
-            margin: 0;
-            font-size: 13px;
-            color: var(--ea-text-secondary);
-        }
-
-        .chat-messages {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
+        /* Dark mode chat styling overrides */
+        #chat-messages {
+            gap: 0 !important;
         }
 
         .chat-message {
-            padding: 14px 16px;
-            border-radius: 8px;
-            max-width: 85%;
-            animation: slideIn 0.3s ease;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            animation: chatSlideIn 0.25s ease;
         }
 
-        @keyframes slideIn {
+        @keyframes chatSlideIn {
             from {
                 opacity: 0;
-                transform: translateY(10px);
+                transform: translateY(5px);
             }
             to {
                 opacity: 1;
@@ -174,67 +151,113 @@
             }
         }
 
-        .chat-message.ai {
-            background: linear-gradient(135deg, #e8f5f0 0%, #f0f9f5 100%);
-            border: 1px solid rgba(74, 119, 99, 0.2);
-            align-self: flex-start;
+        .chat-message.ai,
+        .chat-message.assistant {
+            flex-direction: row;
         }
 
         .chat-message.user {
-            background: var(--ea-accent);
-            color: white;
-            align-self: flex-end;
+            flex-direction: row;
         }
 
-        .chat-message-header {
-            font-weight: 600;
-            margin-bottom: 8px;
-            font-size: 13px;
+        .chat-message-avatar {
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
+            background: rgba(45, 45, 45, 0.6);
+            border-radius: 50%;
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: center;
+            color: #808080;
+            font-size: 14px;
+        }
+
+        .chat-message.user .chat-message-avatar {
+            background: rgba(55, 65, 81, 0.85);
+            color: #60a5fa;
+        }
+
+        .chat-message.ai .chat-message-avatar,
+        .chat-message.assistant .chat-message-avatar {
+            background: rgba(0, 102, 204, 0.15);
+            color: #0066cc;
         }
 
         .chat-message-content {
+            flex: 1;
+            min-width: 0;
+            font-size: 14.5px;
+            line-height: 1.65;
+            color: #e0e0e0;
+        }
+
+        .chat-message.user .chat-message-content {
+            background: rgba(55, 65, 81, 0.85);
+            border: 1px solid rgba(75, 85, 99, 0.35);
+            border-radius: 10px;
+            padding: 12px 16px;
+        }
+
+        .chat-message.user .chat-message-content p {
+            color: #e2e8f0;
+            margin: 0;
             font-size: 14px;
-            line-height: 1.6;
-            white-space: pre-wrap;
+            line-height: 1.55;
         }
 
-        .chat-input-container {
-            padding: 20px;
-            border-top: 1px solid var(--ea-border);
-            background: var(--ea-surface);
+        .chat-message.ai .chat-message-content,
+        .chat-message.assistant .chat-message-content {
+            background: transparent;
+            padding: 4px 8px 4px 0;
         }
 
-        .chat-input {
+        .chat-message.ai .chat-message-content p,
+        .chat-message.assistant .chat-message-content p {
+            margin: 0 0 12px 0;
+            color: #d4d4d4;
+            font-size: 14.5px;
+            line-height: 1.65;
+        }
+
+        #chat-input-container {
+            padding: 16px;
+            border-top: 1px solid #2d2d2d;
+            background: #1a1a1a;
+            flex-shrink: 0;
+        }
+
+        #chat-input {
             width: 100%;
             min-height: 80px;
             padding: 12px;
-            border: 1px solid var(--ea-border);
+            border: 1px solid #404040;
             border-radius: 8px;
             font-family: inherit;
             font-size: 14px;
             resize: vertical;
             margin-bottom: 12px;
             transition: border-color 0.2s;
+            background: #2d2d2d;
+            color: #e0e0e0;
         }
 
-        .chat-input:focus {
+        #chat-input:focus {
             outline: none;
-            border-color: var(--ea-accent);
-            box-shadow: 0 0 0 3px rgba(74, 119, 99, 0.1);
+            border-color: #0066cc;
+            box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
         }
 
-        .chat-input:disabled {
-            background: #f5f5f5;
+        #chat-input:disabled {
+            background: #1a1a1a;
             cursor: not-allowed;
+            opacity: 0.5;
         }
 
-        .chat-send-btn {
+        #chat-send-btn {
             width: 100%;
             padding: 12px;
-            background: var(--ea-accent);
+            background: #0066cc;
             color: white;
             border: none;
             border-radius: 6px;
@@ -243,30 +266,43 @@
             transition: all 0.2s;
         }
 
-        .chat-send-btn:hover:not(:disabled) {
-            background: #3d6956;
+        #chat-send-btn:hover:not(:disabled) {
+            background: #0052a3;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(74, 119, 99, 0.3);
         }
 
-        .chat-send-btn:disabled {
+        #chat-send-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
 
         .question-counter {
             padding: 10px 14px;
-            background: #e8f5f0;
+            background: #2d2d2d;
             border-radius: 6px;
             font-size: 13px;
-            color: var(--ea-text-secondary);
+            color: #808080;
             margin-bottom: 12px;
-            border: 1px solid rgba(74, 119, 99, 0.2);
+            border: 1px solid #404040;
             display: none;
         }
 
         .question-counter strong {
-            color: var(--ea-accent);
+            color: #0066cc;
+        }
+
+        /* Toggle AI Chat Button */
+        .btn-ai-toggle {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .btn-ai-toggle:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .btn-ai-toggle.active {
+            background: #0066cc;
         }
 
         /* ===================================================================
@@ -664,6 +700,9 @@
                 <span class="header-subtitle">AI-Assisted Strategic Alignment</span>
             </div>
             <div class="header-actions">
+                <button class="btn btn-ai-toggle" id="toggleAIChatBtn" onclick="toggleChatPanel()">
+                    <i class="fas fa-robot"></i> AI Assistant
+                </button>
                 <button class="btn btn-secondary" onclick="window.location.href='EA_Growth_Dashboard.html'">
                     <i class="fas fa-arrow-left"></i> Growth Dashboard
                 </button>
@@ -735,41 +774,41 @@
                 </div>
             </div>
 
-            <!-- AI Chat Panel -->
-            <div id="ai-chat-panel">
-                <div class="chat-header">
-                    <h2>
+            <!-- AI Chat Panel - Dark Mode, Resizable -->
+            <div id="ai-chat-panel" class="hidden">
+                <div id="chat-resize-handle" title="Drag to resize"></div>
+                <div id="chat-header">
+                    <div id="chat-header-title">
                         <i class="fas fa-robot"></i>
-                        AI Assistant
-                    </h2>
-                    <p>I'll guide you through strategic alignment</p>
+                        <span id="chat-title-text">Business Objectives AI</span>
+                    </div>
+                    <div id="chat-controls">
+                        <button id="close-chat" onclick="toggleChatPanel()" title="Close sidebar">&times;</button>
+                    </div>
                 </div>
 
-                <div class="chat-messages" id="chatMessages">
+                <div id="chat-messages">
                     <div class="chat-message ai">
-                        <div class="chat-message-header">
+                        <div class="chat-message-avatar">
                             <i class="fas fa-sparkles"></i>
-                            <span>AI Assistant</span>
                         </div>
                         <div class="chat-message-content">
-Welcome! I'm here to help you define strategic business objectives and map them to capabilities.
-
-Click "Start AI Discovery" to begin our conversation.
+                            <p>Welcome! I'm here to help you define strategic business objectives and map them to capabilities.</p>
+                            <p>Click "Start AI Discovery" to begin our conversation.</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="chat-input-container">
+                <div id="chat-input-container">
                     <div class="question-counter" id="questionCounter">
                         Question <strong id="currentQuestion">0</strong> of 5
                     </div>
                     <textarea 
-                        id="chatInput" 
-                        class="chat-input" 
+                        id="chat-input" 
                         placeholder="Type your response here..."
                         disabled
                     ></textarea>
-                    <button id="chatSendBtn" class="chat-send-btn" disabled>
+                    <button id="chat-send-btn" disabled>
                         <i class="fas fa-paper-plane"></i> Send Response
                     </button>
                 </div>
@@ -803,9 +842,10 @@ Click "Start AI Discovery" to begin our conversation.
             const capabilityMap = document.getElementById('capabilityMap');
             const startWorkflowBtn = document.getElementById('startWorkflowBtn');
             const resetBtn = document.getElementById('resetBtn');
-            const chatMessages = document.getElementById('chatMessages');
-            const chatInput = document.getElementById('chatInput');
-            const chatSendBtn = document.getElementById('chatSendBtn');
+            const toggleAIChatBtn = document.getElementById('toggleAIChatBtn');
+            const chatMessages = document.getElementById('chat-messages');
+            const chatInput = document.getElementById('chat-input');
+            const chatSendBtn = document.getElementById('chat-send-btn');
             const questionCounter = document.getElementById('questionCounter');
             const currentQuestionEl = document.getElementById('currentQuestion');
             const loadingOverlay = document.getElementById('loadingOverlay');
@@ -826,6 +866,9 @@ Click "Start AI Discovery" to begin our conversation.
 
                 // Load APQC data
                 loadAPQCData();
+
+                // Initialize chat resize
+                initializeChatResize();
 
                 console.log('✅ Business Objectives Toolkit V2 initialized');
             }
@@ -1093,18 +1136,26 @@ Click on any category to expand and see detailed capabilities. The highlighted o
             }
 
             // Add AI Message
+            // Add AI Message
             function addAIMessage(text) {
                 const messageEl = document.createElement('div');
                 messageEl.className = 'chat-message ai';
                 messageEl.innerHTML = `
-                    <div class="chat-message-header">
+                    <div class="chat-message-avatar">
                         <i class="fas fa-sparkles"></i>
-                        <span>AI Assistant</span>
                     </div>
-                    <div class="chat-message-content">${text}</div>
+                    <div class="chat-message-content">
+                        <p>${text}</p>
+                    </div>
                 `;
                 chatMessages.appendChild(messageEl);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // Auto-open chat panel if workflow starts
+                const panel = document.getElementById('ai-chat-panel');
+                if (panel.classList.contains('hidden')) {
+                    toggleChatPanel();
+                }
             }
 
             // Add User Message
@@ -1112,7 +1163,12 @@ Click on any category to expand and see detailed capabilities. The highlighted o
                 const messageEl = document.createElement('div');
                 messageEl.className = 'chat-message user';
                 messageEl.innerHTML = `
-                    <div class="chat-message-content">${text}</div>
+                    <div class="chat-message-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="chat-message-content">
+                        <p>${text}</p>
+                    </div>
                 `;
                 chatMessages.appendChild(messageEl);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -1129,6 +1185,7 @@ Click on any category to expand and see detailed capabilities. The highlighted o
             }
 
             // Reset Workflow
+            // Reset Workflow
             function resetWorkflow() {
                 if (!confirm('Reset workflow? All progress will be lost.')) return;
 
@@ -1144,14 +1201,12 @@ Click on any category to expand and see detailed capabilities. The highlighted o
                 
                 chatMessages.innerHTML = `
                     <div class="chat-message ai">
-                        <div class="chat-message-header">
+                        <div class="chat-message-avatar">
                             <i class="fas fa-sparkles"></i>
-                            <span>AI Assistant</span>
                         </div>
                         <div class="chat-message-content">
-Welcome! I'm here to help you define strategic business objectives and map them to capabilities.
-
-Click "Start AI Discovery" to begin our conversation.
+                            <p>Welcome! I'm here to help you define strategic business objectives and map them to capabilities.</p>
+                            <p>Click "Start AI Discovery" to begin our conversation.</p>
                         </div>
                     </div>
                 `;
@@ -1162,6 +1217,73 @@ Click "Start AI Discovery" to begin our conversation.
                 questionCounter.style.display = 'none';
                 
                 console.log('🔄 Workflow reset');
+            }
+
+            // Toggle Chat Panel
+            window.toggleChatPanel = function() {
+                const panel = document.getElementById('ai-chat-panel');
+                const btn = document.getElementById('toggleAIChatBtn');
+                
+                if (panel.classList.contains('hidden')) {
+                    // Open
+                    panel.classList.remove('hidden');
+                    document.body.classList.add('chat-sidebar-open');
+                    btn.classList.add('active');
+                    console.log('✅ Chat panel opened');
+                } else {
+                    // Close
+                    panel.classList.add('hidden');
+                    document.body.classList.remove('chat-sidebar-open');
+                    btn.classList.remove('active');
+                    console.log('❌ Chat panel closed');
+                }
+            };
+
+            // Initialize Chat Resize
+            function initializeChatResize() {
+                const handle = document.getElementById('chat-resize-handle');
+                const panel = document.getElementById('ai-chat-panel');
+                
+                if (!handle || !panel) {
+                    console.warn('Chat resize elements not found');
+                    return;
+                }
+
+                let isResizing = false;
+                let startX = 0;
+                let startWidth = 0;
+
+                handle.addEventListener('mousedown', function(e) {
+                    isResizing = true;
+                    startX = e.clientX;
+                    startWidth = panel.offsetWidth;
+                    handle.classList.add('dragging');
+                    document.body.style.userSelect = 'none';
+                    e.preventDefault();
+                });
+
+                document.addEventListener('mousemove', function(e) {
+                    if (!isResizing) return;
+                    const delta = startX - e.clientX;
+                    const newWidth = Math.max(240, Math.min(700, startWidth + delta));
+                    panel.style.width = newWidth + 'px';
+                    
+                    // Update main content margin dynamically
+                    if (document.body.classList.contains('chat-sidebar-open')) {
+                        const mainContent = document.getElementById('main-content');
+                        if (mainContent) mainContent.style.marginRight = newWidth + 'px';
+                    }
+                });
+
+                document.addEventListener('mouseup', function() {
+                    if (isResizing) {
+                        isResizing = false;
+                        handle.classList.remove('dragging');
+                        document.body.style.userSelect = '';
+                    }
+                });
+
+                console.log('✅ Chat resize initialized');
             }
 
             // Initialize on load
