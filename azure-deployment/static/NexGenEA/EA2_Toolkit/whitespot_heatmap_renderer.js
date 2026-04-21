@@ -39,9 +39,11 @@ async function renderWhiteSpotHeatmap() {
     const customers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
     const heatmaps = manager.getHeatmaps ? manager.getHeatmaps() : (manager.getEntities('whiteSpotHeatmaps') || []);
     
-    // Check if we have customers
+    // NO CUSTOMERS: Show service delivery model as reference catalog (doesn't require customer)
     if (customers.length === 0) {
-        container.innerHTML = renderEmptyCustomerState();
+        console.log('📋 No customers defined - showing Service Delivery Model as reference catalog');
+        container.innerHTML = renderServiceCatalogView();
+        initializeAccordions();
         return;
     }
     
@@ -52,10 +54,18 @@ async function renderWhiteSpotHeatmap() {
     // Get heatmap for selected customer
     let heatmap = heatmaps.find(h => h.customerId === selectedCustomerId);
     
-    // If no heatmap exists for this customer, show create prompt
+    // AUTO-POPULATE: If no heatmap exists for this customer, create a default one automatically
     if (!heatmap) {
-        container.innerHTML = renderCreateHeatmapState(selectedCustomer, customers);
-        return;
+        console.log(`🔄 Auto-creating default WhiteSpot Heatmap for ${selectedCustomer.name}...`);
+        heatmap = autoCreateDefaultHeatmap(selectedCustomer, manager);
+        
+        if (!heatmap) {
+            // Fallback to manual creation if auto-create fails
+            container.innerHTML = renderCreateHeatmapState(selectedCustomer, customers);
+            return;
+        }
+        
+        console.log(`✅ Default WhiteSpot Heatmap auto-populated with ${heatmap.hlAssessments.length} services`);
     }
     
     // Render full heatmap UI
@@ -71,27 +81,308 @@ async function renderWhiteSpotHeatmap() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// AUTO-POPULATION HELPER
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Auto-create a default WhiteSpot Heatmap with all HL services populated
+ * This provides immediate visualization of the service delivery model
+ * Users can then update and adjust settings for each service
+ * 
+ * Supports:
+ * - APQC capability mapping based on customer industry
+ * - Manual addition of user-defined business/IT capabilities
+ * - Customizable assessment states for each service
+ * 
+ * @param {Object} customer - Customer object
+ * @param {Object} manager - Data manager (standalone or engagement)
+ * @returns {Object|null} - Created heatmap or null on error
+ */
+function autoCreateDefaultHeatmap(customer, manager) {
+    try {
+        // Get all HL services from Vivicta model
+        const hlServices = window.vivictaServiceLoader.getHLServices();
+        
+        if (!hlServices || hlServices.length === 0) {
+            console.error('⚠️ Cannot auto-create heatmap: No HL services loaded from Vivicta model');
+            return null;
+        }
+        
+        // Determine next heatmap ID
+        const existingHeatmaps = manager.getHeatmaps ? manager.getHeatmaps() : (manager.getEntities('whiteSpotHeatmaps') || []);
+        const nextId = `WSH-${String(existingHeatmaps.length + 1).padStart(3, '0')}`;
+        
+        // Get customer industry for potential APQC auto-mapping
+        const customerIndustry = customer.industry || customer.segment || 'General';
+        
+        // Create heatmap with all HL services set to POTENTIAL (default starting state)
+        const newHeatmap = {
+            id: nextId,
+            customerId: customer.id,
+            customerName: customer.name,
+            assessmentDate: new Date().toISOString().split('T')[0],
+            assessedBy: 'System (Auto-Generated)',
+            hlAssessments: hlServices.map(service => ({
+                l2ServiceId: service.id,
+                l2ServiceName: service.name,
+                l1ServiceArea: service.l1ParentName,
+                assessmentState: 'POTENTIAL', // Default state - user can change to FULL/PARTIAL/CUSTOM/LOST
+                l3Components: [],
+                score: 0,
+                apqcMappedCapabilities: [], // Can be populated via APQC mapping feature based on industry
+                opportunityValue: 0,
+                notes: `Auto-populated service for ${customerIndustry} industry. Update assessment based on current delivery state.`
+            })),
+            opportunities: [],
+            customBusinessAreas: [], // User-defined business capabilities can be added manually via UI
+            apqcMappings: [], // Industry-specific APQC mappings - auto-suggested or manual
+            description: `Default service delivery model for ${customer.name} - automatically populated from Vivicta DCS framework (41 high-level services across 5 service areas). Update assessment states for each service based on customer scenario and opportunity.`,
+            comments: '',
+            metadata: {
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                createdBy: 'System',
+                autoGenerated: true, // Flag to indicate this was auto-created
+                customerIndustry: customerIndustry,
+                version: '1.0'
+            }
+        };
+        
+        // Save to data manager
+        if (manager.addEntity) {
+            // Integrated mode (EA_EngagementManager)
+            manager.addEntity('whiteSpotHeatmaps', newHeatmap);
+        } else if (manager.addHeatmap) {
+            // Standalone mode (WhiteSpotStandaloneManager)
+            manager.addHeatmap(newHeatmap);
+        } else {
+            console.error('⚠️ Data manager does not support heatmap creation');
+            return null;
+        }
+        
+        console.log(`✅ Auto-created WhiteSpot Heatmap ${nextId} for ${customer.name} with ${hlServices.length} services`);
+        console.log(`   Industry: ${customerIndustry} | Default State: POTENTIAL | APQC Mapping: Available`);
+        
+        return newHeatmap;
+    } catch (error) {
+        console.error('⚠️ Error auto-creating default heatmap:', error);
+        return null;
+    }
+}
+
+/**
+ * Manually populate default services for a customer
+ * Provides user control if auto-population doesn't trigger
+ * @param {string} customerId - Customer ID to populate services for
+ */
+async function populateDefaultServices(customerId) {
+    try {
+        console.log('🔄 Manually populating default services...');
+        
+        // Determine manager
+        const isStandalone = typeof window.whitespotStandaloneManager !== 'undefined';
+        const manager = isStandalone ? window.whitespotStandaloneManager : window.engagementManager;
+        
+        // Get customer
+        const customers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
+        const customer = customers.find(c => c.id === customerId);
+        
+        if (!customer) {
+            console.error('⚠️ Customer not found:', customerId);
+            alert('Customer not found!');
+            return;
+        }
+        
+        // Create heatmap
+        const heatmap = autoCreateDefaultHeatmap(customer, manager);
+        
+        if (!heatmap) {
+            alert('Failed to populate services. Check console for details.');
+            return;
+        }
+        
+        // Re-render the view
+        await renderWhiteSpotHeatmap();
+        
+        // Show success message
+        if (typeof showNotification === 'function') {
+            showNotification(`✅ Populated ${heatmap.hlAssessments.length} services for ${customer.name}`, 'success');
+        } else {
+            alert(`✅ Successfully populated ${heatmap.hlAssessments.length} services!`);
+        }
+    } catch (error) {
+        console.error('❌ Error populating default services:', error);
+        alert('Error populating services: ' + error.message);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // EMPTY STATES
 // ═══════════════════════════════════════════════════════════════════
 
 function renderEmptyCustomerState() {
+    // Check if we're in standalone mode (different buttons for integrated vs standalone)
+    const isStandalone = typeof window.whitespotStandaloneManager !== 'undefined';
+    
+    // Standalone version: Show Add Prospect and Load Demo buttons
+    if (isStandalone) {
+        return `
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="fas fa-building"></i></div>
+                <div class="empty-state-title">No customers defined</div>
+                <div class="empty-state-text">
+                    WhiteSpot Heatmap requires at least one customer. You can add a customer in Engagement Setup, load demo data, or import from standalone WhiteSpot toolkit.
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: center; margin-top: 24px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="addNewProspect()" style="margin: 0;">
+                        <i class="fas fa-plus"></i> Add Prospect/Customer
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadDemoData()" style="margin: 0;">
+                        <i class="fas fa-flask"></i> Load Demo
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Integrated version (EA Engagement Playbook): Show all navigation options
     return `
         <div class="empty-state">
             <div class="empty-state-icon"><i class="fas fa-building"></i></div>
             <div class="empty-state-title">No customers defined</div>
             <div class="empty-state-text">
-                WhiteSpot Heatmap requires at least one customer. You can add a customer in Engagement Setup or load demo data to explore the feature.
+                WhiteSpot Heatmap requires at least one customer. You can add a customer in Engagement Setup, load demo data, or import from standalone WhiteSpot toolkit.
             </div>
-            <div style="display: flex; gap: 12px; justify-content: center; margin-top: 24px;">
+            <div style="display: flex; gap: 12px; justify-content: center; margin-top: 24px; flex-wrap: wrap;">
                 <button class="btn btn-primary" onclick="switchTab('engagement', document.querySelector('[data-tab=engagement]'))" style="margin: 0;">
                     <i class="fas fa-arrow-left"></i> Go to Engagement Setup
                 </button>
                 <button class="btn btn-secondary" onclick="loadWhiteSpotDemoData()" style="margin: 0;">
                     <i class="fas fa-flask"></i> Load Demo Data
                 </button>
+                <button class="btn btn-secondary" onclick="importFromStandalone()" style="margin: 0;">
+                    <i class="fas fa-file-import"></i> Import from Standalone
+                </button>
             </div>
         </div>
     `;
+}
+
+/**
+ * Render Service Delivery Model as reference catalog (no customer required)
+ * Shows all 44 HL services from Vivicta model as a base reference
+ */
+function renderServiceCatalogView() {
+    // Get all HL services from Vivicta model
+    const hlServices = window.vivictaServiceLoader.getHLServices();
+    
+    if (!hlServices || hlServices.length === 0) {
+        return renderErrorState('Service Model not loaded. Please refresh the page.');
+    }
+    
+    // Group services by L1 service area, then by sub-domain
+    const servicesByArea = {};
+    hlServices.forEach(service => {
+        const area = service.l1ParentName || 'Other Services';
+        const subArea = service.l1SubArea || 'Other';
+        
+        if (!servicesByArea[area]) {
+            servicesByArea[area] = {};
+        }
+        if (!servicesByArea[area][subArea]) {
+            servicesByArea[area][subArea] = [];
+        }
+        servicesByArea[area][subArea].push(service);
+    });
+    
+    // Build header
+    let html = `
+        <div style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 8px;">
+                        <i class="fas fa-th" style="color: #10b981; margin-right: 8px;"></i>
+                        Vivicta Service Delivery Model - Reference Catalog
+                    </h3>
+                    <p style="font-size: 14px; color: #6b7280; margin: 0;">
+                        ${hlServices.length} high-level services across ${Object.keys(servicesByArea).length} service areas
+                        <span style="margin-left: 16px;">📋 Internal service catalog - add customers to create WhiteSpot assessments</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Render services grouped by area and sub-domain
+    Object.keys(servicesByArea).sort().forEach(areaName => {
+        const subDomains = servicesByArea[areaName];
+        const totalInArea = Object.values(subDomains).flat().length;
+        
+        html += `
+            <div class="service-area-section" style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <h4 style="font-size: 18px; font-weight: 700; color: #065f46; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #d1fae5;">
+                    <i class="fas fa-layer-group" style="margin-right: 8px;"></i>
+                    ${areaName} (${totalInArea} services)
+                </h4>
+        `;
+        
+        // Render each sub-domain within the area
+        Object.keys(subDomains).sort().forEach(subAreaName => {
+            const services = subDomains[subAreaName];
+            
+            html += `
+                <div style="margin-bottom: 24px;">
+                    <h5 style="font-size: 14px; font-weight: 600; color: #059669; margin-bottom: 12px; padding-left: 12px; border-left: 3px solid #10b981;">
+                        ${subAreaName} (${services.length})
+                    </h5>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+            `;
+            
+            services.forEach(service => {
+                html += `
+                    <div class="service-card-reference" style="background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; padding: 16px; transition: all 0.2s;">
+                        <div style="font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 8px;">
+                            ${service.name}
+                        </div>
+                        <div style="font-size: 12px; color: #6b7280;">
+                            Service ID: ${service.id}
+                        </div>
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af;">
+                            <i class="fas fa-info-circle"></i> Reference service - assign to customers for assessment
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+            </div>
+        `;
+    });
+    
+    // Add action buttons at bottom
+    html += `
+        <div style="text-align: center; margin-top: 32px; padding: 24px; background: #f0fdf4; border-radius: 12px;">
+            <h4 style="font-size: 16px; font-weight: 600; color: #065f46; margin-bottom: 16px;">
+                Ready to start customer assessments?
+            </h4>
+            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="switchTab('engagement', document.querySelector('[data-tab=engagement]'))">
+                    <i class="fas fa-user-plus"></i> Add Customer in Engagement Setup
+                </button>
+                <button class="btn btn-secondary" onclick="loadWhiteSpotDemoData()">
+                    <i class="fas fa-flask"></i> Load Demo Data
+                </button>
+            </div>
+        </div>
+    `;
+    
+    return html;
 }
 
 function renderCreateHeatmapState(customer, allCustomers) {
@@ -112,12 +403,15 @@ function renderCreateHeatmapState(customer, allCustomers) {
             <div class="empty-state-text">
                 Create a new heatmap to assess service delivery coverage and identify opportunities.
             </div>
-            <div style="display: flex; gap: 12px; justify-content: center; margin-top: 16px;">
-                <button class="btn btn-primary" onclick="createNewHeatmap('${customer.id}')">
-                    <i class="fas fa-plus"></i> Create Heatmap for ${customer.name}
+            <div style="display: flex; gap: 12px; justify-content: center; margin-top: 16px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="populateDefaultServices('${customer.id}')">
+                    <i class="fas fa-magic"></i> Populate Default Services (41)
+                </button>
+                <button class="btn btn-secondary" onclick="createNewHeatmap('${customer.id}')">
+                    <i class="fas fa-plus"></i> Create Empty Heatmap
                 </button>
                 <button class="btn btn-secondary" onclick="generateDemoHeatmapForCustomer('${customer.id}')">
-                    <i class="fas fa-magic"></i> Generate Demo Data
+                    <i class="fas fa-flask"></i> Generate Demo Data
                 </button>
             </div>
             <div style="margin-top: 24px; padding: 16px; background: #f0fdf4; border-radius: 8px; max-width: 600px; margin-left: auto; margin-right: auto;">
@@ -229,14 +523,17 @@ function renderHeatmapGrid(heatmap, customer, allCustomers) {
                     <button class="btn btn-ghost" onclick="editHeatmapInfo('${heatmap.id}')" title="Edit heatmap info">
                         <i class="fas fa-edit"></i>
                     </button>
+                    <button class="btn btn-ghost" onclick="importFromStandalone()" title="Import from Standalone">
+                        <i class="fas fa-file-import"></i>
+                    </button>
+                    <button class="btn btn-ghost" onclick="exportWhiteSpotData()" title="Export All Data">
+                        <i class="fas fa-download"></i>
+                    </button>
                     <button class="btn btn-ghost" onclick="exportHeatmapCSV('${heatmap.id}')" title="Export to CSV">
                         <i class="fas fa-file-csv"></i>
                     </button>
                     <button class="btn btn-ghost" onclick="printHeatmap('${heatmap.id}')" title="Print heatmap">
                         <i class="fas fa-print"></i>
-                    </button>
-                    <button class="btn btn-ghost" onclick="exportHeatmap('${heatmap.id}')" title="Export JSON">
-                        <i class="fas fa-download"></i>
                     </button>
                 </div>
             </div>
