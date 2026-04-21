@@ -31,9 +31,13 @@ async function renderWhiteSpotHeatmap() {
         await window.apqcWhiteSpotIntegration.loadAPQCFramework('data/apqc_pcf_master.json');
     }
     
-    // Get customers and heatmaps for current engagement
-    const customers = engagementManager.getEntities('customers') || [];
-    const heatmaps = engagementManager.getEntities('whiteSpotHeatmaps') || [];
+    // Determine which manager to use (standalone vs integrated)
+    const isStandalone = typeof window.whitespotStandaloneManager !== 'undefined';
+    const manager = isStandalone ? window.whitespotStandaloneManager : window.engagementManager;
+    
+    // Get customers and heatmaps
+    const customers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
+    const heatmaps = manager.getHeatmaps ? manager.getHeatmaps() : (manager.getEntities('whiteSpotHeatmaps') || []);
     
     // Check if we have customers
     if (customers.length === 0) {
