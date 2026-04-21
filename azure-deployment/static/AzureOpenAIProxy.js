@@ -111,7 +111,21 @@ class AzureOpenAIProxy {
         throw new Error(errMsg);
       }
 
-      return await res.json();
+      // Get response text first to check if it's empty
+      const responseText = await res.text();
+      
+      if (!responseText || responseText.trim() === '') {
+        console.error('Empty response from API');
+        throw new Error('Empty response from Azure OpenAI API');
+      }
+
+      // Try to parse JSON
+      try {
+        return JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', responseText.substring(0, 200));
+        throw new Error(`Invalid JSON response: ${parseError.message}`);
+      }
     } catch (error) {
       clearTimeout(timeoutId);
       if (error.name === 'AbortError') throw new Error(`Request timeout after ${timeout}ms`);
