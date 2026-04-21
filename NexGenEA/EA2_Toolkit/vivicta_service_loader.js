@@ -24,7 +24,9 @@ class VivictaServiceLoader {
    */
   async loadServiceModel(jsonPath = 'data/vivicta_dcs_service_delivery_consolidated_v4_1_HL_DL.json') {
     try {
-      const response = await fetch(jsonPath);
+      // Add cache-busting parameter to force fresh load
+      const cacheBuster = `?v=${Date.now()}`;
+      const response = await fetch(jsonPath + cacheBuster);
       if (!response.ok) {
         throw new Error(`Failed to load ${jsonPath}: ${response.statusText}`);
       }
