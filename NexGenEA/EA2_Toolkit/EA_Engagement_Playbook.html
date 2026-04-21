@@ -706,6 +706,95 @@
             padding: 6px 12px;
             font-size: 12px;
         }
+        
+        /* === AI CHAT PANEL - WELCOME MESSAGE & QUICK ACTIONS === */
+        .chat-welcome-message {
+            padding: 24px 20px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-bottom: 1px solid #334155;
+            text-align: center;
+            animation: fadeInWelcome 0.3s ease-out;
+        }
+        
+        .chat-welcome-message .welcome-icon {
+            font-size: 48px;
+            color: #60a5fa;
+            margin-bottom: 16px;
+            opacity: 0.9;
+        }
+        
+        .chat-welcome-message h4 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #e0e0e0;
+            margin-bottom: 12px;
+        }
+        
+        .chat-welcome-message p {
+            font-size: 13px;
+            color: #94a3b8;
+            line-height: 1.6;
+            max-width: 90%;
+            margin: 0 auto;
+        }
+        
+        .chat-quick-actions {
+            padding: 16px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #2d2d2d;
+        }
+        
+        .quick-actions-label {
+            font-size: 11px;
+            color: #888;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+        
+        .quick-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            text-align: left;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            background: #252525;
+            border: 1px solid #333;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #d4d4d4;
+            transition: all 0.2s ease;
+        }
+        
+        .quick-action-btn:hover {
+            background: #2d2d2d;
+            border-color: #0066cc;
+            color: #60a5fa;
+        }
+        
+        .quick-action-btn i {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+        
+        .quick-action-btn:hover i {
+            opacity: 1;
+            color: #60a5fa;
+        }
+        
+        #chat-messages:not(:empty) ~ * .chat-welcome-message,
+        #chat-messages:not(:empty) ~ * .chat-quick-actions {
+            display: none;
+        }
+        
+        @keyframes fadeInWelcome {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -4560,6 +4649,28 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                 <button id="close-chat" onclick="closeChatPanel()" title="Close sidebar">&times;</button>
             </div>
         </div>
+        <!-- Welcome Message -->
+        <div id="chat-welcome" class="chat-welcome-message">
+            <div class="welcome-icon"><i class="fas fa-lightbulb"></i></div>
+            <h4>EA Engagement Assistant</h4>
+            <p>I can help you with engagement planning, capability mapping, stakeholder analysis, and strategic recommendations for your EA engagements.</p>
+        </div>
+        <!-- Quick Action Prompts -->
+        <div id="chat-quick-actions" class="chat-quick-actions">
+            <div class="quick-actions-label">Quick Actions</div>
+            <button class="quick-action-btn" onclick="sendQuickPromptEngagement(0)">
+                <i class="fas fa-tasks"></i> Guide me through this engagement
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPromptEngagement(1)">
+                <i class="fas fa-users"></i> Analyze stakeholder landscape
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPromptEngagement(2)">
+                <i class="fas fa-project-diagram"></i> Suggest capability mapping approach
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPromptEngagement(3)">
+                <i class="fas fa-chart-line"></i> Identify value creation opportunities
+            </button>
+        </div>
         <div id="chat-messages"></div>
         <div id="chat-input-container">
             <textarea id="chat-input" placeholder="Ask EA Engagement AI anything..."></textarea>
@@ -4573,6 +4684,39 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
         // ═══════════════════════════════════════════════════════════════
         // AI CHAT PANEL FUNCTIONS (Same as NexGen EA Platform)
         // ═══════════════════════════════════════════════════════════════
+        
+        // Quick Action Prompts for EA Engagement
+        const EA_ENGAGEMENT_QUICK_PROMPTS = [
+            'Guide me through this engagement - what should I focus on at each stage?',
+            'Analyze the stakeholder landscape and suggest engagement strategies',
+            'What approach should I take for capability mapping based on this engagement context?',
+            'Identify the top value creation opportunities and how to communicate them to stakeholders'
+        ];
+        
+        function sendQuickPromptEngagement(index) {
+            const prompt = EA_ENGAGEMENT_QUICK_PROMPTS[index];
+            if (!prompt) {
+                console.error('Invalid quick prompt index:', index);
+                return;
+            }
+            
+            // Hide welcome message and quick actions once first message is sent
+            const welcome = document.getElementById('chat-welcome');
+            const quickActions = document.getElementById('chat-quick-actions');
+            if (welcome) welcome.style.display = 'none';
+            if (quickActions) quickActions.style.display = 'none';
+            
+            // Set input value and trigger send
+            const input = document.getElementById('chat-input');
+            if (input) {
+                input.value = prompt;
+                // Trigger the send button click
+                const sendBtn = document.getElementById('send-chat');
+                if (sendBtn) {
+                    sendBtn.click();
+                }
+            }
+        }
         
         function toggleChatPanel() {
             const panel = document.getElementById('ai-chat-panel');
