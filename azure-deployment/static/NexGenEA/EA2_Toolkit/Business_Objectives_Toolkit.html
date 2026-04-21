@@ -566,6 +566,66 @@
             background: linear-gradient(135deg, #e8f5f0 0%, #f0f9f5 100%);
             border-color: var(--ea-accent);
             box-shadow: 0 2px 8px rgba(74, 119, 99, 0.15);
+            transition: all 0.3s ease;
+        }
+
+        /* Progressive Highlighting - Confidence Levels (Heatmap) */
+        .capability-item.highlighted.confidence-low {
+            background: linear-gradient(135deg, #f0f9ff 0%, #f0f9ff 100%);
+            border-color: #93c5fd;
+            box-shadow: 0 1px 4px rgba(59, 130, 246, 0.1);
+        }
+
+        .capability-item.highlighted.confidence-low .capability-code {
+            background: #93c5fd;
+        }
+
+        .capability-item.highlighted.confidence-low .ai-match-badge {
+            background: #93c5fd;
+        }
+
+        .capability-item.highlighted.confidence-medium {
+            background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%);
+            border-color: #3b82f6;
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.15);
+        }
+
+        .capability-item.highlighted.confidence-medium .capability-code {
+            background: #3b82f6;
+        }
+
+        .capability-item.highlighted.confidence-medium .ai-match-badge {
+            background: #3b82f6;
+        }
+
+        .capability-item.highlighted.confidence-high {
+            background: linear-gradient(135deg, #e8f5f0 0%, #d1fae5 100%);
+            border-color: var(--ea-accent);
+            box-shadow: 0 3px 10px rgba(74, 119, 99, 0.25);
+        }
+
+        .capability-item.highlighted.confidence-high .capability-code {
+            background: var(--ea-accent);
+        }
+
+        .capability-item.highlighted.confidence-high .ai-match-badge {
+            background: var(--ea-accent);
+        }
+
+        /* Category confidence levels */
+        .capability-category.highlighted.confidence-low {
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.15);
+        }
+
+        .capability-category.highlighted.confidence-medium {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        .capability-category.highlighted.confidence-high {
+            border-color: var(--ea-accent);
+            box-shadow: 0 0 0 3px rgba(74, 119, 99, 0.15);
         }
 
         .capability-item-header {
@@ -855,6 +915,8 @@
             let apqcData = null;
             let synthesizedObjectives = null;
             let highlightedCapabilities = [];
+            let conversationContext = []; // Track all Q&A for progressive analysis
+            let userIndustry = null; // Store industry from question 1
 
             // DOM Elements
             const welcomeScreen = document.getElementById('welcomeScreen');
@@ -944,6 +1006,16 @@
                 try {
                     const workflowState = EA_BusinessObjectivesWorkflow.getWorkflowState();
                     const currentWorkflowStep = workflowState.currentStep;
+                    const questionCount = workflowState.step1Data?.questionCount || 0;
+
+                    // Store Q&A in conversation context
+                    const lastAIMessage = document.querySelectorAll('.chat-message.ai');
+                    const lastQuestion = lastAIMessage[lastAIMessage.length - 1]?.textContent.trim() || '';
+                    conversationContext.push({
+                        question: lastQuestion,
+                        answer: message,
+                        questionNumber: questionCount
+                    });
 
                     let response;
                     if (currentWorkflowStep === 1) {
@@ -954,17 +1026,39 @@
 
                     hideLoading();
 
-                    // Check if synthesis
-                    if (response.synthesis) {
+                    // Check if this is the first question (industry)
+                    if (questionCount === 1 && currentWorkflowStep === 1) {
+                        userIndustry = message;
+                        // Show capability map immediately after industry question
+                        await showCapabilityMapEarly();
+                        addAIMessage(`Perfect! I've loaded the APQC capability framework. Watch as I highlight relevant capabilities based on your responses.\n\n${response.question || ''}`);
+                    }
+                    // Progressive highlighting for subsequent questions (2-4)
+                    else if (questionCount >= 2 && questionCount <= 4 && currentWorkflowStep === 1) {
+                        // Update capability highlighting based on cumulative context
+                        await updateCapabilityHighlighting();
+                        if (response.question) {
+                            addAIMessage(response.question);
+                        }
+                    }
+                    // Check if synthesis (question 5 complete)
+                    else if (response.synthesis) {
                         await handleSynthesis(response, currentWorkflowStep);
                     } else {
                         // Next question
-                        addAIMessage(response.question);
-                        currentQuestionEl.textContent = response.questionCount;
-                        chatInput.disabled = false;
-                        chatSendBtn.disabled = false;
-                        chatInput.focus();
+                        if (response.question) {
+                            addAIMessage(response.question);
+                        }
                     }
+
+                    // Update question counter
+                    if (response.questionCount) {
+                        currentQuestionEl.textContent = response.questionCount;
+                    }
+
+                    chatInput.disabled = false;
+                    chatSendBtn.disabled = false;
+                    chatInput.focus();
 
                 } catch (error) {
                     console.error('Error processing message:', error);
@@ -1008,6 +1102,96 @@
                 renderAPQCMap();
 
                 currentStep = 'mapping';
+            }
+
+            // Show Capability Map Early (after industry question)
+            async function showCapabilityMapEarly() {
+                welcomeScreen.style.display = 'none';
+                capabilityMap.classList.add('active');
+
+                // Show industry info instead of objectives summary
+                objectivesSummary.innerHTML = `
+                    <div class="objective-chip" style="background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);">
+                        <i class="fas fa-industry"></i>
+                        Industry: ${userIndustry}
+                    </div>
+                    <div class="objective-chip" style="background: rgba(0, 102, 204, 0.1); color: #0066cc; border: 1px solid #0066cc;">
+                        <i class="fas fa-chart-line"></i>
+                        Analyzing your context...
+                    </div>
+                `;
+
+                // Render APQC categories (all visible initially)
+                renderAPQCMap();
+
+                currentStep = 'discovery'; // Still in discovery, but showing map
+
+                console.log('🗺️ Capability map shown early after industry question');
+            }
+
+            // Update Capability Highlighting (progressive)
+            async function updateCapabilityHighlighting() {
+                showLoading('Analyzing and updating capability map...');
+
+                try {
+                    // Build cumulative context from all Q&A so far
+                    const contextText = conversationContext.map(qa => 
+                        `Q: ${qa.question}\nA: ${qa.answer}`
+                    ).join('\n\n');
+
+                    // Use AI to identify relevant capabilities based on current context
+                    const prompt = `Based on this business context conversation, identify the most relevant APQC capability codes (e.g., "1.1", "2.3", "3.2"):
+
+${contextText}
+
+Return ONLY a JSON array of capability codes that are relevant: ["1.1", "2.2", ...]
+
+Focus on capabilities that align with the industry, challenges, and goals mentioned.`;
+
+                    const response = await AzureOpenAIProxy.create(prompt, {
+                        instructions: 'You are an APQC framework expert. Analyze the conversation and return only a JSON array of relevant capability codes.',
+                        model: 'gpt-5',
+                        timeout: 30000
+                    });
+
+                    // Parse AI response
+                    let capabilityCodes = [];
+                    try {
+                        const jsonMatch = response.output_text.match(/\[.*\]/s);
+                        if (jsonMatch) {
+                            capabilityCodes = JSON.parse(jsonMatch[0]);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing capability codes:', e);
+                    }
+
+                    // Update highlighting with confidence levels (more answers = more confidence)
+                    const confidence = Math.min(conversationContext.length / 5, 1); // 0 to 1
+                    highlightCapabilities(capabilityCodes, confidence);
+
+                    // Update summary chip
+                    objectivesSummary.innerHTML = `
+                        <div class="objective-chip" style="background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);">
+                            <i class="fas fa-industry"></i>
+                            ${userIndustry}
+                        </div>
+                        <div class="objective-chip" style="background: linear-gradient(135deg, var(--ea-accent) 0%, #3d6956 100%);">
+                            <i class="fas fa-lightbulb"></i>
+                            ${capabilityCodes.length} Relevant Capabilities
+                        </div>
+                        <div class="objective-chip" style="background: rgba(0, 102, 204, 0.1); color: #0066cc; border: 1px solid #0066cc;">
+                            <i class="fas fa-comments"></i>
+                            ${conversationContext.length} of 5 questions answered
+                        </div>
+                    `;
+
+                    hideLoading();
+
+                    console.log(`🔄 Updated highlighting: ${capabilityCodes.length} capabilities, confidence: ${(confidence * 100).toFixed(0)}%`);
+                } catch (error) {
+                    console.error('Error updating capability highlighting:', error);
+                    hideLoading();
+                }
             }
 
             // Display Objectives Summary
@@ -1133,25 +1317,39 @@ Click on any category to expand and see detailed capabilities. The highlighted o
             }
 
             // Highlight Capabilities
-            function highlightCapabilities(codes) {
+            // Highlight Capabilities (with optional confidence for progressive highlighting)
+            function highlightCapabilities(codes, confidence = 1.0) {
+                // Clear all previous highlights
+                document.querySelectorAll('.capability-item.highlighted, .capability-category.highlighted').forEach(el => {
+                    el.classList.remove('highlighted', 'confidence-low', 'confidence-medium', 'confidence-high');
+                });
+
                 highlightedCapabilities = codes;
+
+                // Determine confidence class
+                let confidenceClass = 'confidence-high';
+                if (confidence < 0.4) {
+                    confidenceClass = 'confidence-low';
+                } else if (confidence < 0.7) {
+                    confidenceClass = 'confidence-medium';
+                }
 
                 codes.forEach(code => {
                     // Highlight capability item
                     const capItem = document.querySelector(`[data-capability-id="${code}"]`);
                     if (capItem) {
-                        capItem.classList.add('highlighted');
+                        capItem.classList.add('highlighted', confidenceClass);
                         
                         // Also highlight parent category
                         const categoryId = code.split('.')[0] + '.0';
                         const category = document.querySelector(`[data-category-id="${categoryId}"]`);
                         if (category) {
-                            category.classList.add('highlighted');
+                            category.classList.add('highlighted', confidenceClass);
                         }
                     }
                 });
 
-                console.log('✅ Highlighted', codes.length, 'capabilities');
+                console.log(`✅ Highlighted ${codes.length} capabilities (confidence: ${(confidence * 100).toFixed(0)}%)`);
             }
 
             // Add AI Message
@@ -1214,9 +1412,16 @@ Click on any category to expand and see detailed capabilities. The highlighted o
                 currentStep = 'welcome';
                 synthesizedObjectives = null;
                 highlightedCapabilities = [];
+                conversationContext = [];
+                userIndustry = null;
                 
                 welcomeScreen.style.display = 'block';
                 capabilityMap.classList.remove('active');
+                
+                // Clear all highlights
+                document.querySelectorAll('.capability-item.highlighted, .capability-category.highlighted').forEach(el => {
+                    el.classList.remove('highlighted', 'confidence-low', 'confidence-medium', 'confidence-high');
+                });
                 
                 chatMessages.innerHTML = `
                     <div class="chat-message ai">
