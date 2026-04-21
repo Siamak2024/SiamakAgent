@@ -170,6 +170,11 @@ function renderCustomerSelector(selectedCustomer, allCustomers) {
 // HEATMAP GRID RENDERING
 // ═══════════════════════════════════════════════════════════════════
 
+// Global view state
+if (typeof window.whiteSpotView === 'undefined') {
+    window.whiteSpotView = 'cards'; // 'cards' or 'table'
+}
+
 function renderHeatmapGrid(heatmap, customer, allCustomers) {
     const hlServices = window.vivictaServiceLoader.getHLServicesGrouped();
     const stats = calculateHeatmapStats(heatmap);
@@ -191,6 +196,25 @@ function renderHeatmapGrid(heatmap, customer, allCustomers) {
                 </div>
                 <div style="display: flex; gap: 8px;">
                     ${renderCustomerSelector(customer, allCustomers)}
+                    
+                    <!-- View Toggle -->
+                    <div class="btn-group" style="display: inline-flex; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                        <button 
+                            class="btn ${window.whiteSpotView === 'cards' ? 'btn-primary' : 'btn-ghost'}" 
+                            onclick="switchWhiteSpotView('cards')"
+                            title="Card View"
+                            style="border-radius: 0; border: none; padding: 8px 12px;">
+                            <i class="fas fa-th-large"></i>
+                        </button>
+                        <button 
+                            class="btn ${window.whiteSpotView === 'table' ? 'btn-primary' : 'btn-ghost'}" 
+                            onclick="switchWhiteSpotView('table')"
+                            title="Table View"
+                            style="border-radius: 0; border: none; padding: 8px 12px;">
+                            <i class="fas fa-list"></i>
+                        </button>
+                    </div>
+                    
                     <button class="btn btn-ghost" onclick="showWhiteSpotHelp()" title="Help & Guide">
                         <i class="fas fa-question-circle"></i>
                     </button>
@@ -240,6 +264,195 @@ function renderHeatmapGrid(heatmap, customer, allCustomers) {
         <!-- Bulk Operations Toolbar (Phase 4) -->
         ${typeof renderBulkOperationsToolbar === 'function' ? renderBulkOperationsToolbar(heatmap) : ''}
         
+        <!-- Heatmap View (Cards or Table) -->
+        ${window.whiteSpotView === 'cards' 
+            ? renderHeatmapCardsView(hlServices, heatmap, stats)
+            : renderHeatmapTableView(hlServices, heatmap, stats)
+        }
+        
+        <!-- Opportunities Section -->
+        ${heatmap.opportunities && heatmap.opportunities.length > 0 ? renderOpportunities(heatmap) : ''}
+        
+        <!-- Custom Business Areas -->
+        ${heatmap.customBusinessAreas && heatmap.customBusinessAreas.length > 0 ? renderCustomBusinessAreas(heatmap) : ''}
+    `;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// VIEW SWITCHING
+// ═══════════════════════════════════════════════════════════════════
+
+function switchWhiteSpotView(viewType) {
+    window.whiteSpotView = viewType;
+    renderWhiteSpotHeatmap();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CARD VIEW RENDERING (APQC-Style Capability Map)
+// ═══════════════════════════════════════════════════════════════════
+
+function renderHeatmapCardsView(hlServices, heatmap, stats) {
+    return `
+        <div style="margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="font-size: 16px; font-weight: 700; color: #111827;">
+                    Service Delivery Capability Map (${stats.totalHL} Services)
+                </h4>
+                <div style="display: flex; gap: 16px; font-size: 12px;">
+                    ${renderLegend()}
+                </div>
+            </div>
+            
+            ${hlServices.map((l1Group, index) => renderL1CardGroup(l1Group, heatmap, index)).join('')}
+        </div>
+    `;
+}
+
+function renderL1CardGroup(l1Group, heatmap, index) {
+    // Get L1 background color based on index
+    const l1Colors = [
+        { bg: '#fef3c7', border: '#fde68a', text: '#92400e' },  // Yellow
+        { bg: '#fed7aa', border: '#fdba74', text: '#7c2d12' },  // Orange
+        { bg: '#fce7f3', border: '#fbcfe8', text: '#831843' },  // Pink
+        { bg: '#dbeafe', border: '#bfdbfe', text: '#1e3a8a' },  // Blue
+        { bg: '#d1fae5', border: '#a7f3d0', text: '#064e3b' },  // Green
+        { bg: '#e0e7ff', border: '#c7d2fe', text: '#312e81' }   // Indigo
+    ];
+    const colorScheme = l1Colors[index % l1Colors.length];
+    
+    return `
+        <div style="
+            background: ${colorScheme.bg}; 
+            border: 2px solid ${colorScheme.border};
+            border-radius: 12px; 
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        ">
+            <!-- L1 Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h5 style="font-size: 15px; font-weight: 700; color: ${colorScheme.text}; margin: 0;">
+                    <i class="fas fa-layer-group" style="margin-right: 8px;"></i>
+                    ${l1Group.l1Name}
+                </h5>
+                <div style="
+                    background: rgba(255,255,255,0.8);
+                    padding: 4px 12px;
+                    border-radius: 20px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: ${colorScheme.text};
+                ">
+                    ${l1Group.hlServices.length} Services
+                </div>
+            </div>
+            
+            <!-- Service Cards Grid -->
+            <div style="
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: 12px;
+            ">
+                ${l1Group.hlServices.map(service => renderServiceCard(service, heatmap, l1Group)).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function renderServiceCard(service, heatmap, l1Group) {
+    // Find assessment for this service
+    const assessment = heatmap.hlAssessments.find(a => a.l2ServiceId === service.id);
+    const state = assessment ? assessment.assessmentState : 'POTENTIAL';
+    const score = assessment ? assessment.score : 0;
+    
+    // Get color based on assessment state
+    const stateColors = {
+        'FULL': { bg: '#10b981', text: '#ffffff', icon: 'check-circle', label: 'FULL' },
+        'PARTIAL': { bg: '#f59e0b', text: '#ffffff', icon: 'exclamation-triangle', label: 'PARTIAL' },
+        'CUSTOM': { bg: '#3b82f6', text: '#ffffff', icon: 'cog', label: 'CUSTOM' },
+        'LOST': { bg: '#ef4444', text: '#ffffff', icon: 'times-circle', label: 'LOST' },
+        'POTENTIAL': { bg: '#f97316', text: '#ffffff', icon: 'star', label: 'POTENTIAL' }
+    };
+    const colorScheme = stateColors[state] || stateColors['POTENTIAL'];
+    
+    return `
+        <div 
+            class="service-card"
+            onclick="openServiceDrilldown('${heatmap.id}', '${service.id}')"
+            style="
+                background: ${colorScheme.bg};
+                color: ${colorScheme.text};
+                border-radius: 10px;
+                padding: 14px;
+                cursor: pointer;
+                transition: all 0.2s;
+                position: relative;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                min-height: 90px;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+            "
+            onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
+        >
+            <!-- Service Name -->
+            <div style="
+                font-size: 13px;
+                font-weight: 600;
+                line-height: 1.3;
+                margin-bottom: 8px;
+                padding-right: 20px;
+            ">
+                ${service.name}
+            </div>
+            
+            <!-- State Badge & Score -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="
+                    font-size: 10px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    background: rgba(255,255,255,0.3);
+                    padding: 3px 8px;
+                    border-radius: 4px;
+                ">
+                    <i class="fas fa-${colorScheme.icon}" style="margin-right: 4px;"></i>
+                    ${colorScheme.label}
+                </div>
+                ${score > 0 ? `
+                    <div style="
+                        font-size: 12px;
+                        font-weight: 700;
+                        background: rgba(255,255,255,0.3);
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                    ">
+                        ${score}%
+                    </div>
+                ` : ''}
+            </div>
+            
+            <!-- Grid Icon (top-right corner) -->
+            <div style="
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                opacity: 0.5;
+            ">
+                <i class="fas fa-th" style="font-size: 12px;"></i>
+            </div>
+        </div>
+    `;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TABLE VIEW RENDERING (Original Accordion View)
+// ═══════════════════════════════════════════════════════════════════
+
+function renderHeatmapTableView(hlServices, heatmap, stats) {
+    return `
         <!-- Heatmap Grid by L1 Service Areas (Accordion) -->
         <div style="background: white; border-radius: 12px; padding: 24px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
