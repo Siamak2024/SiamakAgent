@@ -11,18 +11,19 @@
 ## Table of Contents
 
 1. [System Overview](#1-system-overview)
-2. [AI Layer Architecture](#2-ai-layer-architecture)
-3. [Data Model](#3-data-model)
-4. [The 7-Step EA Workflow](#4-the-7-step-ea-workflow)
-5. [Cross-Step Context Propagation](#5-cross-step-context-propagation)
-6. [Supporting AI Calls](#6-supporting-ai-calls)
-7. [AI Chat & Discovery Mode](#7-ai-chat--discovery-mode)
-8. [Model Views / Tabs](#8-model-views--tabs)
-9. [Context Flow Diagram](#9-context-flow-diagram)
-10. [Known Patterns & Problems](#10-known-patterns--problems)
-11. [AI Call Inventory](#11-ai-call-inventory)
-12. [Language Handling](#12-language-handling)
-13. [Industry & Business Area Configuration](#13-industry--business-area-configuration)
+2. [Core Architecture Principles](#2-core-architecture-principles)
+3. [AI Layer Architecture](#3-ai-layer-architecture)
+4. [Data Model](#4-data-model)
+5. [The 7-Step EA Workflow](#5-the-7-step-ea-workflow)
+6. [Cross-Step Context Propagation](#6-cross-step-context-propagation)
+7. [Supporting AI Calls](#7-supporting-ai-calls)
+8. [AI Chat & Discovery Mode](#8-ai-chat--discovery-mode)
+9. [Model Views / Tabs](#9-model-views--tabs)
+10. [Context Flow Diagram](#10-context-flow-diagram)
+11. [Known Patterns & Problems](#11-known-patterns--problems)
+12. [AI Call Inventory](#12-ai-call-inventory)
+13. [Language Handling](#13-language-handling)
+14. [Industry & Business Area Configuration](#14-industry--business-area-configuration)
 
 ---
 
@@ -64,9 +65,150 @@ azure-deployment/static/
 
 ---
 
-## 2. AI Layer Architecture
+## 2. Core Architecture Principles
 
-### 2.1 Request Path
+### 2.1 AI Integration Standards
+
+**OpenAI Responses API with GPT-5**
+
+All AI integrations across the platform MUST use the **OpenAI Responses API** with **GPT-5** as the default model:
+
+```javascript
+// ✅ CORRECT: Responses API format
+const response = await AzureOpenAIProxy.create(userMessage, {
+    instructions: systemPrompt,
+    model: 'gpt-5'  // Default, can be omitted
+});
+
+const output = response.output_text;
+```
+
+**Requirements:**
+- **First parameter:** User input as a **string** (not an object, not a messages array)
+- **Second parameter:** Options object with `instructions` (not `systemInstructions`)
+- **Model:** GPT-5 (supports reasoning summaries, extended context, enhanced function calling)
+- **Temperature:** Do NOT set custom temperature values - GPT-5 Responses API only supports default (1)
+- **Response extraction:** Use `response.output_text` for the AI's text output
+- **Proxy endpoint:** `/api/openai-proxy` (Azure production) or `/api/openai/chat` (localhost)
+
+**Anti-patterns to avoid:**
+```javascript
+// ❌ WRONG: Old Chat Completions API format
+await AzureOpenAIProxy.create({
+    taskType: 'analysis',
+    userMessage: message,
+    systemInstructions: '...'
+});
+
+// ❌ WRONG: Custom temperature with GPT-5
+await AzureOpenAIProxy.create(message, {
+    instructions: '...',
+    temperature: 0.7  // Not supported!
+});
+
+// ❌ WRONG: Messages array format
+await AzureOpenAIProxy.create([
+    { role: 'system', content: '...' },
+    { role: 'user', content: '...' }
+]);
+```
+
+### 2.2 Chat Panel UI Standards
+
+**Dark Mode Only**
+
+All AI chat panels and assistant interfaces MUST be rendered in **dark mode exclusively**:
+
+- **Background:** Dark theme colors (#1e293b, #0f172a, #020617)
+- **Text:** Light colors (#f1f5f9, #cbd5e1, #e2e8f0)
+- **Accent colors:** Nordic theme - blues, greens, purples from the design system
+- **No light mode toggle:** Chat panels do not offer theme switching
+- **Consistency:** All chat-related UI elements (bubbles, inputs, buttons, headers) follow dark mode styling
+
+**Example:**
+```css
+.chat-panel {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: #f1f5f9;
+}
+
+.chat-message.user {
+    background: #3b82f6;
+    color: white;
+}
+
+.chat-message.ai {
+    background: #334155;
+    color: #f1f5f9;
+}
+```
+
+### 2.3 Chat Panel Interaction Standards
+
+**Draggable and Resizable**
+
+All chat panels MUST support:
+
+1. **Dragging:**
+   - Click and drag from the panel header to reposition
+   - Constrain to viewport boundaries
+   - Save position to localStorage for persistence across sessions
+   - Smooth drag animation (CSS transitions)
+
+2. **Width Resizing:**
+   - Resize handle on the left or right edge
+   - Minimum width: 320px (mobile-friendly)
+   - Maximum width: 600px (prevent overwhelming the main content)
+   - Default width: 400px
+   - Save width preference to localStorage
+   - Smooth resize animation
+
+3. **Position Persistence:**
+   - Store position as `{ x, y }` in localStorage
+   - Store width as single value in localStorage
+   - Restore on page load
+   - Reset to default if position is off-screen
+
+**Implementation pattern:**
+```javascript
+// Chat panel state in localStorage
+const chatPanelState = {
+    position: { x: window.innerWidth - 420, y: 80 },
+    width: 400,
+    isOpen: false
+};
+
+// Draggable header
+const header = document.querySelector('.chat-panel-header');
+header.addEventListener('mousedown', startDrag);
+
+// Resizable edge
+const resizeHandle = document.querySelector('.chat-panel-resize');
+resizeHandle.addEventListener('mousedown', startResize);
+
+// Save on change
+function saveChatPanelState() {
+    localStorage.setItem('chatPanelState', JSON.stringify(chatPanelState));
+}
+```
+
+### 2.4 Design System Integration
+
+All chat panels integrate with the **Nordic Design System**:
+
+- **Colors:** Use design system color palette (--nordic-blue, --nordic-slate, etc.)
+- **Typography:** System font stack with proper hierarchy
+- **Spacing:** Consistent padding/margins using 4px/8px/12px/16px/24px scale
+- **Shadows:** Layered elevation for depth (chat panel floats above main content)
+- **Animations:** Subtle transitions (200ms ease-in-out)
+- **Icons:** Font Awesome 6.4.0+ for consistency
+- **Accessibility:** WCAG 2.1 AA compliance (contrast ratios, keyboard navigation, ARIA labels)
+
+---
+
+## 3. AI Layer Architecture
+
+### 3.1 Request Path
 
 Every AI call in the platform — workflow steps, supporting calls, and chat — flows through the single `callAI(sys, user, options)` function. No code bypasses it.
 
@@ -95,7 +237,7 @@ callAI(sys, user, options)
 Return: response.output_text (string)
 ```
 
-### 2.2 `callAI` Function (line ~3950)
+### 3.2 `callAI` Function (line ~3950)
 
 ```javascript
 async function callAI(sys, user, options = {})
