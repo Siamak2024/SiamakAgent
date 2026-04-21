@@ -681,8 +681,9 @@ async function generateWhiteSpotDemoData() {
         for (let i = 0; i < demoCustomers.length; i++) {
             const customer = demoCustomers[i];
             
-            // Add customer if it doesn't exist
-            const existingCustomer = manager.getCustomers().find(c => c.id === customer.id);
+            // Get existing customers using appropriate method
+            const existingCustomers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
+            const existingCustomer = existingCustomers.find(c => c.id === customer.id);
             if (!existingCustomer) {
                 if (isStandalone) {
                     manager.addCustomer(customer);
@@ -692,8 +693,9 @@ async function generateWhiteSpotDemoData() {
                 customersAdded++;
             }
             
-            // Generate heatmap if it doesn't exist
-            const existingHeatmap = manager.getHeatmaps().find(h => h.customerId === customer.id);
+            // Get existing heatmaps using appropriate method
+            const existingHeatmaps = manager.getHeatmaps ? manager.getHeatmaps() : (manager.getEntities('whiteSpotHeatmaps') || []);
+            const existingHeatmap = existingHeatmaps.find(h => h.customerId === customer.id);
             if (!existingHeatmap) {
                 const customerObj = existingCustomer || customer;
                 const scenario = scenarios[i % scenarios.length];
@@ -722,4 +724,12 @@ async function generateWhiteSpotDemoData() {
         console.error('Failed to generate demo data:', error);
         showNotification(`Demo generation failed: ${error.message}`, 'error');
     }
+}
+
+/**
+ * Wrapper function for loading demo data - works in both standalone and integrated modes
+ * Can be called from UI buttons in either context
+ */
+async function loadWhiteSpotDemoData() {
+    await generateWhiteSpotDemoData();
 }

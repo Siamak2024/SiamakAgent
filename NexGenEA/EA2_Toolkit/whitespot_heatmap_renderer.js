@@ -80,11 +80,16 @@ function renderEmptyCustomerState() {
             <div class="empty-state-icon"><i class="fas fa-building"></i></div>
             <div class="empty-state-title">No customers defined</div>
             <div class="empty-state-text">
-                WhiteSpot Heatmap requires at least one customer. Go to Engagement Setup to add a customer.
+                WhiteSpot Heatmap requires at least one customer. You can add a customer in Engagement Setup or load demo data to explore the feature.
             </div>
-            <button class="btn btn-primary" onclick="switchTab('engagement', document.querySelector('[data-tab=engagement]'))" style="margin-top: 16px;">
-                <i class="fas fa-arrow-left"></i> Go to Engagement Setup
-            </button>
+            <div style="display: flex; gap: 12px; justify-content: center; margin-top: 24px;">
+                <button class="btn btn-primary" onclick="switchTab('engagement', document.querySelector('[data-tab=engagement]'))" style="margin: 0;">
+                    <i class="fas fa-arrow-left"></i> Go to Engagement Setup
+                </button>
+                <button class="btn btn-secondary" onclick="loadWhiteSpotDemoData()" style="margin: 0;">
+                    <i class="fas fa-flask"></i> Load Demo Data
+                </button>
+            </div>
         </div>
     `;
 }
