@@ -32,6 +32,14 @@
     <script src="ea_engagement_phase3_additions.js"></script>
     <script src="ea_stakeholder_enhanced.js"></script>
     <script src="ea_output_generator.js"></script>
+    <!-- WhiteSpot Heatmap Module -->
+    <script src="vivicta_service_loader.js"></script>
+    <script src="apqc_whitespot_integration.js"></script>
+    <script src="whitespot_heatmap_renderer.js"></script>
+    <script src="whitespot_heatmap_actions.js"></script>
+    <script src="whitespot_heatmap_enhancements.js"></script>
+    <script src="whitespot_demo_data_generator.js"></script>
+    <script src="whitespot_help_system.js"></script>
     <style>
         /* === EA PLATFORM LAYOUT === */
         #app-container { display: flex; flex-direction: column; min-height: 100vh; background: #f8f9fa; }
@@ -566,6 +574,138 @@
         #send-chat:hover { background: #059669; }
         .spinner { animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* === WHITESPOT HEATMAP STYLES === */
+        .heatmap-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        
+        .heatmap-table th {
+            text-align: left;
+            padding: 10px 12px;
+            background: #f9fafb;
+            color: #374151;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .heatmap-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 13px;
+            color: #111827;
+        }
+        
+        .heatmap-row-hover:hover {
+            background: #f9fafb;
+        }
+        
+        .accordion-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .accordion-header {
+            padding: 14px 16px;
+            background: #f9fafb;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        
+        .accordion-header:hover {
+            background: #f3f4f6;
+        }
+        
+        .accordion-icon {
+            font-size: 12px;
+            color: #6b7280;
+            transition: transform 0.2s;
+        }
+        
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out;
+            padding: 0 16px;
+            background: white;
+        }
+        
+        .accordion-content.active {
+            padding: 0 16px 16px 16px;
+        }
+        
+        .modal-tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 20px;
+        }
+        
+        .modal-tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            color: #6b7280;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+        
+        .modal-tab:hover {
+            color: #065f46;
+            background: #f9fafb;
+        }
+        
+        .modal-tab.active {
+            color: #10b981;
+            border-bottom-color: #10b981;
+        }
+        
+        .modal-tab-content {
+            display: none;
+        }
+        
+        .modal-tab-content.active {
+            display: block;
+        }
+        
+        .modal-box.large {
+            max-width: 900px;
+        }
+        
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .badge-primary {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -654,8 +794,8 @@
             <button class="tab-btn" onclick="switchTab('portfolio', this)">
                 <i class="fas fa-cubes"></i> AS-IS Portfolio
             </button>
-            <button class="tab-btn" onclick="switchTab('whitespace', this)">
-                <i class="fas fa-chart-line"></i> White-Spot Analysis
+            <button class="tab-btn" data-tab="whitespace" onclick="switchTab('whitespace', this)">
+                <i class="fas fa-th"></i> WhiteSpot Heatmap
             </button>
             <button class="tab-btn" onclick="switchTab('target', this)">
                 <i class="fas fa-bullseye"></i> Target EA
@@ -920,57 +1060,14 @@
                 </div>
             </div>
             
-            <!-- CANVAS 4: WHITE-SPOT ANALYSIS -->
+            <!-- CANVAS 4: WHITESPOT HEATMAP -->
             <div id="view-whitespace" class="section-view">
-                <div class="section-header">
-                    <div class="section-title">
-                        <i class="fas fa-chart-line" style="color: #10b981;"></i>
-                        White-Spot & Opportunity Analysis
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn btn-ghost" onclick="openAPQCBrowser()" title="Browse APQC Framework">
-                            <i class="fas fa-book"></i> APQC Framework
-                        </button>
-                        <button class="btn btn-primary" onclick="openCapabilityModal()">
-                            <i class="fas fa-plus"></i> Add Capability
-                        </button>
-                    </div>
-                </div>
-                
-                <div id="whitespace-container">
+                <div id="whitespot-heatmap-container">
+                    <!-- WhiteSpot Heatmap content rendered by whitespot_heatmap_renderer.js -->
                     <div class="empty-state">
-                        <div class="empty-state-icon"><i class="fas fa-chart-line"></i></div>
-                        <div class="empty-state-title">No capability gaps defined yet</div>
-                        <div class="empty-state-text">Identify capability gaps, white-spots, and opportunities for improvement</div>
-                        <button class="btn btn-primary" onclick="openCapabilityModal()" style="margin-top: 16px;">
-                            <i class="fas fa-plus"></i> Add First Capability Gap
-                        </button>
-                        <button class="btn btn-secondary" onclick="openAPQCBrowser()" style="margin-top: 12px; margin-left: 8px;">
-                            <i class="fas fa-book"></i> Browse APQC Framework
-                        </button>
-                        <p style="color: #6b7280; font-size: 12px; margin-top: 12px;">or <button onclick="loadExampleEngagement()" style="background: none; border: none; color: #10b981; text-decoration: underline; cursor: pointer; font-size: 12px;">load example analysis</button></p>
-                    </div>
-                </div>
-                
-                <!-- RISK REGISTER -->
-                <div class="section-header" style="margin-top: 40px;">
-                    <div class="section-title">
-                        <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
-                        Risk Register
-                    </div>
-                    <button class="btn btn-primary" onclick="openRiskModal()">
-                        <i class="fas fa-plus"></i> Add Risk
-                    </button>
-                </div>
-                
-                <div id="risk-container">
-                    <div class="empty-state">
-                        <div class="empty-state-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                        <div class="empty-state-title">No risks identified yet</div>
-                        <div class="empty-state-text">Track technical, business, and organizational risks with mitigation plans</div>
-                        <button class="btn btn-primary" onclick="openRiskModal()" style="margin-top: 16px;">
-                            <i class="fas fa-plus"></i> Add First Risk
-                        </button>
+                        <div class="empty-state-icon"><i class="fas fa-th"></i></div>
+                        <div class="empty-state-title">Loading WhiteSpot Heatmap...</div>
+                        <div class="empty-state-text">Initializing service delivery assessment module</div>
                     </div>
                 </div>
             </div>

@@ -315,7 +315,11 @@ Your Focus:
     getQuickPrompts() {
         const ctx = this.currentContext;
         
-        switch (ctx.pIdentify service gaps and upsell opportunities (WhiteSpot)',
+        switch (ctx.page) {
+            case 'account_dashboard':
+                return [
+                    'Analyze account health and suggest improvements',
+                    'Identify service gaps and upsell opportunities (WhiteSpot)',
                     'What are the key risks for this account?',
                     'Suggest next best actions to expand this account',
                     'Map APQC capabilities to service delivery opportunities'
@@ -327,11 +331,7 @@ Your Focus:
                     'Analyze portfolio-wide service coverage gaps',
                     'Suggest strategies to improve win rates',
                     'Identify common white-spots across accounts',
-                    'What service expansion opportunities have highest valueer?',
-                    'Analyze my pipeline health and coverage',
-                    'Suggest strategies to improve win rates',
-                    'Help me allocate resources across accounts',
-                    'What trends do you see in my opportunity data?'
+                    'What service expansion opportunities have highest value?'
                 ];
             
             case 'opportunity_pipeline':

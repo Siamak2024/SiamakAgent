@@ -242,7 +242,7 @@ function loadEngagementData() {
     // Refresh all canvases
     renderStakeholders();
     renderApplications();
-    renderWhitespace();
+    renderWhiteSpotHeatmap();
     renderTarget();
     renderRoadmap();
     renderLeadership();

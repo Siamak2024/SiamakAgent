@@ -79,8 +79,7 @@ function renderTabContent(tabName) {
             renderApplications();
             break;
         case 'whitespace':
-            renderWhitespace();
-            if (typeof renderRisks === 'function') renderRisks();
+            renderWhiteSpotHeatmap();
             break;
         case 'target':
             renderTarget();

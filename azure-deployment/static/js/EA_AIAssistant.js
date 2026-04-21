@@ -470,16 +470,14 @@ Focus on ROI, payback period, strategic alignment, risk mitigation.`
 
   /**
    * Get context-aware suggested prompts (quick actions)
-   * @param {Object} context Analyze service coverage gaps', command: 'gaps' },
-        { icon: '⭐', text: 'Prioritize white-spot opportunities', command: 'prioritize' },
-        { icon: '🎯', text: 'Generate APQC capability mappings', command: 'apqc_mappings' }
-      );
-      if (context.integrations.apqc?.status === 'connected') {
-        prompts.push({ icon: '📊', text: 'Show heatmap analytics insights', command: 'heatmap_analytics' });
-      } else {
-        prompts.push({ icon: '📚', text: 'Connect APQC framework', command: 'connect_apqc' });
-      }
-      prompts.push({ icon: '💡', text: 'Suggest service assessments', command: 'assess_services' });
+   * @param {Object} context - Current context object (optional, will detect if not provided)
+   * @returns {Array} Suggested prompts with icon, text, command
+   */
+  getSuggestedPrompts(context = null) {
+    if (!context) {
+      context = this.detectContext();
+    }
+    
     const prompts = [];
     
     // Step-specific suggestions
@@ -499,14 +497,16 @@ Focus on ROI, payback period, strategic alignment, risk mitigation.`
       }
     } else if (context.currentStep === 'E1.2' || context.currentTab === 'whitespace') {
       prompts.push(
-        { icon: '🔍', text: 'Identify capability gaps', command: 'gaps' },
-        { icon: '⭐', text: 'Prioritize white-spots', command: 'prioritize' }
+        { icon: '🔍', text: 'Analyze service coverage gaps', command: 'gaps' },
+        { icon: '⭐', text: 'Prioritize white-spot opportunities', command: 'prioritize' },
+        { icon: '🎯', text: 'Generate APQC capability mappings', command: 'apqc_mappings' }
       );
       if (context.integrations.apqc?.status === 'connected') {
-        prompts.push({ icon: '📚', text: 'Load APQC benchmarks', command: 'apqc_benchmarks' });
+        prompts.push({ icon: '📊', text: 'Show heatmap analytics insights', command: 'heatmap_analytics' });
       } else {
         prompts.push({ icon: '📚', text: 'Connect APQC framework', command: 'connect_apqc' });
       }
+      prompts.push({ icon: '💡', text: 'Suggest service assessments', command: 'assess_services' });
     } else if (context.currentStep === 'E4.2' || context.currentTab === 'roadmap') {
       prompts.push(
         { icon: '🔢', text: 'Sequence initiatives', command: 'sequence' },

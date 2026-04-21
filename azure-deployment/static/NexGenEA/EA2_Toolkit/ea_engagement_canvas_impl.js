@@ -429,6 +429,12 @@ function saveCapability() {
     showToast('Capability Saved', id ? `Updated ${name}` : `Added ${name}`, 'success');
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// DEPRECATED: Old White-Spot Implementation (replaced by WhiteSpot Heatmap)
+// ═══════════════════════════════════════════════════════════════════
+// This function has been replaced by renderWhiteSpotHeatmap() in whitespot_heatmap_renderer.js
+// Kept here for reference only - DO NOT USE
+/*
 function renderWhitespace() {
     const capabilities = engagementManager.getEntities('capabilities') || [];
     const container = document.getElementById('whitespace-container');
@@ -510,6 +516,7 @@ function renderWhitespace() {
         </table>
     `;
 }
+*/
 
 // ═══════════════════════════════════════════════════════════════════
 // CANVAS 5: ARCHITECTURE MANAGEMENT
