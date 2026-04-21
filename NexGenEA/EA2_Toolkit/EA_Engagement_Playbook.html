@@ -2457,6 +2457,35 @@
             // Load APQC data
             loadAPQCData();
             
+            // Initialize WhiteSpot Heatmap dependencies (Vivicta service model + APQC framework)
+            if (window.vivictaServiceLoader && typeof window.vivictaServiceLoader.loadServiceModel === 'function') {
+                window.vivictaServiceLoader.loadServiceModel('data/vivicta_dcs_service_delivery_consolidated_v4_1_HL_DL.json')
+                    .then(success => {
+                        if (success) {
+                            console.log('✅ Vivicta Service Model loaded (ready for WhiteSpot Heatmap auto-population)');
+                        } else {
+                            console.warn('⚠️ Failed to load Vivicta Service Model - WhiteSpot Heatmap auto-population may not work');
+                        }
+                    })
+                    .catch(error => console.error('❌ Error loading Vivicta Service Model:', error));
+            } else {
+                console.warn('⚠️ VivictaServiceLoader not available - WhiteSpot Heatmap features may be limited');
+            }
+            
+            if (window.apqcWhiteSpotIntegration && typeof window.apqcWhiteSpotIntegration.loadAPQCFramework === 'function') {
+                window.apqcWhiteSpotIntegration.loadAPQCFramework('data/apqc_pcf_master.json')
+                    .then(success => {
+                        if (success) {
+                            console.log('✅ APQC Framework loaded (ready for capability mapping)');
+                        } else {
+                            console.warn('⚠️ Failed to load APQC Framework - capability mapping may not work');
+                        }
+                    })
+                    .catch(error => console.error('❌ Error loading APQC Framework:', error));
+            } else {
+                console.warn('⚠️ APQCWhiteSpotIntegration not available - APQC mapping features may be limited');
+            }
+            
             // Check for accountId in URL (coming from Growth Dashboard)
             const urlParams = new URLSearchParams(window.location.search);
             const accountId = urlParams.get('accountId');
