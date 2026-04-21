@@ -331,6 +331,16 @@ function clearAllFilters() {
 // ═══════════════════════════════════════════════════════════════════
 
 /**
+ * Get filtered service IDs (works for both card and table views)
+ */
+function getFilteredServiceIds() {
+    // Look for both table rows and service cards
+    const elements = Array.from(document.querySelectorAll('[data-service-id]'));
+    const visible = elements.filter(el => el.style.display !== 'none' && window.getComputedStyle(el).display !== 'none');
+    return visible.map(el => el.getAttribute('data-service-id'));
+}
+
+/**
  * Render bulk operations toolbar
  */
 function renderBulkOperationsToolbar(heatmap) {
@@ -367,12 +377,16 @@ function renderBulkOperationsToolbar(heatmap) {
  * Bulk update assessment state for filtered services
  */
 function bulkSetState(heatmapId, targetState) {
-    const heatmap = engagementManager.getEntity('whiteSpotHeatmaps', heatmapId);
+    // Detect manager (standalone or integrated)
+    const manager = typeof window.whitespotStandaloneManager !== 'undefined' 
+        ? window.whitespotStandaloneManager 
+        : window.engagementManager;
+    
+    const heatmap = manager.getEntity ? manager.getEntity('whiteSpotHeatmaps', heatmapId) : manager.getHeatmaps().find(h => h.id === heatmapId);
     if (!heatmap) return;
     
-    // Get visible (filtered) service rows
-    const visibleRows = Array.from(document.querySelectorAll('[data-service-id]')).filter(row => row.style.display !== 'none');
-    const visibleServiceIds = visibleRows.map(row => row.getAttribute('data-service-id'));
+    // Get visible (filtered) service IDs
+    const visibleServiceIds = getFilteredServiceIds();
     
     if (visibleServiceIds.length === 0) {
         showNotification('No services match current filters', 'warning');
@@ -392,7 +406,13 @@ function bulkSetState(heatmapId, targetState) {
     });
     
     heatmap.metadata.updatedAt = new Date().toISOString();
-    engagementManager.updateEntity('whiteSpotHeatmaps', heatmap.id, heatmap);
+    
+    // Update using appropriate manager
+    if (manager.updateEntity) {
+        manager.updateEntity('whiteSpotHeatmaps', heatmap.id, heatmap);
+    } else {
+        manager.saveHeatmap(heatmap);
+    }
     
     showNotification(`${updated} service(s) updated to ${targetState}`, 'success');
     renderWhiteSpotHeatmap();
@@ -402,11 +422,16 @@ function bulkSetState(heatmapId, targetState) {
  * Bulk generate APQC mappings for all filtered services
  */
 async function bulkGenerateAPQC(heatmapId) {
-    const heatmap = engagementManager.getEntity('whiteSpotHeatmaps', heatmapId);
+    // Detect manager (standalone or integrated)
+    const manager = typeof window.whitespotStandaloneManager !== 'undefined' 
+        ? window.whitespotStandaloneManager 
+        : window.engagementManager;
+    
+    const heatmap = manager.getEntity ? manager.getEntity('whiteSpotHeatmaps', heatmapId) : manager.getHeatmaps().find(h => h.id === heatmapId);
     if (!heatmap) return;
     
-    const visibleRows = Array.from(document.querySelectorAll('[data-service-id]')).filter(row => row.style.display !== 'none');
-    const visibleServiceIds = visibleRows.map(row => row.getAttribute('data-service-id'));
+    // Get visible (filtered) service IDs
+    const visibleServiceIds = getFilteredServiceIds();
     
     if (visibleServiceIds.length === 0) {
         showNotification('No services match current filters', 'warning');
@@ -446,7 +471,13 @@ async function bulkGenerateAPQC(heatmapId) {
     }
     
     heatmap.metadata.updatedAt = new Date().toISOString();
-    engagementManager.updateEntity('whiteSpotHeatmaps', heatmap.id, heatmap);
+    
+    // Update using appropriate manager
+    if (manager.updateEntity) {
+        manager.updateEntity('whiteSpotHeatmaps', heatmap.id, heatmap);
+    } else {
+        manager.saveHeatmap(heatmap);
+    }
     
     showNotification(`Generated ${totalMappings} APQC mappings`, 'success');
     renderWhiteSpotHeatmap();
@@ -456,7 +487,12 @@ async function bulkGenerateAPQC(heatmapId) {
  * Bulk export opportunities to CSV
  */
 function bulkExportOpportunities(heatmapId) {
-    const heatmap = engagementManager.getEntity('whiteSpotHeatmaps', heatmapId);
+    // Detect manager (standalone or integrated)
+    const manager = typeof window.whitespotStandaloneManager !== 'undefined' 
+        ? window.whitespotStandaloneManager 
+        : window.engagementManager;
+    
+    const heatmap = manager.getEntity ? manager.getEntity('whiteSpotHeatmaps', heatmapId) : manager.getHeatmaps().find(h => h.id === heatmapId);
     if (!heatmap || !heatmap.opportunities || heatmap.opportunities.length === 0) {
         showNotification('No opportunities to export', 'warning');
         return;

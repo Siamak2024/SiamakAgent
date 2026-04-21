@@ -365,6 +365,10 @@ function renderServiceCard(service, heatmap, l1Group) {
     const state = assessment ? assessment.assessmentState : 'POTENTIAL';
     const score = assessment ? assessment.score : 0;
     
+    // Check for gaps and opportunities
+    const hasGaps = assessment && (assessment.gaps?.length > 0 || assessment.identifiedGaps?.length > 0);
+    const hasOpportunities = heatmap.opportunities?.some(opp => opp.l2ServiceId === service.id);
+    
     // Get color based on assessment state
     const stateColors = {
         'FULL': { bg: '#10b981', text: '#ffffff', icon: 'check-circle', label: 'FULL' },
@@ -378,6 +382,13 @@ function renderServiceCard(service, heatmap, l1Group) {
     return `
         <div 
             class="service-card"
+            data-service-id="${service.id}"
+            data-service-name="${service.name.toLowerCase()}"
+            data-assessment-state="${state}"
+            data-l1-area="${l1Group.l1Name}"
+            data-score="${score}"
+            data-has-gaps="${hasGaps}"
+            data-has-opportunities="${hasOpportunities}"
             onclick="openServiceDrilldown('${heatmap.id}', '${service.id}')"
             style="
                 background: ${colorScheme.bg};
