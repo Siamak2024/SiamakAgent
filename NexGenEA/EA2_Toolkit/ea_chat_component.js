@@ -760,5 +760,5 @@ ${JSON.stringify(context, null, 2)}`;
     }
 }
 
-// Global instance (will be initialized by each page)
-let eaChat = null;
+// Note: Each page should create its own instance, e.g.:
+// let eaChat = new EAChatComponent({ ... });
