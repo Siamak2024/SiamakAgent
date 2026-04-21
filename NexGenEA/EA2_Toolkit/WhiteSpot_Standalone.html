@@ -595,7 +595,37 @@
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('🚀 WhiteSpot Standalone initializing...');
             
-            // Initialize standalone manager FIRST
+            // Initialize Vivicta service model (required for auto-population)
+            if (window.vivictaServiceLoader && typeof window.vivictaServiceLoader.loadServiceModel === 'function') {
+                await window.vivictaServiceLoader.loadServiceModel('data/vivicta_dcs_service_delivery_consolidated_v4_1_HL_DL.json')
+                    .then(success => {
+                        if (success) {
+                            console.log('✅ Vivicta Service Model loaded (ready for WhiteSpot Heatmap auto-population)');
+                        } else {
+                            console.warn('⚠️ Failed to load Vivicta Service Model - WhiteSpot Heatmap auto-population may not work');
+                        }
+                    })
+                    .catch(error => console.error('❌ Error loading Vivicta Service Model:', error));
+            } else {
+                console.warn('⚠️ VivictaServiceLoader not available - WhiteSpot Heatmap features may be limited');
+            }
+            
+            // Initialize APQC framework (required for capability mapping)
+            if (window.apqcWhiteSpotIntegration && typeof window.apqcWhiteSpotIntegration.loadAPQCFramework === 'function') {
+                await window.apqcWhiteSpotIntegration.loadAPQCFramework('data/apqc_pcf_master.json')
+                    .then(success => {
+                        if (success) {
+                            console.log('✅ APQC Framework loaded (ready for capability mapping)');
+                        } else {
+                            console.warn('⚠️ Failed to load APQC Framework - capability mapping may not work');
+                        }
+                    })
+                    .catch(error => console.error('❌ Error loading APQC Framework:', error));
+            } else {
+                console.warn('⚠️ APQCWhiteSpotIntegration not available - APQC mapping features may be limited');
+            }
+            
+            // Initialize standalone manager AFTER service model is loaded
             if (window.whitespotStandaloneManager) {
                 await window.whitespotStandaloneManager.initialize();
                 console.log('✅ WhiteSpot Standalone manager initialized');

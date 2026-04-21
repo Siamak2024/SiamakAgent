@@ -173,6 +173,31 @@ function autoCreateDefaultHeatmap(customer, manager) {
 // ═══════════════════════════════════════════════════════════════════
 
 function renderEmptyCustomerState() {
+    // Check if we're in standalone mode (different buttons for integrated vs standalone)
+    const isStandalone = typeof window.whitespotStandaloneManager !== 'undefined';
+    
+    // Standalone version: Show Add Prospect and Load Demo buttons
+    if (isStandalone) {
+        return `
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="fas fa-building"></i></div>
+                <div class="empty-state-title">No customers defined</div>
+                <div class="empty-state-text">
+                    WhiteSpot Heatmap requires at least one customer. You can add a customer in Engagement Setup, load demo data, or import from standalone WhiteSpot toolkit.
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: center; margin-top: 24px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="addNewProspect()" style="margin: 0;">
+                        <i class="fas fa-plus"></i> Add Prospect/Customer
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadDemoData()" style="margin: 0;">
+                        <i class="fas fa-flask"></i> Load Demo
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Integrated version (EA Engagement Playbook): Show all navigation options
     return `
         <div class="empty-state">
             <div class="empty-state-icon"><i class="fas fa-building"></i></div>
