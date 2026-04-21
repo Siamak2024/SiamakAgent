@@ -104,6 +104,13 @@ class EA_EngagementManager {
     return engagementKeys.map(key => {
       try {
         const model = JSON.parse(localStorage.getItem(key));
+        
+        // Validate model structure
+        if (!model || !model.engagement || !model.engagement.id) {
+          console.warn(`Invalid engagement model structure in ${key}, skipping`);
+          return null;
+        }
+        
         return {
           id: model.engagement.id,
           name: model.engagement.name,
@@ -128,6 +135,12 @@ class EA_EngagementManager {
   saveEngagement(engagementId, model) {
     const key = `${this.storagePrefix}model_${engagementId}`;
     
+    // Validate model structure
+    if (!model || !model.engagement || !model.engagement.metadata) {
+      console.error('Invalid model structure, cannot save engagement');
+      return false;
+    }
+    
     // Update timestamp
     model.engagement.metadata.updatedAt = new Date().toISOString();
     
@@ -151,6 +164,13 @@ class EA_EngagementManager {
       if (!stored) return null;
       
       const model = JSON.parse(stored);
+      
+      // Validate model structure
+      if (!model || !model.engagement || !model.engagement.id) {
+        console.error(`Invalid engagement model structure for ${engagementId}`);
+        return null;
+      }
+      
       this.currentEngagementId = engagementId;
       return model;
     } catch (error) {
@@ -203,7 +223,7 @@ class EA_EngagementManager {
    */
   archiveEngagement(engagementId) {
     const model = this.loadEngagement(engagementId);
-    if (!model) return false;
+    if (!model || !model.engagement) return false;
     
     model.engagement.status = 'archived';
     
