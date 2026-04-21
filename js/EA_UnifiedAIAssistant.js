@@ -374,20 +374,32 @@ Your Focus:
                 content: userMessage
             });
 
-            // Prepare messages for API
-            const messages = [
-                {
-                    role: 'system',
-                    content: this.getSystemInstructions()
-                },
-                ...this.conversationHistory
-            ];
+            // Build conversation context for Responses API
+            // Format: concatenate previous exchanges as context
+            let conversationContext = '';
+            if (this.conversationHistory.length > 1) {
+                // Include previous exchanges (except the last user message we just added)
+                const previousMessages = this.conversationHistory.slice(0, -1);
+                conversationContext = previousMessages.map(msg => {
+                    const prefix = msg.role === 'user' ? 'User' : 'Assistant';
+                    return `${prefix}: ${msg.content}`;
+                }).join('\n\n');
+                conversationContext += '\n\n';
+            }
+            
+            // Build full input with conversation context
+            const fullInput = conversationContext + `User: ${userMessage}`;
 
-            // Call OpenAI API via proxy
-            const response = await AzureOpenAIProxy.create(messages, {
-                model: 'gpt-5',  // Using GPT-5 (latest model)
+            // Get system instructions
+            const instructions = this.getSystemInstructions();
+
+            // Call OpenAI Responses API via proxy (correct format!)
+            const response = await AzureOpenAIProxy.create(fullInput, {
+                model: 'gpt-5',
+                instructions: instructions,
                 temperature: 0.7,
-                reasoning: { type: 'extended' }  // Enable reasoning for better responses
+                timeout: 45000,
+                reasoning: { summary: 'auto', effort: 'medium' }
             });
 
             // Extract response text
