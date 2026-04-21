@@ -949,6 +949,7 @@
             let dataManager = null; // EA_DataManager instance
             let currentStep = 'welcome'; // welcome | industry_select | discovery | mapping | complete
             let apqcData = null;
+            let metadataMapping = null; // Industry-specific capability filters
             let synthesizedObjectives = null;
             let highlightedCapabilities = [];
             let conversationContext = []; // Track all Q&A for progressive analysis
@@ -971,9 +972,18 @@
             const capabilityCategories = document.getElementById('capabilityCategories');
 
             // Initialize
-            function init() {
+            async function init() {
                 // Initialize Data Manager
                 dataManager = new EA_DataManager();
+                
+                // Load metadata mapping for industry filtering
+                try {
+                    const response = await fetch('../../APAQ_Data/apqc_metadata_mapping.json');
+                    metadataMapping = await response.json();
+                    console.log('✅ Loaded APQC metadata mapping');
+                } catch (error) {
+                    console.error('Error loading metadata mapping:', error);
+                }
                 
                 startWorkflowBtn.addEventListener('click', startWorkflow);
                 resetBtn.addEventListener('click', resetWorkflow);
@@ -1463,32 +1473,27 @@
 
                     console.log(`📊 Analyzing ${availableCapabilities.length} loaded APQC capabilities`);
 
-                    // Build objectives summary
-                    const objectivesText = synthesizedObjectives.map(obj => 
-                        `${obj.name}: ${obj.description}`
-                    ).join('\n');
+                    // Build compact objectives summary (names only for speed)
+                    const objectivesText = synthesizedObjectives.map(obj => obj.name).join(', ');
 
-                    // Build available capabilities list for AI
+                    // Build COMPACT capabilities list (code:name format, line-separated)
                     const capabilitiesList = availableCapabilities.map(cap =>
-                        `${cap.code}: ${cap.name}`
-                    ).join('\n');
+                        `${cap.code}:${cap.name}`
+                    ).join('|');
 
-                    const prompt = `You are analyzing business objectives against the APQC Process Classification Framework.
+                    // OPTIMIZED: Very compact prompt to avoid timeout
+                    const prompt = `Analyze objectives against APQC capabilities.
 
-BUSINESS OBJECTIVES:
-${objectivesText}
+OBJECTIVES: ${objectivesText}
 
-AVAILABLE APQC CAPABILITIES (already loaded and displayed):
-${capabilitiesList}
+CAPABILITIES: ${capabilitiesList}
 
-Select the most relevant capability codes from the list above that align with the business objectives.
-
-Return ONLY a JSON array of codes: ["1.0", "2.1", "3.2", ...]`;
+Return JSON array of relevant codes: ["1.0","2.1","3.2"]`;
 
                     const response = await AzureOpenAIProxy.create(prompt, {
-                        instructions: 'Analyze the objectives and return ONLY the JSON array of relevant capability codes from the provided list. Focus on strategic alignment.',
+                        instructions: 'Return ONLY JSON array of capability codes that align with objectives. Be selective (5-10 codes max).',
                         model: 'gpt-5',
-                        timeout: 45000 // Faster since analyzing pre-loaded data
+                        timeout: 30000 // Reduced - compact prompt is much faster
                     });
 
                     // Parse AI response
