@@ -435,6 +435,100 @@
       to { transform: rotate(360deg); }
     }
 
+    /* Welcome Card */
+    .welcome-card {
+      background: linear-gradient(135deg, var(--ea-accent) 0%, #3d6956 100%);
+      border-radius: 12px;
+      padding: 40px;
+      margin-bottom: 32px;
+      box-shadow: var(--ea-shadow-card);
+      text-align: center;
+      color: white;
+    }
+
+    .welcome-card h2 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: white;
+    }
+
+    .welcome-card p {
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 32px;
+      color: rgba(255, 255, 255, 0.95);
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .welcome-features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 32px;
+      text-align: left;
+    }
+
+    .welcome-feature {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .welcome-feature-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .welcome-feature h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: white;
+    }
+
+    .welcome-feature p {
+      font-size: 13px;
+      line-height: 1.5;
+      margin: 0;
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .start-workflow-btn {
+      background: white;
+      color: var(--ea-accent);
+      border: none;
+      padding: 18px 48px;
+      font-size: 18px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .start-workflow-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+      background: #f8f9fa;
+    }
+
+    .start-workflow-btn:active {
+      transform: translateY(0);
+    }
+
+    .chat-container.hidden {
+      display: none;
+    }
+
     /* Responsive */
     @media (max-width: 1200px) {
       .main-content {
@@ -458,6 +552,23 @@
 
       .workflow-step {
         width: 100%;
+      }
+
+      .welcome-features {
+        grid-template-columns: 1fr;
+      }
+
+      .welcome-card {
+        padding: 24px;
+      }
+
+      .welcome-card h2 {
+        font-size: 22px;
+      }
+
+      .start-workflow-btn {
+        width: 100%;
+        justify-content: center;
       }
     }
   </style>
@@ -508,10 +619,45 @@
     <div class="main-content">
       <!-- Workflow Panel (Left) -->
       <div class="workflow-panel">
-        <h2 id="workflowPanelTitle">Step 1: Understand Goals</h2>
-        <p id="workflowPanelDescription" style="color: var(--ea-text-secondary); margin-bottom: 24px;">
-          AI will ask you questions to understand your strategic context and define clear business objectives.
-        </p>
+        <!-- Welcome Card (shown initially) -->
+        <div class="welcome-card" id="welcomeCard">
+          <h2>🎯 AI-Powered Strategic Alignment</h2>
+          <p>
+            Let our AI assistant guide you through a structured conversation to define clear business objectives,
+            map them to APQC capabilities, and link them to your EA insights.
+          </p>
+          
+          <div class="welcome-features">
+            <div class="welcome-feature">
+              <span class="welcome-feature-icon">💬</span>
+              <h3>Step 1: Define Goals</h3>
+              <p>Answer up to 5 AI questions about your strategic context and objectives</p>
+            </div>
+            <div class="welcome-feature">
+              <span class="welcome-feature-icon">🎯</span>
+              <h3>Step 2: Map Capabilities</h3>
+              <p>Align objectives with APQC framework and identify capability gaps</p>
+            </div>
+            <div class="welcome-feature">
+              <span class="welcome-feature-icon">🔗</span>
+              <h3>Step 3: Link Insights</h3>
+              <p>Connect to Growth Dashboard, WhiteSpot analysis, or Engagement tools</p>
+            </div>
+          </div>
+
+          <button id="startWorkflowBtn" class="start-workflow-btn">
+            <span>🚀</span>
+            <span>Start AI Workflow</span>
+          </button>
+        </div>
+
+        <!-- Workflow Header (shown during workflow) -->
+        <div id="workflowHeader" style="display: none; margin-bottom: 24px;">
+          <h2 id="workflowPanelTitle">Step 1: Understand Goals</h2>
+          <p id="workflowPanelDescription" style="color: var(--ea-text-secondary);">
+            AI will ask you questions to understand your strategic context and define clear business objectives.
+          </p>
+        </div>
 
         <!-- Question Counter -->
         <div class="question-counter" id="questionCounter" style="display: none;">
@@ -526,18 +672,9 @@
         </div>
 
         <!-- AI Chat Interface -->
-        <div class="chat-container">
+        <div class="chat-container hidden" id="chatContainer">
           <div class="chat-messages" id="chatMessages">
-            <div class="chat-message ai">
-              <div class="chat-message-header">
-                <strong>🤖 AI Assistant</strong>
-                <span>Ready to begin</span>
-              </div>
-              <div class="chat-message-content">
-                Welcome! I'll help you define business objectives and map them to capabilities.
-                Click "Start Workflow" below to begin.
-              </div>
-            </div>
+            <!-- Messages will be added dynamically -->
           </div>
 
           <div class="chat-input-container">
@@ -549,13 +686,6 @@
             ></textarea>
             <button id="chatSendBtn" class="chat-send-btn" disabled>Send</button>
           </div>
-        </div>
-
-        <!-- Start Workflow Button (shown initially) -->
-        <div id="startWorkflowContainer" style="text-align: center; margin-top: 24px;">
-          <button id="startWorkflowBtn" class="chat-send-btn" style="width: 100%; padding: 16px;">
-            🚀 Start Workflow
-          </button>
         </div>
 
         <!-- Objectives Review (shown after Step 1) -->
@@ -674,7 +804,9 @@
       const chatInput = document.getElementById('chatInput');
       const chatSendBtn = document.getElementById('chatSendBtn');
       const startWorkflowBtn = document.getElementById('startWorkflowBtn');
-      const startWorkflowContainer = document.getElementById('startWorkflowContainer');
+      const welcomeCard = document.getElementById('welcomeCard');
+      const workflowHeader = document.getElementById('workflowHeader');
+      const chatContainer = document.getElementById('chatContainer');
       const questionCounter = document.getElementById('questionCounter');
       const currentQuestionEl = document.getElementById('currentQuestion');
       const loadingIndicator = document.getElementById('loadingIndicator');
@@ -704,7 +836,10 @@
       // Start Workflow
       async function startWorkflow() {
         try {
-          startWorkflowContainer.style.display = 'none';
+          // Hide welcome card, show workflow interface
+          welcomeCard.style.display = 'none';
+          workflowHeader.style.display = 'block';
+          chatContainer.classList.remove('hidden');
           chatInput.disabled = false;
           chatSendBtn.disabled = false;
           questionCounter.style.display = 'flex';
@@ -716,6 +851,9 @@
           
           addAIMessage(response.question);
           currentQuestionEl.textContent = response.questionCount;
+          
+          // Focus on input for better UX
+          chatInput.focus();
 
           console.log('🚀 Workflow started');
         } catch (error) {
@@ -1017,24 +1155,15 @@
 
         EA_BusinessObjectivesWorkflow.resetWorkflow();
         
-        // Reset UI
-        chatMessages.innerHTML = `
-          <div class="chat-message ai">
-            <div class="chat-message-header">
-              <strong>🤖 AI Assistant</strong>
-              <span>Ready to begin</span>
-            </div>
-            <div class="chat-message-content">
-              Welcome! I'll help you define business objectives and map them to capabilities.
-              Click "Start Workflow" below to begin.
-            </div>
-          </div>
-        `;
+        // Reset UI - show welcome card, hide workflow interface
+        welcomeCard.style.display = 'block';
+        workflowHeader.style.display = 'none';
+        chatContainer.classList.add('hidden');
+        chatMessages.innerHTML = '';
         
         chatInput.value = '';
         chatInput.disabled = true;
         chatSendBtn.disabled = true;
-        startWorkflowContainer.style.display = 'block';
         questionCounter.style.display = 'none';
         objectivesReview.classList.remove('active');
         
