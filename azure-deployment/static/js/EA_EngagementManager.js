@@ -173,6 +173,19 @@ class EA_EngagementManager {
   }
 
   /**
+   * Get current engagement ID
+   * @returns {string|null}
+   */
+  getCurrentEngagementId() {
+    if (!this.currentEngagementId) {
+      const currentId = localStorage.getItem(`${this.storagePrefix}current`);
+      if (currentId) this.currentEngagementId = currentId;
+    }
+    
+    return this.currentEngagementId;
+  }
+
+  /**
    * Set current engagement
    * @param {string} engagementId - Engagement ID
    */
