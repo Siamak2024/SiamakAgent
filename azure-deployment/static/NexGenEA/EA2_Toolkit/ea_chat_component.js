@@ -89,9 +89,10 @@ class EAChatComponent {
             max-height: calc(100vh - 100px);
             display: none;
             flex-direction: column;
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            background: #1a1a1a;
+            border-radius: 0;
+            border: 1px solid #2d2d2d;
+            box-shadow: -6px 0 24px rgba(0,0,0,0.45);
             z-index: 10000;
             overflow: hidden;
         `;
@@ -166,8 +167,12 @@ class EAChatComponent {
     renderStyles() {
         return `
             <style>
+                /* === ADVICY AGENT STYLING (VS Code Copilot-inspired) === */
                 .ea-chat-panel {
                     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                    background: #1a1a1a !important;
+                    border-radius: 0 !important;
+                    box-shadow: -6px 0 24px rgba(0,0,0,0.45) !important;
                 }
                 
                 /* Resize Handle */
@@ -176,159 +181,176 @@ class EAChatComponent {
                     left: 0;
                     top: 0;
                     bottom: 0;
-                    width: 6px;
-                    cursor: ew-resize;
+                    width: 5px;
+                    cursor: col-resize;
                     background: transparent;
-                    transition: background 0.2s;
-                    z-index: 10;
+                    transition: background 0.15s;
+                    z-index: 20;
                 }
                 
                 .ea-chat-resize-handle:hover,
                 .ea-chat-resize-handle.resizing {
-                    background: #3b82f6;
+                    background: #0e7afe;
                 }
                 
-                /* Header */
+                /* Header - Dark Advicy Agent style */
                 .ea-chat-header {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    padding: 16px 20px;
-                    background: rgba(30, 41, 59, 0.95);
-                    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+                    padding: 12px 16px;
+                    background: #1a1a1a;
+                    border-bottom: 1px solid #2d2d2d;
                     cursor: move;
                     user-select: none;
+                    flex-shrink: 0;
                 }
                 
                 .ea-chat-title {
                     display: flex;
                     align-items: center;
-                    gap: 10px;
-                    font-size: 15px;
-                    font-weight: 700;
-                    color: #f1f5f9;
+                    gap: 8px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    letter-spacing: 0.02em;
+                    color: #e0e0e0;
                 }
                 
                 .ea-chat-title i {
-                    color: #3b82f6;
+                    color: #0066cc;
+                    font-size: 16px;
                 }
                 
                 .ea-chat-controls {
                     display: flex;
-                    gap: 6px;
+                    gap: 4px;
                 }
                 
                 .ea-chat-btn {
+                    width: 28px;
+                    height: 28px;
                     background: transparent;
                     border: none;
-                    color: #cbd5e1;
-                    padding: 6px 10px;
-                    border-radius: 6px;
+                    color: #808080;
+                    border-radius: 5px;
                     cursor: pointer;
-                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 14px;
+                    transition: background 0.15s, color 0.15s;
                 }
                 
                 .ea-chat-btn:hover {
-                    background: rgba(148, 163, 184, 0.1);
-                    color: #f1f5f9;
+                    background: #2d2d2d;
+                    color: #e0e0e0;
                 }
                 
-                /* Context Indicator */
+                /* Context Indicator - Subtle Advicy Agent style */
                 .ea-chat-context {
                     display: flex;
                     align-items: center;
                     gap: 8px;
-                    padding: 10px 20px;
-                    background: rgba(59, 130, 246, 0.1);
-                    border-bottom: 1px solid rgba(59, 130, 246, 0.2);
-                    font-size: 12px;
-                    color: #93c5fd;
+                    padding: 8px 16px;
+                    background: #1a1a1a;
+                    border-bottom: 1px solid #2d2d2d;
+                    font-size: 11px;
+                    color: #808080;
+                    flex-shrink: 0;
                 }
                 
-                /* Messages */
+                /* Messages Container - Adv icy Agent dark theme */
                 .ea-chat-messages {
                     flex: 1;
                     overflow-y: auto;
-                    padding: 20px;
+                    padding: 20px 16px;
+                    background: #1a1a1a;
                     display: flex;
                     flex-direction: column;
-                    gap: 16px;
+                    gap: 0;
+                    scrollbar-width: thin;
+                    scrollbar-color: #404040 transparent;
                 }
                 
                 .ea-chat-messages::-webkit-scrollbar {
                     width: 6px;
                 }
                 
-                .ea-chat-messages::-webkit-scrollbar-track {
-                    background: rgba(148, 163, 184, 0.1);
-                }
-                
                 .ea-chat-messages::-webkit-scrollbar-thumb {
-                    background: rgba(148, 163, 184, 0.3);
+                    background: #404040;
                     border-radius: 3px;
-                }
-                
-                .ea-chat-messages::-webkit-scrollbar-thumb:hover {
-                    background: rgba(148, 163, 184, 0.5);
                 }
                 
                 .ea-chat-welcome {
                     text-align: center;
                     padding: 40px 20px;
-                    color: #cbd5e1;
+                    color: #e0e0e0;
                 }
                 
-                /* Message Bubble */
+                /* Message Bubble - Advicy Agent style */
                 .ea-chat-message {
                     display: flex;
-                    flex-direction: column;
-                    max-width: 85%;
-                    animation: messageSlideIn 0.3s ease;
+                    gap: 0;
+                    animation: chatSlideIn 0.2s ease;
+                    margin-bottom: 16px;
                 }
                 
-                @keyframes messageSlideIn {
-                    from {
-                        opacity: 0;
-                        transform: translateY(10px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
+                @keyframes chatSlideIn {
+                    from { opacity: 0; transform: translateY(5px); }
+                    to { opacity: 1; transform: translateY(0); }
                 }
                 
                 .ea-chat-message.user {
-                    align-self: flex-end;
+                    flex-direction: row;
+                    margin-bottom: 16px;
                 }
                 
                 .ea-chat-message.ai {
-                    align-self: flex-start;
+                    flex-direction: column;
+                    margin-bottom: 16px;
+                }
+                
+                .message-content {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                    flex: 1;
+                    min-width: 0;
                 }
                 
                 .ea-chat-message-content {
-                    padding: 12px 16px;
-                    border-radius: 12px;
+                    background: transparent;
+                    border: none;
+                    border-radius: 0;
+                    padding: 0;
                     line-height: 1.6;
                     font-size: 14px;
+                    color: #e0e0e0;
+                    white-space: normal;
+                    word-break: break-word;
                 }
                 
                 .ea-chat-message.user .ea-chat-message-content {
-                    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-                    color: white;
-                    border-bottom-right-radius: 4px;
+                    background: rgba(55, 65, 81, 0.85);
+                    color: #e2e8f0;
+                    border: 1px solid rgba(75, 85, 99, 0.4);
+                    padding: 12px 14px;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    line-height: 1.5;
                 }
                 
                 .ea-chat-message.ai .ea-chat-message-content {
-                    background: #334155;
-                    color: #f1f5f9;
-                    border-bottom-left-radius: 4px;
+                    background: transparent;
+                    color: #e0e0e0;
+                    padding: 0;
                 }
                 
                 .ea-chat-message-time {
                     font-size: 11px;
-                    color: #94a3b8;
+                    color: #666;
                     margin-top: 4px;
-                    padding: 0 4px;
+                    padding: 4px 0 0 0;
                 }
                 
                 /* Markdown Styling */
@@ -451,52 +473,60 @@ class EAChatComponent {
                     transform: translateY(-1px);
                 }
                 
-                /* Input Area */
+                /* Input Area - Advicy Agent dark theme */
                 .ea-chat-input-container {
                     display: flex;
-                    gap: 10px;
-                    padding: 16px 20px;
-                    background: rgba(30, 41, 59, 0.95);
-                    border-top: 1px solid rgba(148, 163, 184, 0.1);
+                    gap: 8px;
+                    padding: 12px 16px;
+                    background: #1a1a1a;
+                    border-top: 1px solid #2d2d2d;
+                    flex-shrink: 0;
                 }
                 
                 .ea-chat-input {
                     flex: 1;
-                    background: #1e293b;
-                    border: 1px solid rgba(148, 163, 184, 0.2);
-                    color: #f1f5f9;
-                    padding: 10px 14px;
-                    border-radius: 8px;
+                    background: #2d2d2d;
+                    border: 1px solid #404040;
+                    color: #e0e0e0;
+                    padding: 10px 12px;
+                    border-radius: 6px;
                     font-size: 14px;
                     resize: none;
+                    height: 72px;
                     max-height: 120px;
                     font-family: inherit;
+                    outline: none;
                 }
                 
                 .ea-chat-input:focus {
                     outline: none;
-                    border-color: #3b82f6;
-                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+                    border-color: #0066cc;
+                    box-shadow: 0 0 0 1px #0066cc;
                 }
                 
                 .ea-chat-input::placeholder {
-                    color: #64748b;
+                    color: #808080;
                 }
                 
                 .ea-chat-send-btn {
-                    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                    width: 36px;
+                    height: 36px;
+                    background: #0066cc;
                     border: none;
-                    color: white;
-                    padding: 10px 20px;
-                    border-radius: 8px;
+                    color: #fff;
+                    border-radius: 6px;
                     cursor: pointer;
-                    transition: all 0.2s;
-                    font-size: 16px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    align-self: flex-end;
+                    flex-shrink: 0;
+                    font-size: 14px;
+                    transition: background 0.2s;
                 }
                 
                 .ea-chat-send-btn:hover:not(:disabled) {
-                    transform: translateY(-1px);
-                    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+                    background: #0052a3;
                 }
                 
                 .ea-chat-send-btn:disabled {
