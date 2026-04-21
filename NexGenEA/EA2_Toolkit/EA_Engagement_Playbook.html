@@ -4876,11 +4876,15 @@ You have access to:
             }
         });
         
-        // Resize handle functionality
-        (function() {
+        // Resize handle functionality - Initialize after DOM is loaded
+        function initializeChatResize() {
             const handle = document.getElementById('chat-resize-handle');
             const panel = document.getElementById('ai-chat-panel');
-            if (!handle || !panel) return;
+            
+            if (!handle || !panel) {
+                console.warn('Chat resize elements not found');
+                return;
+            }
 
             let isResizing = false;
             let startX = 0;
@@ -4891,6 +4895,7 @@ You have access to:
                 startX = e.clientX;
                 startWidth = panel.offsetWidth;
                 handle.classList.add('dragging');
+                document.body.style.userSelect = 'none'; // Prevent text selection
                 e.preventDefault();
             });
 
@@ -4911,9 +4916,17 @@ You have access to:
                 if (isResizing) {
                     isResizing = false;
                     handle.classList.remove('dragging');
+                    document.body.style.userSelect = ''; // Re-enable text selection
                 }
             });
-        })();
+        }
+        
+        // Initialize resize after DOM loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeChatResize);
+        } else {
+            initializeChatResize();
+        }
     </script>
 
 </body>
