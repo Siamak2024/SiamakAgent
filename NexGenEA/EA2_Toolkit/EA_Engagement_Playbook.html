@@ -4927,6 +4927,252 @@ You have access to:
         } else {
             initializeChatResize();
         }
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // WHITESPOT HEATMAP DEMO DATA LOADER
+        // ═══════════════════════════════════════════════════════════════════
+        
+        /**
+         * Load demo data for WhiteSpot Heatmap
+         * Creates sample customers and generates realistic heatmaps with APQC mappings
+         */
+        async function loadWhiteSpotDemoData() {
+            try {
+                console.log('📊 Loading WhiteSpot demo data...');
+                
+                // Ensure engagement exists
+                if (!window.engagementManager || !window.engagementManager.getCurrentEngagementId()) {
+                    showNotification('Please create or select an engagement first', 'warning');
+                    return;
+                }
+                
+                // Show loading indicator
+                const container = document.getElementById('whitespot-heatmap-container');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon"><i class="fas fa-spinner fa-spin"></i></div>
+                            <div class="empty-state-title">Generating Demo Data...</div>
+                            <div class="empty-state-text">Creating sample customers and heatmaps with APQC mappings</div>
+                        </div>
+                    `;
+                }
+                
+                // Ensure service loader and APQC integration are initialized
+                if (!window.vivictaServiceLoader || !window.vivictaServiceLoader.isReady()) {
+                    await window.vivictaServiceLoader.loadServiceModel('data/vivicta_dcs_service_delivery_consolidated_v4_1_HL_DL.json');
+                }
+                
+                if (!window.apqcWhiteSpotIntegration || !window.apqcWhiteSpotIntegration.isReady()) {
+                    await window.apqcWhiteSpotIntegration.loadAPQCFramework('data/apqc_pcf_master.json');
+                }
+                
+                // Create demo customers if none exist
+                const existingCustomers = window.engagementManager.getEntities('customers') || [];
+                const demoCustomers = [];
+                
+                if (existingCustomers.length === 0) {
+                    // Create 3 demo customers with different scenarios
+                    const customerData = [
+                        {
+                            name: 'Nordic Insurance AB',
+                            segment: 'Financial Services',
+                            region: 'Nordics',
+                            employees: 5000,
+                            revenue: 500000000,
+                            scenario: 'mature'
+                        },
+                        {
+                            name: 'TechStart Solutions',
+                            segment: 'Technology',
+                            region: 'EMEA',
+                            employees: 250,
+                            revenue: 25000000,
+                            scenario: 'emerging'
+                        },
+                        {
+                            name: 'Global Retail Corp',
+                            segment: 'Retail',
+                            region: 'Global',
+                            employees: 15000,
+                            revenue: 1500000000,
+                            scenario: 'mixed'
+                        }
+                    ];
+                    
+                    for (const data of customerData) {
+                        const customer = {
+                            id: `CUST-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+                            name: data.name,
+                            segment: data.segment,
+                            region: data.region,
+                            employees: data.employees,
+                            revenue: data.revenue,
+                            createdAt: new Date().toISOString()
+                        };
+                        
+                        window.engagementManager.createEntity('customers', customer);
+                        demoCustomers.push({ ...customer, scenario: data.scenario });
+                        console.log(`✓ Created demo customer: ${customer.name}`);
+                    }
+                } else {
+                    // Use existing customers with default scenario
+                    existingCustomers.forEach(c => {
+                        demoCustomers.push({ ...c, scenario: 'mixed' });
+                    });
+                }
+                
+                // Generate heatmaps for all demo customers
+                const generatedHeatmaps = [];
+                for (const customer of demoCustomers) {
+                    const heatmap = await generateDemoHeatmap(customer, customer.scenario, window.engagementManager);
+                    
+                    // Save heatmap to engagement
+                    window.engagementManager.createEntity('whiteSpotHeatmaps', heatmap);
+                    generatedHeatmaps.push(heatmap);
+                    
+                    console.log(`✓ Generated heatmap for ${customer.name} (${heatmap.hlAssessments.length} services, ${heatmap.opportunities.length} opportunities)`);
+                }
+                
+                // Refresh the WhiteSpot display
+                await renderWhiteSpotHeatmap();
+                
+                // Show success notification
+                showNotification(
+                    `Successfully loaded ${demoCustomers.length} customers and ${generatedHeatmaps.length} WhiteSpot heatmaps with APQC mappings!`,
+                    'success'
+                );
+                
+                console.log('✅ WhiteSpot demo data loaded successfully');
+                
+            } catch (error) {
+                console.error('❌ Error loading WhiteSpot demo data:', error);
+                showNotification('Failed to load demo data: ' + error.message, 'error');
+                
+                // Show error state
+                const container = document.getElementById('whitespot-heatmap-container');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon"><i class="fas fa-exclamation-triangle" style="color: #dc2626;"></i></div>
+                            <div class="empty-state-title">Error Loading Demo Data</div>
+                            <div class="empty-state-text">${error.message}</div>
+                            <div style="margin-top: 20px;">
+                                <button class="btn btn-primary" onclick="loadWhiteSpotDemoData()">
+                                    <i class="fas fa-redo"></i> Retry
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        /**
+         * Import WhiteSpot heatmap from standalone toolkit
+         * Allows importing saved heatmaps from the standalone WhiteSpot tool
+         */
+        async function importFromStandalone() {
+            try {
+                // Create file input for JSON import
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                
+                input.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        try {
+                            const importedData = JSON.parse(event.target.result);
+                            
+                            // Validate import data structure
+                            if (!importedData.customers || !importedData.heatmaps) {
+                                throw new Error('Invalid import file format. Expected customers and heatmaps arrays.');
+                            }
+                            
+                            let importedCount = 0;
+                            
+                            // Import customers
+                            for (const customer of importedData.customers) {
+                                // Check if customer already exists
+                                const existing = window.engagementManager.getEntities('customers').find(c => c.id === customer.id);
+                                if (!existing) {
+                                    window.engagementManager.createEntity('customers', customer);
+                                    console.log(`✓ Imported customer: ${customer.name}`);
+                                }
+                            }
+                            
+                            // Import heatmaps
+                            for (const heatmap of importedData.heatmaps) {
+                                // Check if heatmap already exists
+                                const existing = window.engagementManager.getEntities('whiteSpotHeatmaps').find(h => h.id === heatmap.id);
+                                if (!existing) {
+                                    window.engagementManager.createEntity('whiteSpotHeatmaps', heatmap);
+                                    importedCount++;
+                                    console.log(`✓ Imported heatmap: ${heatmap.id} for ${heatmap.customerName}`);
+                                }
+                            }
+                            
+                            // Refresh display
+                            await renderWhiteSpotHeatmap();
+                            
+                            showNotification(
+                                `Successfully imported ${importedData.customers.length} customers and ${importedCount} heatmaps from standalone toolkit!`,
+                                'success'
+                            );
+                            
+                        } catch (error) {
+                            console.error('❌ Import error:', error);
+                            showNotification('Failed to import: ' + error.message, 'error');
+                        }
+                    };
+                    
+                    reader.readAsText(file);
+                };
+                
+                input.click();
+                
+            } catch (error) {
+                console.error('❌ Error importing from standalone:', error);
+                showNotification('Failed to import: ' + error.message, 'error');
+            }
+        }
+        
+        /**
+         * Export WhiteSpot heatmaps to JSON file
+         * Compatible with standalone WhiteSpot toolkit format
+         */
+        function exportWhiteSpotData() {
+            try {
+                const customers = window.engagementManager.getEntities('customers') || [];
+                const heatmaps = window.engagementManager.getEntities('whiteSpotHeatmaps') || [];
+                
+                const exportData = {
+                    exportDate: new Date().toISOString(),
+                    source: 'EA Engagement Playbook',
+                    engagementId: window.engagementManager.getCurrentEngagementId(),
+                    customers: customers,
+                    heatmaps: heatmaps
+                };
+                
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `whitespot-export-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                showNotification(`Exported ${heatmaps.length} WhiteSpot heatmaps`, 'success');
+                
+            } catch (error) {
+                console.error('❌ Export error:', error);
+                showNotification('Failed to export: ' + error.message, 'error');
+            }
+        }
     </script>
 
 </body>

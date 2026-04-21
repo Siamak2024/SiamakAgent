@@ -1405,6 +1405,54 @@ function formatCurrency(amount) {
 }
 
 /**
+ * Generate demo heatmap for a specific customer
+ * Called from the "Generate Demo Data" button in empty heatmap state
+ */
+async function generateDemoHeatmapForCustomer(customerId) {
+    try {
+        const customer = engagementManager.getEntity('customers', customerId);
+        if (!customer) {
+            showNotification('Customer not found', 'error');
+            return;
+        }
+        
+        showNotification('Generating demo heatmap with APQC mappings...', 'info');
+        
+        // Ensure loaders are initialized
+        if (!window.vivictaServiceLoader || !window.vivictaServiceLoader.isReady()) {
+            await window.vivictaServiceLoader.loadServiceModel('data/vivicta_dcs_service_delivery_consolidated_v4_1_HL_DL.json');
+        }
+        
+        if (!window.apqcWhiteSpotIntegration || !window.apqcWhiteSpotIntegration.isReady()) {
+            await window.apqcWhiteSpotIntegration.loadAPQCFramework('data/apqc_pcf_master.json');
+        }
+        
+        // Generate heatmap with mixed scenario (balanced distribution)
+        const heatmap = await generateDemoHeatmap(customer, 'mixed', window.engagementManager);
+        
+        // Save to engagement
+        engagementManager.createEntity('whiteSpotHeatmaps', heatmap);
+        
+        console.log(`✓ Generated demo heatmap: ${heatmap.id} for ${customer.name}`);
+        console.log(`  - ${heatmap.hlAssessments.length} service assessments`);
+        console.log(`  - ${heatmap.opportunities.length} opportunities`);
+        console.log(`  - APQC mappings integrated`);
+        
+        // Refresh display
+        await renderWhiteSpotHeatmap();
+        
+        showNotification(
+            `Demo heatmap generated for ${customer.name} with ${heatmap.hlAssessments.length} services and ${heatmap.opportunities.length} opportunities!`,
+            'success'
+        );
+        
+    } catch (error) {
+        console.error('Error generating demo heatmap:', error);
+        showNotification('Failed to generate demo heatmap: ' + error.message, 'error');
+    }
+}
+
+/**
  * Show notification toast
  * Wrapper for showToast to match WhiteSpot function signatures
  */

@@ -80,14 +80,17 @@ function renderEmptyCustomerState() {
             <div class="empty-state-icon"><i class="fas fa-building"></i></div>
             <div class="empty-state-title">No customers defined</div>
             <div class="empty-state-text">
-                WhiteSpot Heatmap requires at least one customer. You can add a customer in Engagement Setup or load demo data to explore the feature.
+                WhiteSpot Heatmap requires at least one customer. You can add a customer in Engagement Setup, load demo data, or import from standalone WhiteSpot toolkit.
             </div>
-            <div style="display: flex; gap: 12px; justify-content: center; margin-top: 24px;">
+            <div style="display: flex; gap: 12px; justify-content: center; margin-top: 24px; flex-wrap: wrap;">
                 <button class="btn btn-primary" onclick="switchTab('engagement', document.querySelector('[data-tab=engagement]'))" style="margin: 0;">
                     <i class="fas fa-arrow-left"></i> Go to Engagement Setup
                 </button>
                 <button class="btn btn-secondary" onclick="loadWhiteSpotDemoData()" style="margin: 0;">
                     <i class="fas fa-flask"></i> Load Demo Data
+                </button>
+                <button class="btn btn-secondary" onclick="importFromStandalone()" style="margin: 0;">
+                    <i class="fas fa-file-import"></i> Import from Standalone
                 </button>
             </div>
         </div>
@@ -229,14 +232,17 @@ function renderHeatmapGrid(heatmap, customer, allCustomers) {
                     <button class="btn btn-ghost" onclick="editHeatmapInfo('${heatmap.id}')" title="Edit heatmap info">
                         <i class="fas fa-edit"></i>
                     </button>
+                    <button class="btn btn-ghost" onclick="importFromStandalone()" title="Import from Standalone">
+                        <i class="fas fa-file-import"></i>
+                    </button>
+                    <button class="btn btn-ghost" onclick="exportWhiteSpotData()" title="Export All Data">
+                        <i class="fas fa-download"></i>
+                    </button>
                     <button class="btn btn-ghost" onclick="exportHeatmapCSV('${heatmap.id}')" title="Export to CSV">
                         <i class="fas fa-file-csv"></i>
                     </button>
                     <button class="btn btn-ghost" onclick="printHeatmap('${heatmap.id}')" title="Print heatmap">
                         <i class="fas fa-print"></i>
-                    </button>
-                    <button class="btn btn-ghost" onclick="exportHeatmap('${heatmap.id}')" title="Export JSON">
-                        <i class="fas fa-download"></i>
                     </button>
                 </div>
             </div>
