@@ -18,18 +18,22 @@
  * Generate a complete demo heatmap for a customer
  * @param {Object} customer - Customer entity
  * @param {string} scenario - Scenario type: 'mature', 'emerging', 'mixed', 'greenfield'
+ * @param {Object} manager - Optional manager (standalone or engagement)
  * @returns {Object} Complete WhiteSpot heatmap with assessments
  */
-async function generateDemoHeatmap(customer, scenario = 'mixed') {
+async function generateDemoHeatmap(customer, scenario = 'mixed', manager = null) {
     if (!window.vivictaServiceLoader || !window.apqcWhiteSpotIntegration) {
         throw new Error('Service loaders not initialized. Please ensure service loader and APQC integration modules are loaded.');
     }
+    
+    // Determine which manager to use
+    const dataManager = manager || (typeof window.whitespotStandaloneManager !== 'undefined' ? window.whitespotStandaloneManager : window.engagementManager);
     
     const hlServices = window.vivictaServiceLoader.getHLServices();
     const timestamp = new Date().toISOString();
     
     // Generate heatmap ID
-    const existingHeatmaps = engagementManager.getEntities('whiteSpotHeatmaps') || [];
+    const existingHeatmaps = dataManager.getHeatmaps ? dataManager.getHeatmaps() : (dataManager.getEntities('whiteSpotHeatmaps') || []);
     const nextId = existingHeatmaps.length + 1;
     const heatmapId = `WSH-${String(nextId).padStart(3, '0')}`;
     
@@ -693,7 +697,7 @@ async function generateWhiteSpotDemoData() {
             if (!existingHeatmap) {
                 const customerObj = existingCustomer || customer;
                 const scenario = scenarios[i % scenarios.length];
-                const heatmap = await generateDemoHeatmap(customerObj, scenario);
+                const heatmap = await generateDemoHeatmap(customerObj, scenario, manager);
                 
                 if (isStandalone) {
                     manager.addHeatmap(heatmap);
