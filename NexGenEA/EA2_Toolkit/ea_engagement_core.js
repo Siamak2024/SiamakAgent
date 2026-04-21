@@ -26,7 +26,7 @@ function switchTab(tabName, btn) {
     document.getElementById('view-' + tabName).classList.add('active');
     btn.classList.add('active');
     
-    // Render content for tab
+    // Render content for tab (async rendering for tabs that need it)
     renderTabContent(tabName);
     
     // Update AI context (sidebar adapts to new tab)
@@ -62,7 +62,7 @@ function switchSubTab(subtabName) {
     }
 }
 
-function renderTabContent(tabName) {
+async function renderTabContent(tabName) {
     switch(tabName) {
         case 'engagement':
             // Canvas 1 already populated on load
@@ -79,7 +79,10 @@ function renderTabContent(tabName) {
             renderApplications();
             break;
         case 'whitespace':
-            renderWhiteSpotHeatmap();
+            // WhiteSpot Heatmap requires async loading - await completion
+            if (typeof renderWhiteSpotHeatmap === 'function') {
+                await renderWhiteSpotHeatmap();
+            }
             break;
         case 'target':
             renderTarget();
