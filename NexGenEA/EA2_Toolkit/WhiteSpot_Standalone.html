@@ -510,7 +510,7 @@
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('🚀 WhiteSpot Standalone initializing...');
             
-            // Initialize standalone manager
+            // Initialize standalone manager FIRST
             if (window.whitespotStandaloneManager) {
                 await window.whitespotStandaloneManager.initialize();
                 console.log('✅ WhiteSpot Standalone manager initialized');
@@ -520,6 +520,9 @@
             if (typeof renderWhiteSpotHeatmap === 'function') {
                 renderWhiteSpotHeatmap();
             }
+            
+            // Initialize AI Chat Component AFTER manager is ready
+            await initializeChatComponent();
         });
         
         // Modal Functions
@@ -561,8 +564,16 @@
         // ═══════════════════════════════════════════════════════════════
         // EA CHAT COMPONENT INITIALIZATION
         // ═══════════════════════════════════════════════════════════════
-        
-        let eaChat = null;
+        - called after manager is ready
+        async function initializeChatComponent() {
+            console.log('🤖 Initializing EA Chat Component...');
+            
+            // Ensure manager is available
+            if (!window.whitespotStandaloneManager) {
+                console.error('Cannot initialize chat: whitespotStandaloneManager not found');
+                return;
+            }
+            
         
         // Initialize EA Chat Component on page load
         window.addEventListener('DOMContentLoaded', function() {
@@ -649,7 +660,8 @@ Provide concise, actionable insights for prospect analysis and opportunity ident
 Format your responses using markdown for better readability.
 
 Current data model:
-- 41 HL services across 3 L1 areas (Consulting, Managed Services, Platform Services)
+- 41 HL     console.log('✅ EA Chat Component initialized and rendered');
+        }vices across 3 L1 areas (Consulting, Managed Services, Platform Services)
 - Service states: FULL (green), PARTIAL (yellow/orange), CUSTOM (blue), LOST (red), POTENTIAL (orange)
 - APQC integration: Semantic matching to process framework
 - Opportunities: Critical/High/Medium/Low priority with estimated values`
