@@ -74,7 +74,7 @@ function renderFilterControls(heatmap) {
                         <option value="ALL" ${window.whiteSpotFilters.l1ServiceArea === 'ALL' ? 'selected' : ''}>All Areas</option>
                         ${l1Groups.map(group => `
                             <option value="${group.l1Name}" ${window.whiteSpotFilters.l1ServiceArea === group.l1Name ? 'selected' : ''}>
-                                ${group.l1Name} (${group.services.length})
+                                ${group.l1Name} (${group.hlServices.length})
                             </option>
                         `).join('')}
                     </select>
