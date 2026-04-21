@@ -302,7 +302,7 @@ function renderServiceCatalogView() {
                 <div>
                     <h3 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 8px;">
                         <i class="fas fa-th" style="color: #10b981; margin-right: 8px;"></i>
-                        Vivicta Service Delivery Model - Reference Catalog
+                        Service Delivery Model - Reference Catalog
                     </h3>
                     <p style="font-size: 14px; color: #6b7280; margin: 0;">
                         ${hlServices.length} high-level services across ${Object.keys(servicesByArea).length} service areas
