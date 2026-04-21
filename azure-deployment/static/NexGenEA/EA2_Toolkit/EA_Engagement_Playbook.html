@@ -1,14 +1,25 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EA Engagement Playbook â€” EA Toolkit</title>
+    <title>EA Engagement Playbook — EA Toolkit</title>
     <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
     <link rel="stylesheet" href="../../css/ea-design-engine.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
     <script src="../../AzureOpenAIProxy.js"></script>
+    
+    <!-- Markdown Rendering (for AI chat) -->
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
+    
+    <!-- Syntax Highlighting (for AI chat code blocks) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    
+    <!-- EA Chat Component (Universal AI Assistant) -->
+    <script src="ea_chat_component.js"></script>
+    
     <script src="../../js/EA_Config.js"></script>
     <script src="../../js/EA_AccountManager.js?v=2026"></script>
     <script src="../../js/EA_DataManager.js"></script>
@@ -721,7 +732,7 @@
                 </div>
                 <div class="ea-header-title">
                     <h1>EA Engagement Playbook</h1>
-                    <p id="engagement-subtitle">Canvas-Based · Multi-Customer · Auto-Generated Outputs</p>
+                    <p id="engagement-subtitle">Canvas-Based � Multi-Customer � Auto-Generated Outputs</p>
                 </div>
             </div>
             <div class="ea-header-right">
@@ -753,7 +764,7 @@
                 <button class="ea-header-icon" onclick="openAIAssistantGuide()" title="AI Assistant Help & Examples" style="background: rgba(255,255,255,0.15);">
                     <i class="fas fa-question-circle"></i>
                 </button>
-                <button class="ea-header-icon" id="toggle-chat-btn" onclick="toggleChatPanel()" title="AI Assistant (Ctrl+K)">
+                <button class="ea-header-icon" id="toggle-chat-btn" onclick="eaChat && eaChat.toggle()" title="AI Assistant (Ctrl+K)">
                     <i class="fas fa-robot"></i>
                 </button>
             </div>
@@ -1197,9 +1208,9 @@
                     </select>
                     <div style="margin-top: 8px; padding: 12px; background: #f9fafb; border-radius: 6px; border-left: 3px solid #3b82f6;">
                         <p style="font-size: 11px; color: #374151; margin: 0; line-height: 1.5;">
-                            <strong style="color: #3b82f6;">🏢 Internal Team:</strong> Technical staff from consulting firm (Enterprise Architects, Solution Architects, Technical Leads)<br>
-                            <strong style="color: #8b5cf6;">👔 Engagement Team:</strong> Customer-facing roles from consulting firm Marketing/Sales (Account Managers, Sales Reps, Customer Success)<br>
-                            <strong style="color: #10b981;">🤝 Customer Team:</strong> Stakeholders from the client organization receiving services
+                            <strong style="color: #3b82f6;">?? Internal Team:</strong> Technical staff from consulting firm (Enterprise Architects, Solution Architects, Technical Leads)<br>
+                            <strong style="color: #8b5cf6;">?? Engagement Team:</strong> Customer-facing roles from consulting firm Marketing/Sales (Account Managers, Sales Reps, Customer Success)<br>
+                            <strong style="color: #10b981;">?? Customer Team:</strong> Stakeholders from the client organization receiving services
                         </p>
                     </div>
                 </div>
@@ -2001,9 +2012,9 @@
         </div>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- -------------------------------------------------------------- -->
     <!-- PHASE 3: AGILE EXECUTION MODALS -->
-    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- -------------------------------------------------------------- -->
 
     <!-- PHASE MODAL -->
     <div id="phaseModal" class="modal-overlay hidden" onclick="if(event.target===this) closePhaseModal()">
@@ -2201,9 +2212,9 @@
         </div>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- -------------------------------------------------------------- -->
     <!-- OUTPUT GENERATION MODAL -->
-    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- -------------------------------------------------------------- -->
     <div id="outputModal" class="modal-overlay hidden" onclick="if(event.target===this) closeOutputModal()">
         <div class="modal-box" style="max-width: 700px;">
             <div class="modal-header">
@@ -2287,14 +2298,14 @@
         </div>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- -------------------------------------------------------------- -->
     <!-- MAIN SCRIPT -->
-    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- -------------------------------------------------------------- -->
     <script>
 
-        // ═══════════════════════════════════════════════════════════════════
+        // -------------------------------------------------------------------
         // INITIALIZATION
-        // ═══════════════════════════════════════════════════════════════════
+        // -------------------------------------------------------------------
         
         let engagementManager = null;
         let workflowEngine = null;
@@ -2311,20 +2322,20 @@
             // Initialize AccountManager for integration
             if (typeof EA_AccountManager !== 'undefined') {
                 window.accountManager = new EA_AccountManager();
-                console.log('✓ EA_AccountManager initialized for account integration');
+                console.log('? EA_AccountManager initialized for account integration');
             } else {
                 console.warn('EA_AccountManager not loaded - account linking disabled');
             }
             
             // Initialize engagement manager
             engagementManager = new EA_EngagementManager();
-            console.log('✓ EA_EngagementManager initialized');
+            console.log('? EA_EngagementManager initialized');
             
             // Initialize workflow engine
             if (typeof EA_WorkflowEngine !== 'undefined') {
                 workflowEngine = new EA_WorkflowEngine(engagementManager);
                 window.workflowEngine = workflowEngine;
-                console.log('✓ EA_WorkflowEngine initialized');
+                console.log('? EA_WorkflowEngine initialized');
             } else {
                 console.warn('EA_WorkflowEngine not loaded');
             }
@@ -2337,7 +2348,7 @@
                     workflowEngine
                 );
                 window.integrationBridge = integrationBridge;
-                console.log('✓ EA_IntegrationBridge initialized');
+                console.log('? EA_IntegrationBridge initialized');
             } else {
                 console.warn('EA_IntegrationBridge not loaded or dataManager not available');
             }
@@ -2349,7 +2360,7 @@
                     workflowEngine,
                     integrationBridge
                 );
-                console.log('✓ EA_AIAssistant initialized with workflow and integration support');
+                console.log('? EA_AIAssistant initialized with workflow and integration support');
                 
                 // Update AI context after a brief delay to let DOM settle
                 setTimeout(() => {
@@ -2372,7 +2383,7 @@
                 // Load account data and create/load engagement linked to this account
                 const account = window.accountManager.getAccount(accountId);
                 if (account) {
-                    console.log(`✓ Account context loaded: ${account.name} (${accountId})`);
+                    console.log(`? Account context loaded: ${account.name} (${accountId})`);
                     window.currentAccountContext = account;
                     
                     // Check if engagement already exists for this account
@@ -2383,7 +2394,7 @@
                             currentEngagement = model;
                             updateEngagementSelector();
                             loadEngagementData();
-                            console.log(`✓ Loaded existing engagement for account ${accountId}`);
+                            console.log(`? Loaded existing engagement for account ${accountId}`);
                             updateAccountContext(account);
                         }
                     } else {
@@ -2413,19 +2424,19 @@
                     const engagement = engagementManager.getCurrentEngagement();
                     if (engagement && workflowEngine) {
                         workflowEngine.initializeWorkflowState(engagement.engagement || engagement);
-                        console.log('✓ Workflow state initialized');
+                        console.log('? Workflow state initialized');
                     }
                 }
             }
             
             updateKPIs();
-            console.log('✓ EA Engagement Playbook fully initialized');
-            console.log('📊 Phase 2 features enabled: Workflow Engine, Integration Bridge, Enhanced AI, Account Linking');
+            console.log('? EA Engagement Playbook fully initialized');
+            console.log('?? Phase 2 features enabled: Workflow Engine, Integration Bridge, Enhanced AI, Account Linking');
         });
 
-        // ═══════════════════════════════════════════════════════════════════
+        // -------------------------------------------------------------------
         // ACCOUNT INTEGRATION HELPERS
-        // ═══════════════════════════════════════════════════════════════════
+        // -------------------------------------------------------------------
         
         function findEngagementByAccountId(accountId) {
             const engagements = engagementManager.listEngagements();
@@ -2462,15 +2473,15 @@
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════════
+        // -------------------------------------------------------------------
         // APQC INTEGRATION
-        // ═══════════════════════════════════════════════════════════════════
+        // -------------------------------------------------------------------
         
         async function loadAPQCData() {
             try {
                 const response = await fetch('../../APAQ_Data/apqc_pcf_master.json');
                 apqcData = await response.json();
-                console.log('✓ APQC Framework loaded:', apqcData.total_categories, 'categories');
+                console.log('? APQC Framework loaded:', apqcData.total_categories, 'categories');
             } catch (error) {
                 console.warn('APQC data not available:', error);
             }
@@ -2633,9 +2644,9 @@
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════════
+        // -------------------------------------------------------------------
         // ENGAGEMENT MANAGEMENT
-        // ═══════════════════════════════════════════════════════════════════
+        // -------------------------------------------------------------------
         
         function autoLoadLatestEngagement() {
             const engagements = engagementManager.listEngagements();
@@ -2738,9 +2749,9 @@
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════════
+        // -------------------------------------------------------------------
         // EXAMPLE ENGAGEMENT LOADER
-        // ═══════════════════════════════════════════════════════════════════
+        // -------------------------------------------------------------------
         
         function loadExampleEngagement() {
             if (currentEngagement && !confirm('Loading example data will replace your current engagement. Continue?')) {
@@ -2828,7 +2839,7 @@
                 
                 // === ENGAGEMENT TEAM (Marketing/Sales) ===
                 {
-                    name: 'Emma Bergström',
+                    name: 'Emma Bergstr�m',
                     role: 'Customer Engagement Manager',
                     orgUnit: 'Consulting - Marketing & Sales',
                     type: 'engagement-team',
@@ -2918,7 +2929,7 @@
             const perId = allStakeholders.find(s => s.name === 'Per Svensson')?.id;
             
             // Engagement Team
-            const emmaId = allStakeholders.find(s => s.name === 'Emma Bergström')?.id;
+            const emmaId = allStakeholders.find(s => s.name === 'Emma Bergstr�m')?.id;
             const johanId = allStakeholders.find(s => s.name === 'Johan Karlsson')?.id;
             const saraId = allStakeholders.find(s => s.name === 'Sara Lindqvist')?.id;
             
@@ -3239,7 +3250,7 @@
                     estimatedCost: 5000000,
                     businessOutcomes: ['Eliminate technical debt', 'Reduce annual costs by 30%', 'Improve time-to-market'],
                     valueType: ['cost', 'risk'],
-                    owner: 'Anna Bergström',
+                    owner: 'Anna Bergstr�m',
                     dependencies: ['Claims system integration', 'Data migration'],
                     risks: ['Data migration complexity', 'Business disruption']
                 },
@@ -3356,7 +3367,7 @@
                     impact: 'high',
                     severity: 6,
                     status: 'mitigating',
-                    owner: 'Anna Bergström',
+                    owner: 'Anna Bergstr�m',
                     mitigationPlan: 'Launch change management program, provide cloud training and certification opportunities, communicate benefits clearly, involve team in migration planning.',
                     identifiedDate: '2026-03-20',
                     lastReviewDate: '2026-04-10',
@@ -3414,7 +3425,7 @@
                     title: 'Cloud Platform Selection: Microsoft Azure',
                     description: 'Selected Microsoft Azure as primary cloud platform over AWS and Google Cloud. Decision based on existing Microsoft EA, regional data center availability in Nordics, and integration with current tooling.',
                     status: 'approved',
-                    owner: 'Anna Bergström',
+                    owner: 'Anna Bergstr�m',
                     impact: 'Commits organization to Azure ecosystem for next 3-5 years. Enables leveraging existing Microsoft skills and licenses. Sets direction for all cloud migrations.',
                     rationale: 'Azure provides best integration with existing Microsoft stack, has Nordic data centers for compliance, offers competitive enterprise pricing through existing EA. Team has Azure certifications.',
                     decisionDate: '2026-03-01',
@@ -3440,8 +3451,8 @@
                     title: 'Legacy Policy System Replacement vs Replatform',
                     description: 'Decision to replace legacy policy system with SaaS solution rather than replatforming existing codebase.',
                     status: 'under-review',
-                    owner: 'Anna Bergström',
-                    impact: 'Major decision affecting 18-month timeline and €5M budget. Requires business process reengineering and data migration.',
+                    owner: 'Anna Bergstr�m',
+                    impact: 'Major decision affecting 18-month timeline and �5M budget. Requires business process reengineering and data migration.',
                     rationale: 'Replatforming would preserve technical debt. Modern SaaS provides best practices, faster time-to-market for new products, and lower TCO. Risk of disruption is manageable.',
                     decisionDate: '',
                     reviewDate: '2026-04-18',
@@ -3492,7 +3503,7 @@
                 },
                 {
                     title: 'Limited IT Budget FY2026',
-                    description: 'IT budget frozen at FY2025 levels. Capital budget for new investments limited to €8M for entire year.',
+                    description: 'IT budget frozen at FY2025 levels. Capital budget for new investments limited to �8M for entire year.',
                     type: 'budgetary',
                     severity: 'high',
                     owner: 'Karin Svensson',
@@ -3522,7 +3533,7 @@
                     description: 'Business mandates zero production changes during November-December due to year-end processing and holiday coverage.',
                     type: 'timeline',
                     severity: 'medium',
-                    owner: 'Anna Bergström',
+                    owner: 'Anna Bergstr�m',
                     workaround: 'Plan major releases for Q1-Q3, use Q4 for planning and testing, schedule cutover dates accordingly.',
                     relatedObjects: []
                 },
@@ -3531,7 +3542,7 @@
                     description: 'Only 3 out of 15 developers have Azure certification. Team primarily experienced with on-premises infrastructure.',
                     type: 'resource',
                     severity: 'medium',
-                    owner: 'Anna Bergström',
+                    owner: 'Anna Bergstr�m',
                     workaround: 'Invest in Azure training program, hire contractors for initial migrations, implement knowledge transfer requirements, build centers of excellence.',
                     relatedObjects: []
                 }
@@ -3879,7 +3890,7 @@
             if (validation.errors.length > 0) {
                 console.warn('Validation errors after loading example:', validation.errors);
             } else {
-                console.log('✓ Example data validation passed - no errors');
+                console.log('? Example data validation passed - no errors');
             }
             
             // Load the data into UI
@@ -3894,9 +3905,9 @@
             }, 50); // End setTimeout
         }
         
-        // ═══════════════════════════════════════════════════════════════════
+        // -------------------------------------------------------------------
         // UTILITY FUNCTIONS
-        // ═══════════════════════════════════════════════════════════════════
+        // -------------------------------------------------------------------
         
         function importAPMData() {
             if (!currentEngagement) {
@@ -4075,7 +4086,7 @@
             const dataManager = new EA_DataManager();
             dataManager.saveIntegrationData('apm_latest', sampleData);
             
-            console.log('✓ Sample APM data generated');
+            console.log('? Sample APM data generated');
             showToast('Sample Data Generated', 'Sample APM data created. You can now test the import feature.', 'success');
         }
         
@@ -4356,9 +4367,9 @@
 
 
 
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════════════════
         // AI CHAT PANEL
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════════════════
         
         function toggleChatPanel() {
             document.body.classList.toggle('chat-sidebar-open');
@@ -4398,7 +4409,7 @@ th{background:#065f46;color:white}a{color:#059669}</style></head><body>
 <pre>${md.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
 <div style="margin-top:30px;text-align:center"><a href="${guideUrl}" download 
 style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block">
-📄 Download Guide</a></div></div></body></html>`);
+?? Download Guide</a></div></div></body></html>`);
                     newWindow.document.close();
                 }).catch(() => {
                     const a = document.createElement('a');
@@ -4406,14 +4417,14 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                     a.download = 'AI_ASSISTANT_USER_GUIDE.md';
                     a.click();
                     newWindow.close();
-                    showToast('📄 Downloading AI Guide...', 'info');
+                    showToast('?? Downloading AI Guide...', 'info');
                 });
             } else {
                 const a = document.createElement('a');
                 a.href = guideUrl;
                 a.download = 'AI_ASSISTANT_USER_GUIDE.md';
                 a.click();
-                showToast('📄 Downloading AI Guide...', 'info');
+                showToast('?? Downloading AI Guide...', 'info');
             }
         }
         
@@ -4497,9 +4508,9 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
             }
         });
 
-        // ═══════════════════════════════════════════════════════════════
+        // ---------------------------------------------------------------
         // OUTPUT GENERATION
-        // ═══════════════════════════════════════════════════════════════
+        // ---------------------------------------------------------------
 
         // Global instances
         let outputGenerator = null;
@@ -4525,7 +4536,7 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                 markdownGenerator = new EA_MarkdownGenerator(aiService);
                 outputGenerator = new EA_OutputGenerator(storage, markdownGenerator);
                 
-                console.log('✅ Output Generator initialized');
+                console.log('? Output Generator initialized');
             }
             return outputGenerator;
         }
@@ -4546,311 +4557,102 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
         </button>
     </div>
 
-    <!-- AI CHAT PANEL (Context-Aware Right Sidebar) -->
-    <div id="ai-chat-panel" style="
-        position: fixed;
-        top: 0;
-        right: -400px;
-        bottom: 0;
-        width: 400px;
-        background: linear-gradient(180deg, #f9fafb 0%, #ffffff 100%);
-        box-shadow: -4px 0 24px rgba(0,0,0,0.12);
-        display: flex;
-        flex-direction: column;
-        z-index: 1001;
-        transition: right 0.3s ease;
-    ">
-        <!-- Chat Header -->
-        <div style="
-            padding: 20px 16px;
-            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        ">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <i class="fas fa-robot" style="color: white; font-size: 20px;"></i>
-                    <span style="font-size: 16px; font-weight: 700; color: white;">AI Assistant</span>
-                </div>
-                <button onclick="toggleChatPanel()" style="
-                    background: rgba(255,255,255,0.2);
-                    border: none;
-                    width: 28px;
-                    height: 28px;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: all 0.2s;
-                " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                    <i class="fas fa-times" style="color: white; font-size: 14px;"></i>
-                </button>
-            </div>
-            
-            <!-- Context Indicator -->
-            <div id="ai-context-indicator" style="
-                font-size: 12px;
-                color: rgba(255,255,255,0.9);
-                background: rgba(255,255,255,0.15);
-                padding: 6px 10px;
-                border-radius: 6px;
-                display: flex;
-                align-items: center;
-                gap: 6px;
-            ">
-                <i class="fas fa-map-marker-alt"></i>
-                <span>Loading context...</span>
-            </div>
-            
-            <!-- Integration Badges -->
-            <div id="integration-badges" style="
-                display: flex;
-                flex-wrap: wrap;
-                gap: 6px;
-                font-size: 11px;
-            ">
-                <span style="color: rgba(255,255,255,0.7);">No integrations</span>
-            </div>
-        </div>
-        
-        <!-- Suggested Prompts -->
-        <div style="
-            padding: 12px 16px;
-            background: #f3f4f6;
-            border-bottom: 1px solid #e5e7eb;
-        ">
-            <div style="font-size: 11px; font-weight: 600; color: #6b7280; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
-                💡 Quick Actions
-            </div>
-            <div id="suggested-prompts" style="
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-            ">
-                <p style="font-size: 12px; color: #999;">Loading suggestions...</p>
-            </div>
-        </div>
-        
-        <!-- Chat Messages -->
-        <div id="chat-messages" style="
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-            background: #ffffff;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        ">
-            <div class="chat-message assistant-message">
-                <div class="message-content">
-                    <div class="message-text" style="font-size: 14px; color: #374151; line-height: 1.6;">
-                        👋 Hello! I'm your context-aware EA assistant. I can help you with:
-                        <br><br>
-                        • Defining engagement scope & timelines<br>
-                        • Stakeholder analysis & mapping<br>
-                        • Capability gap identification<br>
-                        • Architecture recommendations<br>
-                        • Roadmap planning & sequencing<br>
-                        <br>
-                        I adapt to your current task and connected toolkits. Press <strong>Ctrl+K</strong> anytime to toggle this panel.
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Chat Input -->
-        <div style="
-            padding: 16px;
-            background: #ffffff;
-            border-top: 1px solid #e5e7eb;
-        ">
-            <div style="position: relative;">
-                <textarea id="chat-input" rows="3" placeholder="Ask me anything... (Ctrl+K to toggle)" style="
-                    width: 100%;
-                    padding: 12px;
-                    border: 2px solid #e5e7eb;
-                    border-radius: 8px;
-                    font-size: 14px;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    resize: none;
-                    outline: none;
-                    transition: border-color 0.2s;
-                " onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e5e7eb'"></textarea>
-                
-                <div style="
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-top: 8px;
-                ">
-                    <span style="font-size: 11px; color: #9ca3af;">
-                        Shift+Enter for new line
-                    </span>
-                    <div style="display: flex; gap: 8px;">
-                        <button onclick="clearChatHistory()" style="
-                            background: #f3f4f6;
-                            border: none;
-                            padding: 8px 12px;
-                            border-radius: 6px;
-                            font-size: 12px;
-                            color: #6b7280;
-                            cursor: pointer;
-                            transition: all 0.2s;
-                        " onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">
-                            <i class="fas fa-trash-alt"></i> Clear
-                        </button>
-                        <button id="send-chat" onclick="sendChatMessage()" style="
-                            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-                            border: none;
-                            padding: 8px 16px;
-                            border-radius: 6px;
-                            font-size: 13px;
-                            font-weight: 600;
-                            color: white;
-                            cursor: pointer;
-                            transition: all 0.2s;
-                        " onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(79,70,229,0.3)'" 
-                           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                            <i class="fas fa-paper-plane"></i> Send
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- EA Chat Component will render here dynamically -->
 
-    <style>
-        /* Chat panel open state */
-        body.chat-sidebar-open #ai-chat-panel {
-            right: 0 !important;
-        }
+    <script>
+        // ---------------------------------------------------------------
+        // EA CHAT COMPONENT INITIALIZATION
+        // ---------------------------------------------------------------
         
-        body.chat-sidebar-open #main-content {
-            margin-right: 400px;
-            transition: margin-right 0.3s ease;
-        }
+        let eaChat = null;
         
-        /* Suggested prompt buttons */
-        .suggested-prompt {
-            background: white;
-            border: 1px solid #e5e7eb;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            color: #374151;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            text-align: left;
-        }
+        // Initialize EA Chat Component after DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('?? Initializing EA Chat Component...');
+            
+            eaChat = new EAChatComponent({
+                panelId: 'engagement-ai-chat',
+                title: 'EA Engagement AI',
+                icon: 'fa-robot',
+                
+                // Context provider - returns current engagement state
+                contextProvider: () => {
+                    const activeTab = document.querySelector('.tab-btn.active');
+                    const tabText = activeTab ? activeTab.textContent.trim() : 'Unknown';
+                    
+                    return {
+                        tool: 'EA Engagement Playbook',
+                        currentCanvas: tabText,
+                        engagement: window.engagementManager ? {
+                            customers: engagementManager.getEntities('customers').length,
+                            applications: engagementManager.getEntities('applications').length,
+                            stakeholders: engagementManager.getEntities('stakeholders').length,
+                            initiatives: engagementManager.getEntities('initiatives').length
+                        } : null,
+                        summary: `Working on: ${tabText}`,
+                        
+                        // Quick action buttons
+                        quickActions: [
+                            {
+                                label: 'Engagement Overview',
+                                icon: 'fa-info-circle',
+                                prompt: 'Summarize the current engagement setup and provide recommendations'
+                            },
+                            {
+                                label: 'Stakeholder Analysis',
+                                icon: 'fa-users',
+                                prompt: 'Analyze stakeholders and suggest engagement strategies'
+                            },
+                            {
+                                label: 'Gap Analysis',
+                                icon: 'fa-search',
+                                prompt: 'Identify gaps and improvement opportunities'
+                            },
+                            {
+                                label: 'Roadmap Help',
+                                icon: 'fa-road',
+                                prompt: 'Help me create a realistic EA roadmap'
+                            },
+                            {
+                                label: 'Decision Support',
+                                icon: 'fa-lightbulb',
+                                prompt: 'Help me make an architectural decision'
+                            }
+                        ]
+                    };
+                },
+                
+                // System prompt for AI
+                systemPrompt: `You are an expert Enterprise Architecture consultant helping with engagement planning and execution.
+Focus on practical EA methodologies, stakeholder management, capability analysis, and roadmap planning.
+Provide concise, actionable insights adapted to the current canvas/tab.
+Format your responses using markdown for better readability.
+
+You have access to:
+- Engagement setup (customers, scope, timelines)
+- Stakeholder mapping and analysis
+- Application portfolio (AS-IS)
+- WhiteSpot Heatmap (service delivery)
+- Target EA vision
+- Roadmap planning
+- Portfolio/Leadership documentation`
+            });
+            
+            // Render the chat panel
+            eaChat.render();
+            console.log('? EA Chat Component initialized');
+        });
         
-        .suggested-prompt:hover {
-            background: #4f46e5;
-            border-color: #4f46e5;
-            color: white;
-            transform: translateX(2px);
-        }
-        
-        .prompt-icon {
-            font-size: 14px;
-        }
-        
-        .prompt-text {
-            flex: 1;
-            font-weight: 500;
-        }
-        
-        /* Integration badges */
-        .integration-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: 600;
-            background: rgba(255,255,255,0.2);
-            color: rgba(255,255,255,0.9);
-        }
-        
-        .integration-badge.connected {
-            background: rgba(16,185,129,0.2);
-            color: rgba(255,255,255,1);
-        }
-        
-        /* Chat message styling */
-        .chat-message {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            animation: slideIn 0.3s ease;
-        }
-        
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
+        // Keyboard shortcut Ctrl+K to toggle chat
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                if (eaChat) {
+                    eaChat.toggle();
+                }
             }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .chat-message .message-content {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        
-        .chat-message .message-text {
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-        
-        .user-message .message-text {
-            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-            color: white;
-            margin-left: 40px;
-        }
-        
-        .assistant-message .message-text {
-            background: #f3f4f6;
-            color: #111827;
-            margin-right: 40px;
-        }
-        
-        .message-time {
-            font-size: 11px;
-            color: #9ca3af;
-            padding: 0 12px;
-        }
-        
-        /* Scrollbar styling */
-        #chat-messages::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-        #chat-messages::-webkit-scrollbar-track {
-            background: #f9fafb;
-        }
-        
-        #chat-messages::-webkit-scrollbar-thumb {
-            background: #d1d5db;
-            border-radius: 3px;
-        }
-        
-        #chat-messages::-webkit-scrollbar-thumb:hover {
-            background: #9ca3af;
-        }
-    </style>
+        });
+    </script>
 
 </body>
 </html>
