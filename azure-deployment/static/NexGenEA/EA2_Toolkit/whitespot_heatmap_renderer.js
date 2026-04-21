@@ -365,19 +365,29 @@ function renderServiceCatalogView() {
         `;
     });
     
-    // Add action buttons at bottom
+    // Add action buttons at bottom with prominent call-to-action
     html += `
-        <div style="text-align: center; margin-top: 32px; padding: 24px; background: #f0fdf4; border-radius: 12px;">
-            <h4 style="font-size: 16px; font-weight: 600; color: #065f46; margin-bottom: 16px;">
-                Ready to start customer assessments?
-            </h4>
-            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-                <button class="btn btn-primary" onclick="switchTab('engagement', document.querySelector('[data-tab=engagement]'))">
-                    <i class="fas fa-user-plus"></i> Add Customer in Engagement Setup
-                </button>
-                <button class="btn btn-secondary" onclick="loadWhiteSpotDemoData()">
-                    <i class="fas fa-flask"></i> Load Demo Data
-                </button>
+        <div style="text-align: center; margin-top: 32px; padding: 32px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 12px; border: 2px solid #10b981;">
+            <div style="max-width: 600px; margin: 0 auto;">
+                <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+                <h4 style="font-size: 20px; font-weight: 700; color: #065f46; margin-bottom: 12px;">
+                    Ready to Build Your WhiteSpot Heatmap?
+                </h4>
+                <p style="font-size: 14px; color: #047857; margin-bottom: 24px;">
+                    This is a reference catalog showing all available services.<br>
+                    <strong>To create an interactive heatmap and assess services, add a customer below.</strong>
+                </p>
+                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="showQuickCustomerModal()" style="font-size: 16px; padding: 12px 24px;">
+                        <i class="fas fa-plus-circle"></i> Quick Add Customer
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadWhiteSpotDemoData()" style="font-size: 16px; padding: 12px 24px;">
+                        <i class="fas fa-flask"></i> Load Demo Data (3 Customers)
+                    </button>
+                </div>
+                <p style="font-size: 12px; color: #6b7280; margin-top: 16px;">
+                    Or go to <a href="#" onclick="switchTab('engagement', document.querySelector('[data-tab=engagement]')); return false;" style="color: #10b981; text-decoration: underline;">Engagement Setup</a> to manage customers
+                </p>
             </div>
         </div>
     `;
