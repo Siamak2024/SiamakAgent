@@ -260,6 +260,13 @@
         }
         #ai-chat-panel.open { right: 0; }
         #ai-chat-panel.resizing { transition: none; }
+        
+        /* Integrate main content with AI panel */
+        body.chat-sidebar-open #main-content {
+            margin-right: 500px;
+            transition: margin-right 0.3s ease;
+        }
+        
         .resize-handle {
             position: absolute;
             left: 0;
@@ -899,6 +906,11 @@
                 // Update right position if panel is open
                 if (panel.classList.contains('open')) {
                     panel.style.right = '0px';
+                    // Update main content margin dynamically
+                    const mainContent = document.getElementById('main-content');
+                    if (mainContent && document.body.classList.contains('chat-sidebar-open')) {
+                        mainContent.style.marginRight = newWidth + 'px';
+                    }
                 } else {
                     panel.style.right = '-' + newWidth + 'px';
                 }
@@ -919,9 +931,11 @@
 
         function toggleChatPanel() {
             const panel = document.getElementById('ai-chat-panel');
-            const width = panel.offsetWidth;
-            
-            if (panel.classList.contains('open')) {
+                document.body.classList.remove('chat-sidebar-open');
+            } else {
+                panel.style.right = '0px';
+                panel.classList.add('open');
+                document.body.classList.add('chat-sidebar-ins('open')) {
                 panel.style.right = '-' + width + 'px';
                 panel.classList.remove('open');
             } else {
