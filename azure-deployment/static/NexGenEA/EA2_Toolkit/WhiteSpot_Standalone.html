@@ -701,14 +701,20 @@ style="background:#14b8a6;color:white;padding:12px 24px;border-radius:8px;text-d
                     serviceDelivery: '41 HL services across Business Consulting, Technology Consulting, Managed Services'
                 };
                 
-                const response = await AzureOpenAIProxy.create({
-                    taskType: 'analysis',
-                    userMessage: message,
-                    context: JSON.stringify(context, null, 2),
-                    systemInstructions: 'You are an expert service delivery consultant helping with WhiteSpot heatmap analysis. Focus on service coverage opportunities, APQC process mapping, and sales strategy. Provide concise, actionable insights for prospect analysis and opportunity identification.'
+                // Use Responses API format: input (string) and options object
+                const response = await AzureOpenAIProxy.create(message, {
+                    instructions: `You are an expert service delivery consultant helping with WhiteSpot heatmap analysis. 
+Focus on service coverage opportunities, APQC process mapping, and sales strategy. 
+Provide concise, actionable insights for prospect analysis and opportunity identification.
+
+Current Context:
+${JSON.stringify(context, null, 2)}`,
+                    temperature: 0.7
                 });
                 
-                addChatMessage(response.response || response.message || 'No response received', 'ai');
+                // Extract response text from Responses API output
+                const aiResponse = response.output_text || response.text || response.message || 'No response received';
+                addChatMessage(aiResponse, 'ai');
             } catch (error) {
                 console.error('AI Error:', error);
                 addChatMessage('⚠️ Unable to connect to AI service. Please check your connection and try again.', 'ai');
