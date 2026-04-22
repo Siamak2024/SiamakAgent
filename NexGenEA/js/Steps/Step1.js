@@ -2,7 +2,7 @@
  * Step1.js — Strategic Intent (9-task conversational flow)
  *
  * Task breakdown:
- *   1.0 context_engine  — Internal: run Step0 context analysis
+ *   1.0 context_engine  — Internal: run Step0 context analysis (skipped if Rich Profile exists)
  *   1.1 q1_trigger      — Ask: main pain point / trigger
  *   1.2 q2_scale        — Ask: org scale & current systems
  *   1.3 q3_constraints  — Ask: budget, timeline, regulatory constraints
@@ -16,7 +16,47 @@
  * The model after Step1 contains:
  *   model.strategicIntent  — structured Strategic Intent object
  *   model.strategicIntentConfirmed — set to true after user confirms
+ *
+ * ORGANIZATION PROFILE INTEGRATION:
+ * If window.model.organizationProfile exists with completeness >= 60%, Step1 will:
+ * - Skip or shorten the questionnaire
+ * - Use profile data for Strategic Intent generation
+ * - Reference specific priorities, challenges, and constraints from the profile
  */
+
+// Helper: Build context string from organizationProfile or fallback
+function _buildStep1Context(ctx) {
+  const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
+  const completeness = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfileCompleteness : 0;
+
+  if (profile && completeness >= 60) {
+    // Rich Profile mode: Use structured context
+    const priorities = (profile.strategicPriorities || []).map(p => p.priority).slice(0, 5).join('; ');
+    const challenges = (profile.challenges || []).map(c => c.challenge).slice(0, 5).join('; ');
+    const opportunities = (profile.opportunities || []).map(o => o.opportunity).slice(0, 3).join('; ');
+    const constraints = (profile.constraints || []).map(c => c.description).slice(0, 3).join('; ');
+    
+    return `**ORGANIZATION CONTEXT (from Rich Profile - ${completeness}% complete):**
+
+Company: ${profile.organizationName} (${profile.companySize?.employees || 'N/A'} employees, ${profile.companySize?.sizeCategory || 'N/A'})
+Industry: ${profile.industry}
+Mission: ${profile.missionStatement || 'Not specified'}
+Market Position: ${profile.markets?.marketPosition || 'Not specified'}
+
+Strategic Priorities: ${priorities || 'Not specified'}
+Key Challenges: ${challenges || 'Not specified'}
+Opportunities: ${opportunities || 'Not specified'}
+Constraints: ${constraints || 'Not specified'}
+
+Technology Maturity: Cloud=${profile.technologyLandscape?.cloudAdoption || 'Unknown'}, AI=${profile.technologyLandscape?.aiAdoption || 'Unknown'}, Tech Debt=${profile.technologyLandscape?.techDebt || 'Unknown'}
+Transformation Readiness: ${profile.executiveSummary?.transformationReadiness || 'Unknown'}
+
+CRITICAL: Use the specific priorities, challenges, and constraints from above. Do NOT generate generic consulting language.`;
+  }
+
+  // Quick Start mode: Minimal context
+  return `Company description: "${ctx.companyDescription || 'Not provided'}"`;
+}
 
 const Step1 = {
 
@@ -35,13 +75,25 @@ const Step1 = {
       instructionFile: '0_1_context_engine.instruction.md',
       expectsJson: true,
 
+      // Skip if Rich Profile already exists
+      shouldRun: (ctx) => {
+        const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
+        const completeness = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfileCompleteness : 0;
+        
+        if (profile && completeness >= 60) {
+          console.log('[Step1] Skipping context engine - Rich Profile already exists (completeness:', completeness + '%)');
+          return false;  // Skip
+        }
+        return true;  // Run
+      },
+
       systemPromptFallback: `You are the Context Engine for an enterprise architecture platform.
 Analyse the company description and produce a classification + industry-calibrated system prompts for all 7 steps.
 Return ONLY valid JSON — no prose, no markdown.`,
 
       userPrompt: (ctx) => {
         // Re-use the Step0 user prompt builder
-        return Step0.tasks[0].userPrompt(ctx);
+        return Step0.tasks[1].userPrompt(ctx);  // Note: Changed to tasks[1] since Step0 now has rich profile as first task
       },
 
       parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step1_0_context'),
@@ -77,10 +129,28 @@ Return ONLY valid JSON:
 }`,
 
       userPrompt: (ctx) => {
+        const contextStr = _buildStep1Context(ctx);
+        const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
+        
+        if (profile) {
+          // Rich Profile: Use structured priorities and challenges
+          const topPriorities = (profile.strategicPriorities || []).slice(0, 3).map(p => p.priority).join(', ');
+          const topChallenges = (profile.challenges || []).slice(0, 3).map(c => c.challenge).join(', ');
+          
+          return `${contextStr}
+
+Generate Question 1: What is the main business pain or trigger driving this EA initiative right now?
+
+Given the strategic priorities (${topPriorities}) and challenges (${topChallenges}), create a focused question with 4-5 options that reflect THEIR specific situation.
+
+Return JSON with format: { "question": "string", "options": ["string"], "guidance": "string" }`;
+        }
+
+        // Quick Start fallback
         const analysis = ctx.answers?.step1_0_context || {};
         const industry = analysis.context?.industry || ctx.masterData.industry;
         const pains = (analysis.hypothesis?.assumed_pain_points || []).join(', ');
-        return `Organisation description: "${ctx.companyDescription}"
+        return `${contextStr}
 Industry: ${industry}
 Inferred pain points: ${pains || 'unknown'}
 Strategic posture: ${analysis.context?.strategic_posture || 'unknown'}
@@ -112,7 +182,27 @@ Tailor to what you know — don't repeat what they already told you.
 Return ONLY valid JSON: { "question": "", "options": [], "guidance": "" }`,
 
       userPrompt: (ctx) => {
+        const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
         const q1 = ctx.answers?.step1_q1_trigger?.q1_trigger || '(not answered)';
+        
+        if (profile) {
+          // Rich Profile: Already have scale data - skip or make this confirming
+          const revenue = profile.financial?.revenue || 'Not specified';
+          const employees = profile.companySize?.employees || 'Not specified';
+          const coreSystems = (profile.technologyLandscape?.coreSystems || []).slice(0, 3).join(', ');
+          
+          return `${_buildStep1Context(ctx)}
+Q1 answer: "${q1}"
+
+Generate Question 2: Confirm/refine the scale and current system landscape.
+We already know: Revenue: ${revenue}, Employees: ${employees}, Core Systems: ${coreSystems || 'Not specified'}
+
+Generate a brief confirming question with 3-4 options to clarify system maturity or any gaps.
+
+Return JSON with format: { "question": "string", "options": ["string"], "guidance": "string" }`;
+        }
+        
+        // Quick Start fallback
         return `Company: "${ctx.companyDescription.slice(0, 300)}"
 Q1 answer (pain point): "${q1}"
 Generate Question 2: Scale & current systems. Cover revenue/AUM range, headcount (noting real estate/asset companies often have high revenue with small teams due to outsourcing), and system maturity.
@@ -139,9 +229,29 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
       systemPromptFallback: `You are an Enterprise Architecture advisor. Ask about the key constraints — budget, timeline, regulatory, organisational. Return ONLY valid JSON: { "question": "", "options": [], "guidance": "" }`,
 
       userPrompt: (ctx) => {
+        const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
+        const q1 = ctx.answers?.step1_q1_trigger?.q1_trigger || '';
+        
+        if (profile) {
+          // Rich Profile: Use structured constraints
+          const constraints = (profile.constraints || []).map(c => c.description).join('; ');
+          const financial = profile.financial?.investmentCapacity || 'Unknown';
+          
+          return `${_buildStep1Context(ctx)}
+Pain point: ${q1}
+
+Generate Question 3: Confirm the binding constraints.
+Known constraints: ${constraints || 'None specified'}
+Investment capacity: ${financial}
+
+Generate a focused question with 4-5 options to clarify budget, timeline, regulatory, or organizational readiness constraints.
+
+Return JSON with format: { "question": "string", "options": ["string"], "guidance": "string" }`;
+        }
+        
+        // Quick Start fallback
         const analysis = ctx.answers?.step1_0_context || {};
         const regFlags = (analysis.context?.regulatory_flags || []).join(', ') || 'none mentioned';
-        const q1 = ctx.answers?.step1_q1_trigger?.q1_trigger || '';
         return `Company: "${ctx.companyDescription.slice(0, 300)}"
 Regulatory flags: ${regFlags}
 Pain point: ${q1}
@@ -326,6 +436,10 @@ Rules:
       },
 
       userPrompt: (ctx) => {
+        const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
+        const completeness = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfileCompleteness : 0;
+        
+        // Gather interview answers
         const answers = ctx.answers || {};
         const qa = [
           answers.step1_q1_trigger?.q1_trigger   ? `Q1 (Pain/Trigger): ${answers.step1_q1_trigger.q1_trigger}` : null,
@@ -337,7 +451,76 @@ Rules:
           answers.step1_q7_assumptions?.q7_assumptions ? `Q7 (Assumptions): ${answers.step1_q7_assumptions.q7_assumptions}` : null,
           answers.step1_q7b_ai_role?.q7b_ai_role  ? `Q7b (AI Transformation): ${answers.step1_q7b_ai_role.q7b_ai_role}` : null
         ].filter(Boolean).join('\n');
+        
+        if (profile && completeness >= 60) {
+          // Rich Profile mode: Use structured profile data as primary context
+          const priorities = (profile.strategicPriorities || []).map(p => `• ${p.priority} (${p.timeframe || 'N/A'}): ${p.rationale || 'N/A'}`).join('\n');
+          const challenges = (profile.challenges || []).map(c => `• ${c.challenge}: ${c.impact || 'N/A'}`).join('\n');
+          const opportunities = (profile.opportunities || []).map(o => `• ${o.opportunity}`).join('\n');
+          const constraints = (profile.constraints || []).map(c => `• ${c.type || 'N/A'}: ${c.description}`).join('\n');
+          const offerings = (profile.offerings || []).map(o => `• ${o.name}: ${o.description || 'N/A'}`).join('\n');
+          
+          return `**ORGANIZATION PROFILE (${completeness}% complete — PRIMARY CONTEXT):**
 
+Organization: ${profile.organizationName} (${profile.industry})
+Size: ${profile.companySize?.employees || 'N/A'} employees, ${profile.companySize?.sizeCategory || 'N/A'}
+Mission: ${profile.missionStatement || 'Not specified'}
+Vision: ${profile.vision || 'Not specified'}
+Business Model: ${profile.businessModel || 'Not specified'}
+
+**Strategic Priorities:**
+${priorities || 'None specified'}
+
+**Challenges:**
+${challenges || 'None specified'}
+
+**Opportunities:**
+${opportunities || 'None specified'}
+
+**Constraints:**
+${constraints || 'None specified'}
+
+**Products/Services:**
+${offerings || 'None specified'}
+
+**Technology Landscape:**
+- Cloud Adoption: ${profile.technologyLandscape?.cloudAdoption || 'Unknown'}
+- AI Adoption: ${profile.technologyLandscape?.aiAdoption || 'Unknown'}
+- Tech Debt: ${profile.technologyLandscape?.techDebt || 'Unknown'}
+
+**Transformation Readiness:** ${profile.executiveSummary?.transformationReadiness || 'Unknown'}
+
+**Financial Context:**
+- Revenue: ${profile.financial?.revenue || 'Unknown'}
+- Growth Rate: ${profile.financial?.growthRate || 'Unknown'}
+- Investment Capacity: ${profile.financial?.investmentCapacity || 'Unknown'}
+
+**Interview answers (refinements/confirmations):**
+${qa || '(no additional answers)'}
+
+**CRITICAL INSTRUCTION:** Use the Strategic Priorities, Challenges, Opportunities, and Constraints from the profile as the PRIMARY source. The interview answers are supplements only. Do NOT mark profile data as [to be confirmed].
+
+Synthesise a complete Strategic Intent document grounded in the Rich Profile data above.
+
+Return JSON with format: {
+  "org_name": "string",
+  "industry": "string",
+  "timeframe": "3-5 years",
+  "strategic_ambition": "string",
+  "situation_narrative": "string",
+  "strategic_themes": ["string", "string", "string"],
+  "ai_transformation_themes": ["string"],
+  "investigation_scope": ["string"],
+  "key_constraints": ["string"],
+  "success_metrics": ["string"],
+  "key_assumptions_to_validate": ["string"],
+  "expected_outcomes": ["string"],
+  "burning_platform": "string",
+  "assumptions_and_caveats": ["string"]
+}`;
+        }
+
+        // Quick Start fallback
         return `Company description: "${ctx.companyDescription}"
 
 Interview answers:

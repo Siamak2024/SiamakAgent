@@ -55,6 +55,7 @@ Return ONLY valid JSON:
 Generate 5-8 value pools. Every pool must link to at least one gap or capability.`,
 
       userPrompt: (ctx) => {
+        const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
         const si = ctx.strategicIntent;
         const priorityGaps = (ctx.priorityGaps || []).slice(0, 8).map(g =>
           `${g.gap_id} ${g.capability} (${g.priority})${g.ai_enabled_gap ? ' [AI-enabled]' : ''}: ${g.gap_description || ''}`
@@ -74,6 +75,34 @@ Generate 5-8 value pools. Every pool must link to at least one gap or capability
             `Mark value pools as ai_enabled_value: true if they are generated/enhanced by AI/ML/automation (predictive analytics, intelligent automation, personalization, optimization).`
           : '';
         
+        if (profile) {
+          // Rich Profile: Use opportunities and financial context
+          const opportunities = (profile.opportunities || []).map(o => `${o.opportunity}: ${o.valueStatement || 'N/A'}`).join('\n');
+          const financial = `Revenue: ${profile.financial?.revenue || 'Unknown'}, Growth: ${profile.financial?.growthRate || 'Unknown'}, Investment Capacity: ${profile.financial?.investmentCapacity || 'Unknown'}`;
+          
+          return `**ORGANIZATION PROFILE - VALUE POOLS CONTEXT:**
+
+Organization: ${profile.organizationName} (${profile.industry})
+
+**Known Opportunities:**
+${opportunities || 'None specified'}
+
+**Financial Context:** ${financial}
+
+**Strategic themes:** ${(si.strategic_themes || []).join(' | ')}
+**Expected outcomes:** ${(si.expected_outcomes || []).join('; ')}
+
+**Priority gaps:**
+${priorityGaps.join('\n') || 'see gap analysis'}
+
+**Future BMC opportunities:** ${(ctx.bmcAnalysis?.strategic_opportunities || []).map(o => o.opportunity).join('; ')}${aiContext}
+
+**CRITICAL:** Ground value pools in the SPECIFIC opportunities from the profile. Use the financial context for realistic sizing.
+
+Identify 5-8 value pools. For each: what value becomes accessible if we close these gaps? Use directional sizing (no invented numbers). executive_summary: 2-3 sentences Board-level.`;
+        }
+        
+        // Quick Start fallback
         return `Company: "${ctx.companyDescription.slice(0, 300)}"
 
 Strategic themes: ${(si.strategic_themes || []).join(' | ')}

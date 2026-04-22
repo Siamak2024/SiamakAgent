@@ -54,8 +54,43 @@ Return ONLY valid JSON:
 }`,
 
       userPrompt: (ctx) => {
+        const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
         const si = ctx.strategicIntent;
         const caps = (ctx.capabilities || []).filter(c => c.current_maturity && c.current_maturity <= 2).map(c => c.name).slice(0, 5);
+        
+        if (profile) {
+          // Rich Profile: Use structure and technology landscape
+          const structure = profile.structure?.organizationalStructure || 'Not specified';
+          const governance = profile.structure?.governance || 'Not specified';
+          const coreSystems = (profile.technologyLandscape?.coreSystems || []).map(s => s.name).join(', ');
+          const legacySystems = (profile.technologyLandspace?.legacySystems || []).map(s => s.name).join(', ');
+          
+          return `**ORGANIZATION PROFILE - OPERATING MODEL CONTEXT:**
+
+Organization: ${profile.organizationName} (${profile.industry})
+
+**Structure:**
+- Organizational Structure: ${structure}
+- Governance: ${governance}
+- Departments: ${(profile.structure?.departments || []).join(', ') || 'Not specified'}
+
+**Technology Landscape:**
+- Core Systems: ${coreSystems || 'Not specified'}
+- Legacy Systems: ${legacySystems || 'Not specified'}
+- Cloud Adoption: ${profile.technologyLandscape?.cloudAdoption || 'Unknown'}
+- Tech Debt: ${profile.technologyLandscape?.techDebt || 'Unknown'}
+
+**Strategic context:**
+- Burning platform: ${si.burning_platform || ''}
+- Constraints: ${(si.key_constraints || []).join('; ')}
+- Low-maturity capabilities: ${caps.join(', ') || 'see assessment'}
+
+**CRITICAL:** Map the CURRENT operating model grounded in the SPECIFIC structure and systems from the profile. Do NOT invent system names or organizational units not mentioned.
+
+Return ONLY valid JSON. ALL key names must be EXACTLY as shown below (in English). Only text values may be in the local language:
+{"value_delivery":{"value_streams":[],"customer_journeys":[],"channels":[]},"capability_model":[{"name":"","purpose":"","group":"Commercial","maturity":"Medium","strategic_priority":"High"}],"process_model":[{"name":"","linked_capability":"","is_bottleneck":false,"description":""}],"organisation_governance":{"key_roles":[],"capability_ownership":[{"capability":"","owner":""}],"governance_model":"Centralized","decision_making":""},"application_data_landscape":{"core_systems":[{"name":"","supports_capability":"","status":"active"}],"gaps_overlaps":[]},"operating_model_principles":[],"metadata":{"at_a_glance":"","model_archetype":""}}`;}
+        
+        // Quick Start fallback
         return `Company: "${ctx.companyDescription}"
 
 Strategic context:
@@ -66,8 +101,7 @@ Strategic context:
 Map the CURRENT operating model. Derive from company context — mark guesses with ⚠️.
 
 Return ONLY valid JSON. ALL key names must be EXACTLY as shown below (in English). Only text values may be in the local language:
-{"value_delivery":{"value_streams":[],"customer_journeys":[],"channels":[]},"capability_model":[{"name":"","purpose":"","group":"Commercial","maturity":"Medium","strategic_priority":"High"}],"process_model":[{"name":"","linked_capability":"","is_bottleneck":false,"description":""}],"organisation_governance":{"key_roles":[],"capability_ownership":[{"capability":"","owner":""}],"governance_model":"Centralized","decision_making":""},"application_data_landscape":{"core_systems":[{"name":"","supports_capability":"","status":"active"}],"gaps_overlaps":[]},"operating_model_principles":[],"metadata":{"at_a_glance":"","model_archetype":""}}`;
-      },
+{"value_delivery":{"value_streams":[],"customer_journeys":[],"channels":[]},"capability_model":[{"name":"","purpose":"","group":"Commercial","maturity":"Medium","strategic_priority":"High"}],"process_model":[{"name":"","linked_capability":"","is_bottleneck":false,"description":""}],"organisation_governance":{"key_roles":[],"capability_ownership":[{"capability":"","owner":""}],"governance_model":"Centralized","decision_making":""},"application_data_landscape":{"core_systems":[{"name":"","supports_capability":"","status":"active"}],"gaps_overlaps":[]},"operating_model_principles":[],"metadata":{"at_a_glance":"","model_archetype":""}}`;},
 
       outputSchema: {
         value_delivery: 'object?',

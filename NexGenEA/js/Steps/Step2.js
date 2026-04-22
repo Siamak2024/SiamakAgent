@@ -54,7 +54,41 @@ RULES:
 - Ground each item in company description - no generic filler`,
 
       userPrompt: (ctx) => {
+        const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
         const si = ctx.strategicIntent;
+        
+        if (profile) {
+          // Rich Profile mode: Use detailed offerings, business model, markets
+          const offerings = (profile.offerings || []).map(o => `• ${o.name}: ${o.description || 'N/A'} (${o.targetCustomers || 'N/A'})`).join('\n');
+          const markets = (profile.markets?.regions || []).join(', ');
+          const customers = (profile.markets?.customerTypes || []).join(', ');
+          
+          return `**ORGANIZATION PROFILE - BMC CONTEXT:**
+
+Organization: ${profile.organizationName} (${profile.industry})
+Business Model: ${profile.businessModel || 'Not specified'}
+
+**Products/Services:**
+${offerings || 'None specified'}
+
+**Market Position:**
+- Regions: ${markets || 'Not specified'}
+- Customer Types: ${customers || 'Not specified'}
+- Market Share: ${profile.markets?.marketShare || 'Not specified'}
+
+**Competitors:** ${(profile.markets?.competitors || []).join(', ') || 'None specified'}
+**Differentiators:** ${(profile.markets?.differentiators || []).join(', ') || 'None specified'}
+
+**Strategic Intent (from Step 1):**
+- Ambition: ${si.strategic_ambition || ''}
+- Burning platform: ${si.burning_platform || ''}
+
+**CRITICAL:** Map the CURRENT state BMC grounded in the SPECIFIC offerings, markets, and business model from the profile above. Do NOT use generic consulting language.
+
+Return JSON output.`;
+        }
+        
+        // Quick Start fallback
         return `Company: "${ctx.companyDescription}"
 
 Strategic Intent (from Step 1):

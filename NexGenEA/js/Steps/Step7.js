@@ -59,6 +59,7 @@ Each principle:
 - anti_patterns: 1-2 patterns this principle explicitly prohibits`,
 
       userPrompt: (ctx) => {
+        const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
         const si = ctx.strategicIntent || {};
         const target = ctx.operatingModel?.target || {};
         const bmc = ctx.businessModelCanvas || {};
@@ -72,6 +73,36 @@ Each principle:
         const industry = ctx.company?.industry || ctx.autopilotContext?.industry || 'enterprise';
         const companyDescription = ctx.company?.description || 'organization undergoing digital transformation';
         
+        if (profile) {
+          // Rich Profile: Use strategic priorities with timeframes and constraints
+          const shortTermPriorities = (profile.strategicPriorities || []).filter(p => p.timeframe === 'Short-term (0-12 months)').map(p => p.priority).join('; ');
+          const mediumTermPriorities = (profile.strategicPriorities || []).filter(p => p.timeframe === 'Medium-term (1-3 years)').map(p => p.priority).join('; ');
+          const constraints = (profile.constraints || []).map(c => `${c.type}: ${c.description}`).join('; ');
+          const financial = profile.financial?.investmentCapacity || 'Unknown';
+          
+          return `**ORGANIZATION PROFILE - ROADMAP CONTEXT:**
+
+Organization: ${profile.organizationName} (${profile.industry})
+
+**Strategic Priorities by Timeframe:**
+- Short-term (0-12 months): ${shortTermPriorities || 'Not specified'}
+- Medium-term (1-3 years): ${mediumTermPriorities || 'Not specified'}
+
+**Constraints:** ${constraints || 'None specified'}
+**Investment Capacity:** ${financial}
+
+**Strategic themes:** ${strategicThemes}
+**Target architecture style:** ${techStyle} / ${integrationModel}
+**Data target:** ${dataMaturity}
+**Transformation principles:** ${transformPrinciples}
+**Key capabilities:** ${caps.slice(0, 5).map(c => c.name).join(', ') || 'technology modernization'}
+
+**CRITICAL:** Generate architecture principles that respect the SPECIFIC timeframes and constraints from the profile. Ensure principles are achievable within the investment capacity.
+
+Generate 6-10 architecture principles that support this organization's specific transformation. Include at least one AI/Automation principle (mandatory).`;
+        }
+        
+        // Quick Start fallback
         return `Company: ${companyDescription}
 Industry: ${industry}
 Strategic themes: ${strategicThemes}

@@ -11,9 +11,19 @@
   // Utility: Highlight a tab by name (e.g., 'exec', 'capmap')
   // Highlight a tab and persist highlight
   function highlightTab(tabName) {
-    const btn = document.querySelector(`.tab-btn[onclick*="showTab('${tabName}'"]`);
-    if (btn) {
-      btn.classList.add('tab-btn--highlight');
+    // Find all tab buttons and search for the one with matching showTab call
+    const allButtons = document.querySelectorAll('.tab-btn');
+    let found = false;
+    allButtons.forEach(btn => {
+      const onclickAttr = btn.getAttribute('onclick');
+      if (onclickAttr && onclickAttr.includes(`showTab('${tabName}'`)) {
+        btn.classList.add('tab-btn--highlight');
+        found = true;
+        console.log(`[highlightTab] Tab '${tabName}' highlighted successfully`);
+      }
+    });
+    if (!found) {
+      console.warn(`[highlightTab] Tab '${tabName}' not found`);
     }
   }
 
@@ -85,6 +95,7 @@
 <script src="../js/EA_NordicUI.js"></script>
 <script src="../AzureOpenAIProxy.js"></script>
 <script src="../js/Advicy_AI.js"></script>
+<script src="../js/EA_OrganizationProfileProcessor.js"></script>
 <script src="js/EA_IntegrationEngine.js"></script>
 <script src="js/SimulationEngine.js"></script>
 <script src="js/FinancialEngine.js"></script>
@@ -331,6 +342,138 @@
   <button onclick="graphCtxEditCapability()" style="display:flex;align-items:center;gap:8px;width:100%;padding:7px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:#334155;text-align:left;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">
     <i class="fas fa-pen-to-square" style="color:#64748b;width:14px;"></i> Edit Capability
   </button>
+</div>
+
+<!-- ORGANIZATION PROFILE EDIT MODAL -->
+<div id="orgProfileEditModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl p-6 w-[900px] max-h-[90vh] overflow-y-auto shadow-2xl">
+    <div class="flex items-start justify-between gap-4 mb-4">
+      <div>
+        <h3 class="font-bold text-lg mb-1">Edit Organization Profile</h3>
+        <p class="text-xs text-slate-500">Update organizational details. Changes will recalculate completeness and update all EA steps.</p>
+      </div>
+      <button onclick="closeOrgProfileEditModal()" class="text-slate-400 hover:text-slate-700 text-lg leading-none">&times;</button>
+    </div>
+
+    <div class="space-y-4">
+      <!-- Core Identity -->
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <div class="text-[10px] font-bold text-slate-500 uppercase mb-3">Core Identity</div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[10px] text-slate-600 font-semibold block mb-1">Organization Name *</label>
+            <input id="edit-org-name" type="text" class="w-full text-[11px] border rounded p-1.5" placeholder="ACME Corporation">
+          </div>
+          <div>
+            <label class="text-[10px] text-slate-600 font-semibold block mb-1">Industry *</label>
+            <input id="edit-industry" type="text" class="w-full text-[11px] border rounded p-1.5" placeholder="Healthcare, Financial Services, Retail...">
+          </div>
+          <div>
+            <label class="text-[10px] text-slate-600 font-semibold block mb-1">Number of Employees</label>
+            <input id="edit-employees" type="number" class="w-full text-[11px] border rounded p-1.5" placeholder="500">
+          </div>
+          <div>
+            <label class="text-[10px] text-slate-600 font-semibold block mb-1">Company Size Category</label>
+            <select id="edit-size-category" class="w-full text-[11px] border rounded p-1.5">
+              <option value="">Select...</option>
+              <option value="Startup">Startup (&lt;50)</option>
+              <option value="SME">SME (50-500)</option>
+              <option value="Mid-Market">Mid-Market (500-2500)</option>
+              <option value="Enterprise">Enterprise (2500+)</option>
+            </select>
+          </div>
+        </div>
+        <div class="mt-3">
+          <label class="text-[10px] text-slate-600 font-semibold block mb-1">Mission Statement</label>
+          <textarea id="edit-mission" rows="2" class="w-full text-[11px] border rounded p-1.5 resize-y" placeholder="Our mission is to..."></textarea>
+        </div>
+      </div>
+
+      <!-- Strategic Context -->
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <div class="text-[10px] font-bold text-slate-500 uppercase mb-3">Strategic Context</div>
+        <div>
+          <label class="text-[10px] text-slate-600 font-semibold block mb-1">Strategic Priorities (one per line, format: "Priority | Short-term/Medium-term/Long-term")</label>
+          <textarea id="edit-priorities" rows="5" class="w-full text-[11px] border rounded p-1.5 resize-y" placeholder="Migrate to cloud by 2027 | Short-term&#10;Launch AI features | Medium-term&#10;Expand to European markets | Long-term"></textarea>
+        </div>
+        <div class="mt-3">
+          <label class="text-[10px] text-slate-600 font-semibold block mb-1">Key Challenges (one per line)</label>
+          <textarea id="edit-challenges" rows="4" class="w-full text-[11px] border rounded p-1.5 resize-y" placeholder="Legacy systems limiting scalability&#10;GDPR compliance complexity&#10;Talent shortage in critical areas"></textarea>
+        </div>
+        <div class="mt-3 grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[10px] text-slate-600 font-semibold block mb-1">Opportunities (one per line)</label>
+            <textarea id="edit-opportunities" rows="3" class="w-full text-[11px] border rounded p-1.5 resize-y" placeholder="AI-powered automation&#10;Market expansion potential"></textarea>
+          </div>
+          <div>
+            <label class="text-[10px] text-slate-600 font-semibold block mb-1">Constraints (one per line)</label>
+            <textarea id="edit-constraints" rows="3" class="w-full text-[11px] border rounded p-1.5 resize-y" placeholder="Budget: €5M over 2 years&#10;Regulatory: GDPR, SOC2 compliance required"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Technology & Financial -->
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <div class="text-[10px] font-bold text-slate-500 uppercase mb-3">Technology & Financial Context</div>
+        <div class="grid grid-cols-3 gap-3 mb-3">
+          <div>
+            <label class="text-[10px] text-slate-600 font-semibold block mb-1">Cloud Adoption</label>
+            <select id="edit-cloud-adoption" class="w-full text-[11px] border rounded p-1.5">
+              <option value="">Select...</option>
+              <option value="None">None (On-premise only)</option>
+              <option value="Minimal">Minimal (&lt;20%)</option>
+              <option value="Partial">Partial (20-50%)</option>
+              <option value="Significant">Significant (50-80%)</option>
+              <option value="Cloud-First">Cloud-First (&gt;80%)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] text-slate-600 font-semibold block mb-1">AI Adoption</label>
+            <select id="edit-ai-adoption" class="w-full text-[11px] border rounded p-1.5">
+              <option value="">Select...</option>
+              <option value="None">None (No AI)</option>
+              <option value="Exploring">Exploring (Pilots)</option>
+              <option value="Limited">Limited (1-2 use cases)</option>
+              <option value="Growing">Growing (3-5 use cases)</option>
+              <option value="Mature">Mature (Integrated)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] text-slate-600 font-semibold block mb-1">Tech Debt Level</label>
+            <select id="edit-tech-debt" class="w-full text-[11px] border rounded p-1.5">
+              <option value="">Select...</option>
+              <option value="Low">Low (Modern stack)</option>
+              <option value="Moderate">Moderate (Some legacy)</option>
+              <option value="High">High (Significant legacy)</option>
+              <option value="Critical">Critical (Urgent modernization)</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="text-[10px] text-slate-600 font-semibold block mb-1">Annual Revenue</label>
+            <input id="edit-revenue" type="text" class="w-full text-[11px] border rounded p-1.5" placeholder="€50M">
+          </div>
+          <div>
+            <label class="text-[10px] text-slate-600 font-semibold block mb-1">Growth Rate</label>
+            <input id="edit-growth-rate" type="text" class="w-full text-[11px] border rounded p-1.5" placeholder="25% YoY">
+          </div>
+          <div>
+            <label class="text-[10px] text-slate-600 font-semibold block mb-1">Investment Capacity</label>
+            <input id="edit-investment-capacity" type="text" class="w-full text-[11px] border rounded p-1.5" placeholder="€5M / 2 years">
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-2">
+        <button onclick="saveOrgProfileEdits()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-sm px-4 py-2.5 rounded-lg font-bold">
+          <i class="fas fa-save mr-1.5"></i>Save Changes
+        </button>
+        <button onclick="closeOrgProfileEditModal()" class="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-bold text-sm">Cancel</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- EXCEL IMPORT/EXPORT MODAL -->
@@ -1325,6 +1468,96 @@
           <div id="exec-status" class="text-[10px] font-bold px-2 py-1 rounded bg-blue-100 text-blue-700 uppercase tracking-wider">AI Analysis Active</div>
         </div>
 
+        <!-- Organization Profile section (populated after Step 0 in Rich Profile mode) -->
+        <div id="org-profile-display-section" class="hidden mb-4">
+          <div class="intent-card">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Organization Profile – Step 0</div>
+                <span id="org-profile-completeness-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700"></span>
+              </div>
+              <div class="flex gap-1.5">
+                <button onclick="editOrganizationProfile()" class="text-[10px] text-slate-500 hover:text-slate-700 border border-slate-200 rounded-lg px-2 py-1 transition-colors" title="Edit organization profile">
+                  <i class="fas fa-pen mr-1"></i>Edit
+                </button>
+              </div>
+            </div>
+
+            <!-- Executive Summary Card -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-700 text-white rounded-lg px-4 py-3 mb-3">
+              <div class="text-[9px] font-bold uppercase tracking-wider mb-1.5 opacity-70">Executive Summary</div>
+              <div id="org-profile-one-line-pitch" class="text-[13px] font-bold mb-2 leading-snug"></div>
+              <div id="org-profile-three-key-facts" class="text-[10px] opacity-90 mb-2 space-y-1"></div>
+              <div id="org-profile-transformation-readiness" class="text-[10px] font-semibold mt-2 pt-2 border-t border-white/20"></div>
+            </div>
+
+            <!-- Core Identity & Strategic Context in 2-column grid -->
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <!-- Left Column: Core Identity -->
+              <div class="space-y-2">
+                <div>
+                  <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Company</div>
+                  <div id="org-profile-org-name" class="text-[11px] font-bold text-slate-900"></div>
+                </div>
+                <div>
+                  <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Industry & Size</div>
+                  <div id="org-profile-industry-size" class="text-[10px] text-slate-700"></div>
+                </div>
+                <div>
+                  <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Mission</div>
+                  <div id="org-profile-mission" class="text-[10px] text-slate-700 italic"></div>
+                </div>
+              </div>
+
+              <!-- Right Column: Strategic Context -->
+              <div class="space-y-2">
+                <div>
+                  <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Top Strategic Priorities</div>
+                  <ul id="org-profile-priorities" class="text-[10px] text-slate-700 space-y-0.5 list-disc list-inside"></ul>
+                </div>
+                <div>
+                  <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Key Challenges</div>
+                  <ul id="org-profile-challenges" class="text-[10px] text-slate-700 space-y-0.5 list-disc list-inside"></ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Expandable Details -->
+            <div class="mt-3 pt-3 border-t border-slate-200">
+              <button onclick="toggleOrgProfileDetails()" class="text-[10px] text-slate-500 hover:text-slate-700 transition-colors">
+                <i id="org-profile-details-icon" class="fas fa-chevron-down mr-1"></i>
+                <span id="org-profile-details-label">Show full profile</span>
+              </button>
+              <div id="org-profile-details" class="hidden mt-3 space-y-2">
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Technology Landscape</div>
+                    <div id="org-profile-tech" class="text-[10px] text-slate-700 space-y-0.5"></div>
+                  </div>
+                  <div>
+                    <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Financial Context</div>
+                    <div id="org-profile-financial" class="text-[10px] text-slate-700 space-y-0.5"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Opportunities</div>
+                  <ul id="org-profile-opportunities" class="text-[10px] text-slate-700 space-y-0.5 list-disc list-inside"></ul>
+                </div>
+                <div>
+                  <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Constraints</div>
+                  <ul id="org-profile-constraints" class="text-[10px] text-slate-700 space-y-0.5 list-disc list-inside"></ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Warnings (if any) -->
+            <div id="org-profile-warnings" class="hidden mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+              <div class="text-[9px] font-bold text-amber-700 uppercase tracking-wider mb-1"><i class="fas fa-exclamation-triangle mr-1"></i>Profile Warnings</div>
+              <ul id="org-profile-warnings-list" class="text-[10px] text-amber-800 space-y-0.5 list-disc list-inside"></ul>
+            </div>
+          </div>
+        </div>
+
         <!-- Strategic Intent section (populated after Step 1) -->
         <div id="intent-display-section" class="hidden mb-4">
           <!-- READ VIEW -->
@@ -1346,6 +1579,18 @@
             </div>
             <div id="intent-ambition" class="bg-slate-800 text-white rounded-lg px-3 py-2.5 text-[12px] leading-relaxed mb-3 italic font-medium"></div>
             <div id="intent-situation-narrative" class="hidden bg-slate-100 border border-slate-300 rounded-lg px-3 py-2 text-[11px] text-slate-900 leading-relaxed mb-3"></div>
+            
+            <!-- Business Objectives Section (from Business Object workflow) -->
+            <div id="business-objectives-section" class="hidden mb-3">
+              <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg px-3 py-2.5">
+                <div class="text-[9px] font-bold text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-1">
+                  <i class="fas fa-bullseye"></i>
+                  Business Objectives (Strategic Goals)
+                </div>
+                <div id="business-objectives-content" class="space-y-2 text-[10px] text-slate-800"></div>
+              </div>
+            </div>
+            
             <div id="intent-themes-row" class="mb-2">
               <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Strategic Themes</div>
               <div id="intent-themes" class="flex flex-wrap gap-1"></div>
@@ -4538,6 +4783,42 @@ function buildMasterDataPromptContext() {
   return lines.join('\n');
 }
 
+// Build Business Objectives context for AI prompts (Business Object workflow)
+function buildBusinessObjectivesContext() {
+  const businessObjectives = model.businessObjectives;
+  if (!businessObjectives) return '';
+  
+  const lines = ['=== BUSINESS OBJECTIVES (Strategic Goals) ==='];
+  
+  if (businessObjectives.primaryObjectives?.length > 0) {
+    lines.push('\nPrimary Objectives:');
+    businessObjectives.primaryObjectives.forEach((obj, i) => {
+      lines.push(`${i + 1}. ${obj}`);
+    });
+  }
+  
+  if (businessObjectives.keyChallenges?.length > 0) {
+    lines.push('\nKey Challenges:');
+    businessObjectives.keyChallenges.forEach((challenge, i) => {
+      lines.push(`${i + 1}. ${challenge}`);
+    });
+  }
+  
+  if (businessObjectives.strategicContext && Object.keys(businessObjectives.strategicContext).length > 0) {
+    lines.push('\nStrategic Context:');
+    Object.entries(businessObjectives.strategicContext).forEach(([key, value]) => {
+      const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      lines.push(`- ${label}: ${value}`);
+    });
+  }
+  
+  lines.push('');
+  lines.push('IMPORTANT: All generated artifacts (BMC, Capability Map, etc.) MUST align with these business objectives.');
+  lines.push('');
+  
+  return lines.join('\n');
+}
+
 async function callAI(sys, user, options = {}) {
   ensurePhase4Fields();
 
@@ -4556,6 +4837,7 @@ async function callAI(sys, user, options = {}) {
   
   const includeProjectContext = options.includeProjectContext !== false;
   const masterDataContext = includeProjectContext ? buildMasterDataPromptContext() : '';
+  const businessObjectivesContext = includeProjectContext ? buildBusinessObjectivesContext() : '';
 
   const replyLanguage = normalizeLanguageCode(options.replyLanguage || getAppLanguage());
   const expectsJson = /return\s+only\s+valid\s+json|json\s+only|return\s+json/i.test(String(sys || '') + '\n' + String(user || ''));
@@ -4566,12 +4848,16 @@ async function callAI(sys, user, options = {}) {
       : `\n\nResponse Language Policy:\n- Respond in ${replyLanguage}.`);
 
   // Responses API format: instructions (system) + input (user)
-  const instructions = includeProjectContext
-    ? `${sys}${languageInstruction}\n\nProject Context:\n${masterDataContext}`
+  // Include Business Objectives context when available (Business Object workflow)
+  const contextSections = [masterDataContext, businessObjectivesContext].filter(Boolean);
+  const fullContext = contextSections.length > 0 ? contextSections.join('\n\n') : '';
+  
+  const instructions = includeProjectContext && fullContext
+    ? `${sys}${languageInstruction}\n\nProject Context:\n${fullContext}`
     : `${sys}${languageInstruction}`;
 
-  const input = includeProjectContext
-    ? `${user}\n\nAnalysis Constraints:\n- Avoid generic advice\n- Use the provided master data and business context\n- Tailor output to the selected industry and business areas`
+  const input = includeProjectContext && fullContext
+    ? `${user}\n\nAnalysis Constraints:\n- Avoid generic advice\n- Use the provided master data and business context\n- Tailor output to the selected industry and business areas\n${businessObjectivesContext ? '- Align ALL outputs with the Business Objectives listed above' : ''}`
     : `${user}`;
 
   const timeoutMs = Number(options.timeoutMs || modelConfig.timeoutMs);
@@ -6353,8 +6639,110 @@ function openToolkitFromHeader(btn) {
 
 // Workflow Path Navigation
 function startArchitectWorkflow() {
-  // Open AI sidebar in Discovery mode instead of showing left panel
-  setAssistantMode('discovery', { step: 1, stepName: 'Beskriv din organisation' });
+  // Show workflow mode selection modal
+  showWorkflowModeSelection();
+}
+
+function showWorkflowModeSelection() {
+  // Create modal for workflow mode selection
+  const modal = document.createElement('div');
+  modal.id = 'workflow-mode-selection-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;box-shadow:0 25px 60px rgba(0,0,0,0.35);width:100%;max-width:680px;max-height:88vh;overflow:hidden;">
+      <div style="padding:24px 28px;background:linear-gradient(135deg,#1e3a5f 0%,#2c5282 100%);">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <i class="fas fa-route" style="font-size:24px;color:#fff;"></i>
+          <div>
+            <div style="font-size:18px;font-weight:700;color:#fff;">Choose Your Workflow Mode</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:2px;">Select the best approach for your EA engagement</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:28px;">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <!-- Autopilot Mode -->
+          <div onclick="startWorkflowMode('autopilot')" style="border:2px solid #e2e8f0;border-radius:12px;padding:18px;cursor:pointer;transition:all 200ms;" onmouseover="this.style.borderColor='#2c5282';this.style.background='#f8fafc'" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='transparent'">
+            <div style="display:flex;gap:16px;">
+              <div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#3b82f6 0%,#2563eb 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas fa-magic" style="font-size:22px;color:#fff;"></i>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:6px;">Autopilot Mode</div>
+                <div style="font-size:13px;color:#64748b;line-height:1.5;margin-bottom:8px;">AI generates complete EA model end-to-end with minimal input. Provide organizational summary (500+ words) and let AI handle all 7 steps automatically.</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <span style="font-size:10px;font-weight:600;color:#2563eb;background:#dbeafe;padding:4px 8px;border-radius:4px;">⚡ FASTEST</span>
+                  <span style="font-size:10px;font-weight:600;color:#059669;background:#d1fae5;padding:4px 8px;border-radius:4px;">✓ Rich Profile</span>
+                  <span style="font-size:10px;font-weight:600;color:#7c3aed;background:#ede9fe;padding:4px 8px;border-radius:4px;">55% Time Saved</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Standard Mode -->
+          <div onclick="startWorkflowMode('standard')" style="border:2px solid #e2e8f0;border-radius:12px;padding:18px;cursor:pointer;transition:all 200ms;" onmouseover="this.style.borderColor='#2c5282';this.style.background='#f8fafc'" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='transparent'">
+            <div style="display:flex;gap:16px;">
+              <div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#10b981 0%,#059669 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas fa-list-check" style="font-size:22px;color:#fff;"></i>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:6px;">Standard Mode</div>
+                <div style="font-size:13px;color:#64748b;line-height:1.5;margin-bottom:8px;">AI guides you step-by-step through 7-stage EA diagnostic. Answer questions for each step and review outputs interactively.</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <span style="font-size:10px;font-weight:600;color:#059669;background:#d1fae5;padding:4px 8px;border-radius:4px;">✓ RECOMMENDED</span>
+                  <span style="font-size:10px;font-weight:600;color:#dc2626;background:#fee2e2;padding:4px 8px;border-radius:4px;">Full Control</span>
+                  <span style="font-size:10px;font-weight:600;color:#7c3aed;background:#ede9fe;padding:4px 8px;border-radius:4px;">Quick Start</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Business Object Mode -->
+          <div onclick="startWorkflowMode('business-object')" style="border:2px solid #e2e8f0;border-radius:12px;padding:18px;cursor:pointer;transition:all 200ms;" onmouseover="this.style.borderColor='#2c5282';this.style.background='#f8fafc'" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='transparent'">
+            <div style="display:flex;gap:16px;">
+              <div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas fa-bullseye" style="font-size:22px;color:#fff;"></i>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:6px;">Business Objective Mode</div>
+                <div style="font-size:13px;color:#64748b;line-height:1.5;margin-bottom:8px;">AI helps define clear business objectives first, then maps to capabilities and EA insights. Best for strategy-driven transformations.</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <span style="font-size:10px;font-weight:600;color:#d97706;background:#fef3c7;padding:4px 8px;border-radius:4px;">🎯 STRATEGIC</span>
+                  <span style="font-size:10px;font-weight:600;color:#059669;background:#d1fae5;padding:4px 8px;border-radius:4px;">Outcome Focused</span>
+                  <span style="font-size:10px;font-weight:600;color:#7c3aed;background:#ede9fe;padding:4px 8px;border-radius:4px;">3-Question Flow</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:14px 28px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:flex-end;">
+        <button onclick="closeWorkflowModeSelection()" class="ea-btn ea-btn--ghost" style="font-size:13px;"><i class="fas fa-times mr-2"></i>Cancel</button>
+      </div>
+    </div>
+  `;
+  
+  // Close on backdrop click
+  modal.addEventListener('click', e => { if (e.target === modal) closeWorkflowModeSelection(); });
+  // Close on Escape
+  modal._escHandler = e => { if (e.key === 'Escape') closeWorkflowModeSelection(); };
+  document.addEventListener('keydown', modal._escHandler);
+  document.body.appendChild(modal);
+}
+
+function closeWorkflowModeSelection() {
+  const modal = document.getElementById('workflow-mode-selection-modal');
+  if (modal) {
+    document.removeEventListener('keydown', modal._escHandler);
+    modal.remove();
+  }
+}
+
+function startWorkflowMode(mode) {
+  closeWorkflowModeSelection();
+  
+  // Open AI sidebar in Discovery mode
+  setAssistantMode('discovery', { step: 1, stepName: 'Describe your organization', workflowMode: mode });
   
   // Open chat panel
   const panel = document.getElementById('ai-chat-panel');
@@ -6368,44 +6756,128 @@ function startArchitectWorkflow() {
   const chatMessages = document.getElementById('chat-messages');
   if (chatMessages) chatMessages.innerHTML = '';
   
-  // Add welcome message from AI
-  const welcomeMsg = `**V�lkommen till EA Strategic Diagnostic**
+  // Generate welcome message based on mode
+  let welcomeMsg = '';
+  
+  if (mode === 'autopilot') {
+    welcomeMsg = `**Welcome to EA Platform - Autopilot Mode**
 
-Jag �r din **Senior Enterprise Architect, Management Consultant och Data Strategy Advisor**.
+I'm your **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
 
-Min uppgift �r att guida dig genom en strukturerad **7-stegs diagnostikprocess** som leder till:
-� Tydlig Strategic Intent
-� EA Transformation Foundation
-� Data- och AI-driven m�larkitektur
+In **Autopilot Mode**, I'll generate your complete Enterprise Architecture model end-to-end with minimal input from you.
 
 ---
 
-## STEG 1: KONTEXT & OMFATTNING
+## STEP 0: ORGANIZATION PROFILE
 
-Låt oss börja med att definiera ramarna:
+Please provide a **detailed organizational summary** (500+ words recommended) covering:
 
-1. **Industry Profile** - Vilken typ av organisation/bransch �r detta?
-   (t.ex. Startup, Fintech, Banking, Healthcare, Public Sector, Retail, Insurance)
+✓ **Organization Overview**: Name, industry, size, mission
+✓ **Strategic Priorities**: Current goals and timeframes (2026-2028)
+✓ **Challenges**: Key problems you're facing today
+✓ **Technology Landscape**: Current systems, cloud/AI adoption, tech debt
+✓ **Financial Context**: Revenue, growth rate, investment capacity
+✓ **Market Position**: Competitors, differentiators, opportunities
 
-2. **Focus Area** - Vilket omr�de fokuserar vi p�?
-   (t.ex. General, ERP, ESG, GDPR, Finance, ITSM, Cybersecurity)
+**The more detail you provide, the better your EA model will be.**
 
-3. **Situation** - �r detta en problemsituation eller ett generellt f�rb�ttringsinitiativ?
+Once you submit your organizational summary, I'll automatically process it and generate:
+→ Strategic Intent
+→ Business Model Canvas
+→ Capability Map
+→ Operating Model
+→ Gap Analysis
+→ Value Pools
+→ Transformation Roadmap
 
-**OBS:** Jag kommer att anpassa ALL min kommunikation, alla frågor och analyser baserat på din bransch och fokusområde. Svara på första frågan!`;
+**Paste your organizational summary below to begin!**`;
+  } else if (mode === 'business-object') {
+    welcomeMsg = `**Welcome to EA Platform - Business Objective Mode**
+
+I'm your **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
+
+In **Business Objective Mode**, I'll help you define clear business objectives first, then map them to capabilities and EA insights.
+
+---
+
+## STEP 1: UNDERSTAND GOALS
+
+Let's start by understanding your strategic context. I'll ask you questions to define:
+
+→ **Business Objectives**: What outcomes you need to achieve
+→ **Strategic Context**: Industry, challenges, opportunities
+→ **Outcome Statements**: Clear, measurable goals
+
+**I'll ask one question at a time (maximum 3 questions).**
+
+---
+
+### Question 1 of 3
+
+**What type of organization are you?**
+
+(e.g., Startup, Fintech, Banking, Healthcare, Public Sector, Retail, Insurance, Manufacturing, etc.)
+
+*Note: I will adapt ALL my communication, questions, and analysis based on your industry and focus area.*`;
+  } else {
+    // Standard mode
+    welcomeMsg = `**Welcome to EA Platform - Standard Mode**
+
+I'm your **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
+
+I'll guide you through a structured **7-step EA diagnostic process** that leads to:
+
+→ Clear Strategic Intent
+→ EA Transformation Foundation
+→ Data & AI-driven Target Architecture
+
+---
+
+## STEP 1: CONTEXT & SCOPE
+
+Let's begin by defining the framework:
+
+1. **Industry Profile** - What type of organization/industry is this?
+   (e.g., Startup, Fintech, Banking, Healthcare, Public Sector, Retail, Insurance)
+
+2. **Focus Area** - What area are we focusing on?
+   (e.g., General, ERP, ESG, GDPR, Finance, ITSM, Cybersecurity)
+
+3. **Situation** - Is this a problem situation or a general improvement initiative?
+
+**NOTE:** I will adapt ALL my communication, questions, and analysis based on your industry and focus area.
+
+**Please answer the first question to begin!**`;
+  }
 
   addMessage(welcomeMsg, 'ai');
+  
+  // Store workflow mode in model
+  if (typeof model !== 'undefined') {
+    model.workflowMode = mode;
+  }
   
   // Focus on chat input
   setTimeout(() => {
     const input = document.getElementById('chat-input');
     if (input) {
       input.focus();
-      input.placeholder = 'Svara p� fr�gorna steg f�r steg...';
+      if (mode === 'autopilot') {
+        input.placeholder = 'Paste your detailed organizational summary here (500+ words)...';
+      } else if (mode === 'business-object') {
+        input.placeholder = 'Type your organization type (e.g., Healthcare, Fintech)...';
+      } else {
+        input.placeholder = 'Answer the questions step by step...';
+      }
     }
   }, 300);
   
-  toast('AI Discovery Mode aktiverad - beskriv din organisation i chatten');
+  const modeLabels = {
+    'autopilot': 'Autopilot Mode - Rich Profile Processing',
+    'business-object': 'Business Objective Mode - Strategic Goals First',
+    'standard': 'Standard Mode - Step-by-Step EA Diagnostic'
+  };
+  toast(`AI Discovery Mode activated - ${modeLabels[mode]}`);
 }
 
 function startWorkshopFlow() {
@@ -8877,7 +9349,7 @@ function getStepContextSummary(stepNum) {
 }
 
 function enterDiscoveryModeForStep(stepNum, stepName) {
-  setAssistantMode('discovery', { step: stepNum, stepName });
+  setAssistantMode('discovery', { step: stepNum, stepName, workflowMode: model.workflowMode || 'business-object' });
   
   // Open chat panel
   const panel = document.getElementById('ai-chat-panel');
@@ -8887,23 +9359,59 @@ function enterDiscoveryModeForStep(stepNum, stepName) {
     _updateSidebarToggleIcon(true);
   }
   
-  // Get context summary for this step
-  const contextSummary = getStepContextSummary(stepNum);
+  // Get Business Objectives context
+  const businessObjectives = model.businessObjectives ? 
+    JSON.stringify(model.businessObjectives.primaryObjectives || [], null, 2) : 
+    'No objectives defined yet';
   
-  const welcomeMsg = `**Discovery Mode: ${stepName}**
+  const welcomeMsg = `## 📋 Step ${stepNum}: ${stepName}
 
-${contextSummary}
+**Business Object Mode - 3 Questions Maximum**
 
-**Vad kan jag hj\u00e4lpa dig med?**
-\u2022 Diskutera och f\u00f6rfina resultatet
-\u2022 F\u00f6rklara varf\u00f6r n\u00e5got genererats
-\u2022 F\u00f6resl\u00e5 f\u00f6rb\u00e4ttringar
-\u2022 Identifiera luckor eller felaktigheter
-\u2022 N\u00e4r du vill g\u00f6ra \u00e4ndringar s\u00e4ger du till, s\u00e5 byter jag till Action Mode
+I'll help you create ${stepName} aligned with your business objectives:
 
-**Tips:** St\u00e4ll \u00f6ppna fr\u00e5gor som "Varf\u00f6r valde du dessa capabilities?" eller "Hur kan vi f\u00f6rb\u00e4ttra BMC f\u00f6r v\u00e5rt specifika m\u00e5l?"`;
+${businessObjectives}
+
+---`;
 
   addAssistantMessage(welcomeMsg, { mode: 'discovery', step: stepNum });
+  
+  // Auto-start the first question for this step
+  setTimeout(async () => {
+    showTypingIndicator();
+    
+    try {
+      const systemPrompt = getFirstQuestionPromptForStep(stepNum, stepName);
+      
+      const response = await AIService.call({
+        taskId: `step${stepNum}_question_1`,
+        taskType: 'general',
+        systemPrompt: systemPrompt,
+        userPrompt: `Generate the first question for ${stepName}.`,
+        expectsJson: true,
+        replyLanguage: 'en'
+      });
+      
+      hideTypingIndicator();
+      
+      const questionData = response.parsedOutput;
+      const questionMsg = `### Question 1 of 3
+
+${questionData.question}
+
+${questionData.options ? questionData.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n') : ''}
+
+💡 *${questionData.hint || `Your answer will help shape the ${stepName}.`}*`;
+
+      addAssistantMessage(questionMsg, { mode: 'discovery', step: stepNum });
+      scrollToBottom();
+      
+    } catch (error) {
+      hideTypingIndicator();
+      addAssistantMessage(`❌ Error generating question: ${error.message}\n\nPlease describe your thoughts to continue.`, { mode: 'discovery', step: stepNum, error: true });
+    }
+  }, 1000);
+  
   scrollToBottom();
   
   const input = document.getElementById('chat-input');
@@ -8914,6 +9422,7 @@ async function handleDiscoveryMessage(userMessage) {
   const modeInfo = getAssistantMode();
   const stepNum = modeInfo.context.step;
   const stepName = modeInfo.context.stepName;
+  const workflowMode = modeInfo.context.workflowMode || model.workflowMode || 'standard';
   
   // Build conversation history
   const recentMessages = (getActiveConversation()?.messages || [])
@@ -8921,14 +9430,213 @@ async function handleDiscoveryMessage(userMessage) {
     .map(m => `${m.role}: ${m.content}`)
     .join('\\n');
   
+  // Count how many questions have been asked so far (look for "Question X of Y" pattern)
+  const conversation = getActiveConversation();
+  const questionCount = (conversation?.messages || []).filter(m => {
+    if (m.role !== 'assistant') return false;
+    // Look for "Question 1 of 3", "Question 2 of 3", etc.
+    return /Question \d+ of \d+/.test(m.content);
+  }).length;
+  
   // SPECIAL HANDLING FOR STEP 1: Organization Description (Initial workflow start)
   if (stepNum === 1 && !model.strategicIntent?.strategic_ambition) {
     
-    // Check if this is the first message - recommend Guided Workflow
-    const conversation = getActiveConversation();
+    // BUSINESS OBJECT MODE: First extract data from Business Object description
+    // Trigger extraction if: (1) First message (questionCount 0-1) AND (2) Long comprehensive description (>200 chars)
+    // MUST CHECK THIS BEFORE ANY EARLY RETURNS!
+    if (workflowMode === 'business-object' && questionCount <= 1 && userMessage.length > 200) {
+      // User provided a Business Object description - analyze it first!
+      showTypingIndicator();
+      
+      addAssistantMessage(`🔍 **Analyzing Business Object Description...**
+
+I'll extract your strategic objectives, challenges, and context from your description.
+
+**Progress:**
+- ✅ Reading your description...
+- 🔄 Transform and structure...
+- ⏳ Extracting key information...
+- ⏳ Validating completeness...`, {
+        mode: 'discovery',
+        step: 1,
+        isTyping: false,
+        offersAction: false
+      });
+
+      try {
+        // Call AI extraction with lenient rules
+        const systemPrompt = `You are a Senior Enterprise Architect analyzing a Business Object description.
+
+**Your Task:**
+Extract structured information about business objectives, challenges, and strategic context.
+
+**Be LENIENT with completeness assessment:**
+- If the description is 500+ words with strategic detail, likely mark all sections complete
+- If you find at least 2-3 clear objectives/goals, mark completeness.objectives = TRUE
+- If you find at least 2-3 challenges or pain points, mark completeness.challenges = TRUE  
+- If you find context about industry/market/customers, mark completeness.context = TRUE
+
+**Return ONLY valid JSON:**
+{
+  "primaryObjectives": ["objective 1", "objective 2", ...],
+  "keyChallenges": ["challenge 1", "challenge 2", ...],
+  "strategicContext": "Brief summary of industry, market position, and strategic direction",
+  "completeness": {
+    "objectives": true/false,
+    "challenges": true/false,
+    "context": true/false
+  },
+  "missingData": ["What specific information is missing (if any)"]
+}`;
+
+        const userPrompt = `Analyze this organization description:
+
+${userMessage}`;
+
+        const extractionResult = await callAI(systemPrompt, userPrompt, { 
+          taskType: 'architecture'
+        });
+
+        hideTypingIndicator();
+
+        // Update progress message
+        const lastMsg = document.querySelector('#chat-messages .message:last-child .message-content');
+        if (lastMsg) {
+          lastMsg.innerHTML = `🔍 **Analyzing Business Object Description...**
+
+**Progress:**
+- ✅ Reading your description...
+- ✅ Transform and structure...
+- ✅ Extracting key information...
+- 🔄 Validating completeness...`;
+        }
+
+        // Parse extraction result
+        const extracted = typeof extractionResult === 'string' ? JSON.parse(extractionResult) : extractionResult;
+        const completeness = extracted.completeness || {};
+        const missing = extracted.missingData || [];
+
+        // LENIENT COMPLETENESS CHECK:
+        // Consider complete if: (1) All flags true OR (2) No missing data AND some data extracted
+        const allComplete = (completeness.objectives && completeness.challenges && completeness.context) ||
+                           (missing.length === 0 && (extracted.primaryObjectives?.length > 0 || extracted.keyChallenges?.length > 0));
+
+        // Update final progress
+        if (lastMsg) {
+          lastMsg.innerHTML = `🔍 **Analyzing Business Object Description...**
+
+**Progress:**
+- ✅ Reading your description...
+- ✅ Transform and structure...
+- ✅ Extracting key information...
+- ✅ Validating completeness...`;
+        }
+
+        if (allComplete) {
+          // COMPLETE - Generate Business Objectives summary
+          const summarySystemPrompt = `You are a Senior Enterprise Architect creating a Business Objectives statement.
+
+Format the output as:
+
+## Business Objectives
+
+[Strategic Context Summary]
+
+### Primary Objectives
+1. [Objective 1]
+2. [Objective 2]
+...
+
+### Key Challenges
+1. [Challenge 1]
+2. [Challenge 2]
+...
+
+### Strategic Context
+[Industry, market position, strategic direction]
+
+---
+
+**Would you like to proceed with this as your Business Objectives for Step 1?**`;
+
+          const summaryUserPrompt = `Create a comprehensive Business Objectives statement based on this extracted data:
+
+${JSON.stringify(extracted, null, 2)}`;
+
+          const summary = await callAI(summarySystemPrompt, summaryUserPrompt, { 
+            taskType: 'architecture'
+          });
+
+          // Show Business Objectives summary
+          addAssistantMessage(summary + `
+
+<button class="mode-action-btn mode-action-btn--primary" onclick="confirmStrategicIntentFromChat(\`${summary.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)">
+  <i class="fas fa-check"></i>
+  Yes, save & continue to Step 2
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="addUserMessage('I want to revise the objectives'); handleChatSubmit(event);">
+  <i class="fas fa-edit"></i>
+  Revise objectives
+</button>`, {
+            mode: 'discovery',
+            step: 1,
+            offersAction: true
+          });
+
+          return; // Exit after showing summary
+        } else {
+          // INCOMPLETE - Ask follow-up questions about missing data
+          const followUpSystemPrompt = `You are a Senior Enterprise Architect gathering business objectives.
+
+Generate ONE specific follow-up question to fill the most critical information gap. Keep it concise and actionable.`;
+
+          const followUpUserPrompt = `The user provided: "${userMessage}"
+
+Extracted data shows these gaps: ${JSON.stringify(missing)}
+
+What is the most important follow-up question?`;
+
+          const followUpQuestion = await callAI(followUpSystemPrompt, followUpUserPrompt, { 
+            taskType: 'discovery'
+          });
+
+          addAssistantMessage(`📋 **Almost there!** I extracted some information but need a bit more detail.
+
+${followUpQuestion}
+
+*(This helps me create complete Business Objectives for your EA model)*`, {
+            mode: 'discovery',
+            step: 1
+          });
+
+          return; // Exit after asking follow-up
+        }
+
+      } catch (error) {
+        console.error('Extraction failed:', error);
+        hideTypingIndicator();
+        
+        // FALLBACK: If extraction fails completely but we have comprehensive input, proceed anyway
+        if (userMessage.length > 500) {
+          addAssistantMessage(`⚠️ Extraction encountered an issue, but I see you provided comprehensive detail.
+
+Let me ask a quick clarifying question to ensure I understand your strategic objectives correctly.
+
+**Question 2 of 3:** What are your top 3 strategic priorities for the next 12-24 months?`, {
+            mode: 'discovery',
+            step: 1
+          });
+          return;
+        }
+        
+        // Otherwise fall through to standard questions
+      }
+    }
+    
+    // Check if this is the first message - recommend Guided Workflow (ONLY for non-Business-Object modes)
     const userMessages = (conversation?.messages || []).filter(m => m.role === 'user');
     
-    if (userMessages.length === 0 || userMessage.toLowerCase().includes('börja') || userMessage.toLowerCase().includes('starta')) {
+    if ((userMessages.length === 0 || userMessage.toLowerCase().includes('börja') || userMessage.toLowerCase().includes('starta')) && workflowMode !== 'business-object') {
       const recommendMsg = `## 👋 Welcome to Strategic Intent (Step 1)!
 
 **Choose how you want to create your Strategic Intent:**
@@ -8959,7 +9667,7 @@ Discuss freely with AI which asks follow-up questions. Suitable when you already
   <i class="fas fa-route"></i>
   Guided Workflow (Recommended)
 </button>
-<button class="mode-action-btn mode-action-btn--secondary" onclick="addUserMessage('Jag vill forts�tta med chat'); handleChatSubmit(event);">
+<button class="mode-action-btn mode-action-btn--secondary" onclick="addUserMessage('Jag vill fortsätta med chat'); handleChatSubmit(event);">
   <i class="fas fa-comments"></i>
   Fri Chat
 </button>`;
@@ -8968,69 +9676,555 @@ Discuss freely with AI which asks follow-up questions. Suitable when you already
       return;
     }
     
+    // BUSINESS OBJECT MODE extraction check was moved above - this comment marks the original location
+    if (workflowMode === 'business-object' && questionCount <= 1 && userMessage.length > 200) {
+      // User provided a Business Object description - analyze it first!
+      showTypingIndicator();
+      
+      addAssistantMessage(`🔍 **Analyzing Business Object Description...**
+
+📖 Reading... ✓
+🔄 Transform... ✓
+📊 Extracting... `, { mode: 'discovery', step: 1 });
+      
+      setTimeout(async () => {
+        try {
+          // Extract data from Business Object description
+          const extractionPrompt = `You are a Senior Enterprise Architect analyzing a Business Object description.
+
+**TASK**: Extract business objectives, challenges, and strategic context from the text below.
+
+**Business Object Description:**
+${userMessage}
+
+**Output Format (JSON):**
+{
+  "primaryObjectives": ["objective 1", "objective 2", "..."],
+  "keyChallenges": ["challenge 1", "challenge 2", "..."],
+  "strategicContext": {
+    "industry": "detected industry or 'Unknown'",
+    "organizationSize": "detected size or 'Unknown'",
+    "marketPosition": "detected position or 'Unknown'",
+    "transformationReadiness": "detected readiness or 'Unknown'"
+  },
+  "completeness": {
+    "objectives": true/false,
+    "challenges": true/false,
+    "context": true/false
+  },
+  "missingData": ["What specific information is missing or unclear"]
+}
+
+**Extraction Rules:**
+- Extract what you can find from the description
+- Mark completeness.objectives = TRUE if you found at least 2-3 objectives/goals
+- Mark completeness.challenges = TRUE if you found at least 2 challenges/problems
+- Mark completeness.context = TRUE if you can infer industry OR organization type
+- Only add items to missingData if critical strategic information is completely absent
+- If the description is comprehensive (500+ words with clear strategic detail), likely mark all sections complete
+- Be lenient: partial information is better than asking unnecessary questions`;
+
+          const extractResponse = await AIService.call({
+            taskId: 'extract_business_objectives',
+            taskType: 'general',
+            systemPrompt: extractionPrompt,
+            userPrompt: 'Analyze the Business Object description above.',
+            expectsJson: true,
+            replyLanguage: 'en'
+          });
+          
+          addAssistantMessage(`🔍 **Analyzing Business Object Description...**
+
+📖 Reading... ✓
+🔄 Transform... ✓
+📊 Extracting... ✓
+✅ Validating... `, { mode: 'discovery', step: 1 });
+          
+          setTimeout(async () => {
+            const extracted = extractResponse.data || {};
+            const completeness = extracted.completeness || {};
+            const missing = extracted.missingData || [];
+            
+            // FIX: If no specific missing data identified, treat as complete
+            // even if completeness flags are false (AI was overly cautious)
+            const allComplete = (completeness.objectives && completeness.challenges && completeness.context) || 
+                                 (missing.length === 0 && (extracted.primaryObjectives?.length > 0 || extracted.keyChallenges?.length > 0));
+            
+            if (allComplete) {
+              // All data available - generate directly!
+              hideTypingIndicator();
+              addAssistantMessage(`🔍 **Analysis Complete!** ✅
+
+All necessary information extracted from your Business Object description:
+- ✓ Primary Objectives: ${extracted.primaryObjectives?.length || 0} identified
+- ✓ Key Challenges: ${extracted.keyChallenges?.length || 0} identified  
+- ✓ Strategic Context: Complete
+
+No additional questions needed! Generating Business Objectives summary...`, { mode: 'discovery', step: 1 });
+              
+              setTimeout(async () => {
+                showTypingIndicator();
+                // Generate final output
+                const synthesisPrompt = `Based on the extracted data below, create a comprehensive Business Objectives summary.
+
+**Extracted Data:**
+${JSON.stringify(extracted, null, 2)}
+
+**Required Output Format:**
+
+## Business Objectives Summary
+
+### Primary Objectives (2026-2028)
+${extracted.primaryObjectives?.map(o => `- ${o}`).join('\n') || '- [Generate from context]'}
+
+### Key Challenges
+${extracted.keyChallenges?.map(c => `- ${c}`).join('\n') || '- [Generate from context]'}
+
+### Strategic Context
+- **Industry**: ${extracted.strategicContext?.industry || '[Infer from context]'}
+- **Organization Size**: ${extracted.strategicContext?.organizationSize || '[Infer from context]'}
+- **Market Position**: ${extracted.strategicContext?.marketPosition || '[Infer from context]'}
+- **Transformation Readiness**: ${extracted.strategicContext?.transformationReadiness || '[Infer from context]'}
+
+##BUSINESS_OBJECTIVES_READY##`;
+
+                const finalResponse = await AIService.call({
+                  taskId: 'synthesize_business_objectives',
+                  taskType: 'general',
+                  systemPrompt: synthesisPrompt,
+                  userPrompt: 'Generate the Business Objectives summary.',
+                  expectsJson: false,
+                  replyLanguage: 'en'
+                });
+                
+                hideTypingIndicator();
+                const outputText = finalResponse.rawOutput.replace('##BUSINESS_OBJECTIVES_READY##', '').trim();
+                
+                const confirmMsg = `${outputText}
+
+---
+
+## ✓ Business Objectives Ready!
+
+Do you want to save this and proceed?
+
+<button class="mode-action-btn mode-action-btn--action" onclick="confirmStrategicIntentFromChat(\`${outputText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+  <i class="fas fa-check-circle"></i>
+  Yes, save & continue
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-edit"></i>
+  No, adjust first
+</button>`;
+                
+                addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1, offersAction: true });
+              }, 1000);
+              
+            } else {
+              // Some data missing - check if we should ask questions
+              hideTypingIndicator();
+              const missing = extracted.missingData || [];
+              
+              // CRITICAL CHECK: If no specific missing data identified (missing.length === 0),
+              // treat extraction as complete and synthesize directly (AI was overly cautious)
+              if (missing.length === 0 || (extracted.primaryObjectives?.length > 0 && extracted.keyChallenges?.length > 0 && extracted.strategicContext?.industry)) {
+                addAssistantMessage(`🔍 **Analysis Complete!** ✅
+
+Extracted sufficient information from your Business Object description:
+${completeness.objectives ? '- ✓ Primary Objectives' : '- ⚠️ Objectives (partial)'}
+${completeness.challenges ? '- ✓ Key Challenges' : '- ⚠️ Challenges (partial)'}
+${completeness.context ? '- ✓ Strategic Context' : '- ⚠️ Context (inferred)'}
+
+No additional questions needed! Generating Business Objectives summary...`, { mode: 'discovery', step: 1 });
+                
+                // Redirect to complete path
+                setTimeout(async () => {
+                  showTypingIndicator();
+                  // Generate final output
+                  const synthesisPrompt = `Based on the extracted data below, create a comprehensive Business Objectives summary.
+
+**Extracted Data:**
+${JSON.stringify(extracted, null, 2)}
+
+**Required Output Format:**
+
+## Business Objectives Summary
+
+### Primary Objectives (2026-2028)
+${extracted.primaryObjectives?.map(o => `- ${o}`).join('\n') || '- [Generate from context]'}
+
+### Key Challenges
+${extracted.keyChallenges?.map(c => `- ${c}`).join('\n') || '- [Generate from context]'}
+
+### Strategic Context
+- **Industry**: ${extracted.strategicContext?.industry || '[Infer from context]'}
+- **Organization Size**: ${extracted.strategicContext?.organizationSize || '[Infer from context]'}
+- **Market Position**: ${extracted.strategicContext?.marketPosition || '[Infer from context]'}
+- **Transformation Readiness**: ${extracted.strategicContext?.transformationReadiness || '[Infer from context]'}
+
+##BUSINESS_OBJECTIVES_READY##`;
+
+                  const finalResponse = await AIService.call({
+                    taskId: 'synthesize_business_objectives',
+                    taskType: 'general',
+                    systemPrompt: synthesisPrompt,
+                    userPrompt: 'Generate the Business Objectives summary.',
+                    expectsJson: false,
+                    replyLanguage: 'en'
+                  });
+                  
+                  hideTypingIndicator();
+                  const outputText = finalResponse.rawOutput.replace('##BUSINESS_OBJECTIVES_READY##', '').trim();
+                  
+                  const confirmMsg = `${outputText}
+
+---
+
+## ✓ Business Objectives Ready!
+
+Do you want to save this and proceed?
+
+<button class="mode-action-btn mode-action-btn--action" onclick="confirmStrategicIntentFromChat(\`${outputText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+  <i class="fas fa-check-circle"></i>
+  Yes, save & continue
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-edit"></i>
+  No, adjust first
+</button>`;
+                  
+                  addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1, offersAction: true });
+                }, 1000);
+                
+              } else {
+                // Missing data identified - ask targeted questions
+                addAssistantMessage(`🔍 **Analysis Complete!** ⚠️
+
+Extracted from your Business Object description:
+${completeness.objectives ? '- ✓ Primary Objectives' : '- ⚠️ Objectives need clarification'}
+${completeness.challenges ? '- ✓ Key Challenges' : '- ⚠️ Challenges need clarification'}
+${completeness.context ? '- ✓ Strategic Context' : '- ⚠️ Context needs clarification'}
+
+I need to ask ${missing.length <= 3 ? missing.length : 3} clarifying questions to complete the analysis.`, { mode: 'discovery', step: 1 });
+                
+                // Store extracted data in conversation context
+                if (!window._businessObjectExtracted) window._businessObjectExtracted = {};
+                window._businessObjectExtracted = extracted;
+                
+                // Now proceed with targeted questions - actually ask the first question!
+                setTimeout(async () => {
+                  scrollToBottom();
+                  showTypingIndicator();
+                  
+                  // Build targeted question prompt based on what's missing
+                  const targetedPrompt = `You are a Senior Enterprise Architect. Based on the following extracted data and missing information, ask ONE targeted question to fill in the gaps.
+
+**Extracted Data:**
+${JSON.stringify(extracted, null, 2)}
+
+**Missing/Unclear Information:**
+${missing.join(', ')}
+
+**IMPORTANT:** This is Question 1 of 3. Ask ONLY about the most critical missing information.
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question about the missing information",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this matters (1 sentence)",
+  "questionNumber": 1
+}
+
+Now ask the first targeted question in JSON format.`;
+
+                  try {
+                    const questionResponse = await AIService.call({
+                      taskId: 'business_object_targeted_question',
+                      taskType: 'general',
+                      systemPrompt: targetedPrompt,
+                      userPrompt: 'Generate the first targeted question.',
+                      expectsJson: true,
+                      replyLanguage: 'en'
+                    });
+                    
+                    hideTypingIndicator();
+                    
+                    // Display the question
+                    const questionData = questionResponse.parsedOutput;
+                    const questionMsg = `### Question 1 of 3
+
+${questionData.question}
+
+${questionData.options ? questionData.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n') : ''}
+
+💡 *${questionData.hint || 'Your answer will help complete the Business Objectives analysis.'}*`;
+
+                    addAssistantMessage(questionMsg, { mode: 'discovery', step: 1 });
+                    scrollToBottom();
+                    
+                  } catch (error) {
+                    hideTypingIndicator();
+                    addAssistantMessage(`❌ Error generating targeted question: ${error.message}\n\nPlease tell me more about the missing areas mentioned above.`, { mode: 'discovery', error: true });
+                  }
+                }, 500);
+              }
+            }
+          }, 1500);
+          
+        } catch (error) {
+          hideTypingIndicator();
+          addAssistantMessage(`❌ Error analyzing Business Object description: ${error.message}\n\nLet me ask you questions instead.`, { mode: 'discovery', error: true });
+        }
+      }, 1000);
+      
+      return;
+    }
+    
     showTypingIndicator();
     
-    // Simplified ONE-question-at-a-time system prompt
-    const systemPrompt = `You are a Senior Enterprise Architect guiding Strategic Intent creation.
+    // CONTEXT-AWARE SYSTEM PROMPT BASED ON WORKFLOW MODE
+    let systemPrompt = '';
+    let maxQuestions = 5;
+    
+    if (workflowMode === 'business-object') {
+      // BUSINESS OBJECT MODE: Focus on strategic objectives with 3-question limit
+      maxQuestions = 3;
+      
+      // Check if we have extracted data to reference
+      const extractedData = window._businessObjectExtracted || null;
+      const extractedContext = extractedData ? `
 
-**CRITICAL: Ask ONLY ONE question at a time with 4-5 specific options.**
+**EXTRACTED DATA FROM BUSINESS OBJECT DESCRIPTION:**
+- Primary Objectives: ${JSON.stringify(extractedData.primaryObjectives || [])}
+- Key Challenges: ${JSON.stringify(extractedData.keyChallenges || [])}
+- Strategic Context: ${JSON.stringify(extractedData.strategicContext || {})}
+- Missing/Unclear: ${JSON.stringify(extractedData.missingData || [])}
+
+**CRITICAL: Only ask questions about information that is MISSING or UNCLEAR from the extracted data above. Do NOT ask about information that is already available.**` : '';
+      
+      // Enforce hard stop after 3 questions
+      if (questionCount >= maxQuestions) {
+        hideTypingIndicator();
+        addAssistantMessage(`**You've answered all 3 questions!**
+
+I now have enough information to define your Business Objectives. Let me synthesize this into a structured summary...`, { mode: 'discovery', step: 1 });
+        
+        // Force synthesis
+        setTimeout(async () => {
+          showTypingIndicator();
+          try {
+            // Define synthesis system prompt with full context
+            const synthesisSystemPrompt = `You are a Senior Enterprise Architect and Strategy Consultant.
+
+**TASK:** Based on the conversation history below, synthesize a comprehensive Business Objectives summary.
+
+**Required Output Format:**
+
+## Business Objectives Summary
+
+### Primary Objectives (2026-2028)
+- [Objective 1 from conversation]
+- [Objective 2 from conversation]
+- [Objective 3 from conversation]
+- [Additional objectives as needed]
+
+### Key Challenges
+- [Challenge 1 from conversation]
+- [Challenge 2 from conversation]
+- [Challenge 3 from conversation]
+- [Additional challenges as needed]
+
+### Strategic Context
+- **Industry**: [from conversation]
+- **Organization Size**: [from conversation or infer]
+- **Market Position**: [from conversation or infer]
+- **Transformation Readiness**: [from conversation]
+
+##BUSINESS_OBJECTIVES_READY##
+
+**Conversation History:**
+${recentMessages}`;
+
+            const synthesisPrompt = `Synthesize the Business Objectives from the conversation above. Respond in English.`;
+            const response = await AIService.call({
+              taskId: 'business_objectives_synthesis',
+              taskType: 'general',
+              systemPrompt: synthesisSystemPrompt,
+              userPrompt: synthesisPrompt,
+              expectsJson: false,
+              replyLanguage: 'en'
+            });
+            
+            hideTypingIndicator();
+            const outputText = response.rawOutput.replace('##BUSINESS_OBJECTIVES_READY##', '').trim();
+            
+            const confirmMsg = `${outputText}
+
+---
+
+## ✓ Business Objectives Ready!
+
+Do you want to save this and proceed?
+
+<button class="mode-action-btn mode-action-btn--action" onclick="confirmStrategicIntentFromChat(\`${outputText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+  <i class="fas fa-check-circle"></i>
+  Yes, save & continue
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-edit"></i>
+  No, adjust first
+</button>`;
+            
+            addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1, offersAction: true });
+          } catch (error) {
+            hideTypingIndicator();
+            addAssistantMessage(`Error synthesizing objectives: ${error.message}`, { mode: 'discovery', error: true });
+          }
+        }, 1000);
+        
+        return;
+      }
+      
+      systemPrompt = `You are a Senior Enterprise Architect and Strategy Consultant specializing in Business Objectives and EA alignment.
+
+**IMPORTANT: You have already asked ${questionCount} questions. This will be question ${questionCount + 1} of 3.**
+${extractedContext}
+
+**TASK:** Ask me questions until you have enough information to define clear Business Objectives, Strategic Context, and Key Challenges for the organization. Ask me one question at a time but limit the total number of questions to a maximum of 3 questions. Focus on strategic outcomes: business objectives, challenges, and organizational context.
+
+**CRITICAL INSTRUCTION**: Each question must be DIFFERENT and build on previous answers. Ask about:
+- Question 1: Primary business objectives (revenue, customer experience, efficiency, innovation)
+- Question 2: Key challenges preventing objective achievement  
+- Question 3: Strategic context (industry, size, market position, transformation readiness)
+
+Do NOT repeat the same question. Progress through Questions 1 → 2 → 3 sequentially.
+
+**Your Current Question Number: ${questionCount + 1}**
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question (MUST BE DIFFERENT from previous questions)",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this matters (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After 3 questions, synthesize this output:**
+
+## Business Objectives Summary
+
+### Primary Objectives (2026-2028)
+[List 3-5 objectives based on answers]
+
+### Key Challenges
+[List 3-5 challenges based on answers]
+
+### Strategic Context
+- **Industry**: [from answers]
+- **Organization Size**: [from answers]
+- **Market Position**: [from answers]
+- **Transformation Readiness**: [from answers]
+
+##BUSINESS_OBJECTIVES_READY##
+
+Context so far:
+${recentMessages}
+
+${questionCount === 0 ? 'Now you can ask me the first question.' : `You have already asked question ${questionCount}. Now ask question ${questionCount + 1} which must be DIFFERENT and focus on a NEW topic.`}
+Respond in English.`;
+      
+    } else if (workflowMode === 'autopilot') {
+      // AUTOPILOT MODE: This shouldn't use chat - redirect to organization profile input
+      hideTypingIndicator();
+      addAssistantMessage(`**Autopilot Mode** processes your organizational summary automatically.
+
+Please paste your **detailed organizational summary** (500+ words) covering:
+- Organization overview
+- Strategic priorities
+- Challenges & opportunities
+- Technology landscape
+- Financial context
+- Market position
+
+Once submitted, I'll process it automatically and generate your complete EA model.`, { mode: 'discovery', step: 1 });
+      return;
+      
+    } else {
+      // STANDARD MODE: 5 questions, detailed EA context
+      maxQuestions = 5;
+      systemPrompt = `You are a Senior Enterprise Architect guiding Strategic Intent creation.
+
+**WORKFLOW MODE: Standard Mode**
+
+**CRITICAL RULES:**
+1. Ask ONLY ONE question at a time with 4-5 specific options
+2. MAXIMUM ${maxQuestions} questions total (currently asked: ${questionCount})
 
 **Progression:**
-Q1 ? Industry/sector + organization type
-Q2 ? Main business pain/trigger right now
-Q3 ? Scale (revenue range, employees, geographic presence)
-Q4 ? Strategic ambition in next 12-24 months
-Q5 ? Key constraints (budget, timeline, regulatory)
-Q6 ? Success metrics (what will you measure?)
-Q7 ? Decision-makers and their priorities
+Q1 → Industry/sector + organization type
+Q2 → Main business pain/trigger right now
+Q3 → Scale (revenue range, employees, geographic presence)
+Q4 → Strategic ambition in next 12-24 months
+Q5 → Key constraints (budget, timeline, regulatory) + success metrics
 
 **Return format (JSON):**
 {
   "question": "Your focused question",
   "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
-  "hint": "Brief context why this matters (1 sentence)"
+  "hint": "Brief context why this matters (1 sentence)",
+  "questionNumber": ${questionCount + 1}
 }
 
-After Q7, synthesize Strategic Intent and mark with ##STRATEGIC_INTENT_READY##
+**After Q${maxQuestions}, synthesize Strategic Intent and mark with ##STRATEGIC_INTENT_READY##**
 
 Context so far:
 ${recentMessages}
 
 Respond in English.`;
+    }
     
     const userPrompt = userMessage;
     
     try {
+      // Determine completion marker based on workflow mode
+      const completionMarker = workflowMode === 'business-object' 
+        ? '##BUSINESS_OBJECTIVES_READY##' 
+        : '##STRATEGIC_INTENT_READY##';
+      
       const response = await AIService.call({
         taskId: 'discovery_step1_chat',
         taskType: 'general',
         systemPrompt,
         userPrompt,
-        expectsJson: !recentMessages.includes('##STRATEGIC_INTENT_READY##'),
-        replyLanguage: userMessage.match(/[������]/) ? 'sv' : 'en'
+        expectsJson: !recentMessages.includes(completionMarker),
+        replyLanguage: userMessage.match(/[åäöÅÄÖ]/) ? 'sv' : 'en'
       });
       
       hideTypingIndicator();
       
-      // Check if Strategic Intent is ready
-      if (response.rawOutput.includes('##STRATEGIC_INTENT_READY##')) {
-        const intentText = response.rawOutput.replace('##STRATEGIC_INTENT_READY##', '').trim();
+      // Check if ready (Strategic Intent or Business Objectives)
+      if (response.rawOutput.includes(completionMarker)) {
+        const intentText = response.rawOutput.replace(completionMarker, '').trim();
+        
+        const readyLabel = workflowMode === 'business-object' 
+          ? 'Business Objectives Ready!' 
+          : 'Strategic Intent Ready!';
         
         const confirmMsg = `${intentText}
 
 ---
 
-## ? Strategic Intent klar!
+## ✓ ${readyLabel}
 
-Vill du spara detta och g� vidare?
+Do you want to save this and proceed?
 
 <button class="mode-action-btn mode-action-btn--action" onclick="confirmStrategicIntentFromChat(\`${intentText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
   <i class="fas fa-check-circle"></i>
-  Ja, spara & forts�tt
+  Yes, save & continue
 </button>
 <button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
   <i class="fas fa-edit"></i>
-  Nej, justera f�rst
+  No, adjust first
 </button>`;
         
         addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1, offersAction: true });
@@ -9038,9 +10232,15 @@ Vill du spara detta och g� vidare?
         // Parse question JSON and format
         try {
           const q = JSON.parse(response.rawOutput.trim());
-          let msg = `## ${q.question}\n\n`;
+          
+          // Add question counter display
+          const questionProgress = workflowMode === 'business-object' 
+            ? `**Question ${q.questionNumber || questionCount + 1} of ${maxQuestions}**\n\n` 
+            : '';
+          
+          let msg = questionProgress + `## ${q.question}\n\n`;
           if (q.hint) msg += `*${q.hint}*\n\n`;
-          msg += `**Välj ett alternativ eller beskriv med egna ord:**\n`;
+          msg += `**Choose an option or describe in your own words:**\n`;
           q.options.forEach((opt, i) => msg += `${i + 1}. ${opt}\n`);
           addAssistantMessage(msg, { mode: 'discovery', step: 1 });
         } catch (parseErr) {
@@ -9052,13 +10252,390 @@ Vill du spara detta och g� vidare?
       
     } catch (error) {
       hideTypingIndicator();
-      addAssistantMessage(`? Ett fel uppstod: ${error.message}\n\nTips: Anv�nd **Guided Workflow** f�r b�sta resultat.`, { mode: 'discovery', error: true });
+      addAssistantMessage(`❌ An error occurred: ${error.message}\n\nTip: Use **Guided Workflow** for best results.`, { mode: 'discovery', error: true });
     }
     
     return; // Exit early for Step 1 special handling
   }
   
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BUSINESS OBJECT MODE: Steps 2-7 with 3-question limit
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (workflowMode === 'business-object' && stepNum >= 2) {
+    
+    // Enforce hard stop after 3 questions
+    if (questionCount >= 3) {
+      showTypingIndicator();
+      addAssistantMessage(`**You've answered all 3 questions for ${stepName}!**
+
+I now have enough information to generate this step. Let me create the content...`, { mode: 'discovery', step: stepNum });
+      
+      // Force synthesis
+      setTimeout(async () => {
+        try {
+          const synthesisPrompt = `Synthesize ${stepName} content based on the conversation and mark with the appropriate completion marker.`;
+          const completionMarker = getCompletionMarkerForStep(stepNum);
+          
+          const response = await AIService.call({
+            taskId: `step${stepNum}_synthesis`,
+            taskType: 'general',
+            systemPrompt: getSystemPromptForStep(stepNum, questionCount, model),
+            userPrompt: synthesisPrompt,
+            expectsJson: false,
+            replyLanguage: 'en'
+          });
+          
+          hideTypingIndicator();
+          const outputText = response.rawOutput.replace(completionMarker, '').trim();
+          
+          const confirmMsg = `${outputText}
+
+---
+
+## ✓ ${stepName} Ready!
+
+Do you want to save this and proceed?
+
+<button class="mode-action-btn mode-action-btn--action" onclick="confirmStepOutputFromChat(${stepNum}, \`${outputText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+  <i class="fas fa-check-circle"></i>
+  Yes, save & continue
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-edit"></i>
+  No, adjust first
+</button>`;
+          
+          addAssistantMessage(confirmMsg, { mode: 'discovery', step: stepNum, offersAction: true });
+        } catch (error) {
+          hideTypingIndicator();
+          addAssistantMessage(`Error generating ${stepName}: ${error.message}`, { mode: 'discovery', error: true });
+        }
+      }, 1000);
+      
+      return;
+    }
+    
+    // Check if user wants to skip/proceed without answering
+    const wantsToSkip = /skip|go forward|proceed|continue|next|move on|^go$/i.test(userMessage.trim());
+    
+    if (wantsToSkip) {
+      // User wants to proceed without answering - generate output with available context
+      showTypingIndicator();
+      
+      const skipMsg = `**Proceeding without additional questions...**
+      
+I'll generate the ${stepName} content based on the information we have so far.`;
+      
+      addAssistantMessage(skipMsg, { mode: 'discovery', step: stepNum });
+      
+      // Trigger step generation (simplified - in real implementation would call StepEngine)
+      setTimeout(() => {
+        hideTypingIndicator();
+        const tabName = getTabNameForStep(stepNum);
+        const completeMsg = `**${stepName} Generated!**
+
+Based on your Business Objectives from Step 1, I've generated the ${stepName} content.
+
+**Next Steps:**
+- Review the generated content in the ${stepName} tab
+- Make adjustments if needed
+- Proceed to the next step when ready
+
+<button class="mode-action-btn mode-action-btn--action" onclick="showTab('${tabName}'); setAssistantMode('general', {});">
+  <i class="fas fa-eye"></i>
+  View ${stepName}
+</button>`;
+        
+        addAssistantMessage(completeMsg, { mode: 'discovery', step: stepNum, offersAction: true });
+      }, 1500);
+      
+      return;
+    }
+    
+    // Business Object Mode question flow for Steps 2-7
+    showTypingIndicator();
+    
+    // Get previous step context
+    const step1Context = model.strategicIntent ? JSON.stringify(model.strategicIntent, null, 2) : 'Not available';
+    const businessObjectives = model.businessObjectives ? JSON.stringify(model.businessObjectives, null, 2) : step1Context;
+    
+    // Step-specific system prompts with 3-question limits
+    let systemPrompt = '';
+    let completionMarker = '';
+    
+    if (stepNum === 2) {
+      // Step 2: Business Model Canvas
+      completionMarker = '##BMC_READY##';
+      systemPrompt = `You are a Senior Enterprise Architect and Business Model expert.
+
+**IMPORTANT: You have already asked ${questionCount} questions. This will be question ${questionCount + 1} of 3.**
+
+**Context from Step 1 (Business Objectives):**
+${businessObjectives}
+
+**TASK:** Ask me questions until you have enough information to create a Business Model Canvas aligned with the business objectives above. Ask me one question at a time but limit the total number of questions to a maximum of 3 questions. Focus on: value propositions, customer segments, channels, key activities, resources, and partners.
+
+**Your Current Question Number: ${questionCount + 1}**
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question linking BMC to business objectives",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this matters for business model transformation (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After 3 questions, synthesize Business Model Canvas and mark with ${completionMarker}**
+
+**IMPORTANT:** User can type "go forward" or "skip" to proceed without answering more questions.
+
+${questionCount === 0 ? 'Now you can ask me the first question.' : 'Now ask the next question based on the conversation above.'}
+Respond in English.`;
+      
+    } else if (stepNum === 3) {
+      // Step 3: Capability Map
+      completionMarker = '##CAPABILITIES_READY##';
+      const step2Context = model.bmc ? JSON.stringify(model.bmc, null, 2) : 'Not available';
+      
+      systemPrompt = `You are a Senior Enterprise Architect specializing in capability mapping and APQC framework.
+
+**IMPORTANT: You have already asked ${questionCount} questions. This will be question ${questionCount + 1} of 3.**
+
+**Context from Steps 1-2:**
+Business Objectives: ${businessObjectives}
+Business Model: ${step2Context}
+
+**TASK:** Ask me questions until you have enough information to create a Capability Map using APQC framework aligned with the business objectives and business model above. Ask me one question at a time but limit the total number of questions to a maximum of 3 questions. Focus on: core capabilities needed, current maturity levels, and investment priorities.
+
+**Your Current Question Number: ${questionCount + 1}**
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question on capability-to-objective mapping (MUST BE DIFFERENT from previous questions)",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "How this shapes capability prioritization (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After 3 questions, synthesize Capability Map and mark with ${completionMarker}**
+
+**IMPORTANT:** User can type "go forward" or "skip" to proceed without answering.
+
+${questionCount === 0 ? 'Now you can ask me the first question.' : `You have already asked question ${questionCount}. Now ask question ${questionCount + 1} which must be DIFFERENT and focus on a NEW topic.`}
+Respond in English.`;
+      
+    } else if (stepNum === 4) {
+      // Step 4: Operating Model
+      completionMarker = '##OPERATING_MODEL_READY##';
+      const step3Context = model.capabilities ? `${model.capabilities.length} capabilities mapped` : 'Not available';
+      
+      systemPrompt = `You are a Senior Enterprise Architect specializing in operating models and organizational design.
+
+**IMPORTANT: You have already asked ${questionCount} questions. This will be question ${questionCount + 1} of 3.**
+
+**Context from Steps 1-3:**
+Business Objectives: ${businessObjectives}
+Capabilities: ${step3Context}
+
+**TASK:** Ask me questions until you have enough information to define an Operating Model that organizes and governs the capabilities. Ask me one question at a time but limit the total number of questions to a maximum of 3 questions. Focus on: organizational structure, governance model, and key processes/technology enablers.
+
+**CRITICAL INSTRUCTION**: Each question must be DIFFERENT and build on previous answers. Ask about:
+- Question 1: How to organize capabilities (centralized vs decentralized)
+- Question 2: Governance model (decision rights, accountability, funding)
+- Question 3: Key processes and technology enablers
+
+Do NOT repeat the same question. Progress through Questions 1 → 2 → 3 sequentially.
+
+**Your Current Question Number: ${questionCount + 1}**
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question on operating model design (MUST BE DIFFERENT from previous questions)",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this matters for execution (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After 3 questions, synthesize Operating Model and mark with ${completionMarker}**
+
+**IMPORTANT:** User can type "go forward" or "skip" to proceed.
+
+${questionCount === 0 ? 'Now you can ask me the first question.' : `You have already asked question ${questionCount}. Now ask question ${questionCount + 1} which must be DIFFERENT and focus on a NEW topic.`}
+Respond in English.`;
+      
+    } else if (stepNum === 5) {
+      // Step 5: Gap Analysis
+      completionMarker = '##GAP_ANALYSIS_READY##';
+      
+      systemPrompt = `You are a Senior Enterprise Architect specializing in gap analysis and maturity assessment.
+
+**IMPORTANT: You have already asked ${questionCount} questions. This will be question ${questionCount + 1} of 3.**
+
+**Context from Steps 1-4:**
+Business Objectives: ${businessObjectives}
+
+**TASK:** Ask me questions until you have enough information to create a Gap Analysis identifying critical gaps between current and target state. Ask me one question at a time but limit the total number of questions to a maximum of 3 questions. Focus on: capability gaps, risk assessment, and closure feasibility.
+
+**CRITICAL INSTRUCTION**: Each question must be DIFFERENT. Ask about:
+- Question 1: Critical gaps between current and target capabilities
+- Question 2: Highest risk gaps to objective achievement
+- Question 3: Feasibility of closing gaps (quick wins vs long-term)
+
+Do NOT repeat the same question. Progress through Questions 1 → 2 → 3 sequentially.
+
+**Your Current Question Number: ${questionCount + 1}**
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question on gap prioritization (MUST BE DIFFERENT from previous questions)",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this gap analysis matters (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After 3 questions, synthesize Gap Analysis and mark with ${completionMarker}**
+
+${questionCount === 0 ? 'Now you can ask me the first question.' : `You have already asked question ${questionCount}. Now ask question ${questionCount + 1} which must be DIFFERENT.`}
+Respond in English.`;
+      
+    } else if (stepNum === 6) {
+      // Step 6: Value Pools
+      completionMarker = '##VALUE_POOLS_READY##';
+      
+      systemPrompt = `You are a Senior Enterprise Architect and Value Management expert.
+
+**IMPORTANT: You have already asked ${questionCount} questions. This will be question ${questionCount + 1} of 3.**
+
+**Context from Steps 1-5:**
+Business Objectives: ${businessObjectives}
+
+**TASK:** Ask me questions until you have enough information to identify and prioritize Value Pools aligned with the business objectives. Ask me one question at a time but limit the total number of questions to a maximum of 3 questions. Focus on: value opportunities, effort/investment required, and prioritization.
+
+**CRITICAL INSTRUCTION**: Each question must be DIFFERENT. Ask about:
+- Question 1: Highest value opportunities (revenue, cost reduction, risk mitigation, CX)
+- Question 2: Effort and investment required for each value pool
+- Question 3: Sequencing and prioritization (dependencies, quick wins)
+
+Do NOT repeat the same question. Progress through Questions 1 → 2 → 3 sequentially.
+
+**Your Current Question Number: ${questionCount + 1}**
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question on value prioritization (MUST BE DIFFERENT from previous questions)",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this value pool matters (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After 3 questions, synthesize Value Pools and mark with ${completionMarker}**
+
+${questionCount === 0 ? 'Now you can ask me the first question.' : `You have already asked question ${questionCount}. Now ask question ${questionCount + 1} which must be DIFFERENT.`}
+Respond in English.`;
+      
+    } else if (stepNum === 7) {
+      // Step 7: Roadmap
+      completionMarker = '##ROADMAP_READY##';
+      
+      systemPrompt = `You are a Senior Enterprise Architect and Transformation Planning expert.
+
+**IMPORTANT: You have already asked ${questionCount} questions. This will be question ${questionCount + 1} of 3.**
+
+**Context from Steps 1-6:**
+Business Objectives: ${businessObjectives}
+
+**TASK:** Ask me questions until you have enough information to create a Transformation Roadmap with waves, milestones, and dependencies. Ask me one question at a time but limit the total number of questions to a maximum of 3 questions. Focus on: transformation waves, key milestones, and critical dependencies/risks.
+
+**CRITICAL INSTRUCTION**: Each question must be DIFFERENT. Ask about:
+- Question 1: Transformation waves (0-6m quick wins, 6-18m foundations, 18-36m strategic)
+- Question 2: Key milestones and success criteria for each wave
+- Question 3: Critical dependencies and risks in the roadmap
+
+Do NOT repeat the same question. Progress through Questions 1 → 2 → 3 sequentially.
+
+**Your Current Question Number: ${questionCount + 1}**
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question on roadmap planning (MUST BE DIFFERENT from previous questions)",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this roadmap element matters (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After 3 questions, synthesize Transformation Roadmap and mark with ${completionMarker}**
+
+${questionCount === 0 ? 'Now you can ask me the first question.' : `You have already asked question ${questionCount}. Now ask question ${questionCount + 1} which must be DIFFERENT.`}
+Respond in English.`;
+    }
+    
+    const userPrompt = userMessage;
+    
+    try {
+      const response = await AIService.call({
+        taskId: `discovery_step${stepNum}_chat`,
+        taskType: 'general',
+        systemPrompt,
+        userPrompt,
+        expectsJson: !recentMessages.includes(completionMarker),
+        replyLanguage: userMessage.match(/[åäöÅÄÖ]/) ? 'sv' : 'en'
+      });
+      
+      hideTypingIndicator();
+      
+      // Check if step output is ready
+      if (response.rawOutput.includes(completionMarker)) {
+        const outputText = response.rawOutput.replace(completionMarker, '').trim();
+        
+        const confirmMsg = `${outputText}
+
+---
+
+## ✓ ${stepName} Ready!
+
+Do you want to save this and proceed?
+
+<button class="mode-action-btn mode-action-btn--action" onclick="confirmStepOutputFromChat(${stepNum}, \`${outputText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+  <i class="fas fa-check-circle"></i>
+  Yes, save & continue
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-edit"></i>
+  No, adjust first
+</button>`;
+        
+        addAssistantMessage(confirmMsg, { mode: 'discovery', step: stepNum, offersAction: true });
+      } else {
+        // Parse question JSON and format
+        try {
+          const q = JSON.parse(response.rawOutput.trim());
+          
+          // Add question counter display
+          const questionProgress = `**Question ${q.questionNumber || questionCount + 1} of 3**\n\n`;
+          
+          let msg = questionProgress + `## ${q.question}\n\n`;
+          if (q.hint) msg += `*${q.hint}*\n\n`;
+          msg += `**Choose an option, describe in your own words, or type "go forward" to skip:**\n`;
+          q.options.forEach((opt, i) => msg += `${i + 1}. ${opt}\n`);
+          addAssistantMessage(msg, { mode: 'discovery', step: stepNum });
+        } catch (parseErr) {
+          addAssistantMessage(response.rawOutput, { mode: 'discovery', step: stepNum });
+        }
+      }
+      
+      scrollToBottom();
+      
+    } catch (error) {
+      hideTypingIndicator();
+      addAssistantMessage(`❌ An error occurred: ${error.message}`, { mode: 'discovery', error: true });
+    }
+    
+    return; // Exit early for Business Object Mode Steps 2-7
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
   // STANDARD DISCOVERY MODE (for steps with existing results)
+  // ═══════════════════════════════════════════════════════════════════════════
   // Build step-specific context using existing _buildStepContext
   const stepContext = _buildStepContext(stepNum);
   
@@ -9127,7 +10704,7 @@ ${userMessage}`;
     
   } catch (error) {
     hideTypingIndicator();
-    addAssistantMessage(`\u274c Ett fel uppstod: ${error.message}`, { mode: 'discovery', error: true });
+    addAssistantMessage(`❌ An error occurred: ${error.message}`, { mode: 'discovery', error: true });
   }
   
   scrollToBottom();
@@ -9138,15 +10715,15 @@ function switchToActionMode(proposedChange) {
   setAssistantMode('action', { ...currentContext, proposedChange });
   
   const msg = proposedChange 
-    ? `**Action Mode aktiverat \u26a1**\\n\\nJag f\u00f6rbereder att applicera: "${proposedChange}"\\n\\nBekr\u00e4fta eller justera \u00e4ndringen, s\u00e5 uppdaterar jag EA-modellen.`
-    : `**Action Mode aktiverat \u26a1**\\n\\nBeskriv vilken \u00e4ndring du vill g\u00f6ra i EA-modellen, s\u00e5 applicerar jag den direkt.`;
+    ? `**Action Mode activated ⚡**\n\nI'm preparing to apply: "${proposedChange}"\n\nConfirm or adjust the change, and I'll update the EA model.`
+    : `**Action Mode activated ⚡**\n\nDescribe what change you want to make to the EA model, and I'll apply it directly.`;
   
   addAssistantMessage(msg, { mode: 'action' });
   scrollToBottom();
 }
 
 function continueDiscovery() {
-  addAssistantMessage('Bra! L\u00e5t oss forts\u00e4tta diskussionen. Vad vill du utforska mer?', { mode: 'discovery' });
+  addAssistantMessage('Great! Let\'s continue the discussion. What would you like to explore more?', { mode: 'discovery' });
   scrollToBottom();
 }
 
@@ -9161,13 +10738,13 @@ function saveOrgDescriptionAndProceed(description) {
   setAssistantMode('general', {});
   
   // Show confirmation message
-  addAssistantMessage(`**Organisationsbeskrivning sparad!**
+  addAssistantMessage(`**Organization Description Saved!**
 
-Beskrivningen \u00e4r nu sparad och vi kan g\u00e5 vidare.
+The description has been saved and we can proceed.
 
-## N�sta steg: Starta arbetsfl�det
+## Next Step: Start Workflow
 
-Jag har nu analyserat er organisation. Klicka p� **"Start Workflow"** i v�nstra panelen f�r att forts�tta.`, 
+I have now analyzed your organization. Click on **"Start Workflow"** in the left panel to continue.`, 
     { mode: 'general' });
   
   scrollToBottom();
@@ -9181,7 +10758,7 @@ Jag har nu analyserat er organisation. Klicka p� **"Start Workflow"** i v�ns
     }
   }, 500);
   
-  toast('Organisationsbeskrivning sparad! G� vidare till Step 2');
+  toast('Organization description saved! Proceed to Step 2');
 }
 
 // Start Guided Workflow from Discovery Mode
@@ -9210,41 +10787,697 @@ function startGuidedWorkflow() {
 
 // Confirm Strategic Intent from chat and save to model
 function confirmStrategicIntentFromChat(intentText) {
-  // Parse the intent text to extract structured data
-  const lines = intentText.split('\n').filter(l => l.trim());
-  const bullets = lines.filter(l => /^[-�*]/.test(l.trim())).map(l => l.replace(/^[-�*]\s*/, ''));
-  const paragraph = lines.filter(l => !/^[-�*#]/.test(l.trim())).join(' ').slice(0, 500);
+  // Parse the Business Objectives output - handle structured format with headers
+  const lines = intentText.split('\n').map(l => l.trim()).filter(l => l);
   
-  // Save to model
+  // Extract sections based on headers
+  const primaryObjectives = [];
+  const keyChallenges = [];
+  const strategicContext = {};
+  let currentSection = null;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Detect sections
+    if (line.match(/Primary Objectives|Business Objectives/i)) {
+      currentSection = 'objectives';
+      continue;
+    } else if (line.match(/Key Challenges|Challenges/i)) {
+      currentSection = 'challenges';
+      continue;
+    } else if (line.match(/Strategic Context|Context/i)) {
+      currentSection = 'context';
+      continue;
+    }
+    
+    // Extract bullet points, numbered lists, or list items
+    // Handle: "-", "•", "*", "1.", "2.", etc.
+    const listMatch = line.match(/^(?:[-•*]|\d+\.)\s*(.+)/);
+    if (listMatch && currentSection === 'objectives') {
+      primaryObjectives.push(listMatch[1]);
+    } else if (listMatch && currentSection === 'challenges') {
+      keyChallenges.push(listMatch[1]);
+    } else if (listMatch && currentSection === 'context') {
+      const contextItem = listMatch[1];
+      // Parse context items like "Industry: Financial Services"
+      if (contextItem.includes(':')) {
+        const [key, value] = contextItem.split(':').map(s => s.trim());
+        strategicContext[key.toLowerCase().replace(/\s+/g, '_')] = value;
+      }
+    } else if (line.match(/^\*\*(.+?)\*\*:?\s*(.+)/) && currentSection === 'context') {
+      // Parse markdown bold format like "**Industry**: Financial Services"
+      const match = line.match(/^\*\*(.+?)\*\*:?\s*(.+)/);
+      strategicContext[match[1].toLowerCase().replace(/\s+/g, '_')] = match[2];
+    }
+  }
+  
+  // Fallback: if sections not detected, extract any list items
+  if (primaryObjectives.length === 0) {
+    const listItems = lines.filter(l => /^(?:[-•*]|\d+\.)/.test(l)).map(l => l.replace(/^(?:[-•*]|\d+\.)\s*/, ''));
+    primaryObjectives.push(...listItems.slice(0, 5));
+  }
+  
+  // Build strategic ambition summary
+  const ambition = primaryObjectives.length > 0 
+    ? `Achieve ${primaryObjectives.slice(0, 3).join(', ')} through strategic transformation.`
+    : 'Strategic transformation focused on business objectives and operational excellence.';
+  
+  // Save to model as both strategicIntent (legacy) and businessObjectives (new)
+  model.businessObjectives = {
+    primaryObjectives: primaryObjectives.slice(0, 5),
+    keyChallenges: keyChallenges.slice(0, 5),
+    strategicContext: strategicContext,
+    createdAt: new Date().toISOString()
+  };
+  
   model.strategicIntent = {
-    strategic_ambition: paragraph,
-    strategic_themes: bullets.slice(0, 4),
-    success_metrics: bullets.slice(4, 7) || ['Revenue growth', 'Customer satisfaction'],
-    strategic_constraints: ['Budget constraints', 'Timeline: 12-24 months']
+    strategic_ambition: ambition,
+    strategic_themes: primaryObjectives.slice(0, 4),
+    success_metrics: keyChallenges.slice(0, 3) || ['Revenue growth', 'Customer satisfaction'],
+    strategic_constraints: [strategicContext.industry || 'Industry context', strategicContext.market_position || 'Market position']
   };
   model.strategicIntentConfirmed = true;
   
   // Save to database
   saveModelToDB(false, true);
   
+  console.log('[Business Object] Strategic Intent saved:', model.strategicIntent);
+  console.log('[Business Object] Business Objectives saved:', model.businessObjectives);
+  
   // Render Strategic Intent in Executive tab
   renderStrategicIntentSection();
   
-  // Show success message
-  addAssistantMessage(`? **Strategic Intent sparad!**
+  console.log('[Business Object] Strategic Intent section rendered');
+  
+  // Update tab lock states to unlock and highlight Executive tab
+  if (typeof updateTabLockStates === 'function') {
+    updateTabLockStates();
+    console.log('[Business Object] Tab lock states updated');
+  }
+  
+  // Highlight Executive tab to indicate content is available
+  highlightTab('exec');
+  
+  console.log('[Business Object] Executive tab highlight requested');
+  
+  // Show success message (English)
+  addAssistantMessage(`✅ **Business Objectives Saved!**
 
-Ni kan nu forts�tta till n�sta steg i arbetfl�det.
+You can now proceed to the next step in the workflow.
 
 <button class="mode-action-btn mode-action-btn--action" onclick="startBMCGeneration();">
   <i class="fas fa-arrow-right"></i>
-  Forts�tt till Step 2: Business Model Canvas
+  Continue to Step 2: Business Model Canvas
 </button>`, { mode: 'general' });
   
   // Exit Discovery mode
   setAssistantMode('general', {});
   
-  toast('Strategic Intent sparad! ?');
+  toast('Business Objectives saved! ✅');
   scrollToBottom();
+}
+
+// Map workflow step numbers to actual tab names
+function getTabNameForStep(stepNum) {
+  const tabMapping = {
+    1: 'exec',         // Strategic Intent/Business Objectives → Executive Summary tab
+    2: 'bmc',          // Business Model Canvas → BMC tab
+    3: 'capmap',       // Capability Map → Capability Map tab
+    4: 'opmodel',      // Operating Model → Operating Model tab
+    5: 'gap',          // Gap Analysis → Gap Analysis tab
+    6: 'valuepools',   // Value Pools → Value Pools tab
+    7: 'roadmapvis'    // Roadmap → Roadmap Visualization tab
+  };
+  return tabMapping[stepNum] || 'exec';
+}
+
+// Helper function to get completion marker for each step
+function getCompletionMarkerForStep(stepNum) {
+  const markers = {
+    1: '##BUSINESS_OBJECTIVES_READY##',
+    2: '##BMC_READY##',
+    3: '##CAPABILITIES_READY##',
+    4: '##OPERATING_MODEL_READY##',
+    5: '##GAP_ANALYSIS_READY##',
+    6: '##VALUE_POOLS_READY##',
+    7: '##ROADMAP_READY##'
+  };
+  return markers[stepNum] || '##READY##';
+}
+
+// Helper function to get system prompt for each step (synthesis mode with conversation history)
+function getSystemPromptForStep(stepNum, questionCount, model) {
+  const step1Context = model.strategicIntent ? JSON.stringify(model.strategicIntent, null, 2) : 'Not available';
+  const businessObjectives = model.businessObjectives ? JSON.stringify(model.businessObjectives, null, 2) : step1Context;
+  
+  // Get recent conversation messages
+  const conversation = getActiveConversation();
+  const recentMessages = (conversation?.messages || [])
+    .slice(-8)
+    .map(m => `${m.role}: ${m.content}`)
+    .join('\n');
+  
+  const prompts = {
+    2: `You are a Senior Enterprise Architect and Business Model expert.
+
+**TASK:** Synthesize a Business Model Canvas based on the conversation history below and the business objectives.
+
+**Business Objectives Context:**
+${businessObjectives}
+
+**Conversation History:**
+${recentMessages}
+
+**Required Output Format:**
+
+## Business Model Canvas
+
+### Value Propositions
+- [Value proposition 1]
+- [Value proposition 2]
+
+### Customer Segments
+- [Segment 1]
+- [Segment 2]
+
+### Channels
+- [Channel 1]
+- [Channel 2]
+
+### Key Activities
+- [Activity 1]
+- [Activity 2]
+
+### Key Resources
+- [Resource 1]
+- [Resource 2]
+
+### Key Partners
+- [Partner 1]
+- [Partner 2]
+
+### Cost Structure
+- [Cost 1]
+- [Cost 2]
+
+### Revenue Streams
+- [Revenue 1]
+- [Revenue 2]
+
+##BMC_READY##
+
+Synthesize the BMC from the conversation above. Respond in English.`,
+    3: `You are a Senior Enterprise Architect specializing in capability mapping and APQC framework.
+
+**TASK:** Synthesize a Capability Map based on the conversation history below and the business objectives.
+
+**Business Objectives Context:**
+${businessObjectives}
+
+**Conversation History:**
+${recentMessages}
+
+**Required Output Format:**
+
+## Capability Map
+
+### Core Capabilities
+- [Capability 1 with maturity level]
+- [Capability 2 with maturity level]
+
+### Investment Priorities
+- [Priority 1]
+- [Priority 2]
+
+##CAPABILITIES_READY##
+
+Synthesize the capability map from the conversation above. Respond in English.`,
+    4: `You are a Senior Enterprise Architect specializing in operating models.
+
+**TASK:** Synthesize an Operating Model based on the conversation history below and the business objectives.
+
+**Business Objectives Context:**
+${businessObjectives}
+
+**Conversation History:**
+${recentMessages}
+
+**Required Output Format:**
+
+## Operating Model
+
+### Organization Structure
+- [Structure element 1]
+- [Structure element 2]
+
+### Governance Model
+- [Governance element 1]
+- [Governance element 2]
+
+### Key Processes
+- [Process 1]
+- [Process 2]
+
+##OPERATING_MODEL_READY##
+
+Synthesize the operating model from the conversation above. Respond in English.`,
+    5: `You are a Senior Enterprise Architect specializing in gap analysis.
+
+**TASK:** Synthesize a Gap Analysis based on the conversation history below and the business objectives.
+
+**Business Objectives Context:**
+${businessObjectives}
+
+**Conversation History:**
+${recentMessages}
+
+**Required Output Format:**
+
+## Gap Analysis
+
+### Critical Gaps
+- [Gap 1 with impact assessment]
+- [Gap 2 with impact assessment]
+
+### Risk Assessment
+- [Risk 1]
+- [Risk 2]
+
+### Closure Feasibility
+- [Quick win 1]
+- [Strategic investment 1]
+
+##GAP_ANALYSIS_READY##
+
+Synthesize the gap analysis from the conversation above. Respond in English.`,
+    6: `You are a Senior Enterprise Architect and Value Management expert.
+
+**TASK:** Synthesize Value Pools based on the conversation history below and the business objectives.
+
+**Business Objectives Context:**
+${businessObjectives}
+
+**Conversation History:**
+${recentMessages}
+
+**Required Output Format:**
+
+## Value Pools
+
+### High-Value Opportunities
+- [Opportunity 1 with value estimate]
+- [Opportunity 2 with value estimate]
+
+### Effort/Investment Required
+- [Investment 1]
+- [Investment 2]
+
+### Prioritization
+- [Priority 1]
+- [Priority 2]
+
+##VALUE_POOLS_READY##
+
+Synthesize the value pools from the conversation above. Respond in English.`,
+    7: `You are a Senior Enterprise Architect and Transformation Planning expert.
+
+**TASK:** Synthesize a Transformation Roadmap based on the conversation history below and the business objectives.
+
+**Business Objectives Context:**
+${businessObjectives}
+
+**Conversation History:**
+${recentMessages}
+
+**Required Output Format:**
+
+## Transformation Roadmap
+
+### Wave 1 (0-6 months)
+- [Initiative 1]
+- [Initiative 2]
+
+### Wave 2 (6-18 months)
+- [Initiative 3]
+- [Initiative 4]
+
+### Wave 3 (18-36 months)
+- [Initiative 5]
+- [Initiative 6]
+
+### Key Milestones
+- [Milestone 1]
+- [Milestone 2]
+
+### Critical Dependencies
+- [Dependency 1]
+- [Dependency 2]
+
+##ROADMAP_READY##
+
+Synthesize the transformation roadmap from the conversation above. Respond in English.`
+  };
+  
+  return prompts[stepNum] || 'Synthesize output based on conversation.';
+}
+
+// Confirm Step Output from Business Object Mode chat and save to model
+function confirmStepOutputFromChat(stepNum, outputText) {
+  console.log(`[EA Pipeline] Saving Step ${stepNum} output...`);
+  
+  // Parse the output text (simplified - in production would parse JSON or structured data)
+  const lines = outputText.split('\n').filter(l => l.trim());
+  
+  // Save to model based on step number
+  // UNIFIED EA PIPELINE: All workflow modes produce same data structure
+  if (stepNum === 2) {
+    // Business Model Canvas - Standard structure for ALL workflow modes
+    model.bmc = {
+      value_propositions: extractBullets(outputText, 'Value Propositions'),
+      customer_segments: extractBullets(outputText, 'Customer Segments'),
+      customer_relationships: extractBullets(outputText, 'Relationships'),
+      channels: extractBullets(outputText, 'Channels'),
+      key_activities: extractBullets(outputText, 'Key Activities'),
+      key_resources: extractBullets(outputText, 'Key Resources'),
+      key_partners: extractBullets(outputText, 'Partners'),
+      cost_structure: extractBullets(outputText, 'Cost Structure'),
+      revenue_streams: extractBullets(outputText, 'Revenue Streams'),
+      // Add context tracking for Business Object workflow
+      source: model.workflowMode || 'standard',
+      alignedToObjectives: model.businessObjectives ? true : false,
+      createdAt: new Date().toISOString()
+    };
+    model.bmcConfirmed = true;
+    console.log('[EA Pipeline] BMC saved:', model.bmc);
+    
+  } else if (stepNum === 3) {
+    // Capability Map - Standard structure for ALL workflow modes
+    const extractedCaps = extractBullets(outputText, 'Capabilities') || [];
+    
+    // Convert to full capability objects if not already
+    if (!model.capabilities) model.capabilities = [];
+    
+    extractedCaps.forEach((capName, idx) => {
+      // Check if capability already exists
+      const existing = model.capabilities.find(c => c.name === capName);
+      if (!existing) {
+        model.capabilities.push({
+          id: `cap_${Date.now()}_${idx}`,
+          name: capName,
+          domain: 'Business',  // Default, can be refined
+          maturity: 2,         // Default maturity
+          verified: false,
+          source: model.workflowMode || 'standard',
+          alignedToObjectives: model.businessObjectives ? true : false
+        });
+      }
+    });
+    
+    model.capabilitiesConfirmed = true;
+    console.log('[EA Pipeline] Capabilities saved:', model.capabilities.length);
+    
+  } else if (stepNum === 4) {
+    // Operating Model - Standard structure for ALL workflow modes
+    model.operatingModel = {
+      structure: extractBullets(outputText, 'Structure'),
+      governance: extractBullets(outputText, 'Governance'),
+      processes: extractBullets(outputText, 'Processes'),
+      // Metadata
+      source: model.workflowMode || 'standard',
+      alignedToObjectives: model.businessObjectives ? true : false,
+      createdAt: new Date().toISOString()
+    };
+    model.operatingModelConfirmed = true;
+    console.log('[EA Pipeline] Operating Model saved:', model.operatingModel);
+    
+  } else if (stepNum === 5) {
+    // Gap Analysis - Standard structure for ALL workflow modes
+    model.gapAnalysis = {
+      gaps: extractBullets(outputText, 'Gaps'),
+      priorities: extractBullets(outputText, 'Priorities'),
+      // Metadata
+      source: model.workflowMode || 'standard',
+      alignedToObjectives: model.businessObjectives ? true : false,
+      createdAt: new Date().toISOString()
+    };
+    model.gapAnalysisConfirmed = true;
+    console.log('[EA Pipeline] Gap Analysis saved:', model.gapAnalysis);
+    
+  } else if (stepNum === 6) {
+    // Value Pools - Standard structure for ALL workflow modes
+    model.valuePools = extractBullets(outputText, 'Value Pools') || [];
+    model.valuePoolsConfirmed = true;
+    console.log('[EA Pipeline] Value Pools saved:', model.valuePools.length);
+    
+  } else if (stepNum === 7) {
+    // Roadmap - Standard structure for ALL workflow modes
+    model.roadmap = {
+      waves: extractBullets(outputText, 'Waves'),
+      milestones: extractBullets(outputText, 'Milestones'),
+      // Metadata
+      source: model.workflowMode || 'standard',
+      alignedToObjectives: model.businessObjectives ? true : false,
+      createdAt: new Date().toISOString()
+    };
+    model.roadmapConfirmed = true;
+    console.log('[EA Pipeline] Roadmap saved:', model.roadmap);
+  }
+  
+  // Save to database
+  saveModelToDB(false, true);
+  
+  console.log(`[EA Pipeline] Step ${stepNum} saved to database`);
+  
+  // Update tab lock states to unlock tabs based on new content
+  if (typeof updateTabLockStates === 'function') {
+    updateTabLockStates();
+    console.log('[EA Pipeline] Tab lock states updated');
+  }
+  
+  // Render in appropriate tab and highlight it
+  // UNIFIED EA PIPELINE: Same rendering logic for all workflow modes
+  if (stepNum === 2) {
+    // Render Business Model Canvas
+    if (typeof renderBMCCanvas === 'function') renderBMCCanvas();
+    if (typeof renderBMCPanel === 'function') renderBMCPanel();
+    const tabName = getTabNameForStep(2);
+    highlightTab(tabName);
+    console.log(`[EA Pipeline] BMC rendered and tab '${tabName}' highlighted`);
+  }
+  if (stepNum === 3) {
+    // Render Capability Map
+    if (typeof renderCapMap === 'function') renderCapMap();
+    if (typeof renderHeatmap === 'function') renderHeatmap();
+    const tabName = getTabNameForStep(3);
+    highlightTab(tabName);
+    console.log(`[EA Pipeline] Capabilities rendered and tab '${tabName}' highlighted`);
+  }
+  if (stepNum === 4) {
+    // Render Operating Model (check if function exists)
+    if (typeof renderOperatingModel === 'function') renderOperatingModel();
+    const tabName = getTabNameForStep(4);
+    highlightTab(tabName);
+    console.log(`[EA Pipeline] Operating Model rendered and tab '${tabName}' highlighted`);
+  }
+  if (stepNum === 5) {
+    // Render Gap Analysis (check if function exists)
+    if (typeof renderGapAnalysis === 'function') renderGapAnalysis();
+    const tabName = getTabNameForStep(5);
+    highlightTab(tabName);
+    console.log(`[EA Pipeline] Gap Analysis rendered and tab '${tabName}' highlighted`);
+  }
+  if (stepNum === 6) {
+    // Render Value Pools (check if function exists)
+    if (typeof renderValuePools === 'function') renderValuePools();
+    const tabName = getTabNameForStep(6);
+    highlightTab(tabName);
+    console.log(`[EA Pipeline] Value Pools rendered and tab '${tabName}' highlighted`);
+  }
+  if (stepNum === 7) {
+    // Render Roadmap (check if function exists)
+    if (typeof renderRoadmapVis === 'function') renderRoadmapVis();
+    const tabName = getTabNameForStep(7);
+    highlightTab(tabName);
+    console.log(`[EA Pipeline] Roadmap rendered and tab '${tabName}' highlighted`);
+  }
+  
+  // Show success message
+  const nextStep = stepNum + 1;
+  const nextStepName = getStepName(nextStep);
+  
+  let msg = `✓ **Step ${stepNum} Saved!**\n\n`;
+  
+  if (nextStep <= 7) {
+    msg += `You can now proceed to Step ${nextStep}: ${nextStepName}.\n\n`;
+    msg += `<button class="mode-action-btn mode-action-btn--action" onclick="enterDiscoveryModeForStep(${nextStep}, '${nextStepName}')">
+  <i class="fas fa-arrow-right"></i>
+  Continue to ${nextStepName}
+</button>`;
+  } else {
+    msg += `**All steps completed!** Your Business Object transformation plan is ready.\n\n`;
+    msg += `<button class="mode-action-btn mode-action-btn--action" onclick="showTab('exec'); setAssistantMode('general', {});">
+  <i class="fas fa-chart-line"></i>
+  View Executive Summary
+</button>`;
+  }
+  
+  addAssistantMessage(msg, { mode: 'general' });
+  
+  // Exit Discovery mode
+  setAssistantMode('general', {});
+  
+  toast(`Step ${stepNum} saved! ✓`);
+  scrollToBottom();
+}
+
+// Helper function to extract bullet points from text
+function extractBullets(text, sectionHeader) {
+  const lines = text.split('\n');
+  const bullets = [];
+  let inSection = false;
+  
+  for (let line of lines) {
+    if (sectionHeader && line.includes(sectionHeader)) {
+      inSection = true;
+      continue;
+    }
+    if (inSection && /^[-•*]\s/.test(line.trim())) {
+      bullets.push(line.replace(/^[-•*]\s*/, '').trim());
+    }
+    if (inSection && line.startsWith('##') && !line.includes(sectionHeader)) {
+      break; // End of section
+    }
+  }
+  
+  return bullets.length > 0 ? bullets : ['Generated content - review in tab'];
+}
+
+// Helper function to get step name
+function getStepName(stepNum) {
+  const names = {
+    1: 'Strategic Intent',
+    2: 'Business Model Canvas',
+    3: 'Capability Map',
+    4: 'Operating Model',
+    5: 'Gap Analysis',
+    6: 'Value Pools',
+    7: 'Target Architecture & Roadmap'
+  };
+  return names[stepNum] || `Step ${stepNum}`;
+}
+
+// Helper function to generate first question prompts for each step
+function getFirstQuestionPromptForStep(stepNum, stepName) {
+  const businessObjectives = model.businessObjectives ? 
+    JSON.stringify(model.businessObjectives, null, 2) : 
+    'No objectives defined yet';
+  
+  const prompts = {
+    2: `You are a Senior Enterprise Architect and Business Model expert.
+
+**Context - Business Objectives:**
+${businessObjectives}
+
+**TASK:** Ask the FIRST question (Question 1 of 3) for Business Model Canvas.
+
+**Focus for Question 1:** Value propositions - How will the organization deliver value to achieve these objectives?
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question about value propositions",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this matters for the Business Model Canvas (1 sentence)",
+  "questionNumber": 1
+}`,
+    
+    3: `You are a Senior Enterprise Architect specializing in capability mapping.
+
+**Context - Business Objectives:**
+${businessObjectives}
+
+**TASK:** Ask the FIRST question (Question 1 of 3) for Capability Map.
+
+**Focus for Question 1:** Critical capabilities - What must the organization be able to DO to achieve these objectives?
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question about critical capabilities",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this capability matters for achieving objectives (1 sentence)",
+  "questionNumber": 1
+}`,
+    
+    4: `You are a Senior Enterprise Architect specializing in operating models.
+
+**Context - Business Objectives:**
+${businessObjectives}
+
+**TASK:** Ask the FIRST question (Question 1 of 3) for Operating Model.
+
+**Focus for Question 1:** Organizational structure - How should capabilities be organized (centralized vs decentralized)?
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question about organizational structure",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this structure matters for execution (1 sentence)",
+  "questionNumber": 1
+}`,
+    
+    5: `You are a Senior Enterprise Architect specializing in gap analysis.
+
+**Context - Business Objectives:**
+${businessObjectives}
+
+**TASK:** Ask the FIRST question (Question 1 of 3) for Gap Analysis.
+
+**Focus for Question 1:** Critical gaps - What are the most critical gaps between current and target state?
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question about critical capability gaps",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why identifying this gap matters (1 sentence)",
+  "questionNumber": 1
+}`,
+    
+    6: `You are a Senior Enterprise Architect and Value Management expert.
+
+**Context - Business Objectives:**
+${businessObjectives}
+
+**TASK:** Ask the FIRST question (Question 1 of 3) for Value Pools.
+
+**Focus for Question 1:** Value opportunities - What are the highest value opportunities (revenue, cost reduction, risk mitigation, CX)?
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question about value opportunities",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this value pool matters (1 sentence)",
+  "questionNumber": 1
+}`,
+    
+    7: `You are a Senior Enterprise Architect and Transformation Planning expert.
+
+**Context - Business Objectives:**
+${businessObjectives}
+
+**TASK:** Ask the FIRST question (Question 1 of 3) for Transformation Roadmap.
+
+**Focus for Question 1:** Transformation waves - How should initiatives be sequenced (0-6m quick wins, 6-18m foundations, 18-36m strategic)?
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question about transformation waves",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this sequencing matters (1 sentence)",
+  "questionNumber": 1
+}`
+  };
+  
+  return prompts[stepNum] || `Ask the first question for ${stepName}.`;
 }
 
 // ============================================================================
@@ -9806,12 +12039,12 @@ ${strategicIntent.strategic_constraints.map((c, i) => `� ${c}`).join('\n')}`;
     // Update left sidebar to show completion
     updateWorkflowStepStates();
     
-    toast('? Strategic Intent-utkast skapat! Granska kvalitetsrapporten.');
+    toast('✅ Strategic Intent draft created! Review the quality report.');
     scrollToBottom();
     
   } catch (error) {
     hideTypingIndicator();
-    addAssistantMessage(`❌ Ett fel uppstod vid generering: ${error.message}\n\nFörsök igen eller välj Guided Workflow istället.`, { mode: 'autopilot', error: true });
+    addAssistantMessage(`❌ An error occurred during generation: ${error.message}\n\nTry again or choose Guided Workflow instead.`, { mode: 'autopilot', error: true });
   }
 }
 
@@ -9893,7 +12126,116 @@ function openStrategicIntentTab() {
 
 // Helper function to start BMC generation via chat
 function startBMCGeneration() {
-  // Open the chat panel
+  // Check if we're in Business Object workflow mode
+  const workflowMode = model.workflowMode || 'standard';
+  
+  if (workflowMode === 'business-object') {
+    // Business Object Mode: Start discovery flow for Step 2
+    const panel = document.getElementById('ai-chat-panel');
+    if (panel) {
+      panel.classList.remove('hidden');
+      document.body.classList.add('chat-sidebar-open');
+    }
+    
+    // Start Step 2 in Discovery mode with Business Object context
+    setAssistantMode('discovery', { 
+      step: 2, 
+      stepName: 'Business Model Canvas',
+      workflowMode: 'business-object'
+    });
+    
+    // Show welcome message for Step 2
+    const objectives = model.businessObjectives?.primaryObjectives?.length > 0 && 
+                       model.businessObjectives.primaryObjectives[0] !== '--' ? 
+      model.businessObjectives.primaryObjectives.map((obj, i) => `${i + 1}. ${obj}`).join('\n') : 
+      'No objectives defined yet (please complete Step 1 first)';
+    
+    addAssistantMessage(`## 📊 Step 2: Business Model Canvas
+
+**Business Object Mode - 3 Questions Maximum**
+
+I'll help you create a Business Model Canvas aligned with your business objectives:
+
+${objectives}
+
+I'll ask up to 3 focused questions about:
+1. Value propositions for your objectives
+2. Customer segments and channels
+3. Key activities, resources, and partners
+
+---`, { mode: 'discovery', step: 2 });
+    
+    // Auto-start the first question for Step 2
+    setTimeout(async () => {
+      showTypingIndicator();
+      
+      try {
+        // Get Business Objectives context
+        const businessObjectives = model.businessObjectives ? 
+          JSON.stringify(model.businessObjectives, null, 2) : 
+          'No objectives defined yet';
+        
+        const systemPrompt = `You are a Senior Enterprise Architect and Business Model expert.
+
+**TASK:** Ask the FIRST question (Question 1 of 3) to gather information for creating a Business Model Canvas aligned with these objectives.
+
+**Focus for Question 1:** Value propositions - How will the organization deliver value to achieve these objectives?
+
+**Return ONLY valid JSON:**
+{
+  "question": "Your focused question about value propositions",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this matters for the Business Model Canvas (1 sentence)",
+  "questionNumber": 1
+}`;
+
+        const userPrompt = `Business Objectives Context:
+${businessObjectives}
+
+Generate the first question for Business Model Canvas in JSON format.`;
+
+        const response = await callAI(systemPrompt, userPrompt, {
+          taskType: 'discovery'
+        });
+        
+        hideTypingIndicator();
+        
+        // Parse JSON response with error handling
+        let questionData;
+        try {
+          questionData = typeof response === 'string' ? JSON.parse(response) : response;
+        } catch (parseErr) {
+          throw new Error(`Failed to parse AI response: ${parseErr.message}`);
+        }
+        
+        // Validate response structure
+        if (!questionData || !questionData.question) {
+          throw new Error('AI response missing required "question" field');
+        }
+        
+        const questionMsg = `### Question 1 of 3
+
+${questionData.question}
+
+${questionData.options ? questionData.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n') : ''}
+
+💡 *${questionData.hint || 'Your answer will help shape the Business Model Canvas.'}*`;
+
+        addAssistantMessage(questionMsg, { mode: 'discovery', step: 2 });
+        scrollToBottom();
+        
+      } catch (error) {
+        hideTypingIndicator();
+        addAssistantMessage(`❌ Error generating question: ${error.message}\n\nPlease describe your value propositions to continue.`, { mode: 'discovery', step: 2, error: true });
+      }
+    }, 1000);
+    
+    toast('✅ Starting Step 2: Business Model Canvas');
+    scrollToBottom();
+    return;
+  }
+  
+  // Standard/Autopilot Mode: Use StepEngine
   const panel = document.getElementById('ai-chat-panel');
   if (panel) {
     panel.classList.remove('hidden');
@@ -9904,10 +12246,10 @@ function startBMCGeneration() {
   setTimeout(() => {
     if (typeof StepEngine !== 'undefined' && StepEngine.run) {
       StepEngine.run('step2', window.model);
-      toast('?? Starting Business Model Canvas generation...');
+      toast('✨ Starting Business Model Canvas generation...');
     } else {
       console.error('StepEngine not available');
-      toast('? Error: StepEngine not loaded.  Please refresh the page.', true);
+      toast('❌ Error: StepEngine not loaded. Please refresh the page.', true);
     }
   }, 300);
 }
@@ -9919,25 +12261,25 @@ function confirmAutopilotAndContinue() {
   // Save to database
   saveModelToDB(false, true);
   
-  addAssistantMessage(`✅ **Strategic Intent godkänd!**
+  addAssistantMessage(`✅ **Strategic Intent Approved!**
 
-Ni går nu vidare till **Step 2: Business Model Canvas**.
+You can now proceed to **Step 2: Business Model Canvas**.
 
 <button class="mode-action-btn mode-action-btn--action" onclick="startBMCGeneration();">
   <i class="fas fa-arrow-right"></i>
-  Starta Step 2: BMC
+  Start Step 2: BMC
 </button>`, { mode: 'general' });
   
   // Exit autopilot mode
   setAssistantMode('general', {});
   window._autopilotContext = null;
   
-  toast('✅ Strategic Intent godkänd! Klar för Step 2');
+  toast('✅ Strategic Intent approved! Ready for Step 2');
   scrollToBottom();
 }
 
 function regenerateAutopilot() {
-  addAssistantMessage('Okej, låt oss börja om. Vilka antaganden vill du ändra?', { mode: 'autopilot' });
+  addAssistantMessage('Okay, let\'s start over. What assumptions would you like to change?', { mode: 'autopilot' });
   startAutopilotMode();
 }
 
@@ -11680,6 +14022,15 @@ function _runNextStep() {
     step6: generateValuePools,
     step7: generateRoadmap
   };
+  
+  // NEW: Check if this is the first workflow start and workflow mode not yet selected
+  const firstStep = order.find(id => !_isStepDone(id));
+  if (firstStep === 'step1' && !model.workflowMode) {
+    // Show workflow mode selection modal before starting step1
+    startArchitectWorkflow();
+    return;
+  }
+  
   for (const id of order) {
     if (!_isStepDone(id)) { bridges[id](); return; }
   }
@@ -13400,17 +15751,400 @@ function saveDataGapAnswer(idx) {
   _renderDataGapsSection(si, displayEl);
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// ORGANIZATION PROFILE - Display & Edit Functions (Phase 5)
+// ══════════════════════════════════════════════════════════════════════════
+
+function renderOrganizationProfile() {
+  const profile = model.organizationProfile;
+  const completeness = model.organizationProfileCompleteness || 0;
+  const displayEl = document.getElementById('org-profile-display-section');
+  
+  if (!profile || completeness < 40) {
+    // Hide profile section if not exists or too incomplete
+    if (displayEl) displayEl.classList.add('hidden');
+    return;
+  }
+  
+  if (displayEl) displayEl.classList.remove('hidden');
+
+  // Helper to safely set text content
+  const set = (id, val) => {
+    const e = document.getElementById(id);
+    if (e) e.textContent = val || 'Not specified';
+  };
+
+  // Completeness badge
+  const badge = document.getElementById('org-profile-completeness-badge');
+  if (badge) {
+    badge.textContent = `${completeness}% Complete`;
+    if (completeness >= 80) {
+      badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700';
+    } else if (completeness >= 60) {
+      badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700';
+    } else {
+      badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700';
+    }
+  }
+
+  // Executive Summary
+  const execSummary = profile.executiveSummary || {};
+  set('org-profile-one-line-pitch', execSummary.oneLinePitch || profile.organizationName || 'Organization');
+  
+  const factsEl = document.getElementById('org-profile-three-key-facts');
+  if (factsEl && execSummary.threeKeyFacts && execSummary.threeKeyFacts.length) {
+    factsEl.innerHTML = execSummary.threeKeyFacts.map(f => `<div>• ${f}</div>`).join('');
+  } else if (factsEl) {
+    factsEl.innerHTML = '';
+  }
+  
+  set('org-profile-transformation-readiness', 
+    execSummary.transformationReadiness ? `Transformation Readiness: ${execSummary.transformationReadiness}` : '');
+
+  // Core Identity
+  set('org-profile-org-name', profile.organizationName || 'Organization');
+  const sizeText = [];
+  if (profile.industry) sizeText.push(profile.industry);
+  if (profile.companySize?.employees) sizeText.push(`${profile.companySize.employees} employees`);
+  if (profile.companySize?.sizeCategory) sizeText.push(profile.companySize.sizeCategory);
+  set('org-profile-industry-size', sizeText.join(' • '));
+  set('org-profile-mission', profile.missionStatement || 'Not specified');
+
+  // Strategic Context
+  const prioritiesEl = document.getElementById('org-profile-priorities');
+  if (prioritiesEl && profile.strategicPriorities && profile.strategicPriorities.length) {
+    prioritiesEl.innerHTML = profile.strategicPriorities.slice(0, 3).map(p => 
+      `<li>${p.priority}${p.timeframe ? ` (${p.timeframe})` : ''}</li>`
+    ).join('');
+  } else if (prioritiesEl) {
+    prioritiesEl.innerHTML = '<li class="text-slate-400">None specified</li>';
+  }
+
+  const challengesEl = document.getElementById('org-profile-challenges');
+  if (challengesEl && profile.challenges && profile.challenges.length) {
+    challengesEl.innerHTML = profile.challenges.slice(0, 3).map(c => 
+      `<li>${c.challenge}</li>`
+    ).join('');
+  } else if (challengesEl) {
+    challengesEl.innerHTML = '<li class="text-slate-400">None specified</li>';
+  }
+
+  // Technology Landscape (in expandable details)
+  const techEl = document.getElementById('org-profile-tech');
+  if (techEl && profile.technologyLandscape) {
+    const tech = profile.technologyLandscape;
+    const techItems = [];
+    if (tech.cloudAdoption) techItems.push(`Cloud: ${tech.cloudAdoption}`);
+    if (tech.aiAdoption) techItems.push(`AI: ${tech.aiAdoption}`);
+    if (tech.techDebt) techItems.push(`Tech Debt: ${tech.techDebt}`);
+    techEl.innerHTML = techItems.length ? techItems.map(t => `<div>• ${t}</div>`).join('') : '<div class="text-slate-400">Not specified</div>';
+  }
+
+  // Financial Context
+  const financialEl = document.getElementById('org-profile-financial');
+  if (financialEl && profile.financial) {
+    const fin = profile.financial;
+    const finItems = [];
+    if (fin.revenue) finItems.push(`Revenue: ${fin.revenue}`);
+    if (fin.growthRate) finItems.push(`Growth: ${fin.growthRate}`);
+    if (fin.investmentCapacity) finItems.push(`Investment: ${fin.investmentCapacity}`);
+    financialEl.innerHTML = finItems.length ? finItems.map(f => `<div>• ${f}</div>`).join('') : '<div class="text-slate-400">Not specified</div>';
+  }
+
+  // Opportunities
+  const oppsEl = document.getElementById('org-profile-opportunities');
+  if (oppsEl && profile.opportunities && profile.opportunities.length) {
+    oppsEl.innerHTML = profile.opportunities.slice(0, 3).map(o => 
+      `<li>${o.opportunity}</li>`
+    ).join('');
+  } else if (oppsEl) {
+    oppsEl.innerHTML = '<li class="text-slate-400">None specified</li>';
+  }
+
+  // Constraints
+  const constraintsEl = document.getElementById('org-profile-constraints');
+  if (constraintsEl && profile.constraints && profile.constraints.length) {
+    constraintsEl.innerHTML = profile.constraints.slice(0, 3).map(c => 
+      `<li>${c.type ? `${c.type}: ` : ''}${c.description}</li>`
+    ).join('');
+  } else if (constraintsEl) {
+    constraintsEl.innerHTML = '<li class="text-slate-400">None specified</li>';
+  }
+
+  // Warnings
+  const warningsSection = document.getElementById('org-profile-warnings');
+  const warningsList = document.getElementById('org-profile-warnings-list');
+  if (profile.metadata?.warnings && profile.metadata.warnings.length > 0) {
+    if (warningsSection) warningsSection.classList.remove('hidden');
+    if (warningsList) {
+      warningsList.innerHTML = profile.metadata.warnings.map(w => `<li>${w}</li>`).join('');
+    }
+  } else {
+    if (warningsSection) warningsSection.classList.add('hidden');
+  }
+}
+
+function toggleOrgProfileDetails() {
+  const detailsEl = document.getElementById('org-profile-details');
+  const iconEl = document.getElementById('org-profile-details-icon');
+  const labelEl = document.getElementById('org-profile-details-label');
+  
+  if (!detailsEl) return;
+  
+  const isHidden = detailsEl.classList.contains('hidden');
+  if (isHidden) {
+    detailsEl.classList.remove('hidden');
+    if (iconEl) iconEl.className = 'fas fa-chevron-up mr-1';
+    if (labelEl) labelEl.textContent = 'Hide full profile';
+  } else {
+    detailsEl.classList.add('hidden');
+    if (iconEl) iconEl.className = 'fas fa-chevron-down mr-1';
+    if (labelEl) labelEl.textContent = 'Show full profile';
+  }
+}
+
+function editOrganizationProfile() {
+  const profile = model.organizationProfile;
+  if (!profile) {
+    alert('No organization profile to edit. Please complete Step 0 with a detailed organizational summary first.');
+    return;
+  }
+
+  // Populate edit form
+  const set = (id, val) => {
+    const e = document.getElementById(id);
+    if (e) e.value = val || '';
+  };
+
+  // Core Identity
+  set('edit-org-name', profile.organizationName);
+  set('edit-industry', profile.industry);
+  set('edit-employees', profile.companySize?.employees);
+  set('edit-size-category', profile.companySize?.sizeCategory);
+  set('edit-mission', profile.missionStatement);
+
+  // Strategic Context
+  if (profile.strategicPriorities && profile.strategicPriorities.length) {
+    const priorities = profile.strategicPriorities.map(p => 
+      `${p.priority}${p.timeframe ? ` | ${p.timeframe}` : ''}`
+    ).join('\n');
+    set('edit-priorities', priorities);
+  }
+  
+  if (profile.challenges && profile.challenges.length) {
+    set('edit-challenges', profile.challenges.map(c => c.challenge).join('\n'));
+  }
+  
+  if (profile.opportunities && profile.opportunities.length) {
+    set('edit-opportunities', profile.opportunities.map(o => o.opportunity).join('\n'));
+  }
+  
+  if (profile.constraints && profile.constraints.length) {
+    const constraints = profile.constraints.map(c => 
+      c.type ? `${c.type}: ${c.description}` : c.description
+    ).join('\n');
+    set('edit-constraints', constraints);
+  }
+
+  // Technology & Financial
+  set('edit-cloud-adoption', profile.technologyLandscape?.cloudAdoption);
+  set('edit-ai-adoption', profile.technologyLandscape?.aiAdoption);
+  set('edit-tech-debt', profile.technologyLandscape?.techDebt);
+  set('edit-revenue', profile.financial?.revenue);
+  set('edit-growth-rate', profile.financial?.growthRate);
+  set('edit-investment-capacity', profile.financial?.investmentCapacity);
+
+  // Show modal
+  const modal = document.getElementById('orgProfileEditModal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeOrgProfileEditModal() {
+  const modal = document.getElementById('orgProfileEditModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function saveOrgProfileEdits() {
+  const profile = model.organizationProfile;
+  if (!profile) return;
+
+  // Get values from form
+  const get = (id) => {
+    const e = document.getElementById(id);
+    return e ? e.value.trim() : '';
+  };
+
+  // Update profile object
+  profile.organizationName = get('edit-org-name') || profile.organizationName;
+  profile.industry = get('edit-industry') || profile.industry;
+  profile.missionStatement = get('edit-mission') || profile.missionStatement;
+
+  // Company Size
+  if (!profile.companySize) profile.companySize = {};
+  const employees = parseInt(get('edit-employees'));
+  if (!isNaN(employees)) profile.companySize.employees = employees;
+  profile.companySize.sizeCategory = get('edit-size-category') || profile.companySize.sizeCategory;
+
+  // Strategic Priorities (parse from textarea)
+  const prioritiesText = get('edit-priorities');
+  if (prioritiesText) {
+    profile.strategicPriorities = prioritiesText.split('\n').filter(line => line.trim()).map(line => {
+      const parts = line.split('|').map(p => p.trim());
+      return {
+        priority: parts[0],
+        timeframe: parts[1] || '',
+        importance: 'High',
+        rationale: ''
+      };
+    });
+  }
+
+  // Challenges
+  const challengesText = get('edit-challenges');
+  if (challengesText) {
+    profile.challenges = challengesText.split('\n').filter(line => line.trim()).map(challenge => ({
+      challenge: challenge,
+      impact: '',
+      urgency: ''
+    }));
+  }
+
+  // Opportunities
+  const opportunitiesText = get('edit-opportunities');
+  if (opportunitiesText) {
+    profile.opportunities = opportunitiesText.split('\n').filter(line => line.trim()).map(opp => ({
+      opportunity: opp,
+      valueStatement: '',
+      feasibility: ''
+    }));
+  }
+
+  // Constraints
+  const constraintsText = get('edit-constraints');
+  if (constraintsText) {
+    profile.constraints = constraintsText.split('\n').filter(line => line.trim()).map(line => {
+      const colonIdx = line.indexOf(':');
+      if (colonIdx > 0) {
+        return {
+          type: line.substring(0, colonIdx).trim(),
+          description: line.substring(colonIdx + 1).trim(),
+          severity: ''
+        };
+      }
+      return {
+        type: '',
+        description: line,
+        severity: ''
+      };
+    });
+  }
+
+  // Technology Landscape
+  if (!profile.technologyLandscape) profile.technologyLandscape = {};
+  profile.technologyLandscape.cloudAdoption = get('edit-cloud-adoption') || profile.technologyLandscape.cloudAdoption;
+  profile.technologyLandscape.aiAdoption = get('edit-ai-adoption') || profile.technologyLandscape.aiAdoption;
+  profile.technologyLandscape.techDebt = get('edit-tech-debt') || profile.technologyLandscape.techDebt;
+
+  // Financial
+  if (!profile.financial) profile.financial = {};
+  profile.financial.revenue = get('edit-revenue') || profile.financial.revenue;
+  profile.financial.growthRate = get('edit-growth-rate') || profile.financial.growthRate;
+  profile.financial.investmentCapacity = get('edit-investment-capacity') || profile.financial.investmentCapacity;
+
+  // Recalculate completeness
+  if (typeof EA_OrganizationProfileProcessor !== 'undefined' && EA_OrganizationProfileProcessor.calculateCompleteness) {
+    try {
+      model.organizationProfileCompleteness = EA_OrganizationProfileProcessor.calculateCompleteness(profile);
+      console.log('[OrgProfile] Recalculated completeness:', model.organizationProfileCompleteness + '%');
+    } catch (err) {
+      console.warn('[OrgProfile] Could not recalculate completeness:', err);
+    }
+  }
+
+  // Update timestamps
+  if (!profile.metadata) profile.metadata = {};
+  profile.metadata.updatedAt = new Date().toISOString();
+
+  // Save to model
+  model.organizationProfile = profile;
+  if (typeof autoSaveCurrentModel === 'function') {
+    autoSaveCurrentModel();
+  }
+
+  // Re-render
+  renderOrganizationProfile();
+  closeOrgProfileEditModal();
+  
+  // Show success message
+  console.log('[OrgProfile] Profile updated successfully');
+  alert('Organization profile updated successfully!');
+}
+
 function renderStrategicIntentSection() {
   const intent = model.strategicIntent;
+  const businessObjectives = model.businessObjectives;
   const displayEl = document.getElementById('intent-display-section');
   const placeholderEl = document.getElementById('intent-placeholder');
-  if (!intent) {
+  
+  if (!intent && !businessObjectives) {
     if (displayEl) displayEl.classList.add('hidden');
     if (placeholderEl) placeholderEl.classList.remove('hidden');
     return;
   }
+  
   if (displayEl) displayEl.classList.remove('hidden');
   if (placeholderEl) placeholderEl.classList.add('hidden');
+
+  // Render Business Objectives if available (Business Object workflow)
+  const businessObjSection = document.getElementById('business-objectives-section');
+  const businessObjContent = document.getElementById('business-objectives-content');
+  
+  if (businessObjectives && businessObjSection && businessObjContent) {
+    businessObjSection.classList.remove('hidden');
+    
+    let html = '';
+    
+    // Primary Objectives
+    if (businessObjectives.primaryObjectives?.length > 0) {
+      html += '<div class="mb-2">';
+      html += '<div class="font-bold text-amber-800 text-[10px] mb-1">Primary Objectives:</div>';
+      html += '<ul class="space-y-0.5 ml-3 list-disc list-inside">';
+      businessObjectives.primaryObjectives.forEach(obj => {
+        html += `<li class="text-slate-700">${obj}</li>`;
+      });
+      html += '</ul></div>';
+    }
+    
+    // Key Challenges
+    if (businessObjectives.keyChallenges?.length > 0) {
+      html += '<div class="mb-2">';
+      html += '<div class="font-bold text-amber-800 text-[10px] mb-1">Key Challenges:</div>';
+      html += '<ul class="space-y-0.5 ml-3 list-disc list-inside">';
+      businessObjectives.keyChallenges.forEach(challenge => {
+        html += `<li class="text-slate-700">${challenge}</li>`;
+      });
+      html += '</ul></div>';
+    }
+    
+    // Strategic Context
+    if (businessObjectives.strategicContext && Object.keys(businessObjectives.strategicContext).length > 0) {
+      html += '<div>';
+      html += '<div class="font-bold text-amber-800 text-[10px] mb-1">Strategic Context:</div>';
+      html += '<div class="text-slate-700 space-y-0.5">';
+      Object.entries(businessObjectives.strategicContext).forEach(([key, value]) => {
+        const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        html += `<div><span class="font-semibold">${label}:</span> ${value}</div>`;
+      });
+      html += '</div></div>';
+    }
+    
+    businessObjContent.innerHTML = html;
+  } else if (businessObjSection) {
+    businessObjSection.classList.add('hidden');
+  }
+
+  // Standard Strategic Intent rendering
+  if (!intent) return;
 
   // Initialise data_gap_answers array if missing or wrong length
   const dataGapCount = (intent.assumptions_and_caveats || []).length;
@@ -13599,18 +16333,18 @@ function updateTabLockStates() {
   
   // Map content checks to tab names
   const contentChecks = {
-    'exec': () => !!model.strategicIntent,
+    'exec': () => !!model.strategicIntent || !!model.businessObjectives,  // Check for either Strategic Intent or Business Objectives
     'bmc': () => !!model.bmc,
     'layers': () => model.capabilities.length > 0 || model.systems.length > 0 || model.valueStreams.length > 0,
     'capmap': () => model.capabilities.length > 0,
     'heatmap': () => model.capabilities.length > 0,
     'graph': () => model.capabilities.length > 0,
-    'opmodel': () => Object.keys(model.operatingModel||{}).length > 0,
-    'gap': () => !!model.gapAnalysisDone,
-    'valuepools': () => { const vp = model.valuePools; return Array.isArray(vp) ? vp.length > 0 : ((vp?.valuePools||vp?.value_pools||[]).length > 0); },
+    'opmodel': () => !!model.operatingModel || !!model.operatingModelConfirmed,
+    'gap': () => !!model.gapAnalysis || !!model.gapAnalysisConfirmed,
+    'valuepools': () => !!model.valuePools || !!model.valuePoolsConfirmed,
     'maturity': () => model.capabilities.length > 0,
     'targetarch': () => !!model.targetArchDone,
-    'roadmapvis': () => !!model.targetArchDone,
+    'roadmapvis': () => !!model.roadmap || !!model.roadmapConfirmed,
     'phase4': () => model.capabilities.length > 0,
     'bench': () => model.capabilities.length > 0,
     'survey': () => model.capabilities.length > 0,
@@ -16434,6 +19168,12 @@ function renderRoadmapSection()        { if (typeof renderRoadmapVisual === 'fun
 // -- END BUG-4 FIX ------------------------------------------------------------------------
 
 function renderExecSummary() {
+  // Phase 5: Render Organization Profile (if exists)
+  renderOrganizationProfile();
+  
+  // Render Strategic Intent section
+  renderStrategicIntentSection();
+  
   const placeholder = document.getElementById('exec-kpi-placeholder');
   const grid = document.getElementById('exec-kpi-grid');
 

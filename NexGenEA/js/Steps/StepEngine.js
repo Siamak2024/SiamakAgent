@@ -147,6 +147,13 @@ const StepEngine = (() => {
     for (let i = 0; i < (stepModule.tasks || []).length; i++) {
       const taskDef = stepModule.tasks[i];
       _activeTaskIndex = i;
+
+      // NEW: Check if task should run (conditional execution)
+      if (taskDef.shouldRun && !taskDef.shouldRun(ctx)) {
+        console.log(`[StepEngine] Skipping task ${taskDef.taskId} (shouldRun condition not met)`);
+        continue;  // Skip this task
+      }
+
       // Only show progress for user-facing question tasks, not internal background tasks
       if (taskDef.type === 'question') {
         _updateProgressUI(stepId, taskDef, i, stepModule.tasks.length);

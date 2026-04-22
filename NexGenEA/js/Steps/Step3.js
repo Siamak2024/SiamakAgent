@@ -61,8 +61,37 @@ Requirements:
 - DO NOT mirror org chart — capability ≠ org unit`,
 
       userPrompt: (ctx) => {
+        const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
         const si = ctx.strategicIntent;
         const bmc = ctx.bmc;
+        
+        if (profile) {
+          // Rich Profile: Use structure and offerings
+          const offerings = (profile.offerings || []).map(o => o.name).join(', ');
+          const priorities = (profile.strategicPriorities || []).map(p => p.priority).slice(0, 5).join('; ');
+          const structure = profile.structure?.organizationalStructure || 'Not specified';
+          
+          return `**ORGANIZATION PROFILE - CAPABILITY CONTEXT:**
+
+Organization: ${profile.organizationName} (${profile.industry})
+Structure: ${structure}
+Offerings: ${offerings || 'Not specified'}
+
+**Strategic Priorities:** ${priorities || 'Not specified'}
+
+**Strategic themes:** ${(si.strategic_themes || []).join(' | ')}
+**Investigation scope:** ${(si.investigation_scope || []).join('; ')}
+
+**BMC key activities:** ${(bmc.key_activities || []).join('; ')}
+**BMC key resources:** ${(bmc.key_resources || []).join('; ')}
+
+**CRITICAL:** Build capability map grounded in the SPECIFIC offerings and priorities from the profile. DO NOT use generic capability frameworks.
+
+Build a full L1/L2/L3 capability map. Identify which L1 domains are CORE to the future model.
+Inspection scope above should appear as capabilities — not just be referenced.`;
+        }
+        
+        // Quick Start fallback
         return `Company: "${ctx.companyDescription}"
 
 Strategic themes: ${(si.strategic_themes || []).join(' | ')}

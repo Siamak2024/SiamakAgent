@@ -59,6 +59,7 @@ Scoring: impact_score 1-5 (5=strategic), effort_score 1-5 (5=very hard).
 Generate 8-15 gaps covering People, Process, Data, Application, Technology, Governance.`,
 
       userPrompt: (ctx) => {
+        const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
         const caps = (ctx.capabilities || []).filter(c => c.gap && c.gap > 0)
           .sort((a, b) => (b.gap || 0) - (a.gap || 0)).slice(0, 10)
           .map(c => `${c.name}: current=${c.current_maturity}, target=${c.target_maturity}, gap=${c.gap}${c.ai_enabled ? ' [AI-enabled]' : ''}`);
@@ -76,7 +77,42 @@ Generate 8-15 gaps covering People, Process, Data, Application, Technology, Gove
             (aiCapabilities.length > 0 ? `- AI-enabled capabilities: ${aiCapabilities.slice(0, 7).join(', ')}\n` : '') +
             `Mark gaps as ai_enabled_gap: true if the capability is AI-enabled or closing the gap involves AI/ML/automation implementation.`
           : '';
+        
+        if (profile) {
+          // Rich Profile: Use specific challenges and constraints
+          const challenges = (profile.challenges || []).map(c => `${c.challenge}: ${c.impact || 'N/A'}`).join('\n');
+          const constraints = (profile.constraints || []).map(c => `${c.type}: ${c.description}`).join('\n');
+          const techDebt = profile.technologyLandscape?.techDebt || 'Unknown';
+          
+          return `**ORGANIZATION PROFILE - GAP ANALYSIS CONTEXT:**
 
+Organization: ${profile.organizationName} (${profile.industry})
+
+**Known Challenges:**
+${challenges || 'None specified'}
+
+**Known Constraints:**
+${constraints || 'None specified'}
+
+**Technology Debt Level:** ${techDebt}
+
+**Strategic ambition:** "${si.strategic_ambition || ''}"
+**Success metrics:** ${(si.success_metrics || []).join('; ')}
+
+**Top capability gaps (by maturity gap):**
+${caps.join('\n') || 'see capability assessment'}
+
+**Operating model dimension gaps:**
+${opDelta.slice(0, 5).map(g => `${g.dimension}: ${g.gap_severity} severity`).join('\n') || 'none'}
+
+**BMC delta gaps:** ${(ctx.bmcAnalysis?.critical_gaps || []).map(g => `${g.block}: ${g.gap}`).join('; ') || 'none'}${aiContext}
+
+**CRITICAL:** Prioritize gaps based on the SPECIFIC challenges and constraints from the profile. Do NOT generate generic consulting recommendations.
+
+Produce 8-15 gaps. Every gap must trace to a success metric or strategic theme.`;
+        }
+        
+        // Quick Start fallback
         return `Strategic ambition: "${si.strategic_ambition || ''}"
 Success metrics: ${(si.success_metrics || []).join('; ')}
 
