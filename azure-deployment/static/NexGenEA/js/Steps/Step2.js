@@ -1,15 +1,19 @@
 /**
  * Step2.js — Business Model Canvas (current + future state)
  *
+ * GOLDEN RULE: Business Objectives—not Strategic Intent—drive the EA process.
+ * BMC MUST align to businessContext.primaryObjectives to ensure actionable architecture.
+ *
  * Tasks:
  *   2.1 bmc_current   — Internal: generate CURRENT state BMC
- *   2.2 bmc_future    — Internal: generate FUTURE state BMC aligned to Strategic Intent
+ *   2.2 bmc_future    — Internal: generate FUTURE state BMC aligned to Business Objectives
  *   2.3 bmc_analysis  — Internal: produce delta/analysis (gaps + opportunities)
  *
  * Outputs:
  *   model.bmc            — future-state BMC (9 building blocks)
  *   model.bmcCurrent     — current-state BMC
  *   model.bmcAnalysis    — delta analysis object
+ *   model.businessContext.enrichment.bmcInsights — captured insights for enrichment
  */
 
 const Step2 = {
@@ -54,7 +58,7 @@ RULES:
 - Ground each item in company description - no generic filler`,
 
       userPrompt: (ctx) => {
-        const si = ctx.strategicIntent;
+        const si = ctx.strategicIntent || {};
         return `Company: "${ctx.companyDescription}"
 
 Strategic Intent (from Step 1):
@@ -120,7 +124,7 @@ RULES:
 - Show bold changes from current to future state`,
 
       userPrompt: (ctx) => {
-        const si = ctx.strategicIntent;
+        const si = ctx.strategicIntent || {};
         const current = ctx.answers?.step2_bmc_current || {};
         
         // ── Phase 2.1: Include AI transformation themes from Strategic Intent ──
@@ -187,7 +191,7 @@ Return ONLY valid JSON:
       userPrompt: (ctx) => {
         const current = ctx.answers?.step2_bmc_current || {};
         const future = ctx.answers?.step2_bmc_future || {};
-        const si = ctx.strategicIntent;
+        const si = ctx.strategicIntent || {};
         return `Strategic ambition: "${si.strategic_ambition || ''}"
 
 Current BMC:
@@ -233,6 +237,16 @@ Return JSON output.`;
   },
 
   applyOutput: (output, model) => {
+    // Capture BMC insights into enrichment
+    if (model.businessContext && model.businessContext.enrichment) {
+      model.businessContext.enrichment.bmcInsights = {
+        customerSegments: output.bmc?.customer_segments || [],
+        valuePropositions: output.bmc?.value_propositions || [],
+        keyInsights: output.bmcAnalysis?.summary || 'BMC analysis completed',
+        transformationMoves: output.bmc?.transformation_moves || []
+      };
+    }
+
     return {
       ...model,
       bmc: output.bmc,

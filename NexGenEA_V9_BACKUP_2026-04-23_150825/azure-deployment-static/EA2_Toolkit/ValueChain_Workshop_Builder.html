@@ -1,0 +1,778 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Value Chain Workshop Builder - EA 2.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+    <script src="../js/EA_Config.js"></script>
+    <script src="../js/EA_DataManager.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f1f5f9; color: #334155; min-height: 100vh; }
+        .step-wrap { display: flex; align-items: flex-start; }
+        .step-item { display: flex; flex-direction: column; align-items: center; flex: 1; }
+        .sdot { width: 36px; height: 36px; border-radius: 50%; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #64748b; background: white; transition: all .3s; position: relative; z-index: 2; }
+        .step-item.active .sdot  { border-color: #2563eb; color: white; background: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,.25); }
+        .step-item.done .sdot    { border-color: #22c55e; color: white; background: #22c55e; }
+        .slabel { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #64748b; margin-top: 5px; text-align: center; }
+        .step-item.active .slabel { color: #2563eb; }
+        .step-item.done .slabel   { color: #22c55e; }
+        .sline { flex: 1; height: 2px; background: #cbd5e1; margin-top: 17px; transition: background .3s; }
+        .sline.done { background: #22c55e; }
+        .prog-rail { height: 3px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+        .prog-fill { height: 3px; background: linear-gradient(90deg, #2563eb, #3b82f6, #22c55e); transition: width .5s ease; }
+        .step-panel { display: none; }
+        .step-panel.active { display: block; animation: fadeUp .3s ease; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .wcard { background: white; border: 1px solid #e2e8f0; border-radius: 14px; padding: 22px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .vtitle { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: #64748b; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+        .vtitle i { color: #2563eb; }
+        .wi { background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #1e293b; width: 100%; outline: none; font-family: inherit; transition: border-color .2s; }
+        .wi:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.2); }
+        .wi::placeholder { color: #94a3b8; }
+        .wi option { background: white; }
+        textarea.wi { resize: vertical; min-height: 64px; line-height: 1.55; }
+        .wl { font-size: 11px; font-weight: 600; color: #475569; display: block; margin-bottom: 5px; }
+        .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .tag { background: white; border: 1px solid #cbd5e1; border-radius: 20px; padding: 4px 11px; font-size: 11px; cursor: pointer; transition: all .2s; color: #64748b; user-select: none; }
+        .tag:hover { border-color: #2563eb; color: #2563eb; background: #eff6ff; }
+        .tag.sel { background: #2563eb; border-color: #2563eb; color: white; font-weight: 600; }
+        .act-card { background: #0f1e35; border: 1.5px solid #1e3a5f; border-radius: 12px; padding: 16px; margin-bottom: 12px; transition: border-color .2s; }
+        .act-card:hover { border-color: #2563eb; }
+        .act-card.primary-type { border-left: 3px solid #2563eb; }
+        .act-card.support-type { border-left: 3px solid #4b5563; }
+        .act-name { font-size: 13px; font-weight: 700; color: #e2e8f0; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .act-name i { color: #2563eb; }
+        .act-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        @media(max-width:640px){ .act-fields { grid-template-columns: 1fr; } }
+        .act-field-full { grid-column: 1/-1; }
+        .level-group { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+        .lvl-btn { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid #1e3a5f; background: #162a45; color: #7eabd4; transition: all .15s; user-select: none; }
+        .lvl-btn:hover { border-color: #2563eb; color: #93c5fd; }
+        .lvl-btn.sel-low    { background: rgba(34,197,94,.15);  border-color: #22c55e; color: #4ade80; }
+        .lvl-btn.sel-medium { background: rgba(249,115,22,.15); border-color: #f97316; color: #fb923c; }
+        .lvl-btn.sel-high   { background: rgba(239,68,68,.15);  border-color: #ef4444; color: #f87171; }
+        .ai-box { background: rgba(37,99,235,.08); border: 1px solid rgba(37,99,235,.3); border-radius: 10px; padding: 14px 16px; font-size: 12px; color: #cbd5e1; line-height: 1.65; display: none; margin-top: 12px; }
+        .ai-box.show { display: block; animation: fadeUp .3s ease; }
+        .ai-box h4 { font-size: 10px; font-weight: 700; color: #93c5fd; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 8px; }
+        .clist { display: flex; flex-direction: column; gap: 8px; }
+        .citem { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: #0f1e35; border: 1px solid #1e3a5f; border-radius: 10px; cursor: pointer; transition: all .2s; }
+        .citem:hover { border-color: #3b5f8a; }
+        .citem.checked { border-color: #22c55e; background: rgba(34,197,94,.04); }
+        .cbox { width: 18px; height: 18px; border-radius: 5px; border: 2px solid #3b5f8a; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; transition: all .2s; }
+        .citem.checked .cbox { background: #22c55e; border-color: #22c55e; }
+        .ctext { font-size: 12px; color: #cbd5e1; line-height: 1.5; }
+        .csub  { font-size: 10px; color: #3b5f8a; margin-top: 2px; }
+        .btn { border-radius: 8px; font-size: 12px; font-weight: 600; padding: 7px 14px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: none; transition: all .2s; }
+        .btn-ai   { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; }
+        .btn-ai:hover { background: linear-gradient(135deg, #1e3a5f, #1d4ed8); transform: translateY(-1px); }
+        .btn-ai:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+        .btn-next { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; font-size: 13px; padding: 10px 22px; border-radius: 10px; }
+        .btn-next:hover { background: linear-gradient(135deg, #1e3a5f, #1d4ed8); transform: translateY(-1px); }
+        .btn-back { background: #162a45; border: 1px solid #1e3a5f; color: #7eabd4; font-size: 13px; padding: 10px 22px; border-radius: 10px; cursor: pointer; }
+        .btn-back:hover { background: #1e3a5f; color: #e2e8f0; }
+        .btn-launch { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; font-size: 15px; font-weight: 700; padding: 14px 32px; border-radius: 12px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; transition: all .2s; }
+        .btn-launch:hover { background: linear-gradient(135deg, #15305a, #1d4ed8); transform: translateY(-2px); box-shadow: 0 10px 28px rgba(37,99,235,.45); }
+        .sblock { background: #0f1e35; border: 1px solid #1e3a5f; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+        .sblock h4 { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: #3b5f8a; margin-bottom: 10px; }
+        .srow { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #1e3a5f; font-size: 12px; gap: 12px; }
+        .srow:last-child { border-bottom: none; }
+        .skey { color: #3b5f8a; flex-shrink: 0; font-size: 11px; }
+        .sval { color: #e2e8f0; font-weight: 600; text-align: right; word-break: break-word; }
+        .warn { background: rgba(37,99,235,.1); border: 1px solid rgba(37,99,235,.3); border-radius: 10px; padding: 11px 14px; font-size: 12px; color: #93c5fd; display: flex; align-items: flex-start; gap: 8px; margin-bottom: 16px; }
+        .act-overview { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .act-overview th { padding: 8px 12px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: #3b5f8a; border-bottom: 1px solid #1e3a5f; text-align: left; }
+        .act-overview td { padding: 9px 12px; border-bottom: 1px solid #0f1e35; vertical-align: middle; }
+        .act-overview tr:last-child td { border-bottom: none; }
+        #toast { position: fixed; bottom: 24px; right: 24px; background: #162a45; border: 1px solid #1e3a5f; color: #e2e8f0; font-size: 12px; padding: 10px 16px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.5); z-index: 9999; display: flex; align-items: center; gap: 8px; transition: opacity .3s; pointer-events: none; opacity: 0; max-width: 340px; }
+        #toast.show { opacity: 1; }
+        .spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body><!-- NAV BAR -->
+<div style="position:sticky;top:0;z-index:50;background:linear-gradient(90deg,#1e3a5f,#1e40af);padding:8px 20px;display:flex;align-items:center;justify-content:space-between;">
+  <div style="display:flex;align-items:center;gap:16px;">
+    <a href="../Integration_Workflow_Hub.html" style="color:rgba(255,255,255,.8);text-decoration:none;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,.8)'">
+      <i class="fas fa-arrow-left"></i> Workflow Hub
+    </a>
+    <div style="width:1px;height:16px;background:rgba(255,255,255,.25)"></div>
+    <span style="color:white;font-size:12px;font-weight:700;"><i class="fas fa-link" style="margin-right:5px;"></i>Value Chain Workshop Builder</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <button onclick="openApiModal()" id="nav-api-btn" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:white;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+      <i class="fas fa-key"></i> <span id="nav-api-label">API-nyckel</span>
+    </button>
+    <a href="AI Value Chain Analyzer V2.html" style="color:rgba(255,255,255,.65);text-decoration:none;font-size:11px;display:flex;align-items:center;gap:5px;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,.65)'">
+      <i class="fas fa-external-link-alt"></i> Value Chain Analyzer
+    </a>
+  </div>
+</div>
+<!-- API MODAL -->
+<div id="api-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+  <div style="background:#162a45;border:1px solid #1e3a5f;border-radius:14px;padding:26px;max-width:380px;width:90%;">
+    <h2 style="font-size:14px;font-weight:700;color:white;margin-bottom:4px;display:flex;align-items:center;gap:8px;"><i class="fas fa-key" style="color:#60a5fa;"></i> OpenAI API-nyckel</h2>
+    <p style="font-size:11px;color:#3b5f8a;margin-bottom:14px;">Delas med alla EA 2.0-verktyg</p>
+    <input id="api-key-input" type="password" class="wi" placeholder="sk-proj-..." style="margin-bottom:10px;"/>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+      <input type="checkbox" id="show-key-cb" onchange="document.getElementById('api-key-input').type=this.checked?'text':'password'">
+      <label for="show-key-cb" style="font-size:11px;color:#3b5f8a;cursor:pointer;">Visa nyckel</label>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ai" style="flex:1;justify-content:center;" onclick="saveApiKey()"><i class="fas fa-check"></i> Spara</button>
+      <button onclick="closeApiModal()" style="background:#1e3a5f;border:none;color:#7eabd4;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px;">Avbryt</button>
+    </div>
+  </div>
+</div>
+<div style="max-width:860px;margin:0 auto;padding:28px 16px;">
+  <!-- HEADER -->
+  <div style="text-align:center;margin-bottom:28px;">
+    <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#1e3a5f,#2563eb);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;">
+      <i class="fas fa-link" style="color:white;font-size:22px;"></i>
+    </div>
+    <h1 style="font-size:22px;font-weight:800;color:white;margin-bottom:6px;">Value Chain Workshop Builder</h1>
+    <p style="font-size:13px;color:#3b5f8a;">Strukturerad nedbrytning av hur värde skapas: Input - Aktiviteter - Output - Kundvärde</p>
+  </div>
+  <!-- STEP INDICATOR -->
+  <div style="margin-bottom:24px;">
+    <div class="step-wrap">
+      <div class="step-item active" id="si-1"><div class="sdot" id="sd-1">1</div><div class="slabel">Kontext</div></div>
+      <div class="sline" id="sln-1"></div>
+      <div class="step-item" id="si-2"><div class="sdot" id="sd-2">2</div><div class="slabel">Värdelogik</div></div>
+      <div class="sline" id="sln-2"></div>
+      <div class="step-item" id="si-3"><div class="sdot" id="sd-3">3</div><div class="slabel">Primära akt.</div></div>
+      <div class="sline" id="sln-3"></div>
+      <div class="step-item" id="si-4"><div class="sdot" id="sd-4">4</div><div class="slabel">Stödakt.</div></div>
+      <div class="sline" id="sln-4"></div>
+      <div class="step-item" id="si-5"><div class="sdot" id="sd-5">5</div><div class="slabel">åtgärder</div></div>
+      <div class="sline" id="sln-5"></div>
+      <div class="step-item" id="si-6"><div class="sdot" id="sd-6">6</div><div class="slabel">Lansera</div></div>
+    </div>
+    <div class="prog-rail" style="margin-top:8px;"><div class="prog-fill" id="prog" style="width:8%;"></div></div>
+  </div>  <!-- STEP 1 -->
+  <div class="step-panel active" id="panel-1">
+    <div class="wcard">
+      <div class="vtitle"><i class="fas fa-building"></i> Steg 1 av 6 - Kontext &amp; Scope</div>
+      <p style="font-size:12px;color:#3b5f8a;margin-bottom:18px;">Definiera scope och syfte. Value Chain är analytiskt - det kräver tydlig avgransning för att ge rätt svar.</p>
+      <div style="display:grid;gap:15px;">
+        <div><label class="wl">Organisation / Bolag *</label><input id="f-org" class="wi" placeholder="Ex: Riksbyggen, Vasakronan, NCC, Rikshem..."/></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label class="wl">Bransch *</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input id="f-industry" class="wi" style="flex:1;" placeholder="Ex: Fastighet, SaaS, Fintech, Offentlig sektor..." autocomplete="off"/>
+              <button id="btn-lookup-industry" type="button" onclick="aiLookupIndustry()" title="AI söker bransch baserat pa bolagsnamnet" style="flex-shrink:0;padding:7px 10px;background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;white-space:nowrap;"><i class="fas fa-search"></i> AI-sök</button>
+            </div>
+          </div>
+          <div><label class="wl">Analysens scope *</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <select id="f-scope" class="wi" style="flex:1;">
+                <option value="Hela bolaget">Hela bolaget</option>
+              </select>
+              <button id="btn-lookup-scope" type="button" onclick="aiLookupScope()" title="AI föreslår relevanta scopes baserat på bransch" style="flex-shrink:0;padding:7px 10px;background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;white-space:nowrap;display:none;"><i class="fas fa-magic"></i> AI-förslag</button>
+            </div>
+            <textarea id="f-scope-custom" class="wi" style="margin-top:8px;font-size:12px;min-height:48px;display:none;" placeholder="Beskriv ditt eget scope om AI-förslagen inte täcker analysen..."></textarea>
+            <div id="scope-suggestions" class="tags" style="margin-top:8px;display:none;"></div>
+          </div>
+        </div>
+        <div><label class="wl">Varför gör vi analysen? (Strategisk trigger) *</label>
+          <select id="f-trigger" class="wi">
+            <option value="">Välj syfte...</option>
+            <option>Digitalisering - identifiera var teknik skapar mest värde</option>
+            <option>System- och arkitekturöversyn - koppla system till aktiviteter</option>
+            <option>Kostnads- och effektivitetsanalys - var skapas kostnad vs värde</option>
+            <option>Sourcing-strategi - core vs non-core, make vs buy</option>
+            <option>AI-initiativ - var kan AI skapa mest impact</option>
+            <option>ESG och hallbarhet - identifiera miljöpaaverkan per aktivitet</option>
+            <option>Digital transformation - helhetsplan för förnändring</option>
+            <option>Target Architecture - definiera framtida systemlandskap</option>
+          </select>
+        </div>
+        <div><label class="wl">Regulatoriska / teknologiska drivkrafter</label>
+          <div class="tags" id="reg-tags">
+            <span class="tag" onclick="toggleTag(this,'regs')">CSRD 2025</span>
+            <span class="tag" onclick="toggleTag(this,'regs')">EU Taxonomy</span>
+            <span class="tag" onclick="toggleTag(this,'regs')">AI Act</span>
+            <span class="tag" onclick="toggleTag(this,'regs')">Energieffektivisering</span>
+            <span class="tag" onclick="toggleTag(this,'regs')">GDPR</span>
+            <span class="tag" onclick="toggleTag(this,'regs')">IoT / Smart Building</span>
+            <span class="tag" onclick="toggleTag(this,'regs')">Generativ AI</span>
+            <span class="tag" onclick="toggleTag(this,'regs')">Digital Tvilling</span>
+            <span class="tag" onclick="toggleTag(this,'regs')">Predictive Maintenance</span>
+          </div>
+        </div>
+        <div><label class="wl">Analysperiod / tidshorisont</label>
+          <select id="f-horizon" class="wi">
+            <option>Nulage (AS-IS)</option>
+            <option selected>12 manader (AS-IS till TO-BE)</option>
+            <option>24 manader (AS-IS till TO-BE)</option>
+            <option>Strategisk (3-5 ar)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="wcard">
+      <div class="vtitle"><i class="fas fa-check-square"></i> Checklista - Kontext</div>
+      <div class="clist">
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">Scope är avgränsat - vi analyserar inte allt pa en gang</div><div class="csub">Ex: Analysera förvaltningsprocessen separat fran transaktionsprocessen</div></div></div>
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">Rätt mix av business + IT deltar</div><div class="csub">Value Chain kräver affärsförstälse - IT ensamt ger systemkarta, inte värdekedja</div></div></div>
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">Analysen ska leda till beslut - inte bara dokumentation</div><div class="csub">åtgärder per aktivitet: Automate / Standardize / Invest / Outsource / Eliminate</div></div></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:4px;"><button class="btn-next" onclick="goStep(2)">Nästa: Affärsvarde &amp; Värdelogik <i class="fas fa-arrow-right"></i></button></div>
+  </div>
+  <!-- STEP 2 -->
+  <div class="step-panel" id="panel-2">
+    <div class="wcard">
+      <div class="vtitle"><i class="fas fa-coins"></i> Steg 2 av 6 - Affärsmodell &amp; Värdelogik</div>
+      <p style="font-size:12px;color:#3b5f8a;margin-bottom:16px;">Intäktslogiken och kundperspektivet avgjör vad som är primärt i värdekedjan. Utan detta riskerar vi intern optimering utan effekt.</p>
+      <div style="display:grid;gap:15px;">
+        <div><label class="wl">Hur tjanar bolaget pengar? (Intäktsmodell) *</label>
+          <div class="tags" id="rev-tags">
+            <span class="tag" onclick="toggleTag(this,'revenue')">Hyresintäkter (bostader)</span>
+            <span class="tag" onclick="toggleTag(this,'revenue')">Hyresintäkter (kommersiellt)</span>
+            <span class="tag" onclick="toggleTag(this,'revenue')">Fastighetsförsäljning / exit</span>
+            <span class="tag" onclick="toggleTag(this,'revenue')">Förvaltningsarvode</span>
+            <span class="tag" onclick="toggleTag(this,'revenue')">SaaS / plattformsintäkter</span>
+            <span class="tag" onclick="toggleTag(this,'revenue')">Serviceintäkter (OKB)</span>
+            <span class="tag" onclick="toggleTag(this,'revenue')">Energioptimering / besparing</span>
+            <span class="tag" onclick="toggleTag(this,'revenue')">Projektintäkter (byggnation)</span>
+          </div>
+          <input id="f-revenue-custom" class="wi" style="margin-top:8px;font-size:12px;" placeholder="Beskriv intaktsmodellen med egna ord..."/>
+        </div>
+        <div><label class="wl">Primära värdedrivare (vad driver lönsamhet?) *</label>
+          <div class="tags" id="driver-tags">
+            <span class="tag" onclick="toggleTag(this,'drivers')">Hög belaggning / lag vakans</span>
+            <span class="tag" onclick="toggleTag(this,'drivers')">Hög hyra per kvm</span>
+            <span class="tag" onclick="toggleTag(this,'drivers')">Laga driftkostnader (OPEX)</span>
+            <span class="tag" onclick="toggleTag(this,'drivers')">Fastighetsvardeokning</span>
+            <span class="tag" onclick="toggleTag(this,'drivers')">Hyresgästnöjdhet / retention</span>
+            <span class="tag" onclick="toggleTag(this,'drivers')">ESG-rating / hallbarhetsindex</span>
+            <span class="tag" onclick="toggleTag(this,'drivers')">Kort time-to-market vid uthyrning</span>
+            <span class="tag" onclick="toggleTag(this,'drivers')">Skalning utan personalkostnad</span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label class="wl">Primär kund *</label>
+            <div class="tags" id="cust-tags">
+              <span class="tag" onclick="selectSingle(this,'customer')">Hyresgäst (privat)</span>
+              <span class="tag" onclick="selectSingle(this,'customer')">Hyresgäst (kommersiell)</span>
+              <span class="tag" onclick="selectSingle(this,'customer')">Fastighetsagare / uppdragsgivare</span>
+              <span class="tag" onclick="selectSingle(this,'customer')">Investerare / fonder</span>
+              <span class="tag" onclick="selectSingle(this,'customer')">Intern (EA / IT)</span>
+            </div>
+          </div>
+          <div><label class="wl">Vad upplever kunden som värde?</label>
+            <textarea id="f-customer-value" class="wi" style="font-size:12px;min-height:80px;" placeholder="Ex: Trygg bönde, snabb felanmaalan, transparent kommunikation, energieffektivt..."></textarea>
+          </div>
+        </div>
+        <div><label class="wl">Var skapas värde idag? (Nulage)</label>
+          <textarea id="f-value-today" class="wi" style="font-size:12px;" placeholder="Ex: Mestadels i Operations (förvaltning). Uthyrning är manuell och langsam..."></textarea>
+        </div>
+        <div><label class="wl">Var försvinner värde idag? (Gap / problem)</label>
+          <textarea id="f-value-gap" class="wi" style="font-size:12px;" placeholder="Ex: Hög vakans pga. langsam uthyrningsprocess. Onödiga driftkostnader..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="wcard">
+      <div class="vtitle"><i class="fas fa-robot"></i> AI-förslag: Värdekedjestruktur</div>
+      <p style="font-size:12px;color:#3b5f8a;margin-bottom:10px;">AI föreslar hur värdekedjan typiskt ser ut för din bransch och trigger.</p>
+      <button class="btn btn-ai" id="btn-vc" onclick="aiSuggestValueLogic()"><i class="fas fa-magic"></i> Föresla värdekedjestruktur</button>
+      <div class="ai-box" id="vc-box"></div>
+    </div>
+    <div class="wcard">
+      <div class="vtitle"><i class="fas fa-check-square"></i> Checklista - Värdelogik</div>
+      <div class="clist">
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">Vi vet var pengar faktiskt tjänas - inte bara en generell beskrivning</div><div class="csub">Ex: Fastighetsbolag tjanar i hyra, men lönsamheten drivs av driftkostnad och vakans</div></div></div>
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">Kundperspektivet är inkluderat - vad upplevs som värde?</div><div class="csub">Annars risk: intern optimering som inte syns av kunden</div></div></div>
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">Vi har identifierat var värde försvinner idag (gap)</div><div class="csub">Value Chain utan gap-analys är dokumentation, inte analys</div></div></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:4px;">
+      <button class="btn-back" onclick="goStep(1)"><i class="fas fa-arrow-left"></i> Tillbaka</button>
+      <button class="btn-next" onclick="goStep(3)">Nästa: Primära Aktiviteter <i class="fas fa-arrow-right"></i></button>
+    </div>
+  </div>  <!-- STEP 3 -->
+  <div class="step-panel" id="panel-3">
+    <div class="wcard">
+      <div class="vtitle"><i class="fas fa-arrow-right"></i> Steg 3 av 6 - Primära Aktiviteter</div>
+      <p style="font-size:12px;color:#3b5f8a;margin-bottom:6px;">Primära aktiviteter skapar direkt kundvärde och intäkter. Beskriv nulage per aktivitet.</p>
+      <div class="warn"><i class="fas fa-info-circle" style="flex-shrink:0;margin-top:1px;"></i><div>Fyll i <strong>nulage</strong> (AS-IS) - vad händer faktiskt idag? Inkludera nyckelaktiviteter, system och kända problem. åtgärder bestammer vi i Steg 5.</div></div>
+      <div style="background:#0f1e35;border:1px solid #1e3a5f;border-radius:10px;padding:12px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <button class="btn btn-ai" id="btn-primary" onclick="aiSuggestPrimary()"><i class="fas fa-magic"></i> AI fyller i förslag</button>
+        <span style="font-size:11px;color:#3b5f8a;">Baserat pa din bransch, trigger och värdelogik</span>
+      </div>
+      <div class="ai-box" id="primary-box" style="margin-bottom:14px;"></div>
+      <div id="primary-acts"></div>
+    </div>
+    <div class="wcard">
+      <div class="vtitle"><i class="fas fa-check-square"></i> Checklista - Primära Aktiviteter</div>
+      <div class="clist">
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">Varje aktivitet är beskriven ur ett affärsperspektiv, inte systemers perspektiv</div><div class="csub">Korrekt: Uthyrning sker via manuell handlaggning med Excel. Fel: Vi har ett CRM-system</div></div></div>
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">Vi har markerat kostnadsniva och AI-potential per aktivitet</div><div class="csub">Det är grunden för att prioritera digitaliseringsinitiativ</div></div></div>
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">System som stödjer aktiviteten är identifierade</div><div class="csub">Grunden för Application Landscape och Target Architecture</div></div></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:4px;">
+      <button class="btn-back" onclick="goStep(2)"><i class="fas fa-arrow-left"></i> Tillbaka</button>
+      <button class="btn-next" onclick="goStep(4)">Nästa: Stödaktiviteter <i class="fas fa-arrow-right"></i></button>
+    </div>
+  </div>
+  <!-- STEP 4 -->
+  <div class="step-panel" id="panel-4">
+    <div class="wcard">
+      <div class="vtitle"><i class="fas fa-th"></i> Steg 4 av 6 - Stödaktiviteter</div>
+      <p style="font-size:12px;color:#3b5f8a;margin-bottom:6px;">Stödaktiviteter möjliggör primära aktiviteter men skapar inte direkt kundvärde. Ofta här finns störst rationaliseringspotential.</p>
+      <div style="background:#0f1e35;border:1px solid #1e3a5f;border-radius:10px;padding:12px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <button class="btn btn-ai" id="btn-support" onclick="aiSuggestSupport()"><i class="fas fa-magic"></i> AI fyller i förslag</button>
+        <span style="font-size:11px;color:#3b5f8a;">Baserat pa din bransch och scope</span>
+      </div>
+      <div class="ai-box" id="support-box" style="margin-bottom:14px;"></div>
+      <div id="support-acts"></div>
+    </div>
+    <div class="wcard">
+      <div class="vtitle"><i class="fas fa-check-square"></i> Checklista - Stödaktiviteter</div>
+      <div class="clist">
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">Stödaktiviteter är kopplade till vilka primära aktiviteter de möjliggör</div><div class="csub">Ex: IT-plattform möjliggör Operations + Service. HR möjliggör alla.</div></div></div>
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">Vi har identifierat vilka stödaktiviteter som är core vs non-core</div><div class="csub">Non-core = outsourcing-kandidat. Core = behal internt.</div></div></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:4px;">
+      <button class="btn-back" onclick="goStep(3)"><i class="fas fa-arrow-left"></i> Tillbaka</button>
+      <button class="btn-next" onclick="goStep(5)">Nästa: åtgärder &amp; Beslut <i class="fas fa-arrow-right"></i></button>
+    </div>
+  </div>  <!-- STEP 5 -->
+  <div class="step-panel" id="panel-5">
+    <div class="wcard">
+      <div class="vtitle"><i class="fas fa-chess"></i> Steg 5 av 6 - åtgärder &amp; Prioritering</div>
+      <p style="font-size:12px;color:#3b5f8a;margin-bottom:14px;">Value Chain-analysen maste bli beslut. Välj ätgärd per aktivitet och ange motivering.</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+        <div style="background:#0f1e35;border:1px solid #1e3a5f;border-radius:8px;padding:10px;"><span style="display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(20,184,166,.15);border:1px solid #14b8a6;color:#2dd4bf;">Automate</span><div style="margin-top:5px;font-size:10px;color:#3b5f8a;">Repetitiva, datadrivna aktiviteter med tydliga regler - RPA / AI</div></div>
+        <div style="background:#0f1e35;border:1px solid #1e3a5f;border-radius:8px;padding:10px;"><span style="display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(37,99,235,.15);border:1px solid #2563eb;color:#60a5fa;">Standardize</span><div style="margin-top:5px;font-size:10px;color:#3b5f8a;">Ineffektiva / varierade processer - standardisera och effektivisera</div></div>
+        <div style="background:#0f1e35;border:1px solid #1e3a5f;border-radius:8px;padding:10px;"><span style="display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(168,85,247,.15);border:1px solid #a855f7;color:#c084fc;">Invest</span><div style="margin-top:5px;font-size:10px;color:#3b5f8a;">Hög strategisk värde, underprioriterad - öka investering</div></div>
+        <div style="background:#0f1e35;border:1px solid #1e3a5f;border-radius:8px;padding:10px;"><span style="display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(34,197,94,.15);border:1px solid #22c55e;color:#4ade80;">Outsource</span><div style="margin-top:5px;font-size:10px;color:#3b5f8a;">Non-core, standardiserad - köp som tjänst / SaaS</div></div>
+        <div style="background:#0f1e35;border:1px solid #1e3a5f;border-radius:8px;padding:10px;"><span style="display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(148,163,184,.12);border:1px solid #94a3b8;color:#cbd5e1;">Keep</span><div style="margin-top:5px;font-size:10px;color:#3b5f8a;">Fungerar bra, inga åtgärder nu - bevaka evolution</div></div>
+        <div style="background:#0f1e35;border:1px solid #1e3a5f;border-radius:8px;padding:10px;"><span style="display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(239,68,68,.15);border:1px solid #ef4444;color:#f87171;">Eliminate</span><div style="margin-top:5px;font-size:10px;color:#3b5f8a;">Skapar inget värde - ta bort eller sluta finansiera</div></div>
+      </div>
+      <div style="background:#0f1e35;border:1px solid #1e3a5f;border-radius:10px;padding:12px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <button class="btn btn-ai" id="btn-actions" onclick="aiSuggestActions()"><i class="fas fa-robot"></i> AI rekommenderar åtgärder</button>
+        <span style="font-size:11px;color:#3b5f8a;">AI analyserar kostnads- och AI-potential och rekommenderar ätgärd per aktivitet</span>
+      </div>
+      <div class="ai-box" id="actions-box" style="margin-bottom:14px;"></div>
+      <div style="overflow-x:auto;">
+        <table class="act-overview">
+          <thead><tr><th>Aktivitet</th><th>Typ</th><th>Kostnad</th><th>AI-potential</th><th>ätgärd</th><th>Motivering</th></tr></thead>
+          <tbody id="actions-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="wcard">
+      <div class="vtitle"><i class="fas fa-check-square"></i> Checklista - åtgärder</div>
+      <div class="clist">
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">Aktiviteter med hög kostnad + lag AI-potential är markerade Standardize/Outsource</div><div class="csub">Det är waste i värdekedjan - rationalisera bort detta</div></div></div>
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">Aktiviteter med hög AI-potential och hög affärsvärde är markerade Automate/Invest</div><div class="csub">Det är AI use cases - dessa ska in i AI-strategin och roadmapen</div></div></div>
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">åtgärderna är prioriterade (max 3 skarpa prioriteringar)</div><div class="csub">Fler än 3 parallella initiativ = inget genomförs</div></div></div>
+        <div class="citem" onclick="toggleCheck(this)"><div class="cbox"><i class="fas fa-check" style="color:white;font-size:9px;display:none;"></i></div><div><div class="ctext">åtgärderna är kopplade till EA-artefakter: Capability Map, Application Landscape, Roadmap</div><div class="csub">Value Chain - Capability - Arkitektur - Roadmap</div></div></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:4px;">
+      <button class="btn-back" onclick="goStep(4)"><i class="fas fa-arrow-left"></i> Tillbaka</button>
+      <button class="btn-next" onclick="goStep(6)">Sammanfattning &amp; Lansera <i class="fas fa-arrow-right"></i></button>
+    </div>
+  </div>
+  <!-- STEP 6 -->
+  <div class="step-panel" id="panel-6">
+    <div class="wcard">
+      <div class="vtitle"><i class="fas fa-rocket"></i> Steg 6 av 6 - Sammanfattning &amp; Lansera</div>
+      <p style="font-size:12px;color:#3b5f8a;margin-bottom:16px;">Granska workshopdata. <strong style="color:#93c5fd;">Lansera Value Chain Analyzer</strong> för att exportera alla aktiviteter och åtgärder.</p>
+      <div id="summary-content"></div>
+    </div>
+    <div class="wcard">
+      <div class="vtitle"><i class="fas fa-download"></i> Exportera &amp; Lansera</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
+        <div style="background:#0f1e35;border:1px solid #1e3a5f;border-radius:10px;padding:14px;text-align:center;"><i class="fas fa-link" style="font-size:22px;color:#2563eb;display:block;margin-bottom:7px;"></i><div style="font-size:12px;font-weight:700;color:#e2e8f0;margin-bottom:3px;">Value Chain Analyzer</div><div style="font-size:10px;color:#3b5f8a;">Alla aktiviteter förpositionerade med beskrivningar</div></div>
+        <div style="background:#0f1e35;border:1px solid #1e3a5f;border-radius:10px;padding:14px;text-align:center;"><i class="fas fa-file-csv" style="font-size:22px;color:#22c55e;display:block;margin-bottom:7px;"></i><div style="font-size:12px;font-weight:700;color:#e2e8f0;margin-bottom:3px;">CSV / Excel</div><div style="font-size:10px;color:#3b5f8a;">Workshop-data för dokumentation och rapport</div></div>
+      </div>
+      <div style="text-align:center;padding:8px 0 20px;">
+        <button class="btn-launch" onclick="launchAnalyzer()"><i class="fas fa-link"></i> Lansera Value Chain Analyzer <i class="fas fa-arrow-right"></i></button>
+        <div style="margin-top:12px;">
+          <button onclick="exportWorkshopCSV()" style="background:none;border:1px solid #1e3a5f;color:#3b5f8a;padding:7px 16px;border-radius:8px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;" onmouseover="this.style.color='#e2e8f0'" onmouseout="this.style.color='#3b5f8a'">
+            <i class="fas fa-file-csv"></i> Ladda ned workshop-data (CSV)
+          </button>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-start;margin-top:4px;"><button class="btn-back" onclick="goStep(5)"><i class="fas fa-arrow-left"></i> Tillbaka</button></div>
+  </div>
+</div>
+<div id="toast"></div><script>
+const PRIMARY_ACTS=[
+  {id:'inbound',   label:'Inbound Logistics',      icon:'fas fa-arrow-circle-down',hint:'Datainsamling, leveranser, IoT-sensorer, verksamhetsinformation...'},
+  {id:'operations',label:'Operations',              icon:'fas fa-cogs',             hint:'Verksamhetsförvaltning, drift, underhall, hyresgästhantering...'},
+  {id:'outbound',  label:'Outbound Logistics',      icon:'fas fa-arrow-circle-up',  hint:'Leverans av tjänster, rapportering, portalsystem...'},
+  {id:'marketing', label:'Salj och Marknadsforing', icon:'fas fa-bullhorn',         hint:'Uthyrning, varumärke, digitala kanaler, prissättning...'},
+  {id:'service',   label:'Service och Eftermarknad',icon:'fas fa-headset',          hint:'Hyresgästsupport, felanmaalan, NPS, retention, ESG...'}
+];
+const SUPPORT_ACTS=[
+  {id:'infrastructure',label:'Foretagsinfrastruktur',       icon:'fas fa-building',    hint:'Ledning, finans, juridik, compliance, portföljstyrning...'},
+  {id:'hr',            label:'HR och Kompetens',            icon:'fas fa-users-cog',   hint:'Rekrytering, utbildning, digital kompetens...'},
+  {id:'tech',          label:'Teknikutveckling / IT',       icon:'fas fa-microchip',   hint:'Plattformsutveckling, AI/ML, IoT, BIM, integrationer...'},
+  {id:'procurement',   label:'Inkop och Upphandling',       icon:'fas fa-truck-loading',hint:'Leverantöersval, ramavtal, hallbarhetskrav, SLA...'}
+];
+const st={sets:{regs:new Set(),revenue:new Set(),drivers:new Set(),customer:null},acts:{},currentStep:1};
+[...PRIMARY_ACTS,...SUPPORT_ACTS].forEach(a=>{st.acts[a.id]={desc:'',systems:'',cost:'',aiPot:'',action:'',actionReason:''};});
+
+let dm=null;
+if(typeof EA_DataManager!=='undefined'){try{dm=new EA_DataManager();}catch(e){}}
+function getApiKey(){
+  if(dm){const k=dm.getApiKey();if(k)return k;}
+  for(const k of['ea20_openai_key','openai_api_key','ea_openai_key']){const v=localStorage.getItem(k);if(v)return v;}
+  return '';
+}
+function saveApiKey(){
+  const key=document.getElementById('api-key-input').value.trim();
+  if(!key.startsWith('sk-')){toast('API-nyckeln ska börja med sk-');return;}
+  if(dm)dm.setApiKey(key);
+  ['ea20_openai_key','openai_api_key','ea_openai_key'].forEach(k=>localStorage.setItem(k,key));
+  updateNavApiLabel();closeApiModal();toast('API-nyckel sparad');
+}
+function openApiModal(){const k=getApiKey();if(k)document.getElementById('api-key-input').value=k;document.getElementById('api-modal').style.display='flex';}
+function closeApiModal(){document.getElementById('api-modal').style.display='none';}
+function updateNavApiLabel(){document.getElementById('nav-api-label').textContent=getApiKey()?'API aktiv':'API-nyckel';}
+
+function goStep(n){
+  if(n>st.currentStep&&!validateStep(st.currentStep))return;
+  document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+n).classList.add('active');
+  for(let i=1;i<=6;i++){
+    const si=document.getElementById('si-'+i);si.classList.remove('active','done');
+    if(i<n)si.classList.add('done');else if(i===n)si.classList.add('active');
+    const sd=document.getElementById('sd-'+i);
+    if(i<n)sd.innerHTML='<i class="fas fa-check" style="font-size:11px;"></i>';else sd.textContent=i;
+  }
+  for(let i=1;i<=5;i++)document.getElementById('sln-'+i).classList.toggle('done',i<n);
+  const pcts=[8,25,44,62,80,100];
+  document.getElementById('prog').style.width=pcts[n-1]+'%';
+  st.currentStep=n;
+  if(n===5)renderActionsTable();
+  if(n===6)renderSummary();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function validateStep(n){
+  if(n===1){
+    if(!document.getElementById('f-org').value.trim()){toast('Ange organisation');return false;}
+    if(!document.getElementById('f-industry').value.trim()){toast('Fyll i bransch');return false;}
+    if(!document.getElementById('f-trigger').value){toast('Välj strategisk trigger');return false;}
+  }
+  if(n===2){
+    if(st.sets.revenue.size===0&&!document.getElementById('f-revenue-custom').value.trim()){toast('Välj minst en intäktskalla');return false;}
+  }
+  return true;
+}
+function toggleTag(el,setKey){
+  el.classList.toggle('sel');
+  const v=el.textContent.trim();
+  if(!st.sets[setKey])st.sets[setKey]=new Set();
+  if(st.sets[setKey].has(v))st.sets[setKey].delete(v);else st.sets[setKey].add(v);
+}
+function selectSingle(el,key){
+  el.closest('.tags').querySelectorAll('.tag').forEach(t=>t.classList.remove('sel'));
+  el.classList.add('sel');st.sets[key]=el.textContent.trim();
+}
+function toggleCheck(el){
+  el.classList.toggle('checked');
+  const ic=el.querySelector('.cbox i');if(ic)ic.style.display=el.classList.contains('checked')?'block':'none';
+}
+function setLevel(id,field,value,el,selClass){
+  st.acts[id][field]=value;
+  el.closest('.level-group').querySelectorAll('.lvl-btn').forEach(b=>b.className='lvl-btn');
+  el.className='lvl-btn '+selClass;
+}
+function buildActCards(acts,containerId,typeClass){
+  document.getElementById(containerId).innerHTML=acts.map(a=>`
+    <div class="act-card ${typeClass}">
+      <div class="act-name"><i class="${a.icon}"></i>${a.label}</div>
+      <div class="act-fields">
+        <div class="act-field-full">
+          <label class="wl" style="font-size:10px;">Nulage (AS-IS) *</label>
+          <textarea class="wi act-desc" data-id="${a.id}" style="font-size:12px;min-height:72px;" placeholder="${a.hint}" oninput="st.acts['${a.id}'].desc=this.value">${escHtml(st.acts[a.id].desc)}</textarea>
+        </div>
+        <div>
+          <label class="wl" style="font-size:10px;">System / Applikationer</label>
+          <input class="wi" style="font-size:12px;" placeholder="Ex: Vitec, SAP, Excel..." value="${escHtml(st.acts[a.id].systems)}" oninput="st.acts['${a.id}'].systems=this.value"/>
+        </div>
+        <div>
+          <label class="wl" style="font-size:10px;">Datafloden / Data som skapas</label>
+          <input class="wi" style="font-size:12px;" placeholder="Ex: Hyresdata, sensordata..." value="${escHtml(st.acts[a.id].data||'')}" oninput="st.acts['${a.id}'].data=this.value"/>
+        </div>
+        <div>
+          <label class="wl" style="font-size:10px;">Kostnadsniva</label>
+          <div class="level-group">
+            <span class="lvl-btn ${st.acts[a.id].cost==='Lag'?'sel-low':''}" onclick="setLevel('${a.id}','cost','Lag',this,'sel-low')">Lag</span>
+            <span class="lvl-btn ${st.acts[a.id].cost==='Medel'?'sel-medium':''}" onclick="setLevel('${a.id}','cost','Medel',this,'sel-medium')">Medel</span>
+            <span class="lvl-btn ${st.acts[a.id].cost==='Hog'?'sel-high':''}" onclick="setLevel('${a.id}','cost','Hog',this,'sel-high')">Hog</span>
+          </div>
+        </div>
+        <div>
+          <label class="wl" style="font-size:10px;">AI / Digitaliseringspotential</label>
+          <div class="level-group">
+            <span class="lvl-btn ${st.acts[a.id].aiPot==='Lag'?'sel-low':''}" onclick="setLevel('${a.id}','aiPot','Lag',this,'sel-low')">Lag</span>
+            <span class="lvl-btn ${st.acts[a.id].aiPot==='Medel'?'sel-medium':''}" onclick="setLevel('${a.id}','aiPot','Medel',this,'sel-medium')">Medel</span>
+            <span class="lvl-btn ${st.acts[a.id].aiPot==='Hog'?'sel-high':''}" onclick="setLevel('${a.id}','aiPot','Hog',this,'sel-high')">Hog</span>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}function renderActionsTable(){
+  const allActs=[...PRIMARY_ACTS.map(a=>({...a,type:'Primär'})),...SUPPORT_ACTS.map(a=>({...a,type:'Stod'}))];
+  document.getElementById('actions-tbody').innerHTML=allActs.map(a=>{
+    const s=st.acts[a.id];
+    const cc=s.cost==='Hog'?'#f87171':s.cost==='Medel'?'#fb923c':'#4ade80';
+    const ac=s.aiPot==='Hog'?'#c084fc':s.aiPot==='Medel'?'#60a5fa':'#94a3b8';
+    return `<tr>
+      <td><span style="font-weight:600;color:#e2e8f0;">${escHtml(a.label)}</span><br><span style="font-size:10px;color:#3b5f8a;">${escHtml(s.systems||'')}</span></td>
+      <td><span style="font-size:10px;color:#3b5f8a;">${a.type}</span></td>
+      <td><span style="font-size:11px;font-weight:700;color:${cc};">${s.cost||'—'}</span></td>
+      <td><span style="font-size:11px;font-weight:700;color:${ac};">${s.aiPot||'—'}</span></td>
+      <td><select style="background:#0f1e35;border:1px solid #1e3a5f;border-radius:6px;padding:4px 8px;font-size:11px;color:#e2e8f0;outline:none;width:100%;" onchange="st.acts['${a.id}'].action=this.value">
+        <option value="" ${!s.action?'selected':''}>— Välj —</option>
+        <option value="Automate"    ${s.action==='Automate'?'selected':''}>Automate</option>
+        <option value="Standardize" ${s.action==='Standardize'?'selected':''}>Standardize</option>
+        <option value="Invest"      ${s.action==='Invest'?'selected':''}>Invest</option>
+        <option value="Outsource"   ${s.action==='Outsource'?'selected':''}>Outsource</option>
+        <option value="Keep"        ${s.action==='Keep'?'selected':''}>Keep</option>
+        <option value="Eliminate"   ${s.action==='Eliminate'?'selected':''}>Eliminate</option>
+      </select></td>
+      <td><input style="background:#0f1e35;border:1px solid #1e3a5f;border-radius:6px;padding:5px 8px;font-size:11px;color:#e2e8f0;outline:none;width:100%;" placeholder="Motivering..." value="${escHtml(s.actionReason)}" oninput="st.acts['${a.id}'].actionReason=this.value"/></td>
+    </tr>`;
+  }).join('');
+}
+function renderSummary(){
+  const org=document.getElementById('f-org').value||'—';
+  const industry=document.getElementById('f-industry').value||'—';
+  const scope=document.getElementById('f-scope').value||'—';
+  const trigger=document.getElementById('f-trigger').value||'—';
+  const regs=[...(st.sets.regs||[])].join(', ')||'—';
+  const revenue=[...(st.sets.revenue||[])].join(', ')||document.getElementById('f-revenue-custom').value||'—';
+  const drivers=[...(st.sets.drivers||[])].join(', ')||'—';
+  const allActs=[...PRIMARY_ACTS,...SUPPORT_ACTS];
+  const acMap={};
+  allActs.forEach(a=>{const act=st.acts[a.id].action||'Ej vald';if(!acMap[act])acMap[act]=[];acMap[act].push(a.label);});
+  const clr={Automate:'#2dd4bf',Standardize:'#60a5fa',Invest:'#c084fc',Outsource:'#4ade80',Keep:'#cbd5e1',Eliminate:'#f87171','Ej vald':'#3b5f8a'};
+  const actRows=Object.entries(acMap).map(([act,names])=>`<div class="srow"><div class="skey">${act}</div><div class="sval" style="color:${clr[act]||'#e2e8f0'};">${names.map(escHtml).join(', ')}</div></div>`).join('');
+  const highAI=allActs.filter(a=>st.acts[a.id].aiPot==='Hog').map(a=>a.label);
+  const highCost=allActs.filter(a=>st.acts[a.id].cost==='Hog').map(a=>a.label);
+  document.getElementById('summary-content').innerHTML=`
+    <div class="sblock"><h4>Kontext</h4>
+      <div class="srow"><div class="skey">Organisation</div><div class="sval">${escHtml(org)}</div></div>
+      <div class="srow"><div class="skey">Bransch</div><div class="sval">${industry}</div></div>
+      <div class="srow"><div class="skey">Scope</div><div class="sval">${scope}</div></div>
+      <div class="srow"><div class="skey">Trigger</div><div class="sval">${trigger}</div></div>
+      <div class="srow"><div class="skey">Drivkrafter</div><div class="sval">${escHtml(regs)}</div></div>
+    </div>
+    <div class="sblock"><h4>Affärsmodell</h4>
+      <div class="srow"><div class="skey">Intäktsmodell</div><div class="sval">${escHtml(revenue)}</div></div>
+      <div class="srow"><div class="skey">Värdedrivare</div><div class="sval">${escHtml(drivers)}</div></div>
+      ${highAI.length?`<div class="srow"><div class="skey">Hög AI-potential</div><div class="sval" style="color:#c084fc;">${highAI.map(escHtml).join(', ')}</div></div>`:''}
+      ${highCost.length?`<div class="srow"><div class="skey">Hög kostnad</div><div class="sval" style="color:#f87171;">${highCost.map(escHtml).join(', ')}</div></div>`:''}
+    </div>
+    <div class="sblock"><h4>åtgärder per aktivitet</h4>${actRows||'<div style="color:#3b5f8a;font-size:12px;">Inga åtgärder valda</div>'}</div>`;
+}
+function launchAnalyzer(){
+  const fieldMap={};
+  [...PRIMARY_ACTS,...SUPPORT_ACTS].forEach(a=>{
+    const s=st.acts[a.id];const parts=[];
+    if(s.desc)parts.push(s.desc);
+    if(s.systems)parts.push('System: '+s.systems);
+    if(s.cost||s.aiPot)parts.push('Kostnad: '+(s.cost||'—')+' | AI-potential: '+(s.aiPot||'—'));
+    if(s.action)parts.push('ätgärd: '+s.action+(s.actionReason?' - '+s.actionReason:''));
+    fieldMap[a.id]=parts.join('\n');
+  });
+  const allActs=[...PRIMARY_ACTS,...SUPPORT_ACTS];
+  const highVal=allActs.filter(a=>st.acts[a.id].action==='Invest'||st.acts[a.id].aiPot==='Hog');
+  const gap=document.getElementById('f-value-gap').value;
+  const drv=[...(st.sets.drivers||[])].join(', ');
+  let marginTxt='';
+  if(drv)marginTxt+='Värdedrivare: '+drv+'\n';
+  if(highVal.length)marginTxt+='Hög strategisk potential: '+highVal.map(a=>a.label).join(', ')+'\n';
+  if(gap)marginTxt+='Gap: '+gap;
+  fieldMap.margin=marginTxt.trim();
+  localStorage.setItem('valuechain_v2',JSON.stringify(fieldMap));
+  const ctx={org:document.getElementById('f-org').value,industry:document.getElementById('f-industry').value,scope:document.getElementById('f-scope').value,trigger:document.getElementById('f-trigger').value,revenue:[...(st.sets.revenue||[])].join(', ')||document.getElementById('f-revenue-custom').value,drivers:drv,regs:[...(st.sets.regs||[])].join(', '),workshopDone:true,exportedAt:new Date().toISOString()};
+  localStorage.setItem('vc_workshop_context',JSON.stringify(ctx));
+  if(dm){try{dm.saveIntegrationData('vc_workshop_context',ctx);}catch(e){}}
+  toast('Värdekedja exporterad! öppnar Value Chain Analyzer...');
+  setTimeout(()=>{window.location.href='AI Value Chain Analyzer V2.html?from=workshop';},1400);
+}
+function exportWorkshopCSV(){
+  const allActs=[...PRIMARY_ACTS.map(a=>({...a,type:'Primär'})),...SUPPORT_ACTS.map(a=>({...a,type:'Stod'}))];
+  const org=document.getElementById('f-org').value;
+  const rows=[['Aktivitet','Typ','Nulage','System','Kostnad','AI-potential','ätgärd','Motivering','Organisation']];
+  allActs.forEach(a=>{const s=st.acts[a.id];rows.push([a.label,a.type,s.desc||'',s.systems||'',s.cost||'',s.aiPot||'',s.action||'',s.actionReason||'',org]);});
+  const BOM='\uFEFF';
+  const csv=BOM+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download='ValueChain_Workshop.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  toast('ValueChain_Workshop.csv nedladdad');
+}function buildCtx(){
+  const scopeCustom=document.getElementById('f-scope-custom');
+  const scopeSel=document.getElementById('f-scope');
+  const scopeValue=scopeCustom&&scopeCustom.value.trim()?scopeCustom.value.trim():scopeSel.value;
+  return {
+    org:document.getElementById('f-org').value||'Okant bolag',
+    industry:document.getElementById('f-industry').value||'Fastighet',
+    scope:scopeValue||'Hela bolaget',
+    trigger:document.getElementById('f-trigger').value||'Strategisk analys',
+    horizon:document.getElementById('f-horizon').value||'12 manader',
+    regs:[...(st.sets.regs||[])].join(', ')||'Inga specificerade',
+    revenue:[...(st.sets.revenue||[])].join(', ')||document.getElementById('f-revenue-custom').value||'Hyresintäkter',
+    drivers:[...(st.sets.drivers||[])].join(', ')||'',
+    customer:typeof st.sets.customer==='string'?st.sets.customer:'',
+    custVal:document.getElementById('f-customer-value').value||'',
+    gap:document.getElementById('f-value-gap').value||''
+  };
+}
+async function aiLookupIndustry(){
+  const org=document.getElementById('f-org').value.trim();
+  if(!org){toast('Fyll i bolagsnamn först');return;}
+  const key=getApiKey();
+  if(!key){toast('Lagg till OpenAI API-nyckel');openApiModal();return;}
+  const btn=document.getElementById('btn-lookup-industry');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner spinner"></i>';}
+  try{
+    const res=await fetch('/api/openai/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'gpt-5',messages:[{role:'system',content:'Du är en expert pa bolagsanalys. Svara med exakt 2-5 ord pa svenska - bara branschnamnet, inga meningar.'},{role:'user',content:'Vad är bransch/sektor för "'+org+'"? Svara med max 5 ord, bara branschnamnet pa svenska. Exempel: "Fastighet - Bostader", "SaaS - HR-tech", "Finans - Kreditgivning", "Offentlig sektor - Utbildning".'}]})});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+    const ind=data.choices[0].message.content.trim().replace(/^["']|["']$/g,'');
+    document.getElementById('f-industry').value=ind;
+    toast('Bransch: '+ind);
+    // Show AI scope button when industry is populated
+    const scopeBtn=document.getElementById('btn-lookup-scope');
+    if(scopeBtn)scopeBtn.style.display='inline-flex';
+  }catch(e){toast('AI-fel: '+e.message);}
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-search"></i> AI-sök';}
+}
+async function aiLookupScope(){
+  const org=document.getElementById('f-org').value.trim();
+  const industry=document.getElementById('f-industry').value.trim();
+  if(!org||!industry){toast('Fyll i bolagsnamn och bransch först');return;}
+  const key=getApiKey();
+  if(!key){toast('Lagg till OpenAI API-nyckel');openApiModal();return;}
+  const btn=document.getElementById('btn-lookup-scope');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner spinner"></i> Analyserar...';}
+  try{
+    const res=await fetch('/api/openai/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'gpt-5',messages:[{role:'system',content:'Du är en expert pa värdekedjeanalys och organisationsstruktur. Svara med valid JSON utan markdown-block eller förklaringar.'},{role:'user',content:'Organisation: "'+org+'" | Bransch: "'+industry+'"\n\nFöresla 4-6 relevanta analysscopes för en värdekedjeanalys för detta bolag. Täck både helhetsanalys och viktiga funktioner/processer för branschen.\n\nSvara med EXAKT denna JSON:\n{"scopes":["Hela bolaget","Funktionsområde 1","Funktionsområde 2","Procesområde 1",...]}\n\nExempel fastighet: ["Hela bolaget","Fastighetsförvaltning","Uthyrning & Leasing","Underhall & Teknisk förvaltning","Hyresgästtjänster","IT & Digitalisering"]\nExempel tech: ["Hela bolaget","Produktutveckling","Kundanskaffning","Customer Success","Drift & Infrastructure","R&D"]\nExempel retail: ["Hela bolaget","Inköp & Supply Chain","Lagerhantering","Butiksdrift","E-handel","Kundservice"]'}]})});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+    const respText=data.choices[0].message.content.trim().replace(/```[\w]*\n?/g,'');
+    const json=JSON.parse(respText);
+    const scopes=json.scopes||[];
+    if(scopes.length>0){
+      const sel=document.getElementById('f-scope');
+      sel.innerHTML='';
+      scopes.forEach(s=>{ const opt=document.createElement('option'); opt.value=s; opt.textContent=s; sel.appendChild(opt); });
+      sel.value=scopes[0];
+      // Show custom scope input
+      const customField=document.getElementById('f-scope-custom');
+      if(customField)customField.style.display='block';
+      toast('AI föreslog '+scopes.length+' scopes');
+    }
+  }catch(e){toast('AI-fel: '+e.message);console.error(e);}
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-magic"></i> AI-förslag';}
+}
+async function callAI(sys,usr,onSuccess,btnId,btnLabel){
+  const key=getApiKey();const btn=document.getElementById(btnId);
+  if(!key){toast('Lagg till OpenAI API-nyckel');openApiModal();return;}
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner spinner"></i> Analyserar...';}
+  try{
+    const res=await fetch('/api/openai/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'gpt-5',messages:[{role:'system',content:sys},{role:'user',content:usr}]})});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+    onSuccess(data.choices[0].message.content);
+  }catch(e){toast('AI-fel: '+e.message);}
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-magic"></i> '+btnLabel;}
+}
+async function aiSuggestValueLogic(){
+  const c=buildCtx();const box=document.getElementById('vc-box');
+  box.className='ai-box show';box.innerHTML='<i class="fas fa-spinner spinner"></i> AI analyserar värdelogik...';
+  const sys=`Du är en senior EA specialiserad pa ${c.industry} och digital transformation. Svara alltid pa svenska. Var konkret och affärsfokuserad.`;
+  const usr=`Organisation: ${c.org} | Bransch: ${c.industry} | Scope: ${c.scope} | Trigger: ${c.trigger}\nIntäkter: ${c.revenue} | Värdedrivare: ${c.drivers||'ej angivet'}\nKund: ${c.customer} | Kundvärde: ${c.custVal||'ej angivet'}\nRegulatoriska drivkrafter: ${c.regs}\n\nBeskriv kortfattat hur värde skapas i värdekedjan för detta bolag.\nIdentifiera: 1) De 3 viktigaste primära aktiviteterna, 2) Var digitaliseringspotentialen är störst, 3) Typiska flaskhalsar i branschen.\nSvara med tydliga punktlistor pa svenska.`;
+  await callAI(sys,usr,(text)=>{box.innerHTML='<h4>AI Värdekedjeanalys</h4>'+fmtAI(text);},'btn-vc','Föresla värdekedjestruktur');
+}
+async function aiSuggestPrimary(){
+  const c=buildCtx();const box=document.getElementById('primary-box');
+  box.className='ai-box show';box.innerHTML='<i class="fas fa-spinner spinner"></i> AI genererar primärktiviteter...';
+  const sys=`Du är en senior EA. Svara ALLTID med valid JSON utan markdown-block. Inga förklaringar utanför JSON.`;
+  const usr=`Organisation: ${c.org} | Bransch: ${c.industry} | Scope: ${c.scope} | Trigger: ${c.trigger}\nIntäkter: ${c.revenue} | Kund: ${c.customer} | Gap: ${c.gap}\n\nFyll i AS-IS-beskrivning för de 5 primära aktiviteterna i Porters Value Chain för detta ${c.industry}-bolag.\nSvara med EXAKT denna JSON:\n{"activities":{"inbound":{"desc":"AS-IS nulage max 120 tecken","systems":"kommaseparerade system/verktyg","cost":"Lag|Medel|Hog","aiPot":"Lag|Medel|Hog"},"operations":{"desc":"...","systems":"...","cost":"...","aiPot":"..."},"outbound":{"desc":"...","systems":"...","cost":"...","aiPot":"..."},"marketing":{"desc":"...","systems":"...","cost":"...","aiPot":"..."},"service":{"desc":"...","systems":"...","cost":"...","aiPot":"..."}}}`;
+  await callAI(sys,usr,(text)=>{
+    try{
+      const json=JSON.parse(text.replace(/```[\w]*\n?/g,'').trim());
+      let filled=0;
+      Object.entries(json.activities||{}).forEach(([id,v])=>{
+        if(!st.acts[id])return;
+        if(v.desc)st.acts[id].desc=v.desc;
+        if(v.systems)st.acts[id].systems=v.systems;
+        if(v.cost)st.acts[id].cost=v.cost;
+        if(v.aiPot)st.acts[id].aiPot=v.aiPot;
+        filled++;
+      });
+      buildActCards(PRIMARY_ACTS,'primary-acts','primary-type');
+      box.innerHTML=`<h4>AI fyllt i ${filled} aktiviteter</h4><div style="color:#3b5f8a;font-size:11px;">Granska och justera varje aktivitet.</div>`;
+      toast(filled+' primärktiviteter auto-ifyllda');
+    }catch(e){box.innerHTML='<h4>AI-förslag (ratext)</h4>'+fmtAI(text);}
+  },'btn-primary','AI fyller i förslag');
+}
+async function aiSuggestSupport(){
+  const c=buildCtx();const box=document.getElementById('support-box');
+  box.className='ai-box show';box.innerHTML='<i class="fas fa-spinner spinner"></i> AI genererar stödktiviteter...';
+  const sys=`Du är en senior EA. Svara ALLTID med valid JSON utan markdown-block.`;
+  const usr=`Organisation: ${c.org} | Bransch: ${c.industry} | Scope: ${c.scope}\nIntäkter: ${c.revenue} | Regulatoriskt: ${c.regs}\n\nFyll i AS-IS-beskrivning för de 4 stödaktiviteterna i Porters Value Chain för detta ${c.industry}-bolag.\nSvara med EXAKT denna JSON:\n{"activities":{"infrastructure":{"desc":"max 120 tecken","systems":"system","cost":"Lag|Medel|Hog","aiPot":"Lag|Medel|Hog"},"hr":{"desc":"...","systems":"...","cost":"...","aiPot":"..."},"tech":{"desc":"...","systems":"...","cost":"...","aiPot":"..."},"procurement":{"desc":"...","systems":"...","cost":"...","aiPot":"..."}}}`;
+  await callAI(sys,usr,(text)=>{
+    try{
+      const json=JSON.parse(text.replace(/```[\w]*\n?/g,'').trim());
+      let filled=0;
+      Object.entries(json.activities||{}).forEach(([id,v])=>{
+        if(!st.acts[id])return;
+        if(v.desc)st.acts[id].desc=v.desc;
+        if(v.systems)st.acts[id].systems=v.systems;
+        if(v.cost)st.acts[id].cost=v.cost;
+        if(v.aiPot)st.acts[id].aiPot=v.aiPot;
+        filled++;
+      });
+      buildActCards(SUPPORT_ACTS,'support-acts','support-type');
+      box.innerHTML=`<h4>AI fyllt i ${filled} stödaktiviteter</h4><div style="color:#3b5f8a;font-size:11px;">Granska och justera varje aktivitet.</div>`;
+      toast(filled+' stödktiviteter auto-ifyllda');
+    }catch(e){box.innerHTML='<h4>AI-förslag (ratext)</h4>'+fmtAI(text);}
+  },'btn-support','AI fyller i förslag');
+}
+async function aiSuggestActions(){
+  const c=buildCtx();const box=document.getElementById('actions-box');
+  box.className='ai-box show';box.innerHTML='<i class="fas fa-spinner spinner"></i> AI analyserar åtgärder...';
+  const allActs=[...PRIMARY_ACTS,...SUPPORT_ACTS];
+  const actSummary=allActs.map(a=>`${a.id}: "${a.label}" | Kostnad: ${st.acts[a.id].cost||'?'} | AI-potential: ${st.acts[a.id].aiPot||'?'} | Desc: ${(st.acts[a.id].desc||'').substring(0,80)}`).join('\n');
+  const sys=`Du är en senior EA och Value Chain-expert. Svara ALLTID med valid JSON utan markdown-block.`;
+  const usr=`Organisation: ${c.org} | Bransch: ${c.industry} | Trigger: ${c.trigger}\nIntäkter: ${c.revenue} | Värdedrivare: ${c.drivers} | Gap: ${c.gap}\nRegulatoriskt: ${c.regs}\n\nAktiviteter:\n${actSummary}\n\nGiltiga åtgärder: Automate, Standardize, Invest, Outsource, Keep, Eliminate\nRegel: Hög kostnad + Lag AI-potential = Standardize/Outsource. Hög AI-potential + hög affärsvärde = Automate/Invest.\nSvara med EXAKT denna JSON:\n{"actions":[{"id":"activity_id","action":"Automate|Standardize|Invest|Outsource|Keep|Eliminate","reason":"max 80 tecken pa svenska"}]}`;
+  await callAI(sys,usr,(text)=>{
+    try{
+      const json=JSON.parse(text.replace(/```[\w]*\n?/g,'').trim());
+      let updated=0;
+      (json.actions||[]).forEach(a=>{if(st.acts[a.id]){st.acts[a.id].action=a.action||'';st.acts[a.id].actionReason=a.reason||'';updated++;}});
+      renderActionsTable();
+      box.innerHTML=`<h4>AI föreslog åtgärder för ${updated} aktiviteter</h4><div style="color:#3b5f8a;font-size:11px;">Granska och justera i tabellen.</div>`;
+      toast(updated+' åtgärder auto-ifyllda');
+    }catch(e){box.innerHTML='<h4>AI ätgärdsanalys (ratext)</h4>'+fmtAI(text);}
+  },'btn-actions','AI rekommenderar åtgärder');
+}
+function fmtAI(t){return t.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/^## (.*)$/gm,'<strong style="color:#93c5fd;display:block;margin:8px 0 4px;">$1</strong>').replace(/^[-] (.*)$/gm,'<li>$1</li>').replace(/\n{2,}/g,'<br>').replace(/\n/g,'<br>');}
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+let _tt;
+function toast(msg){const el=document.getElementById('toast');el.innerHTML=msg;el.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>el.classList.remove('show'),3500);}
+window.onload=()=>{
+  updateNavApiLabel();
+  buildActCards(PRIMARY_ACTS,'primary-acts','primary-type');
+  buildActCards(SUPPORT_ACTS,'support-acts','support-type');
+};
+</script>
+</body>
+</html>

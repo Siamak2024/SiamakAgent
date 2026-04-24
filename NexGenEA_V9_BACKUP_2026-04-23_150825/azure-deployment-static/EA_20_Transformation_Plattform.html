@@ -1,0 +1,886 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Enterprise Architecture Transformation Platform</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #f0f4f8; }
+  .tab-btn { transition: all 0.2s; }
+  .tab-btn.active { background: #1e40af; color: white; }
+  .tab-btn:not(.active) { background: #e2e8f0; color: #374151; }
+  .cap-card { border-left: 4px solid #10b981; background: #ecfdf5; }
+  .proc-card { border-left: 4px solid #f59e0b; background: #fffbeb; }
+  .sys-card { border-left: 4px solid #8b5cf6; background: #f5f3ff; }
+  .value-card { border-left: 4px solid #3b82f6; background: #eff6ff; }
+  .data-card { border-left: 4px solid #ec4899; background: #fdf2f8; }
+  .ai-card { border-left: 4px solid #06b6d4; background: #ecfeff; }
+  .init-card { border-left: 4px solid #ef4444; background: #fef2f2; }
+  .arch-item {
+    position: absolute;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: move;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    user-select: none;
+    min-width: 100px;
+    text-align: center;
+    border: 2px solid transparent;
+    transition: box-shadow 0.2s, border-color 0.2s;
+  }
+  .arch-item:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.25); border-color: #3b82f6; }
+  .arch-canvas { height: 420px; border: 2px dashed #cbd5e1; border-radius: 12px; position: relative; overflow: hidden; background: #f8fafc; }
+  .maturity-1 { background: #fee2e2; }
+  .maturity-2 { background: #fef3c7; }
+  .maturity-3 { background: #d1fae5; }
+  .maturity-4 { background: #dbeafe; }
+  .maturity-5 { background: #ede9fe; }
+  .heatmap-cell { min-height: 60px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px; font-size: 10px; }
+  .roadmap-phase { border-radius: 10px; padding: 16px; }
+  .roadmap-item { background: white; border-radius: 6px; padding: 8px 12px; margin: 4px 0; font-size: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .canvas-section { border: 1px dashed #94a3b8; border-radius: 8px; padding: 8px; margin: 4px; }
+  .priority-high { background: #fee2e2; color: #991b1b; }
+  .priority-medium { background: #fef3c7; color: #92400e; }
+  .priority-low { background: #d1fae5; color: #065f46; }
+  .complexity-high { color: #dc2626; }
+  .complexity-medium { color: #d97706; }
+  .complexity-low { color: #059669; }
+  .spinner { border: 3px solid #e2e8f0; border-top: 3px solid #3b82f6; border-radius: 50%; width: 20px; height: 20px; animation: spin 0.8s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .tooltip { position: absolute; background: #1e293b; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; pointer-events: none; z-index: 100; white-space: nowrap; }
+  .impact-node { padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; margin: 3px; }
+  .canvas-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; align-items: center; justify-content: center; }
+  .canvas-modal-box { background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+  #network { height: 420px; background: white; border-radius: 10px; }
+  .section-header { font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; }
+  .badge-high { background: #fee2e2; color: #991b1b; }
+  .badge-medium { background: #fef3c7; color: #92400e; }
+  .badge-low { background: #d1fae5; color: #065f46; }
+  .omcell { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: white; min-height: 80px; }
+  .omcell h4 { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 6px; }
+  .omcell ul { font-size: 12px; color: #374151; list-style: disc; padding-left: 14px; }
+  .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: #f1f5f9; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+</style>
+<script src="../../AzureOpenAIProxy.js"></script>
+</head>
+<body class="min-h-screen">
+
+<!-- TOP BAR -->
+<div class="bg-gradient-to-r from-blue-900 to-indigo-800 text-white px-6 py-4 flex items-center justify-between shadow-lg">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 bg-blue-400 rounded-lg flex items-center justify-center font-bold text-sm">EA</div>
+    <div>
+      <div class="font-bold text-lg leading-tight">AI Enterprise Architecture Platform</div>
+      <div class="text-blue-200 text-xs">Strategy · Capabilities · Transformation</div>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <button onclick="showApiKeyModal()" class="bg-blue-700 hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg border border-blue-500">⚙ API Key</button>
+    <button onclick="exportModel()" class="bg-white text-blue-900 text-xs px-3 py-1.5 rounded-lg font-semibold hover:bg-blue-50">↓ Export</button>
+    <label class="bg-blue-700 hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg cursor-pointer border border-blue-500">↑ Import<input type="file" class="hidden" onchange="importModel(event)" accept=".json"></label>
+  </div>
+</div>
+
+<!-- API KEY MODAL -->
+<div id="apiModal" class="canvas-modal hidden">
+  <div class="canvas-modal-box">
+    <h3 class="font-bold text-lg mb-3">OpenAI API Key</h3>
+    <p class="text-sm text-gray-500 mb-3">Your key is stored only in memory and never sent anywhere except OpenAI.</p>
+    <input id="apiKeyInput" type="password" class="border rounded-lg p-2 w-full text-sm mb-3" placeholder="sk-...">
+    <div class="flex gap-2">
+      <button onclick="saveApiKey()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Save</button>
+      <button onclick="closeApiModal()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="p-4 grid grid-cols-12 gap-4">
+
+  <!-- LEFT PANEL: Input + Architecture Layers -->
+  <div class="col-span-3 flex flex-col gap-4">
+
+    <!-- Organisation Input -->
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <div class="section-header">Organisation Description</div>
+      <textarea id="description" class="border border-gray-200 rounded-lg p-2 w-full text-sm h-28 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Describe your organisation or business unit...
+
+E.g. Nordic insurance company focusing on embedded insurance, automated claims and digital partner distribution."></textarea>
+      <div class="grid grid-cols-2 gap-1.5 mt-2">
+        <button onclick="generateArchitecture()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1.5 rounded-lg font-semibold flex items-center justify-center gap-1"><span id="genArchSpinner" class="hidden spinner"></span>Generate Architecture</button>
+        <button onclick="generateCapabilityMap()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-2 py-1.5 rounded-lg font-semibold flex items-center justify-center gap-1"><span id="genCapSpinner" class="hidden spinner"></span>Capability Map</button>
+        <button onclick="generateOperatingModel()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs px-2 py-1.5 rounded-lg font-semibold flex items-center justify-center gap-1"><span id="genOMSpinner" class="hidden spinner"></span>Operating Model</button>
+        <button onclick="analyseMaturity()" class="bg-orange-500 hover:bg-orange-600 text-white text-xs px-2 py-1.5 rounded-lg font-semibold flex items-center justify-center gap-1"><span id="matSpinner" class="hidden spinner"></span>Maturity Analysis</button>
+        <button onclick="analyseGaps()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs px-2 py-1.5 rounded-lg font-semibold flex items-center justify-center gap-1"><span id="gapSpinner" class="hidden spinner"></span>Analyse Gaps</button>
+        <button onclick="generateTargetArch()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs px-2 py-1.5 rounded-lg font-semibold flex items-center justify-center gap-1"><span id="targetSpinner" class="hidden spinner"></span>Target Architecture</button>
+        <button onclick="generateRoadmap()" class="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1.5 rounded-lg font-semibold col-span-2 flex items-center justify-center gap-1"><span id="roadmapSpinner" class="hidden spinner"></span>Generate Transformation Roadmap</button>
+      </div>
+    </div>
+
+    <!-- Architecture Layers -->
+    <div class="bg-white rounded-xl shadow-sm p-4 flex-1 overflow-y-auto scrollbar-thin" style="max-height:520px">
+      <div class="section-header">Architecture Layers</div>
+      <div class="mb-3">
+        <div class="text-xs font-bold text-blue-700 mb-1">Value Streams</div>
+        <div id="values" class="space-y-1"></div>
+      </div>
+      <div class="mb-3">
+        <div class="text-xs font-bold text-green-700 mb-1">Capabilities</div>
+        <div id="caps" class="space-y-1"></div>
+      </div>
+      <div class="mb-3">
+        <div class="text-xs font-bold text-yellow-700 mb-1">Processes</div>
+        <div id="procs" class="space-y-1"></div>
+      </div>
+      <div class="mb-3">
+        <div class="text-xs font-bold text-purple-700 mb-1">Systems</div>
+        <div id="systems" class="space-y-1"></div>
+      </div>
+      <div class="mb-3">
+        <div class="text-xs font-bold text-pink-700 mb-1">Data Domains</div>
+        <div id="data" class="space-y-1"></div>
+      </div>
+      <div>
+        <div class="text-xs font-bold text-cyan-700 mb-1">AI Agents</div>
+        <div id="aiagents" class="space-y-1"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CENTER PANEL: Tabs -->
+  <div class="col-span-6 flex flex-col gap-4">
+
+    <!-- Tab Navigation -->
+    <div class="bg-white rounded-xl shadow-sm p-2 flex flex-wrap gap-1">
+      <button class="tab-btn active text-xs px-3 py-1.5 rounded-lg font-semibold" onclick="showTab('capmap')">Capability Map</button>
+      <button class="tab-btn text-xs px-3 py-1.5 rounded-lg font-semibold" onclick="showTab('canvas')">Architecture Canvas</button>
+      <button class="tab-btn text-xs px-3 py-1.5 rounded-lg font-semibold" onclick="showTab('heatmap')">Heatmap</button>
+      <button class="tab-btn text-xs px-3 py-1.5 rounded-lg font-semibold" onclick="showTab('graph')">Dependency Graph</button>
+      <button class="tab-btn text-xs px-3 py-1.5 rounded-lg font-semibold" onclick="showTab('impact')">Impact Sim</button>
+      <button class="tab-btn text-xs px-3 py-1.5 rounded-lg font-semibold" onclick="showTab('opmodel')">Operating Model</button>
+      <button class="tab-btn text-xs px-3 py-1.5 rounded-lg font-semibold" onclick="showTab('roadmap')">Roadmap</button>
+    </div>
+
+    <!-- TAB: Capability Map -->
+    <div id="tab-capmap" class="bg-white rounded-xl shadow-sm p-4 flex-1 overflow-y-auto scrollbar-thin" style="min-height:500px">
+      <div class="section-header">McKinsey-Style Capability Map</div>
+      <div id="capmap-content">
+        <div class="text-gray-400 text-sm text-center py-16">Generate architecture to populate the capability map</div>
+      </div>
+    </div>
+
+    <!-- TAB: Architecture Canvas -->
+    <div id="tab-canvas" class="bg-white rounded-xl shadow-sm p-4 flex-1 hidden" style="min-height:500px">
+      <div class="flex items-center justify-between mb-3">
+        <div class="section-header mb-0">Architecture Canvas</div>
+        <div class="flex gap-2">
+          <button onclick="clearCanvas()" class="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded">Clear</button>
+          <button onclick="autoLayoutCanvas()" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded">Auto Layout</button>
+        </div>
+      </div>
+      <div id="canvas" class="arch-canvas"></div>
+      <div class="mt-2 flex gap-3 text-xs text-gray-500">
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-green-200 inline-block"></span>Capability</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-yellow-200 inline-block"></span>Process</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-purple-200 inline-block"></span>System</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-cyan-200 inline-block"></span>AI Agent</span>
+      </div>
+    </div>
+
+    <!-- TAB: Heatmap -->
+    <div id="tab-heatmap" class="bg-white rounded-xl shadow-sm p-4 flex-1 hidden" style="min-height:500px">
+      <div class="section-header">Capability Heatmap — Maturity vs Strategic Importance</div>
+      <div id="heatmap-content">
+        <div class="text-gray-400 text-sm text-center py-16">Generate architecture to populate the heatmap</div>
+      </div>
+    </div>
+
+    <!-- TAB: Dependency Graph -->
+    <div id="tab-graph" class="bg-white rounded-xl shadow-sm p-4 flex-1 hidden" style="min-height:500px">
+      <div class="section-header">Enterprise Dependency Graph</div>
+      <div id="network"></div>
+      <div class="mt-2 flex gap-3 text-xs text-gray-500 flex-wrap">
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-400 inline-block"></span>Capability</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span>Process</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-purple-400 inline-block"></span>System</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-pink-400 inline-block"></span>Data Domain</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-cyan-400 inline-block"></span>AI Agent</span>
+      </div>
+    </div>
+
+    <!-- TAB: Impact Simulation -->
+    <div id="tab-impact" class="bg-white rounded-xl shadow-sm p-4 flex-1 hidden" style="min-height:500px">
+      <div class="section-header">Dependency Impact Simulation</div>
+      <div class="flex gap-2 mb-4">
+        <select id="impactSelect" class="border rounded-lg p-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-300">
+          <option value="">Select a capability or system...</option>
+        </select>
+        <button onclick="runImpactSim()" class="bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-lg font-semibold">Simulate Impact</button>
+      </div>
+      <div id="impact-result">
+        <div class="text-gray-400 text-sm text-center py-12">Select a node to simulate downstream impact</div>
+      </div>
+    </div>
+
+    <!-- TAB: Operating Model -->
+    <div id="tab-opmodel" class="bg-white rounded-xl shadow-sm p-4 flex-1 hidden" style="min-height:500px">
+      <div class="section-header">Operating Model Canvas</div>
+      <div id="opmodel-content">
+        <div class="text-gray-400 text-sm text-center py-16">Click "Operating Model" to generate</div>
+      </div>
+    </div>
+
+    <!-- TAB: Roadmap -->
+    <div id="tab-roadmap" class="bg-white rounded-xl shadow-sm p-4 flex-1 hidden" style="min-height:500px">
+      <div class="section-header">3-Year Transformation Roadmap</div>
+      <div id="roadmap-content">
+        <div class="text-gray-400 text-sm text-center py-16">Generate Roadmap to populate</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT PANEL: Insights + Initiatives + Maturity -->
+  <div class="col-span-3 flex flex-col gap-4">
+
+    <!-- Strategic Insights -->
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <div class="section-header">Strategic Insights</div>
+      <div id="insights" class="text-sm text-gray-700 overflow-y-auto scrollbar-thin space-y-2" style="max-height:200px">
+        <div class="text-gray-400 text-xs text-center py-6">Run "Analyse Gaps" or "Target Architecture" to generate insights</div>
+      </div>
+    </div>
+
+    <!-- Maturity Dashboard -->
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <div class="section-header">Maturity Dashboard</div>
+      <div id="maturity-dashboard">
+        <div class="text-gray-400 text-xs text-center py-4">Generate architecture to view maturity</div>
+      </div>
+    </div>
+
+    <!-- Transformation Initiatives -->
+    <div class="bg-white rounded-xl shadow-sm p-4 flex-1 overflow-y-auto scrollbar-thin" style="max-height:420px">
+      <div class="flex items-center justify-between mb-2">
+        <div class="section-header mb-0">Transformation Portfolio</div>
+        <span id="init-count" class="text-xs text-gray-400"></span>
+      </div>
+      <div id="initiatives" class="space-y-2">
+        <div class="text-gray-400 text-xs text-center py-6">Generate Roadmap to populate initiatives</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+let OPENAI_KEY = localStorage.getItem('ea_api_key') || '';
+let networkInstance = null;
+
+let model = {
+  strategy: "",
+  operatingModel: {},
+  valueStreams: [],
+  capabilities: [],
+  processes: [],
+  systems: [],
+  dataDomains: [],
+  aiAgents: [],
+  initiatives: []
+};
+
+// ─── API KEY ───────────────────────────────────────────────────────────────
+function showApiKeyModal() {
+  document.getElementById('apiKeyInput').value = OPENAI_KEY;
+  document.getElementById('apiModal').classList.remove('hidden');
+}
+function closeApiModal() {
+  document.getElementById('apiModal').classList.add('hidden');
+}
+function saveApiKey() {
+  OPENAI_KEY = document.getElementById('apiKeyInput').value.trim();
+  localStorage.setItem('ea_api_key', OPENAI_KEY);
+  closeApiModal();
+  showToast('API key saved ✓');
+}
+
+// ─── TOAST ─────────────────────────────────────────────────────────────────
+function showToast(msg, type='success') {
+  const t = document.createElement('div');
+  t.className = `fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg text-white text-sm font-semibold shadow-lg ${type==='error'?'bg-red-600':'bg-green-600'}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ─── TABS ──────────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+  document.getElementById('tab-' + name).classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  if (name === 'graph') setTimeout(renderGraph, 100);
+}
+
+// ─── SPINNER ───────────────────────────────────────────────────────────────
+function spin(id, on) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('hidden', !on);
+}
+
+// ─── OPENAI CALL ───────────────────────────────────────────────────────────
+async function callAI(systemPrompt, userPrompt) {
+  if (!OPENAI_KEY) { showToast('Please set your OpenAI API key first', 'error'); throw new Error('No API key'); }
+  const res = await AzureOpenAIProxy.chat(messages, {model: selectedModel})
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'API error'); }
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+
+function extractJSON(text) {
+  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/) || text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+  return match ? match[1] || match[0] : text;
+}
+
+// ─── GENERATE ARCHITECTURE ─────────────────────────────────────────────────
+async function generateArchitecture() {
+  const desc = document.getElementById('description').value.trim();
+  if (!desc) { showToast('Please describe your organisation first', 'error'); return; }
+  spin('genArchSpinner', true);
+  try {
+    const raw = await callAI(
+      'You are a senior enterprise architect. Return ONLY valid JSON, no markdown, no explanation.',
+      `Generate a comprehensive enterprise architecture for: "${desc}"
+
+Return this exact JSON structure:
+{
+  "valueStreams": [{"name": ""}],
+  "capabilities": [{"name": "", "domain": "Customer|Product|Operations|Risk|Finance|Technology|Support", "maturity": 1, "strategicImportance": "low|medium|high"}],
+  "processes": [{"name": "", "supportsCapability": ""}],
+  "systems": [{"name": "", "supportsCapability": ""}],
+  "dataDomains": [{"name": "", "usedBySystem": ""}],
+  "aiAgents": [{"name": "", "supportsCapability": ""}]
+}
+
+Generate 4-6 value streams, 12-18 capabilities across all domains, 8-12 processes, 6-10 systems, 4-6 data domains, 3-5 AI agents. Maturity 1-5.`
+    );
+    const parsed = JSON.parse(extractJSON(raw));
+    model = { ...model, ...parsed };
+    render();
+    showToast('Architecture generated ✓');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  spin('genArchSpinner', false);
+}
+
+// ─── GENERATE CAPABILITY MAP ───────────────────────────────────────────────
+async function generateCapabilityMap() {
+  if (model.capabilities.length === 0) { await generateArchitecture(); return; }
+  renderCapabilityMap();
+  showTab_direct('capmap');
+  showToast('Capability map rendered ✓');
+}
+
+function showTab_direct(name) {
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+  document.getElementById('tab-' + name).classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    if (b.textContent.toLowerCase().includes(name === 'capmap' ? 'capability map' : name)) b.classList.add('active');
+  });
+}
+
+// ─── GENERATE OPERATING MODEL ──────────────────────────────────────────────
+async function generateOperatingModel() {
+  const desc = document.getElementById('description').value.trim();
+  if (!desc) { showToast('Please describe your organisation first', 'error'); return; }
+  spin('genOMSpinner', true);
+  try {
+    const raw = await callAI(
+      'You are a business model and operating model expert. Return ONLY valid JSON.',
+      `Generate an operating model canvas for: "${desc}"
+
+Return:
+{
+  "customerSegments": [""],
+  "channels": [""],
+  "productsServices": [""],
+  "keyCapabilities": [""],
+  "partners": [""],
+  "revenueModel": [""],
+  "costDrivers": [""],
+  "keyMetrics": [""]
+}`
+    );
+    model.operatingModel = JSON.parse(extractJSON(raw));
+    renderOperatingModel();
+    showTab_direct('opmodel');
+    showToast('Operating model generated ✓');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  spin('genOMSpinner', false);
+}
+
+// ─── ANALYSE MATURITY ──────────────────────────────────────────────────────
+async function analyseMaturity() {
+  if (model.capabilities.length === 0) { showToast('Generate architecture first', 'error'); return; }
+  renderMaturityDashboard();
+  showToast('Maturity analysis complete ✓');
+}
+
+// ─── ANALYSE GAPS ──────────────────────────────────────────────────────────
+async function analyseGaps() {
+  if (model.capabilities.length === 0) { showToast('Generate architecture first', 'error'); return; }
+  spin('gapSpinner', true);
+  try {
+    const insights = await callAI(
+      'You are an enterprise architecture advisor. Be concise and strategic.',
+      `Analyse capability gaps in this architecture: ${JSON.stringify(model)}
+
+Provide:
+1. Top 3 strategic capability gaps (high importance, low maturity)
+2. Top 2 technical bottlenecks
+3. Top 2 transformation risks
+4. 2 quick wins
+
+Format as clear bullet points with emoji indicators.`
+    );
+    document.getElementById('insights').innerHTML = `<div class="text-xs leading-relaxed whitespace-pre-wrap">${insights}</div>`;
+    showToast('Gap analysis complete ✓');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  spin('gapSpinner', false);
+}
+
+// ─── GENERATE TARGET ARCHITECTURE ─────────────────────────────────────────
+async function generateTargetArch() {
+  if (model.capabilities.length === 0) { showToast('Generate architecture first', 'error'); return; }
+  spin('targetSpinner', true);
+  try {
+    const insights = await callAI(
+      'You are a digital transformation architect. Be specific and actionable.',
+      `Based on this architecture: ${JSON.stringify(model)}
+
+Generate target architecture recommendations covering:
+1. Capability maturity improvements (which to prioritise to level 4-5)
+2. Platform consolidation opportunities
+3. New digital platforms to introduce
+4. Data architecture improvements
+5. AI/automation opportunities
+
+Be specific, concise, and business-outcome focused.`
+    );
+    document.getElementById('insights').innerHTML = `<div class="text-xs leading-relaxed whitespace-pre-wrap">${insights}</div>`;
+    showToast('Target architecture generated ✓');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  spin('targetSpinner', false);
+}
+
+// ─── GENERATE ROADMAP ──────────────────────────────────────────────────────
+async function generateRoadmap() {
+  if (model.capabilities.length === 0) { showToast('Generate architecture first', 'error'); return; }
+  spin('roadmapSpinner', true);
+  try {
+    const raw = await callAI(
+      'You are a digital transformation advisor. Return ONLY valid JSON.',
+      `Create transformation initiatives based on this architecture: ${JSON.stringify(model)}
+
+Return JSON array:
+[{
+  "name": "",
+  "impactsCapability": "",
+  "estimatedBusinessValue": "low|medium|high",
+  "complexity": "low|medium|high",
+  "priority": "high|medium|low",
+  "phase": "Year 1 - Foundation|Year 2 - Expansion|Year 3 - Optimisation",
+  "description": ""
+}]
+
+Generate 10-15 initiatives covering foundation, expansion and optimisation phases.`
+    );
+    model.initiatives = JSON.parse(extractJSON(raw));
+    renderInitiatives();
+    renderRoadmap();
+    showTab_direct('roadmap');
+    showToast('Roadmap generated ✓');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  spin('roadmapSpinner', false);
+}
+
+// ─── RENDER ALL ────────────────────────────────────────────────────────────
+function render() {
+  renderLists();
+  renderCapabilityMap();
+  renderCanvas();
+  renderHeatmap();
+  renderMaturityDashboard();
+  renderImpactSelect();
+  if (!document.getElementById('tab-graph').classList.contains('hidden')) renderGraph();
+}
+
+function renderLists() {
+  renderList('values', model.valueStreams, 'value-card');
+  renderList('caps', model.capabilities, 'cap-card', c => `<span class="badge badge-${c.strategicImportance||'low'}">${c.strategicImportance||''}</span> M:${c.maturity||'?'}`);
+  renderList('procs', model.processes, 'proc-card', p => `<span class="text-gray-400">${p.supportsCapability||''}</span>`);
+  renderList('systems', model.systems, 'sys-card', s => `<span class="text-gray-400">${s.supportsCapability||''}</span>`);
+  renderList('data', model.dataDomains, 'data-card', d => `<span class="text-gray-400">${d.usedBySystem||''}</span>`);
+  renderList('aiagents', model.aiAgents, 'ai-card', a => `<span class="text-gray-400">${a.supportsCapability||''}</span>`);
+}
+
+function renderList(id, list, css, extra) {
+  const div = document.getElementById(id);
+  if (!list || list.length === 0) { div.innerHTML = '<div class="text-gray-300 text-xs px-2">—</div>'; return; }
+  div.innerHTML = list.map(i => `
+    <div class="${css} rounded-lg px-2 py-1.5 text-xs font-medium flex items-center justify-between gap-1">
+      <span class="truncate">${i.name}</span>
+      ${extra ? `<span class="text-xs shrink-0">${extra(i)}</span>` : ''}
+    </div>`).join('');
+}
+
+// ─── CAPABILITY MAP ────────────────────────────────────────────────────────
+const DOMAINS = ['Customer','Product','Operations','Risk','Finance','Technology','Support'];
+const DOMAIN_COLORS = {
+  Customer: 'bg-blue-50 border-blue-200',
+  Product: 'bg-green-50 border-green-200',
+  Operations: 'bg-yellow-50 border-yellow-200',
+  Risk: 'bg-red-50 border-red-200',
+  Finance: 'bg-purple-50 border-purple-200',
+  Technology: 'bg-indigo-50 border-indigo-200',
+  Support: 'bg-gray-50 border-gray-200'
+};
+const MATURITY_COLORS = ['','bg-red-200 text-red-800','bg-orange-200 text-orange-800','bg-yellow-200 text-yellow-800','bg-green-200 text-green-800','bg-blue-200 text-blue-800'];
+
+function renderCapabilityMap() {
+  const el = document.getElementById('capmap-content');
+  if (!model.capabilities.length) return;
+  const grouped = {};
+  DOMAINS.forEach(d => grouped[d] = []);
+  model.capabilities.forEach(c => {
+    const d = c.domain || 'Technology';
+    if (!grouped[d]) grouped[d] = [];
+    grouped[d].push(c);
+  });
+  el.innerHTML = `<div class="grid grid-cols-2 gap-3">` +
+    DOMAINS.map(d => `
+      <div class="border rounded-xl p-3 ${DOMAIN_COLORS[d]||'bg-gray-50 border-gray-200'}">
+        <div class="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">${d}</div>
+        <div class="space-y-1">
+          ${(grouped[d]||[]).map(c => `
+            <div class="rounded-lg px-2 py-1.5 ${MATURITY_COLORS[c.maturity]||'bg-gray-100'} flex items-center justify-between gap-1 text-xs font-medium cursor-pointer hover:opacity-80" title="${c.name} — Maturity: ${c.maturity}, Importance: ${c.strategicImportance}">
+              <span class="truncate">${c.name}</span>
+              <div class="flex items-center gap-1 shrink-0">
+                <span class="font-bold">M${c.maturity||'?'}</span>
+                <span class="badge badge-${c.strategicImportance||'low'}">${(c.strategicImportance||'').charAt(0).toUpperCase()}</span>
+              </div>
+            </div>`).join('') || '<div class="text-gray-300 text-xs">—</div>'}
+        </div>
+      </div>`).join('') + `</div>
+  <div class="mt-3 flex gap-3 text-xs text-gray-500 flex-wrap">
+    ${MATURITY_COLORS.slice(1).map((c,i)=>`<span class="flex items-center gap-1"><span class="w-3 h-3 rounded ${c.split(' ')[0]} inline-block"></span>M${i+1}</span>`).join('')}
+    <span class="ml-4 font-semibold">Badges: H=High, M=Medium, L=Low strategic importance</span>
+  </div>`;
+}
+
+// ─── ARCHITECTURE CANVAS ───────────────────────────────────────────────────
+function renderCanvas() {
+  const canvas = document.getElementById('canvas');
+  canvas.innerHTML = '';
+  const all = [
+    ...model.capabilities.map(c => ({ ...c, type: 'cap', color: '#d1fae5', border: '#10b981' })),
+    ...model.processes.map(p => ({ ...p, type: 'proc', color: '#fef3c7', border: '#f59e0b' })),
+    ...model.systems.map(s => ({ ...s, type: 'sys', color: '#ede9fe', border: '#8b5cf6' })),
+    ...(model.aiAgents||[]).map(a => ({ ...a, type: 'ai', color: '#ecfeff', border: '#06b6d4' }))
+  ];
+  all.forEach((item, i) => {
+    const el = document.createElement('div');
+    el.className = 'arch-item';
+    el.style.background = item.color;
+    el.style.borderColor = item.border;
+    el.style.left = (20 + (i % 6) * 140) + 'px';
+    el.style.top = (20 + Math.floor(i / 6) * 70) + 'px';
+    el.style.zIndex = 10;
+    el.innerHTML = `<div class="text-xs font-semibold leading-tight">${item.name}</div>${item.maturity ? `<div class="text-xs opacity-60">M${item.maturity}</div>` : ''}`;
+    el.setAttribute('data-x', 0);
+    el.setAttribute('data-y', 0);
+    canvas.appendChild(el);
+  });
+  interact('.arch-item').draggable({
+    listeners: {
+      move(event) {
+        const t = event.target;
+        const x = (parseFloat(t.getAttribute('data-x')) || 0) + event.dx;
+        const y = (parseFloat(t.getAttribute('data-y')) || 0) + event.dy;
+        t.style.transform = `translate(${x}px,${y}px)`;
+        t.setAttribute('data-x', x);
+        t.setAttribute('data-y', y);
+      }
+    }
+  });
+}
+
+function clearCanvas() {
+  document.getElementById('canvas').innerHTML = '';
+}
+
+function autoLayoutCanvas() {
+  renderCanvas();
+}
+
+// ─── HEATMAP ───────────────────────────────────────────────────────────────
+function renderHeatmap() {
+  const el = document.getElementById('heatmap-content');
+  if (!model.capabilities.length) return;
+  const importanceLevels = ['high', 'medium', 'low'];
+  const maturities = [1, 2, 3, 4, 5];
+  el.innerHTML = `
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs border-collapse">
+        <thead>
+          <tr>
+            <th class="p-2 text-left text-gray-500 w-20">Importance ↕ / Maturity →</th>
+            ${maturities.map(m => `<th class="p-2 text-center font-bold text-gray-600">M${m}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${importanceLevels.map(imp => `
+            <tr>
+              <td class="p-2 font-bold text-gray-600 capitalize">${imp}</td>
+              ${maturities.map(mat => {
+                const caps = model.capabilities.filter(c => (c.strategicImportance||'low') === imp && (c.maturity||1) === mat);
+                const bg = imp === 'high' && mat <= 2 ? 'bg-red-50 border-red-200' :
+                           imp === 'high' && mat >= 4 ? 'bg-green-50 border-green-200' :
+                           imp === 'medium' ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50 border-gray-200';
+                return `<td class="p-1"><div class="heatmap-cell ${bg}">${caps.map(c => `<div class="truncate font-medium text-gray-700 py-0.5">${c.name}</div>`).join('') || ''}</div></td>`;
+              }).join('')}
+            </tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="mt-2 flex gap-4 text-xs text-gray-500">
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-red-100 border border-red-200 inline-block"></span>Critical gap (high importance, low maturity)</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-green-100 border border-green-200 inline-block"></span>Strategic strength</span>
+      </div>
+    </div>`;
+}
+
+// ─── MATURITY DASHBOARD ────────────────────────────────────────────────────
+function renderMaturityDashboard() {
+  const el = document.getElementById('maturity-dashboard');
+  if (!model.capabilities.length) return;
+  const avg = (model.capabilities.reduce((s, c) => s + (c.maturity || 1), 0) / model.capabilities.length).toFixed(1);
+  const dist = [1,2,3,4,5].map(m => ({ m, count: model.capabilities.filter(c => (c.maturity||1) === m).length }));
+  const gaps = model.capabilities.filter(c => (c.strategicImportance === 'high') && (c.maturity || 1) <= 2);
+  const maxCount = Math.max(...dist.map(d => d.count), 1);
+  el.innerHTML = `
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-xs text-gray-500">Avg Maturity</span>
+      <span class="text-2xl font-bold text-blue-600">${avg}</span>
+    </div>
+    <div class="space-y-1 mb-3">
+      ${dist.map(d => `
+        <div class="flex items-center gap-2">
+          <span class="text-xs w-4 text-gray-500">M${d.m}</span>
+          <div class="flex-1 bg-gray-100 rounded-full h-3">
+            <div class="h-3 rounded-full ${MATURITY_COLORS[d.m].split(' ')[0]}" style="width:${(d.count/maxCount*100)||0}%"></div>
+          </div>
+          <span class="text-xs text-gray-500 w-4">${d.count}</span>
+        </div>`).join('')}
+    </div>
+    ${gaps.length ? `<div class="text-xs font-bold text-red-600 mb-1">⚠ Critical Gaps (${gaps.length})</div>
+    <div class="space-y-1">${gaps.map(c => `<div class="text-xs bg-red-50 rounded px-2 py-1 text-red-700">${c.name} (M${c.maturity})</div>`).join('')}</div>` : '<div class="text-xs text-green-600">✓ No critical gaps detected</div>'}`;
+}
+
+// ─── DEPENDENCY GRAPH ──────────────────────────────────────────────────────
+function renderGraph() {
+  const nodes = new vis.DataSet();
+  const edges = new vis.DataSet();
+  const addedIds = new Set();
+
+  function addNode(id, label, color, shape='dot') {
+    if (!addedIds.has(id)) { nodes.add({ id, label, color: { background: color, border: '#fff' }, shape, font: { size: 11 } }); addedIds.add(id); }
+  }
+
+  model.capabilities.forEach(c => addNode(c.name, c.name, '#86efac'));
+  model.processes.forEach(p => {
+    addNode(p.name, p.name, '#fde68a');
+    if (p.supportsCapability && addedIds.has(p.supportsCapability)) edges.add({ from: p.supportsCapability, to: p.name, arrows: 'to', color: { color: '#94a3b8' } });
+  });
+  model.systems.forEach(s => {
+    addNode(s.name, s.name, '#c4b5fd');
+    if (s.supportsCapability && addedIds.has(s.supportsCapability)) edges.add({ from: s.supportsCapability, to: s.name, arrows: 'to', color: { color: '#94a3b8' } });
+  });
+  model.dataDomains.forEach(d => {
+    addNode(d.name, d.name, '#f9a8d4', 'diamond');
+    if (d.usedBySystem && addedIds.has(d.usedBySystem)) edges.add({ from: d.usedBySystem, to: d.name, arrows: 'to', color: { color: '#94a3b8' } });
+  });
+  (model.aiAgents||[]).forEach(a => {
+    addNode(a.name, a.name, '#67e8f9', 'star');
+    if (a.supportsCapability && addedIds.has(a.supportsCapability)) edges.add({ from: a.supportsCapability, to: a.name, arrows: 'to', color: { color: '#94a3b8' } });
+  });
+
+  const container = document.getElementById('network');
+  if (networkInstance) networkInstance.destroy();
+  networkInstance = new vis.Network(container, { nodes, edges }, {
+    physics: { enabled: true, stabilization: { iterations: 100 } },
+    layout: { improvedLayout: true },
+    interaction: { hover: true, tooltipDelay: 200 },
+    edges: { smooth: { type: 'cubicBezier' } }
+  });
+}
+
+// ─── IMPACT SIMULATION ─────────────────────────────────────────────────────
+function renderImpactSelect() {
+  const sel = document.getElementById('impactSelect');
+  sel.innerHTML = '<option value="">Select a capability or system...</option>';
+  model.capabilities.forEach(c => sel.innerHTML += `<option value="cap:${c.name}">${c.name} (Capability)</option>`);
+  model.systems.forEach(s => sel.innerHTML += `<option value="sys:${s.name}">${s.name} (System)</option>`);
+}
+
+function runImpactSim() {
+  const val = document.getElementById('impactSelect').value;
+  if (!val) return;
+  const [type, name] = val.split(':');
+  const el = document.getElementById('impact-result');
+
+  let affectedProcesses = [], affectedSystems = [], affectedData = [], affectedAgents = [];
+
+  if (type === 'cap') {
+    affectedProcesses = model.processes.filter(p => p.supportsCapability === name);
+    affectedSystems = model.systems.filter(s => s.supportsCapability === name);
+    affectedAgents = (model.aiAgents||[]).filter(a => a.supportsCapability === name);
+    affectedProcesses.forEach(p => {
+      affectedData = affectedData.concat(model.dataDomains.filter(d => d.usedBySystem === p.name));
+    });
+    affectedSystems.forEach(s => {
+      affectedData = affectedData.concat(model.dataDomains.filter(d => d.usedBySystem === s.name));
+    });
+  } else {
+    affectedData = model.dataDomains.filter(d => d.usedBySystem === name);
+    const cap = model.capabilities.find(c => model.systems.some(s => s.name === name && s.supportsCapability === c.name));
+    if (cap) {
+      affectedProcesses = model.processes.filter(p => p.supportsCapability === cap.name);
+    }
+  }
+
+  const total = affectedProcesses.length + affectedSystems.length + affectedData.length + affectedAgents.length;
+  const radius = total === 0 ? 'Minimal' : total <= 3 ? 'Low' : total <= 6 ? 'Medium' : 'High';
+  const radiusColor = { Minimal: 'text-green-600', Low: 'text-yellow-600', Medium: 'text-orange-600', High: 'text-red-600' };
+
+  el.innerHTML = `
+    <div class="bg-gray-50 rounded-xl p-4">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <div class="font-bold text-gray-800">${name}</div>
+          <div class="text-xs text-gray-500 capitalize">${type === 'cap' ? 'Capability' : 'System'}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-xs text-gray-500">Impact Radius</div>
+          <div class="font-bold text-lg ${radiusColor[radius]}">${radius}</div>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <div class="text-xs font-bold text-yellow-700 mb-1">Affected Processes (${affectedProcesses.length})</div>
+          ${affectedProcesses.map(p => `<span class="impact-node bg-yellow-100 text-yellow-800">${p.name}</span>`).join('') || '<span class="text-xs text-gray-400">None</span>'}
+        </div>
+        <div>
+          <div class="text-xs font-bold text-purple-700 mb-1">Affected Systems (${affectedSystems.length})</div>
+          ${affectedSystems.map(s => `<span class="impact-node bg-purple-100 text-purple-800">${s.name}</span>`).join('') || '<span class="text-xs text-gray-400">None</span>'}
+        </div>
+        <div>
+          <div class="text-xs font-bold text-pink-700 mb-1">Affected Data Domains (${affectedData.length})</div>
+          ${[...new Set(affectedData.map(d=>d.name))].map(n => `<span class="impact-node bg-pink-100 text-pink-800">${n}</span>`).join('') || '<span class="text-xs text-gray-400">None</span>'}
+        </div>
+        <div>
+          <div class="text-xs font-bold text-cyan-700 mb-1">Affected AI Agents (${affectedAgents.length})</div>
+          ${affectedAgents.map(a => `<span class="impact-node bg-cyan-100 text-cyan-800">${a.name}</span>`).join('') || '<span class="text-xs text-gray-400">None</span>'}
+        </div>
+      </div>
+      <div class="mt-3 p-2 rounded-lg ${total > 5 ? 'bg-red-50 text-red-700' : total > 2 ? 'bg-yellow-50 text-yellow-700' : 'bg-green-50 text-green-700'} text-xs font-medium">
+        ${total > 5 ? '⚠ High-risk node — changes require careful change management and testing' :
+          total > 2 ? '⚡ Moderate impact — coordinate with affected teams before changes' :
+          '✓ Low impact — changes can be made with standard procedures'}
+      </div>
+    </div>`;
+}
+
+// ─── OPERATING MODEL ───────────────────────────────────────────────────────
+function renderOperatingModel() {
+  const om = model.operatingModel;
+  if (!om || !om.customerSegments) return;
+  const el = document.getElementById('opmodel-content');
+  const sections = [
+    { key: 'customerSegments', label: 'Customer Segments', color: 'border-blue-300' },
+    { key: 'channels', label: 'Channels', color: 'border-green-300' },
+    { key: 'productsServices', label: 'Products & Services', color: 'border-purple-300' },
+    { key: 'keyCapabilities', label: 'Key Capabilities', color: 'border-yellow-300' },
+    { key: 'partners', label: 'Partners', color: 'border-pink-300' },
+    { key: 'revenueModel', label: 'Revenue Model', color: 'border-indigo-300' },
+    { key: 'costDrivers', label: 'Cost Drivers', color: 'border-red-300' },
+    { key: 'keyMetrics', label: 'Key Metrics', color: 'border-teal-300' }
+  ];
+  el.innerHTML = `<div class="grid grid-cols-2 gap-3">` +
+    sections.map(s => `
+      <div class="omcell border-l-4 ${s.color}">
+        <h4>${s.label}</h4>
+        <ul>${(om[s.key]||[]).map(i => `<li>${i}</li>`).join('')}</ul>
+      </div>`).join('') + `</div>`;
+}
+
+// ─── INITIATIVES ───────────────────────────────────────────────────────────
+function renderInitiatives() {
+  const el = document.getElementById('initiatives');
+  const count = document.getElementById('init-count');
+  if (!model.initiatives.length) return;
+  count.textContent = `${model.initiatives.length} initiatives`;
+
+  const scored = model.initiatives.map(i => {
+    const bv = { high: 3, medium: 2, low: 1 }[i.estimatedBusinessValue] || 1;
+    const cx = { low: 3, medium: 2, high: 1 }[i.complexity] || 1;
+    const pr = { high: 3, medium: 2, low: 1 }[i.priority] || 1;
+    return { ...i, score: bv + cx + pr };
+  }).sort((a, b) => b.score - a.score);
+
+  el.innerHTML = scored.map((i, idx) => `
+    <div class="init-card rounded-lg p-3 text-xs">
+      <div class="flex items-start justify-between gap-1 mb-1">
+        <span class="font-bold text-gray-800 leading-tight">${i.name}</span>
+        <span class="badge badge-${i.priority} shrink-0">${i.priority}</span>
+      </div>
+      <div class="text-gray-500 mb-1">${i.impactsCapability || ''}</div>
+      <div class="flex gap-2 text-xs">
+        <span class="text-gray-500">Value: <span class="font-semibold ${i.estimatedBusinessValue==='high'?'text-green-600':i.estimatedBusinessValue==='medium'?'text-yellow-600':'text-gray-600'}">${i.estimatedBusinessValue||'?'}</span></span>
+        <span class="text-gray-500">Complexity: <span class="font-semibold complexity-${i.complexity||'low'}">${i.complexity||'?'}</span></span>
+        <span class="ml-auto font-bold text-blue-600">Score: ${i.score}</span>
+      </div>
+      ${i.phase ? `<div class="mt-1 text-gray-400">${i.phase}</div>` : ''}
+    </div>`).join('');
+}
+
+// ─── ROADMAP ───────────────────────────────────────────────────────────────
+function renderRoadmap() {
+  const el = document.getElementById('roadmap-content');
+  if (!model.initiatives.length) return;
+  const phases = ['Year 1 - Foundation', 'Year 2 - Expansion', 'Year 3 - Optimisation'];
+  const phaseColors = ['bg-blue-50 border-blue-200', 'bg-green-50 border-green-200', 'bg-purple-50 border-purple-200'];
+  const phaseHeaderColors = ['text-blue-700', 'text-green-700', 'text-purple-700'];
+
+  el.innerHTML = `<div class="grid grid-cols-3 gap-4">` +
+    phases.map((phase, idx) => {
+      const items = model.initiatives.filter(i => i.phase === phase || (!i.phase && idx === 0));
+      return `
+        <div class="roadmap-phase border ${phaseColors[idx]}">
+          <div class="font-bold text-sm ${phaseHeaderColors[idx]} mb-3 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full ${phaseColors[idx].split(' ')[0].replace('50','200')} flex items-center justify-center text-xs font-bold">${idx+1}</span>
+            ${phase}
+          </div>
+          <div class="space-y-2">
+            ${items.map(i => 

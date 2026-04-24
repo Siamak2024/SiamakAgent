@@ -1,0 +1,129 @@
+# Portfolio & Leadership View
+
+**Engagement:** {{engagement.name}} ({{engagement.id}})  
+**Segment:** {{engagement.segment}}  
+**Date:** {{generated.date}}
+
+---
+
+## 1. Portfolio Context & Objectives
+
+**Strategic Theme:** {{engagement.theme}}
+
+**Success Criteria:**
+{{#each engagement.successCriteria}}
+- {{this}}
+{{/each}}
+
+**Current Portfolio:**
+- {{applications.length}} applications analyzed
+- {{initiatives.length}} strategic initiatives defined
+- {{decisions.length}} decisions logged
+
+---
+
+## 2. Strategic Portfolio Themes
+
+{{#group initiatives by "linkedThemes"}}
+### {{theme}}
+
+**Initiative Count:** {{count}}  
+**Value Types:** {{unique valueTypes}}  
+**Total Estimated Value:** {{sum estimatedValue}}  
+**Total Estimated Cost:** {{sum estimatedCost}}
+
+{{/group}}
+
+---
+
+## 3. Strategic Initiatives (Investment Options)
+
+| Initiative | Theme | Value Type | Horizon | Status | Est. Value | Est. Cost |
+|------------|-------|------------|---------|--------|------------|-----------|
+{{#each initiatives}}
+| {{name}} | {{join linkedThemes}} | {{join valueType}} | {{timeHorizon}} | {{status}} | {{estimatedValue}} | {{estimatedCost}} |
+{{/each}}
+
+**Total Portfolio Value:** {{sum initiatives.estimatedValue}}  
+**Total Portfolio Cost:** {{sum initiatives.estimatedCost}}  
+**ROI Ratio:** {{calc (sum estimatedValue / sum estimatedCost)}}
+
+---
+
+## 4. Portfolio Roadmap (Investment Horizons)
+
+### Short-term (0-12 months)
+{{#each initiatives where timeHorizon = "short"}}
+- **{{name}}**: {{join businessOutcomes}}
+{{/each}}
+
+### Mid-term (12-24 months)
+{{#each initiatives where timeHorizon = "mid"}}
+- **{{name}}**: {{join businessOutcomes}}
+{{/each}}
+
+### Long-term (24+ months)
+{{#each initiatives where timeHorizon = "long"}}
+- **{{name}}**: {{join businessOutcomes}}
+{{/each}}
+
+---
+
+## 5. Value, Risk & Dependency Overview
+
+### Value Distribution
+
+| Value Type | Initiative Count | Total Value |
+|------------|------------------|-------------|
+{{#group initiatives by "valueType"}}
+| {{valueType}} | {{count}} | {{sum estimatedValue}} |
+{{/group}}
+
+### Top Risks
+
+{{#each risks where severity > 3 limit 5}}
+**{{title}}** ({{category}})  
+Probability: {{probability}} | Impact: {{impact}} | Owner: {{owner}}
+{{/each}}
+
+### Critical Dependencies
+
+{{ai.dependencyAnalysis}}
+
+---
+
+## 6. Leadership Decisions & Recommendations
+
+### Pending Decisions ({{count decisions where status = "proposed"}})
+
+{{#each decisions where status = "proposed"}}
+**{{title}}**  
+Owner: {{owner}} | Impact: {{impact}}  
+{{description}}
+
+**Recommendation:** {{ai.recommendation}}
+{{/each}}
+
+### Approved Decisions ({{count decisions where status = "approved"}})
+
+{{#each decisions where status = "approved"}}
+- **{{title}}** ({{decisionDate}}) — {{owner}}
+{{/each}}
+
+---
+
+## Leadership Summary
+
+{{ai.leadershipSummary}}
+
+### Key Asks
+1. Approve short-term initiative funding
+2. Assign initiative owners and decision dates
+3. Review and approve roadmap sequencing
+4. Validate resource allocation plan
+
+---
+
+**Document Version:** {{generated.version}}  
+**Generated:** {{generated.date}}  
+**Next Review:** {{calc nextReviewDate}}

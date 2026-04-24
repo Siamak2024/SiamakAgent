@@ -1,15 +1,19 @@
 /**
  * Step2.js — Business Model Canvas (current + future state)
  *
+ * GOLDEN RULE: Business Objectives—not Strategic Intent—drive the EA process.
+ * BMC MUST align to businessContext.primaryObjectives to ensure actionable architecture.
+ *
  * Tasks:
  *   2.1 bmc_current   — Internal: generate CURRENT state BMC
- *   2.2 bmc_future    — Internal: generate FUTURE state BMC aligned to Strategic Intent
+ *   2.2 bmc_future    — Internal: generate FUTURE state BMC aligned to Business Objectives
  *   2.3 bmc_analysis  — Internal: produce delta/analysis (gaps + opportunities)
  *
  * Outputs:
  *   model.bmc            — future-state BMC (9 building blocks)
  *   model.bmcCurrent     — current-state BMC
  *   model.bmcAnalysis    — delta analysis object
+ *   model.businessContext.enrichment.bmcInsights — captured insights for enrichment
  */
 
 const Step2 = {
@@ -29,9 +33,9 @@ const Step2 = {
       instructionFile: '2_1_bmc_current.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an expert Business Model designer. Analyse the company description and Strategic Intent to map the CURRENT state Business Model Canvas.
+      systemPromptFallback: `You are an expert Business Model designer. Analyse the company description and Business Context (Primary Objectives) to map the CURRENT state Business Model Canvas.
 
-This is a diagnostic map — reflect the AS-IS state of the organisation. Identify where the current model is under stress or misaligned with stated Strategic Intent.
+This is a diagnostic map — reflect the AS-IS state of the organisation. Identify where the current model is under stress or misaligned with Primary Objectives.
 
 CRITICAL: Return ONLY valid JSON. ALL fields MUST be ARRAYS.
 
@@ -55,7 +59,7 @@ RULES:
 
       userPrompt: (ctx) => {
         const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
-        const si = ctx.strategicIntent;
+        const si = ctx.strategicIntent || {};
         
         if (profile) {
           // Rich Profile mode: Use detailed offerings, business model, markets
@@ -126,9 +130,9 @@ Return JSON output.`;
       instructionFile: '2_2_bmc_future.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an expert Business Model designer. Based on the Strategic Intent and current-state BMC, design the FUTURE state Business Model Canvas — where the organisation needs to be in 3-5 years.
+      systemPromptFallback: `You are an expert Business Model designer. Based on the Business Context (Primary Objectives) and current-state BMC, design the FUTURE state Business Model Canvas — where the organisation needs to be to achieve their Primary Objectives.
 
-This is a TARGET model — show the bold shifts needed, not incremental tweaks.
+This is a TARGET model — show the bold shifts needed to achieve Primary Objectives, not incremental tweaks.
 
 CRITICAL: Return ONLY valid JSON. ALL fields MUST be ARRAYS.
 
@@ -154,7 +158,7 @@ RULES:
 - Show bold changes from current to future state`,
 
       userPrompt: (ctx) => {
-        const si = ctx.strategicIntent;
+        const si = ctx.strategicIntent || {};
         const current = ctx.answers?.step2_bmc_current || {};
         
         // ── Phase 2.1: Include AI transformation themes from Strategic Intent ──
@@ -221,7 +225,7 @@ Return ONLY valid JSON:
       userPrompt: (ctx) => {
         const current = ctx.answers?.step2_bmc_current || {};
         const future = ctx.answers?.step2_bmc_future || {};
-        const si = ctx.strategicIntent;
+        const si = ctx.strategicIntent || {};
         return `Strategic ambition: "${si.strategic_ambition || ''}"
 
 Current BMC:
@@ -267,6 +271,16 @@ Return JSON output.`;
   },
 
   applyOutput: (output, model) => {
+    // Capture BMC insights into enrichment
+    if (model.businessContext && model.businessContext.enrichment) {
+      model.businessContext.enrichment.bmcInsights = {
+        customerSegments: output.bmc?.customer_segments || [],
+        valuePropositions: output.bmc?.value_propositions || [],
+        keyInsights: output.bmcAnalysis?.summary || 'BMC analysis completed',
+        transformationMoves: output.bmc?.transformation_moves || []
+      };
+    }
+
     return {
       ...model,
       bmc: output.bmc,
@@ -291,11 +305,7 @@ Return JSON output.`;
         `**Step 2 — Business Model Canvas complete**\n\n` +
         `**Future model:** ${bmc.metadata?.at_a_glance || (bmc.value_propositions || []).slice(0, 2).join(', ')}\n\n` +
         `Review current vs. future BMC in the **BMC** tab.\n\n` +
-        `**Next:** Ready to map Capability Architecture? Click below or use the **Continue** button in the sidebar.\n\n` +
-        `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step3', window.model); } else { console.error('StepEngine not available'); }">\n` +
-        `  <i class="fas fa-arrow-right"></i>\n` +
-        `  Start Step 3: Capability Map\n` +
-        `</button>`
+        `**Click on Step 3: Capability Map in the left sidebar to continue.**`
       );
     }
   }

@@ -48,22 +48,19 @@ const StepContext = (() => {
         ...base,
         strategicIntent: model.strategicIntent || null,
         bmc: model.bmc || null,
-        capabilities: _compactCapabilities(model.capabilities || []),
-        capabilityAssessment: model.capabilityAssessment || null,
-        archBenchmark: model.archBenchmark || null,
-        architectureMode: model.aiConfig?.architectureMode || 'standard',
+        capabilities: model.capabilities || [],
+        industry: model.phase4Config?.industry || model.masterData?.industry || 'generic',
         stepMeta: _pickStepMeta(model, [1, 2, 3])
       };
 
       case 'step5': return {
         ...base,
         strategicIntent: model.strategicIntent || null,
-        bmc: model.bmc || null,
-        bmcAnalysis: model.bmcAnalysis || null,
         capabilities: model.capabilities || [],
-        capabilityAssessment: model.capabilityAssessment || null,
-        operatingModel: model.operatingModel || null,
-        operatingModelDelta: model.operatingModelDelta || null,
+        benchmarkGaps: model.benchmarkGaps || [],
+        benchmarkQuickWins: model.benchmarkQuickWins || [],
+        benchmarkData: model.benchmarkData || null,
+        industry: model.phase4Config?.industry || model.masterData?.industry || 'generic',
         stepMeta: _pickStepMeta(model, [1, 2, 3, 4])
       };
 
@@ -71,10 +68,11 @@ const StepContext = (() => {
         ...base,
         strategicIntent: model.strategicIntent || null,
         bmc: model.bmc || null,
-        bmcAnalysis: model.bmcAnalysis || null,
         capabilities: model.capabilities || [],
-        priorityGaps: model.priorityGaps || _extractPriorityGaps(model.capabilities || []),
-        quickWins: model.quickWins || [],
+        benchmarkGaps: model.benchmarkGaps || [],
+        benchmarkQuickWins: model.benchmarkQuickWins || [],
+        surveyResults: model.surveyResults || null,
+        industry: model.phase4Config?.industry || model.masterData?.industry || 'generic',
         stepMeta: _pickStepMeta(model, [1, 2, 3, 4, 5])
       };
 
@@ -84,13 +82,12 @@ const StepContext = (() => {
         strategicIntent: model.strategicIntent || null,
         bmc: model.bmc || null,
         capabilities: model.capabilities || [],
-        operatingModel: model.operatingModel || null,
-        valuePools: model.valuePools || [],
-        strategicOptions: model.strategicOptions || [],
+        valueStreams: model.valueStreams || [],
+        systems: model.systems || [],
         priorityGaps: model.priorityGaps || [],
         quickWins: model.quickWins || [],
         gapAnalysis: model.gapAnalysis || null,
-        stepMeta: _pickStepMeta(model, [1, 2, 3, 4, 5, 6])
+        stepMeta: _pickStepMeta(model, [1, 2, 3, 4, 5, 6]) // V10: Depends on all prior steps
       };
 
       default: return { ...base };

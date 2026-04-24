@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organization Profile - Rich Mode Demo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .demo-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+        
+        .mode-selector {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 32px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 12px;
+        }
+        
+        .mode-option {
+            flex: 1;
+            padding: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+        }
+        
+        .mode-option:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+        
+        .mode-option.active {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .mode-option-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+        
+        .mode-option-desc {
+            font-size: 13px;
+            color: #64748b;
+        }
+        
+        .input-section {
+            margin-bottom: 24px;
+        }
+        
+        .input-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 8px;
+            display: block;
+        }
+        
+        .input-hint {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 12px;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .char-counter {
+            text-align: right;
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        
+        .char-counter.warning {
+            color: #f59e0b;
+        }
+        
+        .char-counter.good {
+            color: #10b981;
+        }
+        
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+        
+        .progress-container {
+            margin-top: 24px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .progress-container.active {
+            display: block;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+        }
+        
+        .progress-message {
+            font-size: 14px;
+            color: #475569;
+            text-align: center;
+        }
+        
+        .result-card {
+            margin-top: 32px;
+            padding: 24px;
+            background: #f0f9ff;
+            border: 2px solid #38bdf8;
+            border-radius: 12px;
+            display: none;
+        }
+        
+        .result-card.active {
+            display: block;
+        }
+        
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .result-icon {
+            width: 48px;
+            height: 48px;
+            background: #38bdf8;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .result-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0c4a6e;
+        }
+        
+        .completeness-score {
+            display: inline-block;
+            padding: 6px 12px;
+            background: white;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .completeness-score.excellent {
+            color: #059669;
+            background: #d1fae5;
+        }
+        
+        .completeness-score.good {
+            color: #0891b2;
+            background: #cffafe;
+        }
+        
+        .completeness-score.fair {
+            color: #d97706;
+            background: #fed7aa;
+        }
+        
+        .completeness-score.poor {
+            color: #dc2626;
+            background: #fecaca;
+        }
+        
+        .result-section {
+            margin-top: 16px;
+            padding: 16px;
+            background: white;
+            border-radius: 8px;
+        }
+        
+        .result-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .result-content {
+            font-size: 14px;
+            color: #475569;
+            line-height: 1.6;
+        }
+        
+        .result-list {
+            list-style: none;
+        }
+        
+        .result-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .result-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .result-list li strong {
+            color: #1e293b;
+        }
+        
+        .warning-box {
+            margin-top: 16px;
+            padding: 12px;
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            border-radius: 6px;
+        }
+        
+        .warning-box-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 8px;
+        }
+        
+        .warning-box ul {
+            list-style: none;
+            font-size: 13px;
+            color: #78350f;
+        }
+        
+        .warning-box li {
+            padding: 4px 0;
+        }
+        
+        .warning-box li:before {
+            content: '⚠ ';
+            margin-right: 4px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        
+        .json-viewer {
+            margin-top: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        
+        .example-box {
+            margin-top: 16px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .example-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+        
+        .example-text {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-building"></i> Organization Profile — Rich Mode Demo</h1>
+            <p>AI-powered extraction of comprehensive organizational context for EA workflows</p>
+        </div>
+        
+        <div class="demo-card">
+            <div class="mode-selector">
+                <div class="mode-option active" onclick="selectMode('quick')">
+                    <div class="mode-option-title"><i class="fas fa-bolt"></i> Quick Start</div>
+                    <div class="mode-option-desc">2-3 sentences (current default)</div>
+                </div>
+                <div class="mode-option" onclick="selectMode('rich')">
+                    <div class="mode-option-title"><i class="fas fa-magic"></i> Rich Profile</div>
+                    <div class="mode-option-desc">Multi-paragraph summary with AI processing</div>
+                </div>
+            </div>
+            
+            <div id="quick-mode" class="input-section">
+                <label class="input-label">Company Description (Quick Start)</label>
+                <div class="input-hint">Provide a brief description (2-5 sentences) of your organization.</div>
+                <textarea id="quick-input" placeholder="Example: Nordic insurance company with 500 employees, focusing on embedded insurance and automated claims processing. Operates in Sweden, Norway, and Denmark.">
+</textarea>
+                <div class="char-counter" id="quick-counter">0 characters</div>
+            </div>
+            
+            <div id="rich-mode" class="input-section" style="display:none;">
+                <label class="input-label">Organization Summary (Rich Profile) <span style="color:#667eea">★ NEW</span></label>
+                <div class="input-hint">
+                    Provide a detailed summary (500-2000 words) covering:
+                    <strong>company background, products/services, market position, strategic priorities, challenges, technology landscape, and goals.</strong>
+                </div>
+                <textarea id="rich-input" placeholder="Example:
+
+ACME Healthcare Solutions is a Swedish healthcare technology company founded in 2010, now employing 500 people across offices in Stockholm, Oslo, and Copenhagen. We provide cloud-based patient management systems to 200+ healthcare providers across the Nordics.
+
+Our mission is to make healthcare administration seamless and secure. We serve hospitals, clinics, and private practices with three core products: PatientPortal (patient engagement), CareFlow (clinical workflow), and DataVault (secure health records storage).
+
+We're the #2 player in the Nordic market behind MedTechGiant, but growing fast (30% YoY). Our key differentiator is deep integration with Nordic national health systems (BankID, 1177, Kry).
+
+Major challenges:
+- Legacy on-premise systems at older customers limiting upsell
+- GDPR compliance complexity with cross-border data
+- Shortage of healthcare IT specialists
+- Competition from international players entering Nordic market
+
+Strategic priorities for 2026-2028:
+1. Migrate all customers to cloud (SaaS model) by end 2027
+2. Launch AI-powered clinical decision support features
+3. Expand to Germany and Netherlands (EU expansion)
+4. Achieve ISO 27001 and SOC 2 Type II certifications
+
+Our tech stack includes Azure (cloud), PostgreSQL (data), React (frontend). We have significant tech debt from rapid growth and some legacy code from 2010 that needs refactoring. Budget is €5M for IT modernization over next 2 years.
+
+Culture is innovative but somewhat chaotic—we're professionalizing governance and processes as we scale. Hybrid work model with 60% remote."></textarea>
+                <div class="char-counter" id="rich-counter">0 characters (target: 500-2000 words)</div>
+                
+                <div class="example-box">
+                    <div class="example-title"><i class="fas fa-lightbulb"></i> Tips for best results:</div>
+                    <div class="example-text">
+                        • Be specific about challenges and goals (not generic)<br>
+                        • Include concrete numbers (revenue, employees, growth rates)<br>
+                        • Mention specific systems, technologies, or regulations<br>
+                        • Describe strategic priorities with timeframes<br>
+                        • Note constraints (budget, skills, legacy systems)
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 12px;">
+                <button class="btn btn-primary" onclick="processOrganization()" id="process-btn">
+                    <i class="fas fa-magic"></i>
+                    Process with AI
+                </button>
+                <button class="btn btn-secondary" onclick="clearAll()">
+                    <i class="fas fa-times"></i>
+                    Clear
+                </button>
+            </div>
+            
+            <div class="progress-container" id="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-message" id="progress-message">Initializing...</div>
+            </div>
+            
+            <div class="result-card" id="result-card">
+                <div class="result-header">
+                    <div class="result-icon"><i class="fas fa-check"></i></div>
+                    <div>
+                        <div class="result-title">Organization Profile Generated</div>
+                        <div class="completeness-score" id="completeness-badge">85% Complete (Good)</div>
+                    </div>
+                </div>
+                
+                <div class="result-section">
+                    <div class="result-section-title">Executive Summary</div>
+                    <div class="result-content" id="exec-summary"></div>
+                </div>
+                
+                <div class="result-section">
+                    <div class="result-section-title">Core Identity</div>
+                    <ul class="result-list" id="core-identity"></ul>
+                </div>
+                
+                <div class="result-section">
+                    <div class="result-section-title">Strategic Priorities</div>
+                    <ul class="result-list" id="strategic-priorities"></ul>
+                </div>
+                
+                <div class="result-section">
+                    <div class="result-section-title">Key Challenges</div>
+                    <ul class="result-list" id="challenges"></ul>
+                </div>
+                
+                <div id="warnings-box" class="warning-box" style="display:none;">
+                    <div class="warning-box-title">Completeness Warnings</div>
+                    <ul id="warnings-list"></ul>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="viewFullJSON()">
+                        <i class="fas fa-code"></i>
+                        View Full JSON
+                    </button>
+                    <button class="btn btn-secondary" onclick="downloadJSON()">
+                        <i class="fas fa-download"></i>
+                        Download JSON
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetDemo()">
+                        <i class="fas fa-redo"></i>
+                        Process Another
+                    </button>
+                </div>
+                
+                <div class="json-viewer" id="json-viewer" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Load Dependencies -->
+    <script src="../AzureOpenAIProxy.js"></script>
+    <script src="../js/EA_OrganizationProfileProcessor.js"></script>
+    
+    <script>
+        let currentMode = 'quick';
+        let currentProfile = null;
+        
+        // Mode selection
+        function selectMode(mode) {
+            currentMode = mode;
+            
+            // Update UI
+            document.querySelectorAll('.mode-option').forEach(opt => {
+                opt.classList.remove('active');
+            });
+            event.target.closest('.mode-option').classList.add('active');
+            
+            // Toggle input sections
+            document.getElementById('quick-mode').style.display = mode === 'quick' ? 'block' : 'none';
+            document.getElementById('rich-mode').style.display = mode === 'rich' ? 'block' : 'none';
+        }
+        
+        // Character counters
+        document.getElementById('quick-input').addEventListener('input', function() {
+            const chars = this.value.length;
+            const counter = document.getElementById('quick-counter');
+            counter.textContent = `${chars} characters`;
+            counter.className = 'char-counter' + (chars > 100 ? ' good' : chars > 50 ? ' warning' : '');
+        });
+        
+        document.getElementById('rich-input').addEventListener('input', function() {
+            const chars = this.value.length;
+            const words = this.value.trim().split(/\s+/).length;
+            const counter = document.getElementById('rich-counter');
+            counter.textContent = `${chars} characters (~${words} words)`;
+            counter.className = 'char-counter' + (words >= 500 ? ' good' : words >= 100 ? ' warning' : '');
+        });
+        
+        // Process organization
+        async function processOrganization() {
+            const input = currentMode === 'quick' 
+                ? document.getElementById('quick-input').value 
+                : document.getElementById('rich-input').value;
+            
+            if (!input.trim()) {
+                alert('Please provide an organization description');
+                return;
+            }
+            
+            // Show progress
+            const progressContainer = document.getElementById('progress-container');
+            const progressFill = document.getElementById('progress-fill');
+            const progressMessage = document.getElementById('progress-message');
+            const processBtn = document.getElementById('process-btn');
+            
+            progressContainer.classList.add('active');
+            document.getElementById('result-card').classList.remove('active');
+            processBtn.disabled = true;
+            
+            // Progress callback
+            const updateProgress = (state) => {
+                progressFill.style.width = state.percent + '%';
+                progressMessage.textContent = state.message;
+            };
+            
+            try {
+                // For Quick mode, just store description
+                if (currentMode === 'quick') {
+                    updateProgress({ message: 'Saving quick description...', percent: 50 });
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    alert('Quick Start mode: Description saved!\n\nIn the full platform, this would proceed to Strategic Intent generation with minimal context.');
+                    
+                    progressContainer.classList.remove('active');
+                    processBtn.disabled = false;
+                    return;
+                }
+                
+                // For Rich mode, call the processor
+                updateProgress({ message: 'Starting AI processing...', percent: 10 });
+                
+                const result = await EA_OrganizationProfileProcessor.processOrganizationalSummary(
+                    input,
+                    {},
+                    updateProgress
+                );
+                
+                if (result.success) {
+                    currentProfile = result.profile;
+                    displayResults(result);
+                } else {
+                    alert('Error: ' + result.message);
+                }
+                
+            } catch (error) {
+                console.error('Processing error:', error);
+                alert('An error occurred during processing: ' + error.message);
+            } finally {
+                progressContainer.classList.remove('active');
+                processBtn.disabled = false;
+            }
+        }
+        
+        // Display results
+        function displayResults(result) {
+            const { profile, completeness, readyForWorkflow } = result;
+            
+            // Show result card
+            document.getElementById('result-card').classList.add('active');
+            
+            // Completeness badge
+            const badge = document.getElementById('completeness-badge');
+            let label = '';
+            let className = '';
+            if (completeness >= 80) {
+                label = 'Excellent';
+                className = 'excellent';
+            } else if (completeness >= 60) {
+                label = 'Good';
+                className = 'good';
+            } else if (completeness >= 40) {
+                label = 'Fair';
+                className = 'fair';
+            } else {
+                label = 'Poor';
+                className = 'poor';
+            }
+            badge.textContent = `${completeness}% Complete (${label})`;
+            badge.className = `completeness-score ${className}`;
+            
+            // Executive summary
+            document.getElementById('exec-summary').innerHTML = 
+                `<p><strong>${profile.executiveSummary?.oneLinePitch || 'N/A'}</strong></p>
+                 <p style="margin-top: 12px;">${profile.executiveSummary?.strategicNarrative || 'No narrative generated'}</p>`;
+            
+            // Core identity
+            const coreHTML = `
+                <li><strong>Organization:</strong> ${profile.organizationName || 'N/A'}</li>
+                <li><strong>Industry:</strong> ${profile.industry || 'N/A'}</li>
+                <li><strong>Size:</strong> ${profile.companySize?.employees || 'N/A'} employees (${profile.companySize?.sizeCategory || 'N/A'})</li>
+                <li><strong>Headquarters:</strong> ${profile.headquarters?.city || 'N/A'}, ${profile.headquarters?.country || 'N/A'}</li>
+                <li><strong>Mission:</strong> ${profile.missionStatement || 'Not provided'}</li>
+            `;
+            document.getElementById('core-identity').innerHTML = coreHTML;
+            
+            // Strategic priorities
+            const prioritiesHTML = (profile.strategicPriorities || []).map(p => 
+                `<li><strong>${p.priority}:</strong> ${p.description} <em>(${p.timeframe}, ${p.importance})</em></li>`
+            ).join('');
+            document.getElementById('strategic-priorities').innerHTML = prioritiesHTML || '<li>No strategic priorities identified</li>';
+            
+            // Challenges
+            const challengesHTML = (profile.challenges || []).map(c => 
+                `<li><strong>${c.challenge}</strong> (${c.severity}): ${c.description}</li>`
+            ).join('');
+            document.getElementById('challenges').innerHTML = challengesHTML || '<li>No challenges identified</li>';
+            
+            // Warnings
+            if (profile.metadata?.warnings && profile.metadata.warnings.length > 0) {
+                const warningsHTML = profile.metadata.warnings.map(w => `<li>${w}</li>`).join('');
+                document.getElementById('warnings-list').innerHTML = warningsHTML;
+                document.getElementById('warnings-box').style.display = 'block';
+            } else {
+                document.getElementById('warnings-box').style.display = 'none';
+            }
+            
+            // Scroll to results
+            document.getElementById('result-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
+        // View full JSON
+        function viewFullJSON() {
+            const viewer = document.getElementById('json-viewer');
+            if (viewer.style.display === 'none') {
+                viewer.textContent = JSON.stringify(currentProfile, null, 2);
+                viewer.style.display = 'block';
+            } else {
+                viewer.style.display = 'none';
+            }
+        }
+        
+        // Download JSON
+        function downloadJSON() {
+            const dataStr = JSON.stringify(currentProfile, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `organization-profile-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Clear all
+        function clearAll() {
+            document.getElementById('quick-input').value = '';
+            document.getElementById('rich-input').value = '';
+            document.getElementById('quick-counter').textContent = '0 characters';
+            document.getElementById('rich-counter').textContent = '0 characters (target: 500-2000 words)';
+            document.getElementById('result-card').classList.remove('active');
+            currentProfile = null;
+        }
+        
+        // Reset demo
+        function resetDemo() {
+            clearAll();
+            document.getElementById('result-card').classList.remove('active');
+        }
+    </script>
+</body>
+</html>

@@ -1,359 +1,270 @@
 /**
- * Step4.js — Operating Model
+ * Step4.js — Benchmark Analysis
+ *
+ * V10 REDESIGN: Compare capability maturity against APQC industry standards
+ * and identify gaps vs. industry leaders.
  *
  * Tasks:
- *   4.1 current_op_model  — Internal: map current operating model
- *   4.2 target_op_model   — Internal: design target operating model
- *   4.3 op_model_delta    — Internal: gap + transition analysis
+ *   4.1 benchmark_analysis    — Compare capabilities vs APQC standards
+ *   4.2 gap_identification    — Identify gaps vs industry best practices
+ *   4.3 executive_summary     — Generate benchmark executive summary
  *
  * Outputs:
- *   model.operatingModel      — structured operating model object (current + target)
- *   model.operatingModelDelta — delta/transition analysis
+ *   model.benchmarkData      — benchmark results with APQC comparisons
+ *   model.benchmarkGaps[]    — identified gaps vs industry
+ *   model.benchmarkSummary   — executive summary of findings
  */
 
 const Step4 = {
 
   id: 'step4',
-  name: 'Operating Model',
-  dependsOn: ['step1', 'step2', 'step3'],
+  name: 'Benchmark Analysis',
+  dependsOn: ['step3'],
 
   tasks: [
 
-    // ── Task 4.1: Current Operating Model ─────────────────────────────────
+    // ── Task 4.1: Benchmark Analysis ──────────────────────────────────────
     {
-      taskId: 'step4_current_op_model',
-      title: 'Mapping current operating model',
+      taskId: 'step4_benchmark_analysis',
+      title: 'Comparing capabilities vs APQC standards',
       type: 'internal',
       taskType: 'analysis',
-      instructionFile: '4_1_current_op_model.instruction.md',
+      instructionFile: '4_1_benchmark_analysis.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an Enterprise Architecture expert. Map the CURRENT state operating model using the 6-building-block framework.
+      systemPromptFallback: `You are an Enterprise Architecture Benchmarking Analyst with expertise in APQC Process Classification Framework.
+
+Analyze the organization's capability maturity against APQC industry standards.
 
 Return ONLY valid JSON:
 {
-  "value_delivery": { "value_streams": [], "customer_journeys": [], "channels": [] },
-  "capability_model": [
-    { "name": "", "purpose": "", "group": "Commercial|Operations|Support|Digital", "maturity": "High|Medium|Low", "strategic_priority": "High|Medium|Low" }
-  ],
-  "process_model": [
-    { "name": "", "linked_capability": "", "is_bottleneck": false, "description": "" }
-  ],
-  "organisation_governance": {
-    "key_roles": [],
-    "capability_ownership": [{ "capability": "", "owner": "" }],
-    "governance_model": "Centralized|Decentralized|Federated",
-    "decision_making": ""
+  "industry_baseline": {
+    "sector": "",
+    "avg_maturity": 0,
+    "top_quartile_maturity": 0
   },
-  "application_data_landscape": {
-    "core_systems": [{ "name": "", "supports_capability": "", "status": "active|gap|redundant" }],
-    "gaps_overlaps": []
-  },
-  "operating_model_principles": [],
-  "metadata": { "at_a_glance": "", "model_archetype": "" }
+  "capability_benchmarks": [
+    {
+      "capability_id": "",
+      "capability_name": "",
+      "current_maturity": 0,
+      "industry_avg": 0,
+      "top_quartile": 0,
+      "gap_vs_avg": 0,
+      "gap_vs_best": 0,
+      "apqc_alignment": "STRONG|MODERATE|WEAK",
+      "priority": "HIGH|MEDIUM|LOW"
+    }
+  ],
+  "summary": {
+    "total_capabilities": 0,
+    "above_average_count": 0,
+    "below_average_count": 0,
+    "critical_gaps": 0
+  }
 }`,
 
       userPrompt: (ctx) => {
-        const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
-        const si = ctx.strategicIntent;
-        const caps = (ctx.capabilities || []).filter(c => c.current_maturity && c.current_maturity <= 2).map(c => c.name).slice(0, 5);
+        const capabilities = ctx.capabilities || [];
+        const industry = ctx.industry || 'GENERIC';
+        const strategicIntent = ctx.strategicIntent || {};
         
-        if (profile) {
-          // Rich Profile: Use structure and technology landscape
-          const structure = profile.structure?.organizationalStructure || 'Not specified';
-          const governance = profile.structure?.governance || 'Not specified';
-          const coreSystems = (profile.technologyLandscape?.coreSystems || []).map(s => s.name).join(', ');
-          const legacySystems = (profile.technologyLandspace?.legacySystems || []).map(s => s.name).join(', ');
-          
-          return `**ORGANIZATION PROFILE - OPERATING MODEL CONTEXT:**
-
-Organization: ${profile.organizationName} (${profile.industry})
-
-**Structure:**
-- Organizational Structure: ${structure}
-- Governance: ${governance}
-- Departments: ${(profile.structure?.departments || []).join(', ') || 'Not specified'}
-
-**Technology Landscape:**
-- Core Systems: ${coreSystems || 'Not specified'}
-- Legacy Systems: ${legacySystems || 'Not specified'}
-- Cloud Adoption: ${profile.technologyLandscape?.cloudAdoption || 'Unknown'}
-- Tech Debt: ${profile.technologyLandscape?.techDebt || 'Unknown'}
-
-**Strategic context:**
-- Burning platform: ${si.burning_platform || ''}
-- Constraints: ${(si.key_constraints || []).join('; ')}
-- Low-maturity capabilities: ${caps.join(', ') || 'see assessment'}
-
-**CRITICAL:** Map the CURRENT operating model grounded in the SPECIFIC structure and systems from the profile. Do NOT invent system names or organizational units not mentioned.
-
-Return ONLY valid JSON. ALL key names must be EXACTLY as shown below (in English). Only text values may be in the local language:
-{"value_delivery":{"value_streams":[],"customer_journeys":[],"channels":[]},"capability_model":[{"name":"","purpose":"","group":"Commercial","maturity":"Medium","strategic_priority":"High"}],"process_model":[{"name":"","linked_capability":"","is_bottleneck":false,"description":""}],"organisation_governance":{"key_roles":[],"capability_ownership":[{"capability":"","owner":""}],"governance_model":"Centralized","decision_making":""},"application_data_landscape":{"core_systems":[{"name":"","supports_capability":"","status":"active"}],"gaps_overlaps":[]},"operating_model_principles":[],"metadata":{"at_a_glance":"","model_archetype":""}}`;}
+        const capList = capabilities.map(c => 
+          `${c.id || c.capability_id} ${c.name}: Current maturity=${c.current_maturity || 'unknown'}, Target=${c.target_maturity || 'unknown'}, Importance=${c.strategic_importance || 'SUPPORT'}`
+        ).join('\n');
         
-        // Quick Start fallback
-        return `Company: "${ctx.companyDescription}"
+        return `Industry sector: ${industry}
+Strategic focus: ${strategicIntent.strategic_intent || ''}
+Business model type: ${strategicIntent.business_model || ''}
 
-Strategic context:
-- Burning platform: ${si.burning_platform || ''}
-- Constraints: ${(si.key_constraints || []).join('; ')}
-- Low-maturity capabilities: ${caps.join(', ') || 'see assessment'}
+Capabilities to benchmark:
+${capList}
 
-Map the CURRENT operating model. Derive from company context — mark guesses with ⚠️.
-
-Return ONLY valid JSON. ALL key names must be EXACTLY as shown below (in English). Only text values may be in the local language:
-{"value_delivery":{"value_streams":[],"customer_journeys":[],"channels":[]},"capability_model":[{"name":"","purpose":"","group":"Commercial","maturity":"Medium","strategic_priority":"High"}],"process_model":[{"name":"","linked_capability":"","is_bottleneck":false,"description":""}],"organisation_governance":{"key_roles":[],"capability_ownership":[{"capability":"","owner":""}],"governance_model":"Centralized","decision_making":""},"application_data_landscape":{"core_systems":[{"name":"","supports_capability":"","status":"active"}],"gaps_overlaps":[]},"operating_model_principles":[],"metadata":{"at_a_glance":"","model_archetype":""}}`;},
-
-      outputSchema: {
-        value_delivery: 'object?',
-        capability_model: ['object?'],
-        process_model: ['object?'],
-        organisation_governance: 'object?',
-        application_data_landscape: 'object?',
-        operating_model_principles: ['string?']
-      },
-
-      parseOutput: (raw) => {
-        const parsed = OutputValidator.parseJSON(raw, 'step4_current_op_model');
-        const EXPECTED = ['value_delivery', 'capability_model', 'process_model',
-          'organisation_governance', 'application_data_landscape', 'operating_model_principles'];
-        // Recursive depth-first search (up to 3 levels) for object containing OM keys
-        function findOMObject(obj, depth) {
-          if (!obj || typeof obj !== 'object' || Array.isArray(obj) || depth > 3) return null;
-          if (EXPECTED.some(k => obj[k] !== undefined)) return obj;
-          let bestMatch = null, bestCount = 0;
-          for (const k of Object.keys(obj)) {
-            const child = obj[k];
-            if (child && typeof child === 'object' && !Array.isArray(child)) {
-              const found = findOMObject(child, depth + 1);
-              if (found) {
-                const count = EXPECTED.filter(ek => found[ek] !== undefined).length;
-                if (count > bestCount) { bestCount = count; bestMatch = found; }
-              }
-            }
-          }
-          return bestMatch;
-        }
-        const found = findOMObject(parsed, 0);
-        if (found) {
-          const matchCount = EXPECTED.filter(k => found[k] !== undefined).length;
-          if (found !== parsed) console.log(`[Step4] Unwrapped current OM (${matchCount} matching keys)`);
-          return found;
-        }
-        console.warn('[Step4] Could not unwrap – raw AI output:', JSON.stringify(parsed).slice(0, 500));
-        return parsed;
-      }
-    },
-
-    // ── Task 4.2: Target Operating Model ──────────────────────────────────
-    {
-      taskId: 'step4_target_op_model',
-      title: 'Designing target operating model',
-      type: 'internal',
-      taskType: 'heavy',
-      instructionFile: '4_2_target_op_model.instruction.md',
-      expectsJson: true,
-
-      systemPromptFallback: `You are an Enterprise Architecture expert. Design the TARGET operating model using the 6-building-block framework.
-Add "transformation_principles" (3-5 items) explaining the "why" behind key design changes.
-
-Return ONLY valid JSON with same 6-block schema + transformation_principles[] + metadata.`,
-
-      userPrompt: (ctx) => {
-        const si = ctx.strategicIntent;
-        const current = ctx.answers?.step4_current_op_model || {};
-        const bmc = ctx.bmc || {};
-        const curSummary = current.metadata?.at_a_glance || '';
-        const curArch = current.metadata?.model_archetype || '';
-        const bottlenecks = (current.process_model || []).filter(p => p.is_bottleneck).map(p => p.name).join(', ');
-        const lowCaps = (current.capability_model || []).filter(c => c.maturity === 'Low' && c.strategic_priority === 'High').map(c => c.name).join(', ');
-        
-        // ── Phase 2.3: Include AI transformation context ──
-        const aiThemes = (si.ai_transformation_themes || []);
-        const aiActivities = (bmc.ai_transformation?.ai_enabled_activities || []);
-        const aiCapabilities = (ctx.capabilities || []).filter(c => c.ai_enabled).map(c => c.name);
-        
-        const aiContext = (aiThemes.length > 0 || aiActivities.length > 0 || aiCapabilities.length > 0)
-          ? `\n\nAI Transformation Context:\n` +
-            (aiThemes.length > 0 ? `- Strategic AI themes: ${aiThemes.join('; ')}\n` : '') +
-            (aiActivities.length > 0 ? `- BMC AI activities: ${aiActivities.join(', ')}\n` : '') +
-            (aiCapabilities.length > 0 ? `- AI-enabled capabilities: ${aiCapabilities.slice(0, 5).join(', ')}\n` : '') +
-            `Mark processes as ai_enabled: true if they use AI/ML/automation.\n` +
-            `Mark systems as is_ai_platform: true if they are ML/AI platforms (e.g., Azure ML, Databricks, UiPath, Salesforce Einstein).\n` +
-            `Include AI governance roles in key_roles if AI transformation is significant.\n` +
-            `Populate ai_transformation_indicators section with ai_enabled_processes, ai_platforms, ai_governance_roles, and ai_readiness_assessment.`
-          : '';
-        
-        return `Strategic Intent:
-- Ambition: ${si.strategic_ambition || ''}
-- Themes: ${(si.strategic_themes || []).join(' | ')}
-- Outcomes: ${(si.expected_outcomes || []).join('; ')}
-
-Current Operating Model:
-- Archetype: ${curArch || 'unknown'}
-- Summary: ${curSummary || 'see current state'}
-- Process bottlenecks: ${bottlenecks || 'none identified'}
-- High-priority low-maturity capabilities: ${lowCaps || 'none identified'}
-
-Future BMC value props: ${(bmc.value_propositions || []).join('; ')}${aiContext}
-
-Design the TARGET operating model (6 building blocks). Address bottlenecks and low-maturity priorities. Include transformation_principles explaining the "why" behind design changes.
-
-Return ONLY valid JSON. ALL key names must be EXACTLY as shown below (in English). Only text values may be in the local language:
-{"value_delivery":{"value_streams":[],"customer_journeys":[],"channels":[]},"capability_model":[{"name":"","purpose":"","group":"Commercial","maturity":"High","strategic_priority":"High"}],"process_model":[{"name":"","linked_capability":"","is_bottleneck":false,"description":"","ai_enabled":false}],"organisation_governance":{"key_roles":[],"capability_ownership":[{"capability":"","owner":""}],"governance_model":"Federated","decision_making":""},"application_data_landscape":{"core_systems":[{"name":"","supports_capability":"","status":"active","is_ai_platform":false}],"gaps_overlaps":[]},"operating_model_principles":[],"transformation_principles":[],"metadata":{"at_a_glance":"","model_archetype":""},"ai_transformation_indicators":{"ai_enabled_processes":[],"ai_platforms":[],"ai_governance_roles":[],"ai_readiness_assessment":""}}`;
+Compare each capability's current maturity against APQC industry standards. Identify where we lag vs. industry average and best-in-class performers.`;
       },
 
       outputSchema: {
-        value_delivery: 'object?',
-        capability_model: ['object?'],
-        process_model: ['object?'],
-        organisation_governance: 'object?',
-        application_data_landscape: 'object?',
-        operating_model_principles: ['string?'],
-        transformation_principles: ['string?']
+        industry_baseline: 'object',
+        capability_benchmarks: ['object'],
+        summary: 'object'
       },
 
-      parseOutput: (raw) => {
-        const parsed = OutputValidator.parseJSON(raw, 'step4_target_op_model');
-        const EXPECTED = ['value_delivery', 'capability_model', 'process_model',
-          'organisation_governance', 'application_data_landscape', 'operating_model_principles'];
-        function findOMObject(obj, depth) {
-          if (!obj || typeof obj !== 'object' || Array.isArray(obj) || depth > 3) return null;
-          if (EXPECTED.some(k => obj[k] !== undefined)) return obj;
-          let bestMatch = null, bestCount = 0;
-          for (const k of Object.keys(obj)) {
-            const child = obj[k];
-            if (child && typeof child === 'object' && !Array.isArray(child)) {
-              const found = findOMObject(child, depth + 1);
-              if (found) {
-                const count = EXPECTED.filter(ek => found[ek] !== undefined).length;
-                if (count > bestCount) { bestCount = count; bestMatch = found; }
-              }
-            }
-          }
-          return bestMatch;
-        }
-        const found = findOMObject(parsed, 0);
-        if (found) {
-          if (found !== parsed) console.log(`[Step4] Unwrapped target OM (${EXPECTED.filter(k => found[k] !== undefined).length} matching keys)`);
-          return found;
-        }
-        console.warn('[Step4] Could not unwrap target – raw:', JSON.stringify(parsed).slice(0, 500));
-        return parsed;
-      }
+      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step4_benchmark_analysis')
     },
 
-    // ── Task 4.3: Op Model Delta ───────────────────────────────────────────
+    // ── Task 4.2: Gap Identification ──────────────────────────────────────
     {
-      taskId: 'step4_op_model_delta',
-      title: 'Analysing operating model gaps',
+      taskId: 'step4_gap_identification',
+      title: 'Identifying critical gaps vs industry leaders',
       type: 'internal',
       taskType: 'analysis',
-      instructionFile: '4_3_op_model_delta.instruction.md',
+      instructionFile: '4_2_gap_identification.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an Operating Model Transformation specialist. Compare current and target operating models to produce a structured delta and transition analysis.
+      systemPromptFallback: `You are a Strategic Gap Analyst. Identify the most critical capability gaps that need attention.
+
 Return ONLY valid JSON:
 {
-  "dimension_gaps": [{"dimension":"","current_state":"","target_state":"","gap_severity":"HIGH|MEDIUM|LOW","transition_complexity":"HIGH|MEDIUM|LOW","recommended_pattern":""}],
-  "cross_cutting_themes": [""],
-  "dependency_chain": [""],
-  "change_readiness": {"score":0.0,"factors":[""],"risks":[""]},
-  "executive_summary": ""
+  "critical_gaps": [
+    {
+      "capability_id": "",
+      "capability_name": "",
+      "gap_type": "MATURITY|PROCESS|TECHNOLOGY|SKILLS",
+      "severity": "CRITICAL|HIGH|MEDIUM|LOW",
+      "impact": "",
+      "root_cause": "",
+      "recommended_action": ""
+    }
+  ],
+  "quick_wins": [
+    {
+      "capability_id": "",
+      "capability_name": "",
+      "action": "",
+      "expected_benefit": "",
+      "effort": "LOW|MEDIUM|HIGH",
+      "timeframe": ""
+    }
+  ],
+  "strategic_priorities": [""]
 }`,
 
       userPrompt: (ctx) => {
-        const current = ctx.answers?.step4_current_op_model || {};
-        const target = ctx.answers?.step4_target_op_model || {};
-        const si = ctx.strategicIntent;
-        const curArch   = current.metadata?.model_archetype || 'unknown';
-        const tgtArch   = target.metadata?.model_archetype || 'unknown';
-        const principles = (target.transformation_principles || []).join('; ');
-        return `Strategic ambition: "${si.strategic_ambition || ''}"
-Timeframe: ${si.timeframe || '3-5 years'}
+        const benchmarks = ctx.answers?.step4_benchmark_analysis?.capability_benchmarks || [];
+        const strategicIntent = ctx.strategicIntent || {};
+        
+        const gapList = benchmarks
+          .filter(b => b.gap_vs_avg < -0.5 || b.gap_vs_best < -1.0)
+          .map(b => `${b.capability_name}: Gap vs avg=${b.gap_vs_avg}, Gap vs best=${b.gap_vs_best}, Priority=${b.priority}`)
+          .join('\n');
+        
+        return `Strategic objectives: ${(strategicIntent.strategic_themes || []).join(', ')}
+Key constraints: ${(strategicIntent.key_constraints || []).join(', ')}
 
-Current archetype: "${curArch}"  →  Target archetype: "${tgtArch}"
-Transformation principles: ${principles || 'see target model'}
+Capability gaps identified:
+${gapList}
 
-Compare the 6 building blocks across current and target models. change_readiness.score: 0.0-1.0. executive_summary: 2-3 sentences Board-level.
-
-Return ONLY valid JSON. ALL key names must be EXACTLY as shown below (in English). Only text values may be in the local language:
-{"dimension_gaps":[{"dimension":"Value Delivery","current_state":"","target_state":"","gap_severity":"HIGH","transition_complexity":"MEDIUM","recommended_pattern":""},{"dimension":"Capability Model","current_state":"","target_state":"","gap_severity":"HIGH","transition_complexity":"MEDIUM","recommended_pattern":""},{"dimension":"Process Model","current_state":"","target_state":"","gap_severity":"MEDIUM","transition_complexity":"LOW","recommended_pattern":""},{"dimension":"Organisation & Governance","current_state":"","target_state":"","gap_severity":"MEDIUM","transition_complexity":"MEDIUM","recommended_pattern":""},{"dimension":"Application & Data Landscape","current_state":"","target_state":"","gap_severity":"HIGH","transition_complexity":"HIGH","recommended_pattern":""},{"dimension":"Operating Model Principles","current_state":"","target_state":"","gap_severity":"LOW","transition_complexity":"LOW","recommended_pattern":""}],"cross_cutting_themes":[],"dependency_chain":[],"change_readiness":{"score":0.0,"factors":[],"risks":[]},"executive_summary":""}`;
+Prioritize gaps that:
+1. Impact strategic objectives most
+2. Create competitive disadvantage
+3. Have quickest path to improvement (quick wins)`;
       },
 
       outputSchema: {
-        dimension_gaps: ['object?'],
-        executive_summary: 'string?'
+        critical_gaps: ['object'],
+        quick_wins: ['object'],
+        strategic_priorities: ['string']
       },
 
-      parseOutput: (raw) => {
-        const parsed = OutputValidator.parseJSON(raw, 'step4_op_model_delta');
-        const DELTA_KEYS = ['dimension_gaps', 'executive_summary', 'cross_cutting_themes',
-          'change_readiness', 'dependency_chain'];
-        if (DELTA_KEYS.some(k => parsed[k] !== undefined)) return parsed;
-        // Generic unwrap if AI wrapped in a parent key
-        for (const key of Object.keys(parsed || {})) {
-          const inner = parsed[key];
-          if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
-            if (DELTA_KEYS.filter(k => inner[k] !== undefined).length >= 1) {
-              console.log(`[Step4] Unwrapped delta from key "${key}"`);
-              return inner;
-            }
-          }
-        }
-        return parsed;
-      }
+      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step4_gap_identification')
+    },
+
+    // ── Task 4.3: Executive Summary ───────────────────────────────────────
+    {
+      taskId: 'step4_executive_summary',
+      title: 'Generating benchmark executive summary',
+      type: 'internal',
+      taskType: 'synthesis',
+      instructionFile: '4_3_executive_summary.instruction.md',
+      expectsJson: true,
+
+      systemPromptFallback: `You are a C-suite Strategic Advisor. Create a concise executive summary of the benchmark findings.
+
+Return ONLY valid JSON:
+{
+  "headline": "",
+  "key_findings": [""],
+  "competitive_position": "",
+  "urgency_level": "CRITICAL|HIGH|MODERATE|LOW",
+  "investment_focus": [""],
+  "expected_outcomes": [""],
+  "next_steps": [""]
+}`,
+
+      userPrompt: (ctx) => {
+        const summary = ctx.answers?.step4_benchmark_analysis?.summary || {};
+        const gaps = ctx.answers?.step4_gap_identification?.critical_gaps || [];
+        const quickWins = ctx.answers?.step4_gap_identification?.quick_wins || [];
+        
+        return `Benchmark summary:
+- Total capabilities assessed: ${summary.total_capabilities || 0}
+- Above industry average: ${summary.above_average_count || 0}
+- Below industry average: ${summary.below_average_count || 0}
+- Critical gaps identified: ${summary.critical_gaps || 0}
+
+Critical gaps: ${gaps.length} found
+Quick wins available: ${quickWins.length} identified
+
+Create a 3-paragraph executive summary that a CEO/CFO can read in 60 seconds.`;
+      },
+
+      outputSchema: {
+        headline: 'string',
+        key_findings: ['string'],
+        competitive_position: 'string'
+      },
+
+      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step4_executive_summary')
     }
 
   ],
 
   synthesize: (ctx) => {
+    const benchmarkAnalysis = ctx.answers?.step4_benchmark_analysis || {};
+    const gapAnalysis = ctx.answers?.step4_gap_identification || {};
+    const execSummary = ctx.answers?.step4_executive_summary || {};
+    
     return {
-      operatingModel: {
-        current: ctx.answers?.step4_current_op_model || {},
-        target:  ctx.answers?.step4_target_op_model  || {}
+      benchmarkData: {
+        industry_baseline: benchmarkAnalysis.industry_baseline || {},
+        capability_benchmarks: benchmarkAnalysis.capability_benchmarks || [],
+        summary: benchmarkAnalysis.summary || {},
+        timestamp: new Date().toISOString()
       },
-      operatingModelDelta: ctx.answers?.step4_op_model_delta || {}
+      benchmarkGaps: gapAnalysis.critical_gaps || [],
+      benchmarkQuickWins: gapAnalysis.quick_wins || [],
+      benchmarkPriorities: gapAnalysis.strategic_priorities || [],
+      benchmarkSummary: {
+        headline: execSummary.headline || '',
+        key_findings: execSummary.key_findings || [],
+        competitive_position: execSummary.competitive_position || '',
+        urgency_level: execSummary.urgency_level || 'MODERATE',
+        investment_focus: execSummary.investment_focus || [],
+        expected_outcomes: execSummary.expected_outcomes || [],
+        next_steps: execSummary.next_steps || []
+      }
     };
   },
 
   applyOutput: (output, model) => {
-    // Seed systems from operating model so Architecture Layers tab is populated after Step 4.
-    // Supports new 6-block schema (application_data_landscape) and old schema (applications.core_systems).
-    const existingSys = (model.systems || []).length > 0;
-    const newSchemaList  = output.operatingModel?.current?.application_data_landscape?.core_systems || [];
-    const oldSchemaList  = output.operatingModel?.current?.applications?.core_systems || [];
-    const srcList = newSchemaList.length ? newSchemaList : oldSchemaList;
-    const derivedSystems = existingSys
-      ? model.systems
-      : srcList.map(s => typeof s === 'string'
-          ? { name: s, status: 'active', category: 'core', description: '' }
-          : { name: s.name || '', status: s.status || 'active', category: 'core', description: s.supports_capability || '' });
     return {
       ...model,
-      operatingModel: output.operatingModel,
-      operatingModelDelta: output.operatingModelDelta,
-      systems: derivedSystems
+      benchmarkData: output.benchmarkData,
+      benchmarkGaps: output.benchmarkGaps,
+      benchmarkQuickWins: output.benchmarkQuickWins,
+      benchmarkPriorities: output.benchmarkPriorities,
+      benchmarkSummary: output.benchmarkSummary,
+      benchmarkDone: true
     };
   },
 
   onComplete: (model) => {
-    if (typeof renderOperatingModelSection === 'function') renderOperatingModelSection();
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
     if (typeof updateWorkflowProgress === 'function') updateWorkflowProgress([1, 2, 3, 4]);
-    if (typeof StepEngine === 'object') StepEngine.stopSpinner('step4');
-    if (typeof toast === 'function') toast('Operating Model complete ✓');
-
+    if (typeof toast === 'function') toast('Benchmark Analysis complete ✓');
     if (typeof addAssistantMessage === 'function') {
-      const ready = model.operatingModelDelta?.change_readiness?.score;
+      const summary = model.benchmarkSummary || {};
       addAssistantMessage(
-        `**Step 4 — Operating Model complete**\n\n` +
-        `Change readiness: **${ready ? (ready * 100).toFixed(0) + '%' : 'scored'}**\n\n` +
-        `**Next:** Ready to analyze capability gaps? Click below or use the **Continue** button in the sidebar.\n\n` +
-        `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step5', window.model); } else { console.error('StepEngine not available'); }">\n` +
-        `  <i class="fas fa-arrow-right"></i>\n` +
-        `  Start Step 5: Gap Analysis\n` +
-        `</button>`
+        `**Step 4 — Benchmark Analysis complete**\n\n` +
+        `${summary.headline || 'Benchmark analysis completed'}\n\n` +
+        `**Click on Step 5: Data Collection in the left sidebar to continue.**`
       );
     }
   }
+
 };
+
+// Export for use
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = Step4;
+}

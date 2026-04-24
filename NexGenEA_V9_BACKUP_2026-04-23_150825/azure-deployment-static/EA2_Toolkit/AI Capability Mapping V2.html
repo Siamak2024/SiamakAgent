@@ -1,0 +1,3377 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capability Mapping — EA Toolkit</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../../js/EA_Config.js"></script>
+    <script src="../../js/EA_DataManager.js"></script>
+    <script src="../../js/Advicy_AI.js"></script>
+    <style>
+  /* EA Platform Layout */
+  #app-container { display: flex; min-height: 100vh; }
+  #main-content { flex: 1; transition: margin-right 0.3s ease; }
+  body.chat-sidebar-open #main-content { margin-right: 450px; }
+  
+  /* EA Header */
+  .ea-header {
+    background: linear-gradient(135deg, #581c87 0%, #7c3aed 100%) !important;
+    color: white;
+    padding: 0 24px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .ea-header-left { display: flex; align-items: center; gap: 16px; }
+  .ea-brand-mark {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .ea-header-title h1 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ea-header-title h1 i { font-size: 32px; }
+  .ea-header-title p {
+    font-size: 11px;
+    opacity: 0.9;
+    margin: 2px 0 0 0;
+    font-weight: 400;
+  }
+  .ea-header-right { display: flex; gap: 8px; }
+  .ea-header-icon {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .ea-header-icon:hover { background: rgba(255,255,255,0.25); }
+  
+  /* Chat Sidebar */
+  #ai-chat-panel {
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 450px;
+    height: 100vh;
+    background: #1a1a1a;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+  }
+  #ai-chat-panel.hidden { transform: translateX(100%); }
+  body.chat-sidebar-open #ai-chat-panel { transform: translateX(0); }
+  
+  #chat-resize-handle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 5px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 10;
+  }
+  #chat-resize-handle:hover { background: #0066cc; }
+  #chat-resize-handle.dragging { background: #0066cc; }
+  
+  #chat-header {
+    background: #1a1a1a;
+    padding: 16px 20px;
+    border-bottom: 1px solid #2d2d2d;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #chat-header-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  #chat-header-title i { color: #7c3aed; font-size: 20px; }
+  #chat-controls { display: flex; gap: 8px; }
+  #chat-controls button {
+    background: transparent;
+   border: 1px solid #404040;
+    color: #b0b0b0;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  #chat-controls button:hover { background: #404040; color: #ffffff; }
+  
+  #chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    background: #1a1a1a;
+    scrollbar-width: thin;
+    scrollbar-color: #404040 transparent;
+  }
+  #chat-messages::-webkit-scrollbar { width: 6px; }
+  #chat-messages::-webkit-scrollbar-thumb { background: #404040; border-radius: 3px; }
+  
+  .chat-message {
+    margin-bottom: 20px;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .message-content {
+    display: inline-block;
+    max-width: 85%;
+  }
+  .user-message .message-content { float: right; }
+  .assistant-message .message-content { float: left; }
+  
+  .message-text {
+    background: #2d2d2d;
+    padding: 12px 16px;
+    border-radius: 12px;
+    color: #e0e0e0;
+    font-size: 14px;
+    line-height: 1.6;
+    border: 1px solid #404040;
+  }
+  .user-message .message-text {
+    background: rgba(30, 58, 138, 0.9);
+    border-color: rgba(26, 86, 219, 0.4);
+    color: #e2e8f0;
+  }
+  
+  .message-time {
+    font-size: 11px;
+    color: #666;
+    margin-top: 4px;
+    text-align: right;
+  }
+  .user-message .message-time { text-align: right; }
+  .assistant-message .message-time { text-align: left; }
+  
+  /* Markdown styling in chat messages */
+  .message-text h1 { font-size: 18px; font-weight: 700; margin: 16px 0 12px; color: #fff; }
+  .message-text h2 { font-size: 16px; font-weight: 700; margin: 14px 0 10px; color: #f0f0f0; }
+  .message-text h3 { font-size: 14px; font-weight: 700; margin: 12px 0 8px; color: #e0e0e0; }
+  .message-text p { margin: 0 0 12px; }
+  .message-text ul, .message-text ol { margin: 8px 0 12px 20px; padding: 0; }
+  .message-text li { margin-bottom: 6px; }
+  .message-text code { background: #2d2d2d; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #ffd700; }
+  .message-text pre { background: #2d2d2d; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; border-left: 3px solid #0066cc; }
+  .message-text pre code { background: none; padding: 0; color: #e0e0e0; }
+  .message-text strong { font-weight: 700; color: #fff; }
+  .message-text em { font-style: italic; color: #d0d0d0; }
+  .message-text blockquote { border-left: 4px solid #0066cc; padding-left: 12px; margin: 12px 0; color: #b0b0b0; font-style: italic; }
+  .message-text a { color: #4da6ff; text-decoration: underline; }
+  .message-text hr { border: none; border-top: 1px solid #404040; margin: 16px 0; }
+  
+  #chat-input-container {
+    padding: 16px;
+    background: #1a1a1a;
+    border-top: 1px solid #2d2d2d;
+    display: flex;
+    gap: 8px;
+  }
+  #chat-input {
+    flex: 1;
+    background: #1a1a1a;
+    border: 1px solid #404040;
+    color: #e0e0e0;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    resize: none;
+    min-height: 42px;
+    max-height: 120px;
+    font-family: inherit;
+  }
+  #chat-input:focus { outline: none; border-color: #0066cc; box-shadow: 0 0 0 1px #0066cc; }
+  #chat-input::placeholder { color: #666; }
+  
+  #send-chat {
+    background: #0066cc;
+    border: none;
+    color: white;
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+  }
+  #send-chat:hover { background: #0052a3; }
+  #send-chat:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Toolkit-specific styles */
+<style>
+  body { font-family: 'Segoe UI', sans-serif; background: #f3f4f6; }
+  .cap-card {
+    background: white; border-radius: 8px; padding: 10px 14px;
+    margin: 6px 0; cursor: pointer; border-left: 4px solid #d1d5db;
+    transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .cap-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.12); transform: translateX(2px); }
+  .cap-card.strategic  { border-left-color: #ef4444; background: #fff5f5; }
+  .cap-card.important  { border-left-color: #f59e0b; background: #fffbeb; }
+  .cap-card.commodity  { border-left-color: #10b981; background: #f0fdf4; }
+  .domain-col { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .domain-header { font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; display: flex; align-items: center; }
+  .badge { font-size: 0.65rem; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
+  .badge-strategic { background: #fee2e2; color: #b91c1c; }
+  .badge-important { background: #fef3c7; color: #92400e; }
+  .badge-commodity { background: #d1fae5; color: #065f46; }
+  .spinner { animation: spin 1s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  #result h3 { font-size: 1rem; font-weight: 700; color: #1e3a5f; margin: 1.2rem 0 0.5rem; padding-bottom: 0.25rem; border-bottom: 1px solid #e5e7eb; }
+  #result ul { margin: 0.3rem 0 0.8rem 1.4rem; }
+  #result li { margin-bottom: 0.3rem; list-style: disc; }
+  #result strong { color: #1e3a5f; }
+  #api-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; }
+  #api-modal.hidden { display: none; }
+  .modal-box { background: white; border-radius: 12px; padding: 32px; max-width: 460px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  #cap-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99; display: flex; align-items: center; justify-content: center; }
+  #cap-modal.hidden { display: none; }
+  .maturity-btn { padding: 6px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; }
+  .maturity-btn.active-strategic { background: #ef4444; color: white; border-color: #ef4444; }
+  .maturity-btn.active-important { background: #f59e0b; color: white; border-color: #f59e0b; }
+  .maturity-btn.active-commodity { background: #10b981; color: white; border-color: #10b981; }
+  .maturity-btn:not([class*="active"]) { background: #f3f4f6; color: #6b7280; }
+  .export-btn { background: linear-gradient(135deg, #16a34a, #15803d); color: white; border: none; }
+  .export-btn:hover { background: linear-gradient(135deg, #15803d, #166534); }
+
+  /* === WORKSHOP FLOW STYLES === */
+  #workshop-progress {
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    border-radius: 10px; padding: 20px; margin: 16px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #d1d5db;
+  }
+  .workshop-steps { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .workshop-step { flex: 1; text-align: center; position: relative; }
+  .workshop-step-number {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: #d1d5db; color: #6b7280;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px; margin-bottom: 8px;
+    transition: all 0.3s; border: 3px solid transparent;
+  }
+  .workshop-step.active .workshop-step-number {
+    background: #2563eb; color: white;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.4);
+    border-color: #dbeafe; transform: scale(1.1);
+  }
+  .workshop-step.completed .workshop-step-number {
+    background: #10b981; color: white;
+  }
+  .workshop-step-label {
+    font-size: 12px; font-weight: 600;
+    color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .workshop-step.active .workshop-step-label { color: #1e40af; }
+  .workshop-step.completed .workshop-step-label { color: #065f46; }
+  .workshop-step-connector {
+    position: absolute; top: 20px; left: 50%; width: 100%;
+    height: 3px; background: #d1d5db; z-index: -1;
+  }
+  .workshop-step.completed .workshop-step-connector { background: #10b981; }
+  .workshop-message {
+    background: white; border-radius: 8px; padding: 12px 16px;
+    border-left: 4px solid #2563eb; font-size: 14px; color: #374151;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .workshop-guide-btn {
+    background: linear-gradient(135deg, #1e3a5f, #2563eb);
+    color: white; border: none; padding: 8px 16px; border-radius: 6px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; box-shadow: 0 2px 6px rgba(37,99,235,0.3);
+  }
+  .workshop-guide-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
+  .workshop-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    z-index: 200; display: flex; align-items: center; justify-content: center;
+  }
+  .workshop-modal.hidden { display: none; }
+  .workshop-modal-content {
+    background: white; border-radius: 12px; padding: 32px;
+    max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .cap-lock-icon {
+    cursor: pointer; opacity: 0.3; transition: all 0.2s;
+    font-size: 14px; color: #6b7280;
+  }
+  .cap-lock-icon:hover { opacity: 0.7; }
+  .cap-locked .cap-lock-icon { opacity: 1; color: #10b981; }
+
+  /* Toolbar Button Styles (BMC Standard) */
+  :root {
+    --ea-primary: #2563eb;
+    --ea-border: #d1d5db;
+    --ea-hover: #f3f4f6;
+    --ea-text-strong: #111827;
+    --ea-radius-sm: 8px;
+  }
+  .toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: var(--ea-radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--ea-border);
+    background: white;
+    color: var(--ea-text-strong);
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+  .toolbar-btn:hover {
+    background: var(--ea-hover);
+    border-color: var(--ea-primary);
+    color: var(--ea-primary);
+  }
+  .toolbar-btn--primary {
+    background: var(--ea-primary);
+    color: white;
+    border-color: var(--ea-primary);
+  }
+  .toolbar-btn--primary:hover {
+    background: #1e40af;
+  }
+  .toolbar-btn--danger {
+    background: white;
+    color: #dc2626;
+    border-color: #fecaca;
+  }
+  .toolbar-btn--danger:hover {
+    background: #fef2f2;
+    border-color: #dc2626;
+  }
+  .toolbar-btn--success {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    color: white;
+    border: none;
+  }
+  .toolbar-btn--success:hover {
+    background: linear-gradient(135deg, #15803d, #166534);
+  }
+  .toolbar-btn--purple {
+    background: linear-gradient(135deg, #9333ea, #7e22ce);
+    color: white;
+    border: none;
+  }
+  .toolbar-btn--purple:hover {
+    background: linear-gradient(135deg, #7e22ce, #6b21a8);
+  }
+  .toolbar-btn--tobe {
+    background: #ecfdf5;
+    color: #166534;
+    border: 1px solid #4ade80;
+  }
+  .toolbar-btn--tobe:hover {
+    background: #d1fae5;
+  }
+  .toolbar-btn--review {
+    background: #eef2ff;
+    color: #3730a3;
+    border: 1px solid #a5b4fc;
+  }
+  .toolbar-btn--review:hover {
+    background: #e0e7ff;
+  }
+  .toolbar-btn--consolidate {
+    background: #ecfeff;
+    color: #0e7490;
+    border: 1px solid #67e8f9;
+  }
+  .toolbar-btn--consolidate:hover {
+    background: #cffafe;
+  }
+  .toolbar-btn--restore {
+    background: #f8fafc;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+  }
+  .toolbar-btn--restore:hover {
+    background: #f1f5f9;
+  }
+</style>
+</head>
+<body>
+<div id="app-container">
+  <div id="main-content">
+    <!-- EA PLATFORM HEADER -->
+    <div class="ea-header">
+      <div class="ea-header-left">
+        <div class="ea-brand-mark">EA</div>
+        <div class="ea-header-title">
+          <h1><i class="fas fa-sitemap"></i>Capability Mapping</h1>
+          <p>Domain-Based Capability Modeling — APQC Framework — Strategic Assessment</p>
+        </div>
+      </div>
+      <div class="ea-header-right">
+        <button class="ea-header-icon" onclick="window.location.href='../NexGen_EA_V4.html'" title="Back to EA Platform">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <button class="ea-header-icon" onclick="toggleChatPanel()" title="AI Assistant">
+          <i class="fas fa-robot"></i>
+        </button>
+      </div>
+    </div>
+
+<section class="ea-kpi-strip">
+  <div class="ea-kpi-grid">
+    <div class="ea-kpi-card">
+      <span class="ea-kpi-icon"><i class="fas fa-list-check"></i></span>
+      <div><span class="ea-kpi-label">Tool Step</span><span class="ea-kpi-value">3 / 5</span></div>
+    </div>
+    <div class="ea-kpi-card is-accent">
+      <span class="ea-kpi-icon"><i class="fas fa-link"></i></span>
+      <div><span class="ea-kpi-label">Sync</span><span class="ea-kpi-value" data-kpi="sync">EA Platform Active</span></div>
+    </div>
+    <div class="ea-kpi-card">
+      <span class="ea-kpi-icon"><i class="fas fa-sitemap"></i></span>
+      <div><span class="ea-kpi-label">Focus</span><span class="ea-kpi-value">Capability Maturity</span></div>
+    </div>
+    <button class="ea-kpi-card" type="button" onclick="capOpenNextTool()" title="Go to next tool: Strategy Workbench" style="text-align:left; cursor:pointer; width:100%;">
+      <span class="ea-kpi-icon"><i class="fas fa-arrow-right"></i></span>
+      <div><span class="ea-kpi-label">Next Tool</span><span class="ea-kpi-value">Strategy Workbench</span></div>
+    </button>
+  </div>
+</section>
+
+<!-- APQC CONTEXT HERO SECTION -->
+<div id="apqc-hero-section" class="hidden bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+  <div class="mx-auto px-6 py-4">
+    <div class="flex items-start gap-4">
+      <div class="bg-white/20 rounded-lg p-3">
+        <i class="fas fa-sitemap text-3xl"></i>
+      </div>
+      <div class="flex-1">
+        <div class="flex items-center gap-3 mb-2">
+          <h2 class="text-lg font-bold">APQC Framework Activated</h2>
+          <span id="apqc-hero-scenario-badge" class="px-3 py-1 bg-white/20 rounded-full text-xs font-semibold"></span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div class="bg-white/10 rounded-lg px-4 py-2">
+            <div class="text-xs opacity-80 uppercase tracking-wide mb-1">Industry</div>
+            <div id="apqc-hero-industry" class="font-semibold text-base">-</div>
+            <div id="apqc-hero-industry-detail" class="text-xs opacity-90 mt-1 hidden"></div>
+          </div>
+          <div class="bg-white/10 rounded-lg px-4 py-2">
+            <div class="text-xs opacity-80 uppercase tracking-wide mb-1">Strategic Focus</div>
+            <div id="apqc-hero-focus" class="font-semibold text-base">-</div>
+          </div>
+          <div class="bg-white/10 rounded-lg px-4 py-2">
+            <div class="text-xs opacity-80 uppercase tracking-wide mb-1">Status</div>
+            <div id="apqc-hero-status" class="font-semibold text-base flex items-center gap-2">
+              <i class="fas fa-check-circle text-green-300"></i>
+              <span id="apqc-hero-count">0 capabilities imported</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button onclick="hideAPQCHero()" class="text-white/80 hover:text-white transition-colors p-2" title="Hide">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- WORKSHOP PROGRESS INDICATOR -->
+<div id="workshop-progress" class="mx-6 mt-4">
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">
+      <i class="fas fa-route mr-2 text-blue-600"></i>Workshop Flow
+    </h3>
+    <button onclick="toggleWorkshopGuide()" class="workshop-guide-btn">
+      <i class="fas fa-book mr-1"></i> Guide
+    </button>
+  </div>
+  <div class="workshop-steps">
+    <div class="workshop-step" id="ws-step-1">
+      <div class="workshop-step-connector"></div>
+      <div class="workshop-step-number"><i class="fas fa-clipboard-list"></i></div>
+      <div class="workshop-step-label">Define AS-IS</div>
+    </div>
+    <div class="workshop-step" id="ws-step-2">
+      <div class="workshop-step-connector"></div>
+      <div class="workshop-step-number"><i class="fas fa-wand-magic-sparkles"></i></div>
+      <div class="workshop-step-label">Generate TO-BE</div>
+    </div>
+    <div class="workshop-step" id="ws-step-3">
+      <div class="workshop-step-number"><i class="fas fa-check-double"></i></div>
+      <div class="workshop-step-label">Review & Consolidate</div>
+    </div>
+  </div>
+  <div class="workshop-message" id="ws-message">
+    <i class="fas fa-info-circle text-blue-600"></i>
+    <span id="ws-message-text">Start by defining your AS-IS capabilities through manual entry, templates, or AI-assisted APQC import.</span>
+  </div>
+</div>
+
+<div class="p-6">
+<!-- API Modal -->
+<div id="api-modal" class="hidden">
+  <div class="modal-box">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+        <i class="fas fa-key text-blue-600"></i>
+      </div>
+      <div>
+        <h2 class="font-bold text-gray-900">OpenAI API Key</h2>
+        <p class="text-xs text-gray-500">Shared with all tools in EA Strategy Suite</p>
+      </div>
+    </div>
+    <p class="text-sm text-gray-600 mb-4">The key is stored in <code class="bg-gray-100 px-1 rounded text-xs">localStorage</code> under key <code class="bg-gray-100 px-1 rounded text-xs">ea_openai_key</code> and is used by BMC, Capability Map, and Wardley Map.</p>
+    <input id="api-key-input" type="password" placeholder="sk-proj-..."
+      class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-500 mb-3 font-mono"/>
+    <div class="flex items-center gap-2 mb-5">
+      <input type="checkbox" id="show-key" onchange="document.getElementById('api-key-input').type = this.checked ? 'text' : 'password'">
+      <label for="show-key" class="text-xs text-gray-500 cursor-pointer">Show key</label>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="saveApiKey()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+        <i class="fas fa-check mr-2"></i>Save & Activate
+      </button>
+      <button onclick="document.getElementById('api-modal').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+    </div>
+    <p class="text-xs text-gray-400 mt-4 text-center"><i class="fas fa-shield-alt mr-1"></i>Sent only to OpenAI. Never to any other server.</p>
+  </div>
+</div>
+
+<!-- Capability Edit Modal -->
+<div id="cap-modal" class="hidden">
+  <div class="modal-box" style="max-width:500px">
+    <h2 class="font-bold text-gray-900 mb-4 flex items-center gap-2"><i class="fas fa-edit text-blue-600"></i> Edit Capability</h2>
+    <input id="cap-name-input" type="text" placeholder="Capability name" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-3 outline-none focus:border-blue-500"/>
+    <textarea id="cap-desc-input" placeholder="Description (optional)" rows="2" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-3 outline-none focus:border-blue-500 resize-none"></textarea>
+    <div class="mb-3">
+      <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Strategic Priority</p>
+      <div class="flex gap-2">
+        <button class="maturity-btn" onclick="setMaturity('strategic')" id="btn-strategic">Strategic</button>
+        <button class="maturity-btn" onclick="setMaturity('important')" id="btn-important">Important</button>
+        <button class="maturity-btn" onclick="setMaturity('commodity')" id="btn-commodity">🟢 Commodity</button>
+      </div>
+    </div>
+    <div class="mb-4">
+      <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Maturity Level (1-5)</p>
+      <input id="cap-maturity" type="range" min="1" max="5" value="3" class="w-full" oninput="document.getElementById('maturity-val').textContent = this.value"/>
+      <div class="flex justify-between text-xs text-gray-400 mt-1">
+        <span>1 – Initial</span><span id="maturity-val" class="font-bold text-gray-700">3</span><span>5 – Optimized</span>
+      </div>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="saveCapability()" class="toolbar-btn toolbar-btn--primary flex-1">Save</button>
+      <button onclick="deleteCapability()" class="toolbar-btn toolbar-btn--danger">Delete</button>
+      <button onclick="document.getElementById('cap-modal').classList.add('hidden')" class="toolbar-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- APQC Settings Modal -->
+<div id="apqc-settings-modal-cap" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center;">
+  <div class="modal-box" style="max-width:550px">
+    <h2 class="font-bold text-gray-900 mb-4 flex items-center gap-2">
+      <i class="fas fa-database text-blue-600"></i> APQC Framework — Import Capabilities
+    </h2>
+    <p class="text-sm text-gray-600 mb-4">Select your industry and strategic focus to import relevant capabilities from the APQC Process Classification Framework.</p>
+    
+    <div id="apqc-detection-banner-cap" class="hidden mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800"></div>
+    
+    <div class="mb-4">
+      <label class="text-xs font-semibold text-gray-700 uppercase block mb-2">
+        Industry
+        <span class="text-gray-400 font-normal ml-1">(Optional if org description is provided)</span>
+      </label>
+      <select id="apqc-business-type-cap" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm outline-none focus:border-blue-500">
+        <option value="">-- Select industry (or let AI detect) --</option>
+        <option value="Manufacturing">Manufacturing</option>
+        <option value="Services">Services</option>
+        <option value="Retail">Retail</option>
+        <option value="Financial Services">Financial Services</option>
+        <option value="Healthcare">Healthcare</option>
+        <option value="Technology">Technology & IT</option>
+        <option value="All">All Industries (Cross-Industry)</option>
+      </select>
+    </div>
+    
+    <div class="mb-4">
+      <label class="text-xs font-semibold text-gray-700 uppercase block mb-2">Strategic Focus</label>
+      <select id="apqc-strategic-intent-cap" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm outline-none focus:border-blue-500">
+        <option value="">-- Select strategic focus --</option>
+        <option value="Growth">Growth</option>
+        <option value="Innovation">Innovation</option>
+        <option value="Efficiency">Efficiency</option>
+        <option value="Customer Centricity">Customer Centricity</option>
+        <option value="Sustainability">Sustainability</option>
+      </select>
+    </div>
+    
+    <div class="mb-4">
+      <label class="text-xs font-semibold text-gray-700 uppercase block mb-2">
+        Organization Description (Optional)
+        <span class="text-gray-400 font-normal ml-1"><i class="fas fa-magic text-xs"></i> Improves AI detection</span>
+      </label>
+      <textarea id="apqc-org-description-cap" rows="3" placeholder="Describe your organization, products/services, goals, or challenges (e.g. 'We are a SaaS platform for HR analytics focused on predictive analysis and AI-driven talent development')" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 resize-none"></textarea>
+      <div class="text-xs text-gray-500 mt-1">
+        <i class="fas fa-lightbulb text-yellow-500 mr-1"></i>
+        This information helps the AI better detect the industry and suggest relevant capabilities.
+      </div>
+    </div>
+    
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-xs text-blue-800">
+      <i class="fas fa-route mr-1"></i>
+      <strong>Two options:</strong>
+      <div class="mt-2 space-y-1.5">
+        <div class="flex gap-2">
+          <span class="font-semibold">1.</span>
+          <span>Manual: Select Industry + Strategic Focus</span>
+        </div>
+        <div class="flex gap-2">
+          <span class="font-semibold">2.</span>
+          <span>AI-assisted: Describe organization + Select Strategic Focus → AI detects industry automatically</span>
+        </div>
+      </div>
+      <div class="text-xs text-blue-700 mt-2 pt-2 border-t border-blue-200">
+        <i class="fas fa-info-circle mr-1"></i>APQC capabilities are added to your capability map. Adjust priority/maturity afterwards.
+      </div>
+    </div>
+    
+    <div class="flex gap-3">
+      <button onclick="applyAPQCSettingsCap()" class="toolbar-btn toolbar-btn--primary flex-1">
+        <i class="fas fa-download"></i> Import Capabilities
+      </button>
+      <button onclick="closeAPQCModalCap()" class="toolbar-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="w-full">
+
+  <div class="flex flex-wrap gap-3 mb-5">
+      <button onclick="document.getElementById('api-modal').classList.remove('hidden')" id="api-status-btn"
+        class="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition">
+        <i id="api-icon" class="fas fa-circle text-xs text-orange-400"></i>
+        <span id="api-text">Configure API Key</span>
+      </button>
+      <button onclick="loadExample()" class="toolbar-btn">
+        <i class="fas fa-lightbulb"></i> Load Example
+      </button>
+      <a href="Capability_Workshop_Builder.html" class="toolbar-btn toolbar-btn--primary" title="Use Workshop Builder to structure capability mapping">
+        <i class="fas fa-chess-board"></i> Workshop Builder
+      </a>
+      <button onclick="showAPQCSettingsCap()" class="toolbar-btn" title="Importera capabilities från APQC Framework">
+        <i class="fas fa-database"></i> APQC Import
+      </button>
+      <button onclick="clearAll()" class="toolbar-btn toolbar-btn--danger">
+        <i class="fas fa-trash-alt"></i> Clear
+      </button>
+      <button onclick="saveAll()" class="toolbar-btn">
+        <i class="fas fa-save"></i> Save
+      </button>
+      <button onclick="exportCapabilitiesToCSV()" class="toolbar-btn toolbar-btn--success">
+        <i class="fas fa-file-excel"></i> Export (Excel)
+      </button>
+      <button onclick="exportToIntegrationCache()" class="toolbar-btn toolbar-btn--purple" title="Export to EA Platform integration">
+        <i class="fas fa-project-diagram"></i> Export (EA)
+      </button>
+      <button onclick="runAnalysis()" class="toolbar-btn toolbar-btn--primary">
+        <i class="fas fa-robot"></i> AI Analyze
+      </button>
+      <button onclick="generateCapToBeFromLatestAnalysis()" class="toolbar-btn toolbar-btn--tobe" title="Generate TO-BE proposal from analysis">
+        <i class="fas fa-lightbulb"></i> Create TO-BE
+      </button>
+      <button onclick="toggleCapToBePanel(true)" class="toolbar-btn toolbar-btn--review" title="Show AS-IS and TO-BE side by side">
+        <i class="fas fa-columns"></i> Review AS-IS/TO-BE
+      </button>
+      <button onclick="consolidateCapToBe()" class="toolbar-btn toolbar-btn--consolidate" title="Consolidate final TO-BE for sync">
+        <i class="fas fa-check-double"></i> Consolidate TO-BE
+      </button>
+      <button id="cap-restore-asis-btn" onclick="restoreCapAsIsState()" class="hidden toolbar-btn toolbar-btn--restore" title="Restore AS-IS">
+        <i class="fas fa-rotate-left"></i> Restore AS-IS
+      </button>
+      <button onclick="generateEAToolReport()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" style="background:#f0fdfa;color:#0f766e;border:1px solid #2dd4bf;" title="Generate EA Tool Report (AS-IS, Analysis, TO-BE)">
+        <i class="fas fa-file-lines"></i> Generate EA Tool Report
+      </button>
+    </div>
+
+  <div id="cap-mode-banner" class="hidden mb-5 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-[12px] text-green-900"></div>
+
+  <!-- APQC Framework Banner -->
+  <div id="apqc-banner-cap" class="hidden mb-5 rounded-lg border border-blue-300 bg-blue-50 px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <i class="fas fa-database text-blue-600 text-lg"></i>
+      <div>
+        <div class="font-semibold text-blue-900 text-sm">APQC Process Classification Framework Available</div>
+        <div class="text-blue-700 text-xs">Import industry-specific capabilities based on the APQC standard</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="showAPQCSettingsCap()" class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700 transition">
+        <i class="fas fa-cog mr-1"></i> Configure & Import
+      </button>
+      <button onclick="document.getElementById('apqc-banner-cap').classList.add('hidden')" class="px-2 py-1 text-blue-600 hover:text-blue-800 text-xs">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+
+  <div id="cap-tobe-panel" class="hidden bg-white rounded-xl shadow p-6 mb-8 border border-indigo-100">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-columns text-indigo-600"></i> AS-IS vs TO-BE Consolidation</h2>
+      <button onclick="toggleCapToBePanel(false)" class="text-xs px-3 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-50">Close</button>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <div class="text-xs font-bold text-slate-500 uppercase mb-2">AS-IS Snapshot</div>
+        <textarea id="cap-asis-json" class="w-full h-64 text-[11px] border rounded p-2 font-mono bg-slate-50" readonly></textarea>
+      </div>
+      <div>
+        <div class="text-xs font-bold text-slate-500 uppercase mb-2">TO-BE Draft (editable)</div>
+        <textarea id="cap-tobe-json" class="w-full h-64 text-[11px] border rounded p-2 font-mono"></textarea>
+      </div>
+    </div>
+    <div class="mt-3 text-[11px] text-slate-500">Tips: Justera TO-BE-JSON vid behov och klicka sedan <strong>Konsolidera TO-BE</strong>.</div>
+  </div>
+
+  <!-- Legend -->
+  <div class="flex flex-wrap gap-4 mb-6 text-xs">
+    <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm border">
+      <span class="w-3 h-3 rounded-full bg-red-400 inline-block"></span> Strategisk – Differentierar er på marknaden
+    </div>
+    <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm border">
+      <span class="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span> Viktig – Nödvändig men ej unik
+    </div>
+    <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm border">
+      <span class="w-3 h-3 rounded-full bg-green-400 inline-block"></span> Commodity – Standardisera / outsourca
+    </div>
+    <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm border">
+      <i class="fas fa-file-excel text-green-600"></i> Exportera → importera i Wardley Map
+    </div>
+  </div>
+
+  <!-- Capability Map Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8" id="cap-grid"></div>
+
+  <!-- Investment Matrix -->
+  <div class="bg-white rounded-xl shadow p-6 mb-8 border border-gray-100">
+    <h2 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-chart-bar text-blue-600"></i> Investeringsmatris</h2>
+    <div id="investment-matrix" class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 text-gray-500 text-xs uppercase">
+            <th class="text-left px-4 py-3 rounded-l">Capability</th>
+            <th class="px-4 py-3">Domän</th>
+            <th class="px-4 py-3">Prioritet</th>
+            <th class="px-4 py-3">Mognad</th>
+            <th class="px-4 py-3 rounded-r">Investeringsbehov</th>
+          </tr>
+        </thead>
+        <tbody id="matrix-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Export info box -->
+  <div class="bg-green-50 border border-green-200 rounded-xl p-5 mb-8 flex items-start gap-4">
+    <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+      <i class="fas fa-file-excel text-green-600 text-lg"></i>
+    </div>
+    <div>
+      <h3 class="font-bold text-green-800 text-sm mb-1">Export till Wardley Map</h3>
+      <p class="text-green-700 text-xs leading-relaxed">
+        Klicka på <strong>Exportera (Excel)</strong> för att ladda ner <code class="bg-green-100 px-1 rounded">EA2_Capabilities.csv</code>.
+        Filen innehåller alla capabilities med föreslagna <strong>Evolution</strong>- och <strong>Synlighet</strong>-värden
+        som kan användas som underlag när du placerar komponenter i <strong>AI Strategy Workbench (Wardley Map)</strong>.
+        Öppna filen i Excel eller importera direkt i Wardley-verktyget via <em>Importera CSV</em>.
+      </p>
+    </div>
+  </div>
+
+  <!-- AI Result -->
+  <div id="ai-container" class="hidden">
+    <div class="bg-white rounded-xl shadow-xl overflow-hidden border border-blue-100">
+      <div class="bg-gradient-to-r from-blue-900 to-blue-600 px-6 py-4 flex justify-between items-center">
+        <h2 class="text-white font-semibold flex items-center gap-2"><i class="fas fa-lightbulb"></i> EA Strategisk Analys</h2>
+        <div class="flex items-center gap-3">
+          <span id="model-badge" class="text-xs bg-white/20 text-white px-3 py-1 rounded-full"></span>
+          <button onclick="document.getElementById('ai-container').classList.add('hidden')" class="text-white/80 hover:text-white text-xl">×</button>
+        </div>
+      </div>
+      <div id="result" class="p-8 text-gray-700 text-sm leading-relaxed"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const DOMAINS = [
+  { id: 'customer',    label: 'Customer',    icon: 'fa-users',        color: 'text-blue-600',  bg: 'bg-blue-50' },
+  { id: 'operations',  label: 'Operations',  icon: 'fa-cogs',         color: 'text-orange-600',bg: 'bg-orange-50' },
+  { id: 'product',     label: 'Product',     icon: 'fa-box-open',     color: 'text-purple-600',bg: 'bg-purple-50' },
+  { id: 'finance',     label: 'Finance',     icon: 'fa-chart-line',   color: 'text-green-600', bg: 'bg-green-50' },
+  { id: 'technology',  label: 'Technology',  icon: 'fa-microchip',    color: 'text-gray-700',  bg: 'bg-gray-50' }
+];
+
+let capabilities = {};
+let editingDomain = null;
+let editingIndex  = null;
+let currentMaturity = 'important';
+
+DOMAINS.forEach(d => capabilities[d.id] = []);
+
+// ── Render ────
+function render() {
+  const grid = document.getElementById('cap-grid');
+  grid.innerHTML = '';
+  DOMAINS.forEach(d => {
+    const caps = capabilities[d.id] || [];
+    const col = document.createElement('div');
+    col.className = 'domain-col';
+    col.innerHTML = `
+      <div class="domain-header ${d.color}">
+        <i class="fas ${d.icon} mr-2"></i>${d.label}
+        <span class="ml-auto text-gray-400 font-normal text-xs">${caps.length} caps</span>
+      </div>
+      <div id="caps-${d.id}"></div>
+      <button onclick="openAddModal('${d.id}')"
+        class="mt-3 w-full text-xs text-blue-500 hover:text-blue-700 border border-dashed border-blue-200 hover:border-blue-400 rounded-lg py-2 transition flex items-center justify-center gap-1">
+        <i class="fas fa-plus"></i> Lägg till capability
+      </button>`;
+    grid.appendChild(col);
+    const container = col.querySelector(`#caps-${d.id}`);
+    caps.forEach((c, i) => {
+      const card = document.createElement('div');
+      card.className = `cap-card ${c.priority}`;
+      card.innerHTML = `
+        <div>
+          <div class="font-semibold text-sm text-gray-800">${c.name}</div>
+          ${c.desc ? `<div class="text-xs text-gray-400 mt-0.5">${c.desc}</div>` : ''}
+        </div>
+        <div class="flex items-center gap-2 ml-3 shrink-0">
+          <div class="text-xs text-gray-400">M:${c.maturity}</div>
+          <span class="badge badge-${c.priority}">${priorityLabel(c.priority)}</span>
+        </div>`;
+      card.onclick = () => openEditModal(d.id, i);
+      container.appendChild(card);
+    });
+  });
+  renderMatrix();
+}
+
+function priorityLabel(p) {
+  return p === 'strategic' ? 'Strategisk' : p === 'important' ? 'Viktig' : 'Commodity';
+}
+
+function renderMatrix() {
+  const body = document.getElementById('matrix-body');
+  body.innerHTML = '';
+  let all = [];
+  DOMAINS.forEach(d => (capabilities[d.id] || []).forEach(c => all.push({...c, domain: d.label})));
+  all.sort((a,b) => {
+    const order = {strategic:0, important:1, commodity:2};
+    return order[a.priority] - order[b.priority];
+  });
+  if (!all.length) {
+    body.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6 text-sm">Inga capabilities tillagda ännu</td></tr>';
+    return;
+  }
+  all.forEach(c => {
+    const inv = investmentNeed(c.priority, c.maturity);
+    body.innerHTML += `
+      <tr class="border-t border-gray-100 hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium text-gray-800">${c.name}</td>
+        <td class="px-4 py-3 text-center text-gray-500">${c.domain}</td>
+        <td class="px-4 py-3 text-center"><span class="badge badge-${c.priority}">${priorityLabel(c.priority)}</span></td>
+        <td class="px-4 py-3 text-center">
+          <div class="flex items-center justify-center gap-1">
+            ${[1,2,3,4,5].map(n => `<div class="w-3 h-3 rounded-full ${n <= c.maturity ? maturityColor(c.maturity) : 'bg-gray-200'}"></div>`).join('')}
+            <span class="text-xs text-gray-500 ml-1">${c.maturity}/5</span>
+          </div>
+        </td>
+        <td class="px-4 py-3 text-center"><span class="text-xs font-semibold ${inv.cls}">${inv.label}</span></td>
+      </tr>`;
+  });
+}
+
+function maturityColor(m) {
+  if (m <= 2) return 'bg-red-400';
+  if (m <= 3) return 'bg-yellow-400';
+  return 'bg-green-400';
+}
+
+function investmentNeed(priority, maturity) {
+  if (priority === 'strategic' && maturity <= 2) return { label: '🔴 Kritisk investering', cls: 'text-red-600' };
+  if (priority === 'strategic' && maturity <= 3) return { label: '🟠 Hög prioritet', cls: 'text-orange-600' };
+  if (priority === 'strategic') return { label: '🟡 Underhåll', cls: 'text-yellow-600' };
+  if (priority === 'important' && maturity <= 2) return { label: '🟠 Investera', cls: 'text-orange-600' };
+  if (priority === 'important') return { label: '🟡 Bevaka', cls: 'text-yellow-600' };
+  return { label: '🟢 Optimera/Outsourca', cls: 'text-green-600' };
+}
+
+// ── Modals ────
+function openAddModal(domainId) {
+  editingDomain = domainId;
+  editingIndex  = null;
+  document.getElementById('cap-name-input').value = '';
+  document.getElementById('cap-desc-input').value = '';
+  document.getElementById('cap-maturity').value = 3;
+  document.getElementById('maturity-val').textContent = '3';
+  setMaturity('important');
+  document.getElementById('cap-modal').classList.remove('hidden');
+}
+
+function openEditModal(domainId, index) {
+  editingDomain = domainId;
+  editingIndex  = index;
+  const c = capabilities[domainId][index];
+  document.getElementById('cap-name-input').value = c.name;
+  document.getElementById('cap-desc-input').value = c.desc || '';
+  document.getElementById('cap-maturity').value = c.maturity;
+  document.getElementById('maturity-val').textContent = c.maturity;
+  setMaturity(c.priority);
+  document.getElementById('cap-modal').classList.remove('hidden');
+}
+
+function setMaturity(val) {
+  currentMaturity = val;
+  ['strategic','important','commodity'].forEach(m => {
+    const btn = document.getElementById('btn-'+m);
+    btn.className = 'maturity-btn' + (m === val ? ' active-'+m : '');
+  });
+}
+
+function saveCapability() {
+  const name = document.getElementById('cap-name-input').value.trim();
+  if (!name) { alert('Ange ett namn'); return; }
+  const cap = {
+    name, desc: document.getElementById('cap-desc-input').value.trim(),
+    priority: currentMaturity,
+    maturity: parseInt(document.getElementById('cap-maturity').value)
+  };
+  if (editingIndex !== null) {
+    capabilities[editingDomain][editingIndex] = cap;
+  } else {
+    capabilities[editingDomain].push(cap);
+  }
+  document.getElementById('cap-modal').classList.add('hidden');
+  render();
+}
+
+function deleteCapability() {
+  if (editingIndex === null) return;
+  capabilities[editingDomain].splice(editingIndex, 1);
+  document.getElementById('cap-modal').classList.add('hidden');
+  render();
+}
+
+// ── Initialize unified data manager ────
+let dataManager = null;
+let lastCapAnalysis = null;
+let capAsIsSnapshotBeforeToBe = null;
+let capToBeDraft = null;
+let capFinalToBe = null;
+let capToBeUsersUpdated = false;
+let capMode = 'as-is';
+if (typeof EA_DataManager !== 'undefined') {
+    dataManager = new EA_DataManager();
+    console.log('✅ Capability Mapping: DataManager initialized - unified API key active');
+}
+
+// ── API Key ────
+function getApiKey() { 
+    if (dataManager) return dataManager.getApiKey() || '';
+    return localStorage.getItem('ea_openai_key') || ''; 
+}
+
+function showCapModeBanner(msg = '') {
+  const el = document.getElementById('cap-mode-banner');
+  if (!el) return;
+  if (!msg) {
+    el.classList.add('hidden');
+    el.textContent = '';
+    return;
+  }
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function cloneCapabilities(src = capabilities) {
+  return JSON.parse(JSON.stringify(src));
+}
+
+function normalizeCapabilityPayload(payload) {
+  const out = { customer: [], operations: [], product: [], finance: [], technology: [] };
+  Object.keys(out).forEach((domainId) => {
+    const list = Array.isArray(payload?.[domainId]) ? payload[domainId] : [];
+    out[domainId] = list.map((item) => ({
+      name: String(item?.name || '').trim(),
+      desc: String(item?.desc || item?.description || '').trim(),
+      priority: ['strategic', 'important', 'commodity'].includes(item?.priority) ? item.priority : 'important',
+      maturity: Math.max(1, Math.min(5, Number(item?.maturity) || 2))
+    })).filter((c) => c.name);
+  });
+  return out;
+}
+
+function toggleCapToBePanel(show) {
+  const panel = document.getElementById('cap-tobe-panel');
+  if (!panel) return;
+  panel.classList.toggle('hidden', !show);
+}
+
+function renderCapToBePanel() {
+  const asIsEl = document.getElementById('cap-asis-json');
+  const toBeEl = document.getElementById('cap-tobe-json');
+  if (!asIsEl || !toBeEl) return;
+  asIsEl.value = JSON.stringify(capAsIsSnapshotBeforeToBe || cloneCapabilities(), null, 2);
+  toBeEl.value = JSON.stringify(capToBeDraft?.toBeData || capFinalToBe || cloneCapabilities(), null, 2);
+}
+
+async function buildCapToBeProposal(apiKey, analysisText) {
+  const asIs = cloneCapabilities();
+  const prompt = `Ta fram en TO BE Capability Map utifran AS IS och AI-analysen.\n\nAS IS:\n${JSON.stringify(asIs, null, 2)}\n\nAI-analys:\n${analysisText}\n\nReturnera ENDAST giltig JSON med exakt nycklar: customer, operations, product, finance, technology.\nVarje doman innehaller array av objekt med: name, desc, priority (strategic|important|commodity), maturity (1-5).\nPrioritera capabilities som är mest relevanta för affärsmodell, processautomation, AI-agenter, styrning, kompetens, samverkan, kundvärde och regulatoriska krav i den aktuella industrin. Skapa inte teknikcentrerade capabilities som standard om underlaget inte tydligt motiverar det.`;
+
+  const res = await fetch('/api/openai/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'gpt-5',
+      messages: [
+        { role: 'system', content: 'Du ar senior enterprise architect. Prioritera verksamhetskapabiliteter och industrispecifika förbättringar före generell teknikexpansion. Returnera endast JSON.' },
+        { role: 'user', content: prompt }
+      ]
+    })
+  });
+
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message);
+  let raw = String(json?.choices?.[0]?.message?.content || '').trim();
+  raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+  const parsed = JSON.parse(raw);
+  return normalizeCapabilityPayload(parsed);
+}
+
+async function generateCapToBeFromLatestAnalysis() {
+  const apiKey = getApiKey();
+  if (!apiKey) { showToast('Lagg till API-nyckel for TO-BE-forslag'); return false; }
+  const analysisText = (lastCapAnalysis?.text || document.getElementById('result')?.innerText || '').trim();
+  if (!analysisText) { showToast('Kor AI Analys forst for TO-BE-forslag'); return false; }
+
+  try {
+    capAsIsSnapshotBeforeToBe = capAsIsSnapshotBeforeToBe || cloneCapabilities();
+    const toBeData = await buildCapToBeProposal(apiKey, analysisText);
+    capToBeDraft = {
+      generatedAt: new Date().toISOString(),
+      asIsData: cloneCapabilities(capAsIsSnapshotBeforeToBe),
+      toBeData,
+      analysisText
+    };
+    capToBeUsersUpdated = false;
+    capMode = 'to-be';
+    document.getElementById('cap-restore-asis-btn')?.classList.remove('hidden');
+    renderCapToBePanel();
+    toggleCapToBePanel(true);
+    showCapModeBanner('TO-BE-forslag genererat. Granska AS-IS vs TO-BE och konsolidera nar du ar klar.');
+    saveAll();
+    showToast('✓ TO-BE-forslag skapade');
+    return true;
+  } catch (e) {
+    console.error('Capability TO-BE generation failed:', e);
+    showToast('⚠️ Kunde inte skapa TO-BE-forslag');
+    return false;
+  }
+}
+
+function consolidateCapToBe() {
+  const toBeEl = document.getElementById('cap-tobe-json');
+  if (!toBeEl) {
+    showToast('TO-BE-panelen ar inte tillganglig');
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(toBeEl.value || '{}');
+    const normalized = normalizeCapabilityPayload(parsed);
+    const usersUpdated = !!capToBeDraft?.toBeData
+      && JSON.stringify(normalizeCapabilityPayload(capToBeDraft.toBeData)) !== JSON.stringify(normalized);
+    capabilities = normalized;
+    capFinalToBe = cloneCapabilities(normalized);
+    capToBeUsersUpdated = usersUpdated;
+    capMode = 'to-be';
+    render();
+    saveAll();
+    exportToIntegrationCache();
+    showCapModeBanner(`TO-BE konsoliderad ${new Date().toLocaleString()} och aktiv for synk till nasta verktyg.`);
+    showToast('✓ TO-BE konsoliderad och synkad');
+  } catch (e) {
+    showToast('⚠️ Ogiltig TO-BE JSON. Korrigera innan konsolidering.');
+  }
+}
+
+function restoreCapAsIsState() {
+  if (!capAsIsSnapshotBeforeToBe) {
+    showToast('Ingen AS-IS-snapshot att återställa');
+    return;
+  }
+  capabilities = cloneCapabilities(capAsIsSnapshotBeforeToBe);
+  capMode = 'as-is';
+  capAsIsSnapshotBeforeToBe = null;
+  capToBeDraft = null;
+  capFinalToBe = null;
+  capToBeUsersUpdated = false;
+  render();
+  saveAll();
+  toggleCapToBePanel(false);
+  showCapModeBanner('');
+  document.getElementById('cap-restore-asis-btn')?.classList.add('hidden');
+  showToast('✓ AS-IS återställd');
+}
+
+function saveApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key.startsWith('sk-')) { alert('Nyckeln ska börja med "sk-"'); return; }
+  
+  if (dataManager) {
+      dataManager.setApiKey(key);
+      console.log('✅ API key saved via unified DataManager');
+  } else {
+      localStorage.setItem('ea_openai_key', key);
+  }
+  
+  updateApiStatus();
+  document.getElementById('api-modal').classList.add('hidden');
+  showToast('API-nyckel sparad ✓ (delas med EA Platform)');
+}
+
+function updateApiStatus() {
+  const key = getApiKey();
+  const btn = document.getElementById('api-status-btn');
+  const icon = document.getElementById('api-icon');
+  const text = document.getElementById('api-text');
+  if (key) {
+    btn.className = 'flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-green-300 bg-green-50 text-green-700 transition';
+    icon.className = 'fas fa-circle text-xs text-green-500';
+    text.textContent = 'API aktiv · ' + key.substring(0,10) + '...';
+  } else {
+    btn.className = 'flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-orange-300 bg-orange-50 text-orange-700 transition';
+    icon.className = 'fas fa-circle text-xs text-orange-400';
+    text.textContent = 'Konfigurera API-nyckel';
+  }
+}
+
+// ── AI Analysis ────
+async function runAnalysis() {
+  const apiKey = getApiKey();
+  if (!apiKey) { document.getElementById('api-modal').classList.remove('hidden'); showToast('⚠ï¸ Lägg till API-nyckel'); return; }
+
+  let all = [];
+  DOMAINS.forEach(d => capabilities[d.id].forEach(c => all.push({domain: d.label, ...c})));
+  if (!all.length) { showToast('⚠ï¸ Lägg till capabilities först'); return; }
+
+  const btn = document.querySelector('button[onclick="runAnalysis()"]');
+  btn.innerHTML = '<i class="fas fa-spinner spinner"></i> Analyserar...';
+  btn.disabled = true;
+
+  const container = document.getElementById('ai-container');
+  const resultDiv = document.getElementById('result');
+  container.classList.remove('hidden');
+  resultDiv.innerHTML = '<div class="flex items-center gap-3 text-blue-600 py-6"><i class="fas fa-spinner spinner text-xl"></i><span>AI analyserar capability map utifrån strategisk prioritet och mognad...</span></div>';
+  container.scrollIntoView({ behavior: 'smooth' });
+
+  const capText = all.map(c =>
+    `[${c.domain}] ${c.name} | Prioritet: ${priorityLabel(c.priority)} | Mognad: ${c.maturity}/5${c.desc ? ' | ' + c.desc : ''}`
+  ).join('\n');
+
+  const systemPrompt = `Du är en senior Enterprise Architect specialiserad på Verksamhet, domain-specific och operativ transformation.
+
+Analysera capability map och leverera en strukturerad analys på svenska med dessa exakta rubriker:
+
+## Strategiska Capabilities
+Identifiera de 2–3 capabilities som skapar störst konkurrensfördelar. Förklara varför.
+
+## Capability Gaps
+Identifiera saknade eller underutvecklade capabilities som utgör strategisk risk.
+
+## Investeringsprioriteringar
+Rangordna top 4 investeringar baserat på strategisk vikt och låg mognad. Ange förväntad affärsnytta (kostnad, risk, intäkt, compliance).
+
+## Outsourcing-kandidater
+Vilka commodity capabilities bör standardiseras eller outsourcas? Varför?
+
+## Rekommenderat Roadmap
+3 konkreta steg de närmaste 12 månaderna med tydliga ägarskap och KPI:er.
+
+## Sammanfattning
+Ett stycke: övergripande bedömning och den enskilt viktigaste åtgärden.
+
+Var specifik, faktabaserad och fokusera på affärsnytta.
+Prioritera de capabilities som bäst stöder processautomation, AI-agenter, arbetssätt, styrning, kompetens, partnerstyrning och andra industrispecifika behov. Föreslå teknikexpansion endast när underlaget tydligt motiverar det.`;
+
+  const model = 'gpt-5';
+  try {
+    const res = await fetch('/api/openai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: 'Capability Map:\n\n' + capText }
+        ]
+      })
+    });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+    const raw = json.choices[0].message.content;
+    lastCapAnalysis = {
+      model,
+      generatedAt: new Date().toISOString(),
+      text: raw
+    };
+    document.getElementById('model-badge').textContent = model;
+    resultDiv.innerHTML = formatMarkdown(raw);
+  } catch(e) {
+    resultDiv.innerHTML = `<div class="p-5 bg-red-50 border border-red-200 rounded-lg text-red-700">
+      <p class="font-bold"><i class="fas fa-exclamation-triangle mr-2"></i>Fel vid API-anrop</p>
+      <p class="text-sm mt-1">${e.message}</p>
+      <button onclick="document.getElementById('api-modal').classList.remove('hidden')" class="mt-3 text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded">Uppdatera API-nyckel</button>
+    </div>`;
+  }
+  btn.innerHTML = '<i class="fas fa-robot"></i> AI Analyze';
+  btn.disabled = false;
+}
+
+function generateEAToolReport() {
+  let allCapabilities = [];
+  DOMAINS.forEach(d => {
+    (capabilities[d.id] || []).forEach(c => {
+      allCapabilities.push({
+        ...c,
+        domain: d.id,
+        domainLabel: d.label,
+        priorityLabel: priorityLabel(c.priority)
+      });
+    });
+  });
+
+  const asIs = {
+    domains: DOMAINS.map(d => ({ id: d.id, label: d.label, count: (capabilities[d.id] || []).length })),
+    capabilities: allCapabilities
+  };
+
+  const analysisText = lastCapAnalysis?.text || document.getElementById('result')?.innerText?.trim() || '';
+  const toBe = {
+    draftSource: analysisText ? 'ai-analysis' : 'manual',
+    targetStateNarrative: analysisText || 'Ingen AI-analys tillgänglig ännu. Kör AI Analys för TO BE-förslag.',
+    prioritizedChanges: analysisText
+      ? analysisText.split('\n').map(l => l.trim()).filter(l => /^[-*]|^\d+\./.test(l)).slice(0, 10)
+      : []
+  };
+
+  const report = {
+    toolId: 'capability',
+    toolName: 'AI Capability Mapping',
+    generatedAt: new Date().toISOString(),
+    asIs,
+    analysis: analysisText ? { ...lastCapAnalysis, text: analysisText } : null,
+    toBe,
+    meta: {
+      totalCapabilities: allCapabilities.length,
+      lowMaturityGaps: allCapabilities.filter(c => Number(c.maturity) <= 2).length
+    }
+  };
+
+  if (dataManager && typeof dataManager.saveToolReport === 'function') {
+    dataManager.saveToolReport('capability', report);
+  }
+
+  const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `NextGenEA_Capability_Tool_Report_${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast('✓ EA Tool-rapport genererad (Capability)');
+}
+
+function formatMarkdown(text) {
+  return text
+    .replace(/^## (.*$)/gim, '<h3>$1</h3>')
+    .replace(/^\* (.*$)/gim, '<li>$1</li>')
+    .replace(/^- (.*$)/gim, '<li>$1</li>')
+    .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
+    .replace(/\n{2,}/g, '</p><p>')
+    .replace(/\n/g, ' ');
+}
+
+// ── Example ────
+function loadExample() {
+  capabilities = {
+    customer: [
+      { name: 'Customer Acquisition', desc: 'Digital annonsering & lead management', priority: 'strategic', maturity: 3 },
+      { name: 'Customer Onboarding', desc: 'Digitalt kontrakt & välkomstflöde', priority: 'important', maturity: 2 },
+      { name: 'Customer Self-Service Portal', desc: 'Felanmälan, betalning, kommunikation', priority: 'strategic', maturity: 2 },
+      { name: 'Customer Insights & Analytics', desc: 'NPS, churn-prediktion, segmentering', priority: 'strategic', maturity: 1 }
+    ],
+    operations: [
+      { name: 'Predictive Maintenance', desc: 'IoT-sensorer + AI för underhållsprognos', priority: 'strategic', maturity: 1 },
+      { name: 'Work Order Management', desc: 'Digitala arbetsorder & uppföljning', priority: 'important', maturity: 3 },
+      { name: 'Energy Management', desc: 'Realtidsövervakning & optimering', priority: 'strategic', maturity: 2 },
+      { name: 'Supplier Management', desc: 'Upphandling & leverantörsbedömning', priority: 'commodity', maturity: 3 }
+    ],
+    product: [
+      { name: 'Portfolio Management', desc: 'Verksamhetsportfölj & värdeanalys', priority: 'strategic', maturity: 3 },
+      { name: 'ESG & CSRD Reporting', desc: 'Automatiserad hållbarhetsrapportering', priority: 'strategic', maturity: 1 },
+      { name: 'Space Optimization', desc: 'Beläggningsanalys & ytutnyttjande', priority: 'important', maturity: 2 },
+      { name: 'Asset Lifecycle Management', desc: 'Livscykelkostnad & reinvesteringsplan', priority: 'important', maturity: 2 }
+    ],
+    finance: [
+      { name: 'Financial Reporting', desc: 'Automatiserad månadsrapportering', priority: 'important', maturity: 4 },
+      { name: 'Rent & Invoice Management', desc: 'Automatiserade hyresavier & påminnelser', priority: 'commodity', maturity: 4 },
+      { name: 'Investment Analysis', desc: 'ROI, IRR, kassaflödesmodeller', priority: 'strategic', maturity: 3 },
+      { name: 'Budget & Forecasting', desc: 'Rullande prognoser & scenarioanalys', priority: 'important', maturity: 2 }
+    ],
+    technology: [
+      { name: 'Data Platform & Integration', desc: 'Centralt datalager, API-lager mot Vitec/Momentum', priority: 'strategic', maturity: 2 },
+      { name: 'AI & Analytics Platform', desc: 'ML-modeller, dashboards, prediktiv analys', priority: 'strategic', maturity: 1 },
+      { name: 'Cybersecurity & Compliance', desc: 'ISO 27001, GDPR, åtkomstkontroll', priority: 'important', maturity: 3 },
+      { name: 'Cloud Infrastructure', desc: 'AWS/Azure, skalbarhet, DR', priority: 'commodity', maturity: 4 }
+    ]
+  };
+  render();
+  showToast('domain-specific-exempelscenario laddat ✓');
+  
+  // Auto-export example data
+  setTimeout(() => exportToIntegrationCache(), 500);
+}
+
+// ── Persist ────
+function saveAll() {
+  localStorage.setItem('cap_map_v2', JSON.stringify(capabilities));
+  localStorage.setItem('cap_tobe_state_v1', JSON.stringify({
+    capAsIsSnapshotBeforeToBe,
+    capToBeDraft,
+    capFinalToBe,
+    capToBeUsersUpdated,
+    capMode
+  }));
+  
+  // Auto-export to integration cache
+  exportToIntegrationCache();
+  
+  showToast('Capability Map sparad i webbläsaren ✓');
+}
+
+function clearAll() {
+  if (!confirm('Rensa alla capabilities?')) return;
+  DOMAINS.forEach(d => capabilities[d.id] = []);
+  document.getElementById('ai-container').classList.add('hidden');
+  render();
+}
+
+function importFromValueChainIntegration(onlyIfEmpty = true, allowStale = false) {
+  if (!dataManager) return false;
+  if (!allowStale && !dataManager.hasRecentIntegrationData('valuechain_latest', 1440)) return false;
+
+  const hasExisting = DOMAINS.some(d => (capabilities[d.id] || []).length > 0);
+  if (onlyIfEmpty && hasExisting) return false;
+
+  const vc = dataManager.getIntegrationData('valuechain_latest');
+  if (!vc) return false;
+
+  const allActivities = Array.isArray(vc.activities) ? vc.activities : [];
+  if (!allActivities.length) return false;
+
+  const domainByType = {
+    primary: 'operations',
+    support: 'technology',
+    analysis: 'finance'
+  };
+
+  let added = 0;
+  allActivities.forEach(activity => {
+    const domainId = domainByType[activity.type] || 'operations';
+    const name = (activity.name || '').trim();
+    if (!name) return;
+
+    const exists = (capabilities[domainId] || []).some(c => c.name.toLowerCase() === name.toLowerCase());
+    if (exists) return;
+
+    const priority = activity.value_score >= 8 ? 'strategic' : activity.value_score >= 5 ? 'important' : 'commodity';
+    const maturity = Math.max(1, Math.min(5, Number(activity.digitalization_potential) || 3));
+
+    capabilities[domainId].push({
+      name,
+      desc: activity.description || activity.notes || 'Importerad från Value Chain',
+      priority,
+      maturity
+    });
+    added++;
+  });
+
+  if (added > 0) {
+    render();
+    saveAll();
+    showToast(`✓ Importerade ${added} capabilities från Value Chain`);
+    return true;
+  }
+
+  return false;
+}
+
+// ── Integration Export Functions ────
+/**
+ * Export Capability Map to integration cache for Strategy Workbench / EA Platform
+ */
+function exportToIntegrationCache() {
+  if (!dataManager) {
+    showToast('⚠ï¸ DataManager not available - export skipped');
+    return false;
+  }
+
+  // Flatten all capabilities with domain information
+  let allCapabilities = [];
+  let totalCount = 0;
+  DOMAINS.forEach(d => {
+    (capabilities[d.id] || []).forEach(c => {
+      allCapabilities.push({
+        ...c,
+        id: `cap_${d.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        domain: d.id,
+        domainLabel: d.label,
+        domainIcon: d.icon,
+        
+        // Add Wardley coordinates
+        wardley: {
+          evolution: suggestedEvolution(c.priority, c.maturity),
+          visibility: suggestedVisibility(d.id, c.priority),
+          category: suggestedCategory(d.id),
+          color: suggestedColor(c.priority, d.id),
+          x: suggestedX(c.priority, c.maturity),
+          y: suggestedY(d.id, c.priority)
+        },
+        
+        // Investment need
+        investmentNeed: investmentNeed(c.priority, c.maturity),
+        
+        // Strategic importance mapping
+        strategicImportance: c.priority // strategic, important, commodity
+      });
+      totalCount++;
+    });
+  });
+
+  if (totalCount === 0) {
+    showToast('⚠ï¸ Inga capabilities att exportera');
+    return false;
+  }
+
+  // Create structured format for integration
+  const exportData = {
+    as_is_data: capAsIsSnapshotBeforeToBe || cloneCapabilities(),
+    to_be_data: capToBeDraft?.toBeData || null,
+    final_to_be_data: capFinalToBe || null,
+    has_to_be: !!(capToBeDraft || capFinalToBe),
+    model_variant: capMode === 'to-be' ? 'to-be' : 'as-is',
+    source_model_label: capMode === 'to-be'
+      ? `TO BE${capToBeUsersUpdated ? ' - Users updated' : ''}`
+      : 'AS IS',
+    ai_analysis_text: (lastCapAnalysis?.text || '').trim() || null,
+    capabilities: allCapabilities,
+    domains: DOMAINS.map(d => ({
+      id: d.id,
+      label: d.label,
+      icon: d.icon,
+      count: (capabilities[d.id] || []).length
+    })),
+    
+    // Summary statistics
+    summary: {
+      totalCapabilities: totalCount,
+      byPriority: {
+        strategic: allCapabilities.filter(c => c.priority === 'strategic').length,
+        important: allCapabilities.filter(c => c.priority === 'important').length,
+        commodity: allCapabilities.filter(c => c.priority === 'commodity').length
+      },
+      byDomain: DOMAINS.map(d => ({
+        domain: d.label,
+        count: (capabilities[d.id] || []).length
+      })),
+      gapAnalysis: allCapabilities.filter(c => c.maturity <= 2).length // low maturity gaps
+    },
+    
+    // Metadata
+    metadata: {
+      source: 'AI_Capability_Mapping_V2',
+      exportedAt: new Date().toISOString(),
+      version: 'EA_2.0',
+      completeness: Math.round((totalCount / (DOMAINS.length * 5)) * 100), // assuming ~5 caps per domain is good
+      usersUpdated: !!capToBeUsersUpdated
+    }
+  };
+
+  // Save to integration cache
+  try {
+    dataManager.saveIntegrationData('capability_latest', exportData);
+    
+    // Update export status indicator
+    updateExportStatus(true);
+    
+    console.log('✅ Capability Map exported to integration cache:', exportData);
+    showToast(`✓ Exporterad till EA Platform (${totalCount} capabilities)`);
+    return true;
+  } catch (error) {
+    console.error('âŒ Export failed:', error);
+    showToast('⚠ï¸ Export misslyckades');
+    return false;
+  }
+}
+
+/**
+ * Update export status indicator in UI
+ */
+function updateExportStatus(exported) {
+  const header = document.getElementById('cap-sync-status');
+  if (header && exported) {
+    header.innerHTML = '<i class="fas fa-check-circle text-green-400"></i> <span class="text-green-300">Exporterad till EA Platform ✓</span>';
+    setTimeout(() => {
+      header.innerHTML = '<i class="fas fa-sync-alt"></i> Data synkas automatiskt med EA Platform';
+      renderCapContextBadge();
+    }, 4000);
+  }
+}
+
+function renderCapContextBadge() {
+  const badge = document.getElementById('cap-context-badge');
+  if (!badge || !dataManager) return;
+  if (!dataManager.hasRecentIntegrationData('valuechain_latest', 1440)) {
+    badge.classList.add('hidden');
+    return;
+  }
+  const data = dataManager.getIntegrationPackage('valuechain_latest');
+  const age = Math.max(0, Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60));
+  badge.innerHTML = '<i class="fas fa-link mr-1"></i> Kontext från Value Chain · uppdaterad ' + age + ' min sedan';
+  badge.classList.remove('hidden');
+}
+/**
+ * AI auto-fill for Capability Mapping from upstream Value Chain + BMC context.
+ * Called automatically when arriving from Value Chain with ?from=vc&refresh=1.
+ */
+async function autoFillCapFromVcContext(vc) {
+  const apiKey = getApiKey();
+  if (!apiKey) { showToast('⚠️ Lägg till API-nyckel för AI auto-fyllning'); return false; }
+
+  const contextParts = [];
+  const vcLabels = { infrastructure: 'Infrastruktur', hr: 'HR', tech: 'Teknikutveckling', procurement: 'Inköp',
+    inbound: 'Inbound Logistics', operations: 'Operations', outbound: 'Outbound Logistics',
+    marketing: 'Marknadsföring & Försäljning', service: 'Efterförsäljning/Service', margin: 'Marginalbedömning' };
+
+  const vcData = vc?.as_is_data || vc?.rawData || {};
+  const vcRows = Object.entries(vcLabels).map(([k, label]) => {
+    const val = String(vcData[k] || '').trim();
+    return val ? `- ${label}: ${val}` : null;
+  }).filter(Boolean);
+
+  const vcToBeData = vc?.to_be_data || {};
+  const vcToBeRows = Object.entries(vcLabels).map(([k, label]) => {
+    const val = String(vcToBeData[k] || '').trim();
+    return val ? `- ${label}: ${val}` : null;
+  }).filter(Boolean);
+
+  if (vcRows.length) contextParts.push('## Value Chain (Porter)\n' + vcRows.join('\n'));
+  if (vcToBeRows.length) contextParts.push('## Value Chain TO BE\n' + vcToBeRows.join('\n'));
+
+  if (dataManager && dataManager.hasRecentIntegrationData('bmc_latest', 1440)) {
+    const bmc = dataManager.getIntegrationData('bmc_latest');
+    if (bmc) {
+      const asIs = bmc.as_is_data || {};
+      const toBe = bmc.to_be_data || {};
+      const hasToBe = bmc.has_to_be || false;
+      const bmcLabels = { value_proposition: 'Värdeerbjudande', customer_segments: 'Kundsegment',
+        key_activities: 'Nyckelaktiviteter', key_resources: 'Nyckelresurser',
+        strategic_goal: 'Strategiskt mål', business_driver: 'Affärsdriver' };
+      const asIsRows = Object.entries(bmcLabels).map(([k, l]) => asIs[k] ? `- ${l}: ${asIs[k]}` : null).filter(Boolean);
+      if (asIsRows.length) contextParts.push('## BMC AS IS\n' + asIsRows.join('\n'));
+      if (hasToBe) {
+        const toBeRows = Object.entries(bmcLabels).map(([k, l]) => toBe[k] ? `- ${l}: ${toBe[k]}` : null).filter(Boolean);
+        if (toBeRows.length) contextParts.push('## BMC TO BE\n' + toBeRows.join('\n'));
+      }
+      if (bmc.ai_analysis_text) contextParts.push('## BMC AI-Analys\n' + String(bmc.ai_analysis_text).slice(0, 1500));
+    }
+  }
+
+  if (!contextParts.length) { showToast('⚠️ Ingen VC-data tillgänglig för AI auto-fyllning'); return false; }
+  showToast('🤖 AI analyserar och skapar Capability Map - vänta...');
+
+  const capSystemPrompt = `Du är en senior Enterprise Architect med 20+ års erfarenhet av kapabilitetsanalys och förmågekartor (Business Capability Modeling). Specialistkunskap:
+- Business Capability Modeling (BCM) enligt TOGAF, EA 2.0, Gartner och Zachman
+- Capability maturity (CMMI, ISO, branschramverk)
+- Verksamhets/domain-specific: Customer management, facility management, processautomation, AI-agenter, ESG/CSRD, tjänsteleverans och styrning
+- Strategisk prioritering: strategic (differentierar) vs important (nödvändig) vs commodity (standardiserad/outsourcas)
+- Mognadsskalan: 1=Initial/ad hoc, 2=Reaktiv/etablerad bas, 3=Definierad/standardiserad, 4=Datadriven/kvantifierad, 5=AI-optimerad/innovativ
+
+Skapa en komplett kapabilitetskarta baserat på Porters Värdekedjeanalys och BMC-data. Populera ALLA fem domäner.
+Prioritera industrispecifika verksamhetskapabiliteter och förmågor som skapar affärsvärde genom bättre processer, styrning, automation, AI-agenter, service, sourcing och compliance. Lägg bara till teknikcentrerade capabilities när underlaget visar att de är strategiskt motiverade.
+
+Returnera ENBART ett rent JSON-objekt:
+{
+  "customer": [{"name": "...", "desc": "...", "priority": "strategic|important|commodity", "maturity": 2}],
+  "operations": [...],
+  "product": [...],
+  "finance": [...],
+  "technology": [...]
+}
+
+Riktlinjer per domän (3-5 capabilities vardera):
+- customer: Kundanskaffning, kundrelationer, hyresgästupplevelse, serviceflöden, kommunikation, retention
+- operations: Verksamhetsdrift, underhåll (prediktivt/reaktivt), arbetsordrar, processautomation, resursplanering, driftoptimering
+- product: Portföljförvaltning, tjänsteutveckling, hyreskontraktshantering, ESG-rapportering, nyttjandeoptimering, erbjudandeutveckling
+- finance: Ekonomistyrning, hyresintäkter, CAPEX/OPEX-planering, investeringsanalys, finansiell rapportering, uppföljning
+- technology: IT-arkitektur, verksamhetssystem, integrationsförmåga, dataförsörjning, AI-agentstöd, cybersäkerhet`;
+
+  try {
+    const res = await fetch('/api/openai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-5', messages: [
+        { role: 'system', content: capSystemPrompt },
+        { role: 'user', content: 'Skapa en komplett Capability Map baserat på följande underlag:\n\n' + contextParts.join('\n\n') }
+      ]})
+    });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+    let raw = json.choices[0].message.content.trim();
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    const result = JSON.parse(raw);
+    const domainKeys = ['customer', 'operations', 'product', 'finance', 'technology'];
+    let totalAdded = 0;
+    domainKeys.forEach(key => {
+      if (!Array.isArray(result[key])) return;
+      capabilities[key] = result[key].map(item => ({
+        name: String(item.name || '').trim(),
+        desc: String(item.desc || item.description || '').trim(),
+        priority: ['strategic','important','commodity'].includes(item.priority) ? item.priority : 'important',
+        maturity: Math.max(1, Math.min(5, Number(item.maturity) || 2))
+      })).filter(c => c.name);
+      totalAdded += capabilities[key].length;
+    });
+    render(); saveAll();
+    showToast(`✓ AI skapat ${totalAdded} capabilities i 5 domäner baserat på Value Chain + BMC`);
+    return true;
+  } catch (e) {
+    console.error('Cap auto-fill error:', e);
+    showToast('⚠ï¸ AI auto-fyllning misslyckades: ' + String(e.message).slice(0, 80));
+    return false;
+  }
+}
+
+function capOpenNextTool() {
+  const ok = exportToIntegrationCache();
+  if (!ok) {
+    showToast('⚠ï¸ Kunde inte synka Capability-data före navigering');
+  }
+  window.location.href = './AI Strategy Workbench V2.html?from=cap&refresh=1';
+}
+
+/**
+ * Check integration status on page load
+ */
+function checkIntegrationStatus() {
+  if (!dataManager) return;
+  
+  const hasData = dataManager.hasRecentIntegrationData('capability_latest', 1440); // 24 hours
+  if (hasData) {
+    const data = dataManager.getIntegrationPackage('capability_latest');
+    const age = Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60);
+    console.log(`ℹï¸ Last Capability Map export: ${age} minutes ago`);
+  }
+}
+
+// ── Export to CSV (Excel) ────
+function exportCapabilitiesToCSV() {
+  let all = [];
+  DOMAINS.forEach(d => (capabilities[d.id] || []).forEach(c => all.push({...c, domainId: d.id, domainLabel: d.label})));
+
+  if (!all.length) {
+    showToast('⚠ï¸ Inga capabilities att exportera');
+    return;
+  }
+
+  const rows = [];
+
+  // Header row
+  rows.push([
+    'Domain',
+    'Capability',
+    'Description',
+    'Priority_SE',
+    'Priority_EN',
+    'Maturity_1_5',
+    'InvestmentNeed',
+    'Wardley_SuggestedEvolution',
+    'Wardley_SuggestedVisibility',
+    'Wardley_Category',
+    'Wardley_Color',
+    'Wardley_X_percent',
+    'Wardley_Y_percent'
+  ]);
+
+  all.forEach(c => {
+    const evo     = suggestedEvolution(c.priority, c.maturity);
+    const vis     = suggestedVisibility(c.domainId, c.priority);
+    const cat     = suggestedCategory(c.domainId);
+    const color   = suggestedColor(c.priority, c.domainId);
+    const xPct    = suggestedX(c.priority, c.maturity);
+    const yPct    = suggestedY(c.domainId, c.priority);
+    const inv     = investmentNeed(c.priority, c.maturity);
+
+    rows.push([
+      c.domainLabel,
+      c.name,
+      c.desc || '',
+      priorityLabel(c.priority),
+      c.priority,
+      c.maturity,
+      inv.label.replace(/[🔴🟠🟡🟢]/g, '').trim(),
+      evo,
+      vis,
+      cat,
+      color,
+      xPct,
+      yPct
+    ]);
+  });
+
+  downloadCSV(rows, 'EA2_Capabilities.csv');
+  showToast('✅ EA2_Capabilities.csv exporterad – öppna i Excel eller importera i Wardley Map');
+}
+
+// ── Wardley mapping heuristics ────
+function suggestedEvolution(priority, maturity) {
+  if (priority === 'strategic' && maturity <= 1) return 'Genesis';
+  if (priority === 'strategic' && maturity <= 2) return 'Genesis/Custom';
+  if (priority === 'strategic' && maturity <= 3) return 'Custom';
+  if (priority === 'strategic') return 'Custom/Product';
+  if (priority === 'important' && maturity <= 2) return 'Custom';
+  if (priority === 'important' && maturity <= 3) return 'Product';
+  if (priority === 'important') return 'Product';
+  return 'Product/Commodity';
+}
+
+function suggestedVisibility(domainId, priority) {
+  if (domainId === 'customer') return 'High';
+  if (domainId === 'product') return 'Medium-High';
+  if (domainId === 'operations') return 'Medium';
+  if (domainId === 'finance') return 'Medium-Low';
+  if (domainId === 'technology') return 'Low';
+  return priority === 'strategic' ? 'Medium-High' : 'Medium';
+}
+
+function suggestedCategory(domainId) {
+  const map = {
+    customer: 'Kund',
+    operations: 'Process',
+    product: 'Plattform',
+    finance: 'Process',
+    technology: 'Data & AI'
+  };
+  return map[domainId] || 'Plattform';
+}
+
+function suggestedColor(priority, domainId) {
+  if (priority === 'strategic' && domainId === 'customer') return 'color-green';
+  if (priority === 'strategic') return 'color-red';
+  if (domainId === 'technology') return 'color-purple';
+  if (domainId === 'finance') return 'color-orange';
+  if (domainId === 'operations') return 'color-teal';
+  return 'color-blue';
+}
+
+function suggestedX(priority, maturity) {
+  // Map to 0–100 Wardley X axis
+  if (priority === 'strategic' && maturity <= 1) return 10;
+  if (priority === 'strategic' && maturity <= 2) return 20;
+  if (priority === 'strategic' && maturity <= 3) return 35;
+  if (priority === 'strategic') return 45;
+  if (priority === 'important' && maturity <= 2) return 38;
+  if (priority === 'important' && maturity <= 3) return 55;
+  if (priority === 'important') return 62;
+  if (maturity >= 4) return 82;
+  return 70;
+}
+
+function suggestedY(domainId, priority) {
+  // Map to 0–100 Wardley Y axis (0 = top = high visibility)
+  if (domainId === 'customer') return 15;
+  if (domainId === 'product') return 28;
+  if (domainId === 'operations') return 45;
+  if (domainId === 'finance') return 60;
+  if (domainId === 'technology') return 72;
+  return 50;
+}
+
+// ── CSV download helper ────
+function downloadCSV(rows, filename) {
+  const BOM = '\uFEFF'; // UTF-8 BOM for Excel compatibility
+  const csv = BOM + rows.map(r =>
+    r.map(v => {
+      const s = String(v === null || v === undefined ? '' : v).replace(/"/g, '""');
+      return `"${s}"`;
+    }).join(',')
+  ).join('\r\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// APQC FRAMEWORK INTEGRATION
+// ═══════════════════════════════════════════════════════════════════════════════
+let apqcFrameworkCap = null;
+let apqcIntegratedCap = false;
+let detectedIndustry = null;
+let detectedIndustrySecondary = null;
+let detectedIndustryConfidence = 0;
+let detectedIndustryReasoning = '';
+let apqcHeroState = {
+  scenario: null,
+  industry: null,
+  focus: null,
+  aiDetected: false,
+  confidence: 0,
+  secondaryIndustry: null,
+  importedCount: 0
+};
+
+/**
+ * Update APQC Hero Section
+ */
+function updateAPQCHero(config) {
+  Object.assign(apqcHeroState, config);
+  
+  const heroSection = document.getElementById('apqc-hero-section');
+  const scenarioBadge = document.getElementById('apqc-hero-scenario-badge');
+  const industryEl = document.getElementById('apqc-hero-industry');
+  const industryDetailEl = document.getElementById('apqc-hero-industry-detail');
+  const focusEl = document.getElementById('apqc-hero-focus');
+  const countEl = document.getElementById('apqc-hero-count');
+  
+  if (!heroSection) return;
+  
+  // Show hero section
+  heroSection.classList.remove('hidden');
+  
+  // Update scenario badge
+  if (scenarioBadge) {
+    if (apqcHeroState.scenario === 1) {
+      scenarioBadge.innerHTML = '<i class="fas fa-hand-pointer mr-1"></i>Scenario 1: Manuell Val';
+      scenarioBadge.className = 'px-3 py-1 bg-yellow-500/30 rounded-full text-xs font-semibold';
+    } else if (apqcHeroState.scenario === 2) {
+      scenarioBadge.innerHTML = '<i class="fas fa-robot mr-1"></i>Scenario 2: AI-Assisterad';
+      scenarioBadge.className = 'px-3 py-1 bg-green-500/30 rounded-full text-xs font-semibold';
+    }
+  }
+  
+  // Update industry
+  if (industryEl) {
+    industryEl.textContent = apqcHeroState.industry || '-';
+  }
+  
+  // Update industry detail (AI confidence or secondary industry)
+  if (industryDetailEl) {
+    if (apqcHeroState.aiDetected && apqcHeroState.confidence > 0) {
+      let detailText = `AI-detekterad (${apqcHeroState.confidence}% sakerhet)`;
+      if (apqcHeroState.secondaryIndustry) {
+        detailText += ` • Secondary: ${apqcHeroState.secondaryIndustry}`;
+      }
+      industryDetailEl.textContent = detailText;
+      industryDetailEl.classList.remove('hidden');
+    } else {
+      industryDetailEl.classList.add('hidden');
+    }
+  }
+  
+  // Update strategic focus
+  if (focusEl) {
+    focusEl.textContent = apqcHeroState.focus || '-';
+  }
+  
+  // Update count
+  if (countEl) {
+    countEl.textContent = `${apqcHeroState.importedCount} capabilities imported`;
+  }
+}
+
+/**
+ * Hide APQC Hero Section
+ */
+function hideAPQCHero() {
+  const heroSection = document.getElementById('apqc-hero-section');
+  if (heroSection) {
+    heroSection.classList.add('hidden');
+  }
+}
+
+/**
+ * Initialize APQC Framework for Capability Mapping Toolkit
+ */
+async function initializeAPQCIntegrationCap() {
+  if (!dataManager) {
+    console.warn('⚠️ EA_DataManager not available. APQC integration disabled.');
+    return;
+  }
+
+  try {
+    // Load APQC framework using EA_DataManager
+    apqcFrameworkCap = await dataManager.loadAPQCFramework();
+    
+    if (apqcFrameworkCap) {
+      console.log('✅ APQC Framework loaded for Capability Mapping Toolkit:', apqcFrameworkCap);
+      updateAPQCBannerCap();
+    }
+  } catch (error) {
+    console.error('❌ Failed to load APQC Framework:', error);
+  }
+}
+
+/**
+ * Update APQC banner visibility
+ */
+function updateAPQCBannerCap() {
+  const banner = document.getElementById('apqc-banner-cap');
+  if (!banner) return;
+
+  if (apqcFrameworkCap && apqcFrameworkCap.categories && apqcFrameworkCap.categories.length > 0) {
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+/**
+ * Show APQC Settings Modal
+ */
+function showAPQCSettingsCap() {
+  const modal = document.getElementById('apqc-settings-modal-cap');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+  
+  detectIndustryFromContext();
+}
+
+/**
+ * LAYER 1: AI Industry Detection from Context
+ * Infers industry from BMC + VC data + optional org description using AI
+ * @param {string} orgDescription - Optional organization description from user
+ */
+async function detectIndustryFromContext(orgDescription = '') {
+  if (!dataManager) return;
+  
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    console.log('[INFO] No API key - skipping AI industry detection');
+    return;
+  }
+  
+  const bmcData = dataManager.getIntegrationData('bmc_latest');
+  const vcData = dataManager.getIntegrationData('valuechain_latest');
+  
+  if (!bmcData && !vcData && !orgDescription) {
+    console.log('[INFO] No BMC/VC context or org description - skipping AI industry detection');
+    return;
+  }
+  
+  let contextParts = [];
+  
+  if (orgDescription && orgDescription.trim()) {
+    contextParts.push(`Organization Description: ${orgDescription.trim()}`);
+  }
+  
+  if (bmcData) {
+    const asIs = bmcData.as_is_data || {};
+    if (asIs.value_proposition) contextParts.push(`Value Proposition: ${asIs.value_proposition}`);
+    if (asIs.customer_segments) contextParts.push(`Customer Segments: ${asIs.customer_segments}`);
+    if (asIs.key_activities) contextParts.push(`Key Activities: ${asIs.key_activities}`);
+    if (asIs.strategic_goal) contextParts.push(`Strategic Goal: ${asIs.strategic_goal}`);
+  }
+  
+  if (vcData) {
+    const asIs = vcData.as_is_data || {};
+    Object.entries(asIs).forEach(([key, val]) => {
+      if (val && typeof val === 'string') contextParts.push(`${key}: ${val}`);
+    });
+  }
+  
+  if (contextParts.length === 0) {
+    console.log('[INFO] Empty context - skipping AI industry detection');
+    return;
+  }
+  
+  const banner = document.getElementById('apqc-detection-banner-cap');
+  if (banner) {
+    banner.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>AI detekterar bransch...';
+    banner.classList.remove('hidden');
+  }
+  
+  try {
+    const prompt = `Based on the following organization description, classify the organization into one of these APQC industry categories:
+- manufacturing
+- services
+- retail
+- financial_services
+- healthcare
+- technology
+
+Organization Context:
+${contextParts.join('\n')}
+
+Return ONLY valid JSON with this structure (no markdown):
+{
+  "primary_industry": "one of the 6 categories above",
+  "secondary_industry": "optional secondary category or null",
+  "confidence_score": 85,
+  "reasoning": "Brief explanation (50 words max)"
+}`;
+
+    const res = await fetch('/api/openai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-5',
+        messages: [
+          { role: 'system', content: 'You are an industry classification expert. Return ONLY valid JSON, no markdown.' },
+          { role: 'user', content: prompt }
+        ]
+      })
+    });
+    
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+    
+    let raw = json.choices[0].message.content.trim();
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    const result = JSON.parse(raw);
+    
+    detectedIndustry = result.primary_industry || null;
+    detectedIndustrySecondary = result.secondary_industry || null;
+    detectedIndustryConfidence = Math.min(100, Math.max(0, Number(result.confidence_score) || 0));
+    detectedIndustryReasoning = String(result.reasoning || '').slice(0, 150);
+    
+    // Detailed console logging for testing industry detection
+    console.log('=== AI INDUSTRY DETECTION RESULTS ===');
+    console.log('Primary Industry:', result.primary_industry);
+    console.log('Secondary Industry:', result.secondary_industry || 'None detected');
+    console.log('Confidence Score:', detectedIndustryConfidence + '%');
+    console.log('Reasoning:', detectedIndustryReasoning);
+    console.log('Full AI Response:', result);
+    console.log('====================================');
+    
+    if (detectedIndustry && detectedIndustryConfidence >= 60) {
+      const dropdown = document.getElementById('apqc-business-type-cap');
+      const industryMap = {
+        'manufacturing': 'Manufacturing',
+        'services': 'Services',
+        'retail': 'Retail',
+        'financial_services': 'Financial Services',
+        'healthcare': 'Healthcare',
+        'technology': 'Technology'
+      };
+      
+      const mappedValue = industryMap[detectedIndustry];
+      if (dropdown && mappedValue) {
+        dropdown.value = mappedValue;
+      }
+      
+      if (banner) {
+        const secondaryNote = result.secondary_industry ? 
+          `<div class="text-xs text-green-600 mt-1"><i class="fas fa-layer-group mr-1"></i>Secondary: ${result.secondary_industry}</div>` : '';
+        banner.innerHTML = `<div class="flex items-start gap-3">
+          <i class="fas fa-check-circle text-green-600 mt-1"></i>
+          <div class="flex-1">
+            <div class="font-semibold text-green-900">AI-detekterad bransch: ${mappedValue} (${detectedIndustryConfidence}% sakert)</div>
+            ${secondaryNote}
+            <div class="text-xs text-green-700 mt-1">${detectedIndustryReasoning}</div>
+            <div class="flex gap-2 mt-2">
+              <button onclick="closeDetectionBannerCap()" class="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">OK, anvand denna</button>
+              <button onclick="closeDetectionBannerCap(); document.getElementById('apqc-business-type-cap').value=''" class="text-xs px-3 py-1 border border-green-400 text-green-700 rounded hover:bg-green-50">Andras manuellt</button>
+            </div>
+          </div>
+        </div>`;
+      }
+    } else if (banner) {
+      banner.innerHTML = '<i class="fas fa-info-circle mr-2"></i>AI-detektion gav lag sakerhets-skor. Valj bransch manuellt.';
+      setTimeout(() => banner.classList.add('hidden'), 4000);
+    }
+  } catch (error) {
+    console.error('[ERROR] Industry detection failed:', error);
+    if (banner) {
+      banner.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>AI-detektion misslyckades. Valj bransch manuellt.';
+      setTimeout(() => banner.classList.add('hidden'), 4000);
+    }
+  }
+}
+
+function closeDetectionBannerCap() {
+  const banner = document.getElementById('apqc-detection-banner-cap');
+  if (banner) banner.classList.add('hidden');
+}
+
+/**
+ * LAYER 2: Filter APQC by Industry + Strategic Theme
+ * Returns L2 capabilities matching selected criteria
+ */
+function loadAPQCSubset(industry, strategicTheme) {
+  if (!apqcFrameworkCap || !apqcFrameworkCap.categories) {
+    return [];
+  }
+  
+  const filtered = [];
+  const industryLower = String(industry).toLowerCase().replace(/ /g, '_');
+  const themeLower = String(strategicTheme).toLowerCase().replace(/ /g, '_');
+  
+  apqcFrameworkCap.categories.forEach(category => {
+    if (category.children && Array.isArray(category.children)) {
+      category.children.forEach(child => {
+        if (child.level === 2 && 
+            child.industries && 
+            child.strategic_themes) {
+          
+          const matchesIndustry = child.industries.includes('all') || 
+                                  child.industries.some(ind => 
+                                    String(ind).toLowerCase() === industryLower
+                                  );
+          
+          const matchesTheme = child.strategic_themes.some(theme => 
+            String(theme).toLowerCase() === themeLower
+          );
+          
+          if (matchesIndustry && matchesTheme) {
+            filtered.push({
+              ...child,
+              parent_name: category.name,
+              parent_code: category.code
+            });
+          }
+        }
+      });
+    }
+  });
+  
+  console.log(`[APQC Filter] Found ${filtered.length} capabilities for ${industry}/${strategicTheme}`);
+  return filtered;
+}
+
+/**
+ * LAYER 3: AI Scoring and Customization
+ * Scores relevance and customizes naming based on org context
+ */
+async function scoreAndCustomizeAPQCSubset(apqcSubset, strategicContext) {
+  const apiKey = getApiKey();
+  
+  if (!apiKey || !apqcSubset || apqcSubset.length === 0) {
+    return apqcSubset.map(cap => ({
+      name: cap.name,
+      desc: cap.description || `APQC ${cap.code}: ${cap.name}`,
+      priority: 'important',
+      maturity: 2,
+      domain: cap.capability_category || 'operations',
+      apqc_code: cap.code,
+      relevance_score: 7
+    }));
+  }
+  
+  try {
+    const contextText = Object.entries(strategicContext)
+      .filter(([k, v]) => v)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('\n');
+    
+    const capabilitiesList = apqcSubset.map((c, i) => 
+      `${i + 1}. [${c.code}] ${c.name} (domain: ${c.capability_category})`
+    ).join('\n');
+    
+    const prompt = `You are an Enterprise Architect. Score and customize these APQC capabilities for this organization.
+
+Organization Context:
+${contextText}
+
+APQC Capabilities:
+${capabilitiesList}
+
+For each capability, return:
+1. relevance_score (1-10, only include if >= 6)
+2. customized_name (adapt to org language, keep concise)
+3. priority (strategic/important/commodity)
+4. maturity (1-5, realistic assessment)
+
+Return ONLY valid JSON array (no markdown):
+[
+  {"index": 1, "relevance_score": 8, "customized_name": "...", "priority": "strategic", "maturity": 2},
+  ...
+]`;
+
+    const res = await fetch('/api/openai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-5',
+        messages: [
+          { role: 'system', content: 'You are an EA expert. Return ONLY valid JSON array, no markdown.' },
+          { role: 'user', content: prompt }
+        ]
+      })
+    });
+    
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+    
+    let raw = json.choices[0].message.content.trim();
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    const scores = JSON.parse(raw);
+    
+    const customized = [];
+    scores.forEach(score => {
+      const idx = Number(score.index) - 1;
+      if (idx >= 0 && idx < apqcSubset.length && score.relevance_score >= 6) {
+        const original = apqcSubset[idx];
+        customized.push({
+          name: score.customized_name || original.name,
+          desc: original.description || `APQC ${original.code}`,
+          priority: ['strategic', 'important', 'commodity'].includes(score.priority) ? score.priority : 'important',
+          maturity: Math.max(1, Math.min(5, Number(score.maturity) || 2)),
+          domain: original.capability_category || 'operations',
+          apqc_code: original.code,
+          relevance_score: score.relevance_score
+        });
+      }
+    });
+    
+    console.log(`[APQC AI Scoring] ${customized.length} high-relevance capabilities after AI scoring`);
+    return customized;
+    
+  } catch (error) {
+    console.error('[ERROR] APQC AI scoring failed:', error);
+    return apqcSubset.map(cap => ({
+      name: cap.name,
+      desc: cap.description || `APQC ${cap.code}: ${cap.name}`,
+      priority: 'important',
+      maturity: 2,
+      domain: cap.capability_category || 'operations',
+      apqc_code: cap.code,
+      relevance_score: 7
+    }));
+  }
+}
+
+/**
+ * Show APQC Settings Modal (LEGACY - kept for compatibility)
+ */
+function showAPQCSettingsCap_Legacy() {
+  const modal = document.getElementById('apqc-settings-modal-cap');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+}
+
+/**
+ * Close APQC Settings Modal
+ */
+function closeAPQCModalCap() {
+  const modal = document.getElementById('apqc-settings-modal-cap');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+/**
+ * Apply APQC Settings and Import Capabilities (3-LAYER IMPLEMENTATION)
+ * Two scenarios supported:
+ * 1. Manual: User selects Bransch + Strategic Focus
+ * 2. AI-Assisted: User provides Org Description + Strategic Focus (AI detects industry)
+ */
+async function applyAPQCSettingsCap() {
+  let businessType = document.getElementById('apqc-business-type-cap')?.value;
+  const strategicIntent = document.getElementById('apqc-strategic-intent-cap')?.value;
+  const orgDescription = document.getElementById('apqc-org-description-cap')?.value || '';
+
+  // Validate Strategic Focus (always required)
+  if (!strategicIntent) {
+    alert('Vanligen valj strategiskt fokus.');
+    return;
+  }
+
+  // Scenario 2: AI-Assisted detection (Org Description provided, no Bransch selected)
+  if (!businessType && orgDescription.trim()) {
+    showToast('[AI] Analyserar organisationsbeskrivning for att detektera bransch...');
+    await detectIndustryFromContext(orgDescription);
+    // Re-read business type after AI detection
+    businessType = document.getElementById('apqc-business-type-cap')?.value;
+    
+    if (!businessType) {
+      alert('AI kunde inte detektera bransch med tillracklig sakerhet. Vanligen valj bransch manuellt.');
+      return;
+    }
+  }
+
+  // Scenario 1: Manual selection OR Scenario 2 after successful AI detection
+  if (!businessType) {
+    alert('Vanligen antingen:\n1. Valj bransch manuellt, ELLER\n2. Ange organisationsbeskrivning sa AI kan detektera bransch');
+    return;
+  }
+
+  if (!dataManager) {
+    alert('EA_DataManager inte tillganglig. Kan inte importera APQC capabilities.');
+    return;
+  }
+  
+  showToast('[OK] Importerar APQC capabilities med 3-lagers AI-intelligens...');
+  
+  try {
+    const industryNormalized = String(businessType).toLowerCase().replace(/ /g, '_');
+    const themeNormalized = String(strategicIntent).toLowerCase().replace(/ /g, '_');
+    
+    const apqcSubset = loadAPQCSubset(industryNormalized, themeNormalized);
+    
+    if (!apqcSubset || apqcSubset.length === 0) {
+      showToast('[WARNING] Inga APQC capabilities hittades for vald bransch och strategiskt fokus.');
+      closeAPQCModalCap();
+      return;
+    }
+    
+    console.log(`[APQC Layer 2] Filtered ${apqcSubset.length} capabilities`);
+    
+    const bmcData = dataManager.getIntegrationData('bmc_latest');
+    const vcData = dataManager.getIntegrationData('valuechain_latest');
+    const strategicContext = {
+      orgDescription: orgDescription
+    };
+    
+    if (bmcData) {
+      const asIs = bmcData.as_is_data || {};
+      if (asIs.value_proposition) strategicContext.value_proposition = asIs.value_proposition;
+      if (asIs.customer_segments) strategicContext.customer_segments = asIs.customer_segments;
+      if (asIs.key_activities) strategicContext.key_activities = asIs.key_activities;
+      if (asIs.strategic_goal) strategicContext.strategic_goal = asIs.strategic_goal;
+    }
+    
+    let finalCapabilities = apqcSubset.map(cap => ({
+      name: cap.name,
+      desc: cap.description || `APQC ${cap.code}`,
+      priority: 'important',
+      maturity: 2,
+      domain: cap.capability_category || 'operations',
+      apqc_code: cap.code
+    }));
+    
+    const apiKey = getApiKey();
+    if (apiKey && Object.keys(strategicContext).length > 0) {
+      console.log('[APQC Layer 3] Calling AI for scoring and customization...');
+      finalCapabilities = await scoreAndCustomizeAPQCSubset(apqcSubset, strategicContext);
+    } else {
+      console.log('[APQC Layer 3] Skipping AI (no API key or no context) - using rule-based import');
+      const priorityByIntent = {
+        'Growth': 'strategic',
+        'Innovation': 'strategic',
+        'Efficiency': 'important',
+        'Customer Centricity': 'strategic',
+        'Sustainability': 'important'
+      };
+      const priority = priorityByIntent[strategicIntent] || 'important';
+      finalCapabilities.forEach(cap => cap.priority = priority);
+    }
+    
+    // Console logging for testing industry-authentic capability mapping
+    console.log('=== APQC CAPABILITY IMPORT (Layer 2 + Layer 3) ===');
+    console.log(`Total capabilities to import: ${finalCapabilities.length}`);
+    console.log('Capabilities by domain:');
+    const byDomain = {};
+    finalCapabilities.forEach(cap => {
+      if (!byDomain[cap.domain]) byDomain[cap.domain] = [];
+      byDomain[cap.domain].push({
+        name: cap.name,
+        code: cap.apqc_code,
+        priority: cap.priority,
+        relevance: cap.relevance_score
+      });
+    });
+    Object.entries(byDomain).forEach(([domain, caps]) => {
+      console.log(`  [${domain.toUpperCase()}]: ${caps.length} capabilities`);
+      caps.forEach(c => console.log(`    - ${c.name} (${c.code}) [Priority: ${c.priority}, Relevance: ${c.relevance || 'N/A'}]`));
+    });
+    console.log('===================================================');
+    
+    let importedCount = 0;
+    
+    finalCapabilities.forEach(cap => {
+      const domainId = cap.domain || 'operations';
+      
+      const exists = capabilities[domainId]?.some(c => 
+        c.name.toLowerCase() === cap.name.toLowerCase()
+      );
+      
+      if (!exists) {
+        capabilities[domainId].push({
+          name: cap.name,
+          desc: cap.desc,
+          priority: cap.priority,
+          maturity: cap.maturity
+        });
+        importedCount++;
+      }
+    });
+    
+    render();
+    saveAll();
+    apqcIntegratedCap = true;
+    
+    // Determine which scenario was used
+    const wasAIDetected = orgDescription.trim() && detectedIndustry;
+    const scenario = wasAIDetected ? 2 : 1;
+    
+    // Update hero section
+    updateAPQCHero({
+      scenario: scenario,
+      industry: businessType,
+      focus: strategicIntent,
+      aiDetected: wasAIDetected,
+      confidence: wasAIDetected ? detectedIndustryConfidence : 0,
+      secondaryIndustry: wasAIDetected ? detectedIndustrySecondary : null,
+      importedCount: importedCount
+    });
+    
+    showToast(`[OK] Importerade ${importedCount} APQC capabilities for ${businessType} (${strategicIntent})`);
+    closeAPQCModalCap();
+    
+    document.getElementById('apqc-banner-cap')?.classList.add('hidden');
+
+  } catch (error) {
+    console.error('[FAILED] Failed to import APQC capabilities:', error);
+    alert('Fel vid import av APQC capabilities. Se konsolen for detaljer.');
+  }
+}
+
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'fixed bottom-6 right-6 bg-gray-900 text-white px-5 py-3 rounded-lg shadow-xl text-sm z-50 flex items-center gap-2';
+  t.innerHTML = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3200);
+}
+
+// ── Init ────
+window.onload = () => {
+  updateApiStatus();
+  checkIntegrationStatus();
+  renderCapContextBadge();
+
+  // Initialize APQC Framework Integration
+  initializeAPQCIntegrationCap();
+
+  const capParams = new URLSearchParams(window.location.search);
+  const forceFromVc = capParams.get('from') === 'vc' && capParams.get('refresh') === '1';
+  const fromWorkshop = capParams.get('from') === 'workshop';
+
+  const saved = localStorage.getItem('cap_map_v2');
+  if (saved) {
+    try { capabilities = JSON.parse(saved); } catch(e) {}
+  }
+
+  const savedToBeState = localStorage.getItem('cap_tobe_state_v1');
+  if (savedToBeState) {
+    try {
+      const parsed = JSON.parse(savedToBeState);
+      capAsIsSnapshotBeforeToBe = parsed.capAsIsSnapshotBeforeToBe || null;
+      capToBeDraft = parsed.capToBeDraft || null;
+      capFinalToBe = parsed.capFinalToBe || null;
+      capToBeUsersUpdated = !!parsed.capToBeUsersUpdated;
+      capMode = parsed.capMode || 'as-is';
+      if (capMode === 'to-be') {
+        document.getElementById('cap-restore-asis-btn')?.classList.remove('hidden');
+        showCapModeBanner('TO-BE-läge aktivt. Du kan granska, konsolidera eller återställa AS-IS.');
+      }
+    } catch (_) {}
+  }
+  
+  // Load workshop context if coming from Workshop Builder
+  if (fromWorkshop) {
+    const workshopCtx = localStorage.getItem('capability_workshop_context');
+    if (workshopCtx) {
+      try {
+        const ctx = JSON.parse(workshopCtx);
+        console.log('[Workshop Import] Loading data from Workshop Builder:', ctx);
+        
+        // Update APQC hero state if APQC was used in workshop
+        if (ctx.apqcScenario) {
+          apqcHeroState = {
+            scenario: ctx.apqcScenario,
+            industry: ctx.apqcIndustry || ctx.industry,
+            focus: ctx.focus,
+            aiDetected: ctx.orgDesc && ctx.orgDesc.length > 0,
+            confidence: ctx.apqcConfidence || 0,
+            secondaryIndustry: null
+          };
+          
+          // Show APQC hero section
+          const heroSection = document.getElementById('apqc-hero-section');
+          if (heroSection) heroSection.classList.remove('hidden');
+          
+          updateAPQCHero({
+            scenario: ctx.apqcScenario,
+            industry: ctx.apqcIndustry || ctx.industry,
+            focus: ctx.focus,
+            wasAIDetected: ctx.orgDesc && ctx.orgDesc.length > 0,
+            confidence: ctx.apqcConfidence || 0,
+            secondaryIndustry: null,
+            importedCount: Object.values(capabilities).flat().length
+          });
+        }
+        
+        // Update context badge (show for all workshops, not just APQC)
+        const badge = document.getElementById('cap-context-badge');
+        if (badge && ctx.org) {
+          badge.classList.remove('hidden');
+          const methodLabel = ctx.importMethod === 'apqc' ? 'APQC-import' : 
+                             ctx.importMethod === 'manual' ? 'Tom workshop' : 'Workshop';
+          badge.innerHTML = `<i class="fas fa-flask mr-1"></i> Workshop: ${ctx.org} | ${ctx.industry} | ${methodLabel}`;
+        }
+        
+        // Set workshop step to 1 (Define AS-IS)
+        setWorkshopStep(1);
+        
+        // Show success toast
+        const capCount = Object.values(capabilities).flat().length;
+        showToast(`✓ Workshop data importerad: ${capCount} capabilities från Workshop Builder`);
+        
+        // Render capabilities
+        render();
+      } catch (e) {
+        console.error('[Workshop Import] Failed to load workshop context:', e);
+        showToast('⚠ Lyckades inte importera workshop-data');
+      }
+    } else {
+      console.warn('[Workshop Import] No workshop context found in localStorage');
+    }
+  } else {
+    // Normal flow: import from Value Chain if applicable
+    importFromValueChainIntegration(!forceFromVc, forceFromVc);
+    if (forceFromVc && dataManager) {
+      const vc = dataManager.getIntegrationData('valuechain_latest');
+      if (vc && getApiKey()) {
+        setTimeout(() => autoFillCapFromVcContext(vc), 300);
+      } else {
+        showToast('✓ Importerade från Value Chain');
+      }
+    }
+  }
+  const key = getApiKey();
+  if (key) document.getElementById('api-key-input').value = key;
+  render();
+};
+
+// === CAP AI ASSISTANT ===
+// Note: Old toggleCapChat() removed - now using toggleChatPanel() with EA Platform standard sidebar
+
+function getCapContextText() {
+    // Läser direkt från capabilities-objektet som redan finns i filen
+    let all = [];
+    DOMAINS.forEach(d => {
+        (capabilities[d.id] || []).forEach(c => {
+            all.push({ domain: d.label, ...c });
+        });
+    });
+    if (!all.length) return null;
+    let text = "Capability Map:\n";
+    DOMAINS.forEach(d => {
+        const caps = capabilities[d.id] || [];
+        if (!caps.length) return;
+        text += `\n[${d.label}]\n`;
+        caps.forEach(c => {
+            text += `- ${c.name} | Prioritet: ${priorityLabel(c.priority)} | Mognad: ${c.maturity}/5${c.desc ? ' | ' + c.desc : ''}\n`;
+        });
+    });
+    return text;
+}
+
+function sendCapInitialGreeting() {
+    let all = [];
+    DOMAINS.forEach(d => (capabilities[d.id] || []).forEach(c => all.push(c)));
+    const total = all.length;
+    const high = all.filter(c => c.priority === 'strategic').length;
+    const lowMat = all.filter(c => c.maturity <= 2).length;
+    
+    // Check if APQC was used
+    const apqcUsed = apqcHeroState.scenario !== null;
+    const apqcInfo = apqcUsed ? `<br><br><strong>APQC Framework:</strong> ${apqcHeroState.scenario} | ${apqcHeroState.industry}` : '';
+
+    if (total === 0) {
+        addCapMsg(`Hej! 👋 Jag är din EA-expert för <strong>Capability Mapping</strong> och <strong>APQC Framework</strong>.<br><br>
+        Jag kan hjälpa dig med:<br>
+        • Workshop Flow guidance (3-stegs metodologi)<br>
+        • APQC Framework import och anpassning<br>
+        • Capability prioritering och mognadsbedömning<br>
+        • AS-IS validering och TO-BE generering<br>
+        • Gap-analys och transformationsstrategier<br><br>
+        Din capability map är tom just nu. Klicka på <strong>APQC Import</strong> för AI-assisterad import, eller <strong>Ladda exempel</strong> för att komma igång!`, 'ai');
+        return;
+    }
+    addCapMsg(`Hej! 👋 Jag har analyserat din Capability Map.<br><br>
+        <strong>Status:</strong> ${total} capabilities definierade — 
+        ${high} st Strategiska, ${lowMat} st med låg mognad (≤2/5)${apqcInfo}<br><br>
+        <strong>Workshop Status:</strong> Du är i Steg ${workshopStep} av 3-stegs metodologin.<br><br>
+        💡 <strong>Jag kan hjälpa med:</strong><br>
+        • Validera APQC-mappning mot din bransch<br>
+        • Identifiera kritiska gaps och transformationsmöjligheter<br>
+        • Föreslå TO-BE capabilities baserat på AS-IS<br>
+        • Bedöma mognad och prioriteringar<br><br>
+        Vad vill du fokusera på?`, 'ai');
+}
+
+function addCapMsg(text, sender) {
+    const container = document.getElementById('cap-chat-messages');
+    const div = document.createElement('div');
+    div.className = `cap-msg ${sender}`;
+    div.innerHTML = text;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function askCapAI(question) {
+    document.getElementById('cap-user-input').value = question;
+    sendCapMessage();
+}
+
+function resetCapChat(message) {
+  const container = document.getElementById('cap-chat-messages');
+  if (container) container.innerHTML = '';
+  const input = document.getElementById('cap-user-input');
+  if (input) input.value = '';
+  if (message) addCapMsg(message, 'ai');
+}
+
+function clearCapChatHistory() {
+  resetCapChat('🧹 Chatthistoriken är rensad. Ställ en ny fråga om din capability map när du vill.');
+}
+
+function startNewCapChat() {
+  resetCapChat(null);
+  capFirstOpen = false;
+  sendCapInitialGreeting();
+}
+
+async function sendCapMessage() {
+    const input = document.getElementById('cap-user-input');
+    const text = input.value.trim();
+    if (!text) return;
+    addCapMsg(text, 'user');
+    input.value = '';
+
+    const apiKey = getApiKey(); // använder din befintliga funktion
+    const context = getCapContextText();
+
+    if (!apiKey) {
+        handleCapDemoResponse(text, context);
+        return;
+    }
+
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'cap-msg ai';
+    loadingDiv.innerHTML = '<i class="fas fa-spinner spinner"></i> Analyserar...';
+    document.getElementById('cap-chat-messages').appendChild(loadingDiv);
+
+    try {
+        // Build enhanced system prompt with APQC and workshop context
+        let systemPrompt = `Du är en senior Enterprise Architect och expert på:
+• **APQC Process Classification Framework (PCF)** - Cross-industry standard med 13 L1-kategorier och branschspecifik mappning
+• **Capability Mapping metodologi** - Strukturerad 3-stegs workshop: Define AS-IS → Generate TO-BE → Review & Consolidate
+• **Capability Maturity Models** - Bedömning av mognadsnivåer (1-5) och evolution (Genesis → Custom → Product → Commodity)
+• **Gap Analysis** - Identifiering av transformationsmöjligheter mellan AS-IS och TO-BE states
+• **AI-driven transformation** - Hur AI kan automatisera och optimera capabilities
+
+Svara alltid på svenska. Var konkret, affärsfokuserad och data-driven.
+
+**APQC Framework Context:**
+${apqcHeroState.scenario ? `- Scenario: ${apqcHeroState.scenario}\n- Bransch: ${apqcHeroState.industry}${apqcHeroState.confidence ? ` (AI-detekterad med ${apqcHeroState.confidence}% säkerhet)` : ''}\n- Strategisk fokus: ${apqcHeroState.focus || 'N/A'}` : '- APQC inte aktiverad än'}
+
+**Workshop Status:**
+- Aktuellt steg: ${workshopStep} av 3 (${workshopStep === 1 ? 'Define AS-IS' : workshopStep === 2 ? 'Generate TO-BE' : 'Review & Consolidate'})
+${(() => {
+  const lockStatus = checkASISLockStatus();
+  return `- AS-IS låsta capabilities: ${lockStatus.locked}/${lockStatus.total} (${lockStatus.percentage}%)`;
+})()}
+
+**Capability Map Data:**
+${context || 'Capability map är tom.'}
+
+**Din roll:**
+Ge praktiska råd baserade på APQC best practices, capability maturity benchmarks, och workshop-metodologin. När användaren frågar om gapanalys, transformation eller TO-BE, referera till konkreta capabilities i deras map.`;
+
+        const res = await fetch('/api/openai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'gpt-5',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: text }
+                ]
+            })
+        });
+        const data = await res.json();
+        loadingDiv.remove();
+        if (data.error) throw new Error(data.error.message);
+        addCapMsg(data.choices[0].message.content.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'), 'ai');
+    } catch(e) {
+        loadingDiv.remove();
+        addCapMsg('Fel vid API-anrop: ' + e.message, 'ai');
+    }
+}
+
+function handleCapDemoResponse(text, context) {
+    const hasData = context && context.length > 30;
+    setTimeout(() => {
+        if (text.includes('kritiska')) {
+            addCapMsg(hasData
+                ? '<strong>Kritiska Gaps (baserat på din map):</strong><br>Capabilities med Strategisk prioritet och mognad ≤ 2 kräver omedelbar investering. Lägg till API-nyckel för fullständig AI-analys.'
+                : 'Lägg till capabilities och en API-nyckel för att få en fullständig gap-analys.', 'ai');
+        } else if (text.includes('roadmap')) {
+            addCapMsg('<strong>Roadmap-förslag:</strong><br>Q1-Q2: Stärk strategiska capabilities med låg mognad.<br>Q3: Standardisera commodity-capabilities.<br>Q4: Mät och iterera med KPI:er.', 'ai');
+        } else if (text.includes('SWOT')) {
+            addCapMsg('För en fullständig SWOT-analys baserad på din specifika data behöver jag en OpenAI API Key. Konfigurera den via knappen i headern.', 'ai');
+        } else {
+            addCapMsg('Konfigurera din OpenAI API Key (knappen i headern) för att få fullständiga AI-svar baserade på din capability map.', 'ai');
+        }
+    }, 600);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WORKSHOP FLOW MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+let workshopStep = 1;
+let asIsLocked = {}; // Track locked capabilities by domain
+
+function setWorkshopStep(step) {
+  workshopStep = step;
+  updateWorkshopUI();
+  saveWorkshopState();
+}
+
+function completeWorkshopStep(step) {
+  document.getElementById(`ws-step-${step}`)?.classList.add('completed');
+  if (step < 3) setWorkshopStep(step + 1);
+  saveWorkshopState();
+}
+
+function updateWorkshopUI() {
+  // Show workshop progress indicator
+  const progressDiv = document.getElementById('workshop-progress');
+  if (progressDiv) progressDiv.style.display = 'block';
+
+  // Update step states
+  for (let i = 1; i <= 3; i++) {
+    const stepEl = document.getElementById(`ws-step-${i}`);
+    if (!stepEl) continue;
+    stepEl.classList.remove('active');
+    if (i === workshopStep) stepEl.classList.add('active');
+  }
+
+  // Update message
+  const messages = {
+    1: 'Define your AS-IS capabilities. Use manual entry, templates, or AI-assisted APQC import. Lock capabilities when validated.',
+    2: 'Generate TO-BE capabilities with AI assistance. Compare with AS-IS to identify transformation opportunities.',
+    3: 'Review and consolidate your capability map. Export for integration with Gap Analysis and Roadmap toolkits.'
+  };
+  const msgEl = document.getElementById('ws-message-text');
+  if (msgEl) msgEl.textContent = messages[workshopStep] || messages[1];
+}
+
+function toggleWorkshopGuide() {
+  const modal = document.getElementById('workshop-guide-modal');
+  if (modal) modal.classList.toggle('hidden');
+}
+
+function toggleCapabilityLock(domainId, capIndex) {
+  if (!asIsLocked[domainId]) asIsLocked[domainId] = [];
+  const idx = asIsLocked[domainId].indexOf(capIndex);
+  if (idx > -1) {
+    asIsLocked[domainId].splice(idx, 1);
+  } else {
+    asIsLocked[domainId].push(capIndex);
+  }
+  saveWorkshopState();
+  render();
+}
+
+function lockAllCapabilitiesInDomain(domainId) {
+  const caps = capabilities[domainId] || [];
+  asIsLocked[domainId] = caps.map((_, i) => i);
+  saveWorkshopState();
+  render();
+}
+
+function checkASISLockStatus() {
+  let total = 0, locked = 0;
+  DOMAINS.forEach(d => {
+    const caps = capabilities[d.id] || [];
+    total += caps.length;
+    locked += (asIsLocked[d.id] || []).length;
+  });
+  return { total, locked, percentage: total > 0 ? Math.round((locked / total) * 100) : 0 };
+}
+
+function saveWorkshopState() {
+  const state = {
+    workshopStep,
+    asIsLocked,
+    timestamp: new Date().toISOString()
+  };
+  localStorage.setItem('cap_workshop_state_v1', JSON.stringify(state));
+}
+
+function loadWorkshopState() {
+  try {
+    const saved = localStorage.getItem('cap_workshop_state_v1');
+    if (saved) {
+      const state = JSON.parse(saved);
+      workshopStep = state.workshopStep || 1;
+      asIsLocked = state.asIsLocked || {};
+      updateWorkshopUI();
+    }
+  } catch (e) {
+    console.error('[Workshop] Failed to load state:', e);
+  }
+}
+
+function exportCapabilityAssessment() {
+  const lockStatus = checkASISLockStatus();
+  const exportData = {
+    schema_version: '2.0',
+    toolkit: 'capability_mapping',
+    timestamp: new Date().toISOString(),
+    apqc_context: apqcHeroState.scenario ? {
+      scenario: apqcHeroState.scenario,
+      industry: apqcHeroState.industry,
+      confidence: apqcHeroState.confidence,
+      secondary_industry: apqcHeroState.secondaryIndustry,
+      ai_detected: apqcHeroState.aiDetected
+    } : null,
+    as_is_to_be: {
+      workshop_step: workshopStep,
+      as_is_locked_count: lockStatus.locked,
+      as_is_total_count: lockStatus.total,
+      as_is_lock_percentage: lockStatus.percentage,
+      as_is_snapshot: capAsIsSnapshotBeforeToBe,
+      to_be_draft: capToBeDraft,
+      to_be_final: capFinalToBe,
+      to_be_users_updated: capToBeUsersUpdated
+    },
+    capabilities: capabilities
+  };
+  
+  return exportData;
+}
+
+function downloadCapabilityAssessment() {
+  const data = exportCapabilityAssessment();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const timestamp = new Date().toISOString().split('T')[0];
+  a.href = url;
+  a.download = `capability_assessment_v2_${timestamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('✓ Capability assessment exported (v2.0 schema)');
+}
+
+function storeForIntegration() {
+  const data = exportCapabilityAssessment();
+  if (dataManager) {
+    dataManager.setIntegrationData('capability_latest', data);
+    showToast('✓ Stored for integration with Gap Analysis toolkit');
+  } else {
+    console.error('[Integration] EA_DataManager not available');
+    showToast('⚠ Integration storage unavailable');
+  }
+}
+
+// Initialize workshop on load
+window.addEventListener('load', () => {
+  loadWorkshopState();
+});
+
+// === EA PLATFORM CHAT FUNCTIONS ===
+
+// Chat Panel Toggle
+function toggleChatPanel() {
+    const panel = document.getElementById('ai-chat-panel');
+    const isOpen = document.body.classList.contains('chat-sidebar-open');
+    if (isOpen) {
+        document.body.classList.remove('chat-sidebar-open');
+        if (panel) panel.classList.add('hidden');
+    } else {
+        document.body.classList.add('chat-sidebar-open');
+        if (panel) panel.classList.remove('hidden');
+        const input = document.getElementById('chat-input');
+        if (input) input.focus();
+    }
+}
+
+// Initialize Chat Sidebar Resize
+function initChatSidebarResize() {
+    const handle = document.getElementById('chat-resize-handle');
+    const panel = document.getElementById('ai-chat-panel');
+    if (!handle || !panel) return;
+    let startX, startW;
+
+    const saved = parseInt(localStorage.getItem('capmap_sidebar_w') || '0', 10);
+    if (saved >= 280 && saved <= 800) applySidebarWidth(saved);
+
+    handle.addEventListener('mousedown', (e) => {
+        startX = e.clientX;
+        startW = panel.offsetWidth;
+        handle.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+
+        function onMove(ev) {
+            const diff = startX - ev.clientX;
+            const newW = Math.max(280, Math.min(800, startW + diff));
+            applySidebarWidth(newW);
+        }
+        function onUp() {
+            localStorage.setItem('capmap_sidebar_w', panel.offsetWidth);
+            handle.classList.remove('dragging');
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+}
+
+function applySidebarWidth(w) {
+    const panel = document.getElementById('ai-chat-panel');
+    if (!panel) return;
+    panel.style.width = w + 'px';
+    const style = document.getElementById('_sidebar-width-style') || (() => {
+        const s = document.createElement('style');
+        s.id = '_sidebar-width-style';
+        document.head.appendChild(s);
+        return s;
+    })();
+    style.textContent = `body.chat-sidebar-open #main-content{margin-right:${w}px!important;}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initChatSidebarResize();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        toggleChatPanel();
+    }
+    if (e.key === 'Enter' && e.target.id === 'chat-input' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function parseMarkdown(text) {
+    if (!text) return '';
+    let t = escapeHtml(text);
+    
+    t = t.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    t = t.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff;font-weight:700;">$1</strong>');
+    t = t.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    t = t.replace(/`([^`]+)`/g, '<code style="font-family:monospace;background:#1a1a1a;padding:2px 6px;border-radius:4px;font-size:12px;color:#66d9ef;font-weight:500;border:1px solid #404040;">$1</code>');
+    
+    const lines = t.split('\n');
+    const out = [];
+    let inUL = false, inOL = false, inCodeBlock = false, codeLines = [];
+    
+    const closeList = () => {
+        if (inUL) { out.push('</ul>'); inUL = false; }
+        if (inOL) { out.push('</ol>'); inOL = false; }
+    };
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        
+        if (trimmed.startsWith('```')) {
+            if (!inCodeBlock) {
+                closeList();
+                inCodeBlock = true;
+                codeLines = [];
+                continue;
+            } else {
+                const codeContent = codeLines.join('\n');
+                out.push(`<pre style="background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;margin:10px 0;overflow-x:auto;font-size:10px;line-height:1.6;font-family:monospace;"><code>${codeContent}</code></pre>`);
+                inCodeBlock = false;
+                continue;
+            }
+        }
+        
+        if (inCodeBlock) {
+            codeLines.push(line);
+            continue;
+        }
+        
+        const h3m = trimmed.match(/^### (.+)$/);
+        const h2m = trimmed.match(/^## (.+)$/);
+        const h1m = trimmed.match(/^# (.+)$/);
+        if (h1m || h2m || h3m) {
+            closeList();
+            if (h3m) out.push(`<div style="font-size:14px;font-weight:600;color:#b0b0b0;margin:16px 0 8px;">${h3m[1]}</div>`);
+            else if (h2m) out.push(`<div style="font-size:15px;font-weight:700;color:#e0e0e0;border-bottom:2px solid #0066cc;padding-bottom:6px;margin:18px 0 10px;">${h2m[1]}</div>`);
+            else out.push(`<div style="font-size:16px;font-weight:700;color:#ffffff;margin:20px 0 10px;">${h1m[1]}</div>`);
+            continue;
+        }
+        
+        if (/^---+$/.test(trimmed)) {
+            closeList();
+            out.push('<hr style="border:none;border-top:1px solid #404040;margin:14px 0;">');
+            continue;
+        }
+        
+        const quotem = trimmed.match(/^> (.+)$/);
+        if (quotem) {
+            closeList();
+            out.push(`<div style="border-left:3px solid #0066cc;background:#1a1a1a;padding:10px 14px;margin:10px 0;border-radius:4px;font-style:italic;color:#b0b0b0;">${quotem[1]}</div>`);
+            continue;
+        }
+        
+        const ulm = trimmed.match(/^[-*—] (.+)$/);
+        if (ulm) {
+            if (!inUL) { closeList(); out.push('<ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">'); inUL = true; }
+            out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${ulm[1]}</li>`);
+            continue;
+        }
+        
+        const olm = trimmed.match(/^\d+\.\s(.+)$/);
+        if (olm) {
+            if (!inOL) { closeList(); out.push('<ol style="margin:8px 0;padding-left:22px;color:#b0b0b0;">'); inOL = true; }
+            out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${olm[1]}</li>`);
+            continue;
+        }
+        
+        if (trimmed === '') {
+            closeList();
+            out.push('<div style="height:10px;"></div>');
+            continue;
+        }
+        
+        closeList();
+        out.push(`<p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">${trimmed}</p>`);
+    }
+    
+    closeList();
+    return out.join('');
+}
+
+function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    addChatMessage(message, 'user');
+    input.value = '';
+    processAIRequest(message);
+}
+
+function clearChat() {
+    const messagesDiv = document.getElementById('chat-messages');
+    messagesDiv.innerHTML = '<div class="chat-message assistant-message"><div class="message-content"><div class="message-text"><strong style="color:#ffffff;font-weight:700;">Chat cleared</strong><div style="height:10px;"></div><p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">Start a new conversation about your capability map.</p></div></div></div>';
+}
+
+function addChatMessage(text, role) {
+    const messagesDiv = document.getElementById('chat-messages');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `chat-message ${role}-message`;
+    
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+    
+    const messageText = document.createElement('div');
+    messageText.className = 'message-text';
+    messageText.innerHTML = role === 'assistant' ? parseMarkdown(text) : escapeHtml(text);
+    
+    const messageTime = document.createElement('div');
+    messageTime.className = 'message-time';
+    messageTime.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    
+    messageContent.appendChild(messageText);
+    messageContent.appendChild(messageTime);
+    msgDiv.appendChild(messageContent);
+    messagesDiv.appendChild(msgDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+async function processAIRequest(userMessage) {
+    const apiKey = window.EA_CONFIG?.OPENAI_API_KEY || localStorage.getItem('advicy_openai_key');
+    
+    if (!apiKey) {
+        addChatMessage('No API key configured. Please set your OpenAI API key in EA Platform Settings.', 'assistant');
+        return;
+    }
+    
+    const thinkingDiv = document.createElement('div');
+    thinkingDiv.className = 'chat-message assistant-message';
+    thinkingDiv.innerHTML = '<div class="message-content"><div class="message-text"><i class="fas fa-spinner fa-spin"></i> Thinking...</div></div>';
+    thinkingDiv.id = 'thinking-indicator';
+    document.getElementById('chat-messages').appendChild(thinkingDiv);
+    
+    try {
+        let all = [];
+        DOMAINS.forEach(d => {
+            (capabilities[d.id] || []).forEach(c => {
+                all.push({ domain: d.label, name: c.name, maturity: c.maturity });
+            });
+        });
+        const context = `Current Capability Map: ${JSON.stringify(all, null, 2)}`;
+        
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are an expert in capability mapping, APQC framework, enterprise architecture, and strategic assessment. Help users analyze their capability maps, identify gaps, assess maturity levels, and provide actionable insights. Be concise, actionable, and insightful.'
+                    },
+                    {
+                        role: 'user',
+                        content: `${userMessage}\n\nContext:\n${context}`
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 800
+            })
+        });
+        
+        const data = await response.json();
+        document.getElementById('thinking-indicator')?.remove();
+        
+        if (data.choices && data.choices[0]) {
+            addChatMessage(data.choices[0].message.content, 'assistant');
+        } else {
+            addChatMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+        }
+        
+    } catch (error) {
+        document.getElementById('thinking-indicator')?.remove();
+        addChatMessage('Error: ' + error.message, 'assistant');
+    }
+}
+
+</script>
+
+<!-- WORKSHOP GUIDE MODAL -->
+<div id="workshop-guide-modal" class="workshop-modal hidden">
+  <div class="workshop-modal-content">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">
+        <i class="fas fa-book text-blue-600 mr-2"></i>
+        Workshop Flow Guide
+      </h2>
+      <button onclick="toggleWorkshopGuide()" class="text-gray-400 hover:text-gray-600">
+        <i class="fas fa-times text-xl"></i>
+      </button>
+    </div>
+
+    <div class="space-y-6">
+      <div class="border-l-4 border-blue-600 pl-4">
+        <h3 class="text-lg font-bold text-blue-800 mb-2">
+          <i class="fas fa-clipboard-list mr-2"></i>Step 1: Define AS-IS Capabilities
+        </h3>
+        <p class="text-gray-700 mb-3">Document your organization's current capability landscape.</p>
+        <ul class="list-disc list-inside text-gray-600 space-y-1 text-sm">
+          <li><strong>Manual Entry:</strong> Add capabilities one-by-one using the domain cards</li>
+          <li><strong>Template Import:</strong> Use industry templates as a starting point</li>
+          <li><strong>AI-Assisted APQC:</strong> Import capabilities from APQC framework with AI filtering</li>
+          <li><strong>Lock Validated Capabilities:</strong> Click lock icon to mark capabilities as reviewed</li>
+        </ul>
+        <div class="mt-3 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+          <i class="fas fa-lightbulb mr-1"></i>
+          <strong>Tip:</strong> Complete Step 1 when you have locked at least 60% of your AS-IS capabilities.
+        </div>
+      </div>
+
+      <div class="border-l-4 border-green-600 pl-4">
+        <h3 class="text-lg font-bold text-green-800 mb-2">
+          <i class="fas fa-wand-magic-sparkles mr-2"></i>Step 2: Generate TO-BE Capabilities
+        </h3>
+        <p class="text-gray-700 mb-3">Use AI to identify transformation opportunities and future-state capabilities.</p>
+        <ul class="list-disc list-inside text-gray-600 space-y-1 text-sm">
+          <li><strong>Create TO-BE:</strong> AI generates future-state capabilities based on AS-IS and strategic context</li>
+          <li><strong>Review Comparison:</strong> See side-by-side AS-IS vs TO-BE analysis</li>
+          <li><strong>AI Insights:</strong> Automatic identification of gaps, duplicates, and transformation opportunities</li>
+          <li><strong>Edit & Refine:</strong> Manually adjust TO-BE capabilities as needed</li>
+        </ul>
+        <div class="mt-3 p-3 bg-green-50 rounded-lg text-sm text-green-800">
+          <i class="fas fa-info-circle mr-1"></i>
+          <strong>Note:</strong> TO-BE generation requires OpenAI API key and AS-IS capabilities.
+        </div>
+      </div>
+
+      <div class="border-l-4 border-purple-600 pl-4">
+        <h3 class="text-lg font-bold text-purple-800 mb-2">
+          <i class="fas fa-check-double mr-2"></i>Step 3: Review & Consolidate
+        </h3>
+        <p class="text-gray-700 mb-3">Finalize your capability map and prepare for integration with downstream toolkits.</p>
+        <ul class="list-disc list-inside text-gray-600 space-y-1 text-sm">
+          <li><strong>Consolidate:</strong> Merge AS-IS and TO-BE into a unified capability map</li>
+          <li><strong>Export v2.0:</strong> Download capability assessment with full metadata</li>
+          <li><strong>Store for Integration:</strong> Save to EA_DataManager for Gap Analysis toolkit</li>
+          <li><strong>Verify Schema:</strong> Ensure export matches integration registry specification</li>
+        </ul>
+        <div class="mt-3 p-3 bg-purple-50 rounded-lg text-sm text-purple-800">
+          <i class="fas fa-arrow-right mr-1"></i>
+          <strong>Next:</strong> Use exported data in Gap Analysis and Transformation Roadmap toolkits.
+        </div>
+      </div>
+
+      <div class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <h4 class="font-bold text-gray-800 mb-2">Integration Governance</h4>
+        <p class="text-sm text-gray-600 mb-2">
+          This toolkit follows strict integration principles to ensure seamless data flow:
+        </p>
+        <ul class="list-disc list-inside text-gray-600 space-y-1 text-sm">
+          <li>Versioned exports (v2.0 schema with backward compatibility)</li>
+          <li>EA_DataManager API for integration storage</li>
+          <li>No breaking changes to existing toolkit chains</li>
+          <li>Documentation-first approach (see INTEGRATION_REGISTRY.md)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-8 text-center">
+      <button onclick="toggleWorkshopGuide()" class="workshop-guide-btn px-6 py-2">
+        <i class="fas fa-check mr-2"></i>Got It
+      </button>
+    </div>
+  </div>
+</div>
+
+    </div><!-- end main-content -->
+    
+    <!-- AI Chat Sidebar (fixed right, full height) -->
+    <div id="ai-chat-panel" class="hidden">
+        <div id="chat-resize-handle" title="Drag to resize"></div>
+        <div id="chat-header">
+            <div id="chat-header-title">
+                <i class="fas fa-robot"></i> Capability Mapping AI Assistant
+            </div>
+            <div id="chat-controls">
+                <button onclick="clearChat()" title="Clear chat"><i class="fas fa-trash"></i></button>
+                <button onclick="toggleChatPanel()" title="Close"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        
+        <div id="chat-messages">
+            <div class="chat-message assistant-message">
+                <div class="message-content">
+                    <div class="message-text">
+                        <strong style="color:#ffffff;font-weight:700;">Welcome to Capability Mapping AI Assistant</strong>
+                        <div style="height:10px;"></div>
+                        <p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">I can help you with capability mapping, APQC framework integration, maturity assessment, and strategic planning.</p>
+                        <div style="height:10px;"></div>
+                        <em>Map your capabilities and ask me anything!</em>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="chat-input-container">
+            <textarea id="chat-input" placeholder="Ask about your capability map..."></textarea>
+            <button id="send-chat" onclick="sendMessage()">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+    
+</div><!-- end app-container -->
+</body>
+</html>
+

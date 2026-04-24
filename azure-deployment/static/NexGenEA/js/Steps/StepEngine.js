@@ -26,10 +26,10 @@ const StepEngine = (() => {
     step1:  () => typeof Step1  !== 'undefined' ? Step1  : null,
     step2:  () => typeof Step2  !== 'undefined' ? Step2  : null,
     step3:  () => typeof Step3  !== 'undefined' ? Step3  : null,
-    step4:  () => typeof Step4  !== 'undefined' ? Step4  : null,
-    step5:  () => typeof Step5  !== 'undefined' ? Step5  : null,
-    step6:  () => typeof Step6  !== 'undefined' ? Step6  : null,
-    step7:  () => typeof Step7  !== 'undefined' ? Step7  : null,  // ← FIX: was missing, caused "Step module step7 is not loaded"
+    step4:  () => typeof Step4  !== 'undefined' ? Step4  : null, // V10: Benchmark Analysis
+    step5:  () => typeof Step5  !== 'undefined' ? Step5  : null, // V10: Data Collection/Survey
+    step6:  () => typeof Step6  !== 'undefined' ? Step6  : null, // V10: Layers & Gap Analysis
+    step7:  () => typeof Step7  !== 'undefined' ? Step7  : null,
     step7a: () => typeof Step7  !== 'undefined' ? Step7.targetArch : null,
     step7b: () => typeof Step7  !== 'undefined' ? Step7.roadmap    : null
   };
@@ -147,6 +147,13 @@ const StepEngine = (() => {
     for (let i = 0; i < (stepModule.tasks || []).length; i++) {
       const taskDef = stepModule.tasks[i];
       _activeTaskIndex = i;
+
+      // NEW: Check if task should run (conditional execution)
+      if (taskDef.shouldRun && !taskDef.shouldRun(ctx)) {
+        console.log(`[StepEngine] Skipping task ${taskDef.taskId} (shouldRun condition not met)`);
+        continue;  // Skip this task
+      }
+
       // Only show progress for user-facing question tasks, not internal background tasks
       if (taskDef.type === 'question') {
         _updateProgressUI(stepId, taskDef, i, stepModule.tasks.length);
@@ -248,6 +255,9 @@ const StepEngine = (() => {
     if (taskType === 'question') {
       // ── Question task: ask user, await answer ──────────────────────────
       return await _runQuestionTask(taskDef, ctx);
+    } else if (taskType === 'text-input') {
+      // ── Text input task: show textarea, await user input ───────────────
+      return await _runTextInputTask(taskDef, ctx);
     } else {
       // ── Internal task: fire AI silently ───────────────────────────────
       return await _runInternalTask(taskDef, ctx, userInput);
@@ -365,6 +375,43 @@ const StepEngine = (() => {
     const output = taskDef.wrapAnswer
       ? taskDef.wrapAnswer(answer, ctx)
       : { [taskDef.taskId]: answer, userAnswer: answer };
+
+    return { taskId: taskDef.taskId, output, aiResult: null };
+  }
+
+  // ── Text Input task: show textarea in chat, await user input ──────────────
+  async function _runTextInputTask(taskDef, ctx) {
+    // Get prompt configuration from task definition
+    const promptConfig = typeof taskDef.promptUser === 'function'
+      ? taskDef.promptUser(ctx)
+      : {
+          title: taskDef.title || 'Input Required',
+          prompt: taskDef.prompt || 'Please provide your input below:',
+          placeholder: taskDef.placeholder || 'Type your answer here...',
+          minLength: taskDef.minLength || 0,
+          validate: taskDef.validate || ((text) => ({ valid: true }))
+        };
+
+    // Show text input card in chat
+    const answer = await TextInputCard.show({
+      taskId: taskDef.taskId,
+      title: promptConfig.title,
+      prompt: promptConfig.prompt,
+      placeholder: promptConfig.placeholder,
+      minLength: promptConfig.minLength,
+      validate: promptConfig.validate,
+      taskIndex: _activeTaskIndex,
+      totalTasks: STEP_MODULES[ctx.stepId]?.()?.tasks?.length || 4
+    });
+
+    // Parse and wrap output
+    const parsed = taskDef.parseOutput
+      ? taskDef.parseOutput(answer)
+      : { [taskDef.taskId]: answer };
+
+    const output = taskDef.wrapAnswer
+      ? taskDef.wrapAnswer(parsed, ctx)
+      : parsed;
 
     return { taskId: taskDef.taskId, output, aiResult: null };
   }
@@ -656,18 +703,145 @@ const QuestionCard = (() => {
     });
   }
 
-  function _escapeHtml(str) {
-    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+  return { show };
 
-  function _formatQuestionText(str) {
-    // Escape HTML first (security)
-    let formatted = _escapeHtml(str);
-    // Convert **text** to <strong>text</strong> for bold
-    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    // Convert newlines to <br> for line breaks
-    formatted = formatted.replace(/\n/g, '<br>');
-    return formatted;
+})();
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Shared helper functions for both QuestionCard and TextInputCard
+// ═════════════════════════════════════════════════════════════════════════════
+function _escapeHtml(unsafe) {
+  if (!unsafe) return '';
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function _formatQuestionText(str) {
+  // Escape HTML first (security)
+  let formatted = _escapeHtml(str);
+  // Convert **text** to <strong>text</strong> for bold
+  formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  // Convert newlines to <br> for line breaks
+  formatted = formatted.replace(/\n/g, '<br>');
+  return formatted;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// TextInputCard — Shows a textarea for long-form user input (Business Object mode)
+// ═════════════════════════════════════════════════════════════════════════════
+const TextInputCard = (() => {
+  let _cardCounter = 0;
+
+  /**
+   * @param {object} opts
+   * @param {string} opts.taskId
+   * @param {string} opts.title
+   * @param {string} opts.prompt - Description/instructions
+   * @param {string} [opts.placeholder] - Textarea placeholder
+   * @param {number} [opts.minLength] - Minimum character count
+   * @param {function} [opts.validate] - Validation function
+   * @param {number} [opts.taskIndex] - 0-based task number
+   * @param {number} [opts.totalTasks] - Total tasks in step
+   * @returns {Promise<string>} - User's input text
+   */
+  function show(opts) {
+    return new Promise(resolve => {
+      _cardCounter++;
+      const cardId = `textcard-${_cardCounter}`;
+
+      // Ensure chat panel is open
+      const panel = document.getElementById('ai-chat-panel');
+      if (panel && panel.classList.contains('hidden') && typeof toggleChatPanel === 'function') {
+        toggleChatPanel();
+      }
+
+      // Progress indicator
+      const progressPct = opts.totalTasks > 0
+        ? Math.round(((opts.taskIndex || 0) / opts.totalTasks) * 100)
+        : 0;
+      const progressBar = opts.totalTasks > 0 ? `
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">
+              ${opts.title}
+            </span>
+            <span style="font-size:11px;font-weight:600;color:#cbd5e1;">
+              Step ${(opts.taskIndex || 0) + 1} of ${opts.totalTasks}
+            </span>
+          </div>
+          <div style="height:4px;background:rgba(148,163,184,0.2);border-radius:99px;overflow:hidden;">
+            <div style="height:100%;width:${progressPct}%;background:#6366f1;border-radius:99px;transition:width 0.3s;"></div>
+          </div>
+        </div>` : '';
+
+      const card = document.createElement('div');
+      card.id = cardId;
+      card.className = 'chat-message assistant-message';
+      card.innerHTML = `
+        <div class="message-avatar"><i class="fas fa-robot"></i></div>
+        <div class="message-content" style="width:100%;">
+          ${progressBar}
+          <div style="font-size:15px;color:#f1f5f9;margin-bottom:16px;line-height:1.6;
+                      font-weight:500;padding:16px;background:rgba(99,102,241,0.08);border-left:3px solid #6366f1;
+                      border-radius:6px;">
+            <span style="font-size:11px;font-weight:700;color:#818cf8;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:8px;">
+              📝 INPUT REQUIRED
+            </span>
+            ${_formatQuestionText(opts.prompt)}
+          </div>
+          <div style="margin-bottom:12px;">
+            <textarea id="${cardId}-textarea"
+              placeholder="${_escapeHtml(opts.placeholder || 'Type your answer here...')}"
+              style="width:100%;min-height:200px;padding:14px;font-size:14px;line-height:1.6;
+                     color:#e2e8f0;background:rgba(15,23,42,0.6);border:2px solid rgba(148,163,184,0.3);
+                     border-radius:8px;resize:vertical;font-family:inherit;transition:border-color 0.15s;"
+              onfocus="this.style.borderColor='#6366f1';this.style.background='rgba(15,23,42,0.8)';"
+              onblur="this.style.borderColor='rgba(148,163,184,0.3)';this.style.background='rgba(15,23,42,0.6)';"
+              oninput="_textCardUpdateCount('${cardId}', ${opts.minLength || 0})"></textarea>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+              <span id="${cardId}-charcount" style="font-size:11px;color:#94a3b8;">
+                0 characters${opts.minLength ? ` (minimum ${opts.minLength})` : ''}
+              </span>
+              <span id="${cardId}-error" style="font-size:11px;color:#ef4444;display:none;"></span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button type="button"
+              onclick="_textCardSubmit('${cardId}')"
+              style="font-size:13px;font-weight:600;color:#fff;background:#6366f1;border:none;
+                     padding:10px 24px;border-radius:6px;cursor:pointer;transition:all 0.15s;"
+              onmouseover="this.style.background='#4f46e5';"
+              onmouseout="this.style.background='#6366f1';">
+              Submit →
+            </button>
+          </div>
+        </div>`;
+
+      // Attach to messages container
+      const container = document.getElementById('chat-messages');
+      if (container) {
+        container.appendChild(card);
+        if (typeof scrollToBottom === 'function') scrollToBottom();
+        
+        // Focus textarea
+        requestAnimationFrame(() => {
+          const textarea = document.getElementById(`${cardId}-textarea`);
+          if (textarea) textarea.focus();
+        });
+      }
+
+      // Store data
+      window[`_textCardData_${cardId}`] = {
+        resolve,
+        minLength: opts.minLength || 0,
+        validate: opts.validate || ((text) => ({ valid: true })),
+        submitted: false
+      };
+    });
   }
 
   return { show };
@@ -770,6 +944,66 @@ function _qcSkip(cardId) {
     mainInput.placeholder = 'Ask Advicy Agent anything about your EA...';
   }
   _qcFinalize(cardId, '(skipped)');
+}
+
+// ── TextInputCard global handlers ──────────────────────────────────────────────
+function _textCardUpdateCount(cardId, minLength) {
+  const textarea = document.getElementById(`${cardId}-textarea`);
+  const countEl = document.getElementById(`${cardId}-charcount`);
+  if (textarea && countEl) {
+    const length = textarea.value.length;
+    countEl.textContent = `${length} characters${minLength ? ` (minimum ${minLength})` : ''}`;
+    countEl.style.color = (minLength && length < minLength) ? '#f59e0b' : '#94a3b8';
+  }
+}
+
+function _textCardSubmit(cardId) {
+  const data = window[`_textCardData_${cardId}`];
+  if (!data || data.submitted) return;
+
+  const textarea = document.getElementById(`${cardId}-textarea`);
+  const errorEl = document.getElementById(`${cardId}-error`);
+  const input = textarea ? textarea.value.trim() : '';
+
+  // Validate
+  const validation = data.validate(input);
+  if (!validation.valid) {
+    if (errorEl) {
+      errorEl.textContent = validation.error || 'Invalid input';
+      errorEl.style.display = 'block';
+    }
+    return;
+  }
+
+  if (data.minLength && input.length < data.minLength) {
+    if (errorEl) {
+      errorEl.textContent = `Please provide at least ${data.minLength} characters`;
+      errorEl.style.display = 'block';
+    }
+    return;
+  }
+
+  data.submitted = true;
+  
+  // Hide error if any
+  if (errorEl) errorEl.style.display = 'none';
+  
+  // Disable textarea and button
+  const card = document.getElementById(cardId);
+  if (card) {
+    card.style.opacity = '0.6';
+    card.style.pointerEvents = 'none';
+  }
+
+  // Show confirmation
+  if (typeof addUserMessage === 'function') {
+    const preview = input.length > 200 ? input.substring(0, 200) + '...' : input;
+    addUserMessage(`📄 Submitted (${input.length} characters):\n\n${preview}`);
+  }
+
+  const resolve = data.resolve;
+  delete window[`_textCardData_${cardId}`];
+  resolve(input);
 }
 
 function _qcFinalize(cardId, answer) {

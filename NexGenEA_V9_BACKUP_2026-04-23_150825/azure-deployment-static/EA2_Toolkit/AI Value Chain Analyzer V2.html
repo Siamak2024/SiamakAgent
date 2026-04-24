@@ -1,0 +1,1715 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Value Chain Analyzer — EA Toolkit</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../css/ea-design-engine.css" />
+    <link rel="stylesheet" href="../Stylesheets/vca-toolkit.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../js/EA_Config.js"></script>
+    <script src="../js/EA_DataManager.js"></script>
+    <script src="../js/Advicy_AI.js"></script>
+</head>
+<body>
+
+<div id="app-container">
+    <div id="main-content">
+        <!-- EA Platform Header -->
+        <div class="ea-header">
+            <div class="ea-header-left">
+                <div class="ea-brand-mark">EA</div>
+                <div class="ea-header-title">
+                    <h1><i class="fas fa-link"></i>Value Chain Analyzer</h1>
+                    <p>Value Flows — Porter Analysis — Activity Mapping</p>
+                </div>
+            </div>
+            <div class="ea-header-right">
+                <button class="ea-header-icon" onclick="window.location.href='../NexGen_EA_V4.html'">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <button class="ea-header-icon" onclick="toggleChatPanel()">
+                    <i class="fas fa-robot"></i>
+                </button>
+            </div>
+        </div>
+
+<section class="ea-kpi-strip">
+    <div class="ea-kpi-grid">
+        <div class="ea-kpi-card">
+            <span class="ea-kpi-icon"><i class="fas fa-list-check"></i></span>
+            <div><span class="ea-kpi-label">Tool Step</span><span class="ea-kpi-value">2 / 5</span></div>
+        </div>
+        <div class="ea-kpi-card is-accent">
+            <span class="ea-kpi-icon"><i class="fas fa-link"></i></span>
+            <div><span class="ea-kpi-label">Sync</span><span class="ea-kpi-value" data-kpi="sync">EA Platform Active</span></div>
+        </div>
+        <div class="ea-kpi-card">
+            <span class="ea-kpi-icon"><i class="fas fa-link"></i></span>
+            <div><span class="ea-kpi-label">Focus</span><span class="ea-kpi-value">Value Flows</span></div>
+        </div>
+        <button class="ea-kpi-card" type="button" onclick="vcOpenNextTool()" title="Go to next tool: Capability Mapping" style="text-align:left; cursor:pointer; width:100%;">
+            <span class="ea-kpi-icon"><i class="fas fa-arrow-right"></i></span>
+            <div><span class="ea-kpi-label">Next Tool</span><span class="ea-kpi-value">Capability Mapping</span></div>
+        </button>
+    </div>
+</section>
+
+<div class="p-6">
+
+<!-- API Key Modal -->
+<div id="api-modal" class="hidden">
+    <div class="modal-box">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-key text-blue-600"></i>
+            </div>
+            <div>
+                <h2 class="font-bold text-gray-900">OpenAI API Key</h2>
+                <p class="text-xs text-gray-500">Saved locally in your browser</p>
+            </div>
+        </div>
+        <p class="text-sm text-gray-600 mb-4">
+            Ange din OpenAI API Key för att aktivera AI-analysen. Nyckeln sparas i <code class="bg-gray-100 px-1 rounded">localStorage</code> och lämnar aldrig din webbläsare.
+        </p>
+        <input id="api-key-input" type="password" placeholder="sk-proj-..."
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 mb-3 font-mono"/>
+        <div class="flex items-center gap-2 mb-4">
+            <input type="checkbox" id="show-key" onchange="toggleKeyVisibility()" class="rounded">
+            <label for="show-key" class="text-xs text-gray-500">Show key</label>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="saveApiKey()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+                <i class="fas fa-check mr-2"></i>Spara & Aktivera
+            </button>
+            <button onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div id="import-modal" class="hidden">
+    <div class="modal-box">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-file-import text-blue-600"></i>
+            </div>
+            <div>
+                <h2 class="font-bold text-gray-900">Import from BMC</h2>
+                <p class="text-xs text-gray-500">Upload your Business Model Canvas CSV</p>
+            </div>
+        </div>
+        <div id="drop-zone" class="drop-zone mb-4">
+            <i class="fas fa-cloud-upload-alt text-3xl text-gray-300 mb-2"></i>
+            <p class="text-sm text-gray-600">Drag & drop your CSV file here or click to select</p>
+            <input type="file" id="file-input" class="hidden" accept=".csv">
+        </div>
+        <div class="flex justify-end">
+            <button onclick="closeImportModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">Close</button>
+        </div>
+    </div>
+</div>
+
+<div class="w-full">
+    <div class="flex flex-wrap gap-3 mb-5 items-center">
+            <button onclick="openModal()" id="api-status-btn" class="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition">
+                <i id="api-status-icon" class="fas fa-circle text-xs"></i>
+                <span id="api-status-text">Configure API Key</span>
+            </button>
+            <a href="ValueChain_Workshop_Builder.html" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition font-semibold text-white no-underline" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);border:1px solid #1e3a5f;" onmouseover="this.style.background='linear-gradient(135deg,#15305a,#1d4ed8)'" onmouseout="this.style.background='linear-gradient(135deg,#1e3a5f,#2563eb)'" title="Use Workshop Builder to structure the analysis">
+                <i class="fas fa-link"></i> Workshop Builder
+            </a>
+            <button onclick="openImportModal()" class="flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-100 text-sm transition font-semibold">
+                <i class="fas fa-file-import"></i> Import (BMC)
+            </button>
+            <button onclick="loadExample()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm transition">
+                <i class="fas fa-lightbulb"></i> Domain Example
+            </button>
+            <button onclick="clearAll()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm transition">
+                <i class="fas fa-trash-alt"></i> Clear
+            </button>
+            <button onclick="saveData()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm transition">
+                <i class="fas fa-save"></i> Save
+            </button>
+            <button onclick="exportToExcel()" class="flex items-center gap-2 bg-white border border-green-400 text-green-700 px-4 py-2 rounded-lg hover:bg-green-50 text-sm transition font-semibold">
+                <i class="fas fa-file-excel"></i> Export (Excel)
+            </button>
+            <button onclick="exportToIntegrationCache()" class="flex items-center gap-2 bg-purple-50 border border-purple-400 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-100 text-sm transition font-semibold" title="Export to EA Platform integration">
+                <i class="fas fa-project-diagram"></i> Export (EA)
+            </button>
+            <button onclick="runAnalysis()" class="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 shadow text-sm font-semibold transition">
+                <i class="fas fa-robot"></i> AI Analyze
+            </button>
+            <button onclick="generateVcToBeFromLatestAnalysis()" class="flex items-center gap-2 bg-green-50 border border-green-400 text-green-700 px-4 py-2 rounded-lg hover:bg-green-100 text-sm transition font-semibold" title="Generate TO-BE proposal from AI analysis">
+                <i class="fas fa-lightbulb"></i> Create TO-BE
+            </button>
+            <button onclick="finalizeVcToBeState()" class="flex items-center gap-2 bg-emerald-50 border border-emerald-400 text-emerald-700 px-4 py-2 rounded-lg hover:bg-emerald-100 text-sm transition font-semibold" title="Consolidate final TO-BE for sync">
+                <i class="fas fa-check-double"></i> Consolidate TO-BE
+            </button>
+                <button id="vc-restore-asis-btn" onclick="restoreVcAsIsState()" class="hidden flex items-center gap-2 bg-slate-50 border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100 text-sm transition font-semibold" title="Restore saved AS-IS model">
+                    <i class="fas fa-rotate-left"></i> Restore AS-IS
+            </button>
+            <button onclick="generateEAToolReport()" class="flex items-center gap-2 bg-teal-50 border border-teal-400 text-teal-700 px-4 py-2 rounded-lg hover:bg-teal-100 text-sm transition font-semibold" title="Generate EA Tool Report (AS-IS, Analysis, TO-BE)">
+                <i class="fas fa-file-lines"></i> Generate EA Tool Report
+            </button>
+        </div>
+
+    <div id="vc-mode-banner" class="hidden mb-5 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-[12px] text-green-900"></div>
+
+    <!-- Support Activities -->
+    <div class="mb-2">
+        <div class="section-label">Support Activities</div>
+        <div class="support-row">
+            <div class="value-cell support-activity">
+                <h3><i class="fas fa-building"></i> Enterprise Infrastructure</h3>
+                <textarea id="infrastructure" placeholder="Management, finance, legal, compliance, portfolio governance..."></textarea>
+            </div>
+            <div class="value-cell support-activity">
+                <h3><i class="fas fa-users-cog"></i> HR & Competence</h3>
+                <textarea id="hr" placeholder="Recruitment, training, certification, digital competence..."></textarea>
+            </div>
+            <div class="value-cell support-activity">
+                <h3><i class="fas fa-microchip"></i> Technology Development</h3>
+                <textarea id="tech" placeholder="Platform development, AI/ML, IoT, BIM, integrations..."></textarea>
+            </div>
+            <div class="value-cell support-activity">
+                <h3><i class="fas fa-truck-loading"></i> Procurement</h3>
+                <textarea id="procurement" placeholder="Supplier selection, framework agreements, sustainability requirements, SLA..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Primary Activities -->
+    <div class="mb-2">
+        <div class="section-label">Primary Activities</div>
+        <div class="primary-row">
+            <div class="primary-cell-wrap">
+                <div class="value-cell primary-activity">
+                    <h3><i class="fas fa-arrow-circle-down"></i> Inbound Logistics</h3>
+                    <textarea id="inbound" placeholder="Data collection, deliveries, IoT sensors, operational information..."></textarea>
+                </div>
+            </div>
+            <div class="arrow-right"><i class="fas fa-chevron-right"></i></div>
+            <div class="primary-cell-wrap">
+                <div class="value-cell primary-activity">
+                    <h3><i class="fas fa-cogs"></i> Operations</h3>
+                    <textarea id="operations" placeholder="Operations management, maintenance, tenant management..."></textarea>
+                </div>
+            </div>
+            <div class="arrow-right"><i class="fas fa-chevron-right"></i></div>
+            <div class="primary-cell-wrap">
+                <div class="value-cell primary-activity">
+                    <h3><i class="fas fa-arrow-circle-up"></i> Outbound Logistics</h3>
+                    <textarea id="outbound" placeholder="Service delivery, owner reporting, portal systems..."></textarea>
+                </div>
+            </div>
+            <div class="arrow-right"><i class="fas fa-chevron-right"></i></div>
+            <div class="primary-cell-wrap">
+                <div class="value-cell primary-activity">
+                    <h3><i class="fas fa-bullhorn"></i> Sales & Marketing</h3>
+                    <textarea id="marketing" placeholder="Leasing, branding, digital channels, pricing..."></textarea>
+                </div>
+            </div>
+            <div class="arrow-right"><i class="fas fa-chevron-right"></i></div>
+            <div class="primary-cell-wrap">
+                <div class="value-cell primary-activity">
+                    <h3><i class="fas fa-headset"></i> Service & After-Sales</h3>
+                    <textarea id="service" placeholder="Tenant support, issue reporting, NPS, retention, ESG..."></textarea>
+                </div>
+            </div>
+            <div class="margin-box" style="min-height:320px;">
+                <h3><i class="fas fa-chart-line mb-2 block text-xl"></i>Margin</h3>
+                <textarea id="margin" placeholder="Where is value created? Where are the strongest margins?"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Result Panel -->
+    <div id="result-panel" class="hidden mt-10">
+        <div class="result-header">
+            <h2 class="text-white font-semibold flex items-center gap-2 text-sm">
+                <i class="fas fa-chart-bar"></i> Value Chain — Strategic AI Analysis
+            </h2>
+            <div class="flex items-center gap-3">
+                <span id="model-badge" class="text-xs bg-white/20 text-white px-3 py-1 rounded-full"></span>
+                <button onclick="closeResult()" class="text-white/70 hover:text-white text-xl leading-none">×</button>
+            </div>
+        </div>
+        <div id="result-content" class="p-8 text-gray-700 text-sm leading-relaxed"></div>
+    </div>
+</div>
+
+<!-- === RIGHT SIDEBAR AI CHAT === -->
+<div id="ai-chat-panel">
+    <div id="chat-resize-handle"></div>
+    
+    <div id="chat-header">
+        <div style="display:flex;align-items:center;gap:8px;flex:1;">
+            <i class="fas fa-robot" style="color:white;font-size:16px;"></i>
+            <div style="font-size:13px;font-weight:600;letter-spacing:0.02em;color:white;">Value Chain AI Assistant</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;">
+            <button onclick="vcStartNewChat()" style="width:28px;height:28px;border-radius:5px;background:transparent;border:none;color:rgba(255,255,255,0.8);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='white'" onmouseout="this.style.background='transparent';this.style.color='rgba(255,255,255,0.8)'" title="New chat"><i class="fas fa-plus"></i></button>
+            <button onclick="vcClearChatHistory()" style="width:28px;height:28px;border-radius:5px;background:transparent;border:none;color:rgba(255,255,255,0.8);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='white'" onmouseout="this.style.background='transparent';this.style.color='rgba(255,255,255,0.8)'" title="Clear history"><i class="fas fa-trash-alt"></i></button>
+            <button onclick="toggleChatPanel()" style="width:28px;height:28px;border-radius:5px;background:transparent;border:none;color:rgba(255,255,255,0.8);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='white'" onmouseout="this.style.background='transparent';this.style.color='rgba(255,255,255,0.8)'" title="Close"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+
+    <div style="padding:8px 16px;background:#1a1a1a;border-bottom:1px solid #2d2d2d;display:flex;align-items:center;font-size:11px;color:#808080;flex-shrink:0;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" id="vc-use-context" checked style="width:14px;height:14px;cursor:pointer;">
+            <span>Auto-read canvas content</span>
+        </label>
+        <span id="vc-context-status" style="margin-left:12px;color:#0369a1;font-size:10px;"></span>
+    </div>
+
+    <div id="vc-quick-btns" style="padding:10px 16px;display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid #2d2d2d;background:#1a1a1a;max-height:100px;overflow-y:auto;flex-shrink:0;scrollbar-width:thin;scrollbar-color:#404040 transparent;">
+        <button class="vc-qbtn" onclick="vcQuick('Identify the weakest links in the value chain')">Weaknesses</button>
+        <button class="vc-qbtn" onclick="vcQuick('Where is most value created and how can we strengthen it?')">Value Creation</button>
+        <button class="vc-qbtn" onclick="vcQuick('Which activities have the greatest digitalization potential?')">Digitalization</button>
+        <button class="vc-qbtn" title="Greatest cost optimization opportunities" onclick="vcQuick('Where are the greatest opportunities for cost optimization?')">Cost Drivers</button>
+        <button class="vc-qbtn" title="Analyze ESG potential and sustainability risks" onclick="vcQuick('Analyze ESG potential and sustainability risks in the value chain')">ESG</button>
+        <button class="vc-qbtn" onclick="vcQuick('How can support activities better support the primary activities?')">🏗️ Stödaktiviteter</button>
+        <button class="vc-qbtn" onclick="vcQuick('What actions most improve customer retention and NPS?')">🏠 Customer retention</button>
+        <button class="vc-qbtn" onclick="vcQuick('Give me a concrete 90-day action plan to strengthen the value chain')">📅 90-Day Plan</button>
+        <button class="vc-qbtn" onclick="vcQuick('Which activities provide the greatest competitive advantage in the market?')">🏆 Konkurrensfördel</button>
+        <button class="vc-qbtn" onclick="vcQuick('Analyze the Operations activity and suggest improvements')">⚙️ Operations</button>
+        <button class="vc-qbtn" title="Prepare next workshop: Capability Mapping" onclick="vcQuick('Based on my value chain: which capabilities are critical to map in the next step? Give me a list of capability names and domains for the Capability Mapping workshop.')">➡️ Förbered CapMap</button>
+        <button class="vc-qbtn" title="Open next tool: Capability Mapping" onclick="vcOpenNextTool()">Open Capability</button>
+    </div>
+
+    <div id="vc-messages" style="flex:1;overflow-y:auto;padding:20px 16px;background:#1a1a1a;display:flex;flex-direction:column;gap:0;scrollbar-width:thin;scrollbar-color:#404040 transparent;"></div>
+
+    <div id="vc-input-area" style="display:flex;gap:8px;padding:12px 16px;background:#1a1a1a;border-top:1px solid #2d2d2d;flex-shrink:0;">
+        <textarea id="vc-input" rows="1" placeholder="Ask a question about your value chain..." onkeydown="vcHandleKey(event)" oninput="vcAutoResize(this)"></textarea>
+        <button id="vc-send" onclick="vcSend()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+</div>
+<!-- === RIGHT SIDEBAR AI CHAT END === -->
+
+<script>
+    // Flag to track if user has interacted with the tool (for badge display)
+    let vcOpen = false;
+    
+    const fields = ['infrastructure','hr','tech','procurement','inbound','operations','outbound','marketing','service','margin'];
+    const fieldLabels = {
+        infrastructure: 'Enterprise Infrastructure',
+        hr: 'HR & Competence',
+        tech: 'Technology Development',
+        procurement: 'Procurement',
+        inbound: 'Inbound Logistics',
+        operations: 'Operations',
+        outbound: 'Outbound Logistics',
+        marketing: 'Sales & Marketing',
+        service: 'Service & After-Sales',
+        margin: 'Margin / Value Creation'
+    };
+
+    // ── Initialize unified data manager ────
+    let dataManager = null;
+    let lastVcAnalysis = null;
+    let vcAsIsSnapshotBeforeToBe = null;
+    let vcToBeDraft = null;
+    let vcFinalToBe = null;
+    let vcToBeUsersUpdated = false;
+    let vcMode = 'as-is';
+    if (typeof EA_DataManager !== 'undefined') {
+        dataManager = new EA_DataManager();
+        console.log('✅ Value Chain: DataManager initialized - unified API key active');
+    }
+
+    // ── Initialize on page load ────
+    window.addEventListener('load', () => {
+        updateApiStatus();
+        checkIntegrationStatus();
+        
+        // Load saved data
+        const saved = localStorage.getItem('valuechain_v2');
+        if (saved) {
+            try {
+                const d = JSON.parse(saved);
+                fields.forEach(f => { if (d[f]) document.getElementById(f).value = d[f]; });
+                console.log('✅ Loaded saved Value Chain data');
+            } catch(e) {
+                console.warn('Could not load saved data:', e);
+            }
+        }
+    });
+
+    // ── API Key ────
+    function getApiKey() { 
+        if (dataManager) return dataManager.getApiKey() || '';
+        return localStorage.getItem('vc_openai_key') || localStorage.getItem('ea20_openai_key') || ''; 
+    }
+
+    function setVcMode(mode) {
+        vcMode = mode === 'to-be' ? 'to-be' : 'as-is';
+    }
+
+    function showVcModeBanner(msg = '') {
+        const el = document.getElementById('vc-mode-banner');
+        if (!el) return;
+        if (!msg) {
+            el.classList.add('hidden');
+            el.textContent = '';
+            return;
+        }
+        el.textContent = msg;
+        el.classList.remove('hidden');
+    }
+
+    function parseAsIsToBeText(text) {
+        const raw = String(text || '').trim();
+        if (!raw) return { asIs: '', toBe: '' };
+
+        const toBeMatch = raw.match(/\n\s*TO BE\s*:\s*([\s\S]*)$/i);
+        const asIsMatch = raw.match(/^\s*AS IS\s*:\s*([\s\S]*?)\n\s*TO BE\s*:/i);
+
+        if (toBeMatch || asIsMatch) {
+            return {
+                asIs: (asIsMatch ? asIsMatch[1] : raw.replace(/\n\s*TO BE\s*:[\s\S]*$/i, '')).trim(),
+                toBe: (toBeMatch ? toBeMatch[1] : '').trim()
+            };
+        }
+
+        return { asIs: raw, toBe: '' };
+    }
+
+    function mergeAsIsAndToBeText(existingText, suggestedText) {
+        const suggested = String(suggestedText || '').trim();
+        if (!suggested) return String(existingText || '').trim();
+
+        let base = String(existingText || '').trim();
+        if (/\n\s*TO BE\s*:/i.test(base)) {
+            base = base.split(/\n\s*TO BE\s*:/i)[0].trim();
+        }
+        base = base.replace(/^AS IS\s*:\s*/i, '').trim();
+
+        if (!base) return `TO BE:\n${suggested}`;
+        return `AS IS:\n${base}\n\nTO BE:\n${suggested}`;
+    }
+
+    function collectVcRawData() {
+        const data = {};
+        fields.forEach(f => data[f] = document.getElementById(f)?.value?.trim() || '');
+        return data;
+    }
+
+    function applyVcRawData(raw) {
+        fields.forEach(f => {
+            const el = document.getElementById(f);
+            if (!el) return;
+            el.value = String(raw?.[f] || '');
+        });
+    }
+
+    function getVcActiveVariant() {
+        if (vcMode === 'to-be') return 'to-be';
+        const hasToBeMarker = fields.some((fieldId) => /\n\s*TO BE\s*:/i.test(String(document.getElementById(fieldId)?.value || '')));
+        return hasToBeMarker ? 'to-be' : 'as-is';
+    }
+
+    function getVcFieldValueForVariant(fieldId, variant) {
+        const current = String(document.getElementById(fieldId)?.value || '');
+        const parsed = parseAsIsToBeText(current);
+        if (variant === 'to-be' && parsed.toBe) return parsed.toBe;
+        return parsed.asIs || current.trim();
+    }
+
+    function extractFirstJsonObject(text) {
+        const raw = String(text || '').trim();
+        if (!raw) return null;
+        try {
+            return JSON.parse(raw);
+        } catch (_) {
+            const start = raw.indexOf('{');
+            const end = raw.lastIndexOf('}');
+            if (start === -1 || end === -1 || end <= start) return null;
+            try {
+                return JSON.parse(raw.slice(start, end + 1));
+            } catch (_) {
+                return null;
+            }
+        }
+    }
+
+    async function buildVcToBeProposal(apiKey, analysisText) {
+        const asIs = collectVcRawData();
+        const prompt = `Du ska ta fram TO BE-forslag for en Value Chain-analys.\n\nAS IS-data:\n${JSON.stringify(asIs, null, 2)}\n\nAI-analys:\n${analysisText}\n\nReturnera ENDAST giltig JSON med exakt nycklarna: infrastructure, hr, tech, procurement, inbound, operations, outbound, marketing, service, margin.\nKort, konkret och handlingsorienterat TO BE-innehall per falt.\nPrioritera de mest relevanta förbättringshävstängerna för den aktuella industrin och verksamheten, till exempel processautomation, AI-agenter, arbetssätt, styrning, sourcing, kompetens, kapacitetsplanering och kundservice. Föreslå inte ny teknik eller digitalisering som standard om underlaget inte motiverar det tydligt.`;
+
+        const res = await fetch('/api/openai/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'gpt-5',
+                messages: [
+                    { role: 'system', content: 'Du ar en senior EA- och verksamhetsstrateg. Prioritera verksamhetsflöden, processautomation, AI-agenter och andra industrispecifika förbättringar före generell teknikförnyelse. Returnera endast JSON.' },
+                    { role: 'user', content: prompt }
+                ]
+            })
+        });
+
+        const json = await res.json();
+        if (json.error) throw new Error(json.error.message);
+        const parsed = extractFirstJsonObject(json?.choices?.[0]?.message?.content || '');
+        if (!parsed || typeof parsed !== 'object') throw new Error('Kunde inte tolka TO BE-JSON');
+
+        const normalized = {};
+        fields.forEach((f) => normalized[f] = String(parsed[f] || '').trim());
+        return normalized;
+    }
+
+    async function generateVcToBeFromLatestAnalysis() {
+        const apiKey = getApiKey();
+        if (!apiKey) { showToast('Lagg till API-nyckel for TO BE-forslag'); return false; }
+        const analysisText = (lastVcAnalysis?.text || document.getElementById('result-content')?.innerText || '').trim();
+        if (!analysisText) { showToast('Kor AI Analysera forst for TO BE-forslag'); return false; }
+
+        try {
+            const proposal = await buildVcToBeProposal(apiKey, analysisText);
+            vcToBeDraft = {
+                generatedAt: new Date().toISOString(),
+                asIsData: collectVcRawData(),
+                toBeData: proposal,
+                analysisText
+            };
+            vcToBeUsersUpdated = false;
+
+            vcAsIsSnapshotBeforeToBe = vcAsIsSnapshotBeforeToBe || collectVcRawData();
+            let merged = 0;
+            fields.forEach((f) => {
+                const suggested = String(proposal[f] || '').trim();
+                if (!suggested) return;
+                const el = document.getElementById(f);
+                if (!el) return;
+                el.value = mergeAsIsAndToBeText(el.value, suggested);
+                merged += 1;
+            });
+
+            document.getElementById('vc-restore-asis-btn')?.classList.remove('hidden');
+            setVcMode('to-be');
+            showVcModeBanner(`TO BE-forslag genererat och visat tillsammans med AS IS i ${merged} falt. Granska och justera innan konsolidering.`);
+            saveData();
+            showToast('✓ TO BE-forslag skapade och applicerade');
+            return true;
+        } catch (e) {
+            console.error('VC TO-BE generation failed:', e);
+            showToast('⚠️ Kunde inte skapa TO BE-forslag');
+            return false;
+        }
+    }
+
+    function finalizeVcToBeState() {
+        const variant = getVcActiveVariant();
+        if (variant !== 'to-be') {
+            showToast('Skapa eller applicera TO BE-forslag forst');
+            return;
+        }
+
+        const finalData = {};
+        fields.forEach((f) => {
+            finalData[f] = getVcFieldValueForVariant(f, 'to-be');
+        });
+
+        const usersUpdated = !!vcToBeDraft?.toBeData && fields.some((f) => {
+            const draftValue = String(vcToBeDraft.toBeData[f] || '').trim();
+            const finalValue = String(finalData[f] || '').trim();
+            return draftValue !== finalValue;
+        });
+        vcToBeUsersUpdated = usersUpdated;
+
+        vcFinalToBe = {
+            finalizedAt: new Date().toISOString(),
+            data: finalData,
+            source: vcToBeDraft ? 'ai-analysis' : 'manual-consolidation',
+            usersUpdated
+        };
+
+        applyVcRawData(finalData);
+        setVcMode('to-be');
+        showVcModeBanner(`TO BE konsoliderad ${new Date(vcFinalToBe.finalizedAt).toLocaleString()}. Denna version synkas vidare i workflow.`);
+        saveData();
+        exportToIntegrationCache();
+        showToast('✓ TO BE konsoliderad och synkad');
+    }
+
+    function restoreVcAsIsState() {
+        if (!vcAsIsSnapshotBeforeToBe) {
+            showToast('Ingen AS-IS-snapshot att återställa');
+            return;
+        }
+        applyVcRawData(vcAsIsSnapshotBeforeToBe);
+        setVcMode('as-is');
+        vcAsIsSnapshotBeforeToBe = null;
+        vcToBeDraft = null;
+        vcFinalToBe = null;
+        vcToBeUsersUpdated = false;
+        showVcModeBanner('');
+        document.getElementById('vc-restore-asis-btn')?.classList.add('hidden');
+        saveData();
+        showToast('✓ AS-IS återställd');
+    }
+    function saveApiKey() {
+        const key = document.getElementById('api-key-input').value.trim();
+        if (!key.startsWith('sk-')) { alert('Nyckeln verkar inte vara giltig. Den ska börja med "sk-".'); return; }
+        
+        if (dataManager) {
+            dataManager.setApiKey(key);
+            console.log('✅ API key saved via unified DataManager');
+        } else {
+            localStorage.setItem('vc_openai_key', key);
+            localStorage.setItem('ea20_openai_key', key);
+        }
+        
+        updateApiStatus();
+        closeModal();
+        showToast('API-nyckel sparad ✓ (delas med EA Platform)');
+    }
+    function updateApiStatus() {
+        const key = getApiKey();
+        const btn = document.getElementById('api-status-btn');
+        const icon = document.getElementById('api-status-icon');
+        const text = document.getElementById('api-status-text');
+        if (key) {
+            btn.className = 'flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-green-300 bg-green-50 text-green-700 transition';
+            icon.className = 'fas fa-circle text-xs text-green-500';
+            text.textContent = 'API aktiv · ' + key.substring(0,8) + '...';
+        } else {
+            btn.className = 'flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-orange-300 bg-orange-50 text-orange-700 transition';
+            icon.className = 'fas fa-circle text-xs text-orange-400';
+            text.textContent = 'Konfigurera API-nyckel';
+        }
+    }
+    function openModal() {
+        const key = getApiKey();
+        if (key) document.getElementById('api-key-input').value = key;
+        document.getElementById('api-modal').classList.remove('hidden');
+    }
+    function closeModal() { document.getElementById('api-modal').classList.add('hidden'); }
+    function toggleKeyVisibility() {
+        const input = document.getElementById('api-key-input');
+        input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    // ── Import Logic ────
+    function openImportModal() { document.getElementById('import-modal').classList.remove('hidden'); }
+    function closeImportModal() { document.getElementById('import-modal').classList.add('hidden'); }
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    dropZone.onclick = () => fileInput.click();
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('active'); };
+    dropZone.ondragleave = () => dropZone.classList.remove('active');
+    dropZone.ondrop = (e) => {
+        e.preventDefault(); dropZone.classList.remove('active');
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+    };
+    fileInput.onchange = (e) => { const file = e.target.files[0]; if (file) handleFile(file); };
+    function handleFile(file) {
+        if (!file.name.endsWith('.csv')) { alert('Vänligen ladda upp en CSV-fil.'); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => { processBMCData(e.target.result); closeImportModal(); };
+        reader.readAsText(file);
+    }
+    function processBMCData(csvText) {
+        const lines = csvText.split(/\r?\n/);
+        const data = {};
+        lines.forEach(line => {
+            const parts = line.split(';');
+            if (parts.length >= 2) {
+                const key = parts[0].replace(/"/g, '').trim();
+                const val = parts[1].replace(/"/g, '').trim();
+                data[key] = val;
+            }
+        });
+        const mapping = {
+            'Nyckelaktiviteter': 'operations', 'Nyckelpartners': 'procurement',
+            'Nyckelresurser': 'tech', 'Värdeerbjudande': 'margin',
+            'Kundrelationer': 'service', 'Kanaler': 'marketing',
+            'Kostnadsstruktur': 'infrastructure', 'Kundsegment': 'outbound',
+            'Intäktsströmmar': 'inbound'
+        };
+        if (data['Nyckelresurser']) document.getElementById('hr').value = "Från BMC Nyckelresurser:\n" + data['Nyckelresurser'];
+        let count = 0;
+        for (const [bmcKey, vcId] of Object.entries(mapping)) {
+            if (data[bmcKey]) { document.getElementById(vcId).value = data[bmcKey]; count++; }
+        }
+        if (count > 0) { showToast(`✓ Importerade ${count} fält från BMC-filen`); saveData(); }
+        else alert('Kunde inte tolka filen. Kontrollera att det är en CSV-export från AI BMC-verktyget.');
+    }
+
+    function importFromBmcIntegration(onlyIfEmpty = true, allowStale = false) {
+        if (!dataManager) return false;
+        if (!allowStale && !dataManager.hasRecentIntegrationData('bmc_latest', 1440)) return false;
+
+        const bmc = dataManager.getIntegrationData('bmc_latest');
+        if (!bmc) return false;
+
+        const preferredVariant = String(bmc.model_variant || '').toLowerCase();
+        const asIs = bmc.as_is_data || {};
+        const toBe = bmc.to_be_data || {};
+        const active = preferredVariant === 'to-be' ? toBe : asIs;
+
+        const analysisText = String(bmc.ai_analysis_text || '').trim();
+        const analysisBlock = analysisText ? `BMC AI-analys:\n${analysisText.slice(0, 1400)}` : '';
+
+        const mapping = {
+            infrastructure: bmc.cost_structure || active.cost_structure,
+            hr: bmc.key_resources || active.key_resources,
+            tech: bmc.key_resources || active.key_resources,
+            procurement: bmc.key_partners || active.key_partners,
+            inbound: bmc.revenue_streams || active.revenue_streams,
+            operations: bmc.key_activities || active.key_activities,
+            outbound: bmc.customer_segments || active.customer_segments,
+            marketing: bmc.channels || active.channels,
+            service: bmc.customer_relationships || active.customer_relationships,
+            margin: [bmc.value_proposition || active.value_proposition, bmc.strategic_goal || active.strategic_goal, analysisBlock].filter(Boolean).join('\n\n')
+        };
+
+        let updated = 0;
+        Object.keys(mapping).forEach(field => {
+            const el = document.getElementById(field);
+            const next = (mapping[field] || '').trim();
+            if (!el || !next) return;
+            if (onlyIfEmpty && el.value.trim()) return;
+            el.value = next;
+            updated++;
+        });
+
+        if (updated > 0) {
+            saveData();
+            showToast(`✓ Importerade ${updated} fält från BMC integration`);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+    * AI auto-fill: Reads full BMC AS IS + TO BE context and uses GPT-4.1 to
+     * intelligently fill all 10 Value Chain fields. Called automatically when
+     * navigating from BMC with ?from=bmc&refresh=1.
+     */
+    async function autoFillVcFromBmcContext(bmc) {
+        const apiKey = getApiKey();
+        if (!apiKey) {
+            showToast('⚠ï¸ Lägg till API-nyckel för AI auto-fyllning');
+            return false;
+        }
+
+        const asIs = bmc.as_is_data || {};
+        const toBe = bmc.to_be_data || {};
+        const hasToBe = bmc.has_to_be || false;
+
+        const bmcLabels = {
+            value_proposition: 'Värdeerbjudande',
+            customer_segments: 'Kundsegment',
+            channels: 'Kanaler',
+            customer_relationships: 'Kundrelationer',
+            revenue_streams: 'Intäktsströmmar',
+            key_resources: 'Nyckelresurser',
+            key_activities: 'Nyckelaktiviteter',
+            key_partners: 'Nyckelpartners',
+            cost_structure: 'Kostnadsstruktur',
+            strategic_goal: 'Strategiskt mål',
+            business_driver: 'Primär affärsdriver',
+            regulatory_context: 'Regulatorik/ESG'
+        };
+
+        const contextParts = [];
+        const asIsRows = Object.entries(asIs).filter(([k, v]) => v && bmcLabels[k]).map(([k, v]) => `- ${bmcLabels[k]}: ${v}`);
+        if (asIsRows.length) contextParts.push('## BMC AS IS\n' + asIsRows.join('\n'));
+
+        if (hasToBe) {
+            const toBeRows = Object.entries(toBe).filter(([k, v]) => v && bmcLabels[k]).map(([k, v]) => `- ${bmcLabels[k]}: ${v}`);
+            if (toBeRows.length) contextParts.push('## BMC TO BE (framtida målbild)\n' + toBeRows.join('\n'));
+        }
+        if (bmc.ai_analysis_text) {
+            contextParts.push('## BMC AI-Analys\n' + String(bmc.ai_analysis_text).slice(0, 2000));
+        }
+
+        if (!contextParts.length) {
+            showToast('⚠ï¸ Ingen BMC-data tillgänglig för AI auto-fyllning');
+            return false;
+        }
+
+        // Disable fields while AI is working
+        fields.forEach(f => { const el = document.getElementById(f); if (el) { el.style.opacity = '0.4'; el.disabled = true; } });
+        showToast('🤖 AI analyserar BMC och fyller i Value Chain – vänta...');
+
+        const systemPrompt = `Du är en senior konsult och expert på Porters Värdekedjeanalys (Porter's Value Chain) med djup specialistkompetens inom:
+- Porter's Value Chain: primära aktiviteter (Inbound Logistics, Operations, Outbound Logistics, Marketing & Sales, Service) och stödaktiviteter (Infrastructure, HR, Technology, Procurement) samt Marginal
+- Enterprise Architecture (TOGAF, EA 2.0, Zachman Framework)
+    - Verksamhets- och domain-specific-sektorn: Verksamhetsförvaltning, processautomation, AI-agenter, hyresgästrelationer, ESG/CSRD, GDPR och operativ styrning
+- Affärsstrategi och värdeskapande: kostnadsminskning, marginalförbättring, Customer retention, regulatorisk efterlevnad
+
+    Din uppgift är att analysera ett Business Model Canvas (BMC) och översätta det till en komplett Porters Värdekedjeanalys. Analysera noggrant BOTH AS IS-utgångspunkt OCH TO BE målbild och skapa en rik, framtidsorienterad värdekedja. Prioritera de mest relevanta industrispecifika hävstängerna, till exempel processautomation, AI-agenter, styrning, serviceupplägg, partnerstruktur och selektiv teknikförnyelse när underlaget tydligt motiverar det.
+
+Returnera ENBART ett rent JSON-objekt (ingen markdown, inga förklaringar utanför JSON):
+{
+  "infrastructure": "text",
+  "hr": "text",
+  "tech": "text",
+  "procurement": "text",
+  "inbound": "text",
+  "operations": "text",
+  "outbound": "text",
+  "marketing": "text",
+  "service": "text",
+  "margin": "text"
+}
+
+Riktlinjer per fält (4-6 konkreta punkter per fält, använd \\n för radbrytning):
+- infrastructure: Ledningsstruktur, finansiell styrning, legal/compliance, portföljförvaltning, styrelserapportering
+- hr: Kompetensförsörjning, rekrytering, utbildning, organisationskultur, digital kompetens, ledarskap
+- tech: IT-system, digitalisering, innovation, F&U, data & AI, automationsmöjligheter, verksamhetssystem
+- procurement: Inköpsstrategi, leverantörsrelationer, upphandling, hållbara inköp, ramavtal
+- inbound: Hur resurser/data/input tas emot, informationsflöden in i organisationen, energidata, hyresgästdata
+- operations: Kärnoperativa processer, Verksamhetsdrift, förvaltning, underhåll, arbetsordrar, tillsyn
+- outbound: Leverans av värde till kunder, hyresgästportal, rapportering, kommunikationskanaler ut
+- marketing: Marknadsföring, försäljning, kundanskaffning, uthyrning, prissättning, digital närvaro
+- service: Kundservice, felanmälan, NPS, lojalitetsprogram, ESG-rapportering, eftermarknad
+- margin: Värdebedömning – var skapas konkurrensfördelar, var finns ineffektiviteter/förluster, AS IS vs TO BE potential
+
+Var specifik med konkreta aktiviteter, system och åtgärder från BMC-kontexten. Koppla alltid till affärsnytta.`;
+
+        try {
+            const res = await fetch('/api/openai/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'gpt-5',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: 'Fyll i alla 10 fält i Porter\'s Värdekedjeanalys baserat på följande BMC-underlag:\n\n' + contextParts.join('\n\n') }
+                    ]
+                })
+            });
+            const json = await res.json();
+            if (json.error) throw new Error(json.error.message);
+            let raw = json.choices[0].message.content.trim();
+            raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+            const result = JSON.parse(raw);
+            const validFields = ['infrastructure', 'hr', 'tech', 'procurement', 'inbound', 'operations', 'outbound', 'marketing', 'service', 'margin'];
+            let filled = 0;
+            validFields.forEach(f => {
+                if (result[f]) { const el = document.getElementById(f); if (el) { el.value = result[f]; filled++; } }
+            });
+            saveData();
+            showToast(`✓ AI fyllt i ${filled}/10 Value Chain-fält baserat på BMC (AS IS + TO BE)`);
+            return true;
+        } catch (e) {
+            console.error('VC auto-fill error:', e);
+            showToast('⚠ï¸ AI auto-fyllning misslyckades: ' + String(e.message).slice(0, 80));
+            return false;
+        } finally {
+            fields.forEach(f => { const el = document.getElementById(f); if (el) { el.style.opacity = ''; el.disabled = false; } });
+        }
+    }
+
+    // ── Canvas Data ────
+    function saveData() {
+        const d = {};
+        fields.forEach(f => d[f] = document.getElementById(f).value);
+        localStorage.setItem('valuechain_v2', JSON.stringify(d));
+        
+        // Auto-export to integration cache
+        exportToIntegrationCache();
+        
+        showToast('Canvas sparad ✓');
+    }
+    function clearAll() {
+        if (!confirm('Rensa alla fält?')) return;
+        fields.forEach(f => document.getElementById(f).value = '');
+        document.getElementById('result-panel').classList.add('hidden');
+    }
+    function loadExample() {
+        const ex = {
+            infrastructure: "Portföljstyrning via ERP\nCSRD & EU Taxonomy compliance\nStyrelserapportering kvartalsvis",
+            hr: "Certifierade förvaltare (FM)\nDigital kompetenslyft pågår\nBrist på IoT/data-kompetens internt",
+            tech: "verksamhetssystem: Vitec\nIoT-sensorer i 30% av bestånd\nAI-pilot för prediktivt underhåll",
+            procurement: "Ramavtal med 12 leverantörer\nHållbarhetskrav i upphandling\nLång ledtid på tekniska tjänster",
+            inbound: "Energidata via mätare (manuell)\nHyresgästdata i separata system\nBIM-modeller saknas för äldre bestånd",
+            operations: "Arbetsorder via e-post/telefon\nReaktivt underhåll dominerar\nHög andel manuell administration",
+            outbound: "Hyresgästportal (begränsad)\nRapporter till ägare via Excel\nIngen realtidsdata till kunder",
+            marketing: "Uthyrning via mäklare\nDigital närvaro låg\nPrissättning baserad på marknad, ej data",
+            service: "Felanmälan via telefon\nNPS mäts ej systematiskt\nESG-rapport produceras manuellt",
+            margin: "Starkast: Uthyrning (låg vakans)\nSvagast: Drift & underhåll (reaktivt)\nOutnyttjad potential: Data & AI"
+        };
+        fields.forEach(f => { if (ex[f]) document.getElementById(f).value = ex[f]; });
+        showToast('Domain Example laddat ✓');
+        
+        // Auto-export example data
+        setTimeout(() => exportToIntegrationCache(), 500);
+    }
+    function exportToExcel() {
+        const rows = [['Kategori', 'Typ', 'Innehåll']];
+        ['infrastructure','hr','tech','procurement'].forEach(f => rows.push([fieldLabels[f], 'Stödaktivitet', document.getElementById(f).value || '']));
+        ['inbound','operations','outbound','marketing','service'].forEach(f => rows.push([fieldLabels[f], 'Primär aktivitet', document.getElementById(f).value || '']));
+        rows.push([fieldLabels['margin'], 'Marginal', document.getElementById('margin').value || '']);
+        const csvContent = "\uFEFF" + rows.map(row => row.map(cell => '"' + String(cell).replace(/"/g, '""') + '"').join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'EA2_ValueChain.csv';
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+        showToast('✓ Exporterad: EA2_ValueChain.csv');
+    }
+    async function runAnalysis() {
+        const apiKey = getApiKey();
+        if (!apiKey) { openModal(); showToast('⚠ï¸ Lägg till din API-nyckel först'); return; }
+        const btn = document.querySelector('button[onclick="runAnalysis()"]');
+        btn.innerHTML = '<i class="fas fa-spinner spinner"></i> Analyserar...';
+        btn.disabled = true;
+        const panel = document.getElementById('result-panel');
+        const content = document.getElementById('result-content');
+        panel.classList.remove('hidden');
+        content.innerHTML = '<div class="flex items-center gap-3 text-blue-600 py-6"><i class="fas fa-spinner spinner text-xl"></i><span>AI analyserar värdekedjan utifrån business outcomes...</span></div>';
+        panel.scrollIntoView({ behavior: 'smooth' });
+        const prompt = fields.map(f => `${fieldLabels[f]}:\n${document.getElementById(f).value || '(ej ifyllt)'}`).join('\n\n');
+        const systemPrompt = `Du är en senior strategisk rådgivare specialiserad på Verksamhet, domain-specific och operativ transformation. Analysera värdekedjan och svara på svenska med rubrikerna: ## Värdeskapande aktiviteter, ## Värdeförstörande aktiviteter, ## Prioriterade förbättringshävstänger, ## Strategiska rekommendationer, ## Sammanfattning. Prioritera de mest relevanta åtgärderna för industrin och nuläget, exempelvis processautomation, AI-agenter, arbetssätt, sourcing, styrning, kompetens och kundservice. Föreslå inte ny teknik eller digitalisering som standardsvar om annat är mer relevant.`;
+        try {
+            const res = await fetch('/api/openai/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: 'gpt-5', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }] })
+            });
+            const json = await res.json();
+            if (json.error) throw new Error(json.error.message);
+            const raw = json.choices[0].message.content;
+            lastVcAnalysis = {
+                model: 'gpt-5',
+                generatedAt: new Date().toISOString(),
+                text: raw
+            };
+            document.getElementById('model-badge').textContent = 'gpt-5';
+            content.innerHTML = formatMarkdown(raw);
+            
+            // Auto-export after successful analysis
+            exportToIntegrationCache();
+        } catch(e) {
+            content.innerHTML = `<div class="p-5 bg-red-50 border border-red-200 rounded-lg text-red-700"><p class="font-bold">Fel vid API-anrop</p><p class="text-sm">${e.message}</p></div>`;
+        }
+        btn.innerHTML = '<i class="fas fa-robot"></i> AI Analyze';
+        btn.disabled = false;
+    }
+
+    function generateEAToolReport() {
+        const rawData = {};
+        fields.forEach(f => {
+            rawData[f] = document.getElementById(f)?.value?.trim() || '';
+        });
+
+        const asIs = {
+            rawData,
+            activities: convertFieldsToActivities(rawData)
+        };
+
+        const analysisText = lastVcAnalysis?.text || document.getElementById('result-content')?.innerText?.trim() || '';
+        const toBe = {
+            draftSource: analysisText ? 'ai-analysis' : 'manual',
+            targetStateNarrative: analysisText || 'Ingen AI-analys tillgänglig ännu. Kör AI Analysera för att skapa TO BE-förslag.',
+            prioritizedChanges: analysisText
+                ? analysisText.split('\n').map(l => l.trim()).filter(l => /^[-*]|^\d+\./.test(l)).slice(0, 8)
+                : []
+        };
+
+        const report = {
+            toolId: 'valueChain',
+            toolName: 'AI Value Chain Analyzer',
+            generatedAt: new Date().toISOString(),
+            asIs,
+            analysis: analysisText ? { ...lastVcAnalysis, text: analysisText } : null,
+            toBe,
+            meta: {
+                completeness: Math.round((Object.values(rawData).filter(Boolean).length / fields.length) * 100)
+            }
+        };
+
+        if (dataManager && typeof dataManager.saveToolReport === 'function') {
+            dataManager.saveToolReport('valueChain', report);
+        }
+
+        const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `NextGenEA_ValueChain_Tool_Report_${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast('✓ EA Tool-rapport genererad (Value Chain)');
+    }
+    function formatMarkdown(text) {
+        return text
+            .replace(/^## (.*$)/gim, '<h3>$1</h3>')
+            .replace(/^\* (.*$)/gim, '<li>$1</li>')
+            .replace(/^- (.*$)/gim, '<li>$1</li>')
+            .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+            .replace(/\n{2,}/g, '</p><p>')
+            .replace(/\n/g, ' ');
+    }
+    function closeResult() { document.getElementById('result-panel').classList.add('hidden'); }
+    function showToast(msg) {
+        const t = document.createElement('div');
+        t.className = 'fixed bottom-6 right-6 bg-gray-900 text-white px-5 py-3 rounded-lg shadow-xl text-sm z-50';
+        t.innerHTML = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2800);
+    }
+
+    // ── Integration Export Functions ────
+    /**
+     * Export Value Chain data to integration cache for EA Platform
+     * Converts text fields to structured activities format
+     */
+    function exportToIntegrationCache() {
+        if (!dataManager) {
+            showToast('⚠ï¸ DataManager not available - export skipped');
+            return false;
+        }
+
+        // Collect all field data
+        const fieldData = {};
+        let filledCount = 0;
+        fields.forEach(f => {
+            const value = document.getElementById(f)?.value.trim() || '';
+            fieldData[f] = value;
+            if (value) filledCount++;
+        });
+
+        // Create structured format for integration
+        const valueChainData = {
+            // Raw field data
+            rawData: fieldData,
+            as_is_data: Object.fromEntries(fields.map(f => [f, getVcFieldValueForVariant(f, 'as-is')])),
+            to_be_data: Object.fromEntries(fields.map(f => [f, getVcFieldValueForVariant(f, 'to-be')])),
+            final_to_be_data: vcFinalToBe?.data || null,
+            has_to_be: fields.some(f => /\n\s*TO BE\s*:/i.test(String(document.getElementById(f)?.value || ''))) || !!vcFinalToBe,
+            model_variant: getVcActiveVariant(),
+            source_model_label: getVcActiveVariant() === 'to-be'
+                ? `TO BE${(vcToBeUsersUpdated || !!vcFinalToBe?.usersUpdated) ? ' - Users updated' : ''}`
+                : 'AS IS',
+            ai_analysis_text: (lastVcAnalysis?.text || '').trim() || null,
+            
+            // Structured activities
+            activities: convertFieldsToActivities(fieldData),
+            
+            // Metadata
+            metadata: {
+                source: 'AI_Value_Chain_Analyzer_V2',
+                exportedAt: new Date().toISOString(),
+                version: 'EA_2.0',
+                filledFields: filledCount,
+                totalFields: fields.length,
+                completeness: Math.round((filledCount / fields.length) * 100),
+                usersUpdated: !!(vcToBeUsersUpdated || vcFinalToBe?.usersUpdated)
+            }
+        };
+
+        // Save to integration cache
+        try {
+            dataManager.saveIntegrationData('valuechain_latest', valueChainData);
+            
+            // Update export status indicator
+            updateExportStatus(true);
+            
+            console.log('✅ Value Chain exported to integration cache:', valueChainData);
+            showToast(`✓ Exporterad till EA Platform (${filledCount}/${fields.length} fält)`);
+            return true;
+        } catch (error) {
+            console.error('âŒ Export failed:', error);
+            showToast('⚠ï¸ Export misslyckades');
+            return false;
+        }
+    }
+
+    /**
+     * Convert text fields to structured activities array
+     */
+    function convertFieldsToActivities(fieldData) {
+        const activities = [];
+        const supportActivities = ['infrastructure', 'hr', 'tech', 'procurement'];
+        const primaryActivities = ['inbound', 'operations', 'outbound', 'marketing', 'service'];
+
+        // Process support activities
+        supportActivities.forEach((field, index) => {
+            if (fieldData[field]) {
+                activities.push({
+                    id: `activity_support_${index}`,
+                    name: fieldLabels[field],
+                    type: 'support',
+                    description: fieldData[field],
+                    notes: fieldData[field],
+                    // Basic scoring (can be enhanced with AI analysis later)
+                    value_score: estimateValue(fieldData[field]),
+                    cost_score: estimateCost(fieldData[field], 'support'),
+                    digitalization_potential: estimateDigitalizationPotential(fieldData[field]),
+                    order: index
+                });
+            }
+        });
+
+        // Process primary activities
+        primaryActivities.forEach((field, index) => {
+            if (fieldData[field]) {
+                activities.push({
+                    id: `activity_primary_${index}`,
+                    name: fieldLabels[field],
+                    type: 'primary',
+                    description: fieldData[field],
+                    notes: fieldData[field],
+                    value_score: estimateValue(fieldData[field]),
+                    cost_score: estimateCost(fieldData[field], 'primary'),
+                    digitalization_potential: estimateDigitalizationPotential(fieldData[field]),
+                    order: index
+                });
+            }
+        });
+
+        // Add margin analysis as special activity
+        if (fieldData.margin) {
+            activities.push({
+                id: 'activity_margin',
+                name: 'Marginalanalys',
+                type: 'analysis',
+                description: fieldData.margin,
+                notes: fieldData.margin,
+                value_score: 10, // Margin analysis is highly valuable
+                cost_score: 0,
+                digitalization_potential: 5,
+                order: 999
+            });
+        }
+
+        return activities;
+    }
+
+    /**
+     * Estimate value score from text content (1-10 scale)
+     */
+    function estimateValue(text) {
+        if (!text) return 0;
+        const valueKeywords = ['värde', 'kritisk', 'strategisk', 'differentier', 'konkurrensförden', 'marginal', 'intäkt', 'kund', 'kvalitet'];
+        let score = 5; // baseline
+        valueKeywords.forEach(keyword => {
+            if (text.toLowerCase().includes(keyword)) score += 0.5;
+        });
+        return Math.min(Math.round(score), 10);
+    }
+
+    /**
+     * Estimate cost score from text content (1-10 scale)
+     */
+    function estimateCost(text, type) {
+        if (!text) return 0;
+        const costKeywords = ['kostnad', 'dyr', 'ineffektiv', 'manuell', 'tidskräv', 'resurs', 'problem', 'brist'];
+        let score = type === 'support' ? 6 : 5; // support activities typically higher cost
+        costKeywords.forEach(keyword => {
+            if (text.toLowerCase().includes(keyword)) score += 0.5;
+        });
+        return Math.min(Math.round(score), 10);
+    }
+
+    /**
+     * Estimate digitalization potential (1-10 scale)
+     */
+    function estimateDigitalizationPotential(text) {
+        if (!text) return 0;
+        const digitalKeywords = ['digital', 'ai', 'automat', 'iot', 'data', 'ml', 'plattform', 'system', 'integration', 'sensor'];
+        const manualKeywords = ['manuell', 'papper', 'excel', 'telefon', 'e-post', 'ej digitaliserad'];
+        let score = 5; // baseline
+        digitalKeywords.forEach(keyword => {
+            if (text.toLowerCase().includes(keyword)) score += 0.4;
+        });
+        manualKeywords.forEach(keyword => {
+            if (text.toLowerCase().includes(keyword)) score += 0.8; // high potential if manual
+        });
+        return Math.min(Math.round(score), 10);
+    }
+
+    /**
+     * Update export status indicator in UI
+     */
+    function updateExportStatus(exported) {
+        const header = document.getElementById('vc-sync-status');
+        if (header && exported) {
+            header.innerHTML = '<i class="fas fa-check-circle text-green-400"></i> <span class="text-green-300">Exporterad till EA Platform ✓</span>';
+            setTimeout(() => {
+                header.innerHTML = '<i class="fas fa-sync-alt"></i> Data synkas automatiskt med EA Platform';
+                renderVcContextBadge();
+            }, 4000);
+        }
+    }
+
+    function renderVcContextBadge() {
+        const badge = document.getElementById('vc-context-badge');
+        if (!badge || !dataManager) return;
+        if (!dataManager.hasRecentIntegrationData('bmc_latest', 1440)) {
+            badge.classList.add('hidden');
+            return;
+        }
+        const data = dataManager.getIntegrationPackage('bmc_latest');
+        const payload = data?.payload || dataManager.getIntegrationData('bmc_latest') || {};
+        const variant = String(payload.model_variant || payload.source_model_label || payload.metadata?.activeVariant || 'as-is').toLowerCase();
+        const variantLabel = variant === 'to-be' ? 'TO BE' : 'AS IS';
+        const age = Math.max(0, Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60));
+        badge.innerHTML = '<i class="fas fa-link mr-1"></i> Kontext från BMC (' + variantLabel + ') · uppdaterad ' + age + ' min sedan';
+        badge.classList.remove('hidden');
+    }
+
+    function vcOpenNextTool() {
+        const ok = exportToIntegrationCache();
+        if (!ok) {
+            showToast('⚠ï¸ Kunde inte synka Value Chain-data före navigering');
+        }
+        window.location.href = './AI Capability Mapping V2.html?from=vc&refresh=1';
+    }
+
+    /**
+     * Check integration status and show indicator
+     */
+    function checkIntegrationStatus() {
+        if (!dataManager) return;
+        
+        const hasData = dataManager.hasRecentIntegrationData('valuechain_latest', 1440); // 24 hours
+        if (hasData) {
+            const data = dataManager.getIntegrationPackage('valuechain_latest');
+            const age = Math.round((Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60);
+            console.log(`ℹï¸ Last export: ${age} minutes ago`);
+        }
+    }
+
+    // Chat Panel Toggle
+    function toggleChatPanel() {
+        const isOpen = document.body.classList.contains('chat-sidebar-open');
+        if (isOpen) {
+            document.body.classList.remove('chat-sidebar-open');
+        } else {
+            document.body.classList.add('chat-sidebar-open');
+            const input = document.getElementById('vc-input');
+            if (input) input.focus();
+        }
+    }
+
+    function vcGreet() {
+        const filled = fields.filter(f => document.getElementById(f) && document.getElementById(f).value.trim()).length;
+        let msg = `👋 Hej! Jag är din AI-assistent för Value Chain Analyzer.\n\nJag hjälper dig att analysera och optimera din värdekedja ur ett **Verksamhets- och domain-specificperspektiv** med fokus på konkreta affärsutfall: kostnadsreduktion, ökad marginal, ESG-compliance och Customer retention.`;
+        if (filled > 0) msg += `\n\n✅ Jag ser att du har fyllt i **${filled} av 10 fält**. Aktivera "Läs av canvas" så kan jag ge dig kontextbaserade insikter direkt.`;
+        else msg += `\n\n💡 Börja med att fylla i dina aktiviteter, eller klicka **Domain Example** för att ladda ett exempelscenario.`;
+        vcAddMsg('bot', msg);
+    }
+
+    function vcGetContext() {
+        if (!document.getElementById('vc-use-context').checked) return '';
+        const parts = [];
+        fields.forEach(f => {
+            const el = document.getElementById(f);
+            if (el && el.value.trim()) parts.push(`**${fieldLabels[f]}:** ${el.value.trim()}`);
+        });
+        if (parts.length === 0) return '';
+        document.getElementById('vc-context-status').textContent = `${parts.length}/10 fält inlästa`;
+        return `\n\n--- AKTUELL VÄRDEKEDJA ---\n${parts.join('\n\n')}`;
+    }
+
+    function vcQuick(text) {
+        document.getElementById('vc-input').value = text;
+        vcSend();
+    }
+
+    function vcResetChat(message, showGreeting = false) {
+        vcHistory = [];
+        const messages = document.getElementById('vc-messages');
+        if (messages) messages.innerHTML = '';
+        const input = document.getElementById('vc-input');
+        if (input) {
+            input.value = '';
+            input.style.height = 'auto';
+        }
+        const status = document.getElementById('vc-context-status');
+        if (status) status.textContent = '';
+        if (showGreeting) vcGreet();
+        else if (message) vcAddMsg('bot', message);
+    }
+
+    function vcClearChatHistory() {
+        vcResetChat('🧹 Chatthistoriken är rensad. Ställ en ny fråga om din värdekedja när du vill.', false);
+    }
+
+    function vcStartNewChat() {
+        vcResetChat('', true);
+        vcHasGreeted = true;
+    }
+
+    function vcHandleKey(e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); vcSend(); }
+    }
+
+    function vcAutoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+    }
+
+    async function vcSend() {
+        const input = document.getElementById('vc-input');
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        input.style.height = 'auto';
+        vcAddMsg('user', text);
+        const context = vcGetContext();
+        vcHistory.push({ role: 'user', content: text + context });
+        const typingId = vcAddTyping();
+        const apiKey = getApiKey();
+        if (!apiKey) {
+            vcRemoveTyping(typingId);
+            vcAddMsg('bot', vcDemoResponse(text));
+            return;
+        }
+        const systemPrompt = `Du är en senior strategisk rådgivare och expert inom Verksamhet, domain-specific, operativ transformation och hållbarhet. Du hjälper användaren att analysera och optimera sin värdekedja enligt Porter's Value Chain-modell. Svara alltid på svenska. Fokusera på konkreta affärsutfall: kostnadsreduktion, ökad marginal, ESG-compliance, Customer retention och konkurrensfördel. Prioritera de mest relevanta förbättringshävstängerna för den aktuella industrin, exempelvis processautomation, AI-agenter, arbetssätt, sourcing, styrning, kompetens, partnerstyrning och kundnära förbättringar. Föreslå ny teknik eller digitalisering endast när det tydligt stöds av användarens underlag. Var koncis, faktabaserad och handlingsorienterad. Använd bullet points och rubriker för tydlighet.`;
+        try {
+            const messages = [{ role: 'system', content: systemPrompt }, ...vcHistory.slice(-10)];
+            const res = await fetch('/api/openai/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: 'gpt-5', messages: messages, max_tokens: 1000 })
+            });
+            const json = await res.json();
+            if (json.error) throw new Error(json.error.message);
+            const reply = json.choices[0].message.content;
+            vcHistory.push({ role: 'assistant', content: reply });
+            vcRemoveTyping(typingId);
+            vcAddMsg('bot', reply);
+        } catch(e) {
+            vcRemoveTyping(typingId);
+            vcAddMsg('bot', `⚠ï¸ **API-fel:** ${e.message}\n\nKontrollera din API-nyckel och försök igen.`);
+        }
+    }
+
+    function vcDemoResponse(text) {
+        const t = text.toLowerCase();
+        if (t.includes('svag') || t.includes('länk') || t.includes('risk')) {
+            return `**ðŸ” Svagheter i värdekedjan – typiska mönster i Verksamhetsbranschen:**\n\n**Kritiska svagheter:**\n- **Operations:** Reaktivt underhåll driver 30-40% högre kostnader vs. prediktivt\n- **Inbound Logistics:** Manuell datainsamling skapar informationsluckor och fördröjningar\n- **HR & Kompetens:** Digital kompetensbrist bromsar digitaliseringsinitiativ\n\n**Affärskonsekvens:** Dessa tre aktiviteter är typiskt ansvariga för 60-70% av onödiga driftskostnader.\n\n💡 Fyll i dina fält och aktivera kontextläsning för en analys av just din värdekedja.`;
+        }
+        if (t.includes('digital') || t.includes('ai') || t.includes('teknik')) {
+            return `**⚡ Digitaliseringspotential i Verksamhetsvärdekedjan:**\n\n**Högst ROI:**\n1. **IoT + Prediktivt underhåll** → 20-35% lägre underhållskostnader\n2. **Automatiserad hyresgästkommunikation** → +15-25% NPS, lägre churn\n3. **AI-driven energioptimering** → 15-30% energibesparing (ESG + kostnad)\n4. **Digital arbetsorderhantering** → 40% kortare handläggningstid\n\n**Rekommendation:** Börja med Operations och Service – snabbast payback och direkt impact på Customer retention.`;
+        }
+        if (t.includes('esg') || t.includes('hållbar') || t.includes('klimat')) {
+            return `**🌱 ESG & Hållbarhet i värdekedjan:**\n\n**Regulatoriska krav 2024-2026:**\n- CSRD: Obligatorisk hållbarhetsrapportering för medelstora Verksamhetsbolag\n- EU Taxonomy: Klassificering av hållbara tillgångar påverkar finansieringskostnad\n- EPBD: Energiprestandadirektivet kräver renovering av sämsta beståndet\n\n**Värdekedjeaktiviteter med störst ESG-impact:**\n- **Inköp & Upphandling:** Hållbarhetskrav i leverantörsavtal\n- **Operations:** Energieffektivisering och avfallshantering\n- **Teknikutveckling:** IoT för realtidsövervakning av energi och miljö\n\n**Business case:** Gröna certifieringar (BREEAM/LEED) ger 5-15% hyrespremium.`;
+        }
+        if (t.includes('90') || t.includes('plan') || t.includes('åtgärd')) {
+            return `**📅 90-dagarsplan – Stärk värdekedjan:**\n\n**Dag 1-30: Kartlägg & Prioritera**\n- Genomför gap-analys av alla 10 aktiviteter\n- Identifiera top 3 värdeförstörande aktiviteter\n- Sätt KPI:er per aktivitet\n\n**Dag 31-60: Snabbvinster**\n- Digitalisera arbetsorderhantering (Operations)\n- Implementera automatiserade hyresgästpåminnelser (Service)\n- Starta energiövervakning via befintliga mätare (Inbound)\n\n**Dag 61-90: Strategiska initiativ**\n- Upphandla IoT-plattform för prediktivt underhåll\n- Lansera hyresgästportal med självservice\n- Presentera ROI-rapport för styrelsen\n\n**Förväntad effekt:** 10-20% kostnadsreduktion inom 12 månader.`;
+        }
+        return `**💡 Value Chain AI-assistent – Demo-läge**\n\nJag är redo att analysera din värdekedja! För att ge dig personaliserade insikter behöver du:\n\n1. **Lägg till din OpenAI API Key** (klicka på API-knappen i headern)\n2. **Fyll i dina aktiviteter** i canvasen\n3. **Aktivera kontextläsning** i assistenten\n\nI demo-läge kan jag svara på generella frågor om:\n- ðŸ” Svagheter och risker i värdekedjan\n- ⚡ Digitaliseringsmöjligheter\n- 🌱 ESG och hållbarhet\n- 📅 Handlingsplaner och prioriteringar\n- 💰 Kostnadsoptimering\n\nVad vill du veta mer om?`;
+    }
+
+    function vcAddMsg(type, text) {
+        const msgs = document.getElementById('vc-messages');
+        const div = document.createElement('div');
+        div.className = `vc-msg vc-${type}`;
+        const icon = document.createElement('div');
+        icon.className = 'vc-icon';
+        icon.innerHTML = type === 'bot' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
+        const bubble = document.createElement('div');
+        bubble.className = 'vc-bubble';
+        bubble.innerHTML = vcFormatText(text);
+        div.appendChild(icon);
+        div.appendChild(bubble);
+        msgs.appendChild(div);
+        msgs.scrollTop = msgs.scrollHeight;
+        return div;
+    }
+
+    function vcAddTyping() {
+        const msgs = document.getElementById('vc-messages');
+        const div = document.createElement('div');
+        div.className = 'vc-msg vc-bot';
+        div.id = 'vc-typing-' + Date.now();
+        const icon = document.createElement('div');
+        icon.className = 'vc-icon';
+        icon.innerHTML = '<i class="fas fa-robot"></i>';
+        const bubble = document.createElement('div');
+        bubble.className = 'vc-bubble';
+        bubble.innerHTML = '<div class="vc-typing"><span></span><span></span><span></span></div>';
+        div.appendChild(icon);
+        div.appendChild(bubble);
+        msgs.appendChild(div);
+        msgs.scrollTop = msgs.scrollHeight;
+        return div.id;
+    }
+
+    function vcRemoveTyping(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+    }
+
+    function vcFormatText(text) {
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^### (.*$)/gim, '<h4>$1</h4>')
+            .replace(/^## (.*$)/gim, '<h4>$1</h4>')
+            .replace(/^- (.*$)/gim, '<li>$1</li>')
+            .replace(/^\* (.*$)/gim, '<li>$1</li>')
+            .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+            .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
+            .replace(/\n{2,}/g, '</p><p>')
+            .replace(/\n/g, '<br>');
+    }
+    // === VC AI ASSISTANT JS END ===
+
+    // EA Platform Chat Functions
+    function initChatSidebarResize() {
+        const handle = document.getElementById('chat-resize-handle');
+        const panel = document.getElementById('ai-chat-panel');
+        if (!handle || !panel) return;
+        let startX, startW;
+
+        const saved = parseInt(localStorage.getItem('vc_sidebar_w') || '0', 10);
+        if (saved >= 280 && saved <= 800) applySidebarWidth(saved);
+
+        handle.addEventListener('mousedown', (e) => {
+            startX = e.clientX;
+            startW = panel.offsetWidth;
+            handle.classList.add('dragging');
+            document.body.style.userSelect = 'none';
+            document.body.style.cursor = 'col-resize';
+
+            function onMove(ev) {
+                const diff = startX - ev.clientX;
+                const newW = Math.max(280, Math.min(800, startW + diff));
+                applySidebarWidth(newW);
+            }
+            function onUp() {
+                localStorage.setItem('vc_sidebar_w', panel.offsetWidth);
+                handle.classList.remove('dragging');
+                document.body.style.userSelect = '';
+                document.body.style.cursor = '';
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+    }
+
+    function applySidebarWidth(w) {
+        const panel = document.getElementById('ai-chat-panel');
+        if (!panel) return;
+        panel.style.width = w + 'px';
+        const style = document.getElementById('_sidebar-width-style') || (() => {
+            const s = document.createElement('style');
+            s.id = '_sidebar-width-style';
+            document.head.appendChild(s);
+            return s;
+        })();
+        style.textContent = `body.chat-sidebar-open #main-content{margin-right:${w}px!important;}`;
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        initChatSidebarResize();
+    });
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'k') {
+            e.preventDefault();
+            toggleChatPanel();
+        }
+        if (e.key === 'Enter' && e.target.id === 'chat-input' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    function escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function parseMarkdown(text) {
+        if (!text) return '';
+        let t = escapeHtml(text);
+        
+        t = t.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+        t = t.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff;font-weight:700;">$1</strong>');
+        t = t.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        t = t.replace(/`([^`]+)`/g, '<code style="font-family:monospace;background:#1a1a1a;padding:2px 6px;border-radius:4px;font-size:12px;color:#66d9ef;font-weight:500;border:1px solid #404040;">$1</code>');
+        
+        const lines = t.split('\n');
+        const out = [];
+        let inUL = false, inOL = false, inCodeBlock = false, codeLines = [];
+        
+        const closeList = () => {
+            if (inUL) { out.push('</ul>'); inUL = false; }
+            if (inOL) { out.push('</ol>'); inOL = false; }
+        };
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmed = line.trim();
+            
+            if (trimmed.startsWith('```')) {
+                if (!inCodeBlock) {
+                    closeList();
+                    inCodeBlock = true;
+                    codeLines = [];
+                    continue;
+                } else {
+                    const codeContent = codeLines.join('\n');
+                    out.push(`<pre style="background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;margin:10px 0;overflow-x:auto;font-size:10px;line-height:1.6;font-family:monospace;"><code>${codeContent}</code></pre>`);
+                    inCodeBlock = false;
+                    continue;
+                }
+            }
+            
+            if (inCodeBlock) {
+                codeLines.push(line);
+                continue;
+            }
+            
+            const h3m = trimmed.match(/^### (.+)$/);
+            const h2m = trimmed.match(/^## (.+)$/);
+            const h1m = trimmed.match(/^# (.+)$/);
+            if (h1m || h2m || h3m) {
+                closeList();
+                if (h3m) out.push(`<div style="font-size:14px;font-weight:600;color:#b0b0b0;margin:16px 0 8px;">${h3m[1]}</div>`);
+                else if (h2m) out.push(`<div style="font-size:15px;font-weight:700;color:#e0e0e0;border-bottom:2px solid #0066cc;padding-bottom:6px;margin:18px 0 10px;">${h2m[1]}</div>`);
+                else out.push(`<div style="font-size:16px;font-weight:700;color:#ffffff;margin:20px 0 10px;">${h1m[1]}</div>`);
+                continue;
+            }
+            
+            if (/^---+$/.test(trimmed)) {
+                closeList();
+                out.push('<hr style="border:none;border-top:1px solid #404040;margin:14px 0;">');
+                continue;
+            }
+            
+            const quotem = trimmed.match(/^> (.+)$/);
+            if (quotem) {
+                closeList();
+                out.push(`<div style="border-left:3px solid #0066cc;background:#1a1a1a;padding:10px 14px;margin:10px 0;border-radius:4px;font-style:italic;color:#b0b0b0;">${quotem[1]}</div>`);
+                continue;
+            }
+            
+            const ulm = trimmed.match(/^[-*—] (.+)$/);
+            if (ulm) {
+                if (!inUL) { closeList(); out.push('<ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">'); inUL = true; }
+                out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${ulm[1]}</li>`);
+                continue;
+            }
+            
+            const olm = trimmed.match(/^\d+\.\s(.+)$/);
+            if (olm) {
+                if (!inOL) { closeList(); out.push('<ol style="margin:8px 0;padding-left:22px;color:#b0b0b0;">'); inOL = true; }
+                out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${olm[1]}</li>`);
+                continue;
+            }
+            
+            if (trimmed === '') {
+                closeList();
+                out.push('<div style="height:10px;"></div>');
+                continue;
+            }
+            
+            closeList();
+            out.push(`<p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">${trimmed}</p>`);
+        }
+        
+        closeList();
+        return out.join('');
+    }
+    
+    function sendMessage() {
+        const input = document.getElementById('chat-input');
+        const message = input.value.trim();
+        if (!message) return;
+        
+        addChatMessage(message, 'user');
+        input.value = '';
+        processAIRequest(message);
+    }
+    
+    function clearChat() {
+        const messagesDiv = document.getElementById('chat-messages');
+        messagesDiv.innerHTML = '<div class="chat-message assistant-message"><div class="message-content"><div class="message-text"><strong style="color:#ffffff;font-weight:700;">Chat cleared</strong><div style="height:10px;"></div><p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">Start a new conversation about your value chain.</p></div></div></div>';
+    }
+    
+    function addChatMessage(text, role) {
+        const messagesDiv = document.getElementById('chat-messages');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `chat-message ${role}-message`;
+        
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
+        
+        const messageText = document.createElement('div');
+        messageText.className = 'message-text';
+        messageText.innerHTML = role === 'assistant' ? parseMarkdown(text) : escapeHtml(text);
+        
+        const messageTime = document.createElement('div');
+        messageTime.className = 'message-time';
+        messageTime.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        
+        messageContent.appendChild(messageText);
+        messageContent.appendChild(messageTime);
+        msgDiv.appendChild(messageContent);
+        messagesDiv.appendChild(msgDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+    
+    async function processAIRequest(userMessage) {
+        const apiKey = window.EA_CONFIG?.OPENAI_API_KEY || localStorage.getItem('advicy_openai_key');
+        
+        if (!apiKey) {
+            addChatMessage('No API key configured. Please set your OpenAI API key in EA Platform Settings.', 'assistant');
+            return;
+        }
+        
+        const thinkingDiv = document.createElement('div');
+        thinkingDiv.className = 'chat-message assistant-message';
+        thinkingDiv.innerHTML = '<div class="message-content"><div class="message-text"><i class="fas fa-spinner fa-spin"></i> Thinking...</div></div>';
+        thinkingDiv.id = 'thinking-indicator';
+        document.getElementById('chat-messages').appendChild(thinkingDiv);
+        
+        try {
+            const vcData = {};
+            fields.forEach(f => {
+                const el = document.getElementById(f);
+                if (el && el.value.trim()) vcData[fieldLabels[f]] = el.value.trim();
+            });
+            const context = `Current Value Chain: ${JSON.stringify(vcData, null, 2)}`;
+            
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are an expert in value chain analysis, Porter Value Chain model, and business optimization. Help users analyze their value chain activities, identify optimization opportunities, assess digitalization potential, and provide actionable insights. Be concise, actionable, and insightful.'
+                        },
+                        {
+                            role: 'user',
+                            content: `${userMessage}\n\nContext:\n${context}`
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 800
+                })
+            });
+            
+            const data = await response.json();
+            document.getElementById('thinking-indicator')?.remove();
+            
+            if (data.choices && data.choices[0]) {
+                addChatMessage(data.choices[0].message.content, 'assistant');
+            } else {
+                addChatMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+            }
+            
+        } catch (error) {
+            document.getElementById('thinking-indicator')?.remove();
+            addChatMessage('Error: ' + error.message, 'assistant');
+        }
+    }
+
+    window.onload = () => {
+        updateApiStatus();
+        checkIntegrationStatus();
+        renderVcContextBadge();
+
+        const params = new URLSearchParams(window.location.search);
+        const forceFromBmc = params.get('from') === 'bmc' || params.get('refresh') === '1';
+
+        if (params.get('from') === 'workshop') {
+            const wctx = JSON.parse(localStorage.getItem('vc_workshop_context') || '{}');
+            if (wctx.org || wctx.industry) {
+                setTimeout(() => showToast('✓ Workshop-data inläst: ' + (wctx.org || '') + (wctx.scope ? ' – ' + wctx.scope : '')), 600);
+            }
+        }
+
+        const saved = localStorage.getItem('valuechain_v2');
+        if (saved) {
+            try {
+                const d = JSON.parse(saved);
+                fields.forEach(f => { if (d[f]) document.getElementById(f).value = d[f]; });
+            } catch(e) {}
+        }
+
+        const imported = importFromBmcIntegration(!forceFromBmc, forceFromBmc);
+        if (forceFromBmc && imported) {
+            const bmc = dataManager ? dataManager.getIntegrationData('bmc_latest') : null;
+            if (bmc && getApiKey()) {
+                autoFillVcFromBmcContext(bmc);
+            } else {
+                const variantParam = (params.get('variant') || '').toLowerCase();
+                const variantLabel = variantParam === 'to-be' ? 'TO BE' : variantParam === 'as-is' ? 'AS IS' : 'senaste BMC';
+                showToast(`✓ Synkade ${variantLabel} från BMC till Value Chain`);
+            }
+        }
+
+        const savedDraft = localStorage.getItem('valuechain_tobe_state_v1');
+        if (savedDraft) {
+            try {
+                const parsed = JSON.parse(savedDraft);
+                vcAsIsSnapshotBeforeToBe = parsed.asIsSnapshotBeforeToBe || null;
+                vcToBeDraft = parsed.vcToBeDraft || null;
+                vcFinalToBe = parsed.vcFinalToBe || null;
+                vcToBeUsersUpdated = !!parsed.vcToBeUsersUpdated;
+                setVcMode(parsed.vcMode || 'as-is');
+                if (vcMode === 'to-be') {
+                    document.getElementById('vc-restore-asis-btn')?.classList.remove('hidden');
+                    if (vcFinalToBe?.finalizedAt) {
+                        showVcModeBanner(`TO BE konsoliderad ${new Date(vcFinalToBe.finalizedAt).toLocaleString()} och aktiv for synk.`);
+                    } else {
+                        showVcModeBanner('TO BE-utkast aktivt. Granska och konsolidera innan synk till nasta verktyg.');
+                    }
+                }
+            } catch (_) {}
+        }
+
+        // Show badge after 3s to invite user
+        setTimeout(() => {
+            if (!vcOpen) {
+                const badge = document.getElementById('vc-badge');
+                if (badge) badge.style.display = 'flex';
+            }
+        }, 3000);
+    };
+
+    const originalSaveData = saveData;
+    saveData = function saveDataWrapped() {
+        const result = originalSaveData.apply(this, arguments);
+        try {
+            localStorage.setItem('valuechain_tobe_state_v1', JSON.stringify({
+                asIsSnapshotBeforeToBe: vcAsIsSnapshotBeforeToBe,
+                vcToBeDraft,
+                vcFinalToBe,
+                vcToBeUsersUpdated,
+                vcMode
+            }));
+        } catch (_) {}
+        return result;
+    };
+</script>
+</div><!-- Close wrapper div -->
+</body>
+</html>
+

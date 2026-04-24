@@ -1,0 +1,1695 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Enterprise Architecture Platform - V3 Integrated</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" />
+<script src="../js/EA_Config.js"></script>
+<script src="../js/EA_DataManager.js"></script>
+<script src="../js/EA_SyncEngine.js"></script>
+<script src="../js/EA_FileManager.js"></script>
+<script src="js/EA_IntegrationEngine.js"></script>
+<style>
+  body{font-family:system-ui,sans-serif;}
+  .spinner{border:2px solid #e2e8f0;border-top:2px solid #3b82f6;border-radius:50%;width:14px;height:14px;animation:spin .8s linear infinite;display:inline-block;vertical-align:middle;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .m1{background:#fee2e2;color:#7f1d1d;} .m2{background:#ffedd5;color:#7c2d12;} .m3{background:#fef9c3;color:#713f12;} .m4{background:#dcfce7;color:#14532d;} .m5{background:#dbeafe;color:#1e3a8a;}
+  .cap-card{border-left:4px solid #10b981;background:#ecfdf5;}
+  .sys-card{border-left:4px solid #8b5cf6;background:#f5f3ff;}
+  .value-card{border-left:4px solid #3b82f6;background:#eff6ff;}
+  .ai-card{border-left:4px solid #06b6d4;background:#ecfeff;}
+  .layer-item{border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .tab-btn{transition:all .2s;}
+  .tab-btn.active{background:#2563eb;color:white;}
+  .tab-btn:not(.active){color:#64748b;}
+  .tab-btn:not(.active):hover{background:#f1f5f9;}
+  #network{height:480px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;}
+  .omcell{border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:white;min-height:90px;}
+  .omcell-title{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;}
+  .omcell-body{font-size:11px;color:#374151;line-height:1.5;}
+  .impact-ring{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;margin:2px;}
+  .phase-col{border-radius:12px;padding:12px;}
+  .kpi-card{border-radius:12px;padding:14px;background:white;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
+  
+  /* ── Dashboard Toolkit Cards Styling ── */
+  .tools-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;margin-top:24px;}
+  .tool-card{background:white;border-radius:16px;box-shadow:0 4px 6px rgba(0,0,0,0.07);overflow:hidden;transition:transform .3s,box-shadow .3s;}
+  .tool-card:hover{transform:translateY(-4px);box-shadow:0 12px 24px rgba(0,0,0,0.12);}
+  .card-header{padding:20px;color:white;position:relative;min-height:110px;}
+  .card-header.navy{background:linear-gradient(135deg,#1e293b 0%,#0f766e 100%);}
+  .card-header.blue{background:linear-gradient(135deg,#1e3a8a 0%,#1a56db 100%);}
+  .card-header.purple{background:linear-gradient(135deg,#581c87 0%,#7c3aed 100%);}
+  .card-header.gold{background:linear-gradient(135deg,#854d0e 0%,#d97706 100%);}
+  .card-step-badge{position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.25);color:white;padding:4px 10px;border-radius:20px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;}
+  .card-icon{font-size:32px;margin-bottom:8px;}
+  .card-title{font-size:18px;font-weight:700;margin-bottom:4px;}
+  .card-subtitle{font-size:11px;opacity:0.9;font-weight:500;letter-spacing:0.03em;}
+  .card-body{padding:20px;}
+  .card-desc{font-size:12px;color:#475569;line-height:1.6;margin-bottom:16px;}
+  .card-section-label{font-size:10px;font-weight:800;text-transform:uppercase;color:#94a3b8;letter-spacing:0.08em;margin-bottom:8px;}
+  .instruction-list{list-style:none;padding:0;margin:0 0 16px 0;}
+  .instruction-list li{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;font-size:12px;color:#334155;line-height:1.5;}
+  .bullet{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:10px;flex-shrink:0;}
+  .bullet.b-teal{background:#0d9488;}
+  .bullet.b-blue{background:#1a56db;}
+  .bullet.b-purple{background:#7c3aed;}
+  .bullet.b-gold{background:#d97706;}
+  .scenario-box{background:#f8fafc;border-left:4px solid #cbd5e1;border-radius:8px;padding:14px;margin-top:4px;}
+  .scenario-title{font-size:11px;font-weight:700;color:#334155;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+  .scenario-text{font-size:11px;color:#475569;line-height:1.6;margin-bottom:10px;}
+  .outcome-tags{display:flex;flex-wrap:wrap;gap:6px;}
+  .outcome-tag{display:inline-block;padding:4px 10px;border-radius:12px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;}
+  .outcome-tag.tag-teal{background:#ccfbf1;color:#0f766e;}
+  .outcome-tag.tag-green{background:#dcfce7;color:#166534;}
+  .outcome-tag.tag-blue{background:#dbeafe;color:#1e40af;}
+  .outcome-tag.tag-purple{background:#f3e8ff;color:#6b21a8;}
+  .outcome-tag.tag-orange{background:#fed7aa;color:#9a3412;}
+  .card-footer{padding:16px 20px;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid #e2e8f0;}
+  .ai-badge{font-size:10px;color:#64748b;font-weight:600;display:flex;align-items:center;gap:4px;}
+  .open-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;color:white;transition:all .2s;}
+  .open-btn.teal{background:#0d9488;}
+  .open-btn.teal:hover{background:#0f766e;}
+  .open-btn.blue{background:#1a56db;}
+  .open-btn.blue:hover{background:#1e40af;}
+  .open-btn.purple{background:#7c3aed;}
+  .open-btn.purple:hover{background:#6b21a8;}
+  .open-btn.gold{background:#d97706;}
+  .open-btn.gold:hover{background:#b45309;}
+  .sync-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:8px;font-size:12px;font-weight:700;background:white;border:2px solid currentColor;transition:all .2s;cursor:pointer;}
+  .sync-btn.teal{color:#0d9488;}
+  .sync-btn.teal:hover{background:#f0fdfa;}
+  .sync-btn.blue{color:#1a56db;}
+  .sync-btn.blue:hover{background:#eff6ff;}
+  .sync-btn.purple{color:#7c3aed;}
+  .sync-btn.purple:hover{background:#f5f3ff;}
+  .sync-btn.gold{color:#d97706;}
+  .sync-btn.gold:hover{background:#fffbeb;}
+  
+  /* ── Integration Dashboard Styles ── */
+  .integration-status-badge{display:inline-block;padding:3px 8px;border-radius:12px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;}
+  #integration-bmc:hover, #integration-valuechain:hover, #integration-capability:hover, #integration-strategy:hover{box-shadow:0 4px 12px rgba(0,0,0,0.08);border-color:#94a3b8;transition:all 0.2s;}
+  button[disabled]{opacity:0.5;cursor:not-allowed;}
+
+  /* ── Phase 1: Conversational EA Assistant ── */
+  #ai-chat-panel{position:fixed;bottom:20px;right:20px;width:400px;max-height:600px;background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,0.2);display:flex;flex-direction:column;z-index:9999;transition:all .25s ease;overflow:hidden;}
+  #ai-chat-panel.hidden{display:none;}
+  #ai-chat-panel.minimized{height:60px;max-height:60px;}
+  #chat-header{background:linear-gradient(135deg,#1e293b 0%,#2563eb 100%);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;}
+  #chat-header-title{font-size:13px;font-weight:700;letter-spacing:0.02em;display:flex;align-items:center;gap:8px;}
+  #chat-controls{display:flex;gap:8px;}
+  #chat-controls button{width:26px;height:26px;border:none;border-radius:6px;background:rgba(255,255,255,0.18);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;}
+  #chat-controls button:hover{background:rgba(255,255,255,0.28);}
+  #chat-messages{flex:1;overflow-y:auto;padding:14px;background:#f8fafc;display:flex;flex-direction:column;gap:10px;}
+  .chat-message{display:flex;gap:8px;animation:chatSlideIn .25s ease;}
+  @keyframes chatSlideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+  .message-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;}
+  .assistant-message .message-avatar{background:#1d4ed8;color:#fff;}
+  .user-message .message-avatar{background:#0f172a;color:#fff;}
+  .message-content{display:flex;flex-direction:column;gap:4px;max-width:320px;}
+  .message-text{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px;font-size:12px;line-height:1.45;color:#0f172a;white-space:normal;word-break:break-word;}
+  .user-message{flex-direction:row-reverse;}
+  .user-message .message-content{align-items:flex-end;}
+  .user-message .message-text{background:#1e293b;color:#fff;border-color:#1e293b;}
+  .message-time{font-size:10px;color:#64748b;padding:0 2px;}
+  .message-actions button{margin-top:4px;background:#2563eb;color:#fff;border:none;border-radius:7px;padding:5px 9px;font-size:10px;cursor:pointer;}
+  .message-actions button:hover{background:#1d4ed8;}
+  #chat-input-container{display:flex;gap:8px;padding:10px;background:#fff;border-top:1px solid #e2e8f0;}
+  #chat-input{flex:1;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:12px;resize:none;height:56px;outline:none;}
+  #chat-input:focus{border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,0.2);}
+  #send-chat{width:40px;height:40px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  #send-chat:hover{background:#1d4ed8;}
+  #chat-toggle{position:fixed;bottom:20px;right:20px;width:58px;height:58px;border:none;border-radius:999px;background:linear-gradient(135deg,#0f172a 0%,#2563eb 100%);color:#fff;box-shadow:0 10px 26px rgba(15,23,42,0.35);cursor:pointer;z-index:9998;font-size:22px;display:flex;align-items:center;justify-content:center;}
+  #chat-toggle:hover{transform:translateY(-1px) scale(1.04);}
+  #chat-toggle .badge{position:absolute;top:-4px;right:-3px;background:#dc2626;color:#fff;border-radius:999px;min-width:22px;height:22px;padding:0 6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;}
+  .typing-indicator{display:flex;gap:4px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px;}
+  .typing-indicator span{width:6px;height:6px;border-radius:999px;background:#94a3b8;animation:typing 1.3s infinite ease-in-out;}
+  .typing-indicator span:nth-child(2){animation-delay:.2s;}
+  .typing-indicator span:nth-child(3){animation-delay:.4s;}
+  @keyframes typing{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-4px);}}
+
+  @media (max-width:768px){
+    #ai-chat-panel{left:10px;right:10px;bottom:10px;width:auto;max-height:68vh;}
+    #chat-toggle{right:12px;bottom:12px;}
+    .message-content{max-width:240px;}
+  }
+</style>
+<script src="../../AzureOpenAIProxy.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen">
+
+<!-- HEADER -->
+<header class="bg-gradient-to-r from-slate-900 to-blue-900 text-white px-5 py-3 flex items-center justify-between shadow-lg">
+  <div class="flex items-center gap-3">
+        <button onclick="openReportModal()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shadow-sm border border-slate-700">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          Generera Styrelserapport
+        </button>
+    <div class="bg-blue-500 rounded-lg w-9 h-9 flex items-center justify-center font-bold text-sm">EA</div>
+    <div>
+      <div class="font-bold text-base leading-tight flex items-center gap-2">AI Enterprise Architecture Platform <span class="bg-green-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold">V3</span></div>
+      <div class="text-blue-300 text-xs">Strategy · Business Outcomes · ROI · Integrated Toolkits</div>
+    </div>
+  </div>
+  <div class="flex gap-2">
+    <button onclick="showApiModal()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs px-3 py-1.5 rounded-lg border border-slate-600">⚙ API Key</button>
+    <button onclick="newModel()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs px-3 py-1.5 rounded-lg border border-slate-600">📄 New</button>
+    <button onclick="saveModelToDB()" class="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold">💾 Save</button>
+    <button onclick="loadModelFromDB()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold">📂 Load</button>
+    <button onclick="exportModel()" class="bg-white text-slate-900 text-xs px-3 py-1.5 rounded-lg font-semibold hover:bg-blue-50">↓ Export</button>
+    <label class="bg-slate-700 hover:bg-slate-600 text-white text-xs px-3 py-1.5 rounded-lg cursor-pointer border border-slate-600">↑ Import<input type="file" class="hidden" onchange="importModel(event)" accept=".json"></label>
+  </div>
+</header>
+
+<!-- API MODAL -->
+<div id="apiModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+  <div class="bg-white rounded-2xl p-6 w-96 shadow-2xl">
+    <h3 class="font-bold text-lg mb-1">OpenAI API Key</h3>
+    <p class="text-xs text-slate-500 mb-4">Managed securely by Azure Function. Client-side key not needed.</p>
+    <div style="padding:8px;background:#f0f9ff;border:1px solid #0ea5e9;border-radius:4px;font-size:12px;color:#0369a1;">API Key Management: Handled securely by Azure Proxy. No client-side key needed.</div>
+    <div class="flex gap-2">
+      <button onclick="saveApiKey()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold text-sm">Save</button>
+      <button onclick="closeApiModal()" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-lg font-bold text-sm">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT LAYER ITEM MODAL -->
+<div id="editLayerModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+  <div class="bg-white rounded-2xl p-6 w-[500px] shadow-2xl">
+    <h3 class="font-bold text-lg mb-3" id="editLayerTitle">Edit Item</h3>
+    <div id="editLayerForm" class="space-y-3">
+      <!-- Form fields will be dynamically generated -->
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button onclick="saveLayerItem()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold text-sm">Save</button>
+      <button onclick="closeEditLayerModal()" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-lg font-bold text-sm">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXCEL IMPORT/EXPORT MODAL -->
+<div id="excelModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+  <div class="bg-white rounded-2xl p-6 w-[600px] shadow-2xl">
+    <h3 class="font-bold text-lg mb-1">Excel Import/Export</h3>
+    <p class="text-xs text-slate-500 mb-4">Export architecture layers to Excel (CSV format) or import from template</p>
+    
+    <div class="space-y-3">
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="font-bold text-sm mb-2">📤 Export to Excel</div>
+        <div class="text-xs text-slate-600 mb-3">Download all architecture layers as CSV file (opens in Excel)</div>
+        <button onclick="exportToExcel()" class="bg-blue-600 text-white text-xs px-4 py-2 rounded-lg font-bold hover:bg-blue-700 w-full">Download Excel Template</button>
+      </div>
+      
+      <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div class="font-bold text-sm mb-2">📥 Import from Excel</div>
+        <div class="text-xs text-slate-600 mb-3">Upload CSV file with architecture data (must match template format)</div>
+        <label class="bg-green-600 text-white text-xs px-4 py-2 rounded-lg font-bold hover:bg-green-700 w-full block text-center cursor-pointer">
+          Select Excel File
+          <input type="file" id="excelImportFile" class="hidden" accept=".csv,.xlsx" onchange="importFromExcel(event)">
+        </label>
+      </div>
+      
+      <div class="text-xs text-slate-500 bg-slate-50 p-3 rounded">
+        <strong>Template Format:</strong>
+        <ul class="list-disc list-inside mt-1 space-y-1">
+          <li>Value Streams: name, description</li>
+          <li>Capabilities: name, domain, maturity, strategicImportance, description</li>
+          <li>Systems: name, status, category, description</li>
+          <li>AI Agents: name, purpose, capabilities, triggerConditions</li>
+        </ul>
+      </div>
+    </div>
+    
+    <button onclick="closeExcelModal()" class="mt-4 bg-slate-100 text-slate-700 py-2 rounded-lg font-bold text-sm w-full">Close</button>
+  </div>
+</div>
+
+<!-- NEW PROJECT MODAL -->
+<div id="newProjectModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+  <div class="bg-white rounded-2xl p-6 w-[500px] shadow-2xl">
+    <h3 class="font-bold text-lg mb-1">📄 Create New Project</h3>
+    <p class="text-xs text-slate-500 mb-4">Start a new EA 2.0 architecture model. All unsaved changes to the current project will be lost.</p>
+    
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-bold mb-1.5">Project Name *</label>
+        <input 
+          id="newProjectName" 
+          type="text" 
+          placeholder="e.g., Digital Transformation 2024" 
+          class="w-full border rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          onkeypress="if(event.key==='Enter') createNewProject()"
+        >
+      </div>
+      
+      <div>
+        <label class="block text-sm font-bold mb-1.5">Description (optional)</label>
+        <textarea 
+          id="newProjectDescription" 
+          placeholder="Brief description of project scope and objectives..." 
+          class="w-full border rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 h-20 resize-none"
+        ></textarea>
+      </div>
+      
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-slate-600">
+        <strong>💡 Tip:</strong> Your project will be automatically saved and backed up every 5 minutes. You can access it anytime from the "💾 Load" menu.
+      </div>
+    </div>
+    
+    <div class="flex gap-2 mt-6">
+      <button onclick="createNewProject()" class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-bold text-sm hover:bg-blue-700">Create Project</button>
+      <button onclick="closeNewProjectModal()" class="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-lg font-bold text-sm hover:bg-slate-200">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="p-3 grid gap-3" style="grid-template-columns:270px 1fr 270px;min-height:calc(100vh - 60px);">
+
+  <!-- LEFT PANEL -->
+  <div class="flex flex-col gap-3">
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
+      <div class="text-xs font-bold uppercase text-slate-400 tracking-wide mb-2">Organisation Description</div>
+      <textarea id="description" class="w-full border border-slate-200 rounded-lg p-2.5 text-xs h-24 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="E.g. Industry-specific owner/operator with multi-site portfolio, mixed-use buildings, and a legacy domain operations stack..."></textarea>
+      <div class="mt-3 p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+        <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">Phase 4: Industry & Business Areas</div>
+        <div class="grid grid-cols-1 gap-2">
+          <div>
+            <label class="text-[10px] text-slate-600 font-semibold block mb-1">Industry Profile</label>
+            <select id="phase4-industry-select" class="w-full text-[11px] border rounded p-1.5" onchange="setIndustryProfile(this.value)">
+              <option value="generic">Generic</option>
+              <option value="industry-specific">Industry-specific</option>
+              <option value="banking">Banking</option>
+              <option value="healthcare">Healthcare</option>
+              <option value="public-sector">Public Sector</option>
+              <option value="retail">Retail</option>
+              <option value="insurance">Insurance</option>
+            </select>
+          </div>
+          <div>
+            <div class="text-[10px] text-slate-600 font-semibold mb-1">Active Business Areas</div>
+            <div id="phase4-area-toggles" class="grid grid-cols-2 gap-1 text-[10px]"></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-1.5 mt-3">
+        <button onclick="generateArchitecture()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs py-2 rounded-lg font-bold flex items-center justify-center gap-1 col-span-2"><span id="s1" class="spinner hidden"></span>Generate Architecture</button>
+        <button onclick="generateCapabilityMap()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs py-2 rounded-lg font-semibold flex items-center justify-center gap-1"><span id="s2" class="spinner hidden"></span>Capability Map</button>
+        <button onclick="generateOperatingModel()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs py-2 rounded-lg font-semibold flex items-center justify-center gap-1"><span id="s3" class="spinner hidden"></span>Op Model</button>
+        <button onclick="analyseMaturity()" class="bg-orange-500 hover:bg-orange-600 text-white text-xs py-2 rounded-lg font-semibold flex items-center justify-center gap-1"><span id="s4" class="spinner hidden"></span>Maturity</button>
+        <button onclick="analyseGaps()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs py-2 rounded-lg font-semibold flex items-center justify-center gap-1"><span id="s5" class="spinner hidden"></span>Gap Analysis</button>
+        <button onclick="generateTargetArch()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs py-2 rounded-lg font-semibold flex items-center justify-center gap-1"><span id="s6" class="spinner hidden"></span>Target Arch</button>
+        <button onclick="generateRoadmap()" class="bg-green-600 hover:bg-green-700 text-white text-xs py-2 rounded-lg font-bold flex items-center justify-center gap-1 col-span-2"><span id="s7" class="spinner hidden"></span>Generate Transformation Roadmap</button>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200 flex-1 overflow-y-auto" style="max-height:520px;">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-xs font-bold uppercase text-slate-400 tracking-wide">Architecture Layers</div>
+        <button onclick="showExcelImportExport()" class="text-[10px] bg-green-50 text-green-700 px-2 py-1 rounded border border-green-200 hover:bg-green-100 font-bold">📊 Excel</button>
+      </div>
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-1">
+          <div class="text-xs font-bold text-blue-600">Value Streams</div>
+          <button onclick="addLayerItem('valueStreams')" class="text-[9px] text-blue-600 hover:text-blue-800 font-bold">+ Add</button>
+        </div>
+        <div id="values"><div class="text-slate-300 text-xs">—</div></div>
+      </div>
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-1">
+          <div class="text-xs font-bold text-green-600">Capabilities</div>
+          <button onclick="addLayerItem('capabilities')" class="text-[9px] text-green-600 hover:text-green-800 font-bold">+ Add</button>
+        </div>
+        <div id="caps"><div class="text-slate-300 text-xs">—</div></div>
+      </div>
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-1">
+          <div class="text-xs font-bold text-purple-600">Systems</div>
+          <button onclick="addLayerItem('systems')" class="text-[9px] text-purple-600 hover:text-purple-800 font-bold">+ Add</button>
+        </div>
+        <div id="systems"><div class="text-slate-300 text-xs">—</div></div>
+      </div>
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <div class="text-xs font-bold text-cyan-600">AI Agents</div>
+          <button onclick="addLayerItem('aiAgents')" class="text-[9px] text-cyan-600 hover:text-cyan-800 font-bold">+ Add</button>
+        </div>
+        <div id="aiagents"><div class="text-slate-300 text-xs">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER PANEL -->
+  <div class="flex flex-col gap-3">
+    <!-- TABS -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-1 flex flex-wrap gap-1">
+      <button class="tab-btn active text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('exec',this)">Executive Summary</button>
+      <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('phase4',this)">Phase 4 Dashboard</button>
+	  <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('bench',this)">Benchmarking</button>
+	  <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('survey',this)">📋 Data Collection</button>
+      <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('capmap',this)">Capability Map</button>
+      <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('heatmap',this)">Heatmap</button>
+      <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('graph',this)">Dep. Graph</button>
+      <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('impact',this)">Impact Sim</button>
+      <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('cfo',this)">CFO View</button>
+      <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('opmodel',this)">Op Model</button>
+      <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('roadmap',this)">Roadmap</button>
+      <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('targetarch',this)">Target Arch</button>
+      <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('roadmapvis',this)">Roadmap Visual</button>
+      <div class="border-l border-slate-200 mx-1"></div>
+      <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200" onclick="showTab('toolkits',this)">🧰 Toolkits</button>
+    </div>
+
+    <!-- TAB CONTENT WRAPPER -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 p-4 overflow-y-auto" style="min-height:600px;">
+
+      <!-- CAPABILITY MAP -->
+	  <!-- Benchmarking and survay -->
+      <!-- BENCHMARKING (Phase 6) -->
+      <div id="tab-bench" class="hidden">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-sm font-bold text-slate-800">Bransch-Benchmarking & Gap-analys</div>
+          <select id="bench-peer" class="text-[10px] border rounded px-2 py-1" onchange="renderBenchmarking()">
+            <option value="Industry Peer Group A">Peer: Industry Peer Group A</option>
+            <option value="Global Asset Management">Peer: Global Asset Management</option>
+            <option value="Public Housing (Sweden)">Peer: Public Housing (Sweden)</option>
+          </select>
+        </div>
+        
+        <!-- Domain Descriptions -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <div class="text-[10px] font-bold text-blue-700 uppercase mb-2">Mognadsdomäner - Definitioner</div>
+          <div class="grid grid-cols-1 lg:grid-cols-5 gap-2 text-[8px] leading-relaxed">
+            <div>
+              <div class="font-bold text-slate-700">🔷 Digitalisation</div>
+              <div class="text-slate-600">Omfattning av digitala system, cloud-plattformar, API:er och moderna teknologier.</div>
+            </div>
+            <div>
+              <div class="font-bold text-slate-700">💡 Innovation</div>
+              <div class="text-slate-600">AI-adoption, automation, analytics och förmåga till teknologisk förnyelse.</div>
+            </div>
+            <div>
+              <div class="font-bold text-slate-700">🌱 Sustainability</div>
+              <div class="text-slate-600">ESG-capabilities, hållbarhetsinitiativ och miljöpåverkan.</div>
+            </div>
+            <div>
+              <div class="font-bold text-slate-700">⚙️ Process Optimisation</div>
+              <div class="text-slate-600">Processautomation, effektivisering och kontinuerlig förbättring.</div>
+            </div>
+            <div>
+              <div class="font-bold text-slate-700">📊 Data Governance</div>
+              <div class="text-slate-600">Datastyrning, datakvalitet, analytics och rapporteringscapabilities.</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="bg-white p-4 rounded-xl border shadow-sm flex flex-col items-center">
+            <div class="text-[10px] font-bold text-slate-500 mb-4 uppercase">Mognadsgrad vs Branschindex</div>
+            <canvas id="benchRadar" width="300" height="300"></canvas>
+          </div>
+          <div class="bg-white p-4 rounded-xl border shadow-sm">
+            <div class="text-[10px] font-bold text-slate-500 mb-2 uppercase">Strategiska Insikter & Opportunity Cost</div>
+            <div id="bench-insights" class="space-y-3 text-[11px]"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DATA COLLECTION (Phase 8) -->
+      <div id="tab-survey" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="text-sm font-bold text-slate-800">Data Collection & Survey Engine</div>
+            <div class="text-[10px] text-slate-500">Verifiera AI-estimat med verksamhetsdata och generera dynamiska mognadsenkater</div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="generateDynamicSurveys()" class="text-[10px] bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1 rounded border border-indigo-700 font-bold">Generate Surveys</button>
+            <button onclick="exportSurveyCSV()" class="text-[10px] bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded border font-bold">Export CSV</button>
+            <button onclick="document.getElementById('csv-import').click()" class="text-[10px] bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1 rounded border border-blue-200 font-bold">Import Data</button>
+            <input type="file" id="csv-import" class="hidden" accept=".csv" onchange="importCSVData(event)">
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-3 mb-4">
+          <div class="bg-white p-3 rounded-xl border shadow-sm">
+            <div class="text-[9px] font-bold text-slate-500 uppercase mb-1">Branch</div>
+            <select id="survey-branch" class="w-full text-[11px] border rounded p-1.5">
+              <option value="industry-specific">Industry-specific</option>
+              <option value="banking">Banking</option>
+              <option value="healthcare">Healthcare</option>
+              <option value="public-sector">Public Sector</option>
+              <option value="retail">Retail</option>
+              <option value="insurance">Insurance</option>
+              <option value="generic">Generic</option>
+            </select>
+          </div>
+          <div class="bg-white p-3 rounded-xl border shadow-sm">
+            <div class="text-[9px] font-bold text-slate-500 uppercase mb-1">Subject</div>
+            <select id="survey-subject" class="w-full text-[11px] border rounded p-1.5">
+              <option value="technology">Technology</option>
+              <option value="process">Process</option>
+              <option value="people">People</option>
+              <option value="data">Data</option>
+              <option value="governance">Governance</option>
+            </select>
+          </div>
+          <div class="bg-white p-3 rounded-xl border shadow-sm">
+            <div class="text-[9px] font-bold text-slate-500 uppercase mb-1">Business Area</div>
+            <select id="survey-business-area" class="w-full text-[11px] border rounded p-1.5">
+              <option value="general">General</option>
+              <option value="esg">ESG</option>
+              <option value="itsm">ITSM</option>
+              <option value="gdpr">GDPR</option>
+              <option value="cybersecurity">Cybersecurity</option>
+            </select>
+          </div>
+          <div class="bg-white p-3 rounded-xl border shadow-sm">
+            <div class="text-[9px] font-bold text-slate-500 uppercase mb-1">Stakeholder</div>
+            <input id="survey-stakeholder" class="w-full text-[11px] border rounded p-1.5" placeholder="Ex: CFO, COO, CISO">
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+          <div class="lg:col-span-1 bg-white p-4 rounded-xl border shadow-sm">
+            <div class="text-[10px] font-bold text-slate-500 mb-2 uppercase">Data Health Score</div>
+            <div id="survey-health-gauge" class="text-2xl font-black text-blue-600">0%</div>
+            <div class="text-[9px] text-slate-400 mt-1">Andel verifierade datapunkter</div>
+            <div class="mt-3 pt-3 border-t border-slate-100">
+              <div class="text-[9px] text-slate-500">Generated surveys: <span id="survey-generated-count" class="font-bold text-slate-700">0</span></div>
+              <div class="text-[9px] text-slate-500">Answered questions: <span id="survey-answered-count" class="font-bold text-slate-700">0</span></div>
+              <div class="text-[9px] text-slate-500">Last generated: <span id="survey-generated-at" class="font-bold text-slate-700">-</span></div>
+            </div>
+          </div>
+          <div class="lg:col-span-3 bg-white p-4 rounded-xl border shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-[10px] font-bold text-slate-500 uppercase">Verifierings-logg</div>
+              <div class="flex items-center gap-2">
+                <select id="survey-area-filter" class="text-[9px] border rounded" onchange="generateSurveyChecklists()">
+                  <option value="all">Alla Areas</option>
+                </select>
+                <select id="survey-domain-filter" class="text-[9px] border rounded" onchange="generateSurveyChecklists()">
+                  <option value="all">Alla Domäner</option>
+                </select>
+              </div>
+            </div>
+            <div id="survey-list" class="max-h-[400px] overflow-y-auto space-y-2"></div>
+          </div>
+        </div>
+      </div>
+      <!-- EXECUTIVE SUMMARY (Phase 2) -->
+	  <!-- Här hamnar de nya flikarna du klistrar in -->
+      <div id="tab-exec">
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-sm font-bold text-slate-800">Executive Summary & Strategic Alignment</div>
+          <div id="exec-status" class="text-[10px] font-bold px-2 py-1 rounded bg-blue-100 text-blue-700 uppercase tracking-wider">AI Analysis Active</div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4 mb-6">
+          <div class="kpi-card bg-gradient-to-br from-white to-blue-50 border-blue-200">
+            <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">Strategic Alignment</div>
+            <div class="text-3xl font-black text-blue-600" id="exec-alignment">0%</div>
+            <div class="text-[10px] text-slate-400 mt-1">Capability vs. Strategy Fit</div>
+            <div class="text-[9px] text-slate-500 mt-2 leading-relaxed border-t border-blue-100 pt-2">
+              Measures how well your capabilities support strategic priorities. High-importance capabilities with low maturity indicate strategic gaps requiring investment.
+            </div>
+          </div>
+          <div class="kpi-card bg-gradient-to-br from-white to-cyan-50 border-cyan-200">
+            <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">AI Readiness Index</div>
+            <div class="text-3xl font-black text-cyan-600" id="exec-aiready">0%</div>
+            <div class="text-[10px] text-slate-400 mt-1">Data & System Maturity for AI</div>
+            <div class="text-[9px] text-slate-500 mt-2 leading-relaxed border-t border-cyan-100 pt-2">
+              Indicates organizational readiness to adopt AI solutions based on data quality, system integration maturity, and technology infrastructure capability levels.
+            </div>
+          </div>
+          <div class="kpi-card bg-gradient-to-br from-white to-red-50 border-red-200">
+            <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">Technical Debt Risk</div>
+            <div class="text-3xl font-black text-red-600" id="exec-techdebt">0%</div>
+            <div class="text-[10px] text-slate-400 mt-1">Legacy System Exposure</div>
+            <div class="text-[9px] text-slate-500 mt-2 leading-relaxed border-t border-red-100 pt-2">
+              Quantifies risk from outdated systems and low-maturity critical capabilities. High scores signal urgent modernization needs to avoid operational disruption.
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4">
+          <div id="cxo-narrative-section" class="hidden bg-slate-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-4 opacity-10"><svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
+            <div class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-3">AI-Generated CXO Narrative</div>
+            <div id="exec-narrative" class="text-sm leading-relaxed font-medium text-slate-200 italic">
+              Generate architecture to receive a board-level strategic narrative...
+            </div>
+            <div class="mt-6 flex gap-3">
+              <div class="px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 text-[10px] font-bold">Target: 36mo ROI</div>
+              <div class="px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 text-[10px] font-bold">Focus: OpEx Reduction</div>
+              <div class="px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 text-[10px] font-bold">Risk: Legacy Migration</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-phase4" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="text-sm font-bold text-slate-800">Phase 4: Industry & Business Area Dashboard</div>
+            <div class="text-[10px] text-slate-500">Area-level maturity and benchmark delta per active business module</div>
+          </div>
+          <div class="text-[10px] text-slate-500">Industry: <span id="phase4-industry-badge" class="font-bold text-slate-700">GENERIC</span></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4" id="phase4-kpis"></div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm mb-4">
+          <div class="text-[10px] font-bold text-slate-500 uppercase mb-2">Area Maturity vs Industry Baseline</div>
+          <div id="phase4-area-grid" class="space-y-2"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-[10px] font-bold text-slate-500 uppercase mb-2">Recommended Focus</div>
+          <div id="phase4-recommendations" class="space-y-2 text-[11px]"></div>
+        </div>
+      </div>
+
+      <div id="tab-capmap" class="hidden">
+        <div class="flex items-center justify-end mb-2">
+          <select id="capmap-area-filter" class="text-[10px] border rounded px-2 py-1" onchange="renderCapMap()">
+            <option value="all">All Areas</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-7 gap-2" id="cap-grid">
+          <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Customer</div><div id="dom-Customer"></div></div>
+          <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Product</div><div id="dom-Product"></div></div>
+          <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Operations</div><div id="dom-Operations"></div></div>
+          <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Risk</div><div id="dom-Risk"></div></div>
+          <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Finance</div><div id="dom-Finance"></div></div>
+          <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Tech</div><div id="dom-Technology"></div></div>
+          <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Support</div><div id="dom-Support"></div></div>
+        </div>
+        <div id="capmap-empty" class="text-slate-400 text-xs text-center py-20">Generate architecture to populate the capability map</div>
+      </div>
+
+      <!-- HEATMAP -->
+      <div id="tab-heatmap" class="hidden">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-xs font-bold text-slate-600">Maturity &times; Strategic Importance Heatmap</div>
+          <select id="heatmap-area-filter" class="text-[10px] border rounded px-2 py-1" onchange="renderHeatmap()">
+            <option value="all">All Areas</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="border-2 border-red-200 rounded-xl p-3 bg-red-50 min-h-[200px]">
+            <div class="text-[10px] font-bold text-red-600 mb-2 uppercase">🔴 Critical Gaps</div>
+            <div class="text-[9px] text-red-400 mb-2">High Importance / Low Maturity (1–2)</div>
+            <div id="heat-critical" class="flex flex-wrap gap-1"></div>
+          </div>
+          <div class="border-2 border-orange-200 rounded-xl p-3 bg-orange-50 min-h-[200px]">
+            <div class="text-[10px] font-bold text-orange-600 mb-2 uppercase">🟠 High Risk</div>
+            <div class="text-[9px] text-orange-400 mb-2">High Importance / Medium Maturity (3)</div>
+            <div id="heat-risk" class="flex flex-wrap gap-1"></div>
+          </div>
+          <div class="border-2 border-green-200 rounded-xl p-3 bg-green-50 min-h-[200px]">
+            <div class="text-[10px] font-bold text-green-600 mb-2 uppercase">🟢 Strategic Advantage</div>
+            <div class="text-[9px] text-green-400 mb-2">High Maturity (4–5)</div>
+            <div id="heat-stable" class="flex flex-wrap gap-1"></div>
+          </div>
+        </div>
+        <div class="mt-4 border-2 border-slate-200 rounded-xl p-3 bg-slate-50">
+          <div class="text-[10px] font-bold text-slate-500 mb-2 uppercase">⚪ Low Importance / Any Maturity</div>
+          <div id="heat-low" class="flex flex-wrap gap-1"></div>
+        </div>
+      </div>
+
+      <!-- DEPENDENCY GRAPH -->
+      <div id="tab-graph" class="hidden">
+        <div class="text-xs font-bold text-slate-600 mb-2">Enterprise Dependency Graph</div>
+        <div id="network"></div>
+        <div class="mt-2 flex gap-4 text-[10px] text-slate-500 flex-wrap">
+          <span><span class="inline-block w-3 h-3 rounded bg-green-200 mr-1"></span>Capability</span>
+          <span><span class="inline-block w-3 h-3 rounded bg-purple-200 mr-1"></span>System</span>
+          <span><span class="inline-block w-3 h-3 rounded bg-cyan-200 mr-1"></span>AI Agent</span>
+        </div>
+      </div>
+
+      <!-- IMPACT SIMULATION -->
+      <div id="tab-impact" class="hidden">
+        <div class="text-xs font-bold text-slate-600 mb-3">Dependency Impact Simulation</div>
+        <div class="flex gap-2 mb-4">
+          <select id="impactSelect" class="border rounded-lg p-2 text-xs flex-1 focus:outline-none focus:ring-2 focus:ring-blue-300">
+            <option value="">Select a capability or system to simulate failure...</option>
+          </select>
+          <button onclick="runImpactSim()" class="bg-red-600 hover:bg-red-700 text-white text-xs px-4 py-2 rounded-lg font-bold">Simulate</button>
+        </div>
+        <div id="impact-result">
+          <div class="text-slate-400 text-xs text-center py-16">Select a node and click Simulate to see the downstream blast radius</div>
+        </div>
+
+        <!-- Business Impact Metrics (Phase 3) -->
+        <div id="impact-business-metrics" class="hidden mt-4 grid grid-cols-3 gap-3">
+          <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+            <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Revenue at Risk</div>
+            <div class="text-lg font-black text-red-600" id="sim-rev-risk">—</div>
+            <div class="text-[9px] text-slate-400">Daily operational loss</div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+            <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Regulatory Exposure</div>
+            <div class="text-lg font-black text-orange-600" id="sim-reg-risk">—</div>
+            <div class="text-[9px] text-slate-400">Compliance penalty risk</div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+            <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Customer retention Impact</div>
+            <div class="text-lg font-black text-blue-600" id="sim-Customer-risk">—</div>
+            <div class="text-[9px] text-slate-400">Experience degradation</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CFO VIEW (Phase 1) -->
+      <div id="tab-cfo" class="hidden">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-xs font-bold text-slate-600">CFO View — Financial Guardrails</div>
+          <div class="text-[10px] text-slate-400">Business value is AI-estimated based on FTE & Volume drivers.</div>
+        </div>
+
+        <div class="grid grid-cols-5 gap-3 mb-4" id="cfo-kpis">
+          <div class="kpi-card">
+            <div class="text-[10px] font-bold text-slate-500 uppercase">Annual Savings (sum)</div>
+            <div class="text-2xl font-extrabold text-green-700" id="kpi-savings">—</div>
+            <div class="text-[10px] text-slate-400">OPEX & efficiency potential</div>
+            <div class="text-[8px] text-slate-500 mt-2 leading-tight">Total projected annual cost reduction from automating and optimizing capabilities. Based on FTE time savings &times; labor cost.</div>
+          </div>
+          <div class="kpi-card">
+            <div class="text-[10px] font-bold text-slate-500 uppercase">Risk Exposure (sum)</div>
+            <div class="text-2xl font-extrabold text-red-700" id="kpi-risk">—</div>
+            <div class="text-[10px] text-slate-400">Revenue/regulatory downside</div>
+            <div class="text-[8px] text-slate-500 mt-2 leading-tight">Aggregate financial exposure from capability failures, combining revenue impact, regulatory penalties, and operational criticality.</div>
+          </div>
+          <div class="kpi-card">
+            <div class="text-[10px] font-bold text-slate-500 uppercase">ROI Potential (avg)</div>
+            <div class="text-2xl font-extrabold text-blue-700" id="kpi-roi">—</div>
+            <div class="text-[10px] text-slate-400">Savings ÷ invest estimate</div>
+            <div class="text-[8px] text-slate-500 mt-2 leading-tight">Average return multiple on investment. A value of 2.5&times; means every SEK invested returns 2.5 SEK annually in savings.</div>
+          </div>
+          <div class="kpi-card">
+            <div class="text-[10px] font-bold text-slate-500 uppercase">Payback (avg)</div>
+            <div class="text-2xl font-extrabold text-slate-800" id="kpi-payback">—</div>
+            <div class="text-[10px] text-slate-400">Months to break-even</div>
+            <div class="text-[8px] text-slate-500 mt-2 leading-tight">Average time required to recover initial investment through realized savings. Lower values indicate faster value realization.</div>
+          </div>
+          <div class="kpi-card">
+            <div class="text-[10px] font-bold text-slate-500 uppercase">CO2 Reduction (avg)</div>
+            <div class="text-2xl font-extrabold text-teal-700" id="kpi-co2">—</div>
+            <div class="text-[10px] text-slate-400">Sustainability impact %</div>
+            <div class="text-[8px] text-slate-500 mt-2 leading-tight">Average percentage reduction in carbon footprint or energy consumption across capabilities. Supports ESG and climate commitments.</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+            <div class="text-[10px] font-bold text-slate-500 uppercase mb-2">Top Savings Opportunities</div>
+            <div id="cfo-top-savings" class="space-y-2 text-xs text-slate-700"></div>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+            <div class="text-[10px] font-bold text-slate-500 uppercase mb-2">Top Risk Exposure Items</div>
+            <div id="cfo-top-risk" class="space-y-2 text-xs text-slate-700"></div>
+          </div>
+        </div>
+
+        <div class="mt-3 bg-white border border-slate-200 rounded-xl p-3">
+          <div class="text-[10px] font-bold text-slate-500 uppercase mb-2">Financial Assumptions (editable)</div>
+          <div class="grid grid-cols-4 gap-2 text-[11px]">
+            <label class="text-slate-600">Avg fully-loaded FTE cost / year
+              <input id="assume-fte" type="number" class="w-full border rounded-lg p-2 text-xs" value="90000">
+            </label>
+            <label class="text-slate-600">Risk factor (rev/reg)
+              <input id="assume-riskfactor" type="number" step="0.1" class="w-full border rounded-lg p-2 text-xs" value="1.0">
+            </label>
+            <label class="text-slate-600">Investment multiplier
+              <input id="assume-invest" type="number" step="0.1" class="w-full border rounded-lg p-2 text-xs" value="1.0">
+            </label>
+            <div class="flex items-end">
+              <button onclick="recalcCFO()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs py-2 rounded-lg font-bold">Recalculate</button>
+            </div>
+          </div>
+          <div class="text-[10px] text-slate-400 mt-2">Estimates use AI-generated % FTE hours saved and % invoice volume impact.</div>
+        </div>
+      </div>
+
+      <!-- OPERATING MODEL CANVAS -->
+      <div id="tab-opmodel" class="hidden">
+        <div class="text-xs font-bold text-slate-600 mb-3">Operating Model Canvas</div>
+        <div id="opmodel-content">
+          <div class="text-slate-400 text-xs text-center py-16">Click "Op Model" to generate the operating model canvas</div>
+        </div>
+      </div>
+
+      <!-- ROADMAP (list) -->
+      <div id="tab-roadmap" class="hidden">
+        <div class="text-xs font-bold text-slate-600 mb-3">3-Year Transformation Roadmap</div>
+        <div id="roadmap-content">
+          <div class="text-slate-400 text-xs text-center py-16">Generate Transformation Roadmap to populate</div>
+        </div>
+      </div>
+
+      <!-- TARGET ARCHITECTURE VISUAL -->
+      <div id="tab-targetarch" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-xs font-bold text-slate-600">Target Architecture — Capability Uplift Plan</div>
+          <span class="text-[10px] text-slate-400">Current → Target maturity per capability</span>
+        </div>
+        <div id="targetarch-content">
+          <div class="text-slate-400 text-xs text-center py-16">Click "Target Arch" to generate the visual</div>
+        </div>
+      </div>
+
+      <!-- ROADMAP VISUAL (Gantt-style) -->
+      <div id="tab-roadmapvis" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-xs font-bold text-slate-600">Transformation Roadmap — Visual Timeline</div>
+          <div class="flex gap-2 text-[10px]">
+            <span class="px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold">High</span>
+            <span class="px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 font-bold">Medium</span>
+            <span class="px-2 py-0.5 rounded bg-green-100 text-green-700 font-bold">Low</span>
+          </div>
+        </div>
+        <div id="roadmapvis-content">
+          <div class="text-slate-400 text-xs text-center py-16">Generate Transformation Roadmap to populate the visual timeline</div>
+        </div>
+      </div>
+
+      <!-- TOOLKITS (V3 Integration) -->
+      <div id="tab-toolkits" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="text-sm font-bold text-slate-800">Integrated Toolkits</div>
+          <!-- SURVEY RESPONSE MODAL -->
+          <div id="survey-response-modal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-6">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden">
+              <div class="flex items-center justify-between p-4 border-b">
+                <div>
+                  <div class="text-sm font-bold text-slate-800" id="survey-response-title">Capability Survey</div>
+                  <div class="text-[10px] text-slate-500" id="survey-response-meta">Maturity questions</div>
+                </div>
+                <button onclick="closeSurveyResponseModal()" class="text-slate-500 hover:text-slate-700 text-xl">&times;</button>
+              </div>
+              <div id="survey-response-body" class="p-4 space-y-3 overflow-y-auto" style="max-height: calc(85vh - 132px);"></div>
+              <div class="p-4 border-t bg-slate-50 flex justify-between items-center">
+                <div class="text-[11px] text-slate-500">Scores: 1 (Initial) to 5 (Optimized)</div>
+                <button onclick="submitCapabilitySurvey()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg">Save Survey Response</button>
+              </div>
+            </div>
+          </div>
+
+            <div class="text-[10px] text-slate-500">Workshop tools with bi-directional sync to EA Platform</div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="syncAllToolkits()" class="text-[10px] bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 font-bold flex items-center gap-1">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+              Sync All
+            </button>
+            <button onclick="showSyncStatus()" class="text-[10px] bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border font-bold">Status</button>
+          </div>
+        </div>
+
+        <!-- INTEGRATION DASHBOARD -->
+        <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-5 mb-6 border border-indigo-200">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg">
+                <i class="fas fa-project-diagram text-white"></i>
+              </div>
+              <div>
+                <div class="text-sm font-bold text-slate-800">🔗 Cross-Toolkit Integration</div>
+                <div class="text-[10px] text-slate-500">4-Phase End-to-End Data Flow · BMC → Value Chain → Capability → Strategy → EA Platform</div>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <a href="../Integration_Workflow_Hub.html" target="_blank" class="text-xs bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg animate-pulse">
+                <i class="fas fa-route"></i> Guided Workflow
+              </a>
+              <button onclick="openIntegrationHelp()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1">
+                <i class="fas fa-info-circle"></i> Help
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <!-- BMC Status -->
+            <div id="integration-bmc" class="bg-white rounded-lg p-3 border border-slate-200">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-slate-700">BMC</span>
+                <span class="integration-status-badge" id="bmc-status-badge">—</span>
+              </div>
+              <div class="text-[9px] text-slate-500" id="bmc-status-text">No data</div>
+              <button onclick="importFromToolkit('bmc')" class="mt-2 text-[9px] bg-teal-50 text-teal-700 hover:bg-teal-100 px-2 py-1 rounded font-bold w-full" disabled id="bmc-import-btn">
+                <i class="fas fa-download"></i> Import
+              </button>
+            </div>
+
+            <!-- Value Chain Status -->
+            <div id="integration-valuechain" class="bg-white rounded-lg p-3 border border-slate-200">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-slate-700">Value Chain</span>
+                <span class="integration-status-badge" id="valuechain-status-badge">—</span>
+              </div>
+              <div class="text-[9px] text-slate-500" id="valuechain-status-text">No data</div>
+              <button onclick="importFromToolkit('valueChain')" class="mt-2 text-[9px] bg-blue-50 text-blue-700 hover:bg-blue-100 px-2 py-1 rounded font-bold w-full" disabled id="valuechain-import-btn">
+                <i class="fas fa-download"></i> Import
+              </button>
+            </div>
+
+            <!-- Capability Map Status -->
+            <div id="integration-capability" class="bg-white rounded-lg p-3 border border-slate-200">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-slate-700">Capability Map</span>
+                <span class="integration-status-badge" id="capability-status-badge">—</span>
+              </div>
+              <div class="text-[9px] text-slate-500" id="capability-status-text">No data</div>
+              <button onclick="importFromToolkit('capability')" class="mt-2 text-[9px] bg-purple-50 text-purple-700 hover:bg-purple-100 px-2 py-1 rounded font-bold w-full" disabled id="capability-import-btn">
+                <i class="fas fa-download"></i> Import
+              </button>
+            </div>
+
+            <!-- Strategy Workbench Status -->
+            <div id="integration-strategy" class="bg-white rounded-lg p-3 border border-slate-200">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-slate-700">Strategy</span>
+                <span class="integration-status-badge" id="strategy-status-badge">—</span>
+              </div>
+              <div class="text-[9px] text-slate-500" id="strategy-status-text">No data</div>
+              <button onclick="importFromToolkit('strategy')" class="mt-2 text-[9px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-2 py-1 rounded font-bold w-full" disabled id="strategy-import-btn">
+                <i class="fas fa-download"></i> Import
+              </button>
+            </div>
+          </div>
+
+          <!-- Integration Actions -->
+          <div class="flex gap-2 flex-wrap">
+            <button onclick="importFromValueChain()" class="text-[10px] bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
+              <i class="fas fa-bolt"></i> Import from Value Chain
+            </button>
+            <button onclick="exportForCapabilityMap()" class="text-[10px] bg-purple-600 text-white hover:bg-purple-700 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
+              <i class="fas fa-share"></i> Export to Capability Map
+            </button>
+            <button onclick="viewIntegrationLog()" class="text-[10px] bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border font-bold flex items-center gap-1">
+              <i class="fas fa-list"></i> Integration Log
+            </button>
+            <button onclick="clearIntegrationCache()" class="text-[10px] text-red-600 hover:text-red-700 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
+              <i class="fas fa-trash"></i> Clear Cache
+            </button>
+          </div>
+        </div>
+
+        <div class="tools-grid">
+          <!-- CARD 1: BMC -->
+          <div class="tool-card">
+            <div class="card-header navy">
+              <div class="card-step-badge">Steg 1</div>
+              <div class="card-icon"><i class="fas fa-table-columns"></i></div>
+              <div class="card-title">AI Business Model Canvas</div>
+              <div class="card-subtitle">Affärsmodell · Värdeerbjudande · Intäktslogik</div>
+            </div>
+            <div class="card-body">
+              <p class="card-desc">
+                Visualisera hela affärsmodellen i ett ramverk. Definiera kundsegment, värdeerbjudande, intäktsströmmar och kostnadsstruktur. Utgångspunkten för all vidare strategisk analys — exportera resultatet direkt till Excel (CSV).
+              </p>
+              <div class="card-section-label">Instruktioner</div>
+              <ul class="instruction-list">
+                <li><span class="bullet b-teal">1</span>Fyll i alla nio BMC-block samt mål, affärsdriver och ESG</li>
+                <li><span class="bullet b-teal">2</span>Klicka "AI Analysera" för strategisk genomgång</li>
+                <li><span class="bullet b-teal">3</span>Exportera till Excel (CSV) via Spara-knappen</li>
+                <li><span class="bullet b-teal">4</span>Ta med insikterna till Value Chain Analyzer</li>
+              </ul>
+              <div class="card-section-label">Användningsscenario</div>
+              <div class="scenario-box">
+                <div class="scenario-title"><i class="fas fa-building" style="color:#0d9488;"></i> Verksamhetsägare — Ny digital affärsmodell</div>
+                <div class="scenario-text">En bostadsägare vill förstå hur en ny digital servicemodell påverkar intäkter och kostnader. BMC synliggör att kundrelationer och kanaler är svaga — AI rekommenderar hyresgästportal och proaktiv kommunikation som prioritet.</div>
+                <div class="outcome-tags">
+                  <span class="outcome-tag tag-teal">Customer retention</span>
+                  <span class="outcome-tag tag-green">Lägre vakans</span>
+                  <span class="outcome-tag tag-blue">Tydlig affärslogik</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="ai-badge"><i class="fas fa-robot" style="color:#0d9488;"></i> GPT-4o · Excel-export</div>
+              <div style="display:flex;gap:8px;">
+                <a href="EA2_Toolkit/AI Business Model Canvas.html" target="_blank" class="open-btn teal">Öppna verktyg <i class="fas fa-arrow-right"></i></a>
+                <button onclick="syncToolkit('bmc')" class="sync-btn teal" title="Sync workshop data to platform">⟳</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 2: Value Chain -->
+          <div class="tool-card">
+            <div class="card-header blue">
+              <div class="card-step-badge">Steg 2</div>
+              <div class="card-icon"><i class="fas fa-link"></i></div>
+              <div class="card-title">AI Value Chain Analyzer</div>
+              <div class="card-subtitle">Porter's Value Chain · Strategisk värdeanalys</div>
+            </div>
+            <div class="card-body">
+              <p class="card-desc">
+                Analysera hela värdekedjan — från inbound logistics till service och eftermarknad. Identifiera var värde skapas, var det förstörs och var AI och automation kan göra störst skillnad för marginalen.
+              </p>
+              <div class="card-section-label">Instruktioner</div>
+              <ul class="instruction-list">
+                <li><span class="bullet b-blue">1</span>Utgå från BMC — fokusera på aktiviteter och resurser</li>
+                <li><span class="bullet b-blue">2</span>Fyll i stödaktiviteter: infrastruktur, HR, teknik, inköp</li>
+                <li><span class="bullet b-blue">3</span>Fyll i primära aktiviteter längs värdekedjan</li>
+                <li><span class="bullet b-blue">4</span>Klicka "AI Analysera" för strategisk analys</li>
+              </ul>
+              <div class="card-section-label">Användningsscenario</div>
+              <div class="scenario-box">
+                <div class="scenario-title"><i class="fas fa-tools" style="color:#1a56db;"></i> Kommersiell Verksamhetsägare — Driftoptimering</div>
+                <div class="scenario-text">Ägaren vill förstå var reaktivt underhåll kostar mest. Value Chain Analyzer identifierar Operations och Service som svagaste länkarna — AI föreslår prediktivt underhåll via IoT som högst prioriterad åtgärd.</div>
+                <div class="outcome-tags">
+                  <span class="outcome-tag tag-green">Kostnadsbesparing 15–25%</span>
+                  <span class="outcome-tag tag-blue">Riskreduktion</span>
+                  <span class="outcome-tag tag-orange">Snabbare beslut</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="ai-badge"><i class="fas fa-robot" style="color:#1a56db;"></i> GPT-4o driven analys</div>
+              <div style="display:flex;gap:8px;">
+                <a href="EA2_Toolkit/AI Value Chain Analyzer V2.html" target="_blank" class="open-btn blue">Öppna verktyg <i class="fas fa-arrow-right"></i></a>
+                <button onclick="syncToolkit('valueChain')" class="sync-btn blue" title="Sync workshop data to platform">⟳</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 3: Capability Mapping -->
+          <div class="tool-card">
+            <div class="card-header purple">
+              <div class="card-step-badge">Steg 3</div>
+              <div class="card-icon"><i class="fas fa-sitemap"></i></div>
+              <div class="card-title">AI Capability Mapping</div>
+              <div class="card-subtitle">Organisatoriska förmågor · Gap-analys · Prioritering</div>
+            </div>
+            <div class="card-body">
+              <p class="card-desc">
+                Kartlägg vilka operativa, digitala och analytiska förmågor som krävs för att realisera din strategi. Identifiera gap, prioritera investeringar och koppla förmågor till konkreta affärsmål och värdekedjeinsikter.
+              </p>
+              <div class="card-section-label">Instruktioner</div>
+              <ul class="instruction-list">
+                <li><span class="bullet b-purple">1</span>Utgå från insikterna i Value Chain Analyzer</li>
+                <li><span class="bullet b-purple">2</span>Definiera förmågedomäner (Data, IoT, FM, Kundservice)</li>
+                <li><span class="bullet b-purple">3</span>Bedöm nuläge vs. målläge per förmåga (1–5)</li>
+                <li><span class="bullet b-purple">4</span>Låt AI identifiera kritiska gap och prioriteringsordning</li>
+              </ul>
+              <div class="card-section-label">Användningsscenario</div>
+              <div class="scenario-box">
+                <div class="scenario-title"><i class="fas fa-microchip" style="color:#7c3aed;"></i> domain-specific-bolag — Digital servicelevering</div>
+                <div class="scenario-text">En property manager vill digitalisera serviceflöden. Capability Mapping visar att "Incident Management" och "Predictive Maintenance" är kritiska gap. AI rekommenderar automatiserade arbetsorders och IoT-integration som första prioritet.</div>
+                <div class="outcome-tags">
+                  <span class="outcome-tag tag-green">Effektivitet +30%</span>
+                  <span class="outcome-tag tag-purple">Tydlig roadmap</span>
+                  <span class="outcome-tag tag-blue">Rätt investeringar</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="ai-badge"><i class="fas fa-robot" style="color:#7c3aed;"></i> GPT-4o driven analys</div>
+              <div style="display:flex;gap:8px;">
+                <a href="EA2_Toolkit/AI Capability Mapping V2.html" target="_blank" class="open-btn purple">Öppna verktyg <i class="fas fa-arrow-right"></i></a>
+                <button onclick="syncToolkit('capabilityMap')" class="sync-btn purple" title="Sync workshop data to platform">⟳</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 4: Strategy Workbench / Wardley -->
+          <div class="tool-card">
+            <div class="card-header gold">
+              <div class="card-step-badge">Steg 4</div>
+              <div class="card-icon"><i class="fas fa-chess-board"></i></div>
+              <div class="card-title">AI Strategy Workbench</div>
+              <div class="card-subtitle">Wardley Mapping · Evolutionsstrategi · Sourcing</div>
+            </div>
+            <div class="card-body">
+              <p class="card-desc">
+                Placera förmågor och komponenter i en evolutionskarta — från Genesis till Commodity. Avgör vad som ska byggas internt, köpas som tjänst eller avvecklas. Stödjer sourcing, innovationsstrategi och tekniska vägval.
+              </p>
+              <div class="card-section-label">Instruktioner</div>
+              <ul class="instruction-list">
+                <li><span class="bullet b-gold">1</span>Importera förmågor från Capability Mapping</li>
+                <li><span class="bullet b-gold">2</span>Placera varje komponent på evolutionsaxeln</li>
+                <li><span class="bullet b-gold">3</span>Definiera beroenden mellan komponenter</li>
+                <li><span class="bullet b-gold">4</span>Låt AI ge sourcing- och investeringsrekommendationer</li>
+              </ul>
+              <div class="card-section-label">Användningsscenario</div>
+              <div class="scenario-box">
+                <div class="scenario-title"><i class="fas fa-chart-line" style="color:#d97706;"></i> CIO — AI-investering i energioptimering</div>
+                <div class="scenario-text">Ett bolag överväger AI för energioptimering. Wardley Map visar: sensorik = commodity (köp), datapipeline = product (SaaS), prediktiv AI-modell = custom build (konkurrensfördel). Tydlig investeringsstrategi på 10 minuter.</div>
+                <div class="outcome-tags">
+                  <span class="outcome-tag tag-green">ROI-optimering</span>
+                  <span class="outcome-tag tag-orange">Rätt sourcing</span>
+                  <span class="outcome-tag tag-purple">Snabbare time-to-market</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="ai-badge"><i class="fas fa-robot" style="color:#d97706;"></i> GPT-4o driven analys</div>
+              <div style="display:flex;gap:8px;">
+                <a href="EA2_Toolkit/AI Strategy Workbench V2.html" target="_blank" class="open-btn gold">Öppna verktyg <i class="fas fa-arrow-right"></i></a>
+                <button onclick="syncToolkit('wardley')" class="sync-btn gold" title="Sync workshop data to platform">⟳</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 5: EA20 Maturity Toolbox -->
+          <div class="tool-card">
+            <div class="card-header" style="background: linear-gradient(135deg, #1e1b4b 0%, #4f46e5 100%);">
+              <div class="card-step-badge">Steg 5</div>
+              <div class="card-icon"><i class="fas fa-building-shield"></i></div>
+              <div class="card-title">EA20 Maturity Toolbox</div>
+              <div class="card-subtitle">Mognadsbedömning · Multi-bransch · Strategisk Roadmap</div>
+            </div>
+            <div class="card-body">
+              <p class="card-desc">
+                Utvärdera organisationens digitala mognad med viktade frågor per bransch — domain-specific, Retail, Banking m.fl. Få ett strategiskt mognadsscore, radaranalys och en AI-genererad roadmap med prioriterade åtgärder kopplade till konkreta affärsutfall.
+              </p>
+              <div class="card-section-label">Instruktioner</div>
+              <ul class="instruction-list">
+                <li><span class="bullet" style="background:#4f46e5;">1</span>Välj bransch eller analysfokus (domain-specific, Retail, Banking...)</li>
+                <li><span class="bullet" style="background:#4f46e5;">2</span>Besvara viktade självutvärderingsfrågor (skala 1–5)</li>
+                <li><span class="bullet" style="background:#4f46e5;">3</span>Se mognadsscore, radarprofil och mognadsnivå</li>
+                <li><span class="bullet" style="background:#4f46e5;">4</span>Klicka "Generera AI Analys"för strategisk roadmap</li>
+              </ul>
+              <div class="card-section-label">Användningsscenario</div>
+              <div class="scenario-box">
+                <div class="scenario-title"><i class="fas fa-chart-bar" style="color:#4f46e5;"></i> CDO / CIO — Digital mognadsanalys inför strategiarbete</div>
+                <div class="scenario-text">En CDO vill förstå var organisationen befinner sig digitalt innan investeringsbeslut tas. Maturity Toolbox ger ett viktat score per kategori, identifierar kritiska gap och levererar en AI-genererad 12-månaders roadmap med tydliga prioriteringar.</div>
+                <div class="outcome-tags">
+                  <span class="outcome-tag tag-purple">Tydlig nulägesbild</span>
+                  <span class="outcome-tag tag-blue">Rätt investeringsfokus</span>
+                  <span class="outcome-tag tag-green">Riskreduktion</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="ai-badge"><i class="fas fa-robot" style="color:#4f46e5;"></i> GPT-4o · PDF-rapport · Multi-bransch</div>
+              <div style="display:flex;gap:8px;">
+                <a href="EA2_Toolkit/EA20 Maturity Toolbox V2.html" target="_blank" class="open-btn" style="background:#4f46e5;color:white;">Öppna verktyg <i class="fas fa-arrow-right"></i></a>
+                <button onclick="syncToolkit('maturity')" class="sync-btn" style="color:#4f46e5;border-color:#4f46e5;" title="Sync workshop data to platform">⟳</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sync Log -->
+        <div class="mt-4 bg-slate-50 border border-slate-200 rounded-xl p-4">
+          <div class="text-[10px] font-bold text-slate-500 uppercase mb-2">Recent Sync Activity</div>
+          <div id="sync-log" class="space-y-1 text-[10px] text-slate-600 max-h-32 overflow-y-auto">
+            <div class="text-slate-400 italic">No sync activity yet. Use "Sync" buttons above to sync workshop data.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="flex flex-col gap-3">
+
+    <!-- Strategic Insights -->
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
+      <div class="text-xs font-bold uppercase text-slate-400 tracking-wide mb-2">Strategic Insights</div>
+      <div id="insights" class="text-xs text-slate-700 leading-relaxed overflow-y-auto" style="max-height:200px;">
+        <div class="text-slate-400 italic text-center py-6 text-[11px]">Run Gap Analysis or Target Architecture</div>
+      </div>
+    </div>
+
+    <!-- Maturity Dashboard -->
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
+      <div class="text-xs font-bold uppercase text-slate-400 tracking-wide mb-2">Maturity Dashboard</div>
+      <div id="maturity-dashboard">
+        <div class="text-slate-400 text-xs italic text-center py-4">Generate architecture to view maturity</div>
+      </div>
+    </div>
+
+    <!-- Transformation Portfolio -->
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200 flex-1 overflow-y-auto" style="max-height:420px;">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-bold uppercase text-slate-400 tracking-wide">Transformation Portfolio</div>
+        <span id="init-count" class="text-xs text-slate-400"></span>
+      </div>
+      <div id="initiatives">
+        <div class="text-slate-400 text-xs italic text-center py-6">Generate Roadmap to populate</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── INITIALIZATION & STORAGE ────
+// V3 Enhancement: Use DataManager for unified data management
+let dataManager = null;
+let syncEngine = null;
+let fileManager = null;
+let integrationEngine = null;
+let OPENAI_KEY = '';
+let networkInstance = null;
+let model = {
+  valueStreams:[],
+  capabilities:[],
+  processes:[],
+  systems:[],
+  dataDomains:[],
+  aiAgents:[],
+  initiatives:[],
+  operatingModel:{},
+  phase4Config: { industry: 'generic', activeBusinessAreas: ['general'] }
+};
+let currentModelId = null;
+let currentModelName = 'Untitled Model';
+const AI_CONVERSATIONS_KEY = 'ea_ai_conversations';
+let aiConversationStore = { conversations: [], activeConversationId: null };
+
+// Initialize DataManager, SyncEngine, and FileManager on page load
+window.addEventListener('DOMContentLoaded', () => {
+  if (typeof EA_DataManager !== 'undefined') {
+    dataManager = new EA_DataManager();
+    OPENAI_KEY = dataManager.getApiKey() || '';
+    console.log('✅ V3 DataManager initialized');
+    
+    // Initialize SyncEngine
+    if (typeof EA_SyncEngine !== 'undefined') {
+      syncEngine = new EA_SyncEngine(dataManager);
+      console.log('✅ V3 SyncEngine initialized');
+    }
+    
+    // Initialize FileManager
+    if (typeof EA_FileManager !== 'undefined') {
+      fileManager = new EA_FileManager();
+      fileManager.init(dataManager);
+      console.log('✅ V3 FileManager initialized');
+      
+      // Enable auto-save every 5 minutes
+      fileManager.enableAutoSave(
+        currentModelId || 'autosave',
+        currentModelName,
+        () => model,
+        5
+      );
+    }
+    
+    // Initialize IntegrationEngine
+    if (typeof EA_IntegrationEngine !== 'undefined') {
+      integrationEngine = new EA_IntegrationEngine();
+      integrationEngine.init(dataManager, fileManager);
+      console.log('✅ V3 Integration Engine initialized');
+      
+      // Update integration dashboard
+      updateIntegrationDashboard();
+    }
+  } else {
+    console.warn('⚠️ DataManager not loaded, using legacy storage');
+    OPENAI_KEY = localStorage.getItem('ea_api_key') || '';
+  }
+  loadLastModel();
+  ensurePhase4Fields();
+  renderPhase4ControlsFromModel();
+  initChatPanel();
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('autoflow') === '1') {
+    setTimeout(() => importAllAvailableToolkits(true), 350);
+  }
+});
+
+function loadLastModel() {
+
+// V3: Continue loading from last model for backward compatibility
+  const lastModel = localStorage.getItem('ea_current_model');
+  if (lastModel) {
+    try {
+      const parsed = JSON.parse(lastModel);
+      if (parsed.data && parsed.data.capabilities && parsed.data.capabilities.length > 0) {
+        model = parsed.data;
+        ensurePhase4Fields();
+        currentModelId = parsed.id;
+        currentModelName = parsed.name;
+        updateHeaderTitle();
+        renderLayers();
+        renderCapMap();
+        renderHeatmap();
+        renderMaturityDashboard();
+        populateImpactSelect();
+        renderExecSummary();
+        generateNarrative();
+        updateDataCollectionTab();
+        renderPhase4ControlsFromModel();
+        document.getElementById('cxo-narrative-section').classList.remove('hidden');
+        if (model.initiatives?.length) {
+          renderInitiatives();
+          renderRoadmap();
+          renderRoadmapVisual();
+        }
+        if (model.operatingModel?.valueProposition) {
+          renderOperatingModel();
+        }
+        if (typeof syncConversationWithCurrentModel === 'function') syncConversationWithCurrentModel();
+        toast('V3 Model loaded &#x2718;', false);
+      }
+    } catch (e) {
+      console.error('Error loading last model:', e);
+    }
+  }
+}
+
+// Load saved models list from localStorage
+function getSavedModels() {
+  const saved = localStorage.getItem('ea_saved_models');
+  return saved ? JSON.parse(saved) : [];
+}
+
+function saveModelsListToStorage(modelsList) {
+  localStorage.setItem('ea_saved_models', JSON.stringify(modelsList));
+}
+
+// Auto-save current model periodically
+function autoSaveCurrentModel() {
+  if (currentModelId && model.capabilities.length > 0) {
+    const modelsList = getSavedModels();
+    const existing = modelsList.find(m => m.id === currentModelId);
+    if (existing) {
+      existing.data = model;
+      existing.updated = new Date().toISOString();
+      saveModelsListToStorage(modelsList);
+      localStorage.setItem('ea_current_model', JSON.stringify({ id: currentModelId, name: currentModelName, data: model }));
+    }
+  }
+}
+
+// Auto-save every 30 seconds
+setInterval(autoSaveCurrentModel, 30000);
+
+// ── API KEY MANAGEMENT ────
+function showApiModal() {
+  document.getElementById('apiKeyInput').value = OPENAI_KEY;
+  document.getElementById('apiModal').classList.remove('hidden');
+}
+
+function closeApiModal() {
+  document.getElementById('apiModal').classList.add('hidden');
+}
+
+function saveApiKey() {
+  OPENAI_KEY = document.getElementById('apiKeyInput').value.trim();
+  
+  // V3: Use DataManager if available
+  if (dataManager) {
+    dataManager.setApiKey(OPENAI_KEY);
+  } else {
+    localStorage.setItem('ea_api_key', OPENAI_KEY);
+  }
+  
+  closeApiModal();
+  toast('API key saved &#x2718; (V3 unified)', false);
+}
+
+// ── NEW PROJECT MANAGEMENT ────
+function importFromToolkit(toolkitId, silent = false) {
+  if (!integrationEngine || !dataManager) {
+    if (!silent) toast('?? Integration engine not available', true);
+    return;
+  }
+
+  const keyMap = {
+    bmc: 'bmc_latest',
+    valueChain: 'valuechain_latest',
+    capability: 'capability_latest',
+    strategy: 'strategy_latest',
+    maturity: 'maturity_latest'
+  };
+
+  const dataKey = keyMap[toolkitId] || `${toolkitId}_latest`;
+  const data = dataManager.getIntegrationData(dataKey);
+
+  if (!data) {
+    if (!silent) toast(`?? No data available from ${toolkitId}`, true);
+    return;
+  }
+
+  const counts = { valueStreams: 0, capabilities: 0, systems: 0, aiAgents: 0, initiatives: 0 };
+
+  if (toolkitId === 'bmc') {
+    const description = document.getElementById('description');
+    const summary = [
+      data.value_proposition && `Value proposition: ${data.value_proposition}`,
+      data.customer_segments && `Customers: ${data.customer_segments}`,
+      data.business_driver && `Driver: ${data.business_driver}`,
+      data.strategic_goal && `Goal: ${data.strategic_goal}`
+    ].filter(Boolean).join('\n');
+
+    if (summary) {
+      description.value = description.value ? `${description.value}\n\n${summary}` : summary;
+    }
+
+    if (data.value_proposition) {
+      counts.valueStreams += mergeByName(model.valueStreams, [{
+        name: 'Business Value Proposition',
+        description: data.value_proposition
+      }]);
+    }
+  }
+
+  if (toolkitId === 'valueChain') {
+    const transformed = integrationEngine.transformValueChainToEA(data);
+    counts.valueStreams += mergeByName(model.valueStreams, transformed.valueStreams || []);
+    counts.capabilities += upsertCapabilitiesByName((transformed.capabilities || []).map(c => ({
+      ...c,
+      strategicImportance: normalizeStrategicImportance(c.strategicImportance)
+    })), 'valueChain');
+    counts.systems += mergeByName(model.systems, transformed.systems || []);
+    counts.aiAgents += mergeByName(model.aiAgents, transformed.aiAgents || []);
+    counts.initiatives += mergeByName(model.initiatives, transformed.initiatives || []);
+  }
+
+  if (toolkitId === 'capability') {
+    const caps = Array.isArray(data.capabilities) ? data.capabilities : [];
+    counts.capabilities += upsertCapabilitiesByName(caps.map(c => ({
+      name: c.name,
+      domain: c.domainLabel || c.domain || 'Operations',
+      maturity: Math.max(1, Math.min(5, Number(c.maturity) || 3)),
+      strategicImportance: normalizeStrategicImportance(c.priority || c.strategicImportance),
+      source: 'capability_map'
+    })), 'capability');
+  }
+
+  if (toolkitId === 'strategy') {
+    const nodes = Array.isArray(data.components) ? data.components : [];
+    counts.initiatives += mergeByName(model.initiatives, nodes.map(n => ({
+      name: `Strategic move: ${n.name}`,
+      impactsCapability: n.name,
+      estimatedBusinessValue: n.x < 40 ? 'high' : n.x < 70 ? 'medium' : 'low',
+      complexity: n.x < 40 ? 'high' : 'medium',
+      priority: n.y < 35 ? 'high' : n.y < 65 ? 'medium' : 'low',
+      phase: n.x < 40 ? 'Year 1 - Foundation' : n.x < 70 ? 'Year 2 - Expansion' : 'Year 3 - Optimisation',
+      description: n.note || 'Imported from Strategy Workbench'
+    })));
+  }
+
+  if (toolkitId === 'maturity') {
+    const description = document.getElementById('description');
+    const maturityLine = data.frameworkName ? `Maturity (${data.frameworkName}): ${data.totalScore}/5` : null;
+    if (maturityLine) {
+      description.value = description.value ? `${description.value}\n${maturityLine}` : maturityLine;
+    }
+  }
+
+  renderLayers();
+  renderCapMap();
+  renderHeatmap();
+  renderPhase4Dashboard();
+  renderMaturityDashboard();
+  populateImpactSelect();
+  renderExecSummary();
+  if (model.initiatives?.length) renderInitiatives();
+  updateIntegrationDashboard();
+
+  const totalAdded = Object.values(counts).reduce((s, n) => s + n, 0);
+  if (!silent) {
+    toast(`? Import from ${toolkitId} completed (${totalAdded} new objects)`, false);
+  }
+}
+
+function importAllAvailableToolkits(fromAutoFlow = false) {
+  const order = ['bmc', 'valueChain', 'capability', 'strategy', 'maturity'];
+  let imported = 0;
+
+  order.forEach(toolkitId => {
+    const keyMap = {
+      bmc: 'bmc_latest',
+      valueChain: 'valuechain_latest',
+      capability: 'capability_latest',
+      strategy: 'strategy_latest',
+      maturity: 'maturity_latest'
+    };
+    if (dataManager?.getIntegrationData(keyMap[toolkitId])) {
+      importFromToolkit(toolkitId, true);
+      imported++;
+    }
+  });
+
+  if (fromAutoFlow) {
+    toast(`&#x2718; Autoflow importerade data från ${imported} steg`, false);
+  } else {
+    toast(`&#x2718; Importerade tillgänglig data från ${imported} steg`, false);
+  }
+}
+
+/**
+ * View integration log
+ */
+function viewIntegrationLog() {
+  if (!integrationEngine) {
+    toast('⚠️ Integration engine not available', true);
+    return;
+  }
+  
+  const log = integrationEngine.getIntegrationLog(20);
+  
+  if (log.length === 0) {
+    toast('No integration events logged yet', false);
+    return;
+  }
+  
+  let logHTML = '<div class="space-y-2 max-h-96 overflow-y-auto">';
+  
+  log.forEach(entry => {
+    const time = new Date(entry.timestamp).toLocaleString();
+    const icon = entry.status === 'success' ? '✅' : '❌';
+    const color = entry.status === 'success' ? 'text-green-700' : 'text-red-700';
+    
+    logHTML += `
+      <div class="text-[11px] p-3 bg-slate-50 rounded border ${color}">
+        <div class="font-bold">${icon} ${entry.source} → ${entry.target}</div>
+        <div class="text-slate-600 text-[10px]">${time}</div>
+        ${entry.metadata && Object.keys(entry.metadata).length > 0 ? 
+          `<div class="text-[10px] mt-1">${JSON.stringify(entry.metadata)}</div>` : ''}
+      </div>
+    `;
+  });
+  
+  logHTML += '</div>';
+  
+  // Show in a simple alert for now (could be a modal in production)
+  const div = document.createElement('div');
+  div.innerHTML = logHTML;
+  
+  // Create modal overlay
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center';
+  modal.innerHTML = `
+    <div class="bg-white rounded-2xl p-6 w-[600px] max-h-[80vh] overflow-auto shadow-2xl">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-lg">Integration Log</h3>
+        <button onclick="this.closest('.fixed').remove()" class="text-slate-500 hover:text-slate-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      ${logHTML}
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Close on overlay click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
+}
+
+/**
+ * Open integration help/guide
+ */
+function openIntegrationHelp() {
+  // Open the implementation plan in a new window
+  window.open('../EA_INTEGRATION_IMPLEMENTATION_PLAN.md', '_blank');
+  toast('Opening Integration Implementation Plan...', false);
+}
+
+/**
+ * Clear integration cache
+ */
+function clearIntegrationCache() {
+  if (!dataManager) {
+    toast('⚠️ DataManager not available', true);
+    return;
+  }
+  
+  if (!confirm('Clear all integration cache? This will not affect your project data, only cached cross-toolkit data.')) {
+    return;
+  }
+  
+  try {
+    dataManager.clearIntegrationData();
+    updateIntegrationDashboard();
+    toast('&#x2718; Integration cache cleared', false);
+  } catch (error) {
+    console.error('Clear cache error:', error);
+    toast(`❌ Failed to clear cache: ${error.message}`, true);
+  }
+}
+
+function showSyncStatus() {
+  if (!syncEngine || !currentModelId) {
+    toast('No active project', true);
+    return;
+  }
+  
+  const status = syncEngine.getSyncStatus(currentModelId);
+  let statusHTML = '<div class="space-y-2">';
+  
+  Object.keys(status).forEach(toolkit => {
+    const s = status[toolkit];
+    const icon = s.hasData ? '✅' : '⚠️';
+    const syncTime = s.lastSynced ? new Date(s.lastSynced).toLocaleString() : 'Never';
+    
+    statusHTML += `
+      <div class="text-[10px] p-2 bg-slate-50 rounded border">
+        ${icon} <strong>${toolkit}</strong>: ${s.hasData ? 'Has Data' : 'No Data'} | 
+        Last Sync: ${syncTime} | 
+        Direction: ${s.direction}
+      </div>
+    `;
+  });
+  
+  statusHTML += '</div>';
+  
+  // Show in modal or alert
+  alert('Sync Status:\n\n' + JSON.stringify(status, null, 2));
+}
+
+function showWorkshopGuide() {
+  const guide = `
+WORKSHOP INTEGRATION GUIDE
+═════════════════════════
+
+1. PREPARE
+   &bull; Open a toolkit (BMC, Capability Map, etc.) in workshop
+   &bull; Facilitate session with stakeholders
+   &bull; Capture results in the toolkit
+
+2. EXPORT
+   &bull; Use toolkit's Export function
+   &bull; Save JSON file with results
+
+3. IMPORT TO EA PLATFORM
+   &bull; Open EA Platform V3
+   &bull; Go to Toolkits tab
+   &bull; Click "Sync" for the toolkit
+   &bull; Or use Import function to load JSON
+
+4. SYNC & ANALYZE
+   &bull; Data automatically merges with existing architecture
+   &bull; Conflicts are flagged for review
+   &bull; Generate insights and roadmap
+
+5. ITERATE
+   &bull; Update toolkit with changes
+   &bull; Re-sync to keep platform current
+  `;
+  
+  alert(guide);
+}
+
+function addSyncLog(message) {
+  const log = document.getElementById('sync-log');
+  if (!log) return;
+  
+  const timestamp = new Date().toLocaleTimeString();
+  const entry = document.createElement('div');
+  entry.className = 'text-[10px] text-slate-600 py-1 border-b border-slate-100';
+  entry.innerHTML = `<span class="text-slate-400">${timestamp}</span> ${message}`;
+  
+  // Remove placeholder if exists
+  const placeholder = log.querySelector('.text-slate-400.italic');
+  if (placeholder) placeholder.remove();
+  
+  log.insertBefore(entry, log.firstChild);
+  
+  // Keep only last 10 entries
+  while (log.children.length > 10) {
+    log.removeChild(log.lastChild);
+  }
+}
+
+// exportModel and importModel functions now handled by client-integration.js
+</script>
+
+<!-- FLOATING AI ASSISTANT (Phase 1) -->
+<div id="ai-chat-panel" class="hidden">
+  <div id="chat-header">
+    <div id="chat-header-title">
+      <i class="fas fa-comments"></i>
+      <span>EA Assistant</span>
+    </div>
+    <div id="chat-controls">
+      <button id="minimize-chat" onclick="minimizeChatPanel()" title="Minimize">&minus;</button>
+      <button id="close-chat" onclick="closeChatPanel()" title="Close">&times;</button>
+    </div>
+  </div>
+  <div id="chat-messages"></div>
+  <div id="chat-input-container">
+    <textarea id="chat-input" placeholder="Describe your organization or ask a question..."></textarea>
+    <button id="send-chat" title="Send">
+      <i class="fas fa-paper-plane"></i>
+    </button>
+  </div>
+</div>
+
+<button id="chat-toggle" class="floating-action-button" onclick="toggleChatPanel()" title="Open EA Assistant">
+  <i class="fas fa-comments"></i>
+  <span class="badge" id="unread-count" style="display:none;">0</span>
+</button>
+
+
+<!-- REPORT MODAL (Phase 5) -->
+<div id="report-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6">
+  <div class="bg-white w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+    <div class="bg-slate-900 p-6 text-white flex justify-between items-center">
+      <div>
+        <h3 class="text-lg font-bold">Strategisk Styrelserapport (Board Pack)</h3>
+        <p class="text-slate-400 text-[10px] uppercase tracking-widest mt-1">AI-genererad analys &bull; Business Outcomes &bull; ROI</p>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="printReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+          Skriv ut / PDF
+        </button>
+        <button onclick="closeReportModal()" class="text-slate-400 hover:text-white p-2">&#x2022;</button>
+      </div>
+    </div>
+
+    <div id="report-container" class="flex-1 overflow-y-auto p-12 bg-white font-serif leading-relaxed text-slate-800">
+      <div id="report-loading" class="flex flex-col items-center justify-center py-20">
+        <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-sm font-bold text-slate-500">AI sammanställer styrelserapport...</p>
+        <p id="report-progress" class="text-[10px] text-slate-400 mt-2 uppercase tracking-widest">Analyserar finansiell data</p>
+      </div>
+      <div id="report-content" class="hidden prose prose-slate max-w-none">
+        <!-- AI Content injected here -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @media print {
+    body * { visibility: hidden; }
+    #report-container, #report-container * { visibility: visible; }
+    #report-container { position: absolute; left: 0; top: 0; width: 100%; padding: 0; }
+    #report-modal { background: white; position: static; display: block; }
+  }
+  .report-h1 { font-size: 2.5rem; font-weight: 900; color: #0f172a; margin-bottom: 1rem; border-bottom: 4px solid #2563eb; padding-bottom: 1rem; }
+  .report-h2 { font-size: 1.5rem; font-weight: 800; color: #1e293b; margin-top: 2.5rem; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .report-h3 { font-size: 1.1rem; font-weight: 700; color: #334155; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+  .report-p { margin-bottom: 1rem; font-size: 1rem; color: #334155; }
+  .report-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 1.5rem; border-radius: 1rem; margin: 1.5rem 0; }
+</style>
+
+</body>
+</html>
+
+

@@ -53,10 +53,17 @@ class EA_FileManager {
     exportProjectToDownload(projectId, projectName, projectData) {
         const exportData = {
             version: 'EA_2.0',
+            dataModelVersion: 'BusinessContext_v1', // Phase 6: Track Business Context architecture version
             exported: new Date().toISOString(),
             projectId: projectId,
             projectName: projectName,
-            data: projectData
+            data: projectData,
+            features: {
+                businessContext: !!projectData.businessContext,
+                webSearchValidation: !!projectData.businessContext?.enrichment?.validatedData,
+                enrichmentTracking: !!projectData.businessContext?.enrichment,
+                strategicIntentLegacy: !!projectData.strategicIntent
+            }
         };
 
         const filename = `${this.sanitizeFilename(projectName)}_${this.getTimestamp()}.json`;
@@ -69,7 +76,7 @@ class EA_FileManager {
         a.click();
         URL.revokeObjectURL(url);
 
-        console.log(`📥 Exported project: ${filename}`);
+        console.log(`📥 Exported project: ${filename} (Data Model: ${exportData.dataModelVersion})`);
         return filename;
     }
 

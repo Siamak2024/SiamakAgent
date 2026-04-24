@@ -1,0 +1,929 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EA Strategy Workflow — AI-Guided Architecture</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #080d1a; color: #e2e8f0; margin: 0; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+    .sidebar-item {
+      padding: 9px 11px; border-radius: 8px; cursor: pointer;
+      transition: background 0.15s; display: flex; align-items: flex-start; gap: 10px;
+      border-left: 3px solid transparent;
+    }
+    .sidebar-item:hover { background: rgba(255,255,255,0.04); }
+    .sidebar-item.active { border-left-color: var(--step-color, #3b82f6); background: rgba(59,130,246,0.08); }
+
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 14px; }
+    .card-label { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #64748b; margin-bottom: 6px; }
+    .card-val { font-size: 0.83rem; color: #cbd5e1; line-height: 1.6; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #1d4ed8, #1e40af); color: white;
+      border: none; padding: 10px 20px; border-radius: 8px;
+      font-size: 0.875rem; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px; transition: opacity 0.2s;
+    }
+    .btn-primary:hover:not(:disabled) { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: transparent; color: #94a3b8;
+      border: 1px solid #334155; padding: 9px 16px;
+      border-radius: 8px; font-size: 0.875rem; font-weight: 600;
+      cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
+      transition: all 0.15s;
+    }
+    .btn-secondary:hover:not(:disabled) { background: #1e293b; color: white; }
+    .btn-secondary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 0.68rem; font-weight: 600; margin: 2px; }
+
+    .spinner { display: inline-block; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .bmc-cell { background: #1e293b; padding: 11px 13px; }
+
+    textarea:focus { outline: none; border-color: #3b82f6 !important; }
+
+    .gap-row { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+
+    @media (max-width: 768px) {
+      aside { display: none; }
+    }
+  </style>
+</head>
+<body style="display:flex;flex-direction:column;min-height:100vh;">
+
+  <!-- ═══ HEADER ═══ -->
+  <header style="background:linear-gradient(90deg,#0d1f3c 0%,#0a1525 100%);border-bottom:1px solid rgba(255,255,255,0.07);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <a href="../index.html" style="color:#64748b;font-size:0.82rem;text-decoration:none;display:flex;align-items:center;gap:5px;" onmouseover="this.style.color='#e2e8f0'" onmouseout="this.style.color='#64748b'">
+        <i class="fas fa-arrow-left"></i> Hub
+      </a>
+      <div style="width:1px;height:28px;background:rgba(255,255,255,0.08);"></div>
+      <div>
+        <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#60a5fa;">AI-Guided EA</div>
+        <div style="font-size:1.2rem;font-weight:700;color:white;line-height:1.2;">Strategy Workflow</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span id="hdr-status" style="font-size:0.75rem;color:#64748b;"></span>
+      <button onclick="resetAll()" class="btn-secondary" style="padding:7px 14px;font-size:0.78rem;" title="Reset all steps">
+        <i class="fas fa-rotate-left"></i> Reset
+      </button>
+      <button onclick="exportWorkflow()" class="btn-primary" style="padding:7px 16px;font-size:0.78rem;">
+        <i class="fas fa-file-export"></i> Export
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══ PROGRESS BAR ═══ -->
+  <div style="background:#0a0f1e;border-bottom:1px solid rgba(255,255,255,0.05);padding:10px 24px;flex-shrink:0;overflow-x:auto;">
+    <div id="progress-bar" style="display:flex;align-items:center;gap:4px;min-width:max-content;"></div>
+  </div>
+
+  <!-- ═══ BODY ═══ -->
+  <div style="display:flex;flex:1;overflow:hidden;">
+
+    <!-- SIDEBAR -->
+    <aside style="width:252px;background:#060b16;border-right:1px solid rgba(255,255,255,0.05);overflow-y:auto;padding:12px 10px;flex-shrink:0;">
+      <div style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:#334155;padding:4px 8px 8px;">Workflow Steps</div>
+      <div id="step-list"></div>
+    </aside>
+
+    <!-- MAIN -->
+    <main style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+      <div id="step-content" style="flex:1;overflow-y:auto;padding:24px;max-width:960px;width:100%;margin:0 auto;box-sizing:border-box;"></div>
+
+      <!-- BOTTOM NAV -->
+      <div style="background:#0a0f1e;border-top:1px solid rgba(255,255,255,0.06);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <button id="btn-back" class="btn-secondary" onclick="goBack()">
+          <i class="fas fa-arrow-left"></i> Back
+        </button>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button id="btn-regen" class="btn-secondary" onclick="generateCurrent()" style="display:none;">
+            <i class="fas fa-rotate-right"></i> Regenerate
+          </button>
+          <button id="btn-next" class="btn-primary" onclick="handleNext()">
+            Next <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+  // ════════════════════════════════════════════════════════════════
+  //  STEP DEFINITIONS
+  // ════════════════════════════════════════════════════════════════
+  const STEPS = [
+    {
+      id: 'intent', num: 1, title: 'Strategic Intent',
+      subtitle: 'Clarify what the organisation must achieve — non-negotiable starting point',
+      icon: 'fas fa-compass', color: '#3b82f6',
+      requiresInput: true,
+      inputPlaceholder: `Describe your organisation and strategic context. Be specific about:
+• Industry and organisation size
+• Current challenges, market pressures, or burning platform
+• Strategic ambition — what does winning look like?
+• Target timeframe and key constraints
+
+Example: "We are a mid-size Nordic insurance company (1,200 FTEs) facing regulatory pressure and rising claims costs. The board has mandated a 3-year transformation to become a digitally-led, customer-centric insurer. Key constraints: Solvency II compliance, legacy core systems from 2003, limited cloud maturity today."`,
+      instructions: `You are a senior Enterprise Architect and business strategist with deep experience in C-suite advisory.
+Analyse the organisation description and extract a precise, actionable Strategic Intent document.
+Return ONLY valid JSON — no markdown fences, no explanation text:
+{
+  "org_name": "string",
+  "industry": "string",
+  "timeframe": "string (e.g. '3 years / 2025–2028')",
+  "mission": "string — current organisational mission or purpose",
+  "strategic_ambition": "string — what winning looks like at the end of the timeframe",
+  "strategic_themes": ["3–5 concise themes"],
+  "key_constraints": ["3–5 real constraints as short strings"],
+  "success_metrics": ["3–5 measurable outcomes"],
+  "summary": "string — 2–3 sentence executive summary"
+}`
+    },
+    {
+      id: 'bmc', num: 2, title: 'Business Model Canvas',
+      subtitle: 'Build a high-level BMC aligned to Strategic Intent',
+      icon: 'fas fa-th-large', color: '#8b5cf6',
+      requiresInput: false,
+      instructions: `You are an expert Business Model Strategist.
+Based on the Strategic Intent, generate a Business Model Canvas that reflects both the current business and the target model trajectory.
+Return ONLY valid JSON — no markdown fences, no explanation:
+{
+  "value_proposition": "string",
+  "customer_segments": "string",
+  "channels": "string",
+  "customer_relationships": "string",
+  "revenue_streams": "string",
+  "key_resources": "string",
+  "key_activities": "string",
+  "key_partners": "string",
+  "cost_structure": "string"
+}`
+    },
+    {
+      id: 'capmap', num: 3, title: 'Capability Map L1–L2',
+      subtitle: 'Define and validate business capabilities at two levels',
+      icon: 'fas fa-layer-group', color: '#10b981',
+      requiresInput: false,
+      instructions: `You are a Business Architecture expert.
+Based on the strategic intent and business model, define a Level 1–2 Capability Map.
+Identify 5–7 domains (L1) each with 3–5 capabilities (L2).
+Classify each capability: "strategic" (differentiating), "enabling" (necessary but not differentiating), "commodity" (utility/table stakes).
+Return ONLY valid JSON array — no markdown fences, no explanation:
+[
+  {
+    "domain": "string",
+    "description": "string",
+    "capabilities": [
+      {"name": "string", "type": "strategic|enabling|commodity", "description": "string"}
+    ]
+  }
+]`
+    },
+    {
+      id: 'opmodel', num: 4, title: 'Current Operating Model',
+      subtitle: 'Map how the organisation runs today — light but sharp',
+      icon: 'fas fa-sitemap', color: '#f59e0b',
+      requiresInput: false,
+      instructions: `You are a Business Design expert.
+Based on the strategic context, describe the current operating model (AS-IS). Be realistic — infer from stated constraints, pain points, and industry norms.
+Return ONLY valid JSON — no markdown fences, no explanation:
+{
+  "value_chain": ["4–7 value chain steps"],
+  "key_processes": [
+    {"name": "string", "description": "string", "maturity": "Low|Medium|High", "pain_point": "string"}
+  ],
+  "org_model": "string — current org structure and operating approach",
+  "technology_landscape": "string — tech posture, legacy vs modern, key platforms",
+  "data_posture": "string — how data is managed and used today",
+  "pain_points": ["4–6 key pain points"]
+}`
+    },
+    {
+      id: 'gaps', num: 5, title: 'Gap Analysis',
+      subtitle: 'Identify gaps between current state and strategic target',
+      icon: 'fas fa-arrows-left-right', color: '#ef4444',
+      requiresInput: false,
+      instructions: `You are an Enterprise Architecture Gap Analyst.
+Based on the full context (strategic intent, BMC, capability map, operating model), perform a target-oriented gap analysis.
+Identify the most critical gaps between AS-IS (current) and TO-BE (required to achieve strategic intent). Sort by strategic impact.
+Return ONLY valid JSON array — no markdown fences, no explanation:
+[
+  {
+    "capability": "string",
+    "domain": "string",
+    "current_state": "string — 1 sentence",
+    "target_state": "string — 1 sentence",
+    "gap_severity": "Critical|High|Medium|Low",
+    "gap_type": "Build|Buy|Partner|Improve|Retire|Leverage",
+    "strategic_impact": "string — why this gap matters for the strategic intent"
+  }
+]`
+    },
+    {
+      id: 'valuepools', num: 6, title: 'Value Pools & Priorities',
+      subtitle: 'Where value will be created, captured, and prioritised',
+      icon: 'fas fa-gem', color: '#eab308',
+      requiresInput: false,
+      instructions: `You are a Value Architecture specialist.
+Based on the full strategic context and gap analysis, identify the key value pools and prioritise them.
+A value pool is a cluster of initiatives that together unlock significant business value.
+Return ONLY valid JSON array — no markdown fences, no explanation:
+[
+  {
+    "name": "string — short name",
+    "description": "string",
+    "value_type": "Revenue Growth|Cost Reduction|Risk Mitigation|Customer Experience|Compliance|Operational Efficiency",
+    "business_impact": "High|Medium|Low",
+    "feasibility": "High|Medium|Low",
+    "capabilities_needed": ["string"],
+    "timeframe": "0–3m|3–12m|1–2yr|2yr+",
+    "rationale": "string — why this is a priority"
+  }
+]`
+    },
+    {
+      id: 'roadmap', num: 7, title: 'Target Architecture & Roadmap',
+      subtitle: 'Design the target state and transformation journey by wave',
+      icon: 'fas fa-rocket', color: '#14b8a6',
+      requiresInput: false,
+      instructions: `You are a Chief Enterprise Architect.
+Based on all the analysis (strategic intent, BMC, capability map, operating model, gap analysis, value pools), design the Target Architecture and Transformation Roadmap.
+Create 3 coherent transformation waves sequenced for value delivery and respecting stated constraints.
+Return ONLY valid JSON — no markdown fences, no explanation:
+{
+  "architecture_vision": "string — 2 sentences",
+  "architecture_principles": ["5–7 principles"],
+  "target_capability_posture": [
+    {"domain": "string", "from": "string", "to": "string", "key_change": "string"}
+  ],
+  "transformation_waves": [
+    {
+      "wave": "string (e.g. 'Wave 1: Stabilise & Prepare')",
+      "timeframe": "string (e.g. '0–6 months')",
+      "theme": "string — one-line theme",
+      "initiatives": [
+        {"name": "string", "description": "string", "value_pool": "string", "capability": "string", "priority": "Must Have|Should Have|Could Have"}
+      ]
+    }
+  ],
+  "quick_wins": ["3–5 immediate actions"],
+  "critical_dependencies": ["3–5 dependencies"],
+  "key_risks": [{"risk": "string", "mitigation": "string"}]
+}`
+    }
+  ];
+
+  // ════════════════════════════════════════════════════════════════
+  //  STATE
+  // ════════════════════════════════════════════════════════════════
+  const STORAGE_KEY = 'ea_strategy_workflow_v1';
+  let state = loadState() || {
+    currentStep: 0,
+    description: '',
+    results: Array(7).fill(null),
+    rawOutputs: Array(7).fill('')
+  };
+  let generating = false;
+
+  function loadState() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (_) { return null; }
+  }
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+  function resetAll() {
+    if (!confirm('Reset all steps and start the workflow over?')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    state = { currentStep: 0, description: '', results: Array(7).fill(null), rawOutputs: Array(7).fill('') };
+    render();
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  AI
+  // ════════════════════════════════════════════════════════════════
+  async function callAI(instructions, input, timeoutMs = 90000) {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch('/api/openai-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'gpt-5', instructions, input }),
+        signal: ctrl.signal
+      });
+      clearTimeout(tid);
+      let payload;
+      try { payload = await res.json(); } catch (_) { throw new Error(`Non-JSON response (HTTP ${res.status})`); }
+      if (!res.ok) throw new Error(payload?.error?.message || `API error ${res.status}`);
+      return payload.output_text || payload.output?.[0]?.content?.[0]?.text || '';
+    } catch (e) {
+      clearTimeout(tid);
+      if (e.name === 'AbortError') throw new Error('Request timed out. Please try again.');
+      throw e;
+    }
+  }
+
+  function parseJSON(text) {
+    let t = (text || '').trim()
+      .replace(/^```json\s*/im, '').replace(/^```\s*/im, '').replace(/```\s*$/im, '').trim();
+    return JSON.parse(t);
+  }
+
+  function buildContext() {
+    const labels = ['STRATEGIC INTENT','BUSINESS MODEL CANVAS','CAPABILITY MAP (L1–L2)','CURRENT OPERATING MODEL','GAP ANALYSIS','VALUE POOLS & PRIORITIES'];
+    const parts = [];
+    for (let i = 0; i < state.currentStep; i++) {
+      if (state.rawOutputs[i]) parts.push(`=== ${labels[i]} ===\n${state.rawOutputs[i]}`);
+    }
+    return parts.join('\n\n');
+  }
+
+  async function generateCurrent() {
+    if (generating) return;
+    const step = STEPS[state.currentStep];
+
+    if (step.requiresInput) {
+      const desc = document.getElementById('desc-input')?.value?.trim() || '';
+      if (desc.length < 30) {
+        showNotice('Please describe your organisation and strategic context first (at least 30 characters).', 'error');
+        return;
+      }
+      state.description = desc;
+      saveState();
+    }
+
+    generating = true;
+    setGeneratingUI(true);
+
+    try {
+      const input = step.requiresInput ? state.description : buildContext();
+      const raw = await callAI(step.instructions, input);
+      state.rawOutputs[state.currentStep] = raw;
+      try {
+        state.results[state.currentStep] = parseJSON(raw);
+      } catch (_) {
+        state.results[state.currentStep] = { _raw: raw };
+      }
+      saveState();
+      renderStepContent();
+      updateNav();
+    } catch (e) {
+      showNotice('AI generation failed: ' + e.message, 'error');
+    } finally {
+      generating = false;
+      setGeneratingUI(false);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  NAVIGATION
+  // ════════════════════════════════════════════════════════════════
+  function handleNext() {
+    if (state.currentStep === 6) { exportWorkflow(); return; }
+    goNext();
+  }
+  function goNext() {
+    if (state.currentStep < 6) { state.currentStep++; saveState(); render(); }
+  }
+  function goBack() {
+    if (state.currentStep > 0) { state.currentStep--; saveState(); render(); }
+  }
+  function jumpToStep(n) {
+    state.currentStep = n; saveState(); render();
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  RENDER ORCHESTRATION
+  // ════════════════════════════════════════════════════════════════
+  function render() {
+    renderProgressBar();
+    renderStepList();
+    renderStepContent();
+    updateNav();
+  }
+
+  function renderProgressBar() {
+    const bar = document.getElementById('progress-bar');
+    bar.innerHTML = STEPS.map((s, i) => {
+      const done = state.results[i] !== null;
+      const active = i === state.currentStep;
+      const c = active ? s.color : (done ? '#10b981' : '#334155');
+      const icon = done && !active ? '<i class="fas fa-check" style="font-size:0.55rem;"></i>' : s.num;
+      const connector = i > 0 ? `<div style="width:22px;height:2px;background:${state.results[i-1] !== null ? '#10b981' : '#1e293b'};border-radius:1px;"></div>` : '';
+      return `${connector}<div onclick="jumpToStep(${i})" title="Step ${s.num}: ${s.title}"
+          style="width:30px;height:30px;border-radius:50%;background:${c}1a;border:2px solid ${c};color:${c};cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;transition:transform 0.15s;flex-shrink:0;"
+          onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">${icon}</div>`;
+    }).join('');
+  }
+
+  function renderStepList() {
+    const list = document.getElementById('step-list');
+    list.innerHTML = STEPS.map((s, i) => {
+      const done = state.results[i] !== null;
+      const active = i === state.currentStep;
+      const dotC = active ? s.color : (done ? '#10b981' : '#334155');
+      const dotIcon = done && !active ? '<i class="fas fa-check" style="font-size:0.55rem;"></i>' : s.num;
+      return `<div class="sidebar-item ${active ? 'active' : ''}" style="--step-color:${s.color}" onclick="jumpToStep(${i})">
+        <div style="width:26px;height:26px;border-radius:50%;background:${dotC}22;border:2px solid ${dotC};color:${dotC};display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:700;flex-shrink:0;margin-top:1px;">${dotIcon}</div>
+        <div>
+          <div style="font-size:0.78rem;font-weight:${active?'700':'500'};color:${active?'white':done?'#94a3b8':'#cbd5e1'};">${s.title}</div>
+          <div style="font-size:0.64rem;color:#475569;line-height:1.3;margin-top:1px;">${s.subtitle.split(' — ')[1] || s.subtitle}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderStepContent() {
+    const el = document.getElementById('step-content');
+    const step = STEPS[state.currentStep];
+    const result = state.results[state.currentStep];
+
+    // ── Step header
+    let html = `<div style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <div style="width:42px;height:42px;border-radius:10px;background:${step.color}18;border:1px solid ${step.color}40;display:flex;align-items:center;justify-content:center;color:${step.color};font-size:1rem;flex-shrink:0;">
+          <i class="${step.icon}"></i>
+        </div>
+        <div>
+          <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:${step.color};">Step ${step.num} of 7</div>
+          <h1 style="font-size:1.4rem;font-weight:700;color:white;margin:0;line-height:1.2;">${step.title}</h1>
+        </div>
+      </div>
+      <p style="font-size:0.85rem;color:#64748b;margin:0;">${step.subtitle}</p>
+    </div>`;
+
+    // ── Context pills (steps 2–7)
+    if (!step.requiresInput && state.currentStep > 0) {
+      const done = STEPS.slice(0, state.currentStep).filter((_, i) => state.results[i] !== null);
+      if (done.length) {
+        html += `<div style="background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:8px 12px;margin-bottom:18px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#475569;">Built from</span>
+          ${done.map(s => `<span style="font-size:0.7rem;background:${s.color}18;color:${s.color};border:1px solid ${s.color}35;padding:2px 9px;border-radius:99px;font-weight:600;">Step ${s.num}: ${s.title}</span>`).join('')}
+        </div>`;
+      }
+    }
+
+    // ── Input area (step 1)
+    if (step.requiresInput) {
+      html += `<div class="card" style="margin-bottom:16px;">
+        <div class="card-label">Describe your organisation and strategic context</div>
+        <textarea id="desc-input" rows="8"
+          style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:12px;color:#e2e8f0;font-size:0.83rem;line-height:1.65;resize:vertical;box-sizing:border-box;font-family:inherit;transition:border-color 0.15s;"
+          placeholder="${escHtml(step.inputPlaceholder)}">${escHtml(state.description)}</textarea>
+      </div>`;
+    }
+
+    // ── Generate button
+    const hasResult = result !== null;
+    html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:${hasResult ? '20px' : '0'};">
+      <button id="gen-btn" class="btn-primary" onclick="generateCurrent()">
+        <i class="fas fa-wand-magic-sparkles"></i>
+        ${hasResult ? 'Regenerate with AI' : 'Generate with AI'}
+      </button>
+      ${!hasResult ? `<span style="font-size:0.75rem;color:#475569;">AI will analyse ${step.requiresInput ? 'your description' : 'all previous steps'} to generate ${step.title}.</span>` : ''}
+    </div>`;
+
+    // ── Output
+    if (hasResult) {
+      html += `<div id="output-section" style="margin-top:4px;">`;
+      html += result._raw
+        ? `<div class="card"><div class="card-label">AI Response</div><pre style="white-space:pre-wrap;font-size:0.78rem;color:#94a3b8;line-height:1.6;margin:0;">${escHtml(result._raw)}</pre></div>`
+        : renderOutput(state.currentStep, result);
+      html += `</div>`;
+    }
+
+    el.innerHTML = html;
+  }
+
+  function updateNav() {
+    const back = document.getElementById('btn-back');
+    const next = document.getElementById('btn-next');
+    const regen = document.getElementById('btn-regen');
+    const hasResult = state.results[state.currentStep] !== null;
+    const isLast = state.currentStep === 6;
+
+    if (back) back.disabled = state.currentStep === 0;
+    if (regen) regen.style.display = hasResult ? 'inline-flex' : 'none';
+    if (next) {
+      next.disabled = !hasResult;
+      next.innerHTML = isLast
+        ? '<i class="fas fa-file-export"></i> Export'
+        : 'Next <i class="fas fa-arrow-right"></i>';
+    }
+  }
+
+  function setGeneratingUI(on) {
+    const btn = document.getElementById('gen-btn');
+    const next = document.getElementById('btn-next');
+    if (on) {
+      if (btn) { btn.innerHTML = '<i class="fas fa-circle-notch spinner"></i> Generating…'; btn.disabled = true; }
+      if (next) next.disabled = true;
+      document.getElementById('hdr-status').textContent = `Generating ${STEPS[state.currentStep].title}…`;
+    } else {
+      if (btn) {
+        const hasResult = state.results[state.currentStep] !== null;
+        btn.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> ${hasResult ? 'Regenerate with AI' : 'Generate with AI'}`;
+        btn.disabled = false;
+      }
+      document.getElementById('hdr-status').textContent = '';
+      updateNav();
+    }
+  }
+
+  function showNotice(msg, type = 'info') {
+    const c = document.getElementById('step-content');
+    document.querySelectorAll('.sw-notice').forEach(e => e.remove());
+    const el = document.createElement('div');
+    el.className = 'sw-notice';
+    const bg = type === 'error' ? '#7f1d1d' : '#1e3a5f';
+    const tc = type === 'error' ? '#fca5a5' : '#93c5fd';
+    const bd = type === 'error' ? '#ef444440' : '#3b82f640';
+    el.style.cssText = `background:${bg};border:1px solid ${bd};border-radius:8px;padding:11px 14px;font-size:0.82rem;color:${tc};margin-top:12px;`;
+    el.innerHTML = `<i class="fas fa-${type === 'error' ? 'circle-exclamation' : 'circle-info'}" style="margin-right:6px;"></i>${escHtml(msg)}`;
+    c.appendChild(el);
+    setTimeout(() => el.remove(), 7000);
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  OUTPUT RENDERERS
+  // ════════════════════════════════════════════════════════════════
+  function renderOutput(stepIdx, d) {
+    switch (stepIdx) {
+      case 0: return renderIntent(d);
+      case 1: return renderBMC(d);
+      case 2: return renderCapMap(d);
+      case 3: return renderOpModel(d);
+      case 4: return renderGaps(d);
+      case 5: return renderValuePools(d);
+      case 6: return renderRoadmap(d);
+      default: return `<div class="card"><pre style="white-space:pre-wrap;font-size:0.78rem;color:#e2e8f0;">${escHtml(JSON.stringify(d, null, 2))}</pre></div>`;
+    }
+  }
+
+  // ─── Step 1: Strategic Intent ───
+  function renderIntent(d) {
+    return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div class="card">
+        <div class="card-label">Organisation</div>
+        <div style="font-size:0.95rem;font-weight:700;color:white;">${esc(d.org_name)}</div>
+        <div style="font-size:0.75rem;color:#64748b;margin-top:2px;">${esc(d.industry)}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Transformation Timeframe</div>
+        <div style="font-size:0.9rem;font-weight:600;color:white;">${esc(d.timeframe)}</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:10px;">
+      <div class="card-label">Mission</div>
+      <div class="card-val">${esc(d.mission)}</div>
+    </div>
+    <div class="card" style="margin-bottom:10px;">
+      <div class="card-label">Strategic Ambition</div>
+      <div style="font-size:0.88rem;color:#bfdbfe;font-weight:500;line-height:1.6;">${esc(d.strategic_ambition)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div class="card">
+        <div class="card-label">Strategic Themes</div>
+        <div style="margin-top:4px;">${(d.strategic_themes||[]).map(t=>`<span class="badge" style="background:#3b82f618;color:#93c5fd;border:1px solid #3b82f635;">${esc(t)}</span>`).join('')}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Key Constraints</div>
+        <ul style="padding-left:14px;margin:4px 0 0;line-height:1.9;">${(d.key_constraints||[]).map(c=>`<li style="font-size:0.78rem;color:#94a3b8;">${esc(c)}</li>`).join('')}</ul>
+      </div>
+      <div class="card">
+        <div class="card-label">Success Metrics</div>
+        <ul style="padding-left:14px;margin:4px 0 0;line-height:1.9;">${(d.success_metrics||[]).map(m=>`<li style="font-size:0.78rem;color:#6ee7b7;">${esc(m)}</li>`).join('')}</ul>
+      </div>
+    </div>
+    ${d.summary ? `<div style="background:#1d3461;border:1px solid #3b82f640;border-radius:8px;padding:14px;">
+      <div class="card-label" style="color:#60a5fa;">Executive Summary</div>
+      <div style="font-size:0.87rem;color:#bfdbfe;line-height:1.7;">${esc(d.summary)}</div>
+    </div>` : ''}`;
+  }
+
+  // ─── Step 2: BMC ───
+  function renderBMC(d) {
+    const cell = (label, key, span) =>
+      `<div class="bmc-cell" style="${span ? `grid-row:1/3;` : ''}">
+        <div class="card-label">${label}</div>
+        <div style="font-size:0.78rem;color:#cbd5e1;line-height:1.55;">${esc(d[key]||'')}</div>
+      </div>`;
+    return `
+    <div style="font-size:0.72rem;color:#64748b;margin-bottom:8px;font-style:italic;">Reflects current business model and target trajectory</div>
+    <div style="display:grid;grid-template-columns:1.1fr 1fr 1.5fr 1fr 1fr;gap:2px;background:#334155;border-radius:8px 8px 0 0;overflow:hidden;">
+      ${cell('Key Partners','key_partners',true)}
+      ${cell('Key Activities','key_activities',false)}
+      ${cell('Value Proposition','value_proposition',true)}
+      ${cell('Customer Relationships','customer_relationships',false)}
+      ${cell('Customer Segments','customer_segments',true)}
+      ${cell('Key Resources','key_resources',false)}
+      ${cell('Channels','channels',false)}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;background:#334155;border-radius:0 0 8px 8px;overflow:hidden;margin-top:2px;">
+      ${cell('Cost Structure','cost_structure',false)}
+      ${cell('Revenue Streams','revenue_streams',false)}
+    </div>`;
+  }
+
+  // ─── Step 3: Capability Map ───
+  function renderCapMap(domains) {
+    if (!Array.isArray(domains)) domains = [];
+    const tc = { strategic:'#3b82f6', enabling:'#a855f7', commodity:'#64748b' };
+    const tb = { strategic:'#3b82f618', enabling:'#a855f718', commodity:'#64748b18' };
+    return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      ${domains.map(dom => `
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <div style="width:8px;height:8px;border-radius:2px;background:#10b981;flex-shrink:0;"></div>
+            <div style="font-size:0.88rem;font-weight:700;color:white;">${esc(dom.domain)}</div>
+          </div>
+          ${dom.description ? `<div style="font-size:0.73rem;color:#475569;margin-bottom:10px;line-height:1.5;">${esc(dom.description)}</div>` : ''}
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            ${(dom.capabilities||[]).map(cap => `
+              <div style="display:flex;align-items:flex-start;gap:8px;background:#0f172a;border-radius:6px;padding:7px 9px;">
+                <span style="font-size:0.58rem;padding:2px 7px;border-radius:99px;font-weight:700;background:${tb[cap.type]||tb.commodity};color:${tc[cap.type]||tc.commodity};flex-shrink:0;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">${cap.type||'enabling'}</span>
+                <div>
+                  <div style="font-size:0.8rem;font-weight:600;color:#e2e8f0;">${esc(cap.name)}</div>
+                  ${cap.description ? `<div style="font-size:0.71rem;color:#475569;margin-top:2px;">${esc(cap.description)}</div>` : ''}
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`).join('')}
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid #1e293b;">
+      <span style="font-size:0.68rem;color:#475569;">Legend:</span>
+      ${['strategic','enabling','commodity'].map(t=>`<span style="font-size:0.68rem;background:${tb[t]};color:${tc[t]};border:1px solid ${tc[t]}40;padding:2px 9px;border-radius:99px;">${t.charAt(0).toUpperCase()+t.slice(1)}</span>`).join('')}
+    </div>`;
+  }
+
+  // ─── Step 4: Operating Model ───
+  function renderOpModel(d) {
+    const mC = { Low:'#ef4444', Medium:'#f59e0b', High:'#10b981' };
+    const mB = { Low:'#7f1d1d', Medium:'#713f12', High:'#14532d' };
+    return `
+    <div class="card" style="margin-bottom:10px;">
+      <div class="card-label">Value Chain</div>
+      <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:6px;">
+        ${(d.value_chain||[]).map((step,i)=>`
+          ${i>0?'<i class="fas fa-arrow-right" style="color:#334155;font-size:0.6rem;"></i>':''}
+          <span style="background:#1d4ed818;border:1px solid #1d4ed840;color:#93c5fd;padding:5px 13px;border-radius:6px;font-size:0.78rem;font-weight:600;">${esc(step)}</span>`).join('')}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div class="card">
+        <div class="card-label">Organisation Model</div>
+        <div class="card-val">${esc(d.org_model)}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Data Posture</div>
+        <div class="card-val">${esc(d.data_posture)}</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:10px;">
+      <div class="card-label">Technology Landscape</div>
+      <div class="card-val">${esc(d.technology_landscape)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:10px;">
+      <div class="card">
+        <div class="card-label">Key Processes</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+          ${(d.key_processes||[]).map(p=>`
+            <div style="background:#0f172a;border-radius:6px;padding:8px 10px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+                <span style="font-size:0.8rem;font-weight:600;color:#e2e8f0;">${esc(p.name)}</span>
+                <span style="font-size:0.62rem;padding:2px 7px;border-radius:4px;background:${mB[p.maturity]||'#1e293b'}80;color:${mC[p.maturity]||'#94a3b8'};">${p.maturity}</span>
+              </div>
+              ${p.description?`<div style="font-size:0.72rem;color:#64748b;">${esc(p.description)}</div>`:''}
+              ${p.pain_point?`<div style="font-size:0.71rem;color:#f59e0b;margin-top:3px;"><i class="fas fa-triangle-exclamation" style="font-size:0.58rem;margin-right:3px;"></i>${esc(p.pain_point)}</div>`:''}
+            </div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">Pain Points</div>
+        <ul style="padding-left:14px;margin:4px 0 0;line-height:2.0;">
+          ${(d.pain_points||[]).map(p=>`<li style="font-size:0.8rem;color:#fca5a5;">${esc(p)}</li>`).join('')}
+        </ul>
+      </div>
+    </div>`;
+  }
+
+  // ─── Step 5: Gap Analysis ───
+  function renderGaps(gaps) {
+    if (!Array.isArray(gaps)) gaps = [];
+    const sevBg = { Critical:'#7f1d1d', High:'#7c2d12', Medium:'#713f12', Low:'#14532d' };
+    const sevFg = { Critical:'#fca5a5', High:'#fdba74', Medium:'#fde68a', Low:'#86efac' };
+    const typeFg = { Build:'#93c5fd', Buy:'#d8b4fe', Partner:'#5eead4', Improve:'#6ee7b7', Retire:'#fca5a5', Leverage:'#fcd34d' };
+    const typeBg = { Build:'#1d4ed820', Buy:'#7c3aed20', Partner:'#0f766e20', Improve:'#05603a20', Retire:'#7f1d1d20', Leverage:'#713f1220' };
+    return `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <span style="font-size:0.75rem;color:#64748b;">${gaps.length} gaps identified</span>
+      ${['Critical','High','Medium','Low'].map(s=>{
+        const n = gaps.filter(g=>g.gap_severity===s).length;
+        return n>0?`<span style="font-size:0.65rem;background:${sevBg[s]}80;color:${sevFg[s]};border:1px solid ${sevBg[s]};padding:2px 9px;border-radius:99px;font-weight:700;">${n} ${s}</span>`:'';
+      }).join('')}
+    </div>
+    <div>
+      ${gaps.map(g=>`
+        <div style="background:#1e293b;border:1px solid #334155;border-left:3px solid ${sevFg[g.gap_severity]||'#94a3b8'};border-radius:8px;padding:12px;margin-bottom:8px;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;">
+            <div>
+              <span style="font-size:0.88rem;font-weight:700;color:white;">${esc(g.capability)}</span>
+              <span style="font-size:0.72rem;color:#475569;margin-left:8px;">${esc(g.domain)}</span>
+            </div>
+            <div style="display:flex;gap:5px;flex-shrink:0;">
+              <span style="font-size:0.63rem;padding:2px 8px;border-radius:99px;background:${sevBg[g.gap_severity]||'#1e293b'}90;color:${sevFg[g.gap_severity]||'#94a3b8'};font-weight:700;">${g.gap_severity}</span>
+              <span style="font-size:0.63rem;padding:2px 8px;border-radius:99px;background:${typeBg[g.gap_type]||'#33415520'};color:${typeFg[g.gap_type]||'#94a3b8'};font-weight:700;">${g.gap_type}</span>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+            <div style="background:#0f172a;border-radius:5px;padding:7px 9px;">
+              <div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#475569;margin-bottom:3px;">AS-IS</div>
+              <div style="font-size:0.78rem;color:#94a3b8;">${esc(g.current_state)}</div>
+            </div>
+            <div style="background:#0f172a;border-radius:5px;padding:7px 9px;">
+              <div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#475569;margin-bottom:3px;">TO-BE</div>
+              <div style="font-size:0.78rem;color:#bfdbfe;">${esc(g.target_state)}</div>
+            </div>
+          </div>
+          ${g.strategic_impact?`<div style="font-size:0.74rem;color:#64748b;font-style:italic;">${esc(g.strategic_impact)}</div>`:''}
+        </div>`).join('')}
+    </div>`;
+  }
+
+  // ─── Step 6: Value Pools ───
+  function renderValuePools(pools) {
+    if (!Array.isArray(pools)) pools = [];
+    const impC = { High:'#10b981', Medium:'#f59e0b', Low:'#ef4444' };
+    const vtColor = {'Revenue Growth':'#6ee7b7','Cost Reduction':'#93c5fd','Risk Mitigation':'#fca5a5','Customer Experience':'#d8b4fe','Compliance':'#fcd34d','Operational Efficiency':'#5eead4'};
+    const vtBg = {'Revenue Growth':'#05603a20','Cost Reduction':'#1d4ed820','Risk Mitigation':'#7f1d1d20','Customer Experience':'#6d28d920','Compliance':'#713f1220','Operational Efficiency':'#0f766e20'};
+    const sorted = [...pools].sort((a,b) => {
+      const o = {'0–3m':0,'3–12m':1,'1–2yr':2,'2yr+':3};
+      return (o[a.timeframe]??9) - (o[b.timeframe]??9);
+    });
+    return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      ${sorted.map(p=>`
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;right:0;width:3px;height:100%;background:${impC[p.business_impact]||'#64748b'};"></div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;">
+            <div>
+              <div style="font-size:0.9rem;font-weight:700;color:white;">${esc(p.name)}</div>
+              <span style="font-size:0.63rem;background:${vtBg[p.value_type]||'#33415520'};color:${vtColor[p.value_type]||'#94a3b8'};padding:2px 8px;border-radius:99px;font-weight:600;">${esc(p.value_type)}</span>
+            </div>
+            <span style="font-size:0.7rem;background:#0f172a;color:#64748b;padding:3px 9px;border-radius:6px;flex-shrink:0;font-weight:600;white-space:nowrap;">${esc(p.timeframe)}</span>
+          </div>
+          <div style="font-size:0.78rem;color:#94a3b8;line-height:1.55;margin-bottom:10px;">${esc(p.description)}</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div>
+              <div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#475569;">Impact</div>
+              <div style="font-size:0.78rem;font-weight:700;color:${impC[p.business_impact]||'#64748b'};">${esc(p.business_impact)}</div>
+            </div>
+            <div style="width:1px;height:22px;background:#334155;"></div>
+            <div>
+              <div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#475569;">Feasibility</div>
+              <div style="font-size:0.78rem;font-weight:700;color:${impC[p.feasibility]||'#64748b'};">${esc(p.feasibility)}</div>
+            </div>
+            <div style="width:1px;height:22px;background:#334155;"></div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#475569;">Key Capabilities</div>
+              <div style="font-size:0.7rem;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${(p.capabilities_needed||[]).slice(0,2).map(esc).join(', ')}</div>
+            </div>
+          </div>
+          ${p.rationale?`<div style="font-size:0.72rem;color:#475569;margin-top:8px;font-style:italic;">${esc(p.rationale)}</div>`:''}
+        </div>`).join('')}
+    </div>`;
+  }
+
+  // ─── Step 7: Target Architecture & Roadmap ───
+  function renderRoadmap(d) {
+    const wC = ['#3b82f6','#8b5cf6','#14b8a6'];
+    const prioFg = {'Must Have':'#6ee7b7','Should Have':'#fcd34d','Could Have':'#94a3b8'};
+    const prioBg = {'Must Have':'#05603a20','Should Have':'#713f1220','Could Have':'#33415520'};
+    return `
+    ${d.architecture_vision?`<div style="background:linear-gradient(90deg,#1d3461,#1a2e4a);border:1px solid #3b82f640;border-radius:10px;padding:16px;margin-bottom:18px;">
+      <div class="card-label" style="color:#60a5fa;">Architecture Vision</div>
+      <div style="font-size:0.95rem;color:#bfdbfe;line-height:1.7;font-weight:500;">${esc(d.architecture_vision)}</div>
+    </div>`:''}
+
+    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:10px;margin-bottom:18px;">
+      <div class="card">
+        <div class="card-label">Architecture Principles</div>
+        <ol style="padding-left:16px;margin:4px 0 0;line-height:2.0;">
+          ${(d.architecture_principles||[]).map(p=>`<li style="font-size:0.8rem;color:#cbd5e1;">${esc(p)}</li>`).join('')}
+        </ol>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="card">
+          <div class="card-label">Quick Wins</div>
+          <ul style="padding-left:14px;margin:4px 0 0;line-height:1.9;">
+            ${(d.quick_wins||[]).map(w=>`<li style="font-size:0.78rem;color:#6ee7b7;">${esc(w)}</li>`).join('')}
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-label">Critical Dependencies</div>
+          <ul style="padding-left:14px;margin:4px 0 0;line-height:1.9;">
+            ${(d.critical_dependencies||[]).map(d2=>`<li style="font-size:0.78rem;color:#fcd34d;">${esc(d2)}</li>`).join('')}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    ${(d.target_capability_posture||[]).length>0?`
+    <div class="card" style="margin-bottom:18px;">
+      <div class="card-label">Target Capability Posture</div>
+      <div style="display:flex;flex-direction:column;gap:5px;margin-top:4px;">
+        ${(d.target_capability_posture||[]).map(tc=>`
+          <div style="display:grid;grid-template-columns:180px 1fr auto 1fr;align-items:center;gap:8px;background:#0f172a;border-radius:6px;padding:7px 10px;">
+            <div style="font-size:0.78rem;font-weight:600;color:#e2e8f0;">${esc(tc.domain)}</div>
+            <div style="font-size:0.73rem;color:#64748b;">${esc(tc.from)}</div>
+            <i class="fas fa-arrow-right" style="color:#3b82f6;font-size:0.7rem;"></i>
+            <div style="font-size:0.73rem;color:#bfdbfe;">${esc(tc.to)}</div>
+          </div>`).join('')}
+      </div>
+    </div>`:''}
+
+    <div style="font-size:0.78rem;font-weight:700;color:#e2e8f0;margin-bottom:10px;">Transformation Waves</div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px;">
+      ${(d.transformation_waves||[]).map((wave,wi)=>`
+        <div style="border:1px solid ${wC[wi%3]}35;border-left:3px solid ${wC[wi%3]};background:#1e293b;border-radius:10px;padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div>
+              <div style="font-size:1rem;font-weight:700;color:${wC[wi%3]};">${esc(wave.wave)}</div>
+              <div style="font-size:0.76rem;color:#64748b;">${esc(wave.timeframe)} — ${esc(wave.theme)}</div>
+            </div>
+            <span style="font-size:0.68rem;background:${wC[wi%3]}18;color:${wC[wi%3]};border:1px solid ${wC[wi%3]}40;padding:3px 10px;border-radius:6px;font-weight:600;">${(wave.initiatives||[]).length} initiatives</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">
+            ${(wave.initiatives||[]).map(init=>`
+              <div style="background:#0f172a;border-radius:7px;padding:10px;">
+                <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:5px;">
+                  <span style="font-size:0.6rem;padding:2px 6px;border-radius:4px;background:${prioBg[init.priority]||'#33415520'};color:${prioFg[init.priority]||'#64748b'};font-weight:700;flex-shrink:0;margin-top:2px;">${esc(init.priority||'')}</span>
+                  <span style="font-size:0.82rem;font-weight:600;color:#e2e8f0;">${esc(init.name)}</span>
+                </div>
+                <div style="font-size:0.74rem;color:#64748b;line-height:1.5;">${esc(init.description)}</div>
+                ${init.value_pool?`<div style="font-size:0.68rem;color:#8b5cf6;margin-top:5px;"><i class="fas fa-gem" style="font-size:0.6rem;margin-right:3px;"></i>${esc(init.value_pool)}</div>`:''}
+              </div>`).join('')}
+          </div>
+        </div>`).join('')}
+    </div>
+
+    ${(d.key_risks||[]).length>0?`
+    <div class="card">
+      <div class="card-label">Key Risks & Mitigations</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+        ${(d.key_risks||[]).map(r=>`
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#0f172a;border-radius:6px;padding:8px 10px;">
+            <div style="font-size:0.78rem;color:#fca5a5;"><i class="fas fa-exclamation-triangle" style="font-size:0.6rem;margin-right:4px;"></i>${esc(r.risk)}</div>
+            <div style="font-size:0.78rem;color:#6ee7b7;"><i class="fas fa-shield-halved" style="font-size:0.6rem;margin-right:4px;"></i>${esc(r.mitigation)}</div>
+          </div>`).join('')}
+      </div>
+    </div>`:''}`;
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  EXPORT
+  // ════════════════════════════════════════════════════════════════
+  function exportWorkflow() {
+    let md = `# EA Strategy Workflow\nExported: ${new Date().toLocaleDateString('en-GB')}\n\n`;
+    STEPS.forEach((step, i) => {
+      if (state.results[i]) {
+        md += `## Step ${step.num}: ${step.title}\n\n\`\`\`json\n${JSON.stringify(state.results[i], null, 2)}\n\`\`\`\n\n`;
+      }
+    });
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `EA_Strategy_Workflow_${new Date().toISOString().slice(0,10)}.md`;
+    a.click(); URL.revokeObjectURL(url);
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  UTILITY
+  // ════════════════════════════════════════════════════════════════
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  // alias for template literals (shorter name)
+  const escHtml = esc;
+
+  // ════════════════════════════════════════════════════════════════
+  //  BOOT
+  // ════════════════════════════════════════════════════════════════
+  render();
+  </script>
+</body>
+</html>

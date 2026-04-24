@@ -1,0 +1,1752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EA Engagement Playbook — EA Toolkit</title>
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+    <script src="../../AzureOpenAIProxy.js"></script>
+    <script src="../../js/EA_Config.js"></script>
+    <script src="../../js/EA_DataManager.js"></script>
+    <script src="../../js/EA_EngagementManager.js"></script>
+    <script src="../../js/Advicy_AI.js"></script>
+    <script src="engagement_schema.js"></script>
+    <style>
+        /* === EA PLATFORM LAYOUT === */
+        #app-container { display: flex; flex-direction: column; min-height: 100vh; background: #f8f9fa; }
+        #main-content { flex: 1; padding-bottom: 40px; }
+        
+        /* === EA PLATFORM HEADER === */
+        .ea-header {
+            background: linear-gradient(135deg, #065f46 0%, #10b981 100%) !important;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .ea-header-left { display: flex; align-items: center; gap: 16px; }
+        
+        .ea-brand-mark {
+            width: 48px; height: 48px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px; color: white;
+        }
+        
+        .ea-header-title h1 { font-size: 20px; font-weight: 700; color: white; margin: 0; }
+        .ea-header-title p { font-size: 12px; color: rgba(255,255,255,0.85); margin: 0; }
+        
+        .ea-header-right { display: flex; gap: 8px; }
+        
+        .ea-header-icon {
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.1);
+            border: none; border-radius: 10px; color: white;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .ea-header-icon:hover { background: rgba(255,255,255,0.18); }
+        
+        /* === KPI STRIP === */
+        .kpi-strip {
+            display: flex; gap: 16px; padding: 20px 24px;
+            background: white; border-bottom: 1px solid #e5e7eb;
+            overflow-x: auto;
+        }
+        
+        .kpi-card {
+            flex: 1; min-width: 160px;
+            padding: 16px; border-radius: 12px;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 1px solid #bbf7d0;
+        }
+        
+        .kpi-value {
+            font-size: 28px; font-weight: 700;
+            color: #065f46; margin: 0 0 4px 0;
+        }
+        
+        .kpi-label {
+            font-size: 11px; font-weight: 600;
+            color: #047857; text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .kpi-card.completeness {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #fcd34d;
+        }
+        .kpi-card.completeness .kpi-value { color: #92400e; }
+        .kpi-card.completeness .kpi-label { color: #b45309; }
+        
+        /* Traffic light colors for completeness */
+        .kpi-card.completeness.level-low {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border: 1px solid #fca5a5;
+        }
+        .kpi-card.completeness.level-low .kpi-value { color: #991b1b; }
+        .kpi-card.completeness.level-low .kpi-label { color: #b91c1c; }
+        
+        .kpi-card.completeness.level-medium {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #fcd34d;
+        }
+        .kpi-card.completeness.level-medium .kpi-value { color: #92400e; }
+        .kpi-card.completeness.level-medium .kpi-label { color: #b45309; }
+        
+        .kpi-card.completeness.level-high {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border: 1px solid #6ee7b7;
+        }
+        .kpi-card.completeness.level-high .kpi-value { color: #065f46; }
+        .kpi-card.completeness.level-high .kpi-label { color: #047857; }
+        
+        /* === TAB NAVIGATION === */
+        .tab-bar {
+            display: flex; gap: 4px; padding: 16px 24px 0;
+            background: white; border-bottom: 2px solid #e5e7eb;
+            overflow-x: auto;
+        }
+        
+        .tab-btn {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 20px; border: none;
+            background: transparent; color: #6b7280;
+            font-size: 14px; font-weight: 600;
+            cursor: pointer; border-radius: 8px 8px 0 0;
+            transition: all 0.2s; white-space: nowrap;
+        }
+        
+        .tab-btn:hover { background: #f3f4f6; color: #065f46; }
+        .tab-btn.active {
+            background: white; color: #065f46;
+            border-bottom: 3px solid #10b981;
+            margin-bottom: -2px;
+        }
+        
+        /* === CONTENT SECTIONS === */
+        .section-view {
+            display: none; padding: 24px;
+            background: white; margin: 0 24px 24px;
+            border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .section-view.active { display: block; }
+        
+        .section-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; padding-bottom: 16px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .section-title {
+            font-size: 20px; font-weight: 700; color: #111827;
+            display: flex; align-items: center; gap: 10px;
+        }
+        
+        /* === BUTTONS === */
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px; border-radius: 8px;
+            font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: #10b981; color: white;
+        }
+        .btn-primary:hover { background: #059669; }
+        
+        .btn-secondary {
+            background: white; color: #065f46;
+            border: 2px solid #10b981;
+        }
+        .btn-secondary:hover { background: #f0fdf4; }
+        
+        .btn-ghost {
+            background: transparent; color: #6b7280;
+        }
+        .btn-ghost:hover { background: #f3f4f6; }
+        
+        /* === MODALS === */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); display: flex;
+            align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .modal-overlay.hidden { display: none; }
+        
+        .modal-box {
+            background: white; border-radius: 16px;
+            width: 90%; max-width: 600px; max-height: 90vh;
+            overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 24px; border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .modal-title { font-size: 18px; font-weight: 700; color: #111827; }
+        
+        .modal-close {
+            width: 32px; height: 32px;
+            border-radius: 8px; border: none;
+            background: #f3f4f6; color: #6b7280;
+            cursor: pointer; font-size: 18px;
+        }
+        .modal-close:hover { background: #e5e7eb; }
+        
+        .modal-body { padding: 24px; }
+        
+        .modal-footer {
+            display: flex; gap: 12px; justify-content: flex-end;
+            padding: 20px 24px; border-top: 1px solid #e5e7eb;
+        }
+        
+        /* === FORMS === */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block; margin-bottom: 8px;
+            font-size: 13px; font-weight: 600;
+            color: #374151;
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%; padding: 10px 14px;
+            border: 1px solid #d1d5db; border-radius: 8px;
+            font-size: 14px; color: #111827;
+            transition: border-color 0.2s;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none; border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+        
+        .form-textarea { resize: vertical; min-height: 80px; }
+        
+        /* === TABLES === */
+        .data-table {
+            width: 100%; border-collapse: collapse;
+            margin-top: 16px;
+        }
+        
+        .data-table th {
+            text-align: left; padding: 12px 16px;
+            background: #f9fafb; color: #374151;
+            font-size: 12px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .data-table td {
+            padding: 12px 16px; border-bottom: 1px solid #e5e7eb;
+            font-size: 14px; color: #111827;
+        }
+        
+        .data-table tbody tr:hover {
+            background: #f9fafb;
+        }
+        
+        /* === BADGES === */
+        .badge {
+            display: inline-block; padding: 4px 10px;
+            border-radius: 12px; font-size: 11px;
+            font-weight: 600; text-transform: uppercase;
+        }
+        
+        .badge-draft { background: #e5e7eb; color: #374151; }
+        .badge-active { background: #d1fae5; color: #065f46; }
+        .badge-completed { background: #dbeafe; color: #1e40af; }
+        .badge-high { background: #fee2e2; color: #991b1b; }
+        .badge-medium { background: #fef3c7; color: #92400e; }
+        .badge-low { background: #dbeafe; color: #1e40af; }
+        
+        /* === EMPTY STATE === */
+        .empty-state {
+            text-align: center; padding: 60px 20px;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px; color: #d1d5db; margin-bottom: 16px;
+        }
+        
+        .empty-state-title {
+            font-size: 18px; font-weight: 600;
+            color: #6b7280; margin-bottom: 8px;
+        }
+        
+        .empty-state-text {
+            font-size: 14px; color: #9ca3af; margin-bottom: 20px;
+        }
+        
+        /* === TOAST NOTIFICATIONS === */
+        .toast {
+            position: fixed; bottom: 24px; right: 24px;
+            background: white; border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 16px 20px; display: flex; align-items: center; gap: 12px;
+            min-width: 300px; z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .toast.success { border-left: 4px solid #10b981; }
+        .toast.error { border-left: 4px solid #ef4444; }
+        .toast.warning { border-left: 4px solid #f59e0b; }
+        .toast.info { border-left: 4px solid #3b82f6; }
+        
+        .toast-icon {
+            font-size: 20px;
+        }
+        .toast.success .toast-icon { color: #10b981; }
+        .toast.error .toast-icon { color: #ef4444; }
+        .toast.warning .toast-icon { color: #f59e0b; }
+        .toast.info .toast-icon { color: #3b82f6; }
+        
+        .toast-content {
+            flex: 1;
+        }
+        
+        .toast-title {
+            font-weight: 600; font-size: 14px; color: #111827;
+        }
+        
+        .toast-message {
+            font-size: 13px; color: #6b7280; margin-top: 2px;
+        }
+        
+        .toast-close {
+            width: 24px; height: 24px; border-radius: 6px;
+            border: none; background: #f3f4f6; color: #6b7280;
+            cursor: pointer; font-size: 14px;
+        }
+        .toast-close:hover { background: #e5e7eb; }
+        
+        /* === FILTER BAR === */
+        .filter-bar {
+            display: flex; gap: 12px; align-items: center;
+            margin-bottom: 20px; flex-wrap: wrap;
+        }
+        
+        .filter-input {
+            flex: 1; min-width: 200px;
+            padding: 10px 14px; border: 1px solid #d1d5db;
+            border-radius: 8px; font-size: 14px;
+        }
+        
+        .filter-select {
+            padding: 10px 14px; border: 1px solid #d1d5db;
+            border-radius: 8px; font-size: 14px;
+            background: white; cursor: pointer;
+        }
+        
+        /* === AI CHAT PANEL (LIGHT MODE NORDIC DESIGN) === */
+        #ai-chat-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 380px;
+            background: #ffffff;
+            border-left: 1px solid #e5e7eb;
+            box-shadow: -4px 0 24px rgba(0,0,0,0.08);
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        body.chat-sidebar-open #ai-chat-panel { display: flex; }
+        body.chat-sidebar-open #main-content { margin-right: 380px; }
+        
+        #chat-resize-handle {
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 5px;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 20;
+            transition: background 0.15s;
+        }
+        #chat-resize-handle:hover, #chat-resize-handle.dragging { background: #10b981; }
+        
+        #chat-header {
+            height: 64px;
+            background: linear-gradient(135deg, #065f46 0%, #10b981 100%);
+            color: white;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        #chat-header-title { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; }
+        #chat-controls { display: flex; gap: 6px; }
+        #chat-controls button {
+            width: 32px; height: 32px; border-radius: 6px;
+            background: rgba(255,255,255,0.1); border: none; color: white;
+            cursor: pointer; font-size: 16px; transition: background 0.15s;
+        }
+        #chat-controls button:hover { background: rgba(255,255,255,0.2); }
+        
+        .quick-actions {
+            display: flex; flex-wrap: wrap; gap: 6px;
+            padding: 12px 16px; background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb; flex-shrink: 0;
+        }
+        .qa-btn {
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 12px; border: 1px solid #d1d5db;
+            background: white; color: #374151;
+            border-radius: 20px; cursor: pointer; font-size: 12px;
+            font-weight: 500; transition: all 0.15s;
+        }
+        .qa-btn:hover { background: #10b981; border-color: #10b981; color: white; }
+        .qa-btn i { font-size: 11px; }
+        
+        #chat-messages {
+            flex: 1; overflow-y: auto;
+            padding: 20px 16px; background: #ffffff;
+            display: flex; flex-direction: column; gap: 0;
+            scrollbar-width: thin; scrollbar-color: #d1d5db #f9fafb;
+        }
+        #chat-messages::-webkit-scrollbar { width: 6px; }
+        #chat-messages::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+        
+        .chat-message { display: flex; gap: 0; animation: chatSlideIn 0.2s ease; margin-bottom: 16px; }
+        @keyframes chatSlideIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+        .message-content { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+        .message-text { background: transparent; border: none; border-radius: 0; padding: 0; font-size: 14px; line-height: 1.6; color: #111827; word-break: break-word; }
+        .user-message .message-text { background: #f0fdf4; color: #065f46; border: 1px solid #bbf7d0; padding: 12px 14px; border-radius: 8px; font-size: 13px; }
+        .message-time { font-size: 11px; color: #9ca3af; padding: 4px 0 0 0; }
+        
+        #chat-input-container {
+            display: flex; gap: 8px; padding: 12px 16px;
+            background: #f9fafb; border-top: 1px solid #e5e7eb; flex-shrink: 0;
+        }
+        #chat-input {
+            flex: 1; border: 1px solid #d1d5db; border-radius: 6px;
+            padding: 10px 12px; font-size: 14px; resize: none; height: 72px;
+            outline: none; background: white; color: #111827; font-family: inherit;
+        }
+        #chat-input::placeholder { color: #9ca3af; }
+        #chat-input:focus { border-color: #10b981; box-shadow: 0 0 0 1px #10b981; }
+        #send-chat {
+            width: 36px; height: 36px; border: none; border-radius: 6px;
+            background: #10b981; color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; align-self: flex-end;
+            font-size: 14px; transition: background 0.2s;
+        }
+        #send-chat:hover { background: #059669; }
+        .spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <!-- EA PLATFORM HEADER -->
+        <header class="ea-header">
+            <div class="ea-header-left">
+                <div class="ea-brand-mark">
+                    <i class="fas fa-project-diagram" style="font-size: 24px;"></i>
+                </div>
+                <div class="ea-header-title">
+                    <h1>EA Engagement Playbook</h1>
+                    <p>Canvas-Based · Multi-Customer · Auto-Generated Outputs</p>
+                </div>
+            </div>
+            <div class="ea-header-right">
+                <button class="ea-header-icon" onclick="importAPMData()" title="Import from APM Toolkit">
+                    <i class="fas fa-download"></i>
+                </button>
+                <button class="ea-header-icon" onclick="exportEngagementJSON()" title="Export JSON">
+                    <i class="fas fa-file-export"></i>
+                </button>
+                <button class="ea-header-icon" onclick="generateOutputs()" title="Generate Outputs">
+                    <i class="fas fa-file-alt"></i>
+                </button>
+                <button class="ea-header-icon" id="toggle-chat-btn" onclick="toggleChatPanel()" title="AI Assistant (Ctrl+K)">
+                    <i class="fas fa-robot"></i>
+                </button>
+                <button class="ea-header-icon" onclick="openSettings()" title="Settings">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- KPI DASHBOARD STRIP -->
+        <div class="kpi-strip">
+            <div class="kpi-card">
+                <div class="kpi-value" id="kpi-applications">0</div>
+                <div class="kpi-label">Applications</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value" id="kpi-stakeholders">0</div>
+                <div class="kpi-label">Stakeholders</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value" id="kpi-initiatives">0</div>
+                <div class="kpi-label">Initiatives</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value" id="kpi-decisions">0</div>
+                <div class="kpi-label">Open Decisions</div>
+            </div>
+            <div class="kpi-card completeness level-low" id="kpi-completeness-card">
+                <div class="kpi-value" id="kpi-completeness">0%</div>
+                <div class="kpi-label">Completeness</div>
+            </div>
+        </div>
+
+        <!-- TAB NAVIGATION -->
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('engagement', this)">
+                <i class="fas fa-info-circle"></i> Engagement Setup
+            </button>
+            <button class="tab-btn" onclick="switchTab('stakeholders', this)">
+                <i class="fas fa-users"></i> Stakeholders
+            </button>
+            <button class="tab-btn" onclick="switchTab('portfolio', this)">
+                <i class="fas fa-cubes"></i> AS-IS Portfolio
+            </button>
+            <button class="tab-btn" onclick="switchTab('whitespace', this)">
+                <i class="fas fa-chart-line"></i> White-Spot Analysis
+            </button>
+            <button class="tab-btn" onclick="switchTab('target', this)">
+                <i class="fas fa-bullseye"></i> Target EA
+            </button>
+            <button class="tab-btn" onclick="switchTab('roadmap', this)">
+                <i class="fas fa-road"></i> Roadmap Planning
+            </button>
+            <button class="tab-btn" onclick="switchTab('leadership', this)">
+                <i class="fas fa-chart-pie"></i> Portfolio/Leadership
+            </button>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div id="main-content">
+            
+            <!-- CANVAS 1: ENGAGEMENT SETUP -->
+            <div id="view-engagement" class="section-view active">
+                <div class="section-header">
+                    <div class="section-title">
+                        <i class="fas fa-info-circle" style="color: #10b981;"></i>
+                        Engagement Setup
+                    </div>
+                    <button class="btn btn-primary" onclick="saveEngagement()">
+                        <i class="fas fa-save"></i> Save Engagement
+                    </button>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Engagement ID *</label>
+                    <input type="text" id="engagement-id" class="form-input" placeholder="e.g., SEG-INS-2026Q2-001">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Engagement Name *</label>
+                    <input type="text" id="engagement-name" class="form-input" placeholder="e.g., Insurance Portfolio Modernization">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Segment *</label>
+                    <select id="engagement-segment" class="form-select" onchange="loadSegmentTemplate(this.value)">
+                        <option value="">Select segment...</option>
+                        <option value="Insurance">Insurance</option>
+                        <option value="Banking">Banking</option>
+                        <option value="Manufacturing">Manufacturing</option>
+                        <option value="Retail">Retail</option>
+                        <option value="Custom">Custom</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Theme *</label>
+                    <input type="text" id="engagement-theme" class="form-input" placeholder="e.g., Application sunsetting & modernization">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Sprint Cadence *</label>
+                    <select id="engagement-cadence" class="form-select">
+                        <option value="2w" selected>2 weeks</option>
+                        <option value="1w">1 week</option>
+                        <option value="3w">3 weeks</option>
+                        <option value="4w">4 weeks</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Decision Forum *</label>
+                    <input type="text" id="engagement-forum" class="form-input" placeholder="e.g., Steering Committee">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Review Cadence *</label>
+                    <input type="text" id="engagement-review" class="form-input" placeholder="e.g., biweekly">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Success Criteria *</label>
+                    <textarea id="engagement-criteria" class="form-textarea" placeholder="Enter one criterion per line"></textarea>
+                    <p style="font-size: 12px; color: #6b7280; margin-top: 4px;">Enter one criterion per line</p>
+                </div>
+            </div>
+            
+            <!-- CANVAS 2: STAKEHOLDERS -->
+            <div id="view-stakeholders" class="section-view">
+                <div class="section-header">
+                    <div class="section-title">
+                        <i class="fas fa-users" style="color: #10b981;"></i>
+                        Stakeholders
+                    </div>
+                    <button class="btn btn-primary" onclick="openStakeholderModal()">
+                        <i class="fas fa-plus"></i> Add Stakeholder
+                    </button>
+                </div>
+                
+                <div class="filter-bar">
+                    <input type="text" class="filter-input" id="filter-stakeholder" placeholder="Search stakeholders..." oninput="renderStakeholders()">
+                    <select class="filter-select" id="filter-influence" onchange="renderStakeholders()">
+                        <option value="">All Influence</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                
+                <div id="stakeholders-container">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-users"></i></div>
+                        <div class="empty-state-title">No stakeholders defined</div>
+                        <div class="empty-state-text">Add stakeholders to track influence and decision power</div>
+                        <button class="btn btn-primary" onclick="openStakeholderModal()">
+                            <i class="fas fa-plus"></i> Add First Stakeholder
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CANVAS 3: AS-IS PORTFOLIO -->
+            <div id="view-portfolio" class="section-view">
+                <div class="section-header">
+                    <div class="section-title">
+                        <i class="fas fa-cubes" style="color: #10b981;"></i>
+                        AS-IS Application Portfolio
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-secondary" onclick="importAPMData()">
+                            <i class="fas fa-download"></i> Import from APM
+                        </button>
+                        <button class="btn btn-primary" onclick="openApplicationModal()">
+                            <i class="fas fa-plus"></i> Add Application
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="applications-container">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-cubes"></i></div>
+                        <div class="empty-state-title">No applications in portfolio</div>
+                        <div class="empty-state-text">Import from APM Toolkit or add manually</div>
+                        <button class="btn btn-primary" onclick="importAPMData()">
+                            <i class="fas fa-download"></i> Import from APM Toolkit
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CANVAS 4: WHITE-SPOT ANALYSIS -->
+            <div id="view-whitespace" class="section-view">
+                <div class="section-header">
+                    <div class="section-title">
+                        <i class="fas fa-chart-line" style="color: #10b981;"></i>
+                        White-Spot & Opportunity Analysis
+                    </div>
+                    <button class="btn btn-primary" onclick="openCapabilityModal()">
+                        <i class="fas fa-plus"></i> Add Capability
+                    </button>
+                </div>
+                
+                <div id="whitespace-container">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-chart-line"></i></div>
+                        <div class="empty-state-title">No capability gaps defined</div>
+                        <div class="empty-state-text">Define capabilities to identify white-spots and opportunities</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CANVAS 5: TARGET EA -->
+            <div id="view-target" class="section-view">
+                <div class="section-header">
+                    <div class="section-title">
+                        <i class="fas fa-bullseye" style="color: #10b981;"></i>
+                        Target EA Vision
+                    </div>
+                    <button class="btn btn-primary" onclick="openArchitectureModal()">
+                        <i class="fas fa-plus"></i> Add Architecture View
+                    </button>
+                </div>
+                
+                <div id="target-container">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-bullseye"></i></div>
+                        <div class="empty-state-title">No target architecture defined</div>
+                        <div class="empty-state-text">Define principles, patterns, and reference architectures</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CANVAS 6: ROADMAP PLANNING -->
+            <div id="view-roadmap" class="section-view">
+                <div class="section-header">
+                    <div class="section-title">
+                        <i class="fas fa-road" style="color: #10b981;"></i>
+                        Roadmap Planning
+                    </div>
+                    <button class="btn btn-primary" onclick="openInitiativeModal()">
+                        <i class="fas fa-plus"></i> Add Initiative
+                    </button>
+                </div>
+                
+                <div id="roadmap-container">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-road"></i></div>
+                        <div class="empty-state-title">No initiatives defined</div>
+                        <div class="empty-state-text">Create initiatives and sequence them on the roadmap</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CANVAS 7: PORTFOLIO/LEADERSHIP -->
+            <div id="view-leadership" class="section-view">
+                <div class="section-header">
+                    <div class="section-title">
+                        <i class="fas fa-chart-pie" style="color: #10b981;"></i>
+                        Portfolio & Leadership View
+                    </div>
+                    <button class="btn btn-primary" onclick="generateLeadershipView()">
+                        <i class="fas fa-file-alt"></i> Generate Leadership View
+                    </button>
+                </div>
+                
+                <div id="leadership-container">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-chart-pie"></i></div>
+                        <div class="empty-state-title">Leadership view not generated</div>
+                        <div class="empty-state-text">Complete other canvases and generate the leadership view</div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- STAKEHOLDER MODAL -->
+    <div id="stakeholderModal" class="modal-overlay hidden" onclick="if(event.target===this) closeStakeholderModal()">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title" id="stakeholder-modal-title">Add Stakeholder</div>
+                <button class="modal-close" onclick="closeStakeholderModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="stakeholder-edit-id">
+                
+                <div class="form-group">
+                    <label class="form-label">Name *</label>
+                    <input type="text" id="stakeholder-name" class="form-input">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Role *</label>
+                    <input type="text" id="stakeholder-role" class="form-input">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Organization Unit *</label>
+                    <input type="text" id="stakeholder-orgunit" class="form-input">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Influence *</label>
+                    <select id="stakeholder-influence" class="form-select">
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Decision Power *</label>
+                    <select id="stakeholder-power" class="form-select">
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Priorities *</label>
+                    <textarea id="stakeholder-priorities" class="form-textarea" placeholder="One priority per line"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeStakeholderModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveStakeholder()">Save Stakeholder</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- APPLICATION MODAL -->
+    <div id="applicationModal" class="modal-overlay hidden" onclick="if(event.target===this) closeApplicationModal()">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title" id="application-modal-title">Add Application</div>
+                <button class="modal-close" onclick="closeApplicationModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="application-edit-id">
+                
+                <div class="form-group">
+                    <label class="form-label">Application Name *</label>
+                    <input type="text" id="application-name" class="form-input" placeholder="e.g., Customer Portal">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Business Domain *</label>
+                    <input type="text" id="application-domain" class="form-input" placeholder="e.g., Customer Service">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Owner</label>
+                    <input type="text" id="application-owner" class="form-input" placeholder="e.g., John Doe">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Lifecycle *</label>
+                    <select id="application-lifecycle" class="form-select">
+                        <option value="invest">Invest</option>
+                        <option value="tolerate" selected>Tolerate</option>
+                        <option value="migrate">Migrate</option>
+                        <option value="retire">Retire</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Risk Level *</label>
+                    <select id="application-risk" class="form-select">
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Technical Debt *</label>
+                    <select id="application-debt" class="form-select">
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Annual Cost</label>
+                    <input type="number" id="application-cost" class="form-input" placeholder="0" min="0">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="application-sunset"> Sunset Candidate
+                    </label>
+                    <label class="form-label" style="margin-left: 20px;">
+                        <input type="checkbox" id="application-modernize"> Modernization Candidate
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeApplicationModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveApplication()">Save Application</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CAPABILITY MODAL -->
+    <div id="capabilityModal" class="modal-overlay hidden" onclick="if(event.target===this) closeCapabilityModal()">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title" id="capability-modal-title">Add Capability</div>
+                <button class="modal-close" onclick="closeCapabilityModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="capability-edit-id">
+                
+                <div class="form-group">
+                    <label class="form-label">Capability Name *</label>
+                    <input type="text" id="capability-name" class="form-input" placeholder="e.g., Claims Processing">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Domain *</label>
+                    <input type="text" id="capability-domain" class="form-input" placeholder="e.g., Core Insurance">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Level *</label>
+                    <select id="capability-level" class="form-select">
+                        <option value="L1">L1 - Top Level</option>
+                        <option value="L2" selected>L2 - Capability</option>
+                        <option value="L3">L3 - Sub-Capability</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Current Maturity *</label>
+                    <select id="capability-maturity" class="form-select">
+                        <option value="1">1 - Initial/Ad-hoc</option>
+                        <option value="2">2 - Managed</option>
+                        <option value="3" selected>3 - Defined</option>
+                        <option value="4">4 - Quantitatively Managed</option>
+                        <option value="5">5 - Optimizing</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Target Maturity *</label>
+                    <select id="capability-target" class="form-select">
+                        <option value="1">1 - Initial/Ad-hoc</option>
+                        <option value="2">2 - Managed</option>
+                        <option value="3">3 - Defined</option>
+                        <option value="4" selected>4 - Quantitatively Managed</option>
+                        <option value="5">5 - Optimizing</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Strategic Importance *</label>
+                    <select id="capability-importance" class="form-select">
+                        <option value="critical">Critical</option>
+                        <option value="high" selected>High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea id="capability-description" class="form-textarea" placeholder="Describe the capability..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeCapabilityModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveCapability()">Save Capability</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ARCHITECTURE MODAL -->
+    <div id="architectureModal" class="modal-overlay hidden" onclick="if(event.target===this) closeArchitectureModal()">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title" id="architecture-modal-title">Add Architecture View</div>
+                <button class="modal-close" onclick="closeArchitectureModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="architecture-edit-id">
+                
+                <div class="form-group">
+                    <label class="form-label">View Name *</label>
+                    <input type="text" id="architecture-name" class="form-input" placeholder="e.g., Target Integration Architecture">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Type *</label>
+                    <select id="architecture-type" class="form-select">
+                        <option value="as-is">AS-IS</option>
+                        <option value="target" selected>Target</option>
+                        <option value="transition">Transition</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Diagram Type</label>
+                    <select id="architecture-diagram-type" class="form-select">
+                        <option value="capability-map">Capability Map</option>
+                        <option value="application-landscape" selected>Application Landscape</option>
+                        <option value="data-flow">Data Flow</option>
+                        <option value="integration">Integration</option>
+                        <option value="reference-architecture">Reference Architecture</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Principles (one per line)</label>
+                    <textarea id="architecture-principles" class="form-textarea" placeholder="e.g., API-first architecture&#10;Cloud-native by default"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Patterns (one per line)</label>
+                    <textarea id="architecture-patterns" class="form-textarea" placeholder="e.g., Microservices&#10;Event-driven architecture"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea id="architecture-description" class="form-textarea" placeholder="Describe the architecture vision..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeArchitectureModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveArchitecture()">Save Architecture</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INITIATIVE MODAL -->
+    <div id="initiativeModal" class="modal-overlay hidden" onclick="if(event.target===this) closeInitiativeModal()">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title" id="initiative-modal-title">Add Initiative</div>
+                <button class="modal-close" onclick="closeInitiativeModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="initiative-edit-id">
+                
+                <div class="form-group">
+                    <label class="form-label">Initiative Name *</label>
+                    <input type="text" id="initiative-name" class="form-input" placeholder="e.g., CRM System Migration">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea id="initiative-description" class="form-textarea" placeholder="Describe the initiative..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Time Horizon *</label>
+                    <select id="initiative-horizon" class="form-select">
+                        <option value="short">Short-term (0-12 months)</option>
+                        <option value="mid" selected>Mid-term (12-24 months)</option>
+                        <option value="long">Long-term (24+ months)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Status *</label>
+                    <select id="initiative-status" class="form-select">
+                        <option value="option" selected>Option</option>
+                        <option value="planned">Planned</option>
+                        <option value="approved">Approved</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Effort *</label>
+                    <select id="initiative-effort" class="form-select">
+                        <option value="S">S - Small (< 3 months)</option>
+                        <option value="M" selected>M - Medium (3-6 months)</option>
+                        <option value="L">L - Large (6-12 months)</option>
+                        <option value="XL">XL - Extra Large (12+ months)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Estimated Cost</label>
+                    <input type="number" id="initiative-cost" class="form-input" placeholder="0" min="0">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Business Outcomes (one per line)</label>
+                    <textarea id="initiative-outcomes" class="form-textarea" placeholder="e.g., Reduce operational costs by 30%&#10;Improve customer satisfaction"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Owner</label>
+                    <input type="text" id="initiative-owner" class="form-input" placeholder="e.g., Jane Smith">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeInitiativeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveInitiative()">Save Initiative</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════
+        // GLOBAL STATE
+        // ═══════════════════════════════════════════════════════════════════
+        
+        let engagementManager = null;
+        let currentEngagement = null;
+
+        // ═══════════════════════════════════════════════════════════════════
+        // INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════════
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('EA Engagement Playbook initializing...');
+            
+            // Initialize engagement manager
+            engagementManager = new EA_EngagementManager();
+            
+            // Load current engagement or create new
+            currentEngagement = engagementManager.getCurrentEngagement();
+            
+            if (!currentEngagement) {
+                // Create initial engagement prompt
+                setTimeout(() => {
+                    if (confirm('No active engagement found. Create a new engagement?')) {
+                        createNewEngagement();
+                    }
+                }, 500);
+            } else {
+                loadEngagementData();
+            }
+            
+            updateKPIs();
+            console.log('✓ EA Engagement Playbook initialized');
+        });
+
+        // ═══════════════════════════════════════════════════════════════════
+        // TAB NAVIGATION
+        // ═══════════════════════════════════════════════════════════════════
+        
+        function switchTab(tabName, btn) {
+            // Hide all sections
+            document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            
+            // Show selected section
+            document.getElementById('view-' + tabName).classList.add('active');
+            btn.classList.add('active');
+            
+            // Render content for tab
+            renderTabContent(tabName);
+        }
+        
+        function renderTabContent(tabName) {
+            switch(tabName) {
+                case 'stakeholders':
+                    renderStakeholders();
+                    break;
+                case 'portfolio':
+                    renderApplications();
+                    break;
+                case 'whitespace':
+                    renderWhitespace();
+                    break;
+                case 'target':
+                    renderTarget();
+                    break;
+                case 'roadmap':
+                    renderRoadmap();
+                    break;
+                case 'leadership':
+                    renderLeadership();
+                    break;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // ENGAGEMENT MANAGEMENT
+        // ═══════════════════════════════════════════════════════════════════
+        
+        function createNewEngagement() {
+            const engagementId = prompt('Enter engagement ID (e.g., SEG-INS-2026Q2-001):');
+            if (!engagementId) return;
+            
+            const engagementName = prompt('Enter engagement name:');
+            if (!engagementName) return;
+            
+            const id = engagementManager.createEngagement({
+                id: engagementId,
+                name: engagementName,
+                segment: 'Custom',
+                theme: 'To be defined',
+                customers: [],
+                status: 'draft',
+                sprintCadence: '2w',
+                governance: {
+                    decisionForum: 'To be defined',
+                    reviewCadence: 'To be defined'
+                },
+                successCriteria: []
+            });
+            
+            currentEngagement = engagementManager.getCurrentEngagement();
+            loadEngagementData();
+            updateKPIs();
+            
+            showToast('Engagement Created', `Successfully created ${engagementName}`, 'success');
+        }
+        
+        function saveEngagement() {
+            const id = document.getElementById('engagement-id').value;
+            const name = document.getElementById('engagement-name').value;
+            const segment = document.getElementById('engagement-segment').value;
+            const theme = document.getElementById('engagement-theme').value;
+            const cadence = document.getElementById('engagement-cadence').value;
+            const forum = document.getElementById('engagement-forum').value;
+            const review = document.getElementById('engagement-review').value;
+            const criteria = document.getElementById('engagement-criteria').value.split('\n').filter(c => c.trim());
+            
+            if (!id || !name || !segment || !theme) {
+                alert('Please fill in all required fields (*)');
+                return;
+            }
+            
+            if (currentEngagement) {
+                currentEngagement.engagement = {
+                    ...currentEngagement.engagement,
+                    id, name, segment, theme,
+                    sprintCadence: cadence,
+                    governance: { decisionForum: forum, reviewCadence: review },
+                    successCriteria: criteria
+                };
+                engagementManager.saveEngagement(id, currentEngagement);
+            } else {
+                engagementManager.createEngagement({
+                    id, name, segment, theme,
+                    customers: [],
+                    status: 'draft',
+                    sprintCadence: cadence,
+                    governance: { decisionForum: forum, reviewCadence: review },
+                    successCriteria: criteria
+                });
+                currentEngagement = engagementManager.getCurrentEngagement();
+            }
+            
+            updateKPIs();
+            showToast('Engagement Saved', 'All changes have been saved', 'success');
+        }
+        
+        function loadEngagementData() {
+            if (!currentEngagement) return;
+            
+            const eng = currentEngagement.engagement;
+            document.getElementById('engagement-id').value = eng.id || '';
+            document.getElementById('engagement-name').value = eng.name || '';
+            document.getElementById('engagement-segment').value = eng.segment || '';
+            document.getElementById('engagement-theme').value = eng.theme || '';
+            document.getElementById('engagement-cadence').value = eng.sprintCadence || '2w';
+            document.getElementById('engagement-forum').value = eng.governance?.decisionForum || '';
+            document.getElementById('engagement-review').value = eng.governance?.reviewCadence || '';
+            document.getElementById('engagement-criteria').value = (eng.successCriteria || []).join('\n');
+        }
+        
+        function loadSegmentTemplate(segmentId) {
+            if (!segmentId || segmentId === 'Custom') return;
+            
+            const template = engagementManager.getSegmentTemplate('seg-' + segmentId.toLowerCase());
+            if (!template) return;
+            
+            if (confirm(`Apply ${segmentId} segment template? This will add default capabilities, themes, and architecture views.`)) {
+                engagementManager.applySegmentTemplate(template.id);
+                currentEngagement = engagementManager.getCurrentEngagement();
+                updateKPIs();
+                showToast('Template Applied', `${segmentId} segment template loaded successfully`, 'success');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // STAKEHOLDER MANAGEMENT
+        // ═══════════════════════════════════════════════════════════════════
+        
+        function openStakeholderModal(id = null) {
+            document.getElementById('stakeholder-edit-id').value = id || '';
+            
+            if (id) {
+                const stakeholder = engagementManager.getEntity('stakeholders', id);
+                if (stakeholder) {
+                    document.getElementById('stakeholder-modal-title').textContent = 'Edit Stakeholder';
+                    document.getElementById('stakeholder-name').value = stakeholder.name || '';
+                    document.getElementById('stakeholder-role').value = stakeholder.role || '';
+                    document.getElementById('stakeholder-orgunit').value = stakeholder.orgUnit || '';
+                    document.getElementById('stakeholder-influence').value = stakeholder.influence || 'medium';
+                    document.getElementById('stakeholder-power').value = stakeholder.decisionPower || 'medium';
+                    document.getElementById('stakeholder-priorities').value = (stakeholder.priorities || []).join('\n');
+                }
+            } else {
+                document.getElementById('stakeholder-modal-title').textContent = 'Add Stakeholder';
+                document.getElementById('stakeholder-name').value = '';
+                document.getElementById('stakeholder-role').value = '';
+                document.getElementById('stakeholder-orgunit').value = '';
+                document.getElementById('stakeholder-influence').value = 'medium';
+                document.getElementById('stakeholder-power').value = 'medium';
+                document.getElementById('stakeholder-priorities').value = '';
+            }
+            
+            document.getElementById('stakeholderModal').classList.remove('hidden');
+        }
+        
+        function closeStakeholderModal() {
+            document.getElementById('stakeholderModal').classList.add('hidden');
+        }
+        
+        function saveStakeholder() {
+            const id = document.getElementById('stakeholder-edit-id').value;
+            const name = document.getElementById('stakeholder-name').value;
+            const role = document.getElementById('stakeholder-role').value;
+            const orgUnit = document.getElementById('stakeholder-orgunit').value;
+            const influence = document.getElementById('stakeholder-influence').value;
+            const decisionPower = document.getElementById('stakeholder-power').value;
+            const priorities = document.getElementById('stakeholder-priorities').value.split('\n').filter(p => p.trim());
+            
+            if (!name || !role || !orgUnit || !priorities.length) {
+                showToast('Validation Error', 'Please fill in all required fields', 'error');
+                return;
+            }
+            
+            const stakeholder = { name, role, orgUnit, influence, decisionPower, priorities };
+            
+            if (id) {
+                engagementManager.updateEntity('stakeholders', id, stakeholder);
+            } else {
+                engagementManager.addEntity('stakeholders', stakeholder);
+            }
+            
+            currentEngagement = engagementManager.getCurrentEngagement();
+            closeStakeholderModal();
+            renderStakeholders();
+            updateKPIs();
+            
+            showToast('Stakeholder Saved', id ? `Updated ${name}` : `Added ${name}`, 'success');
+        }
+        
+        function renderStakeholders() {
+            const stakeholders = engagementManager.getEntities('stakeholders') || [];
+            const search = document.getElementById('filter-stakeholder')?.value.toLowerCase() || '';
+            const influenceFilter = document.getElementById('filter-influence')?.value || '';
+            
+            const filtered = stakeholders.filter(s => {
+                const matchSearch = !search || s.name.toLowerCase().includes(search) || s.role.toLowerCase().includes(search);
+                const matchInfluence = !influenceFilter || s.influence === influenceFilter;
+                return matchSearch && matchInfluence;
+            });
+            
+            const container = document.getElementById('stakeholders-container');
+            
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-users"></i></div>
+                        <div class="empty-state-title">No stakeholders found</div>
+                        <div class="empty-state-text">${search || influenceFilter ? 'Try adjusting your filters' : 'Add stakeholders to track influence and decision power'}</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Org Unit</th>
+                            <th>Influence</th>
+                            <th>Decision Power</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filtered.map(s => `
+                            <tr>
+                                <td><strong>${s.name}</strong></td>
+                                <td>${s.role}</td>
+                                <td>${s.orgUnit}</td>
+                                <td><span class="badge badge-${s.influence}">${s.influence}</span></td>
+                                <td><span class="badge badge-${s.decisionPower}">${s.decisionPower}</span></td>
+                                <td>
+                                    <button class="btn btn-ghost" onclick="openStakeholderModal('${s.id}')" style="padding: 6px 12px;">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // PLACEHOLDER RENDER FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════
+        
+        function renderApplications() {
+            // Placeholder - to be implemented in Phase 3
+            console.log('renderApplications - to be implemented');
+        }
+        
+        function renderWhitespace() {
+            // Placeholder - to be implemented in Phase 3
+            console.log('renderWhitespace - to be implemented');
+        }
+        
+        function renderTarget() {
+            // Placeholder - to be implemented in Phase 3
+            console.log('renderTarget - to be implemented');
+        }
+        
+        function renderRoadmap() {
+            // Placeholder - to be implemented in Phase 3
+            console.log('renderRoadmap - to be implemented');
+        }
+        
+        function renderLeadership() {
+            // Placeholder - to be implemented in Phase 3
+            console.log('renderLeadership - to be implemented');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // MODALS (Placeholders)
+        // ═══════════════════════════════showToast('Coming Soon', 'Application modal - Phase 3', 'info'); }
+        function openCapabilityModal() { showToast('Coming Soon', 'Capability modal - Phase 3', 'info'); }
+        function openArchitectureModal() { showToast('Coming Soon', 'Architecture modal - Phase 3', 'info'); }
+        function openInitiativeModal() { showToast('Coming Soon', 'Initiative modal - Phase 3', 'info'); }
+        function openArchitectureModal() { alert('Architecture modal - to be implemented in Phase 3'); }
+        function openInitiativeModal() { alert('Initiative modal - to be implemented in Phase 3'); }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // IMPORT/EXPORT
+        // ═══════════════════════════════════════════════════════════════════
+        
+        functionshowToast('No Engagement', 'Please create an engagement first', 'warning');
+                return;
+            }
+            
+            const count = engagementManager.importFromAPMToolkit();
+            if (count > 0) {
+                currentEngagement = engagementManager.getCurrentEngagement();
+                updateKPIs();
+                renderApplications();
+                showToast('Import Successful', `Imported ${count} applications from APM Toolkit`, 'success');
+            } else {
+                showToast('No Data Available', 'No APM data found. Please open APM Toolkit and export data first.', 'warning
+            } else {
+                alert('No APM data available for import. Please open APM Toolkit and export data first.');
+            }
+        }
+        
+        functionshowToast('No Engagement', 'No engagement to export', 'warning');
+                return;
+            }
+            
+            const json = engagementManager.exportEngagementJSON();
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const filename = `engagement_${currentEngagement.engagement.id}_${new Date().toISOString().split('T')[0]}.json`;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showToast('Export Successful', `Downloaded ${filename}`, 'success't_${currentEngagement.engagement.id}_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ═if (!currentEngagement) {
+                showToast('No Engagement', 'Please create an engagement first', 'warning');
+                return;
+            }
+            
+            const validation = engagementManager.validateModel(currentEngagement);
+            if (validation.errors.length > 0) {
+                showToast('Validation Errors', `Found ${validation.errors.length} errors. Please fix them first.`, 'error');
+                console.error('Validation errors:', validation.errors);
+                return;
+            }
+            
+            showToast('Coming Soon', 'Output generation will be implemented in Phase 5', 'info');
+        }
+        
+        function generateLeadershipView() {
+            if (!currentEngagement) {
+                showToast('No Engagement', 'Please create an engagement first', 'warning');
+                return;
+            }
+            
+            showToast('Coming Soon', 'Leadership view generation will be implemented in Phase 5', 'info
+            alert('Output generation - to be implemented in Phase 5');
+        }
+        
+        function generateLeadershipView() {
+            alert('Leadership view generation - to be implemented in Phase 5');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // KPI UPDATE
+        // ═══════════════════════════════════════════════════════════════════
+        
+        function updateKPIs() {
+            if (!currentEngagement) {
+                document.getElementById('kpi-applications').textContent = '0';
+                document.getElementById('kpi-stakeholders').textContent = '0';
+                document.getElementById('kpi-initiatives').textContent = '0';
+                document.getElementById('kpi-decisions').textContent = '0';
+                document.getElementById('kpi-completeness').textContent = '0%';
+                setCompletenessLevel(0);
+                return;
+            }
+            
+            const applications = currentEngagement.applications?.length || 0;
+            const stakeholders = currentEngagement.stakeholders?.length || 0;
+            const initiatives = currentEngagement.initiatives?.length || 0;
+            const openDecisions = (currentEngagement.decisions || []).filter(d => d.status === 'proposed').length;
+            const completeness = currentEngagement.engagement?.metadata?.completeness || 0;
+            
+            document.getElementById('kpi-applications').textContent = applications;
+            document.getElementById('kpi-stakeholders').textContent = stakeholders;
+            document.getElementById('kpi-initiatives').textContent = initiatives;
+            document.getElementById('kpi-decisions').textContent = openDecisions;
+            document.getElementById('kpi-completeness').textContent = completeness + '%';
+            
+            // Update traffic light indicator
+           TOAST NOTIFICATIONS
+        // ═══════════════════════════════════════════════════════════════════
+        
+        function showToast(title, message = '', type = 'success') {
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-exclamation-triangle',
+                info: 'fa-info-circle'
+            };
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <div class="toast-icon"><i class="fas ${icons[type]}"></i></div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    ${message ? `<div class="toast-message">${message}</div>` : ''}
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Auto-remove after 4 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.style.animation = 'slideIn 0.3s ease reverse';
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 4000);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // SETTINGS
+        // ═══════════════════════════════════════════════════════════════════
+        
+        function openSettings() {
+            const apiKey = localStorage.getItem('ea_openai_key') || '';
+            const newKey = prompt('Enter OpenAI API Key (for AI features):', apiKey);
+            
+            if (newKey !== null && newKey !== apiKey) {
+                if (newKey.trim()) {
+                    localStorage.setItem('ea_openai_key', newKey.trim());
+                    showToast('Settings Saved', 'API key updated successfully', 'success');
+                } else {
+                    localStorage.removeItem('ea_openai_key');
+                    showToast('Settings Saved', 'API key removed', 'info');
+                }
+            }kpi-completeness-card');
+            card.classList.remove('level-low', 'level-medium', 'level-high');
+            
+            if (completeness < 40) {
+                card.classList.add('level-low');
+            } else if (completeness < 75) {
+                card.classList.add('level-medium');
+            } else {
+                card.classList.add('level-high');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // SETTINGS
+        // ═══════════════════════════════════════════════════════════════════
+        
+        function openSettings() {
+            showToast('Settings', 'Settings panel coming soon', 'info');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // AI CHAT PANEL
+        // ═══════════════════════════════════════════════════════════════════
+        
+        function toggleChatPanel() {
+            document.body.classList.toggle('chat-sidebar-open');
+            const btn = document.getElementById('toggle-chat-btn');
+            if (document.body.classList.contains('chat-sidebar-open')) {
+                btn.style.background = 'rgba(255,255,255,0.25)';
+            } else {
+                btn.style.background = 'rgba(255,255,255,0.1)';
+            }
+        }
+        
+        // Keyboard shortcut Ctrl+K to toggle chat
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                toggleChatPanel();
+            }
+        });
+        
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            // Add user message to chat
+            addChatMessage(message, 'user');
+            input.value = '';
+            
+            // Show loading state
+            const sendBtn = document.getElementById('send-chat');
+            const originalHTML = sendBtn.innerHTML;
+            sendBtn.innerHTML = '<i class="fas fa-spinner spinner"></i>';
+            sendBtn.disabled = true;
+            
+            try {
+                // Call AI via AzureOpenAIProxy
+                const context = {
+                    engagement: currentEngagement,
+                    stakeholders: engagementManager.getEntities('stakeholders') || [],
+                    applications: engagementManager.getEntities('applications') || [],
+                    initiatives: engagementManager.getEntities('initiatives') || []
+                };
+                
+                const response = await AzureOpenAIProxy.create({
+                    taskType: 'analysis',
+                    userMessage: message,
+                    context: JSON.stringify(context, null, 2),
+                    systemInstructions: 'You are an expert EA consultant helping with engagement planning and analysis. Provide concise, actionable insights.'
+                });
+                
+                // Add AI response to chat
+                addChatMessage(response.response || response.message || 'No response received', 'ai');
+            } catch (error) {
+                console.error('AI Error:', error);
+                addChatMessage('Error: Unable to connect to AI service. Please check your API key in settings.', 'ai');
+            } finally {
+                sendBtn.innerHTML = originalHTML;
+                sendBtn.disabled = false;
+            }
+        }
+        
+        function addChatMessage(text, sender) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${sender}-message`;
+            
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+            
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    <div class="message-text">${text}</div>
+                    <div class="message-time">${sender === 'user' ? 'You' : 'AI Assistant'} · ${timeStr}</div>
+                </div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function sendQuickAction(prompt) {
+            const input = document.getElementById('chat-input');
+            input.value = prompt;
+            sendChatMessage();
+        }
+        
+        // Enter to send (Shift+Enter for new line)
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatInput = document.getElementById('chat-input');
+            if (chatInput) {
+                chatInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendChatMessage();
+                    }
+                });
+            }
+        });
+    </script>
+    
+    <!-- AI CHAT PANEL -->
+    <div id="ai-chat-panel">
+        <div id="chat-resize-handle"></div>
+        
+        <div id="chat-header">
+            <div id="chat-header-title">
+                <i class="fas fa-robot"></i>
+                <span>EA Assistant</span>
+            </div>
+            <div id="chat-controls">
+                <button onclick="document.getElementById('chat-messages').innerHTML = ''" title="Clear chat">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <button onclick="toggleChatPanel()" title="Close (Ctrl+K)">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="quick-actions">
+            <button class="qa-btn" onclick="sendQuickAction('Analyze the current engagement completeness and suggest next steps')">
+                <i class="fas fa-chart-line"></i> Analyze Progress
+            </button>
+            <button class="qa-btn" onclick="sendQuickAction('Identify gaps in stakeholder coverage')">
+                <i class="fas fa-users"></i> Stakeholder Gaps
+            </button>
+            <button class="qa-btn" onclick="sendQuickAction('Suggest key initiatives based on the current setup')">
+                <i class="fas fa-lightbulb"></i> Suggest Initiatives
+            </button>
+            <button class="qa-btn" onclick="sendQuickAction('Generate an executive summary of this engagement')">
+                <i class="fas fa-file-alt"></i> Executive Summary
+            </button>
+        </div>
+        
+        <div id="chat-messages">
+            <div class="chat-message ai-message">
+                <div class="message-content">
+                    <div class="message-text">👋 Hello! I'm your EA Assistant. I can help you analyze engagements, identify gaps, suggest improvements, and answer questions about your EA Playbook. Try one of the quick actions above or ask me anything!</div>
+                    <div class="message-time">AI Assistant · Now</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="chat-input-container">
+            <textarea id="chat-input" placeholder="Ask about engagement planning, stakeholders, architecture..."></textarea>
+            <button id="send-chat" onclick="sendChatMessage()" title="Send (Enter)">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</body>
+</html>

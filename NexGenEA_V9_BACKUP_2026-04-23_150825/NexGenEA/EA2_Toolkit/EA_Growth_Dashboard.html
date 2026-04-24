@@ -1,0 +1,1864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Growth Sprint Dashboard – EA Commercial Platform</title>
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
+    <script src="../../AzureOpenAIProxy.js"></script>
+    <script src="../../js/EA_ObjectivesManager.js"></script>
+    <script src="../../js/EA_UnifiedAIAssistant.js?v=2026"></script>
+    <script src="../../js/EA_AccountManager.js?v=2026"></script>
+    <script src="../../js/EA_CrossNavigation.js?v=2026"></script>
+    <script src="../../js/EA_GlobalSearch.js?v=2026"></script>
+    <script src="../../js/EA_Analytics.js?v=2026"></script>
+    <script src="../../js/EA_DataBackupManager.js?v=2026"></script>
+    <script src="../../js/EA_UserGuide.js?v=2026"></script>
+    <script src="../../js/EA_TemplateManager.js?v=2026"></script>
+    <script src="../../js/EA_DemoScenarios.js?v=FIXED"></script>
+    <script src="../../js/EA_ProjectManager.js?v=2026"></script>
+    <script src="engagement_schema.js"></script>
+    <style>
+        /* === NORDIC THEME OVERRIDES FOR GROWTH DASHBOARD === */
+        body { margin: 0; background: var(--ea-background); }
+        #app-container { display: flex; flex-direction: column; min-height: 100vh; }
+        #main-content { flex: 1; padding: 24px; max-width: 1600px; margin: 0 auto; width: 100%; }
+        
+        .ea-header {
+            background: var(--ea-primary);
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .header-content { max-width: 1600px; margin: 0 auto; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .ea-header h1 { 
+            color: white; 
+            margin: 0; 
+            font-size: 24px; 
+            font-weight: 700; 
+            font-family: 'Manrope', sans-serif;
+        }
+        .header-date { color: rgba(255,255,255,0.68); font-size: 13px; }
+        
+        .entry-points {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .entry-card {
+            background: var(--ea-surface);
+            border-radius: 8px;
+            padding: 32px;
+            box-shadow: var(--ea-shadow-card);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid var(--ea-border);
+        }
+        .entry-card:hover {
+            box-shadow: 0 12px 28px rgba(31, 42, 51, 0.08);
+            transform: translateY(-2px);
+            border-color: var(--ea-accent);
+        }
+        .entry-card.green { border-left: 4px solid var(--ea-success); }
+        .entry-card.purple { border-left: 4px solid #8B5CF6; }
+        .entry-card.blue { border-left: 4px solid var(--ea-accent); }
+        .entry-card.orange { border-left: 4px solid #f59e0b; }
+        
+        .entry-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px auto;
+            font-size: 32px;
+            border: 1px solid rgba(0,0,0,0.06);
+        }
+        .entry-icon.green { background: rgba(94, 140, 106, 0.12); color: var(--ea-success); }
+        .entry-icon.purple { background: rgba(139, 92, 246, 0.12); color: #8B5CF6; }
+        .entry-icon.blue { background: rgba(74, 119, 99, 0.12); color: var(--ea-accent); }
+        .entry-icon.orange { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+        
+        .entry-title { font-size: 18px; font-weight: 700; color: var(--ea-text-primary); margin-bottom: 8px; }
+        .entry-desc { font-size: 13px; color: var(--ea-text-secondary); margin-bottom: 16px; }
+        .entry-metric { font-size: 32px; font-weight: 700; font-family: 'Manrope', sans-serif; }
+        .metric-green { color: var(--ea-success); }
+        .metric-purple { color: #8B5CF6; }
+        .metric-blue { color: var(--ea-accent); }
+        .metric-orange { color: #f59e0b; }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .metric-card {
+            background: var(--ea-surface);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--ea-shadow-soft);
+            border: 1px solid var(--ea-border);
+        }
+        .metric-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .metric-label { 
+            font-size: 11px; 
+            color: var(--ea-text-secondary); 
+            text-transform: uppercase; 
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+        .metric-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            border: 1px solid rgba(0,0,0,0.06);
+        }
+        .icon-green { background: rgba(94, 140, 106, 0.12); color: var(--ea-success); }
+        .icon-blue { background: rgba(74, 119, 99, 0.12); color: var(--ea-accent); }
+        .icon-purple { background: rgba(139, 92, 246, 0.12); color: #8B5CF6; }
+        .icon-orange { background: rgba(200, 169, 107, 0.12); color: var(--ea-warning); }
+        
+        .metric-value { 
+            font-size: 32px; 
+            font-weight: 700; 
+            color: var(--ea-text-primary); 
+            margin-bottom: 8px;
+            font-family: 'Manrope', sans-serif;
+        }
+        .metric-change {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+        .change-positive { background: rgba(94, 140, 106, 0.12); color: var(--ea-success); }
+        .change-negative { background: rgba(176, 106, 106, 0.12); color: var(--ea-danger); }
+        
+        /* AI Panel styles now in ea-design-engine.css */
+        .typing-indicator { display: none; padding: 12px; color: #6b7280; font-style: italic; font-size: 13px; }
+        .typing-indicator.active { display: block; }
+        
+        .dashboard-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .section-card {
+            background: var(--ea-surface);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--ea-shadow-soft);
+            border: 1px solid var(--ea-border);
+        }
+        .section-title { 
+            font-size: 16px; 
+            font-weight: 700; 
+            color: var(--ea-text-primary); 
+            margin: 0 0 18px 0;
+            font-family: 'Manrope', sans-serif;
+        }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th { 
+            text-align: left; 
+            padding: 10px 12px; 
+            background: #F7FAFC; 
+            color: var(--ea-text-secondary); 
+            font-size: 11px; 
+            text-transform: uppercase; 
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            border-bottom: 1px solid var(--ea-border);
+        }
+        td { 
+            padding: 12px; 
+            border-top: 1px solid var(--ea-border); 
+            color: var(--ea-text-primary); 
+            font-size: 14px; 
+        }
+        tbody tr:hover { 
+            background: var(--ea-hover); 
+            cursor: pointer; 
+        }
+        
+        .health-badge {
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            display: inline-block;
+        }
+        .health-excellent { background: rgba(94, 140, 106, 0.12); color: var(--ea-success); }
+        .health-good { background: rgba(74, 119, 99, 0.12); color: var(--ea-accent); }
+        .health-at-risk { background: rgba(200, 169, 107, 0.12); color: var(--ea-warning); }
+        
+        .activity-item {
+            padding: 14px;
+            border-bottom: 1px solid var(--ea-border);
+            display: flex;
+            gap: 12px;
+            align-items: start;
+        }
+        .activity-item:last-child { border-bottom: none; }
+        .activity-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+            border: 1px solid rgba(0,0,0,0.06);
+        }
+        .activity-content { flex: 1; }
+        .activity-text { font-size: 14px; color: var(--ea-text-primary); margin-bottom: 4px; }
+        .activity-time { font-size: 12px; color: var(--ea-text-secondary); }
+        
+        /* === GLOBAL SEARCH === */
+        .global-search-container {
+            position: relative;
+            max-width: 400px;
+            margin: 0 16px;
+        }
+        .global-search-input {
+            width: 100%;
+            padding: 9px 40px 9px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 6px;
+            font-size: 13px;
+            background: rgba(255,255,255,0.12);
+            color: white;
+            font-family: 'Manrope', sans-serif;
+        }
+        .global-search-input::placeholder { color: rgba(255,255,255,0.6); }
+        .global-search-input:focus { 
+            outline: none;
+            background: rgba(255,255,255,0.18); 
+            border-color: rgba(255,255,255,0.24);
+        }
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255,255,255,0.6);
+            pointer-events: none;
+        }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--ea-surface);
+            border-radius: 8px;
+            box-shadow: var(--ea-shadow-card);
+            margin-top: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            border: 1px solid var(--ea-border);
+        }
+        .search-results.active { display: block; }
+        .search-result-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--ea-border);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .search-result-item:hover { background: var(--ea-hover); }
+        .search-result-item:last-child { border-bottom: none; }
+        .search-result-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+            border: 1px solid rgba(0,0,0,0.06);
+        }
+        .search-result-content { flex: 1; }
+        .search-result-title { font-weight: 600; color: var(--ea-text-primary); margin-bottom: 2px; font-size: 14px; }
+        .search-result-subtitle { font-size: 12px; color: var(--ea-text-secondary); }
+        
+        /* === BREADCRUMBS === */
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255,255,255,0.68);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .breadcrumb-link {
+            color: rgba(255,255,255,0.68);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .breadcrumb-link:hover { color: white; }
+        .breadcrumb-separator { opacity: 0.4; }
+        
+        /* === TOOLBAR BUTTONS === */
+        .toolbar-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.14);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.16s ease;
+        }
+        .toolbar-btn:hover { 
+            background: rgba(255,255,255,0.12); 
+            border-color: rgba(255,255,255,0.22);
+            transform: translateY(-1px);
+        }
+        .toolbar-btn i { font-size: 15px; }
+        
+        /* === IMPORT/EXPORT MODAL === */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(31, 42, 51, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 9998;
+            display: none;
+        }
+        .modal-backdrop.active { display: block; }
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--ea-surface);
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(31, 42, 51, 0.2);
+            z-index: 9999;
+            display: none;
+            border: 1px solid var(--ea-border);
+        }
+        .modal.active { display: block; }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--ea-border);
+        }
+        .modal-title { 
+            font-size: 18px; 
+            font-weight: 700; 
+            color: var(--ea-text-primary); 
+            margin: 0;
+            font-family: 'Manrope', sans-serif;
+        }
+        .modal-close {
+            border: none;
+            background: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--ea-text-secondary);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.16s;
+        }
+        .modal-close:hover {
+            background: var(--ea-hover);
+            color: var(--ea-text-primary);
+        }
+        .modal-content { margin-bottom: 20px; }
+        .backup-item {
+            padding: 12px;
+            border: 1px solid var(--ea-border);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--ea-surface);
+        }
+        .backup-item:hover {
+            background: var(--ea-hover);
+        }
+        .backup-info { flex: 1; }
+        .backup-name { font-weight: 600; color: var(--ea-text-primary); font-size: 14px; }
+        .backup-meta { font-size: 12px; color: var(--ea-text-secondary); margin-top: 4px; }
+        .backup-actions { display: flex; gap: 6px; }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.16s;
+        }
+        .btn-restore { 
+            background: var(--ea-accent); 
+            color: white; 
+            border-color: var(--ea-accent);
+        }
+        .btn-restore:hover {
+            background: #3d6552;
+        }
+        .btn-delete { 
+            background: var(--ea-danger); 
+            color: white;
+            border-color: var(--ea-danger);
+        }
+        .btn-delete:hover {
+            background: #9a5555;
+        }
+        .btn-primary {
+            background: var(--ea-accent);
+            color: white;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.16s;
+        }
+        .btn-primary:hover {
+            background: #3d6552;
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background: transparent;
+            color: var(--ea-text-primary);
+            padding: 10px 16px;
+            border: 1px solid var(--ea-border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.16s;
+        }
+        .btn-secondary:hover {
+            background: var(--ea-hover);
+            border-color: var(--ea-accent);
+        }
+        .btn-success {
+            background: var(--ea-success);
+            color: white;
+            border: none;
+        }
+        .btn-success:hover {
+            background: #4d7557;
+        }
+        .storage-stats {
+            padding: 16px;
+            background: #F7FAFC;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            border: 1px solid var(--ea-border);
+        }
+        .storage-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--ea-border);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .storage-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--ea-accent), var(--ea-success));
+            transition: width 0.3s;
+        }
+        
+        /* === RESPONSIVE DESIGN === */
+        @media (max-width: 1200px) {
+            .entry-points { grid-template-columns: 1fr; }
+            .dashboard-row { grid-template-columns: 1fr; }
+            .global-search-container { max-width: 100%; margin: 8px 0; }
+            .metrics-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+        }
+        
+        @media (max-width: 768px) {
+            .ea-header h1 { font-size: 20px; }
+            .header-top { flex-direction: column; gap: 12px; }
+            .entry-card { padding: 24px; }
+            .entry-icon { width: 60px; height: 60px; font-size: 28px; }
+        }
+    </style>
+</head>
+<body class="ea-app-shell">
+    <div id="app-container">
+        <!-- Header -->
+        <header class="ea-header">
+            <div class="header-content">
+                <div class="header-top">
+                    <div style="display: flex; align-items: center; flex: 1;">
+                        <h1><i class="fas fa-rocket"></i> Growth Sprint Dashboard</h1>
+                        
+                        <!-- Global Search -->
+                        <div class="global-search-container">
+                            <input type="text" class="global-search-input" id="global-search-input" placeholder="Search accounts, opportunities, engagements..." autocomplete="off">
+                            <i class="fas fa-search search-icon"></i>
+                            <div class="search-results" id="search-results"></div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <button class="toolbar-btn" onclick="window.location.href='EA_Analytics_Dashboard.html'" title="Analytics Dashboard">
+                            <i class="fas fa-chart-line"></i>
+                        </button>
+                        <button class="toolbar-btn" onclick="showDataManager()" title="Import/Export Data">
+                            <i class="fas fa-database"></i>
+                        </button>
+                        <button class="toolbar-btn" onclick="showContextHelp('growth_dashboard')" title="Help">
+                            <i class="fas fa-question"></i>
+                        </button>
+                        <button class="toolbar-btn" onclick="startTutorial()" title="Start Tutorial">
+                            <i class="fas fa-graduation-cap"></i>
+                        </button>
+                        <div class="header-date" id="current-date"></div>
+                    </div>
+                </div>
+                
+                <!-- Breadcrumbs -->
+                <div class="breadcrumbs">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main id="main-content">
+            <!-- Entry Points -->
+            <div class="entry-points">
+                <div class="entry-card orange" onclick="window.location.href='Business_Objectives_Toolkit.html'">
+                    <div class="entry-icon orange">
+                        <i class="fas fa-target"></i>
+                    </div>
+                    <div class="entry-title">0. Define Business Objectives</div>
+                    <div class="entry-desc">AI-assisted strategic alignment & capability mapping</div>
+                    <div class="entry-metric metric-orange" id="entry-objectives">0</div>
+                    <div style="font-size: 12px; color: #6b7280;">Defined Objectives</div>
+                </div>
+
+                <div class="entry-card green" onclick="window.location.href='EA_Account_Dashboard.html'">
+                    <div class="entry-icon green">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <div class="entry-title">1. Understand the Customer</div>
+                    <div class="entry-desc">Account intelligence & relationship mapping</div>
+                    <div class="entry-metric metric-green" id="entry-accounts">0</div>
+                    <div style="font-size: 12px; color: #6b7280;">Active Accounts</div>
+                </div>
+
+                <div class="entry-card purple" onclick="window.location.href='EA_Opportunity_Pipeline.html'">
+                    <div class="entry-icon purple">
+                        <i class="fas fa-bullseye"></i>
+                    </div>
+                    <div class="entry-title">2. Shape the Opportunity</div>
+                    <div class="entry-desc">Pipeline management & value justification</div>
+                    <div class="entry-metric metric-purple" id="entry-opportunities">0</div>
+                    <div style="font-size: 12px; color: #6b7280;">Open Opportunities</div>
+                </div>
+
+                <div class="entry-card blue" onclick="openEngagementPlaybook()">
+                    <div class="entry-icon blue">
+                        <i class="fas fa-diagram-project"></i>
+                    </div>
+                    <div class="entry-title">3. Deliver Architecture Value</div>
+                    <div class="entry-desc">EA engagement execution (E0-E5)</div>
+                    <div class="entry-metric metric-blue" id="entry-engagements">0</div>
+                    <div style="font-size: 12px; color: #6b7280;">Active Engagements</div>
+                </div>
+            </div>
+
+            <!-- Key Metrics -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Total ACV</span>
+                        <div class="metric-icon icon-green">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="total-acv">$0</div>
+                    <span class="metric-change change-positive">+0% vs last quarter</span>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Pipeline Value</span>
+                        <div class="metric-icon icon-blue">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="pipeline-value">$0</div>
+                    <span class="metric-change change-positive" id="pipeline-change">Weighted forecast</span>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Win Rate</span>
+                        <div class="metric-icon icon-purple">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="win-rate">0%</div>
+                    <span class="metric-change" id="win-stats">0 won / 0 lost</span>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Forecast (Q2 2026)</span>
+                        <div class="metric-icon icon-orange">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value" id="quarter-forecast">$0</div>
+                    <span class="metric-change" id="forecast-count">0 opportunities</span>
+                </div>
+            </div>
+
+            <!-- Dashboard Row -->
+            <div class="dashboard-row">
+                <!-- Top Accounts -->
+                <div class="section-card">
+                    <h3 class="section-title">Top Accounts by ACV</h3>
+                    <table id="top-accounts-table">
+                        <thead>
+                            <tr>
+                                <th>Account</th>
+                                <th>ACV</th>
+                                <th>Pipeline</th>
+                                <th>Health</th>
+                                <th>Opportunities</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-accounts-tbody">
+                            <tr><td colspan="5" style="text-align: center; color: #9ca3af; padding: 40px;">No accounts yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="section-card">
+                    <h3 class="section-title">Recent Activity</h3>
+                    <div id="activity-feed">
+                        <div style="text-align: center; color: #9ca3af; padding: 40px;">No recent activity</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Forecast Chart -->
+            <div class="section-card">
+                <h3 class="section-title">Quarterly Forecast</h3>
+                <canvas id="forecast-chart" height="80"></canvas>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let accountManager;
+        let userGuide;
+        let templateManager;
+        let demoScenarios;
+        let projectManager;
+        let aiAssistant;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Initializing Growth Dashboard...');
+            
+            accountManager = new EA_AccountManager();
+            console.log('✅ AccountManager initialized:', accountManager);
+            
+            // Initialize AI Assistant
+            setTimeout(() => {
+                aiAssistant = new EA_UnifiedAIAssistant();
+                console.log('✅ AI Assistant initialized');
+            }, 500);
+            
+            userGuide = new EA_UserGuide();
+            console.log('✅ UserGuide initialized:', userGuide);
+            console.log('✅ startTutorial method exists:', typeof userGuide.startTutorial === 'function');
+            
+            // Initialize resizable panel
+            initializeResizablePanel();
+            
+            templateManager = new EA_TemplateManager();
+            console.log('✅ TemplateManager initialized');
+            
+            demoScenarios = new EA_DemoScenarios();
+            console.log('✅ DemoScenarios initialized');
+            
+            projectManager = new EA_ProjectManager();
+            console.log('✅ ProjectManager initialized');
+            
+            // Set current date
+            const now = new Date();
+            document.getElementById('current-date').textContent = now.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            
+            loadDashboard();
+            console.log('✅ Dashboard loaded');
+            
+            // Auto-open Data Manager if coming from start page with demo parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('openDemos') === 'true') {
+                setTimeout(() => {
+                    showDataManager();
+                }, 500);
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════════════════
+        // AI CHAT PANEL
+        // ═══════════════════════════════════════════════════════════════════
+
+        function initializeResizablePanel() {
+            const panel = document.getElementById('ai-chat-panel');
+            const resizeHandle = document.getElementById('resize-handle');
+            let isResizing = false;
+            let startX = 0;
+            let startWidth = 0;
+            
+            // Load saved width from localStorage
+            const savedWidth = localStorage.getItem('ea_ai_panel_width');
+            if (savedWidth) {
+                const width = parseInt(savedWidth);
+                panel.style.width = width + 'px';
+                panel.style.right = '-' + width + 'px';
+            }
+            
+            resizeHandle.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                startX = e.clientX;
+                startWidth = panel.offsetWidth;
+                panel.classList.add('resizing');
+                document.body.style.cursor = 'ew-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                
+                const delta = startX - e.clientX;
+                let newWidth = startWidth + delta;
+                
+                // Constrain width between 300px and 800px
+                newWidth = Math.max(300, Math.min(800, newWidth));
+                
+                panel.style.width = newWidth + 'px';
+                
+                // Update right position if panel is open
+                if (panel.classList.contains('open')) {
+                    panel.style.right = '0px';
+                } else {
+                    panel.style.right = '-' + newWidth + 'px';
+                }
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    panel.classList.remove('resizing');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                    
+                    // Save width to localStorage
+                    localStorage.setItem('ea_ai_panel_width', panel.offsetWidth);
+                }
+            });
+        }
+
+        function toggleChatPanel() {
+            const panel = document.getElementById('ai-chat-panel');
+            const width = panel.offsetWidth;
+            
+            if (panel.classList.contains('open')) {
+                panel.style.right = '-' + width + 'px';
+                panel.classList.remove('open');
+            } else {
+                panel.style.right = '0px';
+                panel.classList.add('open');
+                
+                // Show welcome message on first open
+                const messagesDiv = document.getElementById('chat-messages');
+                if (messagesDiv.children.length === 0) {
+                    addChatMessage('Hello! I\'m your Growth Sprint AI assistant. I can help you prioritize accounts, analyze your pipeline, improve win rates, and optimize your portfolio strategy. How can I help you today?', 'assistant');
+                }
+            }
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            if (!aiAssistant) {
+                addChatMessage('AI Assistant is still initializing. Please wait a moment and try again.', 'assistant');
+                return;
+            }
+            
+            // Hide welcome message and quick actions once first message is sent
+            const welcome = document.getElementById('chat-welcome');
+            const quickActions = document.getElementById('chat-quick-actions');
+            if (welcome) welcome.style.display = 'none';
+            if (quickActions) quickActions.style.display = 'none';
+            
+            // Add user message
+            addChatMessage(message, 'user');
+            input.value = '';
+            
+            // Disable send button with loading state
+            const sendBtn = document.getElementById('send-chat');
+            const originalHTML = sendBtn.innerHTML;
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+            
+            try {
+                // Refresh context before sending
+                aiAssistant.refreshContext();
+                
+                // Send to AI
+                const response = await aiAssistant.chat(message);
+                
+                // Add assistant response
+                addChatMessage(response.message, 'assistant');
+                
+            } catch (error) {
+                console.error('Chat error:', error);
+                addChatMessage('I encountered an error processing your request. Please try again.', 'assistant');
+            } finally {
+                // Re-enable send button
+                sendBtn.innerHTML = originalHTML;
+                sendBtn.disabled = false;
+            }
+        }
+
+        async function sendQuickPrompt(index) {
+            if (!aiAssistant) {
+                addChatMessage('AI Assistant is still initializing. Please wait a moment and try again.', 'assistant');
+                return;
+            }
+            
+            const prompt = aiAssistant.getSuggestedPrompt(index);
+            if (prompt) {
+                // Hide welcome message and quick actions
+                const welcome = document.getElementById('chat-welcome');
+                const quickActions = document.getElementById('chat-quick-actions');
+                if (welcome) welcome.style.display = 'none';
+                if (quickActions) quickActions.style.display = 'none';
+                
+                // Set input and send
+                document.getElementById('chat-input').value = prompt;
+                await sendChatMessage();
+            }
+        }
+
+        function handleChatKeypress(event) {
+            // Send on Enter (without Shift)
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendChatMessage();
+            }
+        }
+
+        function addChatMessage(content, role) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message chat-message-${role}`;
+            
+            // Enhanced markdown-to-HTML conversion
+            let formattedContent = content;
+            
+            // Convert code blocks first (```language\ncode\n```)
+            formattedContent = formattedContent.replace(/```(\w+)?\n([\s\S]+?)```/g, '<pre><code>$2</code></pre>');
+            
+            // Convert inline code
+            formattedContent = formattedContent.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // Convert headers (# to ######)
+            formattedContent = formattedContent.replace(/^######\s+(.+)$/gm, '<h6>$1</h6>');
+            formattedContent = formattedContent.replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>');
+            formattedContent = formattedContent.replace(/^####\s+(.+)$/gm, '<h4>$1</h4>');
+            formattedContent = formattedContent.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+            formattedContent = formattedContent.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+            formattedContent = formattedContent.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+            
+            // Convert bold and italic
+            formattedContent = formattedContent.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+            formattedContent = formattedContent.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            formattedContent = formattedContent.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            
+            // Convert blockquotes
+            formattedContent = formattedContent.replace(/^>\s+(.+)$/gm, '<blockquote>$1</blockquote>');
+            
+            // Convert horizontal rules
+            formattedContent = formattedContent.replace(/^---$/gm, '<hr>');
+            formattedContent = formattedContent.replace(/^\*\*\*$/gm, '<hr>');
+            
+            // Convert links [text](url)
+            formattedContent = formattedContent.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+            
+            // Convert unordered lists (- or *)
+            formattedContent = formattedContent.replace(/^[\-\*]\s+(.+)$/gm, '<li>$1</li>');
+            
+            // Convert ordered lists (1. 2. 3.)
+            formattedContent = formattedContent.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+            
+            // Wrap consecutive <li> items in <ul>
+            formattedContent = formattedContent.replace(/(<li>.*<\/li>\n?)+/g, function(match) {
+                return '<ul>' + match + '</ul>';
+            });
+            
+            // Convert simple tables (| col | col |)
+            const tableRegex = /(\|.+\|\n)+/g;
+            formattedContent = formattedContent.replace(tableRegex, function(match) {
+                const rows = match.trim().split('\n');
+                if (rows.length < 2) return match;
+                
+                let tableHTML = '<table>';
+                rows.forEach((row, i) => {
+                    const cells = row.split('|').filter(cell => cell.trim());
+                    if (i === 0) {
+                        tableHTML += '<tr>' + cells.map(cell => `<th>${cell.trim()}</th>`).join('') + '</tr>';
+                    } else if (!/^[\s\-\:]+$/.test(row)) {
+                        tableHTML += '<tr>' + cells.map(cell => `<td>${cell.trim()}</td>`).join('') + '</tr>';
+                    }
+                });
+                tableHTML += '</table>';
+                return tableHTML;
+            });
+            
+            // Convert paragraphs (double newlines)
+            formattedContent = formattedContent.replace(/\n\n+/g, '</p><p>');
+            
+            // Convert single newlines to <br>
+            formattedContent = formattedContent.replace(/\n/g, '<br>');
+            
+            messageDiv.innerHTML = `
+                <div class="chat-message-avatar">
+                    <i class="fas fa-${role === 'user' ? 'user' : 'robot'}"></i>
+                </div>
+                <div class="chat-message-content">
+                    <p>${formattedContent}</p>
+                </div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function startNewChat() {
+            if (aiAssistant) {
+                aiAssistant.clearHistory();
+            }
+            document.getElementById('chat-messages').innerHTML = '';
+            
+            // Show welcome and quick actions again
+            const welcome = document.getElementById('chat-welcome');
+            const quickActions = document.getElementById('chat-quick-actions');
+            if (welcome) welcome.style.display = 'block';
+            if (quickActions) quickActions.style.display = 'block';
+            
+            console.log('Started new conversation');
+        }
+
+        function clearChat() {
+            if (confirm('Clear all messages from this conversation?')) {
+                startNewChat();
+            }
+        }
+
+        // Keyboard shortcut for AI assistant
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+                e.preventDefault();
+                toggleChatPanel();
+            }
+        });
+
+        /**
+         * Open AI Assistant User Guide
+         */
+        function openAIAssistantGuide() {
+            const guideUrl = 'AI_ASSISTANT_USER_GUIDE.md';
+            const newWindow = window.open('', 'AI_Guide', 'width=1200,height=800,scrollbars=yes');
+            
+            if (newWindow) {
+                fetch(guideUrl).then(r => r.text()).then(md => {
+                    newWindow.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>AI Assistant User Guide</title>
+<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:0 auto;padding:40px 20px;line-height:1.6;background:#f8f9fa}
+h1{color:#065f46;border-bottom:3px solid #10b981;padding-bottom:10px}h2{color:#047857;margin-top:30px}
+pre{background:#1f2937;color:#e5e7eb;padding:16px;border-radius:8px;overflow-x:auto;white-space:pre-wrap}
+code{background:#e7f5ec;padding:2px 6px;border-radius:4px;color:#065f46}
+table{border-collapse:collapse;width:100%;margin:20px 0}th,td{border:1px solid #d1d5db;padding:12px}
+th{background:#065f46;color:white}a{color:#059669}</style></head><body>
+<div style="background:white;padding:40px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1)">
+<pre>${md.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+<div style="margin-top:30px;text-align:center"><a href="${guideUrl}" download 
+style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block">
+📄 Download Guide</a></div></div></body></html>`);
+                    newWindow.document.close();
+                }).catch(() => {
+                    const a = document.createElement('a');
+                    a.href = guideUrl;
+                    a.download = 'AI_ASSISTANT_USER_GUIDE.md';
+                    a.click();
+                    newWindow.close();
+                    alert('📄 Downloading AI Guide...');
+                });
+            } else {
+                const a = document.createElement('a');
+                a.href = guideUrl;
+                a.download = 'AI_ASSISTANT_USER_GUIDE.md';
+                a.click();
+                alert('📄 Downloading AI Guide...');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // DASHBOARD LOADING
+        // ═══════════════════════════════════════════════════════════════════
+
+        function loadDashboard() {
+            const accounts = accountManager.listAccounts();
+            const opportunities = accountManager.listOpportunities();
+            const engagements = listEngagements();
+            
+            // Load business objectives count
+            let objectivesCount = 0;
+            if (typeof EA_ObjectivesManager !== 'undefined') {
+                EA_ObjectivesManager.listObjectives().then(objectives => {
+                    document.getElementById('entry-objectives').textContent = objectives.length;
+                }).catch(err => console.log('Could not load objectives:', err));
+            }
+            
+            // Entry points
+            document.getElementById('entry-accounts').textContent = accounts.length;
+            document.getElementById('entry-opportunities').textContent = opportunities.filter(o => !['close-won', 'close-lost'].includes(o.status)).length;
+            document.getElementById('entry-engagements').textContent = engagements.filter(e => e.status === 'active').length;
+            
+            // Total ACV
+            const totalACV = accounts.reduce((sum, a) => sum + a.ACV, 0);
+            document.getElementById('total-acv').textContent = `$${(totalACV / 1000000).toFixed(1)}M`;
+            
+            // Pipeline
+            const openOpps = opportunities.filter(o => !['close-won', 'close-lost'].includes(o.status));
+            const pipelineValue = openOpps.reduce((sum, o) => sum + (o.estimatedValue * (o.probability / 100)), 0);
+            document.getElementById('pipeline-value').textContent = `$${(pipelineValue / 1000000).toFixed(1)}M`;
+            
+            // Win rate
+            const won = opportunities.filter(o => o.status === 'close-won');
+            const lost = opportunities.filter(o => o.status === 'close-lost');
+            const winRate = (won.length + lost.length) > 0 ? (won.length / (won.length + lost.length)) * 100 : 0;
+            document.getElementById('win-rate').textContent = `${winRate.toFixed(0)}%`;
+            document.getElementById('win-stats').textContent = `${won.length} won / ${lost.length} lost`;
+            
+            // Quarterly forecast
+            const forecast = accountManager.getOpportunityForecast();
+            const currentQuarter = accountManager.getCurrentQuarter();
+            const quarterData = forecast[currentQuarter] || { count: 0, weightedValue: 0 };
+            document.getElementById('quarter-forecast').textContent = `$${(quarterData.weightedValue / 1000000).toFixed(1)}M`;
+            document.getElementById('forecast-count').textContent = `${quarterData.count} opportunities`;
+            
+            // Top accounts
+            renderTopAccounts(accounts.slice(0, 5));
+            
+            // Forecast chart
+            renderForecastChart(forecast);
+            
+            // Recent activity
+            renderRecentActivity(accounts, opportunities, engagements);
+        }
+
+        function renderTopAccounts(accounts) {
+            const tbody = document.getElementById('top-accounts-tbody');
+            
+            if (accounts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #9ca3af; padding: 40px;">No accounts yet</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = accounts.map(account => {
+                const pipelineValue = accountManager.calculateAccountPipelineValue(account.id);
+                return `
+                    <tr onclick="window.location.href='EA_Account_Dashboard.html?accountId=${account.id}'">
+                        <td>${account.name}</td>
+                        <td>$${(account.ACV / 1000000).toFixed(1)}M</td>
+                        <td>$${(pipelineValue / 1000000).toFixed(1)}M</td>
+                        <td><span class="health-badge health-${account.health}">${account.health}</span></td>
+                        <td>${account.opportunities.length}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderForecastChart(forecast) {
+            const quarters = Object.keys(forecast).sort();
+            const labels = quarters;
+            const data = quarters.map(q => (forecast[q].weightedValue / 1000000).toFixed(1));
+            
+            const ctx = document.getElementById('forecast-chart');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Weighted Pipeline ($M)',
+                        data: data,
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Value ($M)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderRecentActivity(accounts, opportunities, engagements) {
+            const activities = [];
+            
+            // Add recent account creations
+            accounts.slice(0, 2).forEach(account => {
+                activities.push({
+                    icon: 'building',
+                    iconBg: 'icon-green',
+                    text: `New account created: ${account.name}`,
+                    time: timeAgo(account.metadata.createdAt)
+                });
+            });
+            
+            // Add recent opportunity creations
+            opportunities.slice(0, 3).forEach(opp => {
+                activities.push({
+                    icon: 'bullseye',
+                    iconBg: 'icon-purple',
+                    text: `New opportunity: ${opp.name}`,
+                    time: timeAgo(opp.metadata.createdAt)
+                });
+            });
+            
+            const activityDiv = document.getElementById('activity-feed');
+            
+            if (activities.length === 0) {
+                activityDiv.innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 40px;">No recent activity</div>';
+                return;
+            }
+            
+            activityDiv.innerHTML = activities.slice(0, 5).map(activity => `
+                <div class="activity-item">
+                    <div class="activity-icon ${activity.iconBg}">
+                        <i class="fas fa-${activity.icon}"></i>
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-text">${activity.text}</div>
+                        <div class="activity-time">${activity.time}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function listEngagements() {
+            const engagements = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('ea_engagement_model_')) {
+                    const data = localStorage.getItem(key);
+                    engagements.push(JSON.parse(data));
+                }
+            }
+            return engagements;
+        }
+
+        function openEngagementPlaybook() {
+            // Check if we have accounts to select from
+            const accounts = accountManager.listAccounts();
+            
+            if (accounts.length === 0) {
+                // No accounts - just open playbook
+                window.location.href = 'EA_Engagement_Playbook.html';
+                return;
+            }
+            
+            if (accounts.length === 1) {
+                // Only one account - auto-select it
+                window.location.href = `EA_Engagement_Playbook.html?accountId=${accounts[0].id}`;
+                return;
+            }
+            
+            // Multiple accounts - show selector
+            showAccountSelectorForEngagement(accounts);
+        }
+
+        function showAccountSelectorForEngagement(accounts) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h2>Select Account for EA Engagement</h2>
+                        <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p style="color: #6b7280; margin-bottom: 20px;">Which account would you like to work with in the EA Engagement Playbook?</p>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            ${accounts.map(account => `
+                                <div class="account-select-card" onclick="navigateToPlaybookWithAccount('${account.id}')" 
+                                    style="border: 2px solid #e5e7eb; border-radius: 8px; padding: 16px; cursor: pointer; transition: all 0.2s;"
+                                    onmouseover="this.style.borderColor='#3b82f6'; this.style.background='#eff6ff';"
+                                    onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='white';">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <div style="font-weight: 600; font-size: 16px; color: #111827; margin-bottom: 4px;">
+                                                ${account.name}
+                                            </div>
+                                            <div style="font-size: 13px; color: #6b7280;">
+                                                ${account.industry} • $${(account.ACV / 1000000).toFixed(1)}M ACV • ${account.opportunities.length} opportunities
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-arrow-right" style="color: #3b82f6;"></i>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                            <button onclick="window.location.href='EA_Engagement_Playbook.html'" 
+                                style="background: transparent; border: 1px solid #d1d5db; color: #6b7280; padding: 10px 20px; border-radius: 6px; cursor: pointer;">
+                                <i class="fas fa-plus"></i> Create New Engagement Without Account Link
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function navigateToPlaybookWithAccount(accountId) {
+            window.location.href = `EA_Engagement_Playbook.html?accountId=${accountId}`;
+        }
+
+        function timeAgo(dateString) {
+            const now = new Date();
+            const past = new Date(dateString);
+            const diffMs = now - past;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 60) return `${diffMins} minutes ago`;
+            if (diffHours < 24) return `${diffHours} hours ago`;
+            return `${diffDays} days ago`;
+        }
+
+        // Global Search
+        let globalSearch;
+        document.getElementById('global-search-input')?.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            const resultsDiv = document.getElementById('search-results');
+            
+            if (!query) {
+                resultsDiv.classList.remove('active');
+                return;
+            }
+
+            if (!globalSearch) {
+                globalSearch = new EA_GlobalSearch();
+                globalSearch.buildSearchIndex();
+            }
+
+            const results = globalSearch.search(query, {}).slice(0, 5);
+            
+            if (results.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #9ca3af;">No results found</div>';
+            } else {
+                resultsDiv.innerHTML = results.map(result => {
+                    const iconMap = {
+                        account: { icon: 'building', color: '#10b981' },
+                        opportunity: { icon: 'bullseye', color: '#7c3aed' },
+                        engagement: { icon: 'diagram-project', color: '#3b82f6' },
+                        stakeholder: { icon: 'user', color: '#f59e0b' },
+                        application: { icon: 'server', color: '#ef4444' },
+                        capability: { icon: 'puzzle-piece', color: '#8b5cf6' },
+                        initiative: { icon: 'lightbulb', color: '#06b6d4' }
+                    };
+                    const icon = iconMap[result.type] || { icon: 'file', color: '#6b7280' };
+                    
+                    return `
+                        <div class="search-result-item" onclick="navigateToResult('${result.type}', '${result.id}', '${result.engagementId || ''}')">
+                            <div class="search-result-icon" style="background: ${icon.color}20; color: ${icon.color};">
+                                <i class="fas fa-${icon.icon}"></i>
+                            </div>
+                            <div class="search-result-content">
+                                <div class="search-result-title">${result.name}</div>
+                                <div class="search-result-subtitle">${result.type.toUpperCase()} ${result.context || ''}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            resultsDiv.classList.add('active');
+        });
+
+        // Close search results when clicking outside
+        document.addEventListener('click', function(e) {
+            const searchContainer = document.querySelector('.global-search-container');
+            if (!searchContainer?.contains(e.target)) {
+                document.getElementById('search-results')?.classList.remove('active');
+            }
+        });
+
+        function navigateToResult(type, id, engagementId) {
+            const crossNav = new EA_CrossNavigation();
+            
+            if (type === 'account') {
+                crossNav.goToAccount(id);
+            } else if (type === 'opportunity') {
+                crossNav.goToOpportunity(id);
+            } else if (type === 'engagement') {
+                crossNav.goToEngagement(id);
+            } else if (engagementId) {
+                // For entities within engagement, go to engagement
+                crossNav.goToEngagement(engagementId);
+            }
+        }
+
+        // Data Manager Modal
+        function showDataManager() {
+            const modal = document.getElementById('data-manager-modal');
+            const backdrop = document.getElementById('modal-backdrop');
+            modal.classList.add('active');
+            backdrop.classList.add('active');
+            
+            // Load backups
+            loadBackupsList();
+            updateStorageStats();
+            loadAccountsList();
+        }
+
+        function closeDataManager() {
+            document.getElementById('data-manager-modal').classList.remove('active');
+            document.getElementById('modal-backdrop').classList.remove('active');
+        }
+
+        function exportAllData() {
+            dataBackup.downloadExport();
+            alert('✅ Data exported successfully!');
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    const result = await dataBackup.importFromFile(file, { merge: true });
+                    alert(`✅ Import complete!\n\n${result.imported.accounts} accounts\n${result.imported.opportunities} opportunities\n${result.imported.engagements} engagements`);
+                    loadDashboard();
+                } catch (error) {
+                    alert(`❌ Import failed: ${error.message}`);
+                }
+            };
+            input.click();
+        }
+
+        function createBackup() {
+            const name = prompt('Enter backup name:', `Backup ${new Date().toLocaleDateString()}`);
+            if (name) {
+                try {
+                    dataBackup.createBackup(name);
+                    alert('✅ Backup created successfully!');
+                    loadBackupsList();
+                    updateStorageStats();
+                } catch (error) {
+                    alert(`❌ Backup failed: ${error.message}`);
+                }
+            }
+        }
+
+        function loadBackupsList() {
+            const backups = dataBackup.listBackups();
+            const container = document.getElementById('backups-list');
+            
+            if (backups.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 20px;">No backups yet</div>';
+                return;
+            }
+            
+            container.innerHTML = backups.map(backup => `
+                <div class="backup-item">
+                    <div class="backup-info">
+                        <div class="backup-name">${backup.name}</div>
+                        <div class="backup-meta">${new Date(backup.timestamp).toLocaleString()} • ${dataBackup.formatBytes(backup.size)}</div>
+                    </div>
+                    <div class="backup-actions">
+                        <button class="btn-sm btn-restore" onclick="restoreBackup('${backup.id}')">Restore</button>
+                        <button class="btn-sm btn-delete" onclick="deleteBackup('${backup.id}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function restoreBackup(backupId) {
+            if (confirm('⚠️ This will replace all current data. Continue?')) {
+                try {
+                    dataBackup.restoreBackup(backupId);
+                    alert('✅ Backup restored successfully!');
+                    window.location.reload();
+                } catch (error) {
+                    alert(`❌ Restore failed: ${error.message}`);
+                }
+            }
+        }
+
+        function deleteBackup(backupId) {
+            if (confirm('Delete this backup?')) {
+                dataBackup.deleteBackup(backupId);
+                loadBackupsList();
+                updateStorageStats();
+            }
+        }
+
+        function updateStorageStats() {
+            const stats = dataBackup.getStorageStats();
+            document.getElementById('storage-used').textContent = stats.totalSizeFormatted;
+            document.getElementById('storage-available').textContent = stats.availableFormatted;
+            document.getElementById('storage-percentage').textContent = `${stats.usagePercentage}%`;
+            document.getElementById('storage-bar-fill').style.width = `${stats.usagePercentage}%`;
+        }
+
+        function loadSampleData() {
+            userGuide.loadSampleData();
+            setTimeout(() => {
+                loadDashboard();
+            }, 500);
+        }
+
+        function loadInsuranceDemo() {
+            userGuide.loadInsuranceDemoData();
+            setTimeout(() => {
+                loadDashboard();
+                closeDataManager();
+            }, 500);
+        }
+
+        function loadBankingDemo() {
+            demoScenarios.loadBankingDemo();
+            setTimeout(() => {
+                loadDashboard();
+                closeDataManager();
+                alert('✅ Banking demo loaded!\nAccount: Nordic Universal Bank\nACV: €3.25M');
+            }, 500);
+        }
+
+        function loadFinTechDemo() {
+            demoScenarios.loadFinTechDemo();
+            setTimeout(() => {
+                loadDashboard();
+                closeDataManager();
+                alert('✅ FinTech demo loaded!\nAccount: PayNordic\nACV: €1.45M');
+            }, 500);
+        }
+
+        function loadAllDemos() {
+            demoScenarios.loadAllDemos();
+            setTimeout(() => {
+                loadDashboard();
+                closeDataManager();
+                alert('✅ All 3 industry demos loaded!\nBanking + FinTech + Insurance');
+            }, 500);
+        }
+
+        // Template Management Functions
+        function downloadAccountCSV() {
+            templateManager.downloadAccountCSVTemplate();
+        }
+
+        function downloadAccountJSON() {
+            templateManager.downloadAccountJSONTemplate();
+        }
+
+        function downloadOpportunityCSV() {
+            templateManager.downloadOpportunityCSVTemplate();
+        }
+
+        function downloadOpportunityJSON() {
+            templateManager.downloadOpportunityJSONTemplate();
+        }
+
+        async function importFromTemplate() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.csv,.json';
+            input.onchange = async function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    let result;
+                    const fileExt = file.name.split('.').pop().toLowerCase();
+                    const fileName = file.name.toLowerCase();
+                    
+                    // Determine type and format
+                    if (fileName.includes('account')) {
+                        if (fileExt === 'csv') {
+                            result = await templateManager.importAccountsFromCSV(file);
+                        } else {
+                            result = await templateManager.importAccountsFromJSON(file);
+                        }
+                        const errorMsg = result.errors.length > 0 ? '\n\nErrors:\n' + result.errors.join('\n') : '';
+                        alert(`✅ Import complete!\n\n${result.imported} accounts imported${errorMsg}`);
+                    } else if (fileName.includes('opportunity')) {
+                        if (fileExt === 'csv') {
+                            result = await templateManager.importOpportunitiesFromCSV(file);
+                        } else {
+                            result = await templateManager.importOpportunitiesFromJSON(file);
+                        }
+                        const errorMsg = result.errors.length > 0 ? '\n\nErrors:\n' + result.errors.join('\n') : '';
+                        alert(`✅ Import complete!\n\n${result.imported} opportunities imported${errorMsg}`);
+                    } else {
+                        alert('❌ Cannot determine file type.\nFile name should contain "account" or "opportunity".');
+                        return;
+                    }
+                    
+                    loadDashboard();
+                    loadAccountsList();
+                } catch (error) {
+                    alert(`❌ Import failed: ${error.message}`);
+                }
+            };
+            input.click();
+        }
+
+        // Account Management Functions
+        function loadAccountsList() {
+            const accounts = accountManager.listAccounts();
+            const container = document.getElementById('accounts-list');
+            
+            // Update count
+            document.getElementById('accounts-count').textContent = `${accounts.length} accounts`;
+            
+            if (accounts.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 20px;">No accounts yet</div>';
+                return;
+            }
+            
+            container.innerHTML = accounts.map(account => `
+                <div class="backup-item">
+                    <div class="backup-info">
+                        <div class="backup-name">${account.name}</div>
+                        <div class="backup-meta">${account.id} • ${account.industry} • ACV: €${(account.ACV / 1000000).toFixed(2)}M</div>
+                    </div>
+                    <div class="backup-actions">
+                        <button class="btn-sm btn-restore" onclick="viewAccount('${account.id}')">View</button>
+                        <button class="btn-sm" style="background: #f59e0b; color: white;" onclick="editAccount('${account.id}')">Edit</button>
+                        <button class="btn-sm btn-delete" onclick="deleteAccountConfirm('${account.id}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function viewAccount(accountId) {
+            window.location.href = `EA_Account_Dashboard.html?accountId=${accountId}`;
+        }
+
+        function editAccount(accountId) {
+            const account = accountManager.getAccount(accountId);
+            if (!account) {
+                alert('❌ Account not found');
+                return;
+            }
+            
+            const newName = prompt('Account Name:', account.name);
+            if (!newName) return;
+            
+            const newACV = prompt('ACV (Annual Contract Value in €):', account.ACV);
+            if (newACV === null) return;
+            
+            const newHealth = prompt('Health Status (excellent/good/at-risk/critical):', account.health);
+            if (!newHealth) return;
+            
+            try {
+                accountManager.updateAccount(accountId, {
+                    name: newName,
+                    ACV: parseFloat(newACV) || 0,
+                    health: newHealth
+                });
+                
+                alert('✅ Account updated successfully!');
+                loadAccountsList();
+                loadDashboard();
+            } catch (error) {
+                alert(`❌ Update failed: ${error.message}`);
+            }
+        }
+
+        function deleteAccountConfirm(accountId) {
+            const account = accountManager.getAccount(accountId);
+            if (!account) return;
+            
+            if (confirm(`⚠️ Delete account "${account.name}"?\n\nThis will also delete:\n• ${account.opportunities.length} opportunities\n• All associated data\n\nThis cannot be undone!`)) {
+                try {
+                    // Delete associated opportunities
+                    account.opportunities.forEach(oppId => {
+                        accountManager.deleteOpportunity(oppId);
+                    });
+                    
+                    // Delete account
+                    accountManager.deleteAccount(accountId);
+                    
+                    alert('✅ Account deleted successfully!');
+                    loadAccountsList();
+                    loadDashboard();
+                } catch (error) {
+                    alert(`❌ Delete failed: ${error.message}`);
+                }
+            }
+        }
+
+        function startTutorial() {
+            console.log('🎓 Starting tutorial...');
+            if (!userGuide) {
+                console.error('❌ UserGuide not initialized!');
+                alert('Tutorial system is loading... Please try again in a moment.');
+                return;
+            }
+            console.log('✅ Calling userGuide.startTutorial()');
+            try {
+                userGuide.startTutorial();
+            } catch (err) {
+                console.error('❌ Tutorial error:', err);
+                alert('Error starting tutorial: ' + err.message);
+            }
+        }
+
+        function showContextHelp(context) {
+            console.log('❓ Showing help for:', context);
+            if (!userGuide) {
+                console.error('❌ UserGuide not initialized!');
+                return;
+            }
+            try {
+                if (typeof userGuide.showContextHelp === 'function') {
+                    userGuide.showContextHelp(context);
+                } else {
+                    console.warn('⚠️ showContextHelp method not available');
+                    alert('Help system coming soon!');
+                }
+            } catch (err) {
+                console.error('❌ Help error:', err);
+            }
+        }
+    </script>
+
+    <!-- Data Manager Modal -->
+    <div class="modal-backdrop" id="modal-backdrop" onclick="closeDataManager()"></div>
+    <div class="modal" id="data-manager-modal">
+        <div class="modal-header">
+            <h2 class="modal-title">📦 Data Management</h2>
+            <button class="modal-close" onclick="closeDataManager()">×</button>
+        </div>
+        
+        <div class="modal-content">
+            <!-- Storage Stats -->
+            <div class="storage-stats">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="font-weight: 600;">Storage Usage</span>
+                    <span id="storage-percentage">0%</span>
+                </div>
+                <div class="storage-bar">
+                    <div class="storage-bar-fill" id="storage-bar-fill" style="width: 0%;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #6b7280;">
+                    <span>Used: <span id="storage-used">0 Bytes</span></span>
+                    <span>Available: <span id="storage-available">0 Bytes</span></span>
+                </div>
+            </div>
+
+            <!-- Import/Export -->
+            <div style="margin-bottom: 24px;">
+                <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">Import/Export All Data</h3>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-primary" onclick="exportAllData()" style="flex: 1;">
+                        <i class="fas fa-download"></i> Export All Data
+                    </button>
+                    <button class="btn btn-secondary" onclick="importData()" style="flex: 1;">
+                        <i class="fas fa-upload"></i> Import Data
+                    </button>
+                </div>
+            </div>
+
+            <!-- Templates -->
+            <div style="margin-bottom: 24px;">
+                <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">📋 Import Templates</h3>
+                <p style="font-size: 13px; color: #6b7280; margin-bottom: 12px;">Download blank templates to populate accounts and opportunities, then import the filled templates.</p>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                    <button class="btn btn-secondary" onclick="downloadAccountCSV()" style="font-size: 12px;">
+                        <i class="fas fa-file-csv"></i> Account CSV
+                    </button>
+                    <button class="btn btn-secondary" onclick="downloadAccountJSON()" style="font-size: 12px;">
+                        <i class="fas fa-file-code"></i> Account JSON
+                    </button>
+                    <button class="btn btn-secondary" onclick="downloadOpportunityCSV()" style="font-size: 12px;">
+                        <i class="fas fa-file-csv"></i> Opportunity CSV
+                    </button>
+                    <button class="btn btn-secondary" onclick="downloadOpportunityJSON()" style="font-size: 12px;">
+                        <i class="fas fa-file-code"></i> Opportunity JSON
+                    </button>
+                </div>
+                
+                <button class="btn btn-primary" onclick="importFromTemplate()" style="width: 100%;">
+                    <i class="fas fa-upload"></i> Import from Template (CSV/JSON)
+                </button>
+            </div>
+
+            <!-- Demo Scenarios -->
+            <div style="margin-bottom: 24px;">
+                <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">🎯 Demo Scenarios</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px;">
+                    <button class="btn btn-secondary" onclick="loadBankingDemo()" style="font-size: 12px;">
+                        <i class="fas fa-university"></i> Banking
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadFinTechDemo()" style="font-size: 12px;">
+                        <i class="fas fa-credit-card"></i> FinTech
+                    </button>
+                    <button class="btn btn-success" onclick="loadInsuranceDemo()" style="font-size: 12px; background: #059669; color: white;">
+                        <i class="fas fa-building"></i> Insurance
+                    </button>
+                </div>
+                <button class="btn btn-primary" onclick="loadAllDemos()" style="width: 100%;">
+                    <i class="fas fa-th"></i> Load All 3 Demos
+                </button>
+            </div>
+
+            <!-- Account Management -->
+            <div style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="font-size: 16px; font-weight: 600; margin: 0;">🏢 Manage Accounts</h3>
+                    <span id="accounts-count" style="font-size: 12px; color: #6b7280;">0 accounts</span>
+                </div>
+                <div id="accounts-list" style="max-height: 300px; overflow-y: auto;">
+                    <div style="text-align: center; color: #9ca3af; padding: 20px;">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Backups -->
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="font-size: 16px; font-weight: 600; margin: 0;">Backups</h3>
+                    <button class="btn-sm btn-primary" onclick="createBackup()">
+                        <i class="fas fa-plus"></i> Create Backup
+                    </button>
+                </div>
+                <div id="backups-list">
+                    <div style="text-align: center; color: #9ca3af; padding: 20px;">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Chat Panel (Sidebar - Same design as NexGen EA Platform) -->
+    <div id="ai-chat-panel" class="hidden">
+        <div id="chat-resize-handle" title="Drag to resize"></div>
+        <div id="chat-header">
+            <div id="chat-header-title">
+                <i class="fas fa-robot"></i>
+                <span id="chat-title-text">Growth Sprint AI</span>
+            </div>
+            <div id="chat-controls">
+                <button id="new-chat" onclick="startNewChat()" title="New conversation">+</button>
+                <button id="clear-chat" onclick="clearChat()" title="Clear history">&#x21BA;</button>
+                <button id="close-chat" onclick="toggleChatPanel()" title="Close sidebar">&times;</button>
+            </div>
+        </div>
+        <!-- Welcome Message -->
+        <div id="chat-welcome" class="chat-welcome-message">
+            <div class="welcome-icon"><i class="fas fa-lightbulb"></i></div>
+            <h4>Growth Sprint AI Assistant</h4>
+            <p>I can help you analyze your portfolio, prioritize accounts, identify opportunities, and optimize your sales pipeline.</p>
+        </div>
+        <!-- Quick Action Prompts -->
+        <div id="chat-quick-actions" class="chat-quick-actions">
+            <div class="quick-actions-label">Quick Actions</div>
+            <button class="quick-action-btn" onclick="sendQuickPrompt(0)">
+                <i class="fas fa-chart-line"></i> Which accounts should I prioritize?
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPrompt(1)">
+                <i class="fas fa-project-diagram"></i> Analyze portfolio-wide service gaps
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPrompt(2)">
+                <i class="fas fa-trophy"></i> Suggest strategies to improve win rates
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickPrompt(3)">
+                <i class="fas fa-bullseye"></i> Identify high-value expansion opportunities
+            </button>
+        </div>
+        <div id="chat-messages"></div>
+        <div id="chat-input-container">
+            <textarea id="chat-input" placeholder="Ask Growth Sprint AI anything..." onkeypress="handleChatKeypress(event)"></textarea>
+            <button id="send-chat" onclick="sendChatMessage()" title="Send (Enter)">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,220 @@
+# EA Engagement Output Document Template
+
+**Engagement:** {{engagement.name}}  
+**ID:** {{engagement.id}}  
+**Segment:** {{engagement.segment}}  
+**Status:** {{engagement.status}}  
+**Date:** {{generated.date}}
+
+---
+
+## Executive Summary
+
+{{ai.executiveSummary}}
+
+---
+
+## 1. Engagement Overview
+
+**Theme:** {{engagement.theme}}
+
+**Customers:**
+{{#each customers}}
+- **{{name}}** ({{industry}}, {{region}})
+{{/each}}
+
+**Success Criteria:**
+{{#each engagement.successCriteria}}
+- {{this}}
+{{/each}}
+
+---
+
+## 2. Scope & Objectives
+
+**Sprint Cadence:** {{engagement.sprintCadence}}
+
+**Status:** {{engagement.status}}
+
+**Timeline:** {{engagement.startDate}} to {{engagement.endDate}}
+
+---
+
+## 3. Governance & RACI
+
+**Decision Forum:** {{engagement.governance.decisionForum}}
+
+**Review Cadence:** {{engagement.governance.reviewCadence}}
+
+**RACI Reference:** {{engagement.governance.raciRef}}
+
+---
+
+## 4. Agile Phases Overview
+
+{{#each phases}}
+### {{name}} ({{id}})
+
+**Status:** {{status}}  
+**Description:** {{description}}
+
+**Stories:** {{stories.length}} defined
+
+{{/each}}
+
+---
+
+## 5. AS-IS Summary
+
+**Total Applications:** {{applications.length}}
+
+**Lifecycle Distribution:**
+- Tolerate: {{count applications "lifecycle" "tolerate"}}
+- Invest: {{count applications "lifecycle" "invest"}}
+- Migrate: {{count applications "lifecycle" "migrate"}}
+- Retire: {{count applications "lifecycle" "retire"}}
+
+**Risk Profile:**
+- Critical: {{count applications "riskLevel" "critical"}}
+- High: {{count applications "riskLevel" "high"}}
+- Medium: {{count applications "riskLevel" "medium"}}
+- Low: {{count applications "riskLevel" "low"}}
+
+---
+
+## 6. White-Spot Analysis
+
+{{ai.whiteSpotAnalysis}}
+
+**Capability Gaps Identified:** {{capabilities.length}}
+
+**Key Opportunities:**
+{{#each capabilities where gap > 1}}
+- **{{name}}**: Current maturity {{maturity}}, Target {{targetMaturity}} (Gap: {{gap}})
+{{/each}}
+
+---
+
+## 7. Stakeholder Insights
+
+**Total Stakeholders:** {{stakeholders.length}}
+
+**Influence Map:**
+- High Influence & High Decision Power: {{count stakeholders "influence" "high" "decisionPower" "high"}}
+- High Influence & Medium/Low Decision Power: {{count stakeholders "influence" "high" "decisionPower" "medium,low"}}
+
+**Key Stakeholders:**
+{{#each stakeholders where influence = "high"}}
+- **{{name}}** ({{role}}, {{orgUnit}})  
+  *Priorities:* {{join priorities ", "}}
+{{/each}}
+
+---
+
+## 8. Target EA Vision
+
+{{ai.targetVisionSummary}}
+
+**Architecture Principles:**
+{{#each architectureViews where type = "target"}}
+- {{#each principles}}{{this}}{{/each}}
+{{/each}}
+
+**Reference Patterns:**
+{{#each architectureViews where type = "target"}}
+- {{name}}: {{description}}
+{{/each}}
+
+---
+
+## 9. Modernization & Sunsetting
+
+**Modernization Candidates:** {{count applications "modernizationCandidate" true}}
+
+{{#each applications where modernizationCandidate = true}}
+- **{{name}}** ({{businessDomain}}) — {{lifecycle}}
+{{/each}}
+
+**Sunset Candidates:** {{count applications "sunsetCandidate" true}}
+
+{{#each applications where sunsetCandidate = true}}
+- **{{name}}** ({{businessDomain}}) — Risk: {{riskLevel}}, Debt: {{technicalDebt}}
+{{/each}}
+
+---
+
+## 10. Roadmap & Next Steps
+
+**Total Initiatives:** {{initiatives.length}}
+
+**Horizon Distribution:**
+- Short-term (0-12mo): {{count initiatives "timeHorizon" "short"}}
+- Mid-term (12-24mo): {{count initiatives "timeHorizon" "mid"}}
+- Long-term (24mo+): {{count initiatives "timeHorizon" "long"}}
+
+### Roadmap Timeline
+
+{{#each roadmapItems sort by "quarter"}}
+**{{quarter}}** — {{name}}  
+Initiative: {{initiative.name}}  
+Status: {{status}}  
+{{/each}}
+
+---
+
+## 11. Decisions, Risks & Assumptions
+
+### Decisions ({{decisions.length}})
+
+{{#each decisions}}
+**{{id}}** — {{title}}  
+Status: {{status}} | Owner: {{owner}} | Date: {{decisionDate}}  
+{{description}}
+
+{{/each}}
+
+### Risks ({{risks.length}})
+
+{{#each risks where status != "closed"}}
+**{{id}}** — {{title}} ({{category}})  
+Probability: {{probability}} | Impact: {{impact}} | Owner: {{owner}}  
+{{description}}
+
+{{/each}}
+
+### Assumptions ({{assumptions.length}})
+
+{{#each assumptions where status = "active"}}
+**{{id}}** — {{title}}  
+Impact: {{impact}} | Status: {{status}}  
+{{description}}
+
+{{/each}}
+
+---
+
+## 12. Actions & Follow-Up
+
+{{ai.actionItems}}
+
+---
+
+## 13. Appendices
+
+### A. Workshop Notes
+
+{{#each artifacts where type = "workshop-notes"}}
+- {{name}} ({{generatedAt}})
+{{/each}}
+
+### B. Architecture Diagrams
+
+{{#each architectureViews}}
+- {{name}} ({{type}}): {{diagramUrl}}
+{{/each}}
+
+---
+
+**Document Version:** {{generated.version}}  
+**Generated:** {{generated.date}} by {{generated.by}}  
+**Completeness:** {{engagement.metadata.completeness}}%

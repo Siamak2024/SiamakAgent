@@ -1,6 +1,8 @@
 /**
  * Step3.js — Capability Architecture
  *
+ * GOLDEN RULE: Capabilities must link to Primary Objectives to ensure traceability.
+ *
  * Tasks:
  *   3.1 capability_map      — Internal: build L1/L2/L3 capability map
  *   3.2 capability_assess   — Internal: assess maturity & strategic importance
@@ -9,6 +11,7 @@
  * Outputs:
  *   model.capabilities[]   — capability map with maturity ratings (backward compat)
  *   model.archBenchmark    — benchmarking object
+ *   model.businessContext.enrichment.capabilityGaps — gaps with linkedObjective field
  */
 
 const Step3 = {
@@ -301,12 +304,38 @@ executive_benchmark_summary: 2-3 sentences for the Board.`;
   },
 
   applyOutput: (output, model) => {
+    // Capture capability gaps into enrichment
+    if (model.businessContext && model.businessContext.enrichment) {
+      // Extract gaps from capability assessment
+      const gaps = [];
+      if (output.capabilityMap?.l1_domains) {
+        output.capabilityMap.l1_domains.forEach(domain => {
+          if (domain.l2_capabilities) {
+            domain.l2_capabilities.forEach(cap => {
+              const assessment = output.capabilityAssessment?.capabilities?.find(c => c.id === cap.id);
+              if (assessment && assessment.current_maturity < assessment.target_maturity) {
+                gaps.push({
+                  capability: cap.name,
+                  currentLevel: assessment.current_maturity,
+                  targetLevel: assessment.target_maturity,
+                  priority: assessment.priority || 'Medium',
+                  linkedObjective: null  // Will be enhanced by AI or user
+                });
+              }
+            });
+          }
+        });
+      }
+      model.businessContext.enrichment.capabilityGaps = gaps;
+    }
+
     // Seed valueStreams from L1 domain names so Architecture Layers tab is
     // populated immediately after Step 3 (Step 7 will overwrite with richer data).
+    // V10 UPDATE: Do NOT auto-generate value streams - Step 6 will create proper architecture layers
     const existingVS = (model.valueStreams || []).length > 0;
     const derivedVS = existingVS
       ? model.valueStreams
-      : (output.capabilityMap?.l1_domains || []).map(d => ({ name: d.name, description: '' }));
+      : []; // V10: Empty until Step 6 (Layers & Gap Analysis)
     return {
       ...model,
       capabilities: output.capabilities,
@@ -331,11 +360,7 @@ executive_benchmark_summary: 2-3 sentences for the Board.`;
         `**Step 3 — Capability Architecture complete**\n\n` +
         `${model.capabilities?.length || 0} capabilities mapped across ${model.capabilityMap?.l1_domains?.length || 0} domains.\n` +
         `Overall maturity: **${overall ? overall.toFixed(1) + '/5' : 'assessed'}**\n\n` +
-        `**Next:** Ready to design Operating Model? Click below or use the **Continue** button in the sidebar.\n\n` +
-        `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step4', window.model); } else { console.error('StepEngine not available'); }">\n` +
-        `  <i class="fas fa-arrow-right"></i>\n` +
-        `  Start Step 4: Operating Model\n` +
-        `</button>`
+        `**Click on Step 4: Benchmark in the left sidebar to continue.**`
       );
     }
   }

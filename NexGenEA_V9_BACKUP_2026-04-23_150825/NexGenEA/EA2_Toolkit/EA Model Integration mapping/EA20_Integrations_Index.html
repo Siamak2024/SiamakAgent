@@ -1,0 +1,412 @@
+﻿<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EA 2.0 "“ Integrationsöversikt</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* â”€â”€ Header â”€â”€ */
+    header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+      border-bottom: 1px solid rgba(99,102,241,0.3);
+      padding: 28px 40px;
+    }
+    .header-inner { max-width: 900px; margin: 0 auto; }
+    .header-top { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+    .logo { width: 44px; height: 44px; background: linear-gradient(135deg,#6366f1,#a855f7); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 4px 20px rgba(99,102,241,0.4); }
+    header h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #fff; }
+    .badge { background: rgba(99,102,241,0.25); border: 1px solid rgba(99,102,241,0.5); color: #a5b4fc; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: 1px; text-transform: uppercase; }
+    header p { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+
+    /* â”€â”€ Stats bar â”€â”€ */
+    .stats { max-width: 900px; margin: 24px auto; padding: 0 40px; display: flex; gap: 12px; }
+    .stat { flex: 1; background: rgba(30,27,75,0.6); border: 1px solid rgba(99,102,241,0.2); border-radius: 12px; padding: 14px 18px; }
+    .stat-num { font-size: 22px; font-weight: 800; color: #a5b4fc; }
+    .stat-label { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+    /* â”€â”€ Cards â”€â”€ */
+    .cards { max-width: 900px; margin: 0 auto; padding: 0 40px 40px; display: flex; flex-direction: column; gap: 12px; }
+
+    .card {
+      background: rgba(15,23,42,0.8);
+      border: 1px solid rgba(99,102,241,0.15);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .card:hover { border-color: rgba(99,102,241,0.5); box-shadow: 0 4px 24px rgba(99,102,241,0.15); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 18px 22px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .card-icon {
+      width: 46px; height: 46px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+
+    .card-meta { flex: 1; }
+    .card-num { font-size: 10px; font-weight: 700; color: #475569; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 3px; }
+    .card-title { font-size: 15px; font-weight: 700; color: #f1f5f9; }
+    .card-desc { font-size: 12px; color: #64748b; margin-top: 3px; }
+
+    .card-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+
+    .card-arrow {
+      font-size: 13px; color: #475569;
+      transition: transform 0.3s;
+      flex-shrink: 0;
+    }
+    .card-arrow.open { transform: rotate(180deg); }
+
+    /* â”€â”€ Open button â”€â”€ */
+    .open-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: linear-gradient(135deg,#6366f1,#a855f7);
+      color: #fff; border: none; border-radius: 8px;
+      padding: 8px 16px; font-size: 12px; font-weight: 700;
+      cursor: pointer; text-decoration: none;
+      transition: opacity 0.2s, transform 0.1s;
+      margin: 0 22px 18px;
+    }
+    .open-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    /* â”€â”€ Expanded detail â”€â”€ */
+    .card-detail {
+      border-top: 1px solid rgba(99,102,241,0.15);
+      padding: 18px 22px;
+      display: none;
+    }
+    .card-detail.visible { display: block; }
+
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .detail-item { background: rgba(30,27,75,0.5); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; padding: 12px 14px; }
+    .detail-item-label { font-size: 10px; font-weight: 700; color: #6366f1; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .detail-item-value { font-size: 12px; color: #cbd5e1; line-height: 1.5; }
+
+    .outcome-box { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); border-radius: 10px; padding: 12px 16px; }
+    .outcome-label { font-size: 10px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .outcome-text { font-size: 12px; color: #a7f3d0; line-height: 1.5; }
+
+    /* â”€â”€ Footer â”€â”€ */
+    footer { text-align: center; color: #334155; font-size: 11px; padding: 20px; border-top: 1px solid rgba(99,102,241,0.1); }
+
+    /* â”€â”€ Modal overlay â”€â”€ */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+
+    .modal-box {
+      width: 95vw; height: 92vh;
+      background: #0f172a;
+      border: 1px solid rgba(99,102,241,0.4);
+      border-radius: 20px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    }
+
+    .modal-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px;
+      background: rgba(30,27,75,0.9);
+      border-bottom: 1px solid rgba(99,102,241,0.2);
+      flex-shrink: 0;
+    }
+    .modal-title { font-size: 13px; font-weight: 700; color: #a5b4fc; }
+    .modal-close {
+      background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3);
+      color: #fca5a5; border-radius: 8px; padding: 6px 14px;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .modal-close:hover { background: rgba(239,68,68,0.3); }
+
+    .modal-iframe {
+      flex: 1; border: none; width: 100%; background: #fff;
+    }
+
+    /* Loading state */
+    .modal-loading {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      color: #6366f1; font-size: 14px; font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="header-inner">
+      <div class="header-top">
+        <div class="logo">ðŸ—ï¸</div>
+        <h1>EA 2.0 Integration Suite</h1>
+        <span class="badge">domain-specific & Industry-specific</span>
+      </div>
+      <p>Klicka på en integration för att öppna den direkt i fullskärm.</p>
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num">4</div>
+      <div class="stat-label">Integrationer</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">5</div>
+      <div class="stat-label">Verktyg i sviten</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">E2E</div>
+      <div class="stat-label">BMC â†’ Strategi</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">AI</div>
+      <div class="stat-label">Wardley + Roadmap</div>
+    </div>
+  </div>
+
+  <!-- Cards -->
+  <div class="cards">
+
+    <!-- FAS 1 -->
+    <div class="card" id="card-1">
+      <div class="card-header" onclick="toggleCard(1)">
+        <div class="card-icon" style="background:linear-gradient(135deg,#1e3a8a,#3b82f6);">ðŸ”—</div>
+        <div class="card-meta">
+          <div class="card-num">Fas 1</div>
+          <div class="card-title">BMC â†” Value Chain Analyzer</div>
+          <div class="card-desc">Från affärsmodell till operativ värdekedja "“ identifiera var värde skapas och förstörs.</div>
+          <div class="card-tags">
+            <span class="tag" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3);">Business Model Canvas</span>
+            <span class="tag" style="background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.3);">Porter's Value Chain</span>
+            <span class="tag" style="background:rgba(245,158,11,0.15);color:#fcd34d;border:1px solid rgba(245,158,11,0.3);">Marginalanalys</span>
+          </div>
+        </div>
+        <span class="card-arrow" id="arrow-1">â–¼</span>
+      </div>
+      <div class="card-detail" id="detail-1">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-item-label">Dataflöde</div>
+            <div class="detail-item-value">BMC CSV Export â†’ Value Chain AI-analys â†’ Kombinerad strategisk insikt</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-item-label">Nyckelkoppling</div>
+            <div class="detail-item-value">Värdeerbjudande â†’ Operations + Service Â· Kostnadsstruktur â†’ Marginalanalys</div>
+          </div>
+        </div>
+        <div class="outcome-box" style="margin-bottom:14px;">
+          <div class="outcome-label">Affärsnytta</div>
+          <div class="outcome-text">Säkerställer att affärsmodellens löften är operativt möjliga Â· Identifierar kostnadsoptimering Â· Ökar Customer retention</div>
+        </div>
+      </div>
+      <button class="open-btn" onclick="openModal('BMC_ValueChain_Integration.html', 'Fas 1 "“ BMC â†” Value Chain Analyzer')">
+        â–¶ Öppna integration
+      </button>
+    </div>
+
+    <!-- FAS 2 -->
+    <div class="card" id="card-2">
+      <div class="card-header" onclick="toggleCard(2)">
+        <div class="card-icon" style="background:linear-gradient(135deg,#7e22ce,#a855f7);">ðŸ—ï¸</div>
+        <div class="card-meta">
+          <div class="card-num">Fas 2</div>
+          <div class="card-title">Value Chain â†” EA 2.0 Platform</div>
+          <div class="card-desc">Binder värdeströmmar till EA-arkitekturen "“ från analys till teknisk realisering och ROI.</div>
+          <div class="card-tags">
+            <span class="tag" style="background:rgba(168,85,247,0.15);color:#d8b4fe;border:1px solid rgba(168,85,247,0.3);">Capability Import</span>
+            <span class="tag" style="background:rgba(245,158,11,0.15);color:#fcd34d;border:1px solid rgba(245,158,11,0.3);">Impact Simulation</span>
+            <span class="tag" style="background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);">Board Report</span>
+          </div>
+        </div>
+        <span class="card-arrow" id="arrow-2">â–¼</span>
+      </div>
+      <div class="card-detail" id="detail-2">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-item-label">Dataflöde</div>
+            <div class="detail-item-value">CSV Export â†’ EA 2.0 Import â†’ Heatmap + Dependency Graph â†’ CFO View â†’ Board Report</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-item-label">Nyckelkoppling</div>
+            <div class="detail-item-value">Capability â†’ System â†’ AI Agent Â· Strategic Weight â†’ Investment Priority Â· Maturity â†’ Technical Debt</div>
+          </div>
+        </div>
+        <div class="outcome-box" style="margin-bottom:14px;">
+          <div class="outcome-label">Affärsnytta</div>
+          <div class="outcome-text">Datadrivet investeringsunderlag Â· ROI per capability Â· Kortare time-to-execution Â· Styrelserapport med ett klick</div>
+        </div>
+      </div>
+      <button class="open-btn" onclick="openModal('Integration_Architecture_Diagram.html', 'Fas 2 "“ Value Chain â†” EA 2.0 Platform')">
+        â–¶ Öppna integration
+      </button>
+    </div>
+
+    <!-- FAS 3 -->
+    <div class="card" id="card-3">
+      <div class="card-header" onclick="toggleCard(3)">
+        <div class="card-icon" style="background:linear-gradient(135deg,#0f766e,#14b8a6);">ðŸ—‚ï¸</div>
+        <div class="card-meta">
+          <div class="card-num">Fas 3</div>
+          <div class="card-title">Value Chain â†” Capability Mapping</div>
+          <div class="card-desc">Matchar värdeskapande aktiviteter med capabilities "“ prioritet, mognad och gap-analys.</div>
+          <div class="card-tags">
+            <span class="tag" style="background:rgba(20,184,166,0.15);color:#5eead4;border:1px solid rgba(20,184,166,0.3);">Gap Analysis</span>
+            <span class="tag" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);">5 Domains</span>
+            <span class="tag" style="background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.3);">Wardley Prep</span>
+          </div>
+        </div>
+        <span class="card-arrow" id="arrow-3">â–¼</span>
+      </div>
+      <div class="card-detail" id="detail-3">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-item-label">Dataflöde</div>
+            <div class="detail-item-value">VC AI-analys â†’ Capability domäner â†’ Prioritet (Strategic/Important/Commodity) â†’ Mognad 1"“5</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-item-label">Nyckelkoppling</div>
+            <div class="detail-item-value">Värdeförstörare â†’ Capability Gaps Â· Marginalanalys â†’ Strategic Priority Â· Primär aktivitet â†’ Strategic/Important</div>
+          </div>
+        </div>
+        <div class="outcome-box" style="margin-bottom:14px;">
+          <div class="outcome-label">Affärsnytta</div>
+          <div class="outcome-text">Eliminerar subjektiva prioriteringsbeslut Â· Kopplar capability gaps till affärsrisk Â· Förbereder Wardley-mappning</div>
+        </div>
+      </div>
+      <button class="open-btn" onclick="openModal('ValueChain_CapabilityMapping_Integration.html', 'Fas 3 "“ Value Chain â†” Capability Mapping')">
+        â–¶ Öppna integration
+      </button>
+    </div>
+
+    <!-- FAS 4 -->
+    <div class="card" id="card-4">
+      <div class="card-header" onclick="toggleCard(4)">
+        <div class="card-icon" style="background:linear-gradient(135deg,#4338ca,#6366f1);">ðŸ§­</div>
+        <div class="card-meta">
+          <div class="card-num">Fas 4</div>
+          <div class="card-title">Capability Map â†” AI Strategy Workbench</div>
+          <div class="card-desc">Översätter capability-portföljen till Wardley-karta och AI-driven Build/Buy/Partner-strategi.</div>
+          <div class="card-tags">
+            <span class="tag" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);">Wardley Map</span>
+            <span class="tag" style="background:rgba(168,85,247,0.15);color:#d8b4fe;border:1px solid rgba(168,85,247,0.3);">Build/Buy/Partner</span>
+            <span class="tag" style="background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.3);">36-mån Roadmap</span>
+          </div>
+        </div>
+        <span class="card-arrow" id="arrow-4">â–¼</span>
+      </div>
+      <div class="card-detail" id="detail-4">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-item-label">Dataflöde</div>
+            <div class="detail-item-value">EA2_Capabilities.csv â†’ Wardley X/Y koordinater â†’ Strategy Workbench noder â†’ AI Wardley-analys</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-item-label">Nyckelkoppling</div>
+            <div class="detail-item-value">Strategisk + låg mognad â†’ Genesis/Custom Â· Commodity + hög mognad â†’ Outsourca/SaaS</div>
+          </div>
+        </div>
+        <div class="outcome-box" style="margin-bottom:14px;">
+          <div class="outcome-label">Affärsnytta</div>
+          <div class="outcome-text">Kostnadsbesparingar via outsourcing Â· Konkurrensfördel via Genesis-fokus Â· Tydlig C-level roadmap för styrelse och CFO</div>
+        </div>
+      </div>
+      <button class="open-btn" onclick="openModal('ValueChain_CapabilityMapping_Integration.html', 'Fas 4 "“ Capability Map â†” Strategy Workbench')">
+        â–¶ Öppna integration
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Pipeline footer -->
+  <div style="max-width:900px;margin:0 auto 40px;padding:0 40px;">
+    <div style="background:linear-gradient(135deg,rgba(30,27,75,0.8),rgba(49,46,129,0.6));border:1px solid rgba(99,102,241,0.3);border-radius:16px;padding:20px 28px;">
+      <div style="font-size:11px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;">End-to-End Pipeline</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;">
+        <span style="background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.3);color:#93c5fd;padding:5px 12px;border-radius:8px;">BMC</span>
+        <span style="color:#475569;">â†’</span>
+        <span style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.3);color:#6ee7b7;padding:5px 12px;border-radius:8px;">Value Chain</span>
+        <span style="color:#475569;">â†’</span>
+        <span style="background:rgba(168,85,247,0.2);border:1px solid rgba(168,85,247,0.3);color:#d8b4fe;padding:5px 12px;border-radius:8px;">Capability Map</span>
+        <span style="color:#475569;">â†’</span>
+        <span style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;padding:5px 12px;border-radius:8px;">Strategy Workbench</span>
+        <span style="color:#475569;">â†’</span>
+        <span style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.3);color:#fcd34d;padding:5px 12px;border-radius:8px;">EA 2.0 Platform</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>EA 2.0 Integration Suite Â· domain-specific & Industry-specific Â· 2024</footer>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal-box">
+      <div class="modal-topbar">
+        <span class="modal-title" id="modal-title">Integration</span>
+        <button class="modal-close" onclick="closeModal()">âœ• Stäng</button>
+      </div>
+      <iframe class="modal-iframe" id="modal-iframe" src="" title="Integration"></iframe>
+    </div>
+  </div>
+
+  <script>
+    function toggleCard(n) {
+      const detail = document.getElementById('detail-' + n);
+      const arrow = document.getElementById('arrow-' + n);
+      const isOpen = detail.classList.contains('visible');
+      detail.classList.toggle('visible', !isOpen);
+      arrow.classList.toggle('open', !isOpen);
+    }
+
+    function openModal(file, title) {
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-iframe').src = file;
+      document.getElementById('modal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+      document.getElementById('modal-iframe').src = '';
+      document.body.style.overflow = '';
+    }
+
+    // Close on overlay click
+    document.getElementById('modal').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    // Close on Escape
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeModal();
+    });
+  </script>
+
+</body>
+</html>
+

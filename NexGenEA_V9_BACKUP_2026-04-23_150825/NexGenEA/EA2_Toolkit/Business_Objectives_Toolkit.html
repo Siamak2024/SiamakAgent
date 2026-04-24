@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Objectives - Strategic Alignment Toolkit</title>
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+    <script src="../../AzureOpenAIProxy.js"></script>
+    <script src="../../js/EA_Config.js"></script>
+    <script src="../../js/EA_DataManager.js"></script>
+    <script src="../../js/EA_ObjectivesManager.js"></script>
+    <script src="../../js/EA_BusinessObjectivesWorkflow.js"></script>
+    <style>
+        /* ===================================================================
+           LAYOUT - Universal EA Platform Design
+           =================================================================== */
+        body {
+            margin: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--ea-background);
+            overflow: hidden;
+        }
+
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* ===================================================================
+           HEADER
+           =================================================================== */
+        .ea-header {
+            background: linear-gradient(135deg, var(--ea-accent) 0%, #3d6956 100%);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .ea-header h1 {
+            color: white;
+            margin: 0;
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .header-subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 13px;
+            margin-left: 16px;
+            padding-left: 16px;
+            border-left: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: white;
+            color: var(--ea-accent);
+        }
+
+        .btn-primary:hover {
+            background: #f8f9fa;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* ===================================================================
+           MAIN LAYOUT - Split View
+           =================================================================== */
+        #main-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Main Content Area (Left) */
+        #main-content {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            transition: margin-right 0.2s ease;
+        }
+
+        /* Content shift when chat is open */
+        body.chat-sidebar-open #main-content {
+            margin-right: 360px;
+        }
+
+        /* Override ea-design-engine.css for this toolkit */
+        #ai-chat-panel {
+            top: 64px !important;
+        }
+
+        /* Dark mode chat styling overrides */
+        #chat-messages {
+            gap: 0 !important;
+        }
+
+        .chat-message {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            animation: chatSlideIn 0.25s ease;
+        }
+
+        @keyframes chatSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chat-message.ai,
+        .chat-message.assistant {
+            flex-direction: row;
+        }
+
+        .chat-message.user {
+            flex-direction: row;
+        }
+
+        .chat-message-avatar {
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
+            background: rgba(45, 45, 45, 0.6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #808080;
+            font-size: 14px;
+        }
+
+        .chat-message.user .chat-message-avatar {
+            background: rgba(55, 65, 81, 0.85);
+            color: #60a5fa;
+        }
+
+        .chat-message.ai .chat-message-avatar,
+        .chat-message.assistant .chat-message-avatar {
+            background: rgba(0, 102, 204, 0.15);
+            color: #0066cc;
+        }
+
+        .chat-message-content {
+            flex: 1;
+            min-width: 0;
+            font-size: 14.5px;
+            line-height: 1.65;
+            color: #e0e0e0;
+        }
+
+        .chat-message.user .chat-message-content {
+            background: rgba(55, 65, 81, 0.85);
+            border: 1px solid rgba(75, 85, 99, 0.35);
+            border-radius: 10px;
+            padding: 12px 16px;
+        }
+
+        .chat-message.user .chat-message-content p {
+            color: #e2e8f0;
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.55;
+        }
+
+        .chat-message.ai .chat-message-content,
+        .chat-message.assistant .chat-message-content {
+            background: transparent;
+            padding: 4px 8px 4px 0;
+        }
+
+        .chat-message.ai .chat-message-content p,
+        .chat-message.assistant .chat-message-content p {
+            margin: 0 0 12px 0;
+            color: #d4d4d4;
+            font-size: 14.5px;
+            line-height: 1.65;
+        }
+
+        #chat-input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 12px 16px;
+            border-top: 1px solid #2d2d2d;
+            background: #1a1a1a;
+            flex-shrink: 0;
+        }
+
+        .question-counter {
+            padding: 8px 12px;
+            background: #2d2d2d;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #808080;
+            border: 1px solid #404040;
+            display: none;
+            text-align: center;
+        }
+
+        .question-counter strong {
+            color: #0066cc;
+        }
+
+        .chat-input-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        #chat-input {
+            flex: 1;
+            height: 88px;
+            padding: 10px 12px;
+            border: 1px solid #404040;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: none;
+            transition: border-color 0.2s;
+            background: #2d2d2d;
+            color: #e0e0e0;
+            line-height: 1.5;
+        }
+
+        #chat-input::placeholder {
+            color: #808080;
+        }
+
+        #chat-input:focus {
+            outline: none;
+            border-color: #0066cc;
+            box-shadow: 0 0 0 1px #0066cc;
+        }
+
+        #chat-input:disabled {
+            background: #1a1a1a;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        #chat-send-btn {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 16px;
+        }
+
+        #chat-send-btn:hover:not(:disabled) {
+            background: #0052a3;
+        }
+
+        #chat-send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Toggle AI Chat Button */
+        .btn-ai-toggle {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .btn-ai-toggle:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .btn-ai-toggle.active {
+            background: #0066cc;
+        }
+
+        /* ===================================================================
+           WELCOME SCREEN
+           =================================================================== */
+        .welcome-screen {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .welcome-hero {
+            background: linear-gradient(135deg, var(--ea-accent) 0%, #3d6956 100%);
+            border-radius: 16px;
+            padding: 60px 48px;
+            text-align: center;
+            color: white;
+            margin-bottom: 32px;
+            box-shadow: var(--ea-shadow-card);
+        }
+
+        .welcome-hero h2 {
+            font-size: 36px;
+            margin: 0 0 16px 0;
+            font-weight: 700;
+        }
+
+        .welcome-hero p {
+            font-size: 18px;
+            margin: 0 0 32px 0;
+            opacity: 0.95;
+            line-height: 1.6;
+        }
+
+        .welcome-cta {
+            background: white;
+            color: var(--ea-accent);
+            padding: 16px 40px;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .welcome-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+
+        .workflow-steps-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .workflow-step-card {
+            background: var(--ea-surface);
+            border-radius: 12px;
+            padding: 32px 24px;
+            text-align: center;
+            box-shadow: var(--ea-shadow-soft);
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .workflow-step-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--ea-shadow-card);
+            border-color: var(--ea-accent);
+        }
+
+        .step-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .workflow-step-card h3 {
+            color: var(--ea-text-primary);
+            margin: 0 0 12px 0;
+            font-size: 20px;
+        }
+
+        .workflow-step-card p {
+            color: var(--ea-text-secondary);
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .step-badge {
+            display: inline-block;
+            background: var(--ea-accent);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        /* ===================================================================
+           CAPABILITY MAP - APQC Visualization
+           =================================================================== */
+        .capability-map {
+            display: none;
+        }
+
+        .capability-map.active {
+            display: block;
+        }
+
+        .map-header {
+            background: var(--ea-surface);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--ea-shadow-soft);
+        }
+
+        .map-header h2 {
+            margin: 0 0 8px 0;
+            color: var(--ea-text-primary);
+            font-size: 24px;
+        }
+
+        .map-header p {
+            margin: 0;
+            color: var(--ea-text-secondary);
+            font-size: 14px;
+        }
+
+        .objectives-summary {
+            display: flex;
+            gap: 16px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .objective-chip {
+            background: linear-gradient(135deg, var(--ea-accent) 0%, #3d6956 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .capability-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .capability-category {
+            background: var(--ea-surface);
+            border-radius: 12px;
+            box-shadow: var(--ea-shadow-soft);
+            transition: all 0.3s;
+            border: 2px solid var(--ea-border);
+        }
+
+        .capability-category.highlighted {
+            border-color: var(--ea-accent);
+            box-shadow: 0 0 0 4px rgba(74, 119, 99, 0.1);
+        }
+
+        .category-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--ea-border);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .category-header:hover {
+            background: #f8f9fa;
+        }
+
+        .category-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .category-code {
+            background: var(--ea-accent);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .category-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--ea-text-primary);
+            flex: 1;
+        }
+
+        .category-expand-icon {
+            color: var(--ea-text-secondary);
+            transition: transform 0.3s;
+        }
+
+        .category-header.expanded .category-expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .category-description {
+            font-size: 13px;
+            color: var(--ea-text-secondary);
+            margin-top: 4px;
+        }
+
+        .capabilities-list {
+            display: none;
+            padding: 16px 20px;
+        }
+
+        .capabilities-list.expanded {
+            display: block;
+        }
+
+        .capability-item {
+            padding: 14px 16px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border: 1px solid var(--ea-border);
+            transition: all 0.2s;
+        }
+
+        .capability-item.highlighted {
+            background: linear-gradient(135deg, #e8f5f0 0%, #f0f9f5 100%);
+            border-color: var(--ea-accent);
+            box-shadow: 0 2px 8px rgba(74, 119, 99, 0.15);
+            transition: all 0.3s ease;
+        }
+
+        /* Progressive Highlighting - Confidence Levels (Heatmap) */
+        .capability-item.highlighted.confidence-low {
+            background: linear-gradient(135deg, #f0f9ff 0%, #f0f9ff 100%);
+            border-color: #93c5fd;
+            box-shadow: 0 1px 4px rgba(59, 130, 246, 0.1);
+        }
+
+        .capability-item.highlighted.confidence-low .capability-code {
+            background: #93c5fd;
+        }
+
+        .capability-item.highlighted.confidence-low .ai-match-badge {
+            background: #93c5fd;
+        }
+
+        .capability-item.highlighted.confidence-medium {
+            background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%);
+            border-color: #3b82f6;
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.15);
+        }
+
+        .capability-item.highlighted.confidence-medium .capability-code {
+            background: #3b82f6;
+        }
+
+        .capability-item.highlighted.confidence-medium .ai-match-badge {
+            background: #3b82f6;
+        }
+
+        .capability-item.highlighted.confidence-high {
+            background: linear-gradient(135deg, #e8f5f0 0%, #d1fae5 100%);
+            border-color: var(--ea-accent);
+            box-shadow: 0 3px 10px rgba(74, 119, 99, 0.25);
+        }
+
+        .capability-item.highlighted.confidence-high .capability-code {
+            background: var(--ea-accent);
+        }
+
+        .capability-item.highlighted.confidence-high .ai-match-badge {
+            background: var(--ea-accent);
+        }
+
+        /* Category confidence levels */
+        .capability-category.highlighted.confidence-low {
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.15);
+        }
+
+        .capability-category.highlighted.confidence-medium {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        .capability-category.highlighted.confidence-high {
+            border-color: var(--ea-accent);
+            box-shadow: 0 0 0 3px rgba(74, 119, 99, 0.15);
+        }
+
+        /* Industry Selection Buttons */
+        .industry-selection {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+        
+        .industry-btn {
+            padding: 16px;
+            background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0, 102, 204, 0.2);
+        }
+        
+        .industry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+            background: linear-gradient(135deg, #0052a3 0%, #003d7a 100%);
+        }
+        
+        .industry-btn i {
+            font-size: 20px;
+        }
+
+        .capability-item-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .capability-code {
+            background: var(--ea-text-secondary);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .capability-item.highlighted .capability-code {
+            background: var(--ea-accent);
+        }
+
+        .capability-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--ea-text-primary);
+        }
+
+        .ai-match-badge {
+            margin-left: auto;
+            background: var(--ea-accent);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .capability-item.highlighted .ai-match-badge {
+            display: block;
+        }
+
+        .capability-description {
+            font-size: 13px;
+            color: var(--ea-text-secondary);
+            line-height: 1.5;
+        }
+
+        .capability-meta {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .meta-tag {
+            background: var(--ea-border);
+            color: var(--ea-text-secondary);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        /* ===================================================================
+           LOADING & STATES
+           =================================================================== */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-content {
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--ea-border);
+            border-top-color: var(--ea-accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 16px;
+            color: var(--ea-text-primary);
+            font-weight: 500;
+        }
+
+        /* ===================================================================
+           RESPONSIVE
+           =================================================================== */
+        @media (max-width: 1200px) {
+            #ai-chat-panel {
+                width: 380px;
+            }
+
+            .workflow-steps-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            #ai-chat-panel {
+                display: none;
+            }
+
+            .welcome-hero {
+                padding: 40px 24px;
+            }
+
+            .welcome-hero h2 {
+                font-size: 28px;
+            }
+
+            .capability-categories {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <!-- Header -->
+        <header class="ea-header">
+            <div class="header-left">
+                <h1>🎯 Business Objectives</h1>
+                <span class="header-subtitle">AI-Assisted Strategic Alignment</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-ai-toggle" id="toggleAIChatBtn" onclick="toggleChatPanel()">
+                    <i class="fas fa-robot"></i> AI Assistant
+                </button>
+                <button class="btn btn-secondary" onclick="window.location.href='EA_Growth_Dashboard.html'">
+                    <i class="fas fa-arrow-left"></i> Growth Dashboard
+                </button>
+                <button class="btn btn-primary" id="resetBtn">
+                    <i class="fas fa-redo"></i> Reset
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Layout -->
+        <div id="main-layout">
+            <!-- Main Content -->
+            <div id="main-content">
+                <!-- Welcome Screen -->
+                <div id="welcomeScreen" class="welcome-screen">
+                    <div class="welcome-hero">
+                        <h2>Define Strategic Business Objectives</h2>
+                        <p>
+                            Work with our AI assistant to define clear business objectives, 
+                            map them to APQC capabilities, and identify strategic gaps.
+                        </p>
+                        <button class="welcome-cta" id="startWorkflowBtn">
+                            <i class="fas fa-rocket"></i>
+                            <span>Start AI Discovery</span>
+                        </button>
+                    </div>
+
+                    <div class="workflow-steps-grid">
+                        <div class="workflow-step-card">
+                            <div class="step-badge">Step 1</div>
+                            <div class="step-icon">💬</div>
+                            <h3>Discover Context</h3>
+                            <p>
+                                Answer AI-guided questions about your industry, challenges, 
+                                and strategic goals. Maximum 5 questions to understand your context.
+                            </p>
+                        </div>
+
+                        <div class="workflow-step-card">
+                            <div class="step-badge">Step 2</div>
+                            <div class="step-icon">🗺️</div>
+                            <h3>Map Capabilities</h3>
+                            <p>
+                                AI analyzes your objectives and highlights relevant APQC capabilities. 
+                                See where you excel and where gaps exist.
+                            </p>
+                        </div>
+
+                        <div class="workflow-step-card">
+                            <div class="step-badge">Step 3</div>
+                            <div class="step-icon">🎯</div>
+                            <h3>Strategic Alignment</h3>
+                            <p>
+                                Review synthesized objectives and capability recommendations. 
+                                Export or link to other EA tools for execution.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Capability Map (Hidden initially) -->
+                <div id="capabilityMap" class="capability-map">
+                    <div class="map-header">
+                        <h2>APQC Capability Map</h2>
+                        <p>AI-highlighted capabilities based on your business objectives</p>
+                        <div class="objectives-summary" id="objectivesSummary"></div>
+                    </div>
+                    <div class="capability-categories" id="capabilityCategories"></div>
+                </div>
+            </div>
+
+            <!-- AI Chat Panel - Dark Mode, Resizable -->
+            <div id="ai-chat-panel" class="hidden">
+                <div id="chat-resize-handle" title="Drag to resize"></div>
+                <div id="chat-header">
+                    <div id="chat-header-title">
+                        <i class="fas fa-robot"></i>
+                        <span id="chat-title-text">Business Objectives AI</span>
+                    </div>
+                    <div id="chat-controls">
+                        <button id="close-chat" onclick="toggleChatPanel()" title="Close sidebar">&times;</button>
+                    </div>
+                </div>
+
+                <div id="chat-messages">
+                    <div class="chat-message ai">
+                        <div class="chat-message-avatar">
+                            <i class="fas fa-sparkles"></i>
+                        </div>
+                        <div class="chat-message-content">
+                            <p>Welcome! I'm here to help you define strategic business objectives and map them to capabilities.</p>
+                            <p>Click "Start AI Discovery" to begin our conversation.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="chat-input-container">
+                    <div class="question-counter" id="questionCounter">
+                        Question <strong id="currentQuestion">0</strong> of 5
+                    </div>
+                    <div class="chat-input-row">
+                        <textarea 
+                            id="chat-input" 
+                            placeholder="Type your response here..."
+                            disabled
+                        ></textarea>
+                        <button id="chat-send-btn" disabled title="Send Response">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Processing with AI...</div>
+        </div>
+    </div>
+
+    <script>
+        // ===================================================================
+        // Business Objectives Toolkit V2 - Controller
+        // ===================================================================
+        (function() {
+            'use strict';
+
+            // State
+            let dataManager = null; // EA_DataManager instance
+            let currentStep = 'welcome'; // welcome | industry_select | discovery | mapping | complete
+            let apqcData = null;
+            let metadataMapping = null; // Industry-specific capability filters
+            let synthesizedObjectives = null;
+            let highlightedCapabilities = [];
+            let conversationContext = []; // Track all Q&A for progressive analysis
+            let userIndustry = null; // Store industry selection
+            let availableIndustries = ['Manufacturing', 'Services', 'Retail', 'Financial Services', 'Insurance', 'Healthcare', 'Technology', 'All']; // From APQC metadata
+
+            // DOM Elements
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            const capabilityMap = document.getElementById('capabilityMap');
+            const startWorkflowBtn = document.getElementById('startWorkflowBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const toggleAIChatBtn = document.getElementById('toggleAIChatBtn');
+            const chatMessages = document.getElementById('chat-messages');
+            const chatInput = document.getElementById('chat-input');
+            const chatSendBtn = document.getElementById('chat-send-btn');
+            const questionCounter = document.getElementById('questionCounter');
+            const currentQuestionEl = document.getElementById('currentQuestion');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const objectivesSummary = document.getElementById('objectivesSummary');
+            const capabilityCategories = document.getElementById('capabilityCategories');
+
+            // Initialize
+            async function init() {
+                // Initialize Data Manager
+                dataManager = new EA_DataManager();
+                
+                // Load metadata mapping for industry filtering
+                try {
+                    const response = await fetch('../../APAQ_Data/apqc_metadata_mapping.json');
+                    metadataMapping = await response.json();
+                    console.log('✅ Loaded APQC metadata mapping');
+                } catch (error) {
+                    console.error('Error loading metadata mapping:', error);
+                }
+                
+                startWorkflowBtn.addEventListener('click', startWorkflow);
+                resetBtn.addEventListener('click', resetWorkflow);
+                chatSendBtn.addEventListener('click', sendMessage);
+                chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                });
+
+                // Load APQC data
+                loadAPQCData();
+
+                // Initialize chat resize
+                initializeChatResize();
+
+                console.log('✅ Business Objectives Toolkit V2 initialized');
+            }
+
+            // Load APQC Framework Data
+            async function loadAPQCData() {
+                try {
+                    await dataManager.loadAPQCFramework();
+                    apqcData = await dataManager.getAPQCFramework();
+                    console.log('✅ APQC Framework loaded:', apqcData?.categories?.length, 'categories');
+                } catch (error) {
+                    console.error('❌ Error loading APQC data:', error);
+                }
+            }
+
+            // Start Workflow - Show Industry Selection First
+            async function startWorkflow() {
+                try {
+                    // Open AI chat panel
+                    openChatPanel();
+                    
+                    currentStep = 'industry_select';
+                    
+                    // Show industry selection message
+                    addAIMessage('Let\'s start by selecting your industry. This helps me map your objectives to the right APQC capabilities.');
+                    
+                    // Create industry selection buttons
+                    const industryButtons = availableIndustries.map(industry => 
+                        `<button class="industry-btn" onclick="selectIndustry('${industry}')">
+                            <i class="fas fa-${getIndustryIcon(industry)}"></i>
+                            ${industry}
+                        </button>`
+                    ).join('');
+                    
+                    addAIMessage(`
+                        <div class="industry-selection">
+                            ${industryButtons}
+                        </div>
+                    `);
+
+                    console.log('🚀 Workflow started - Industry selection');
+                } catch (error) {
+                    console.error('Error starting workflow:', error);
+                    alert('Error starting workflow. Please try again.');
+                }
+            }
+            
+            // Get Industry Icon
+            function getIndustryIcon(industry) {
+                const icons = {
+                    'Manufacturing': 'industry',
+                    'Services': 'concierge-bell',
+                    'Retail': 'shopping-cart',
+                    'Financial Services': 'chart-line',
+                    'Insurance': 'shield-alt',
+                    'Healthcare': 'heartbeat',
+                    'Technology': 'laptop-code',
+                    'All': 'globe'
+                };
+                return icons[industry] || 'building';
+            }
+            
+            // Select Industry (called by button click)
+            window.selectIndustry = async function(industry) {
+                userIndustry = industry;
+                
+                // Add user selection as message
+                addUserMessage(`Selected: ${industry}`);
+                
+                // Show loading
+                showLoading('Loading APQC capability map...');
+                
+                // Load capability map immediately
+                await showCapabilityMapEarly();
+                
+                hideLoading();
+                
+                // Now start AI questionnaire (4 questions about challenges, goals, priorities, vision)
+                addAIMessage(`Perfect! I've loaded the APQC capability framework for ${industry}. Now let's understand your specific context.`);
+                
+                currentStep = 'discovery';
+                
+                // Enable chat input
+                chatInput.disabled = false;
+                chatSendBtn.disabled = false;
+                questionCounter.style.display = 'block';
+                
+                // Start AI questionnaire and auto-answer Q1 (industry) since already selected
+                try {
+                    const response = await EA_BusinessObjectivesWorkflow.startStep1();
+                    
+                    // The workflow asks about industry as Q1, but we already selected it
+                    // So auto-answer Q1 with the selected industry and move to Q2
+                    console.log('Auto-answering Q1 (industry) with:', industry);
+                    
+                    // Store Q1 in conversation context
+                    conversationContext.push({
+                        question: response.question,
+                        answer: industry,
+                        questionNumber: 1
+                    });
+                    
+                    // Auto-submit the industry answer to get Q2
+                    const nextResponse = await EA_BusinessObjectivesWorkflow.handleStep1UserResponse(industry);
+                    
+                    // Show Q2 to the user
+                    addAIMessage(nextResponse.question);
+                    currentQuestionEl.textContent = nextResponse.questionCount;
+                    chatInput.focus();
+                } catch (error) {
+                    console.error('Error starting AI questionnaire:', error);
+                    addAIMessage('Sorry, I encountered an error. Please try again.');
+                }
+            }
+
+            // Send Message
+            async function sendMessage() {
+                const message = chatInput.value.trim();
+                if (!message) return;
+
+                // Add user message
+                addUserMessage(message);
+                chatInput.value = '';
+                chatInput.disabled = true;
+                chatSendBtn.disabled = true;
+
+                // Show loading
+                showLoading();
+
+                try {
+                    const workflowState = EA_BusinessObjectivesWorkflow.getWorkflowState();
+                    const currentWorkflowStep = workflowState.currentStep;
+                    const questionCount = workflowState.step1Data?.questionCount || 0;
+
+                    // Store Q&A in conversation context (include industry as Q0)
+                    const lastAIMessage = document.querySelectorAll('.chat-message.ai');
+                    const lastQuestion = lastAIMessage[lastAIMessage.length - 1]?.textContent.trim() || '';
+                    conversationContext.push({
+                        question: lastQuestion,
+                        answer: message,
+                        questionNumber: questionCount
+                    });
+
+                    let response;
+                    if (currentWorkflowStep === 1) {
+                        response = await EA_BusinessObjectivesWorkflow.handleStep1UserResponse(message);
+                    } else if (currentWorkflowStep === 2) {
+                        response = await EA_BusinessObjectivesWorkflow.handleStep2UserResponse(message);
+                    }
+
+                    hideLoading();
+
+                    // Progressive highlighting for questions 1-4 (after industry already selected)
+                    if (questionCount >= 1 && questionCount <= 4 && currentWorkflowStep === 1) {
+                        // Update capability highlighting based on cumulative context
+                        await updateCapabilityHighlighting();
+                        if (response.question) {
+                            addAIMessage(response.question);
+                        }
+                    }
+                    // Check if synthesis (question 5 complete)
+                    else if (response.synthesis) {
+                        await handleSynthesis(response, currentWorkflowStep);
+                    } else {
+                        // Next question
+                        if (response.question) {
+                            addAIMessage(response.question);
+                        }
+                    }
+
+                    // Update question counter
+                    if (response.questionCount) {
+                        currentQuestionEl.textContent = response.questionCount;
+                    }
+
+                    chatInput.disabled = false;
+                    chatSendBtn.disabled = false;
+                    chatInput.focus();
+
+                } catch (error) {
+                    console.error('Error processing message:', error);
+                    hideLoading();
+                    addAIMessage('Sorry, I encountered an error. Please try again or reset the workflow.');
+                    chatInput.disabled = false;
+                    chatSendBtn.disabled = false;
+                }
+            }
+
+            // Handle Synthesis
+            async function handleSynthesis(response, step) {
+                if (step === 1) {
+                    // Step 1 complete - show capability map
+                    synthesizedObjectives = response.synthesis.objectives;
+                    
+                    addAIMessage(`Excellent! I've synthesized ${synthesizedObjectives.length} business objectives. Now let me map these to APQC capabilities and highlight the most relevant ones for your context.`);
+
+                    // Save objectives
+                    await EA_BusinessObjectivesWorkflow.completeStep1(synthesizedObjectives);
+
+                    // Switch to capability map view
+                    showCapabilityMap();
+
+                    // Auto-start Step 2 (capability mapping)
+                    setTimeout(() => {
+                        startCapabilityMapping();
+                    }, 2000);
+                }
+            }
+
+            // Show Capability Map
+            function showCapabilityMap() {
+                welcomeScreen.style.display = 'none';
+                capabilityMap.classList.add('active');
+
+                // Display objectives summary
+                displayObjectivesSummary();
+
+                // Render APQC categories
+                renderAPQCMap();
+
+                currentStep = 'mapping';
+            }
+
+            // Show Capability Map Early (after industry selection)
+            async function showCapabilityMapEarly() {
+                welcomeScreen.style.display = 'none';
+                capabilityMap.classList.add('active');
+
+                // Show industry info
+                objectivesSummary.innerHTML = `
+                    <div class="objective-chip" style="background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);">
+                        <i class="fas fa-${getIndustryIcon(userIndustry)}"></i>
+                        ${userIndustry}
+                    </div>
+                    <div class="objective-chip" style="background: rgba(0, 102, 204, 0.1); color: #0066cc; border: 1px solid #0066cc;">
+                        <i class="fas fa-map"></i>
+                        APQC Framework Loaded
+                    </div>
+                    <div class="objective-chip" style="background: rgba(74, 119, 99, 0.1); color: var(--ea-accent); border: 1px solid var(--ea-accent);">
+                        <i class="fas fa-comments"></i>
+                        Ready for discovery questions
+                    </div>
+                `;
+
+                // Render APQC categories (all visible initially)
+                renderAPQCMap();
+
+                console.log('🗺️ Capability map loaded for industry:', userIndustry);
+            }
+
+            // Update Capability Highlighting (progressive)
+            async function updateCapabilityHighlighting() {
+                showLoading('Analyzing loaded capabilities...');
+
+                try {
+                    // Build list of available capabilities from already-loaded APQC data
+                    const availableCapabilities = [];
+                    if (apqcData && apqcData.categories) {
+                        apqcData.categories.forEach(category => {
+                            availableCapabilities.push(`${category.code}: ${category.name}`);
+                            if (category.children) {
+                                category.children.forEach(child => {
+                                    availableCapabilities.push(`${child.code}: ${child.name}`);
+                                });
+                            }
+                        });
+                    }
+
+                    // Build cumulative context including industry selection
+                    const industryContext = `Industry: ${userIndustry}`;
+                    const conversationText = conversationContext.map(qa => 
+                        `Q: ${qa.question}\nA: ${qa.answer}`
+                    ).join('\n\n');
+                    const fullContext = `${industryContext}\n\n${conversationText}`;
+
+                    // Use AI to identify relevant capabilities from the loaded list
+                    const prompt = `Based on this business context, select relevant APQC capabilities from the loaded framework:\n\nCONTEXT:\n${fullContext}\n\nAVAILABLE CAPABILITIES (already loaded):\n${availableCapabilities.slice(0, 50).join('\n')}\n...and ${availableCapabilities.length - 50} more\n\nReturn ONLY a JSON array of relevant codes: ["1.0", "2.1", "3.2", ...]`;
+
+                    const response = await AzureOpenAIProxy.create(prompt, {
+                        instructions: 'Select capability codes from the provided list that align with the context. Return only JSON array.',
+                        model: 'gpt-5',
+                        timeout: 30000
+                    });
+
+                    // Parse AI response
+                    let capabilityCodes = [];
+                    try {
+                        const jsonMatch = response.output_text.match(/\[.*\]/s);
+                        if (jsonMatch) {
+                            capabilityCodes = JSON.parse(jsonMatch[0]);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing capability codes:', e);
+                    }
+
+                    // Update highlighting with confidence levels (more answers = more confidence)
+                    const confidence = Math.min((conversationContext.length + 1) / 5, 1); // +1 for industry
+                    highlightCapabilities(capabilityCodes, confidence);
+
+                    // Update summary with progress indicator
+                    objectivesSummary.innerHTML = `
+                        <div class="objective-chip" style="background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);">
+                            <i class="fas fa-${getIndustryIcon(userIndustry)}"></i>
+                            ${userIndustry}
+                        </div>
+                        <div class="objective-chip" style="background: linear-gradient(135deg, var(--ea-accent) 0%, #3d6956 100%);">
+                            <i class="fas fa-lightbulb"></i>
+                            ${highlightedCapabilities.length} Highlighted (click to toggle)
+                        </div>
+                        <div class="objective-chip" style="background: rgba(0, 102, 204, 0.1); color: #0066cc; border: 1px solid #0066cc;">
+                            <i class="fas fa-comments"></i>
+                            ${conversationContext.length} of 5 questions answered
+                        </div>
+                    `;
+
+                    hideLoading();
+
+                    console.log(`🔄 Updated highlighting: ${capabilityCodes.length} capabilities from loaded data, confidence: ${(confidence * 100).toFixed(0)}%`);
+                } catch (error) {
+                    console.error('Error updating capability highlighting:', error);
+                    hideLoading();
+                }
+            }
+
+            // Display Objectives Summary
+            function displayObjectivesSummary() {
+                if (!synthesizedObjectives) return;
+
+                objectivesSummary.innerHTML = synthesizedObjectives.map(obj => `
+                    <div class="objective-chip">
+                        <i class="fas fa-bullseye"></i>
+                        ${obj.name}
+                    </div>
+                `).join('');
+            }
+
+            // Render APQC Map
+            function renderAPQCMap() {
+                if (!apqcData || !apqcData.categories) {
+                    capabilityCategories.innerHTML = '<p>Loading APQC framework...</p>';
+                    return;
+                }
+
+                capabilityCategories.innerHTML = apqcData.categories.map(category => `
+                    <div class="capability-category" data-category-id="${category.id}">
+                        <div class="category-header" onclick="toggleCategory('${category.id}')">
+                            <div class="category-title">
+                                <span class="category-code">${category.code}</span>
+                                <span class="category-name">${category.name}</span>
+                                <i class="fas fa-chevron-down category-expand-icon"></i>
+                            </div>
+                            <div class="category-description">${category.description}</div>
+                        </div>
+                        <div class="capabilities-list" id="capabilities-${category.id}">
+                            ${renderCapabilities(category.children || [])}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Render Capabilities (L2)
+            function renderCapabilities(capabilities) {
+                if (!capabilities || capabilities.length === 0) {
+                    return '<p style="padding: 16px; color: #6b7280;">No sub-capabilities</p>';
+                }
+
+                return capabilities.map(cap => `
+                    <div class="capability-item" data-capability-id="${cap.id}" data-capability-code="${cap.code}" onclick="toggleCapabilityHighlight('${cap.code}')" style="cursor: pointer;" title="Click to toggle highlight">
+                        <div class="capability-item-header">
+                            <span class="capability-code">${cap.code}</span>
+                            <span class="capability-name">${cap.name}</span>
+                            <span class="ai-match-badge">
+                                <i class="fas fa-sparkles"></i> AI Match
+                            </span>
+                        </div>
+                        <div class="capability-description">${cap.description}</div>
+                        <div class="capability-meta">
+                            ${(cap.strategic_themes || []).map(theme => 
+                                `<span class="meta-tag">${theme}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            // Toggle Capability Highlight (Manual Selection)
+            window.toggleCapabilityHighlight = function(code) {
+                const capabilityEl = document.querySelector(`[data-capability-code="${code}"]`);
+                if (!capabilityEl) return;
+                
+                const isHighlighted = capabilityEl.classList.contains('highlighted');
+                
+                if (isHighlighted) {
+                    // Remove highlight
+                    capabilityEl.classList.remove('highlighted', 'confidence-low', 'confidence-medium', 'confidence-high');
+                    highlightedCapabilities = highlightedCapabilities.filter(c => c !== code);
+                    console.log(`🔴 Removed highlight: ${code}`);
+                } else {
+                    // Add highlight (user manual = high confidence)
+                    capabilityEl.classList.add('highlighted', 'confidence-high');
+                    if (!highlightedCapabilities.includes(code)) {
+                        highlightedCapabilities.push(code);
+                    }
+                    console.log(`🟢 Added highlight: ${code}`);
+                }
+                
+                // Update summary
+                updateCapabilitySummary();
+            }
+            
+            // Update Capability Summary
+            function updateCapabilitySummary() {
+                if (!userIndustry) return;
+                
+                const summaryEl = document.getElementById('objectivesSummary');
+                if (!summaryEl) return;
+                
+                summaryEl.innerHTML = `
+                    <div class="objective-chip" style="background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);">
+                        <i class="fas fa-${getIndustryIcon(userIndustry)}"></i>
+                        ${userIndustry}
+                    </div>
+                    <div class="objective-chip" style="background: linear-gradient(135deg, var(--ea-accent) 0%, #3d6956 100%);">
+                        <i class="fas fa-lightbulb"></i>
+                        ${highlightedCapabilities.length} Highlighted Capabilities
+                    </div>
+                    ${synthesizedObjectives ? `
+                        <div class="objective-chip" style="background: rgba(0, 102, 204, 0.1); color: #0066cc; border: 1px solid #0066cc;">
+                            <i class="fas fa-bullseye"></i>
+                            ${synthesizedObjectives.length} Business Objectives
+                        </div>
+                    ` : ''}
+                `;
+            }
+
+            // Toggle Category Expansion
+            window.toggleCategory = function(categoryId) {
+                const header = document.querySelector(`[data-category-id="${categoryId}"] .category-header`);
+                const list = document.getElementById(`capabilities-${categoryId}`);
+                
+                header.classList.toggle('expanded');
+                list.classList.toggle('expanded');
+            };
+
+            // Start Capability Mapping (Step 2)
+            async function startCapabilityMapping() {
+                showLoading('Analyzing loaded APQC capabilities...');
+
+                try {
+                    // Build list of available capabilities from already-loaded APQC data
+                    const availableCapabilities = [];
+                    if (apqcData && apqcData.categories) {
+                        apqcData.categories.forEach(category => {
+                            availableCapabilities.push({
+                                code: category.code,
+                                name: category.name,
+                                description: category.description
+                            });
+                            
+                            if (category.children) {
+                                category.children.forEach(child => {
+                                    availableCapabilities.push({
+                                        code: child.code,
+                                        name: child.name,
+                                        description: child.description
+                                    });
+                                });
+                            }
+                        });
+                    }
+
+                    console.log(`📊 Analyzing ${availableCapabilities.length} loaded APQC capabilities`);
+
+                    // Build compact objectives summary (names only for speed)
+                    const objectivesText = synthesizedObjectives.map(obj => obj.name).join(', ');
+
+                    // Build COMPACT capabilities list (code:name format, line-separated)
+                    const capabilitiesList = availableCapabilities.map(cap =>
+                        `${cap.code}:${cap.name}`
+                    ).join('|');
+
+                    // OPTIMIZED: Very compact prompt to avoid timeout
+                    const prompt = `Analyze objectives against APQC capabilities.
+
+OBJECTIVES: ${objectivesText}
+
+CAPABILITIES: ${capabilitiesList}
+
+Return JSON array of relevant codes: ["1.0","2.1","3.2"]`;
+
+                    const response = await AzureOpenAIProxy.create(prompt, {
+                        instructions: 'Return ONLY JSON array of capability codes that align with objectives. Be selective (5-10 codes max).',
+                        model: 'gpt-5',
+                        timeout: 30000 // Reduced - compact prompt is much faster
+                    });
+
+                    // Parse AI response
+                    let capabilityCodes = [];
+                    try {
+                        const jsonMatch = response.output_text.match(/\[.*\]/s);
+                        if (jsonMatch) {
+                            capabilityCodes = JSON.parse(jsonMatch[0]);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing AI capability codes:', e);
+                    }
+
+                    // Validate codes exist in loaded data
+                    const validCodes = capabilityCodes.filter(code => 
+                        availableCapabilities.some(cap => cap.code === code)
+                    );
+
+                    console.log(`✅ AI selected ${validCodes.length} capabilities from ${availableCapabilities.length} loaded`);
+
+                    // Highlight capabilities with high confidence (final mapping)
+                    highlightCapabilities(validCodes, 1.0);
+
+                    hideLoading();
+
+                    addAIMessage(`I've analyzed the ${availableCapabilities.length} loaded APQC capabilities and highlighted ${validCodes.length} that align with your business objectives.
+
+<div style="background: rgba(74, 119, 99, 0.1); border-left: 3px solid var(--ea-accent); padding: 12px; margin: 12px 0; border-radius: 4px;">
+    <strong>💡 Pro Tip:</strong> Click on any capability to manually toggle highlighting. You can refine the AI's selections based on your expertise.
+</div>
+
+The highlighted capabilities (shown in green) are the most strategically relevant. Expand categories to see detailed sub-capabilities.`);
+
+                } catch (error) {
+                    console.error('Error in capability mapping:', error);
+                    hideLoading();
+                    addAIMessage('I encountered an error while analyzing capabilities. The map shows all loaded APQC categories - you can manually select relevant ones by clicking on them.');
+                }
+            }
+
+            // Highlight Capabilities
+            // Highlight Capabilities (with optional confidence for progressive highlighting)
+            function highlightCapabilities(codes, confidence = 1.0) {
+                // Clear all previous highlights
+                document.querySelectorAll('.capability-item.highlighted, .capability-category.highlighted').forEach(el => {
+                    el.classList.remove('highlighted', 'confidence-low', 'confidence-medium', 'confidence-high');
+                });
+
+                highlightedCapabilities = codes;
+
+                // Determine confidence class
+                let confidenceClass = 'confidence-high';
+                if (confidence < 0.4) {
+                    confidenceClass = 'confidence-low';
+                } else if (confidence < 0.7) {
+                    confidenceClass = 'confidence-medium';
+                }
+
+                codes.forEach(code => {
+                    // Highlight capability item
+                    const capItem = document.querySelector(`[data-capability-id="${code}"]`);
+                    if (capItem) {
+                        capItem.classList.add('highlighted', confidenceClass);
+                        
+                        // Also highlight parent category
+                        const categoryId = code.split('.')[0] + '.0';
+                        const category = document.querySelector(`[data-category-id="${categoryId}"]`);
+                        if (category) {
+                            category.classList.add('highlighted', confidenceClass);
+                        }
+                    }
+                });
+
+                console.log(`✅ Highlighted ${codes.length} capabilities (confidence: ${(confidence * 100).toFixed(0)}%)`);
+            }
+
+            // Add AI Message
+            // Add AI Message
+            function addAIMessage(text) {
+                const messageEl = document.createElement('div');
+                messageEl.className = 'chat-message ai';
+                messageEl.innerHTML = `
+                    <div class="chat-message-avatar">
+                        <i class="fas fa-sparkles"></i>
+                    </div>
+                    <div class="chat-message-content">
+                        <p>${text}</p>
+                    </div>
+                `;
+                chatMessages.appendChild(messageEl);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // Auto-open chat panel if workflow starts
+                const panel = document.getElementById('ai-chat-panel');
+                if (panel.classList.contains('hidden')) {
+                    toggleChatPanel();
+                }
+            }
+
+            // Add User Message
+            function addUserMessage(text) {
+                const messageEl = document.createElement('div');
+                messageEl.className = 'chat-message user';
+                messageEl.innerHTML = `
+                    <div class="chat-message-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="chat-message-content">
+                        <p>${text}</p>
+                    </div>
+                `;
+                chatMessages.appendChild(messageEl);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            // Show/Hide Loading
+            function showLoading(text = 'Processing with AI...') {
+                loadingOverlay.querySelector('.loading-text').textContent = text;
+                loadingOverlay.classList.add('active');
+            }
+
+            function hideLoading() {
+                loadingOverlay.classList.remove('active');
+            }
+
+            // Reset Workflow
+            // Reset Workflow
+            function resetWorkflow() {
+                if (!confirm('Reset workflow? All progress will be lost.')) return;
+
+                EA_BusinessObjectivesWorkflow.resetWorkflow();
+                
+                // Reset UI
+                currentStep = 'welcome';
+                synthesizedObjectives = null;
+                highlightedCapabilities = [];
+                conversationContext = [];
+                userIndustry = null;
+                
+                welcomeScreen.style.display = 'block';
+                capabilityMap.classList.remove('active');
+                
+                // Clear all highlights
+                document.querySelectorAll('.capability-item.highlighted, .capability-category.highlighted').forEach(el => {
+                    el.classList.remove('highlighted', 'confidence-low', 'confidence-medium', 'confidence-high');
+                });
+                
+                chatMessages.innerHTML = `
+                    <div class="chat-message ai">
+                        <div class="chat-message-avatar">
+                            <i class="fas fa-sparkles"></i>
+                        </div>
+                        <div class="chat-message-content">
+                            <p>Welcome! I'm here to help you define strategic business objectives and map them to capabilities.</p>
+                            <p>Click "Start AI Discovery" to begin our conversation.</p>
+                        </div>
+                    </div>
+                `;
+                
+                chatInput.value = '';
+                chatInput.disabled = true;
+                chatSendBtn.disabled = true;
+                questionCounter.style.display = 'none';
+                
+                console.log('🔄 Workflow reset');
+            }
+
+            // Open Chat Panel
+            function openChatPanel() {
+                const panel = document.getElementById('ai-chat-panel');
+                const btn = document.getElementById('toggleAIChatBtn');
+                
+                if (panel.classList.contains('hidden')) {
+                    panel.classList.remove('hidden');
+                    document.body.classList.add('chat-sidebar-open');
+                    btn.classList.add('active');
+                    console.log('✅ Chat panel opened');
+                }
+            }
+
+            // Toggle Chat Panel
+            window.toggleChatPanel = function() {
+                const panel = document.getElementById('ai-chat-panel');
+                const btn = document.getElementById('toggleAIChatBtn');
+                
+                if (panel.classList.contains('hidden')) {
+                    // Open
+                    panel.classList.remove('hidden');
+                    document.body.classList.add('chat-sidebar-open');
+                    btn.classList.add('active');
+                    console.log('✅ Chat panel opened');
+                } else {
+                    // Close
+                    panel.classList.add('hidden');
+                    document.body.classList.remove('chat-sidebar-open');
+                    btn.classList.remove('active');
+                    console.log('❌ Chat panel closed');
+                }
+            };
+
+            // Initialize Chat Resize
+            function initializeChatResize() {
+                const handle = document.getElementById('chat-resize-handle');
+                const panel = document.getElementById('ai-chat-panel');
+                
+                if (!handle || !panel) {
+                    console.warn('Chat resize elements not found');
+                    return;
+                }
+
+                let isResizing = false;
+                let startX = 0;
+                let startWidth = 0;
+
+                handle.addEventListener('mousedown', function(e) {
+                    isResizing = true;
+                    startX = e.clientX;
+                    startWidth = panel.offsetWidth;
+                    handle.classList.add('dragging');
+                    document.body.style.userSelect = 'none';
+                    e.preventDefault();
+                });
+
+                document.addEventListener('mousemove', function(e) {
+                    if (!isResizing) return;
+                    const delta = startX - e.clientX;
+                    const newWidth = Math.max(240, Math.min(700, startWidth + delta));
+                    panel.style.width = newWidth + 'px';
+                    
+                    // Update main content margin dynamically
+                    if (document.body.classList.contains('chat-sidebar-open')) {
+                        const mainContent = document.getElementById('main-content');
+                        if (mainContent) mainContent.style.marginRight = newWidth + 'px';
+                    }
+                });
+
+                document.addEventListener('mouseup', function() {
+                    if (isResizing) {
+                        isResizing = false;
+                        handle.classList.remove('dragging');
+                        document.body.style.userSelect = '';
+                    }
+                });
+
+                console.log('✅ Chat resize initialized');
+            }
+
+            // Initialize on load
+            document.addEventListener('DOMContentLoaded', init);
+        })();
+    </script>
+</body>
+</html>

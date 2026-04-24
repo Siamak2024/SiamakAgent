@@ -1,0 +1,2041 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EA Maturity Toolbox — EA Toolkit</title>
+    <link rel="icon" href="data:,">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
+    <script src="../../js/EA_Config.js"></script>
+    <script src="../../js/EA_DataManager.js"></script>
+   <script src="../../js/Advicy_AI.js"></script>
+    <style>
+        /* Layout:Main + Sidebar */
+        body {
+            margin: 0;
+            font-family: 'Manrope', 'Segoe UI', system-ui, sans-serif;
+            background: var(--ea-background);
+            overflow: hidden;
+        }
+        #app-container {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+        #main-content {
+            flex: 1;
+            overflow-y: auto;
+            transition: margin-right 0.2s ease;
+        }
+        body.chat-sidebar-open #main-content {
+            margin-right: 380px;
+        }
+        
+        /* EA Header - Indigo/Purple gradient for Maturity Toolbox */
+        .ea-header {
+            height: 64px;
+            background: linear-gradient(135deg, #3730a3 0%, #7c3aed 100%) !important;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            color: white;
+        }
+        .ea-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .ea-brand-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.16);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 14px;
+            color: white;
+        }
+        .ea-header-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 2px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .ea-header-title h1 i {
+            font-size: 32px;
+        }
+        .ea-header-title p {
+            font-size: 11px;
+            opacity: 0.7;
+            margin: 0;
+        }
+        .ea-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ea-header-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        .ea-header-icon:hover {
+            background: rgba(255,255,255,0.18);
+        }
+        
+        /* Original Maturity Toolbox Styling (Keep functional CSS) */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Inter',sans-serif;background:#f8fafc;color:#0f172a}
+        header{background:#fff;border-bottom:1px solid #e2e8f0;position:sticky;top:0;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+        .header-inner{max-width:1280px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+        .logo{display:flex;align-items:center;gap:12px}
+        .logo-icon{width:40px;height:40px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;box-shadow:0 4px 12px rgba(79,70,229,.3)}
+        .logo h1{font-size:17px;font-weight:900;letter-spacing:-.5px}
+        .logo p{font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;font-weight:700}
+        .nav-btns{display:flex;align-items:center;gap:8px}
+        .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;font-size:11px;font-weight:800;cursor:pointer;border:none;transition:all .2s;text-transform:uppercase;letter-spacing:.5px}
+        .btn-primary{background:#4f46e5;color:#fff;box-shadow:0 4px 12px rgba(79,70,229,.3)}
+        .btn-primary:hover{background:#4338ca;transform:translateY(-1px)}
+        .btn-success{background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0}
+        .btn-success:hover{background:#dcfce7}
+        .btn-warning{background:#fffbeb;color:#d97706;border:1.5px solid #fde68a}
+        .btn-warning:hover{background:#fef3c7}
+        .btn-ghost{background:transparent;color:#64748b;border:1.5px solid #e2e8f0}
+        .btn-ghost:hover{background:#f8fafc;color:#4f46e5}
+        .btn-danger{background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca}
+        .btn-danger:hover{background:#fee2e2}
+        main{max-width:1280px;margin:0 auto;padding:32px 24px}
+        .grid-layout{display:grid;grid-template-columns:1fr 420px;gap:32px}
+        @media(max-width:1024px){.grid-layout{grid-template-columns:1fr}}
+        .card{background:#fff;border-radius:20px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,.04);padding:24px}
+        .card+.card{margin-top:20px}
+        .section-label{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:2px;color:#94a3b8;margin-bottom:12px}
+        /* Framework Selector */
+        .fw-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+        @media(max-width:768px){.fw-grid{grid-template-columns:repeat(2,1fr)}}
+        .fw-btn{padding:12px 8px;border:2px solid #e2e8f0;border-radius:14px;background:#fff;cursor:pointer;text-align:center;transition:all .2s;font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+        .fw-btn:hover{border-color:#a5b4fc;color:#4f46e5;background:#f5f3ff}
+        .fw-btn.active{border-color:#4f46e5;background:#eef2ff;color:#4338ca;box-shadow:0 0 0 3px rgba(79,70,229,.15)}
+        .fw-btn i{display:block;font-size:18px;margin-bottom:6px}
+        .fw-btn.custom-fw{border-style:dashed;border-color:#cbd5e1}
+        .fw-desc{background:#f8fafc;border-left:4px solid #4f46e5;border-radius:0 12px 12px 0;padding:12px 16px;font-size:12px;color:#475569;line-height:1.6;font-style:italic}
+        /* Questions */
+        .questions-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid #f1f5f9;background:#fafafa;border-radius:20px 20px 0 0}
+        .progress-wrap{display:flex;align-items:center;gap:10px}
+        .progress-bar-outer{width:100px;height:6px;background:#e2e8f0;border-radius:99px;overflow:hidden}
+        .progress-bar-inner{height:100%;background:#4f46e5;border-radius:99px;transition:width .5s}
+        .questions-body{padding:24px;max-height:600px;overflow-y:auto;display:flex;flex-direction:column;gap:24px}
+        .q-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+        .q-cat{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#4f46e5;background:#eef2ff;padding:3px 8px;border-radius:6px;white-space:nowrap;margin-top:2px}
+        .q-text{font-size:13px;font-weight:700;color:#1e293b;line-height:1.5;flex:1}
+        .weight-badge{font-size:9px;font-weight:900;padding:2px 7px;border-radius:6px;white-space:nowrap;flex-shrink:0}
+        .w3{background:#fef2f2;color:#dc2626}
+        .w2{background:#eff6ff;color:#2563eb}
+        .w1{background:#f8fafc;color:#64748b}
+        .score-btns{display:flex;gap:6px}
+        .score-btn{flex:1;padding:10px 4px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:12px;font-weight:900;color:#94a3b8;transition:all .15s}
+        .score-btn:hover{border-color:#a5b4fc;color:#4f46e5}
+        .score-btn.active{background:#4f46e5;border-color:#4f46e5;color:#fff;box-shadow:0 4px 12px rgba(79,70,229,.3);transform:scale(1.05)}
+        .questions-footer{padding:16px 24px;border-top:1px solid #f1f5f9;background:#fafafa;border-radius:0 0 20px 20px;display:flex;justify-content:space-between;align-items:center}
+        /* Right column */
+        .score-total{font-size:48px;font-weight:900;color:#4f46e5;line-height:1}
+        .score-sub{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+        .cat-bar-row{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+        .cat-bar-label{display:flex;justify-content:space-between;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#64748b}
+        .cat-bar-outer{height:6px;background:#f1f5f9;border-radius:99px;overflow:hidden}
+        .cat-bar-fill{height:100%;border-radius:99px;transition:width 1s}
+        .stair-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:14px;border:2px solid transparent;transition:all .3s;opacity:.3}
+        .stair-item.active{border-color:#e0e7ff;background:#f5f7ff;opacity:1;transform:translateX(4px)}
+        .stair-num{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;flex-shrink:0;background:#f1f5f9;color:#94a3b8}
+        .stair-item.active .stair-num{color:#fff}
+        .stair-title{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.5px}
+        .stair-desc{font-size:10px;color:#94a3b8;margin-top:2px;line-height:1.4}
+        .ai-box{background:linear-gradient(135deg,#1e1b4b,#312e81);color:#fff;border-radius:20px;padding:28px;border:1px solid #3730a3}
+        .ai-box h3{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:2px;margin-bottom:16px;opacity:.7}
+        .ai-content{font-size:13px;line-height:1.8;opacity:.9}
+        /* Modal */
+        .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+        .modal-box{background:#fff;border-radius:24px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,.2)}
+        .modal-header{padding:28px 28px 0;display:flex;align-items:center;justify-content:space-between}
+        .modal-body{padding:24px 28px}
+        .modal-footer{padding:0 28px 28px;display:flex;gap:10px}
+        .modal-title{font-size:20px;font-weight:900}
+        .modal-close{background:none;border:none;font-size:20px;color:#94a3b8;cursor:pointer;padding:4px}
+        .modal-close:hover{color:#0f172a}
+        .form-group{margin-bottom:16px}
+        .form-label{display:block;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:6px}
+        .form-input{width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:12px;font-size:13px;font-weight:600;outline:none;transition:border-color .2s;font-family:inherit}
+        .form-input:focus{border-color:#4f46e5}
+        .form-select{width:100%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:12px;font-size:13px;font-weight:600;outline:none;font-family:inherit;background:#fff}
+        .form-select:focus{border-color:#4f46e5}
+        .q-editor-row{display:grid;grid-template-columns:1fr 120px 80px auto;gap:8px;align-items:center;margin-bottom:8px}
+        .q-editor-row input{padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;outline:none}
+        .q-editor-row input:focus{border-color:#4f46e5}
+        .q-editor-row select{padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;outline:none;background:#fff}
+        .q-editor-row .del-q{background:#fef2f2;border:none;color:#dc2626;border-radius:8px;padding:8px 10px;cursor:pointer;font-size:12px}
+        .add-q-btn{background:#f5f3ff;border:2px dashed #a5b4fc;color:#4f46e5;border-radius:10px;padding:10px;width:100%;cursor:pointer;font-size:12px;font-weight:700;margin-top:8px;font-family:inherit}
+        .add-q-btn:hover{background:#eef2ff}
+        .icon-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:8px}
+        .icon-opt{padding:8px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer;text-align:center;font-size:16px;transition:all .15s}
+        .icon-opt:hover,.icon-opt.selected{border-color:#4f46e5;background:#eef2ff}
+        .color-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+        .color-opt{width:28px;height:28px;border-radius:8px;cursor:pointer;border:3px solid transparent;transition:all .15s}
+        .color-opt.selected{border-color:#0f172a;transform:scale(1.15)}
+        .hidden{display:none!important}
+        .tag{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:800}
+        .tag-custom{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
+        .divider{height:1px;background:#f1f5f9;margin:16px 0}
+
+        /* === EA PLATFORM CHAT SIDEBAR === */
+        #app-container { display: flex; flex-direction: column; min-height: 100vh; }
+        #main-content { flex: 1; transition: margin-right 0.3s ease; }
+        body.chat-sidebar-open #main-content { margin-right: 380px; }
+        
+        #ai-chat-panel {
+            position: fixed;
+            top: 0;
+            right: -380px;
+            width: 380px;
+            height: 100vh;
+            background: #1a1a2e;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+            transition: right 0.3s ease;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        body.chat-sidebar-open #ai-chat-panel { right: 0; }
+        
+        .chat-resize-handle {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 5px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 10000;
+        }
+        
+        .chat-resize-handle:hover { background: #0e7afe; }
+        
+        .chat-sidebar-header {
+            background: linear-gradient(135deg, #3730a3 0%, #7c3aed 100%);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        
+        .chat-sidebar-header i.fas { font-size: 20px; color: white; }
+        
+        .chat-sidebar-header h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            margin: 0;
+            flex: 1;
+        }
+        
+        .chat-close-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        
+        .chat-close-btn:hover { background: rgba(255,255,255,0.2); }
+        
+        #ai-chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #1a1a2e;
+        }
+        
+        .ai-message {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .ai-message.user { flex-direction: row-reverse; }
+        
+        .ai-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+        
+        .ai-message.assistant .ai-avatar {
+            background: linear-gradient(135deg, #3730a3, #7c3aed);
+            color: white;
+        }
+        
+        .ai-message.user .ai-avatar {
+            background: #2d2d44;
+            color: #8b5cf6;
+        }
+        
+        .ai-message-content {
+            max-width: 75%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        .ai-message.assistant .ai-message-content {
+            background: #2d2d44;
+            color: #e2e8f0;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .ai-message.user .ai-message-content {
+            background: linear-gradient(135deg, #3730a3, #7c3aed);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        /* Markdown styling in chat */
+        .ai-message-content h1, .ai-message-content h2, .ai-message-content h3 {
+            margin-top: 12px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .ai-message-content h1 { font-size: 18px; }
+        .ai-message-content h2 { font-size: 16px; }
+        .ai-message-content h3 { font-size: 14px; }
+        
+        .ai-message-content p { margin-bottom: 8px; }
+        .ai-message-content p:last-child { margin-bottom: 0; }
+        
+        .ai-message-content ul, .ai-message-content ol {
+            margin-left: 20px;
+            margin-bottom: 8px;
+        }
+        
+        .ai-message-content li { margin-bottom: 4px; }
+        
+        .ai-message-content code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+        }
+        
+        .ai-message-content pre {
+            background: rgba(0,0,0,0.3);
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+        
+        .ai-message-content pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        .ai-message-content strong { font-weight: 600; }
+        .ai-message-content em { font-style: italic; }
+        
+        .ai-message-content blockquote {
+            border-left: 3px solid #3730a3;
+            padding-left: 12px;
+            margin: 8px 0;
+            color: #94a3b8;
+        }
+        
+        #ai-chat-input-area {
+            padding: 16px;
+            background: #16182e;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        
+        #ai-chat-input {
+            width: 100%;
+            background: #2d2d44;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        #ai-chat-input:focus { border-color: #3730a3; }
+        
+        #ai-chat-input::placeholder { color: #64748b; }
+        
+        .chat-input-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+        }
+        
+        .chat-input-hint {
+            font-size: 11px;
+            color: #64748b;
+        }
+        
+        .chat-send-btn {
+            background: linear-gradient(135deg, #3730a3, #7c3aed);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        
+        .chat-send-btn:hover { opacity: 0.9; }
+        .chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body class="ea-toolkit-app">
+
+<div id="app-container">
+
+<!-- EA PLATFORM HEADER -->
+<header class="ea-header bg-gradient-to-r from-slate-900 to-purple-900">
+    <div class="ea-header-left">
+        <div class="ea-brand-mark">
+            <i class="fas fa-chart-line" style="font-size: 32px;"></i>
+        </div>
+        <div class="ea-header-title">
+            <h1 style="font-size: 20px; font-weight: 700; margin: 0;">EA Maturity Toolbox</h1>
+            <p style="font-size: 12px; opacity: 0.85; margin: 0;">Benchmark & Assessment — Multi-Framework Support — Strategic Maturity Analysis</p>
+        </div>
+    </div>
+    <div class="ea-header-right">
+        <button class="ea-header-icon" onclick="window.location.href='../Integration_Workflow_Hub.html'" title="Back to Workflow Hub">
+            <i class="fas fa-th-large"></i>
+        </button>
+        <button class="ea-header-icon" onclick="window.location.href='../NexGen_EA_V4.html'" title="Go to EA Platform">
+            <i class="fas fa-home"></i>
+        </button>
+        <button class="ea-header-icon" id="toggle-chat-btn" onclick="toggleChatPanel()" title="AI Assistant (Ctrl+K)">
+            <i class="fas fa-robot"></i>
+        </button>
+    </div>
+</header>
+
+<div id="main-content">
+
+<section class="ea-kpi-strip">
+    <div class="ea-kpi-grid">
+        <div class="ea-kpi-card">
+            <span class="ea-kpi-icon"><i class="fas fa-list-check"></i></span>
+            <div><span class="ea-kpi-label">Tool Step</span><span class="ea-kpi-value">5 / 5</span></div>
+        </div>
+        <div class="ea-kpi-card is-accent">
+            <span class="ea-kpi-icon"><i class="fas fa-link"></i></span>
+            <div><span class="ea-kpi-label">Sync</span><span class="ea-kpi-value" data-kpi="sync">EA Platform Active</span></div>
+        </div>
+        <div class="ea-kpi-card">
+            <span class="ea-kpi-icon"><i class="fas fa-chart-radar"></i></span>
+            <div><span class="ea-kpi-label">Focus</span><span class="ea-kpi-value">Maturity Benchmarking</span></div>
+        </div>
+        <button class="ea-kpi-card" type="button" onclick="matOpenEaPlatform()" title="Gå till nästa verktyg: EA Platform" style="text-align:left; cursor:pointer; width:100%;">
+            <span class="ea-kpi-icon"><i class="fas fa-arrow-right"></i></span>
+            <div><span class="ea-kpi-label">Next Tool</span><span class="ea-kpi-value">EA Platform</span></div>
+        </button>
+    </div>
+</section>
+
+<div class="p-5">
+
+<header>
+    <div class="header-inner">
+        <div class="logo">
+            <div class="logo-icon"><i class="fas fa-building-shield"></i></div>
+            <div>
+                <h1>NextGen EA Maturity <span style="color:#4f46e5">Advisor</span></h1>
+                <p>Multi-Industry Strategic Assessment</p>
+            </div>
+        </div>
+        <div class="nav-btns">
+		<a href="EA2_Strategic_Tools.html" class="btn btn-ghost" style="text-decoration:none;"><i class="fas fa-arrow-left"></i> Tillbaka</a>
+            <button class="btn btn-warning" onclick="exportConfig()"><i class="fas fa-file-export"></i> Exportera Bransch</button>
+            <button class="btn btn-success" onclick="document.getElementById('import-config-input').click()"><i class="fas fa-file-import"></i> Importera Bransch</button>
+            <input type="file" id="import-config-input" accept=".json" class="hidden" onchange="importConfig(event)">
+            <button class="btn btn-primary" onclick="generatePDF()"><i class="fas fa-file-pdf"></i> PDF Rapport</button>
+            <button class="btn btn-ghost" onclick="openSettings()"><i class="fas fa-cog"></i></button>
+        </div>
+    </div>
+</header>
+
+<main>
+    <div class="grid-layout">
+        <!-- LEFT -->
+        <div>
+            <!-- Framework Selector -->
+            <div class="card">
+                <div class="section-label">Välj Bransch / Analysfokus</div>
+                <div class="fw-grid" id="fw-grid"></div>
+                <div class="fw-desc" id="fw-desc">Välj ett ramverk ovan för att starta analysen.</div>
+            </div>
+
+            <!-- Questions -->
+            <div class="card" style="padding:0;margin-top:20px">
+                <div class="questions-header">
+                    <div>
+                    <div style="font-size:13px;font-weight:800;color:#1e293b">Självutvärdering</div>
+                    <div style="font-size:10px;color:#94a3b8;font-weight:600">Viktad skala 1–5 per fråga</div>
+                    </div>
+                    <div class="progress-wrap">
+                    <span id="progress-pct" style="font-size:11px;font-weight:900;color:#4f46e5">0%</span>
+                    <div class="progress-bar-outer"><div class="progress-bar-inner" id="progress-bar" style="width:0%"></div></div>
+                    </div>
+                </div>
+                <div class="questions-body" id="questions-list"></div>
+                <div class="questions-footer">
+                    <button class="btn btn-ghost" onclick="resetScores()"><i class="fas fa-undo"></i> Återställ</button>
+                    <button class="btn btn-primary" id="ai-btn" onclick="runAI()"><i class="fas fa-wand-magic-sparkles"></i> Generera AI Analys</button>
+                    <button class="btn btn-success" onclick="generateMaturityToBeFromLatestAnalysis()"><i class="fas fa-lightbulb"></i> Skapa TO-BE</button>
+                    <button class="btn btn-warning" onclick="toggleMaturityToBePanel(true)"><i class="fas fa-columns"></i> Granska AS-IS/TO-BE</button>
+                    <button class="btn btn-success" onclick="consolidateMaturityToBe()"><i class="fas fa-check-double"></i> Konsolidera TO-BE</button>
+                    <button class="btn btn-ghost hidden" id="mat-restore-asis-btn" onclick="restoreMaturityAsIsState()"><i class="fas fa-rotate-left"></i> Återställ AS-IS</button>
+                </div>
+                <div id="mat-mode-banner" class="hidden" style="margin:12px 24px 8px;padding:10px 12px;border-radius:10px;border:1px solid #86efac;background:#f0fdf4;color:#166534;font-size:12px;font-weight:700;"></div>
+                <div id="mat-tobe-panel" class="hidden" style="margin:0 24px 20px;border:1px solid #e2e8f0;border-radius:12px;padding:12px;background:#f8fafc;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                        <div style="font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#64748b;">AS-IS vs TO-BE konsolidering</div>
+                        <button class="btn btn-ghost" style="padding:4px 8px;font-size:10px;" onclick="toggleMaturityToBePanel(false)">Stäng</button>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div>
+                            <div style="font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:4px;">AS-IS Snapshot</div>
+                            <textarea id="mat-asis-json" style="width:100%;height:170px;border:1px solid #cbd5e1;border-radius:8px;padding:8px;font-size:11px;font-family:monospace;background:#fff;" readonly></textarea>
+                        </div>
+                        <div>
+                            <div style="font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:4px;">TO-BE Draft (redigerbar)</div>
+                            <textarea id="mat-tobe-json" style="width:100%;height:170px;border:1px solid #cbd5e1;border-radius:8px;padding:8px;font-size:11px;font-family:monospace;background:#fff;"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT -->
+        <div>
+            <div class="card">
+                <div class="section-label">Viktat Mognadsscore</div>
+                <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px">
+                    <div>
+                    <div class="score-total" id="total-score">–</div>
+                    <div class="score-sub">av 5.0 möjliga</div>
+                    </div>
+                    <div id="level-badge" style="text-align:right"></div>
+                </div>
+                <div id="cat-scores"></div>
+            </div>
+
+            <div class="card">
+                <div class="section-label">Strategisk Profil</div>
+                <div style="position:relative;height:280px"><canvas id="radarChart"></canvas></div>
+            </div>
+
+            <div class="card">
+                <div class="section-label">Mognadsnivå</div>
+                <div id="staircase" style="display:flex;flex-direction:column;gap:8px"></div>
+            </div>
+
+            <div class="ai-box hidden" id="ai-results">
+                <h3><i class="fas fa-robot" style="margin-right:8px"></i>Strategisk Roadmap</h3>
+                <div class="ai-content" id="ai-content"></div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay hidden" id="settings-modal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title">Inställningar</div>
+            <button class="modal-close" onclick="closeSettings()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Abacus / OpenAI API Key</label>
+                <input type="password" id="api-key" class="form-input" placeholder="sk-...">
+                <div style="font-size:10px;color:#94a3b8;margin-top:4px">Sparas lokalt. Delas med alla NextGen EA-verktyg.</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Kund / Organisation</label>
+                <input type="text" id="org-name" class="form-input" placeholder="Ex: Vasakronan AB">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="closeSettings()">Avbryt</button>
+            <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="saveSettings()">Spara</button>
+        </div>
+    </div>
+</div>
+
+<!-- ADD/EDIT FRAMEWORK MODAL -->
+<div class="modal-overlay hidden" id="fw-modal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title" id="fw-modal-title">Ny Bransch / Ramverk</div>
+            <button class="modal-close" onclick="closeFwModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="form-group">
+                    <label class="form-label">Branschnamn</label>
+                    <input type="text" id="fw-name" class="form-input" placeholder="Ex: Healthcare">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ikon</label>
+                    <input type="text" id="fw-icon" class="form-input" placeholder="fas fa-hospital">
+                    <div class="icon-grid">
+                    <div class="icon-opt" onclick="pickIcon('fas fa-hospital')"><i class="fas fa-hospital"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-landmark')"><i class="fas fa-landmark"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-store')"><i class="fas fa-store"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-shield-halved')"><i class="fas fa-shield-halved"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-piggy-bank')"><i class="fas fa-piggy-bank"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-graduation-cap')"><i class="fas fa-graduation-cap"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-truck')"><i class="fas fa-truck"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-bolt')"><i class="fas fa-bolt"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-plane')"><i class="fas fa-plane"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-industry')"><i class="fas fa-industry"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-leaf')"><i class="fas fa-leaf"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-city')"><i class="fas fa-city"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-building')"><i class="fas fa-building"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-chart-line')"><i class="fas fa-chart-line"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-microchip')"><i class="fas fa-microchip"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-heart-pulse')"><i class="fas fa-heart-pulse"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-tower-broadcast')"><i class="fas fa-tower-broadcast"></i></div>
+                    <div class="icon-opt" onclick="pickIcon('fas fa-satellite-dish')"><i class="fas fa-satellite-dish"></i></div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Beskrivning</label>
+                <input type="text" id="fw-desc-input" class="form-input" placeholder="Kort beskrivning av analysfokus...">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Accentfärg</label>
+                <div class="color-grid" id="color-grid">
+                    <div class="color-opt selected" style="background:#4f46e5" onclick="pickColor('#4f46e5',this)"></div>
+                    <div class="color-opt" style="background:#0891b2" onclick="pickColor('#0891b2',this)"></div>
+                    <div class="color-opt" style="background:#059669" onclick="pickColor('#059669',this)"></div>
+                    <div class="color-opt" style="background:#d97706" onclick="pickColor('#d97706',this)"></div>
+                    <div class="color-opt" style="background:#dc2626" onclick="pickColor('#dc2626',this)"></div>
+                    <div class="color-opt" style="background:#7c3aed" onclick="pickColor('#7c3aed',this)"></div>
+                    <div class="color-opt" style="background:#db2777" onclick="pickColor('#db2777',this)"></div>
+                    <div class="color-opt" style="background:#0f172a" onclick="pickColor('#0f172a',this)"></div>
+                </div>
+            </div>
+            <div class="divider"></div>
+            <div class="section-label">Frågor & Vikter</div>
+            <div style="display:grid;grid-template-columns:1fr 120px 80px 32px;gap:8px;margin-bottom:6px">
+                <div style="font-size:9px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">Fråga</div>
+                <div style="font-size:9px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">Kategori</div>
+                <div style="font-size:9px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">Vikt</div>
+                <div></div>
+            </div>
+            <div id="q-editor-list"></div>
+            <button class="add-q-btn" onclick="addQuestionRow()"><i class="fas fa-plus"></i> Lägg till fråga</button>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="closeFwModal()">Avbryt</button>
+            <button class="btn btn-danger" style="flex:1;justify-content:center" id="delete-fw-btn" onclick="deleteCurrentFw()"><i class="fas fa-trash"></i> Ta bort</button>
+            <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="saveFw()"><i class="fas fa-save"></i> Spara</button>
+        </div>
+    </div>
+</div>
+
+</div> <!-- END #main-content -->
+
+<!-- === EA PLATFORM AI CHAT SIDEBAR === -->
+<aside id="ai-chat-panel">
+    <div class="chat-resize-handle"></div>
+    
+    <div class="chat-sidebar-header">
+        <i class="fas fa-robot"></i>
+        <h3>EA Maturity Assistant</h3>
+        <button class="chat-close-btn" onclick="toggleChatPanel()" title="Close (Ctrl+K)">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    
+    <div id="ai-chat-messages">
+        <div class="ai-message assistant">
+            <div class="ai-avatar"><i class="fas fa-robot"></i></div>
+            <div class="ai-message-content">
+                <strong>Welcome to EA Maturity Assessment!</strong><br><br>
+                I'm your AI assistant. I can help you:
+                <ul>
+                    <li>Interpret maturity scores and benchmarks</li>
+                    <li>Identify improvement priorities</li>
+                    <li>Create roadmaps for maturity advancement</li>
+                    <li>Explain framework-specific practices</li>
+                    <li>Prepare executive summaries</li>
+                </ul>
+                <strong>Quick shortcuts:</strong><br>
+                Press <code>Ctrl+K</code> to toggle this panel<br>
+                Press <code>Enter</code> to send messages
+            </div>
+        </div>
+    </div>
+    
+    <div id="ai-chat-input-area">
+        <textarea id="ai-chat-input" rows="2" 
+            placeholder="Ask about maturity levels or improvement strategies..."
+            onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+        <div class="chat-input-actions">
+            <span class="chat-input-hint">Shift+Enter for new line</span>
+            <button class="chat-send-btn" onclick="sendMessage()">
+                <i class="fas fa-paper-plane"></i> Send
+            </button>
+        </div>
+    </div>
+</aside>
+
+</div> <!-- END #app-container -->
+
+<script>
+// === EA PLATFORM CHAT FUNCTIONS ===
+
+// Toggle chat sidebar panel
+function toggleChatPanel() {
+    document.body.classList.toggle('chat-sidebar-open');
+    if (document.body.classList.contains('chat-sidebar-open')) {
+        document.getElementById('ai-chat-input').focus();
+    }
+}
+
+// Initialize resizable chat sidebar
+function initChatSidebarResize() {
+    const handle = document.querySelector('.chat-resize-handle');
+    const panel = document.getElementById('ai-chat-panel');
+    const mainContent = document.getElementById('main-content');
+    
+    if (!handle || !panel || !mainContent) return;
+    
+    let isResizing = false;
+    let startX, startWidth;
+    
+    handle.addEventListener('mousedown', function(e) {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = panel.offsetWidth;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', function(e) {
+        if (!isResizing) return;
+        const deltaX = startX - e.clientX;
+        const newWidth = Math.min(Math.max(startWidth + deltaX, 280), 800);
+        panel.style.width = newWidth + 'px';
+        applySidebarWidth(newWidth);
+    });
+    
+    document.addEventListener('mouseup', function() {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            const currentWidth = panel.offsetWidth;
+            localStorage.setItem('maturity_sidebar_w', currentWidth);
+        }
+    });
+    
+    applySidebarWidth();
+}
+
+// Apply saved sidebar width
+function applySidebarWidth(width) {
+    const panel = document.getElementById('ai-chat-panel');
+    if (!panel) return;
+    
+    if (typeof width === 'undefined') {
+        width = parseInt(localStorage.getItem('maturity_sidebar_w') || '380', 10);
+        panel.style.width = width + 'px';
+    }
+    
+    const styleId = 'chat-sidebar-dynamic-style';
+    let styleEl = document.getElementById(styleId);
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = styleId;
+        document.head.appendChild(styleEl);
+    }
+    
+    styleEl.textContent = `
+        body.chat-sidebar-open #ai-chat-panel { right: 0; width: ${width}px !important; }
+        body.chat-sidebar-open #main-content { margin-right: ${width}px !important; }
+    `;
+}
+
+// HTML escape utility
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Markdown parser for chat messages
+function parseMarkdown(text) {
+    let html = escapeHtml(text);
+    
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+    html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+    
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    
+    html = html.replace(/\n- (.+)/g, '\n<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+    
+    html = html.replace(/\n\d+\. (.+)/g, '\n<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, function(match) {
+        if (match.includes('<ul>')) return match;
+        return '<ol>' + match + '</ol>';
+    });
+    
+    html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+    
+    html = html.replace(/\n\n+/g, '</p><p>');
+    html = '<p>' + html + '</p>';
+    html = html.replace(/<p><\/p>/g, '');
+    html = html.replace(/<p>(<h[123]>)/g, '$1');
+    html = html.replace(/(<\/h[123]>)<\/p>/g, '$1');
+    html = html.replace(/<p>(<ul>)/g, '$1');
+    html = html.replace(/(<\/ul>)<\/p>/g, '$1');
+    html = html.replace(/<p>(<ol>)/g, '$1');
+    html = html.replace(/(<\/ol>)<\/p>/g, '$1');
+    html = html.replace(/<p>(<blockquote>)/g, '$1');
+    html = html.replace(/(<\/blockquote>)<\/p>/g, '$1');
+    
+    return html;
+}
+
+// Send chat message
+async function sendMessage() {
+    const input = document.getElementById('ai-chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    addChatMessage('user', message);
+    input.value = '';
+    
+    await processAIRequest(message);
+}
+
+// Clear chat history
+function clearChat() {
+    const messages = document.getElementById('ai-chat-messages');
+    if (!messages) return;
+    messages.innerHTML = `
+        <div class="ai-message assistant">
+            <div class="ai-avatar"><i class="fas fa-robot"></i></div>
+            <div class="ai-message-content">
+                <strong>Chat history cleared.</strong><br><br>
+                How can I help you with your EA maturity assessment?
+            </div>
+        </div>
+    `;
+}
+
+// Add message to chat
+function addChatMessage(role, content) {
+    const messages = document.getElementById('ai-chat-messages');
+    if (!messages) return;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `ai-message ${role}`;
+    
+    const avatarDiv = document.createElement('div');
+    avatarDiv.className = 'ai-avatar';
+    avatarDiv.innerHTML = role === 'assistant' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'ai-message-content';
+    contentDiv.innerHTML = role === 'assistant' ? parseMarkdown(content) : escapeHtml(content);
+    
+    messageDiv.appendChild(avatarDiv);
+    messageDiv.appendChild(contentDiv);
+    messages.appendChild(messageDiv);
+    messages.scrollTop = messages.scrollHeight;
+}
+
+// Process AI request
+async function processAIRequest(userMessage) {
+    const maturityContext = getMaturityContext();
+    
+    const systemPrompt = `You are an expert EA (Enterprise Architecture) maturity assessment consultant. 
+
+Help users interpret their maturity scores, identify improvement priorities, create roadmaps, and prepare for strategic planning.
+
+CURRENT MATURITY DATA:
+${maturityContext}
+
+Provide practical, actionable advice. Be concise and structured. Use bullet points and headings.`;
+
+    let apiKey = '';
+    if (typeof dataManager !== 'undefined' && dataManager) {
+        apiKey = dataManager.getApiKey();
+    }
+    
+    if (!apiKey) {
+        const keys = ['ea20_openai_key','openai_api_key','ea_openai_key'];
+        for (const k of keys) {
+            const v = localStorage.getItem(k);
+            if (v) {
+                apiKey = v;
+                break;
+            }
+        }
+    }
+    
+    if (!apiKey) {
+        addChatMessage('assistant', '**API Key Required**\n\nPlease add your OpenAI API key in Settings to use the AI assistant.\n\nI can help you with:\n- Maturity score interpretation\n- Improvement roadmaps\n- Framework comparisons\n- Executive summaries');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/openai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'gpt-4',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userMessage }
+                ],
+                max_tokens: 800
+            })
+        });
+        
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        
+        const data = await response.json();
+        
+        if (data.error) throw new Error(data.error.message || 'API request failed');
+        
+        const assistantMessage = data.choices[0].message.content;
+        addChatMessage('assistant', assistantMessage);
+        
+    } catch (error) {
+        addChatMessage('assistant', `**Error:** ${error.message}\n\nPlease check your API key in Settings and try again.`);
+    }
+}
+
+// Get maturity context for AI
+function getMaturityContext() {
+    if (typeof frameworks === 'undefined' || typeof currentFw === 'undefined' || typeof scores === 'undefined') {
+        return 'No maturity data available yet. User is setting up the assessment.';
+    }
+    
+    const fw = frameworks[currentFw];
+    if (!fw) return 'No framework selected.';
+    
+    const avgs = getWeightedAvgs();
+    const total = (avgs.reduce((a,b) => a+b, 0) / avgs.length).toFixed(1);
+    const org = localStorage.getItem('ea20_org_name') || 'the organization';
+    const answered = fw.questions.filter((q,i) => scores[currentFw+'_q'+i] > 0).length;
+    const pct = Math.round((answered / fw.questions.length) * 100);
+    
+    let ctx = `Organization: ${org}\nFramework: ${fw.name}\nOverall Score: ${total}/5\nProgress: ${pct}% (${answered}/${fw.questions.length} questions)\n\nCategory Scores:\n`;
+    fw.categories.forEach((c,i) => { ctx += `- ${c}: ${avgs[i]}/5\n`; });
+    
+    const low = fw.categories.filter((c,i) => avgs[i] < 2.5);
+    const high = fw.categories.filter((c,i) => avgs[i] >= 4.0);
+    if (low.length) ctx += `\nWeak areas (< 2.5): ${low.join(', ')}`;
+    if (high.length) ctx += `\nStrong areas (>= 4.0): ${high.join(', ')}`;
+    
+    return ctx;
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        toggleChatPanel();
+    }
+});
+
+// Initialize on load
+window.addEventListener('DOMContentLoaded', function() {
+    initChatSidebarResize();
+    applySidebarWidth();
+});
+
+</script>
+
+<script>
+// ── Initialize unified data manager ────
+let dataManager = null;
+if (typeof EA_DataManager !== 'undefined') {
+    dataManager = new EA_DataManager();
+    console.log('✅ Maturity Toolbox: DataManager initialized - unified API key active');
+}
+
+const STAIRCASE = [
+    {n:5,title:"AI-Driven Innovation",desc:"Självoptimerande processer & prediktiv intelligens.",colors:{bg:"#10b981",text:"#fff"}},
+    {n:4,title:"Datadriven Organisation",desc:"Beslut baseras på realtidsdata & avancerad analys.",colors:{bg:"#3b82f6",text:"#fff"}},
+    {n:3,title:"Digitaliserad Core",desc:"Standardiserade system & fungerande integrationer.",colors:{bg:"#4f46e5",text:"#fff"}},
+    {n:2,title:"Reaktiv Digitalisering",desc:"Silosystem & manuell datahantering dominerar.",colors:{bg:"#f59e0b",text:"#fff"}},
+    {n:1,title:"Analog Bas",desc:"Pappersbaserat eller Excel-beroende. Hög teknisk skuld.",colors:{bg:"#ef4444",text:"#fff"}}
+];
+
+const BUILT_IN = {
+    'domain-specific':{id:'domain-specific',name:'domain-specific',icon:'fas fa-city',color:'#4f46e5',desc:'IoT, Kundupplevelse, prediktivt underhåll och datadriven Verksamhetsförvaltning.',categories:['IoT & Sensorik','Kund-UX','Teknisk Drift','Data-Governance','Integrationer'],questions:[
+        {cat:'IoT & Sensorik',q:'I vilken grad är Verksamheterna utrustade med realtidssensorik (energi, närvaro, luft)?',w:3},
+        {cat:'IoT & Sensorik',q:'Finns en central plattform för att aggregera data från olika hårdvaruleverantörer?',w:2},
+        {cat:'Kund-UX',q:'Erbjuds Kunder en digital portal/app för felanmälan och service?',w:2},
+        {cat:'Kund-UX',q:'Används data för att proaktivt förbättra Kundens arbetsmiljö?',w:1},
+        {cat:'Teknisk Drift',q:'Används prediktivt underhåll baserat på maskininlärning/AI?',w:3},
+        {cat:'Teknisk Drift',q:'Är drifttekniker fullt mobila med digitala arbetsordrar och BIM-stöd?',w:2},
+        {cat:'Data-Governance',q:'Finns en tydlig strategi för vem som äger och ansvarar för Verksamhetsdatan?',w:3},
+        {cat:'Data-Governance',q:'Är datakvaliteten tillräckligt hög för att användas i finansiell rapportering?',w:2},
+        {cat:'Integrationer',q:'Hur enkelt kan nya domain-specific-tjänster kopplas på via öppna API:er?',w:3},
+        {cat:'Integrationer',q:'Är verksamhetssystemen (BMS) integrerade med affärssystemet (ERP)?',w:2}
+    ]},
+    esg:{id:'esg',name:'ESG & Energy',icon:'fas fa-leaf',color:'#059669',desc:'CSRD-beredskap, energioptimering, BREEAM/Miljöbyggnad och hållbarhetsrapportering.',categories:['CSRD-Ready','Energioptimering','Certifieringar','Cirkularitet','Social Impact'],questions:[
+        {cat:'CSRD-Ready',q:'Kan ni automatiskt generera hållbarhetsrapporter enligt EU-taxonomin?',w:3},
+        {cat:'CSRD-Ready',q:'Finns ett system för att spåra och rapportera Scope 1, 2 och 3-utsläpp?',w:3},
+        {cat:'Energioptimering',q:'Används AI-styrning för att optimera värme/kyla i realtid?',w:3},
+        {cat:'Energioptimering',q:'Mäts energiförbrukning per Kund och lokal i realtid?',w:2},
+        {cat:'Certifieringar',q:'Stödjer era digitala system löpande uppföljning av BREEAM/Miljöbyggnad?',w:2},
+        {cat:'Cirkularitet',q:'Finns digitala materialpass för byggnadskomponenter vid ombyggnation?',w:1},
+        {cat:'Social Impact',q:'Mäts och analyseras social hållbarhet i och kring Verksamheterna digitalt?',w:1}
+    ]},
+    public:{id:'public',name:'Public Sector',icon:'fas fa-landmark',color:'#0891b2',desc:'Digitalisering av offentlig förvaltning, medborgarservice, e-tjänster och regelefterlevnad.',categories:['Medborgarservice','Regelefterlevnad','Interoperabilitet','Cybersäkerhet','Intern Effektivitet'],questions:[
+        {cat:'Medborgarservice',q:'Är medborgartjänster tillgängliga digitalt dygnet runt via webb och app?',w:3},
+        {cat:'Medborgarservice',q:'Används AI/chatbot för att hantera vanliga medborgarfrågor?',w:2},
+        {cat:'Regelefterlevnad',q:'Är GDPR och dataskyddsregler fullt implementerade i alla system?',w:3},
+        {cat:'Regelefterlevnad',q:'Finns automatiserade kontroller för regelefterlevnad i processer?',w:2},
+        {cat:'Interoperabilitet',q:'Kan myndigheter och förvaltningar dela data via standardiserade API:er?',w:3},
+        {cat:'Interoperabilitet',q:'Är systemen kompatibla med nationella digitala infrastrukturer?',w:2},
+        {cat:'Cybersäkerhet',q:'Finns ett aktivt SOC (Security Operations Center) eller motsvarande?',w:3},
+        {cat:'Cybersäkerhet',q:'Genomförs regelbundna penetrationstester och säkerhetsrevisioner?',w:2},
+        {cat:'Intern Effektivitet',q:'Är interna processer (HR, ekonomi, inköp) digitaliserade och automatiserade?',w:2},
+        {cat:'Intern Effektivitet',q:'Används RPA eller AI för att automatisera repetitiva administrativa uppgifter?',w:1}
+    ]},
+    retail:{id:'retail',name:'Retail',icon:'fas fa-store',color:'#d97706',desc:'Omnichannel-handel, kunddata, supply chain-digitalisering och personalisering.',categories:['Omnichannel','Kunddata & AI','Supply Chain','Personalisering','Betalning & Checkout'],questions:[
+        {cat:'Omnichannel',q:'Är kundupplevelsen sömlös mellan fysisk butik, webb och app?',w:3},
+        {cat:'Omnichannel',q:'Är lagersaldo synkroniserat i realtid över alla kanaler?',w:2},
+        {cat:'Kunddata & AI',q:'Finns en enhetlig kundprofil (CDP) som samlar data från alla touchpoints?',w:3},
+        {cat:'Kunddata & AI',q:'Används AI för att förutsäga kundernas köpbeteende och churn?',w:2},
+        {cat:'Supply Chain',q:'Är leverantörskedjan digitalt spårbar från ursprung till butik?',w:2},
+        {cat:'Supply Chain',q:'Används prediktiv analys för att optimera lagernivåer och inköp?',w:2},
+        {cat:'Personalisering',q:'Erbjuds personaliserade produktrekommendationer i realtid?',w:2},
+        {cat:'Betalning & Checkout',q:'Stöds moderna betalmetoder (Swish, BNPL, biometri)?',w:1},
+        {cat:'Betalning & Checkout',q:'Är kassaprocessen optimerad för att minimera friktionen?',w:1}
+    ]},
+    insurance:{id:'insurance',name:'Insurance',icon:'fas fa-shield-halved',color:'#7c3aed',desc:'Digital skadehantering, riskmodellering med AI, kundupplevelse och regulatorisk compliance.',categories:['Skadehantering','Riskmodellering','Kundupplevelse','Compliance','Produktinnovation'],questions:[
+        {cat:'Skadehantering',q:'Är skadeprocessen fullt digitaliserad med automatisk first notice of loss?',w:3},
+        {cat:'Skadehantering',q:'Används AI/bildanalys för att automatisera skadebedömning?',w:3},
+        {cat:'Riskmodellering',q:'Används maskininlärning för att prissätta risker mer precist?',w:3},
+        {cat:'Riskmodellering',q:'Integreras externa datakällor (IoT, väder, trafik) i riskmodellerna?',w:2},
+        {cat:'Kundupplevelse',q:'Kan kunder teckna och hantera försäkringar helt digitalt?',w:2},
+        {cat:'Kundupplevelse',q:'Erbjuds proaktiv kommunikation och rådgivning baserat på kunddata?',w:2},
+        {cat:'Compliance',q:'Är Solvency II och GDPR-krav automatiserade i rapporteringsprocessen?',w:3},
+        {cat:'Compliance',q:'Finns ett system för att hantera regulatoriska förändringar proaktivt?',w:2},
+        {cat:'Produktinnovation',q:'Lanseras nya digitala försäkringsprodukter (usage-based, parametric)?',w:1}
+    ]},
+    banking:{id:'banking',name:'Banking',icon:'fas fa-piggy-bank',color:'#0f172a',desc:'Open Banking, digital kundresa, kreditriskmodellering och regulatorisk compliance (PSD2, Basel IV).',categories:['Open Banking','Kreditrisk & AI','Digital Kundresa','Compliance','Cybersäkerhet'],questions:[
+        {cat:'Open Banking',q:'Är PSD2/Open Banking API:er implementerade och aktiva?',w:3},
+        {cat:'Open Banking',q:'Samarbetar banken med Fintechs via ett strukturerat partnerprogram?',w:2},
+        {cat:'Kreditrisk & AI',q:'Används AI/ML för kreditbedömning och bedrägeridetektering?',w:3},
+        {cat:'Kreditrisk & AI',q:'Är kreditriskmodellerna transparenta och förklarbara (XAI)?',w:2},
+        {cat:'Digital Kundresa',q:'Kan kunder öppna konto och ansöka om lån helt digitalt (STP)?',w:3},
+        {cat:'Digital Kundresa',q:'Är mobilbanken den primära kanalen med >70% av transaktionerna?',w:2},
+        {cat:'Compliance',q:'Är Basel IV och AML-krav automatiserade i rapporteringsprocessen?',w:3},
+        {cat:'Compliance',q:'Finns ett realtidssystem för transaktionsövervakning (AML/KYC)?',w:3},
+        {cat:'Cybersäkerhet',q:'Används Zero Trust-arkitektur och kontinuerlig autentisering?',w:3},
+        {cat:'Cybersäkerhet',q:'Genomförs regelbundna red team-övningar och penetrationstester?',w:2}
+    ]}
+};
+
+let frameworks = JSON.parse(JSON.stringify(BUILT_IN));
+let customFrameworks = {};
+let currentFw = 'domain-specific';
+let scores = {};
+let radarChart = null;
+let editingFwId = null;
+let selectedColor = '#4f46e5';
+let lastMaturityAnalysisText = '';
+let matAsIsSnapshotBeforeToBe = null;
+let matToBeDraftScores = null;
+let matFinalToBeScores = null;
+let matMode = 'as-is';
+let matToBeFrameworkId = null;
+let matToBeUsersUpdated = false;
+
+// Load custom frameworks from localStorage
+function loadCustomFw() {
+    try {
+        const saved = localStorage.getItem('ea20_custom_frameworks');
+        if (saved) customFrameworks = JSON.parse(saved);
+        Object.assign(frameworks, customFrameworks);
+    } catch(e) {}
+}
+
+function saveCustomFw() {
+    localStorage.setItem('ea20_custom_frameworks', JSON.stringify(customFrameworks));
+}
+
+function saveScoresState() {
+    localStorage.setItem('ea20_scores_state', JSON.stringify(scores));
+}
+
+function loadScoresState() {
+    try {
+        const saved = localStorage.getItem('ea20_scores_state');
+        if (saved) scores = JSON.parse(saved) || {};
+    } catch (error) {
+        scores = {};
+    }
+}
+
+function saveMaturityToBeState() {
+    localStorage.setItem('ea20_maturity_tobe_state', JSON.stringify({
+        mode: matMode,
+        frameworkId: matToBeFrameworkId,
+        asIs: matAsIsSnapshotBeforeToBe,
+        toBeDraft: matToBeDraftScores,
+        finalToBe: matFinalToBeScores,
+        usersUpdated: matToBeUsersUpdated,
+        lastAnalysis: lastMaturityAnalysisText || ''
+    }));
+}
+
+function loadMaturityToBeState() {
+    try {
+        const saved = localStorage.getItem('ea20_maturity_tobe_state');
+        if (!saved) return;
+        const state = JSON.parse(saved);
+        matMode = state.mode || 'as-is';
+        matToBeFrameworkId = state.frameworkId || null;
+        matAsIsSnapshotBeforeToBe = state.asIs || null;
+        matToBeDraftScores = state.toBeDraft || null;
+        matFinalToBeScores = state.finalToBe || null;
+        matToBeUsersUpdated = !!state.usersUpdated;
+        lastMaturityAnalysisText = state.lastAnalysis || '';
+    } catch (error) {
+        matMode = 'as-is';
+        matToBeFrameworkId = null;
+        matAsIsSnapshotBeforeToBe = null;
+        matToBeDraftScores = null;
+        matFinalToBeScores = null;
+        matToBeUsersUpdated = false;
+    }
+}
+
+function init() {
+    loadCustomFw();
+    loadScoresState();
+    loadMaturityToBeState();
+    
+    // Load API key from unified DataManager
+    const savedKey = dataManager ? dataManager.getApiKey() : localStorage.getItem('openai_api_key');
+    if (savedKey) document.getElementById('api-key').value = savedKey;
+    
+    const savedOrg = localStorage.getItem('ea20_org_name');
+    if (savedOrg) document.getElementById('org-name').value = savedOrg;
+    renderFwGrid();
+    selectFw('domain-specific');
+    renderMatContextBadge();
+    // If arriving from Strategy Workbench with ?from=ward&refresh=1, auto-fill maturity scores
+    const matInitParams = new URLSearchParams(window.location.search);
+    if (matInitParams.get('from') === 'ward' && matInitParams.get('refresh') === '1') {
+        setTimeout(() => autoFillMaturityFromContext(), 800);
+    }
+}
+
+/**
+ * AI auto-fill: Reads Strategy + Capability + BMC context and uses GPT-4.1 to
+ * suggest initial maturity scores for the current framework. Only fills if
+ * no scores exist yet. Called when arriving from Strategy with ?from=ward&refresh=1.
+ */
+async function autoFillMaturityFromContext() {
+    const apiKey = dataManager ? dataManager.getApiKey() : localStorage.getItem('openai_api_key');
+    if (!apiKey) { showToast('⚠️ Lägg till API-nyckel för AI auto-fyllning'); return false; }
+
+    const fw = frameworks[currentFw];
+    if (!fw || !fw.questions || !fw.questions.length) return false;
+
+    // Only auto-fill if no existing scores for this framework
+    const alreadyScored = fw.questions.some((q, i) => scores[currentFw + '_q' + i] > 0);
+    if (alreadyScored) return false;
+
+    const contextParts = [];
+
+    if (dataManager && dataManager.hasRecentIntegrationData('strategy_latest', 1440)) {
+        const strat = dataManager.getIntegrationData('strategy_latest');
+        if (strat) {
+            const comps = Array.isArray(strat.components) ? strat.components : [];
+            if (comps.length) {
+                const compRows = comps.slice(0, 12).map(c =>
+                    `- ${c.name} | Evolution: ${c.evolution || (c.x < 25 ? 'Genesis' : c.x < 50 ? 'Custom' : c.x < 75 ? 'Product' : 'Commodity')} | Kategori: ${c.category || ''}`
+                );
+                contextParts.push('## Wardley Map (Strategy Workbench)\n' + compRows.join('\n'));
+            }
+        }
+    }
+
+    if (dataManager && dataManager.hasRecentIntegrationData('capability_latest', 1440)) {
+        const cap = dataManager.getIntegrationData('capability_latest');
+        const capItems = Array.isArray(cap?.capabilities) ? cap.capabilities.slice(0, 12) : [];
+        if (capItems.length) {
+            contextParts.push('## Capability Map\n' + capItems.map(c =>
+                `- [${c.domainLabel || c.domain}] ${c.name} | Prioritet: ${c.priority} | Mognad: ${c.maturity}/5`
+            ).join('\n'));
+        }
+    }
+
+    if (dataManager && dataManager.hasRecentIntegrationData('bmc_latest', 1440)) {
+        const bmc = dataManager.getIntegrationData('bmc_latest');
+        if (bmc) {
+            const asIs = bmc.as_is_data || {};
+            const bmcRows = ['strategic_goal', 'business_driver', 'value_proposition', 'regulatory_context']
+                .map(k => asIs[k] ? `- ${k}: ${asIs[k]}` : null).filter(Boolean);
+            if (bmcRows.length) contextParts.push('## BMC-kontext\n' + bmcRows.join('\n'));
+        }
+    }
+
+    if (!contextParts.length) return false;
+
+    showToast('🤖 AI föreslår initiala mognadsnivåer för ' + fw.name + ' – vänta...');
+
+    const questionsText = fw.questions.map((q, i) => `Q${i} [${q.cat}]: ${q.q}`).join('\n');
+    const matSystemPrompt = `Du är en senior expert och ackrediterad assessor inom mognadsbedömning, EA-metamodeller och ramverket ${fw.name}. Specialistkunskap:
+- ${fw.name} ramverket i detalj: alla dimensioner, kategorier och frågor
+- ${fw.desc || 'Mognadsramverk för verksamhetsutveckling och enterprise architecture'}
+- Branschkontext: Verksamheter, domain-specific, processer, styrning, serviceleverans, ESG/CSRD
+- Mognadsskalan 1-5: 1=Initial/ad hoc/personberoende, 2=Reaktiv/etablerad bas, 3=Definierad/standardiserad med mätetal, 4=Datadriven/kvantifierad/förutsägbar, 5=AI-optimerad/kontinuerligt förbättrande
+
+Baserat på det strategiska underlag som ges (BMC, Value Chain, Capability Map, Wardley Map), gör en initial mognadsbedömning för varje fråga i ${fw.name}-ramverket. Var konservativ och realistisk – underskatta snarare än överskatta initial mognad. Bedöm utifrån helheten i verksamheten och industrin, inte utifrån ett antagande om att ny teknik eller digitalisering alltid är den primära lösningen.
+
+Returnera ENBART ett rent JSON-objekt:
+{"scores": [2, 1, 3, ...]}
+
+Listan ska ha EXAKT ${fw.questions.length} heltal (1-5), ett per fråga i ordning.`;
+
+    try {
+        const res = await fetch('/api/openai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'gpt-5',
+                messages: [
+                    { role: 'system', content: matSystemPrompt },
+                    { role: 'user', content: `Gör mognadsbedömning baserat på:\n\n${contextParts.join('\n\n')}\n\nFrågor (${fw.questions.length} st):\n${questionsText}` }
+                ]
+            })
+        });
+        const json = await res.json();
+        if (json.error) throw new Error(json.error.message);
+        let raw = json.choices[0].message.content.trim();
+        raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+        const result = JSON.parse(raw);
+        if (!Array.isArray(result.scores)) throw new Error('Ogiltigt format från AI');
+        let set = 0;
+        fw.questions.forEach((q, i) => {
+            const val = Math.max(1, Math.min(5, Math.round(Number(result.scores[i]) || 2)));
+            scores[currentFw + '_q' + i] = val;
+            set++;
+        });
+        renderQuestions();
+        updateAll();
+        exportMaturityToIntegrationCache();
+        showToast(`✓ AI föreslår initial mognadsbedömning för ${fw.name} (${set} frågor) – granska och justera`);
+        return true;
+    } catch (e) {
+        console.error('Maturity auto-fill error:', e);
+        showToast('⚠️ AI mognadsbedömning misslyckades: ' + String(e.message).slice(0, 80));
+        return false;
+    }
+}
+function renderFwGrid() {
+    const grid = document.getElementById('fw-grid');
+    grid.innerHTML = '';
+    Object.values(frameworks).forEach(fw => {
+        const isCustom = !!customFrameworks[fw.id];
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'position:relative;display:flex;flex-direction:column';
+
+        const btn = document.createElement('button');
+        btn.className = 'fw-btn' + (fw.id === currentFw ? ' active' : '');
+        btn.id = 'btn-' + fw.id;
+        btn.onclick = () => selectFw(fw.id);
+        btn.innerHTML = `<i class="${fw.icon}" style="color:${fw.color}"></i>${fw.name}${isCustom ? '<br><span style="font-size:8px;color:#16a34a;font-weight:900">CUSTOM</span>' : ''}`;
+
+        // Ta bort-ikon (visas för alla ramverk — inbyggda återställs, custom raderas)
+        const delBtn = document.createElement('button');
+        delBtn.title = isCustom ? 'Ta bort bransch' : 'Återställ till original';
+        delBtn.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(239,68,68,0.1);border:none;border-radius:6px;width:20px;height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;z-index:10;padding:0';
+        delBtn.innerHTML = `<i class="fas fa-times" style="font-size:9px;color:#dc2626;pointer-events:none"></i>`;
+        delBtn.onclick = (ev) => { ev.stopPropagation(); deleteFw(fw.id, fw.name, isCustom); };
+
+        wrapper.addEventListener('mouseenter', () => delBtn.style.opacity = '1');
+        wrapper.addEventListener('mouseleave', () => delBtn.style.opacity = '0');
+
+        wrapper.appendChild(btn);
+        wrapper.appendChild(delBtn);
+        grid.appendChild(wrapper);
+    });
+    // Add new button
+    const addBtn = document.createElement('button');
+    addBtn.className = 'fw-btn custom-fw';
+    addBtn.onclick = openNewFwModal;
+    addBtn.innerHTML = '<i class="fas fa-plus" style="color:#94a3b8"></i>Ny Bransch';
+    grid.appendChild(addBtn);
+}
+
+function deleteFw(id, name, isCustom) {
+    const msg = isCustom
+        ? `Ta bort "${name}"? Ramverket raderas permanent.`
+        : `Återställ "${name}" till originalversion? Eventuella importerade uppdateringar tas bort.`;
+    if (!confirm(msg)) return;
+    if (customFrameworks[id]) {
+        delete customFrameworks[id];
+        saveCustomFw();
+    }
+    // Återställ inbyggt från BUILT_IN om det finns
+    if (BUILT_IN[id]) {
+        frameworks[id] = JSON.parse(JSON.stringify(BUILT_IN[id]));
+    } else {
+        delete frameworks[id];
+    }
+    renderFwGrid();
+    // Byt till domain-specific om aktiv bransch raderades
+    if (currentFw === id) selectFw('domain-specific');
+}
+
+function selectFw(id) {
+    currentFw = id;
+    document.querySelectorAll('.fw-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById('btn-' + id);
+    if (btn) btn.classList.add('active');
+    document.getElementById('fw-desc').innerText = frameworks[id].desc;
+
+    if (matToBeFrameworkId === currentFw) {
+        if (matMode === 'to-be-final' && matFinalToBeScores) {
+            applyFrameworkScores(matFinalToBeScores);
+        } else if (matMode === 'to-be-draft' && matToBeDraftScores) {
+            applyFrameworkScores(matToBeDraftScores);
+        }
+    }
+
+    renderQuestions();
+    updateAll();
+    updateMaturityModeBanner();
+    document.getElementById('ai-results').classList.add('hidden');
+}
+
+function renderQuestions() {
+    const fw = frameworks[currentFw];
+    const list = document.getElementById('questions-list');
+    list.innerHTML = '';
+    fw.questions.forEach((q, i) => {
+        const qId = currentFw + '_q' + i;
+        if (!scores[qId]) scores[qId] = 0;
+        const wLabel = q.w === 3 ? 'KRITISK' : q.w === 2 ? 'VIKTIG' : 'BAS';
+        const wClass = q.w === 3 ? 'w3' : q.w === 2 ? 'w2' : 'w1';
+        const div = document.createElement('div');
+        div.className = 'q-item';
+        div.innerHTML = `
+            <div class="q-header">
+                <span class="q-cat">${q.cat}</span>
+                <p class="q-text">${q.q}</p>
+                <span class="weight-badge ${wClass}">${wLabel} ×${q.w}</span>
+            </div>
+            <div class="score-btns">
+                ${[1,2,3,4,5].map(v => `<button class="score-btn${scores[qId]==v?' active':''}" onclick="setScore('${qId}',${v},this)">${v}</button>`).join('')}
+            </div>`;
+        list.appendChild(div);
+    });
+    updateProgress();
+}
+
+function setScore(id, val, btn) {
+    scores[id] = val;
+    btn.closest('.score-btns').querySelectorAll('.score-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    saveScoresState();
+    updateAll();
+    exportMaturityToIntegrationCache();
+}
+
+function updateProgress() {
+    const fw = frameworks[currentFw];
+    const answered = fw.questions.filter((q,i) => scores[currentFw+'_q'+i] > 0).length;
+    const pct = Math.round((answered / fw.questions.length) * 100);
+    document.getElementById('progress-pct').innerText = pct + '%';
+    document.getElementById('progress-bar').style.width = pct + '%';
+}
+
+function getWeightedAvgs() {
+    const fw = frameworks[currentFw];
+    const catData = {};
+    fw.categories.forEach(c => catData[c] = {ws:0,wt:0});
+    fw.questions.forEach((q,i) => {
+        const v = scores[currentFw+'_q'+i] || 1;
+        catData[q.cat].ws += v * q.w;
+        catData[q.cat].wt += q.w;
+    });
+    return fw.categories.map(c => parseFloat((catData[c].ws / catData[c].wt).toFixed(2)));
+}
+
+function captureCurrentFrameworkScores() {
+    const fw = frameworks[currentFw];
+    const map = {};
+    fw.questions.forEach((q, i) => {
+        const key = currentFw + '_q' + i;
+        map[key] = Math.max(1, Math.min(5, Number(scores[key] || 1)));
+    });
+    return map;
+}
+
+function applyFrameworkScores(scoreMap) {
+    if (!scoreMap || typeof scoreMap !== 'object') return;
+    const fw = frameworks[currentFw];
+    fw.questions.forEach((q, i) => {
+        const key = currentFw + '_q' + i;
+        const value = Number(scoreMap[key]);
+        scores[key] = Number.isFinite(value) ? Math.max(1, Math.min(5, value)) : 1;
+    });
+    saveScoresState();
+    renderQuestions();
+    updateAll();
+}
+
+function updateMaturityModeBanner() {
+    const banner = document.getElementById('mat-mode-banner');
+    const restoreBtn = document.getElementById('mat-restore-asis-btn');
+    if (!banner || !restoreBtn) return;
+
+    const activeForCurrent = matToBeFrameworkId === currentFw && matMode !== 'as-is';
+    if (!activeForCurrent) {
+        banner.classList.add('hidden');
+        restoreBtn.classList.add('hidden');
+        return;
+    }
+
+    banner.innerHTML = matMode === 'to-be-final'
+        ? '<strong>TO-BE (konsoliderad)</strong> är aktiv. Denna variant synkas till EA Platform.'
+        : '<strong>TO-BE (utkast)</strong> är aktiv. Granska och konsolidera innan synk.';
+    banner.classList.remove('hidden');
+    restoreBtn.classList.remove('hidden');
+}
+
+function toggleMaturityToBePanel(show) {
+    const panel = document.getElementById('mat-tobe-panel');
+    const asIsField = document.getElementById('mat-asis-json');
+    const toBeField = document.getElementById('mat-tobe-json');
+    if (!panel || !asIsField || !toBeField) return;
+
+    if (!show) {
+        panel.classList.add('hidden');
+        return;
+    }
+
+    const asIs = matToBeFrameworkId === currentFw && matAsIsSnapshotBeforeToBe
+        ? matAsIsSnapshotBeforeToBe
+        : captureCurrentFrameworkScores();
+    const toBe = matToBeFrameworkId === currentFw && matFinalToBeScores
+        ? matFinalToBeScores
+        : (matToBeFrameworkId === currentFw && matToBeDraftScores ? matToBeDraftScores : asIs);
+
+    asIsField.value = JSON.stringify({ frameworkId: currentFw, scores: asIs }, null, 2);
+    toBeField.value = JSON.stringify({ frameworkId: currentFw, scores: toBe }, null, 2);
+    panel.classList.remove('hidden');
+}
+
+function buildMaturityToBeDraftFromAnalysis(asIsScores, analysisText) {
+    const fw = frameworks[currentFw];
+    const text = String(analysisText || '').toLowerCase();
+    const draft = { ...asIsScores };
+
+    fw.questions.forEach((q, i) => {
+        const key = currentFw + '_q' + i;
+        const base = Number(asIsScores[key] || 1);
+        const qText = (q.q + ' ' + q.cat).toLowerCase();
+        let delta = 0;
+
+        if (text.includes(q.cat.toLowerCase())) delta += 1;
+        if (q.w >= 2 && /(prioriter|roadmap|atgard|top 3|business outcome|kostnad|risk|varde)/.test(text)) delta += 1;
+        if (/(risk|compliance|sakerhet|governance)/.test(text) && /(risk|compliance|sakerhet|governance)/.test(qText)) delta += 1;
+
+        draft[key] = Math.max(1, Math.min(5, base + Math.min(2, delta)));
+    });
+
+    return draft;
+}
+
+function generateMaturityToBeFromLatestAnalysis() {
+    const analysisText = (lastMaturityAnalysisText || document.getElementById('ai-content')?.innerText || '').trim();
+    if (!analysisText) {
+        showToast('⚠️ Kör AI-analys först för att skapa TO-BE');
+        return;
+    }
+
+    matToBeFrameworkId = currentFw;
+    matAsIsSnapshotBeforeToBe = captureCurrentFrameworkScores();
+    matToBeDraftScores = buildMaturityToBeDraftFromAnalysis(matAsIsSnapshotBeforeToBe, analysisText);
+    matFinalToBeScores = null;
+    matMode = 'to-be-draft';
+    matToBeUsersUpdated = false;
+
+    applyFrameworkScores(matToBeDraftScores);
+    updateMaturityModeBanner();
+    toggleMaturityToBePanel(true);
+    saveMaturityToBeState();
+    exportMaturityToIntegrationCache();
+    showToast('✓ TO-BE-utkast skapat från senaste AI-analysen');
+}
+
+function consolidateMaturityToBe() {
+    const field = document.getElementById('mat-tobe-json');
+    let parsedScores = matToBeDraftScores;
+
+    if (field && field.value.trim()) {
+        try {
+            const raw = JSON.parse(field.value);
+            if (raw && raw.scores && typeof raw.scores === 'object') parsedScores = raw.scores;
+            else if (raw && typeof raw === 'object') parsedScores = raw;
+            else throw new Error('TO-BE JSON måste innehålla score-objekt');
+        } catch (error) {
+            showToast('⚠️ Ogiltig TO-BE JSON: ' + error.message);
+            return;
+        }
+    }
+
+    if (!parsedScores || typeof parsedScores !== 'object') {
+        showToast('⚠️ TO-BE saknar giltiga poäng');
+        return;
+    }
+
+    matToBeFrameworkId = currentFw;
+    const usersUpdated = !!matToBeDraftScores
+        && JSON.stringify(matToBeDraftScores) !== JSON.stringify(parsedScores);
+    matFinalToBeScores = { ...parsedScores };
+    matToBeDraftScores = { ...parsedScores };
+    matMode = 'to-be-final';
+    matToBeUsersUpdated = usersUpdated;
+    applyFrameworkScores(matFinalToBeScores);
+    updateMaturityModeBanner();
+    toggleMaturityToBePanel(true);
+    saveMaturityToBeState();
+    exportMaturityToIntegrationCache();
+    showToast('✓ TO-BE konsoliderad och synkas till EA Platform');
+}
+
+function restoreMaturityAsIsState() {
+    if (matToBeFrameworkId !== currentFw || !matAsIsSnapshotBeforeToBe) {
+        showToast('⚠️ Ingen AS-IS snapshot finns att återställa');
+        return;
+    }
+
+    applyFrameworkScores(matAsIsSnapshotBeforeToBe);
+    matMode = 'as-is';
+    matAsIsSnapshotBeforeToBe = null;
+    matToBeDraftScores = null;
+    matFinalToBeScores = null;
+    matToBeFrameworkId = null;
+    matToBeUsersUpdated = false;
+    updateMaturityModeBanner();
+    toggleMaturityToBePanel(false);
+    saveMaturityToBeState();
+    exportMaturityToIntegrationCache();
+    showToast('↩️ Återställde AS-IS score');
+}
+
+function getMaturityActiveScoreMap() {
+    if (matToBeFrameworkId === currentFw && matMode === 'to-be-final' && matFinalToBeScores) {
+        return { ...matFinalToBeScores };
+    }
+    if (matToBeFrameworkId === currentFw && matMode === 'to-be-draft' && matToBeDraftScores) {
+        return { ...matToBeDraftScores };
+    }
+    return captureCurrentFrameworkScores();
+}
+
+function getWeightedAvgsForScoreMap(scoreMap) {
+    const fw = frameworks[currentFw];
+    const catData = {};
+    fw.categories.forEach(c => catData[c] = { ws: 0, wt: 0 });
+
+    fw.questions.forEach((q, i) => {
+        const key = currentFw + '_q' + i;
+        const v = Number(scoreMap[key] || 1);
+        catData[q.cat].ws += v * q.w;
+        catData[q.cat].wt += q.w;
+    });
+
+    return fw.categories.map(c => parseFloat((catData[c].ws / catData[c].wt).toFixed(2)));
+}
+
+function updateAll() {
+    updateProgress();
+    const avgs = getWeightedAvgs();
+    const total = (avgs.reduce((a,b)=>a+b,0)/avgs.length).toFixed(1);
+    document.getElementById('total-score').innerText = total;
+    const lvl = STAIRCASE.find(l => l.n === Math.round(parseFloat(total)));
+    const badge = document.getElementById('level-badge');
+    if (lvl) badge.innerHTML = `<div style="font-size:11px;font-weight:900;color:${lvl.colors.bg};text-transform:uppercase">${lvl.title}</div>`;
+    renderCatScores(avgs);
+    updateRadar(avgs);
+    renderStaircase(total);
+}
+
+function exportMaturityToIntegrationCache() {
+    if (!dataManager || !frameworks[currentFw]) return false;
+
+    const fw = frameworks[currentFw];
+    const activeScores = getMaturityActiveScoreMap();
+    const avgs = getWeightedAvgsForScoreMap(activeScores);
+    const total = parseFloat((avgs.reduce((a, b) => a + b, 0) / avgs.length).toFixed(1));
+    const answered = fw.questions.filter((q, i) => Number(activeScores[currentFw + '_q' + i]) > 0).length;
+    const hasToBe = matToBeFrameworkId === currentFw && matMode !== 'as-is';
+    const modelVariant = hasToBe
+        ? (matMode === 'to-be-final' ? 'TO-BE_FINAL' : 'TO-BE_DRAFT')
+        : 'AS-IS';
+    const sourceModelLabel = hasToBe && matToBeUsersUpdated
+        ? `${modelVariant} - Users updated`
+        : modelVariant;
+
+    const payload = {
+        frameworkId: currentFw,
+        frameworkName: fw.name,
+        organization: localStorage.getItem('ea20_org_name') || '',
+        totalScore: total,
+        answeredQuestions: answered,
+        totalQuestions: fw.questions.length,
+        categories: fw.categories.map((name, i) => ({
+            name,
+            score: avgs[i]
+        })),
+        as_is_data: matToBeFrameworkId === currentFw && matAsIsSnapshotBeforeToBe
+            ? { ...matAsIsSnapshotBeforeToBe }
+            : captureCurrentFrameworkScores(),
+        to_be_data: matToBeFrameworkId === currentFw && matToBeDraftScores
+            ? { ...matToBeDraftScores }
+            : null,
+        final_to_be_data: matToBeFrameworkId === currentFw && matFinalToBeScores
+            ? { ...matFinalToBeScores }
+            : null,
+        has_to_be: !!hasToBe,
+        model_variant: modelVariant,
+        source_model_label: sourceModelLabel,
+        ai_analysis_text: lastMaturityAnalysisText || document.getElementById('ai-content')?.innerText || '',
+        metadata: {
+            source: 'EA20_Maturity_Toolbox_V2',
+            exportedAt: new Date().toISOString(),
+            version: 'EA_2.0',
+            modelVariant,
+            hasToBe: !!hasToBe,
+            usersUpdated: hasToBe ? matToBeUsersUpdated : false
+        }
+    };
+
+    dataManager.saveIntegrationData('maturity_latest', payload);
+    return true;
+}
+
+function renderCatScores(avgs) {
+    const fw = frameworks[currentFw];
+    const color = frameworks[currentFw].color;
+    const container = document.getElementById('cat-scores');
+    container.innerHTML = '';
+    fw.categories.forEach((c,i) => {
+        const pct = (avgs[i]/5)*100;
+        container.innerHTML += `<div class="cat-bar-row">
+            <div class="cat-bar-label"><span>${c}</span><span>${avgs[i]}</span></div>
+            <div class="cat-bar-outer"><div class="cat-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        </div>`;
+    });
+}
+
+function updateRadar(dataValues) {
+    const fw = frameworks[currentFw];
+    const color = fw.color;
+    if (radarChart) radarChart.destroy();
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    radarChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: fw.categories,
+            datasets: [{
+                data: dataValues,
+                backgroundColor: color + '22',
+                borderColor: color,
+                borderWidth: 3,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: color,
+                pointBorderWidth: 2,
+                pointRadius: 4
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: { r: { min:0, max:5, ticks:{stepSize:1,display:false}, grid:{color:'#f1f5f9'}, angleLines:{color:'#f1f5f9'}, pointLabels:{font:{size:10,weight:'800',family:'Inter'},color:'#64748b'} } },
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+
+function renderStaircase(total) {
+    const level = Math.round(parseFloat(total));
+    const container = document.getElementById('staircase');
+    container.innerHTML = '';
+    STAIRCASE.forEach(l => {
+        const isActive = level === l.n;
+        container.innerHTML += `<div class="stair-item${isActive?' active':''}">
+            <div class="stair-num" style="${isActive?'background:'+l.colors.bg+';color:'+l.colors.text:''}">${l.n}</div>
+            <div><div class="stair-title" style="${isActive?'color:#1e293b':''}">${l.title}</div><div class="stair-desc">${l.desc}</div></div>
+        </div>`;
+    });
+}
+
+async function runAI() {
+    // Get API key from unified DataManager
+    const apiKey = dataManager ? dataManager.getApiKey() : localStorage.getItem('openai_api_key');
+    if (!apiKey) { alert('Ange API-nyckel i inställningar.'); openSettings(); return; }
+    
+    const btn = document.getElementById('ai-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Analyserar...';
+    const fw = frameworks[currentFw];
+    const avgs = getWeightedAvgs();
+    const summary = fw.categories.map((c,i) => c+': '+avgs[i]+'/5').join(', ');
+    const org = localStorage.getItem('ea20_org_name') || 'Kunden';
+    try {
+const res = await fetch('/api/openai/chat', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        model: 'gpt-5',
+        messages: [
+            {
+                role: 'system',
+                content: 'You are a senior strategic advisor in business transformation and enterprise architecture. Respond professionally, concisely, and business-focused in Swedish. Prioritize the most relevant improvement levers for the industry and maturity gaps, not technology by default.'
+            },
+            {
+                role: 'user',
+                content: `Analysera mognaden för ${org} inom ${fw.name}:
+${summary}
+
+Ge:
+1. Strategisk diagnos (2 meningar)
+2. Top 3 prioriterade åtgärder med Business Outcome (Kostnad/Risk/Värde)
+3. Roadmap (0-12 mån)
+
+Svara på svenska med markdown.`
+            }
+        ]
+    })
+});
+        const result = await res.json();
+        if (result.error) throw new Error(result.error.message);
+        if (!result.choices?.length) throw new Error('Inga svar från AI. Kontrollera API-nyckel och credits.');
+        const content = result.choices[0].message.content;
+        lastMaturityAnalysisText = content;
+        saveMaturityToBeState();
+        document.getElementById('ai-results').classList.remove('hidden');
+        document.getElementById('ai-content').innerHTML = content.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+        document.getElementById('ai-results').scrollIntoView({behavior:'smooth'});
+    } catch(e) {
+        alert('AI-fel: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> Generera AI Analys';
+    }
+}
+
+// --- Framework Editor ---
+function openNewFwModal() {
+    editingFwId = null;
+    document.getElementById('fw-modal-title').innerText = 'Ny Bransch / Ramverk';
+    document.getElementById('fw-name').value = '';
+    document.getElementById('fw-icon').value = 'fas fa-building';
+    document.getElementById('fw-desc-input').value = '';
+    document.getElementById('delete-fw-btn').classList.add('hidden');
+    selectedColor = '#4f46e5';
+    document.querySelectorAll('.color-opt').forEach(c => c.classList.remove('selected'));
+    document.querySelector('.color-opt').classList.add('selected');
+    document.querySelectorAll('.icon-opt').forEach(c => c.classList.remove('selected'));
+    document.getElementById('q-editor-list').innerHTML = '';
+    addQuestionRow();
+    addQuestionRow();
+    document.getElementById('fw-modal').classList.remove('hidden');
+}
+
+function openEditFwModal(id) {
+    if (!customFrameworks[id]) return;
+    editingFwId = id;
+    const fw = customFrameworks[id];
+    document.getElementById('fw-modal-title').innerText = 'Redigera: ' + fw.name;
+    document.getElementById('fw-name').value = fw.name;
+    document.getElementById('fw-icon').value = fw.icon;
+    document.getElementById('fw-desc-input').value = fw.desc;
+    document.getElementById('delete-fw-btn').classList.remove('hidden');
+    selectedColor = fw.color;
+    document.getElementById('q-editor-list').innerHTML = '';
+    fw.questions.forEach(q => addQuestionRow(q.q, q.cat, q.w));
+    document.getElementById('fw-modal').classList.remove('hidden');
+}
+
+function closeFwModal() { document.getElementById('fw-modal').classList.add('hidden'); }
+
+function addQuestionRow(q='', cat='', w=2) {
+    const list = document.getElementById('q-editor-list');
+    const row = document.createElement('div');
+    row.className = 'q-editor-row';
+    row.innerHTML = `
+        <input type="text" placeholder="Frågetext..." value="${q}" class="q-text-input">
+        <input type="text" placeholder="Kategori" value="${cat}" class="q-cat-input">
+        <select class="q-w-input">
+            <option value="1" ${w==1?'selected':''}>Bas (×1)</option>
+            <option value="2" ${w==2?'selected':''}>Viktig (×2)</option>
+            <option value="3" ${w==3?'selected':''}>Kritisk (×3)</option>
+        </select>
+        <button class="del-q" onclick="this.closest('.q-editor-row').remove()"><i class="fas fa-times"></i></button>`;
+    list.appendChild(row);
+}
+
+function pickIcon(icon) {
+    document.getElementById('fw-icon').value = icon;
+    document.querySelectorAll('.icon-opt').forEach(el => el.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+}
+
+function pickColor(color, el) {
+    selectedColor = color;
+    document.querySelectorAll('.color-opt').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+}
+
+function saveFw() {
+    const name = document.getElementById('fw-name').value.trim();
+    if (!name) { alert('Ange ett namn för branschen.'); return; }
+    const rows = document.querySelectorAll('#q-editor-list .q-editor-row');
+    const questions = [];
+    const cats = new Set();
+    rows.forEach(row => {
+        const q = row.querySelector('.q-text-input').value.trim();
+        const cat = row.querySelector('.q-cat-input').value.trim() || 'Allmänt';
+        const w = parseInt(row.querySelector('.q-w-input').value);
+        if (q) { questions.push({cat, q, w}); cats.add(cat); }
+    });
+    if (questions.length === 0) { alert('Lägg till minst en fråga.'); return; }
+    const id = editingFwId || 'custom_' + Date.now();
+    const fw = {
+        id, name,
+        icon: document.getElementById('fw-icon').value || 'fas fa-building',
+        color: selectedColor,
+        desc: document.getElementById('fw-desc-input').value.trim() || name + ' mognadsanalys.',
+        categories: [...cats],
+        questions
+    };
+    customFrameworks[id] = fw;
+    frameworks[id] = fw;
+    saveCustomFw();
+    closeFwModal();
+    renderFwGrid();
+    selectFw(id);
+}
+
+function deleteCurrentFw() {
+    if (!editingFwId || !customFrameworks[editingFwId]) return;
+    if (!confirm('Ta bort "' + customFrameworks[editingFwId].name + '"?')) return;
+    delete customFrameworks[editingFwId];
+    delete frameworks[editingFwId];
+    saveCustomFw();
+    closeFwModal();
+    renderFwGrid();
+    selectFw('domain-specific');
+}
+
+function exportConfig() {
+    const fw = frameworks[currentFw];
+    const json = JSON.stringify(fw, null, 2);
+    const blob = new Blob([json], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'EA20_' + fw.name.replace(/\s+/g,'_') + '.json';
+    a.click();
+}
+
+function importConfig(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const fw = JSON.parse(e.target.result);
+            if (!fw.id || !fw.name || !fw.questions) throw new Error('Ogiltig fil');
+            // Normalize alternative field names (question→q, weight→w, category→cat)
+            fw.questions = fw.questions.map(q => ({
+                cat: q.cat || q.category || 'Allmänt',
+                q:   q.q   || q.question  || '',
+                w:   q.w   || q.weight    || 2
+            }));
+            // Rebuild categories from questions if missing
+            if (!fw.categories || !fw.categories.length) {
+                fw.categories = [...new Set(fw.questions.map(q => q.cat))];
+            }
+            // Use description or desc
+            if (!fw.desc && fw.description) fw.desc = fw.description;
+            // Prefix icon with 'fas ' if only icon name given
+            if (fw.icon && !fw.icon.startsWith('fa')) fw.icon = 'fas ' + fw.icon;
+
+            // ── Alternativ B: Uppdatera befintligt ramverk om ID matchar ──
+            const isBuiltIn = !!BUILT_IN[fw.id];
+            const isExistingCustom = !!customFrameworks['custom_' + fw.id];
+            const resolvedId = isBuiltIn ? fw.id : ('custom_' + fw.id);
+
+            if (isBuiltIn) {
+                // Uppdatera inbyggt ramverk direkt i frameworks (ej BUILT_IN)
+                fw.id = resolvedId;
+                frameworks[resolvedId] = fw;
+                // Spara även som custom så det överlever reload
+                customFrameworks[resolvedId] = fw;
+                saveCustomFw();
+                renderFwGrid();
+                selectFw(resolvedId);
+                alert('✅ Inbyggt ramverk "' + fw.name + '" uppdaterades med ' + fw.questions.length + ' frågor.');
+            } else if (isExistingCustom) {
+                // Uppdatera befintligt custom-ramverk
+                fw.id = resolvedId;
+                customFrameworks[resolvedId] = fw;
+                frameworks[resolvedId] = fw;
+                saveCustomFw();
+                renderFwGrid();
+                selectFw(resolvedId);
+                alert('✅ Ramverk "' + fw.name + '" uppdaterades med ' + fw.questions.length + ' frågor.');
+            } else {
+                // Nytt ramverk — skapa
+                fw.id = resolvedId;
+                customFrameworks[resolvedId] = fw;
+                frameworks[resolvedId] = fw;
+                saveCustomFw();
+                renderFwGrid();
+                selectFw(resolvedId);
+                alert('✅ Nytt ramverk "' + fw.name + '" importerades med ' + fw.questions.length + ' frågor.');
+            }
+        } catch(err) {
+            alert('Fel vid import: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
+
+function generatePDF() {
+    alert('Tips: Använd webbläsarens Skriv ut (Ctrl+P) och välj "Spara som PDF" för bästa resultat. Dölj sidhuvud/sidfot i utskriftsinställningarna.');
+    window.print();
+}
+
+function resetScores() {
+    if (!confirm('Rensa alla svar för detta ramverk?')) return;
+    frameworks[currentFw].questions.forEach((q,i) => delete scores[currentFw+'_q'+i]);
+    if (matToBeFrameworkId === currentFw) {
+        matMode = 'as-is';
+        matAsIsSnapshotBeforeToBe = null;
+        matToBeDraftScores = null;
+        matFinalToBeScores = null;
+        matToBeFrameworkId = null;
+        matToBeUsersUpdated = false;
+        updateMaturityModeBanner();
+    }
+    saveScoresState();
+    saveMaturityToBeState();
+    renderQuestions();
+    updateAll();
+    document.getElementById('ai-results').classList.add('hidden');
+}
+
+function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); }
+function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
+function saveSettings() {
+    const apiKey = document.getElementById('api-key').value;
+    
+    // Save via unified DataManager
+    if (dataManager) {
+        dataManager.setApiKey(apiKey);
+        console.log('✅ API key saved via unified DataManager');
+    } else {
+        localStorage.setItem('openai_api_key', apiKey);
+    }
+    
+    localStorage.setItem('ea20_org_name', document.getElementById('org-name').value);
+    closeSettings();
+}
+
+window.onload = init;
+</script>
+</div><!-- Close wrapper div -->
+</body>
+</html>
