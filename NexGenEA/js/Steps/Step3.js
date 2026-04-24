@@ -331,11 +331,10 @@ executive_benchmark_summary: 2-3 sentences for the Board.`;
 
     // Seed valueStreams from L1 domain names so Architecture Layers tab is
     // populated immediately after Step 3 (Step 7 will overwrite with richer data).
-    // V10 UPDATE: Do NOT auto-generate value streams - Step 6 will create proper architecture layers
     const existingVS = (model.valueStreams || []).length > 0;
     const derivedVS = existingVS
       ? model.valueStreams
-      : []; // V10: Empty until Step 6 (Layers & Gap Analysis)
+      : (output.capabilityMap?.l1_domains || []).map(d => ({ name: d.name, description: '' }));
     return {
       ...model,
       capabilities: output.capabilities,
@@ -360,7 +359,11 @@ executive_benchmark_summary: 2-3 sentences for the Board.`;
         `**Step 3 — Capability Architecture complete**\n\n` +
         `${model.capabilities?.length || 0} capabilities mapped across ${model.capabilityMap?.l1_domains?.length || 0} domains.\n` +
         `Overall maturity: **${overall ? overall.toFixed(1) + '/5' : 'assessed'}**\n\n` +
-        `**Click on Step 4: Benchmark in the left sidebar to continue.**`
+        `**Next:** Ready to design Operating Model? Click below or use the **Continue** button in the sidebar.\n\n` +
+        `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step4', window.model); } else { console.error('StepEngine not available'); }">\n` +
+        `  <i class="fas fa-arrow-right"></i>\n` +
+        `  Start Step 4: Operating Model\n` +
+        `</button>`
       );
     }
   }

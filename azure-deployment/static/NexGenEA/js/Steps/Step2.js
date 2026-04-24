@@ -58,7 +58,7 @@ RULES:
 - Ground each item in company description - no generic filler`,
 
       userPrompt: (ctx) => {
-        const si = ctx.strategicIntent || {};
+        const si = ctx.strategicIntent;
         return `Company: "${ctx.companyDescription}"
 
 Strategic Intent (from Step 1):
@@ -124,7 +124,7 @@ RULES:
 - Show bold changes from current to future state`,
 
       userPrompt: (ctx) => {
-        const si = ctx.strategicIntent || {};
+        const si = ctx.strategicIntent;
         const current = ctx.answers?.step2_bmc_current || {};
         
         // ── Phase 2.1: Include AI transformation themes from Strategic Intent ──
@@ -191,7 +191,7 @@ Return ONLY valid JSON:
       userPrompt: (ctx) => {
         const current = ctx.answers?.step2_bmc_current || {};
         const future = ctx.answers?.step2_bmc_future || {};
-        const si = ctx.strategicIntent || {};
+        const si = ctx.strategicIntent;
         return `Strategic ambition: "${si.strategic_ambition || ''}"
 
 Current BMC:

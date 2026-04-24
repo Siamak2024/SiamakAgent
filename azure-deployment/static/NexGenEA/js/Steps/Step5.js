@@ -1,309 +1,299 @@
 /**
- * Step5.js — Data Collection & Survey
+ * Step5.js — Gap Analysis
  *
- * V10 REDESIGN: Generate targeted surveys based on benchmark gaps,
- * process responses, and update capability maturity with validated data.
+ * GOLDEN RULE: Gaps must be prioritized by impact on Primary Objectives.
  *
  * Tasks:
- *   5.1 survey_generation     — Generate targeted survey questions
- *   5.2 survey_processing     — Process survey responses (when available)
- *   5.3 maturity_update       — Update capability maturity with survey insights
+ *   5.1 capability_gaps  — Internal: detailed capability gap analysis
+ *   5.2 priority_matrix  — Internal: prioritise gaps by impact + effort
+ *   5.3 quick_wins       — Internal: identify and sequence quick wins
  *
  * Outputs:
- *   model.surveys[]          — generated survey instruments
- *   model.surveyResults      — processed survey data
- *   model.capabilities[]     — updated with validated maturity ratings
+ *   model.gapAnalysis         — full gap analysis object
+ *   model.priorityGaps        — prioritised gap list (backward compat array)
+ *   model.quickWins           — quick wins array
+ *   model.businessContext.enrichment.criticalGaps — gaps with affectedObjective
  */
 
 const Step5 = {
 
   id: 'step5',
-  name: 'Data Collection & Survey',
-  dependsOn: ['step3', 'step4'],
+  name: 'Gap Analysis',
+  dependsOn: ['step1', 'step2', 'step3', 'step4'],
 
   tasks: [
 
-    // ── Task 5.1: Survey Generation ───────────────────────────────────────
+    // ── Task 5.1: Capability Gap Analysis ────────────────────────────────
     {
-      taskId: 'step5_survey_generation',
-      title: 'Generating targeted capability surveys',
+      taskId: 'step5_capability_gaps',
+      title: 'Identifying capability gaps',
       type: 'internal',
       taskType: 'analysis',
-      instructionFile: '5_1_survey_generation.instruction.md',
+      instructionFile: '5_1_capability_gaps.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are a Survey Design Specialist for Enterprise Architecture assessments.
-
-Generate targeted survey questions to validate capability maturity ratings and gather gap insights.
+      systemPromptFallback: `You are an Enterprise Architecture expert. Conduct a detailed gap analysis across all capability domains, cross-referencing the operating model delta.
 
 Return ONLY valid JSON:
 {
-  "surveys": [
+  "gaps": [
     {
-      "survey_id": "",
-      "capability_id": "",
-      "capability_name": "",
-      "focus_area": "MATURITY|PROCESS|TECHNOLOGY|SKILLS|DATA",
-      "questions": [
-        {
-          "question_id": "",
-          "question_text": "",
-          "question_type": "LIKERT_5|MULTIPLE_CHOICE|FREE_TEXT",
-          "options": [],
-          "rationale": ""
-        }
-      ],
-      "target_respondents": "",
-      "estimated_time": ""
+      "gap_id": "G01",
+      "capability": "",
+      "domain": "",
+      "current_state": "",
+      "required_state": "",
+      "gap_description": "",
+      "root_cause": "",
+      "business_impact": "",
+      "impact_score": 1,
+      "effort_score": 1,
+      "interdependencies": ["G02"],
+      "enablers": [""],
+      "inhibitors": [""]
     }
   ],
-  "survey_strategy": {
-    "total_surveys": 0,
-    "priority_areas": [],
-    "rollout_sequence": []
-  }
-}`,
+  "gap_clusters": [{"cluster_name":"","gap_ids":["G01"],"theme":""}],
+  "total_gaps": 0,
+  "critical_path_gaps": ["G01"]
+}
+
+Scoring: impact_score 1-5 (5=strategic), effort_score 1-5 (5=very hard).
+Generate 8-15 gaps covering People, Process, Data, Application, Technology, Governance.`,
 
       userPrompt: (ctx) => {
-        const benchmarkGaps = ctx.benchmarkGaps || [];
-        const quickWins = ctx.benchmarkQuickWins || [];
-        const capabilities = ctx.capabilities || [];
+        const caps = (ctx.capabilities || []).filter(c => c.gap && c.gap > 0)
+          .sort((a, b) => (b.gap || 0) - (a.gap || 0)).slice(0, 10)
+          .map(c => `${c.name}: current=${c.current_maturity}, target=${c.target_maturity}, gap=${c.gap}${c.ai_enabled ? ' [AI-enabled]' : ''}`);
+
+        const opDelta = ctx.operatingModelDelta?.dimension_gaps || [];
+        const si = ctx.strategicIntent;
         
-        const priorityList = benchmarkGaps
-          .slice(0, 8)
-          .map(g => `${g.capability_name}: ${g.gap_type} gap, severity=${g.severity}`)
-          .join('\n');
+        // ── Phase 2.4: Include AI transformation context ──
+        const aiThemes = (si.ai_transformation_themes || []);
+        const aiCapabilities = (ctx.capabilities || []).filter(c => c.ai_enabled).map(c => c.name);
         
-        return `Strategic context: ${ctx.strategicIntent?.strategic_intent || ''}
-Industry: ${ctx.industry || 'generic'}
+        const aiContext = (aiThemes.length > 0 || aiCapabilities.length > 0)
+          ? `\n\nAI Transformation Context:\n` +
+            (aiThemes.length > 0 ? `- Strategic AI themes: ${aiThemes.join('; ')}\n` : '') +
+            (aiCapabilities.length > 0 ? `- AI-enabled capabilities: ${aiCapabilities.slice(0, 7).join(', ')}\n` : '') +
+            `Mark gaps as ai_enabled_gap: true if the capability is AI-enabled or closing the gap involves AI/ML/automation implementation.`
+          : '';
 
-Priority capability gaps to investigate:
-${priorityList}
+        return `Strategic ambition: "${si.strategic_ambition || ''}"
+Success metrics: ${(si.success_metrics || []).join('; ')}
 
-Quick win opportunities:
-${quickWins.slice(0, 5).map(qw => qw.capability_name).join(', ')}
+Top capability gaps (by maturity gap):
+${caps.join('\n') || 'see capability assessment'}
 
-Design 5-8 focused surveys to:
-1. Validate current maturity assumptions for high-gap capabilities
-2. Understand root causes (process, tech, skills, data issues)
-3. Identify quick-win opportunities
-4. Gather stakeholder perspectives on improvement priorities
+Operating model dimension gaps:
+${opDelta.slice(0, 5).map(g => `${g.dimension}: ${g.gap_severity} severity`).join('\n') || 'none'}
 
-Target respondents: capability owners, process leads, end users.
-Keep surveys concise (5-10 questions each, <10 min completion time).`;
+BMC delta gaps: ${(ctx.bmcAnalysis?.critical_gaps || []).map(g => `${g.block}: ${g.gap}`).join('; ') || 'none'}${aiContext}
+
+Produce 8-15 gaps. Every gap must trace to a success metric or strategic theme.`;
       },
 
       outputSchema: {
-        surveys: ['object'],
-        survey_strategy: 'object'
+        gaps: ['object'],
+        total_gaps: 'number'
       },
 
-      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step5_survey_generation')
+      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step5_capability_gaps')
     },
 
-    // ── Task 5.2: Survey Processing ───────────────────────────────────────
+    // ── Task 5.2: Priority Matrix ──────────────────────────────────────────
     {
-      taskId: 'step5_survey_processing',
-      title: 'Processing survey responses',
+      taskId: 'step5_priority_matrix',
+      title: 'Prioritising gaps',
       type: 'internal',
       taskType: 'analysis',
-      instructionFile: '5_2_survey_processing.instruction.md',
+      instructionFile: '5_2_priority_matrix.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are a Survey Data Analyst for Enterprise Architecture.
-
-Process survey responses and extract insights about capability maturity.
-
+      systemPromptFallback: `You are a strategic prioritisation expert. Place each gap into a priority quadrant and produce an ordered priority list.
 Return ONLY valid JSON:
 {
-  "response_summary": {
-    "total_surveys": 0,
-    "total_responses": 0,
-    "response_rate": 0,
-    "key_insights": []
+  "quadrants": {
+    "quick_wins":       {"gap_ids":["G01"],"rationale":""},
+    "strategic_bets":  {"gap_ids":[],"rationale":""},
+    "fill_ins":        {"gap_ids":[],"rationale":""},
+    "thankless_tasks": {"gap_ids":[],"rationale":""}
   },
-  "capability_insights": [
-    {
-      "capability_id": "",
-      "capability_name": "",
-      "survey_maturity": 0,
-      "confidence_level": "HIGH|MEDIUM|LOW",
-      "key_findings": [],
-      "stakeholder_sentiment": "POSITIVE|NEUTRAL|NEGATIVE",
-      "improvement_opportunities": []
-    }
+  "ordered_priority": [
+    {"rank":1,"gap_id":"G01","gap_name":"","priority":"CRITICAL|HIGH|MEDIUM|LOW","rationale":"","dependency_on":[]}
   ],
-  "cross_cutting_themes": []
+  "investment_bands": [{"band":"Short-term (0-6m)","gap_ids":[]},{"band":"Medium-term (6-18m)","gap_ids":[]},{"band":"Long-term (18m+)","gap_ids":[]}]
 }`,
 
       userPrompt: (ctx) => {
-        const surveys = ctx.answers?.step5_survey_generation?.surveys || [];
-        const existingMaturity = ctx.capabilities || [];
-        
-        // NOTE: In real implementation, this would receive actual survey responses
-        // For now, simulate based on benchmark data
-        const surveyList = surveys.map(s => 
-          `${s.capability_name}: ${s.questions?.length || 0} questions, focus=${s.focus_area}`
+        const gaps = ctx.answers?.step5_capability_gaps?.gaps || [];
+        const si = ctx.strategicIntent;
+        const gapSummary = gaps.map(g =>
+          `${g.gap_id} ${g.capability}: impact=${g.impact_score}, effort=${g.effort_score}, deps=${(g.interdependencies || []).join(',')}`
         ).join('\n');
-        
-        return `Surveys generated:
-${surveyList}
+        return `Strategic timeframe: ${si.timeframe || '3-5 years'}
+Constraints: ${(si.key_constraints || []).join('; ')}
 
-SIMULATION MODE: Since no actual survey responses are available yet, synthesize realistic insights based on:
-1. Benchmark gaps identified in Step 4
-2. Existing capability maturity ratings
-3. Strategic intent and constraints
+Gaps to prioritise:
+${gapSummary}
 
-Assume moderate response rate (60-70%) and mixed feedback highlighting both strengths and improvement areas.`;
+Place in 2x2 matrix (impact × effort). Consider interdependencies when building ordered_priority.
+investment_bands: group into 3 time horizons.`;
       },
 
       outputSchema: {
-        response_summary: 'object',
-        capability_insights: ['object'],
-        cross_cutting_themes: ['string']
+        quadrants: 'object',
+        ordered_priority: ['object'],
+        investment_bands: ['object']
       },
 
-      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step5_survey_processing')
+      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step5_priority_matrix')
     },
 
-    // ── Task 5.3: Maturity Update ─────────────────────────────────────────
+    // ── Task 5.3: Quick Wins ───────────────────────────────────────────────
     {
-      taskId: 'step5_maturity_update',
-      title: 'Updating capability maturity with survey insights',
+      taskId: 'step5_quick_wins',
+      title: 'Identifying quick wins',
       type: 'internal',
-      taskType: 'synthesis',
-      instructionFile: '5_3_maturity_update.instruction.md',
+      taskType: 'lightweight',
+      instructionFile: '5_3_quick_wins.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are a Capability Maturity Analyst.
-
-Update capability maturity ratings based on survey insights and benchmark data.
+      systemPromptFallback: `You are an Enterprise Architecture practitioner. Identify the top 5-7 quick wins — actions that can be started within 90 days that visibly reduce a gap and build momentum.
 
 Return ONLY valid JSON:
 {
-  "maturity_updates": [
+  "quick_wins": [
     {
-      "capability_id": "",
-      "capability_name": "",
-      "original_maturity": 0,
-      "survey_maturity": 0,
-      "adjusted_maturity": 0,
-      "confidence": "HIGH|MEDIUM|LOW",
-      "rationale": "",
-      "validation_status": "CONFIRMED|ADJUSTED_UP|ADJUSTED_DOWN"
+      "id": "QW01",
+      "title": "",
+      "closes_gap": "G01",
+      "description": "",
+      "estimated_effort": "days|weeks",
+      "estimated_value": "",
+      "owner_role": "",
+      "start_condition": "",
+      "success_indicator": ""
     }
   ],
-  "validation_summary": {
-    "confirmed_count": 0,
-    "adjusted_up_count": 0,
-    "adjusted_down_count": 0,
-    "avg_confidence": ""
-  }
+  "90_day_narrative": ""
 }`,
 
       userPrompt: (ctx) => {
-        const insights = ctx.answers?.step5_survey_processing?.capability_insights || [];
-        const capabilities = ctx.capabilities || [];
-        
-        const insightList = insights.map(ins => 
-          `${ins.capability_name}: Survey maturity=${ins.survey_maturity}, Confidence=${ins.confidence_level}`
-        ).join('\n');
-        
-        return `Original capability maturity ratings (from Step 3):
-${capabilities.slice(0, 15).map(c => `${c.name}: Current=${c.current_maturity || 'null'}, Target=${c.target_maturity || 'null'}`).join('\n')}
+        const qwids = ctx.answers?.step5_priority_matrix?.quadrants?.quick_wins?.gap_ids || [];
+        const gaps = ctx.answers?.step5_capability_gaps?.gaps || [];
+        const qwGaps = gaps.filter(g => qwids.includes(g.gap_id));
+        const si = ctx.strategicIntent;
+        return `Quick wins from priority matrix: ${qwids.join(', ')}
 
-Survey insights:
-${insightList}
+Quick win gap details:
+${qwGaps.map(g => `${g.gap_id} ${g.capability}: ${g.gap_description} | Enablers: ${(g.enablers || []).join(', ')}`).join('\n')}
 
-For each capability with survey data:
-1. Compare original maturity vs survey-validated maturity
-2. Adjust rating if survey provides higher-confidence data
-3. Maintain rating if survey confirms original assessment
-4. Flag low-confidence ratings for further investigation
+Organisation: "${ctx.companyDescription.slice(0, 200)}"
+Change readiness: ${ctx.operatingModelDelta?.change_readiness?.score || 'unknown'}
 
-Use weighted average if multiple data sources: 40% original estimate + 60% survey data.`;
+Generate 5-7 concrete 90-day quick wins. Each must have a named owner_role and measurable success_indicator.
+90_day_narrative: 2-3 sentences on the value of starting with these actions.`;
       },
 
       outputSchema: {
-        maturity_updates: ['object'],
-        validation_summary: 'object'
+        quick_wins: ['object'],
+        '90_day_narrative': 'string'
       },
 
-      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step5_maturity_update')
+      parseOutput: (raw) => {
+        const obj = OutputValidator.parseJSON(raw, 'step5_quick_wins');
+        // Normalise key name
+        if (!obj['90_day_narrative'] && obj['90day_narrative']) {
+          obj['90_day_narrative'] = obj['90day_narrative'];
+        }
+        return obj;
+      }
     }
 
   ],
 
   synthesize: (ctx) => {
-    const surveyGen = ctx.answers?.step5_survey_generation || {};
-    const surveyProc = ctx.answers?.step5_survey_processing || {};
-    const maturityUpd = ctx.answers?.step5_maturity_update || {};
-    
+    const priorityMatrix = ctx.answers?.step5_priority_matrix || {};
+    const allGaps = ctx.answers?.step5_capability_gaps?.gaps || [];
+    const ordered = priorityMatrix.ordered_priority || [];
+
+    // Build priorityGaps in the legacy flat array format
+    const priorityGaps = ordered.map(p => {
+      const gap = allGaps.find(g => g.gap_id === p.gap_id) || {};
+      return {
+        ...gap,
+        priority: p.priority,
+        rank: p.rank,
+        rationale: p.rationale,
+        dependency_on: p.dependency_on || []
+      };
+    });
+
     return {
-      surveys: surveyGen.surveys || [],
-      surveyStrategy: surveyGen.survey_strategy || {},
-      surveyResults: {
-        response_summary: surveyProc.response_summary || {},
-        capability_insights: surveyProc.capability_insights || [],
-        cross_cutting_themes: surveyProc.cross_cutting_themes || [],
-        timestamp: new Date().toISOString()
+      gapAnalysis: {
+        gaps: allGaps,
+        clusters: ctx.answers?.step5_capability_gaps?.gap_clusters || [],
+        priorityMatrix,
+        investmentBands: priorityMatrix.investment_bands || []
       },
-      maturityUpdates: maturityUpd.maturity_updates || [],
-      maturityValidation: {
-        validation_summary: maturityUpd.validation_summary || {},
-        last_updated: new Date().toISOString()
-      }
+      priorityGaps,
+      quickWins: ctx.answers?.step5_quick_wins?.quick_wins || []
     };
   },
 
   applyOutput: (output, model) => {
-    // Update capability maturity ratings with validated data
-    let updatedCapabilities = model.capabilities || [];
-    const updates = output.maturityUpdates || [];
-    
-    if (updates.length > 0) {
-      updates.forEach(upd => {
-        const cap = updatedCapabilities.find(c => 
-          c.id === upd.capability_id || c.name === upd.capability_name
-        );
-        if (cap && upd.adjusted_maturity !== undefined) {
-          cap.current_maturity = upd.adjusted_maturity;
-          cap.maturity_confidence = upd.confidence;
-          cap.maturity_source = 'SURVEY_VALIDATED';
-          cap.validation_status = upd.validation_status;
-        }
-      });
+    // Capture critical gaps into enrichment with priority order
+    if (model.businessContext && model.businessContext.enrichment) {
+      const criticalGaps = [];
+      if (output.priorityGaps) {
+        output.priorityGaps.forEach((gap, index) => {
+          criticalGaps.push({
+            gap: gap.capability || gap.gap_description,
+            impact: gap.business_impact || gap.impact,
+            priority: index + 1,  // Priority order (1 = highest)
+            affectedObjective: null,  // Will be linked by AI or user
+            estimatedCost: gap.estimated_cost || '',
+            timeToResolve: gap.estimated_duration || ''
+          });
+        });
+      }
+      // Sort by priority
+      criticalGaps.sort((a, b) => a.priority - b.priority);
+      model.businessContext.enrichment.criticalGaps = criticalGaps;
     }
-    
+
     return {
       ...model,
-      surveys: output.surveys,
-      surveyStrategy: output.surveyStrategy,
-      surveyResults: output.surveyResults,
-      capabilities: updatedCapabilities,
-      maturityValidation: output.maturityValidation,
-      surveyDone: true
+      gapAnalysis: output.gapAnalysis,
+      priorityGaps: output.priorityGaps,
+      quickWins: output.quickWins,
+      gapAnalysisDone: true  // ← Unlocks the Gap tab in updateTabLockStates()
     };
   },
 
   onComplete: (model) => {
+    if (typeof renderGapAnalysisSection === 'function') renderGapAnalysisSection();
+    if (typeof renderQuickWinsSection === 'function') renderQuickWinsSection();
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
     if (typeof updateWorkflowProgress === 'function') updateWorkflowProgress([1, 2, 3, 4, 5]);
-    if (typeof toast === 'function') toast('Data Collection complete ✓');
+    if (typeof StepEngine === 'object') StepEngine.stopSpinner('step5');
+    if (typeof toast === 'function') toast('Gap Analysis complete ✓');
+
     if (typeof addAssistantMessage === 'function') {
-      const surveyCount = model.surveys?.length || 0;
-      const updateCount = model.maturityValidation?.validation_summary?.updated_count || 0;
+      const total = model.gapAnalysis?.gaps?.length || 0;
+      const critical = (model.priorityGaps || []).filter(g => g.priority === 'CRITICAL').length;
+      const qwCount = (model.quickWins || []).length;
       addAssistantMessage(
-        `**Step 5 — Data Collection & Survey complete**\n\n` +
-        `Generated ${surveyCount} surveys and validated ${updateCount} capability ratings.\n\n` +
-        `**Click on Step 6: Layers & Gap in the left sidebar to continue.**`
+        `**Step 5 — Gap Analysis complete**\n\n` +
+        `${total} gaps identified • ${critical} critical • ${qwCount} quick wins for 90-day plan\n\n` +
+        `**Next:** Ready to identify Value Pools? Click below or use the **Continue** button in the sidebar.\n\n` +
+        `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step6', window.model); } else { console.error('StepEngine not available'); }">\n` +
+        `  <i class="fas fa-arrow-right"></i>\n` +
+        `  Start Step 6: Value Pools\n` +
+        `</button>`
       );
     }
   }
-
 };
-
-// Export for use
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = Step5;
-}

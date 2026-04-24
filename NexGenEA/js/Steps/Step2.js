@@ -59,7 +59,7 @@ RULES:
 
       userPrompt: (ctx) => {
         const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
-        const si = ctx.strategicIntent || {};
+        const si = ctx.strategicIntent;
         
         if (profile) {
           // Rich Profile mode: Use detailed offerings, business model, markets
@@ -158,7 +158,7 @@ RULES:
 - Show bold changes from current to future state`,
 
       userPrompt: (ctx) => {
-        const si = ctx.strategicIntent || {};
+        const si = ctx.strategicIntent;
         const current = ctx.answers?.step2_bmc_current || {};
         
         // ── Phase 2.1: Include AI transformation themes from Strategic Intent ──
@@ -225,7 +225,7 @@ Return ONLY valid JSON:
       userPrompt: (ctx) => {
         const current = ctx.answers?.step2_bmc_current || {};
         const future = ctx.answers?.step2_bmc_future || {};
-        const si = ctx.strategicIntent || {};
+        const si = ctx.strategicIntent;
         return `Strategic ambition: "${si.strategic_ambition || ''}"
 
 Current BMC:
@@ -305,7 +305,11 @@ Return JSON output.`;
         `**Step 2 — Business Model Canvas complete**\n\n` +
         `**Future model:** ${bmc.metadata?.at_a_glance || (bmc.value_propositions || []).slice(0, 2).join(', ')}\n\n` +
         `Review current vs. future BMC in the **BMC** tab.\n\n` +
-        `**Click on Step 3: Capability Map in the left sidebar to continue.**`
+        `**Next:** Ready to map Capability Architecture? Click below or use the **Continue** button in the sidebar.\n\n` +
+        `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step3', window.model); } else { console.error('StepEngine not available'); }">\n` +
+        `  <i class="fas fa-arrow-right"></i>\n` +
+        `  Start Step 3: Capability Map\n` +
+        `</button>`
       );
     }
   }

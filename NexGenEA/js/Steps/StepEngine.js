@@ -26,10 +26,10 @@ const StepEngine = (() => {
     step1:  () => typeof Step1  !== 'undefined' ? Step1  : null,
     step2:  () => typeof Step2  !== 'undefined' ? Step2  : null,
     step3:  () => typeof Step3  !== 'undefined' ? Step3  : null,
-    step4:  () => typeof Step4  !== 'undefined' ? Step4  : null, // V10: Benchmark Analysis
-    step5:  () => typeof Step5  !== 'undefined' ? Step5  : null, // V10: Data Collection/Survey
-    step6:  () => typeof Step6  !== 'undefined' ? Step6  : null, // V10: Layers & Gap Analysis
-    step7:  () => typeof Step7  !== 'undefined' ? Step7  : null,
+    step4:  () => typeof Step4  !== 'undefined' ? Step4  : null,
+    step5:  () => typeof Step5  !== 'undefined' ? Step5  : null,
+    step6:  () => typeof Step6  !== 'undefined' ? Step6  : null,
+    step7:  () => typeof Step7  !== 'undefined' ? Step7  : null,  // ← FIX: was missing, caused "Step module step7 is not loaded"
     step7a: () => typeof Step7  !== 'undefined' ? Step7.targetArch : null,
     step7b: () => typeof Step7  !== 'undefined' ? Step7.roadmap    : null
   };

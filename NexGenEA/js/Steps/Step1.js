@@ -902,7 +902,11 @@ Does this capture the right direction? Select "Confirm" to proceed, or choose "N
         `**Primary Objectives:** ${objectives || 'Defined'}\n` +
         `**Strategic Vision:** ${vision || 'Defined'}\n\n` +
         `Review the full document in the **Executive** tab.\n\n` +
-        `**Click on Step 2: Business Model Canvas in the left sidebar to continue.**`
+        `**Next:** Ready to design your Business Model Canvas? Click below or use the **Continue** button in the sidebar.\n\n` +
+        `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step2', window.model); } else { console.error('StepEngine not available'); }">\n` +
+        `  <i class="fas fa-arrow-right"></i>\n` +
+        `  Start Step 2: Business Model Canvas\n` +
+        `</button>`
       );
     }
 
