@@ -86,22 +86,10 @@ const AIService = (() => {
       if (!silent) {
         console.warn(`[AIService] Proxy failed for ${opts.taskId}:`, proxyErr.message);
       }
-      // ── Direct API fallback ────────────────────────────────────────────
-      const apiKey = _getStoredApiKey();
-      if (!apiKey) {
-        if (typeof showSettingsModal === 'function') showSettingsModal();
-        const err = 'No API key. Please add your OpenAI API key in Settings.';
-        _log(opts.taskId, opts.taskType, null, null, 'error', err, 0);
-        return { taskId: opts.taskId, rawOutput: '', model: modelName, elapsed: 0, thinking: null, timestamp: new Date(), status: 'error', error: err };
-      }
-      try {
-        response = await _callDirectAPI(input, createOpts, apiKey, timeoutMs);
-        usedFallback = true;
-      } catch (directErr) {
-        const err = directErr.message || proxyErr.message || 'API error';
-        _log(opts.taskId, opts.taskType, null, null, 'error', err, Date.now() - startTime);
-        return { taskId: opts.taskId, rawOutput: '', model: modelName, elapsed: Date.now() - startTime, thinking: null, timestamp: new Date(), status: 'error', error: err };
-      }
+      // ── No fallback - API key must come from server ────────────────────
+      const err = 'Backend API not available. Please ensure Azure Function is running or deploy to production.';
+      _log(opts.taskId, opts.taskType, null, null, 'error', err, 0);
+      return { taskId: opts.taskId, rawOutput: '', model: modelName, elapsed: 0, thinking: null, timestamp: new Date(), status: 'error', error: err };
     }
 
     const rawOutput = response?.output_text || '';
