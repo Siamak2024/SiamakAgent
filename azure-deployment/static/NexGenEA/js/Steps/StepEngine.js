@@ -84,6 +84,26 @@ const StepEngine = (() => {
     }
     // Ensure model is always the global window.model if not provided
     if (!model) model = window.model || {};
+    
+    // ── Auto-create project ID if starting Step 1 without one ────────────
+    if (stepId === 'step1' && typeof window !== 'undefined' && !window.currentModelId) {
+      const projectId = 'proj_' + Date.now();
+      const projectName = 'New Project ' + new Date().toLocaleString();
+      
+      window.currentModelId = projectId;
+      window.currentModelName = projectName;
+      
+      // Register with DataManager if available
+      if (typeof dataManager !== 'undefined' && dataManager && typeof dataManager.createProject === 'function') {
+        const dmProject = dataManager.createProject(projectName, 'Auto-created on Step 1 start');
+        window.currentModelId = dmProject.id; // Use DataManager's ID
+      }
+      
+      console.log(`[StepEngine] Auto-created project: ${projectName} (ID: ${window.currentModelId})`);
+      
+      // Update UI
+      if (typeof updateHeaderTitle === 'function') updateHeaderTitle();
+    }
 
     const stepModule = STEP_MODULES[stepId]?.();
     if (!stepModule) {
@@ -269,6 +289,22 @@ const StepEngine = (() => {
 
   // ── Internal (AI-only) task ───────────────────────────────────────────────
   async function _runInternalTask(taskDef, ctx, userInput) {
+    // Check if this task should skip AI and use custom execute function
+    if (taskDef.skipAI === true || taskDef.execute) {
+      if (!taskDef.execute || typeof taskDef.execute !== 'function') {
+        throw new Error(`Task ${taskDef.taskId} has skipAI=true but no execute function defined`);
+      }
+      
+      // Execute custom function directly without AI call
+      const output = await taskDef.execute(ctx);
+      
+      return { 
+        taskId: taskDef.taskId, 
+        output: output,
+        aiResult: { status: 'skipped', reason: 'skipAI' }
+      };
+    }
+
     // Show thinking indicator in chat
     if (typeof showTypingIndicator === 'function') {
       showTypingIndicator();
@@ -464,56 +500,23 @@ const StepEngine = (() => {
   }
 
   // Backward compat: check old model flags until all steps are migrated
-  // Supports both OLD 7-step and NEW 4-step workflow structures
   function _checkLegacyFlag(depId, model) {
     switch (depId) {
-      case 'step1':  
-        // Step 1 unchanged: Business Objectives (old: Strategic Intent)
-        return !!(model.strategicIntentConfirmed ||
-                  model.businessContextConfirmed ||
-                  model.strategicIntent?.strategic_ambition ||
-                  model.strategicIntent?.burning_platform ||
-                  model.businessContext?.objectives?.length ||
-                  // Implicit: if BMC or capabilities exist, step1 was done in a prior flow
-                  model.bmc ||
-                  model.capabilities?.length);
-      
-      case 'step2':  
-        // NEW 4-step: Step 2 = APQC Capability Mapping (old: BMC)
-        // Support both old BMC and new capability model
-        return !!(model.capabilityValidated ||
-                  model.capabilityMap?.l1_domains?.length ||
-                  model.capabilities?.length ||
-                  // OLD 7-step backward compat
-                  model.bmc?.value_propositions?.length ||
-                  model.bmc?.value_proposition ||
-                  model.bmc);
-      
-      case 'step3':  
-        // NEW 4-step: Step 3 = Target Architecture (old: Capability Architecture)
-        // Support both old capabilities and new target arch
-        return !!(model.targetArchDone ||
-                  model.archPrinciples?.length ||
-                  model.targetArchData ||
-                  // OLD 7-step backward compat
-                  model.capabilities?.length);
-      
-      case 'step4':  
-        // NEW 4-step: Step 4 = Roadmap (old: Operating Model)
-        // Support both old operating model and new roadmap
-        return !!(model.roadmap?.waves?.length ||
-                  model.initiatives?.length ||
-                  model.businessContext?.enrichment?.completenessScore === 100 ||
-                  // OLD 7-step backward compat
-                  model.operatingModel?.current?.value_delivery ||
-                  model.operatingModel?.valueProposition);
-      
-      // OLD 7-step dependencies (for legacy saved models)
+      case 'step1':  return !!(model.strategicIntentConfirmed ||
+                              model.strategicIntent?.strategic_ambition ||
+                              model.strategicIntent?.burning_platform ||
+                              // Implicit: if BMC or capabilities exist, step1 was done in a prior flow
+                              model.bmc ||
+                              model.capabilities?.length);
+      case 'step2':  return !!(model.bmc?.value_propositions?.length ||
+                              model.bmc?.value_proposition ||
+                              model.bmc);
+      case 'step3':  return !!(model.capabilities?.length);
+      case 'step4':  return !!(model.operatingModel?.current?.value_delivery ||
+                              model.operatingModel?.valueProposition);
       case 'step5':  return !!model.gapAnalysisDone;
       case 'step6':  return !!(model.valuePools?.length);
-      case 'step7':
       case 'step7a': return !!model.targetArchDone;
-      
       default: return false;
     }
   }
@@ -594,9 +597,6 @@ const StepEngine = (() => {
   return { run, rollback, stopSpinner, register };
 
 })();
-
-// Export to window
-window.StepEngine = StepEngine;
 
 
 // ── QuestionCard — renders question cards in the chat panel ─────────────────

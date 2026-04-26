@@ -10,9 +10,10 @@
  * - Step 4: Transformation Roadmap
  *
  * Tasks:
- *   2.0 load_apqc          — Internal: Load APQC PCF v8.0 framework from cache/file
- *   2.1 capability_mapping — Internal: Build APQC-aligned capability map with gaps
- *   2.2 validate           — Custom UI: User validation/editing of capability map
+ *   2.0 load_apqc              — Internal: Load APQC PCF v8.0 framework from cache/file
+ *   2.1a capability_initiation — Internal (light): AI-assisted capability pre-selection & mapping
+ *   2.2 validate               — Custom UI: User validation/editing of capability selection
+ *   2.3 deep_assessment        — Internal (heavy): Full maturity scoring, IT mapping, gaps
  *
  * Outputs:
  *   model.apqcFramework        — APQC PCF v8.0 framework (full hierarchy)
@@ -111,185 +112,125 @@ const Step2 = {
       parseOutput: (raw) => raw // Direct pass-through
     },
 
-    // ── Task 2.1: APQC-Integrated Capability Mapping ──────────────────────
+    // ── Task 2.1a: AI-Assisted Capability Initiation ──────────────────────
     {
-      taskId: 'step2_capability_mapping',
-      title: 'Building APQC-aligned capability map',
+      taskId: 'step2_capability_initiation',
+      title: 'Analyzing objectives and pre-selecting capabilities',
       type: 'internal',
-      taskType: 'heavy',
-      instructionFile: '2_1_capability_mapping_apqc.instruction.md',
+      taskType: 'light', // Fast, lightweight AI call
+      instructionFile: '2_1a_capability_initiation.instruction.md',
       expectsJson: true,
+      temperature: 0.3,
+      timeoutMs: 90000, // 90 seconds max
 
-      systemPromptFallback: `You are an Enterprise Architecture expert with deep APQC Process Classification Framework knowledge.
+      systemPromptFallback: `You are an Enterprise Architecture expert helping prepare a ready-to-work capability workspace.
 
-Build a comprehensive capability model:
-1. Select 5-8 relevant APQC L1 categories based on business type and objectives
-2. Map 3-5 L2 processes per L1 category
-3. For CORE domains, include 2-4 L3 activities per L2
-4. Link every capability to Business Objectives (objective_mappings[])
-5. Assess current vs target maturity (1-5 scale)
-6. Identify gaps, white spots, IT enablement needs
+**PHASE 2a — INITIATION (Lightweight)**
 
-Return ONLY valid JSON with structure:
+Your tasks:
+1. Pre-select 5-8 relevant APQC L1 categories based on business type and objectives
+2. Map capabilities to business objectives (relationship strength: HIGH/MEDIUM/LOW)
+3. Initial classification (Core/Differentiating/Supporting/Commodity)
+4. Identify focus areas based on objective density
+5. Flag coverage gaps (weak objective support, orphan capabilities)
+
+**DO NOT:**
+- Full maturity scoring (comes in Phase 2b)
+- Detailed IT enablement mapping
+- Deep gap analysis
+- White spot detection
+
+Return JSON with:
 {
-  "apqc_summary": {
-    "framework_version": "APQC PCF v8.0",
-    "selected_l1_categories": [],
-    "total_apqc_capabilities": 0,
-    "total_custom_capabilities": 0,
-    "business_type": "",
-    "strategic_focus": []
-  },
-  "capability_hierarchy": [
-    {
-      "id": "1.0",
-      "apqc_id": "1.0",
-      "name": "",
-      "description": "",
-      "level": 1,
-      "apqc_source": true,
-      "objective_mappings": ["OBJ-01"],
-      "classification": "Core|Differentiating|Supporting|Commodity",
-      "scores": {"importance":5,"maturity":2,"performance":2,"cost":3},
-      "current_maturity": 2,
-      "target_maturity": 4,
-      "gap": 2,
-      "strategic_importance": "CORE",
-      "investment_priority": "HIGH",
-      "it_enablement": {"applications":[],"data_services":[],"integrations":[],"security":[]},
-      "benchmark_maturity": 3.5,
-      "white_spot_flags": [],
-      "ai_enabled": false,
-      "children": []
-    }
-  ],
-  "gap_insights": [
-    {
-      "gap_id": "G01",
-      "capability_id": "1.0",
-      "capability_name": "",
-      "objective_id": "OBJ-01",
-      "objective_name": "",
-      "gap_description": "",
-      "business_impact": "",
-      "recommendation": "",
-      "priority": "HIGH|MEDIUM|LOW",
-      "timeframe": "Quick-win|Short-term|Medium-term|Long-term",
-      "estimated_effort": "",
-      "expected_benefit": ""
-    }
-  ],
-  "white_spots": [],
-  "metadata": {"total_capabilities":0}
+  "apqc_summary": {...},
+  "capability_selection": [{id, name, level, classification, objective_mappings, children}],
+  "objective_capability_matrix": [{objective_id, mapped_capabilities, coverage_status}],
+  "focus_capabilities": [{capability_id, focus_reason, suggested_priority}],
+  "coverage_warnings": [{type, issue, suggestion}],
+  "metadata": {...}
 }`,
 
       userPrompt: (ctx) => {
-        // Extract business context from Step 1
         const bc = ctx.businessContext || {};
         const objectives = bc.objectives || [];
         const themes = bc.strategicThemes || [];
-        const gapInsights = bc.gapInsights || [];
         
-        // APQC framework from Task 2.0
         const apqcData = ctx.answers?.step2_load_apqc || {};
         const apqcFramework = apqcData.framework || null;
-        const apqcMetadata = apqcData.metadata || {};
 
-        // Organization profile
         const orgDesc = ctx.companyDescription || ctx.orgDescription || '';
         const industry = bc.industry || ctx.masterData?.industry || 'General Enterprise';
-        const businessType = bc.businessType || apqcMetadata.business_type || 'Services';
+        const businessType = bc.businessType || 'Services';
 
-        // Build APQC context string
+        // Build APQC L1 summary
         let apqcContext = '';
         if (apqcFramework && apqcFramework.categories) {
-          const l1Summary = apqcFramework.categories.slice(0, 12).map(cat => 
-            `${cat.id} ${cat.name}${cat.description ? ': ' + cat.description.slice(0, 100) : ''}`
+          const l1List = apqcFramework.categories.slice(0, 12).map(cat => 
+            `${cat.id} ${cat.name}`
           ).join('\n');
-          apqcContext = `\n\n**APQC Framework (L1 Categories):**\n${l1Summary}\n\nSelect 5-8 most relevant L1 categories for this organization.`;
-        } else {
-          apqcContext = `\n\n**APQC Framework**: Not loaded - use standard APQC knowledge to build capability map.`;
+          apqcContext = `\n\n**APQC L1 Categories (select 5-8):**\n${l1List}`;
         }
 
-        // Build objectives summary
         const objSummary = objectives.slice(0, 8).map((obj, idx) => 
-          `${obj.id || `OBJ-${String(idx+1).padStart(2,'0')}`}: ${obj.objective || obj.name || obj.description || ''}`
+          `${obj.id || `OBJ-${String(idx+1).padStart(2,'0')}`}: ${obj.objective || obj.name || ''}`
         ).join('\n');
 
-        // Strategic themes
         const themesList = (Array.isArray(themes) ? themes : [themes])
           .filter(t => t && typeof t === 'string')
           .join(', ');
 
-        // Gap insights from Step 1
-        const gapsList = gapInsights.slice(0, 5).map(g => 
-          `- ${g.category || 'General'}: ${g.description || g.gap || ''}`
-        ).join('\n');
-
         return `**Organization Profile:**
-Company: "${orgDesc.slice(0, 400)}"
+Company: "${orgDesc.slice(0, 300)}"
 Industry: ${industry}
 Business Type: ${businessType}
 
 **Business Objectives (from Step 1):**
-${objSummary || 'No objectives defined - use company description to infer'}
+${objSummary || 'No objectives defined'}
 
 **Strategic Themes:**
 ${themesList || 'Growth, Innovation, Efficiency'}
-
-**Known Gaps/Pain Points:**
-${gapsList || 'Identify from company description'}
 ${apqcContext}
 
-**Instructions:**
-Follow the 8-step process in the instruction file:
-1. Analyze business objectives
-2. Select 5-8 relevant APQC L1 categories
-3. Map APQC L2/L3 capabilities to objectives
-4. Add custom capabilities only if truly unique
-5. Assess maturity & gaps (1-5 scale)
-6. Detect white spots (missing/under-invested/emerging)
-7. Map IT enablement (applications, data, integrations, security)
-8. Generate 5-10 gap insights with objective linkage
+**Task:**
+1. Select 5-8 relevant APQC L1 categories
+2. For each L1, select 3-5 key L2 processes
+3. For CORE domains, add 2-4 L3 activities
+4. Map each capability to objectives (HIGH/MEDIUM/LOW relationship)
+5. Classify capabilities (Core/Differentiating/Supporting/Commodity)
+6. Identify focus areas
+7. Flag coverage warnings
 
-Return complete JSON with all fields populated.`;
+Return complete JSON. Keep it lightweight—no full scoring yet.`;
       },
 
       outputSchema: {
         apqc_summary: 'object',
-        capability_hierarchy: ['object'],
-        gap_insights: ['object'],
+        capability_selection: ['object'],
+        objective_capability_matrix: ['object'],
+        focus_capabilities: ['object'],
+        coverage_warnings: ['object'],
         metadata: 'object'
       },
 
       parseOutput: (raw) => {
-        const parsed = OutputValidator.parseJSON(raw, 'step2_capability_mapping');
+        const parsed = OutputValidator.parseJSON(raw, 'step2_capability_initiation');
         if (!parsed) return parsed;
 
-        // Normalize field names (AI may use alternate names)
-        if (!parsed.capability_hierarchy && parsed.capabilities) {
-          parsed.capability_hierarchy = parsed.capabilities;
+        // Normalize field names
+        if (!parsed.capability_selection && parsed.capabilities) {
+          parsed.capability_selection = parsed.capabilities;
         }
-        if (!parsed.capability_hierarchy && parsed.capabilityMap) {
-          parsed.capability_hierarchy = parsed.capabilityMap;
+        if (!parsed.objective_capability_matrix) {
+          parsed.objective_capability_matrix = [];
         }
-
-        // Ensure metadata exists
+        if (!parsed.focus_capabilities) {
+          parsed.focus_capabilities = [];
+        }
+        if (!parsed.coverage_warnings) {
+          parsed.coverage_warnings = [];
+        }
         if (!parsed.metadata) {
-          parsed.metadata = {
-            total_capabilities: (parsed.capability_hierarchy || []).length,
-            total_l1: (parsed.capability_hierarchy || []).filter(c => c.level === 1).length
-          };
-        }
-
-        // Ensure gap_insights exists
-        if (!parsed.gap_insights) {
-          parsed.gap_insights = [];
-        }
-
-        // Ensure white_spots exists
-        if (!parsed.white_spots) {
-          parsed.white_spots = [];
+          parsed.metadata = { total_capabilities: (parsed.capability_selection || []).length };
         }
 
         return parsed;
@@ -299,7 +240,7 @@ Return complete JSON with all fields populated.`;
     // ── Task 2.2: Validation UI ───────────────────────────────────────────
     {
       taskId: 'step2_validate',
-      title: 'Review capability map',
+      title: 'Review and validate capability selection',
       type: 'custom-ui',
       expectsJson: false,
 
@@ -315,7 +256,7 @@ Return complete JSON with all fields populated.`;
         if (ctx.workflowMode === 'autopilot') {
           // Auto-confirm in autopilot
           if (typeof addAssistantMessage === 'function') {
-            addAssistantMessage('✅ Capability map auto-validated (Autopilot mode)');
+            addAssistantMessage('✅ Capability selection auto-validated (Autopilot mode)');
           }
           return false;
         }
@@ -324,6 +265,31 @@ Return complete JSON with all fields populated.`;
       },
 
       execute: async (ctx) => {
+        // Get initiation output
+        const initiation = ctx.answers?.step2_capability_initiation || {};
+        
+        // Show validation UI message
+        if (typeof addAssistantMessage === 'function') {
+          const totalCaps = initiation.metadata?.total_capabilities || 0;
+          const focusCount = (initiation.focus_capabilities || []).length;
+          const warningCount = (initiation.coverage_warnings || []).length;
+          
+          addAssistantMessage(
+            `🎯 **Capability Initiation Complete**\n\n` +
+            `**Summary:**\n` +
+            `- ${totalCaps} capabilities pre-selected\n` +
+            `- ${initiation.apqc_summary?.selected_l1_count || 0} APQC L1 domains\n` +
+            `- ${focusCount} high-focus capabilities identified\n` +
+            `- ${warningCount} coverage warnings flagged\n\n` +
+            `**Next Steps:**\n` +
+            `1. Review the capability selection\n` +
+            `2. Check objective-capability mappings\n` +
+            `3. Validate focus areas\n` +
+            `4. Address any coverage warnings\n\n` +
+            `📋 **Review the validation screen and approve to proceed to deep assessment.**`
+          );
+        }
+
         // Render custom validation UI (implemented in NexGenEA_V11.html)
         if (typeof window.renderStep2ValidationUI === 'function') {
           await window.renderStep2ValidationUI(ctx);
@@ -335,13 +301,133 @@ Return complete JSON with all fields populated.`;
         } else {
           console.warn('renderStep2ValidationUI not available - skipping validation UI');
           if (typeof addAssistantMessage === 'function') {
-            addAssistantMessage('⚠️ Validation UI not available - proceeding with generated capability map');
+            addAssistantMessage('⚠️ Validation UI not available - proceeding with AI-generated selection');
           }
           return { validated: true, message: 'Auto-validated (UI not available)' };
         }
       },
 
       parseOutput: (raw) => raw // Pass through validation result
+    },
+
+    // ── Task 2.3: Deep Capability Assessment ──────────────────────────────
+    {
+      taskId: 'step2_deep_assessment',
+      title: 'Performing deep capability assessment',
+      type: 'internal',
+      taskType: 'heavy', // Comprehensive AI analysis
+      instructionFile: '2_3_deep_assessment.instruction.md',
+      expectsJson: true,
+      temperature: 0.3,
+      timeoutMs: 180000, // 3 minutes max for deep analysis
+
+      systemPromptFallback: `You are an Enterprise Architecture expert performing detailed capability assessment.
+
+**PHASE 2b — DEEP ASSESSMENT**
+
+User has validated capability scope. Now perform:
+1. Full maturity assessment (1-5 scale: current, target, gap)
+2. Multi-dimensional scoring (importance, maturity, performance, cost)
+3. IT enablement mapping (applications, data, integrations, security)
+4. Benchmark overlay (industry standards)
+5. White spot detection (high importance + low maturity)
+6. Gap insights with recommendations (5-10 actionable insights)
+7. Investment prioritization (HIGH/MEDIUM/LOW)
+
+Return JSON with:
+{
+  "capability_assessments": [{...full scoring & IT mapping...}],
+  "gap_insights": [{...detailed gaps with recommendations...}],
+  "white_spots": [{...strategic gaps...}],
+  "summary": {...overall metrics...}
+}`,
+
+      userPrompt: (ctx) => {
+        const bc = ctx.businessContext || {};
+        const objectives = bc.objectives || [];
+        const initiation = ctx.answers?.step2_capability_initiation || {};
+        const validation = ctx.answers?.step2_validate || {};
+        
+        // Get validated capabilities (may include user modifications)
+        const validatedCapabilities = validation.modifiedCapabilities || 
+                                      initiation.capability_selection || [];
+
+        const orgDesc = ctx.companyDescription || ctx.orgDescription || '';
+        const industry = bc.industry || 'General Enterprise';
+
+        // Build capability list for assessment
+        const capList = validatedCapabilities.map(cap => 
+          `${cap.id} ${cap.name} (${cap.classification || 'Supporting'})`
+        ).join('\n');
+
+        const objSummary = objectives.slice(0, 8).map((obj, idx) => 
+          `${obj.id || `OBJ-${String(idx+1).padStart(2,'0')}`}: ${obj.objective || obj.name || ''}`
+        ).join('\n');
+
+        return `**Organization Profile:**
+Company: "${orgDesc.slice(0, 300)}"
+Industry: ${industry}
+
+**Business Objectives:**
+${objSummary}
+
+**Validated Capabilities (from Phase 2a):**
+${capList || 'No capabilities defined'}
+
+**Objective-Capability Mappings (confirmed):**
+${JSON.stringify(initiation.objective_capability_matrix || [], null, 2)}
+
+**Coverage Warnings from Initiation:**
+${(initiation.coverage_warnings || []).map(w => `- ${w.issue}`).join('\n') || 'None'}
+
+**Task:**
+Perform deep assessment for each capability:
+1. Score: importance (1-5), maturity (1-5), performance (1-5), cost efficiency (1-5)
+2. Set current maturity, target maturity, gap
+3. Map IT enablement (applications, data, integrations, security, coverage status)
+4. Add benchmark maturity (industry standard)
+5. Detect white spots (high importance + low maturity)
+6. Generate 5-10 gap insights with:
+   - Clear business impact
+   - Root causes
+   - Actionable recommendations
+   - Priority, timeframe, effort estimate
+   - Link to objectives
+
+Return complete JSON with all assessment data.`;
+      },
+
+      outputSchema: {
+        capability_assessments: ['object'],
+        gap_insights: ['object'],
+        white_spots: ['object'],
+        summary: 'object'
+      },
+
+      parseOutput: (raw) => {
+        const parsed = OutputValidator.parseJSON(raw, 'step2_deep_assessment');
+        if (!parsed) return parsed;
+
+        // Ensure arrays exist
+        if (!parsed.capability_assessments) {
+          parsed.capability_assessments = [];
+        }
+        if (!parsed.gap_insights) {
+          parsed.gap_insights = [];
+        }
+        if (!parsed.white_spots) {
+          parsed.white_spots = [];
+        }
+        if (!parsed.summary) {
+          parsed.summary = {
+            overall_maturity: 0,
+            total_gaps: parsed.gap_insights.length,
+            white_spots: parsed.white_spots.length
+          };
+        }
+
+        return parsed;
+      }
     }
 
   ],
@@ -349,112 +435,154 @@ Return complete JSON with all fields populated.`;
   // ── Synthesize: Transform AI output to model structure ───────────────────
   synthesize: (ctx) => {
     const apqcLoad = ctx.answers?.step2_load_apqc || {};
-    const capMapping = ctx.answers?.step2_capability_mapping || {};
+    const initiation = ctx.answers?.step2_capability_initiation || {};
     const validation = ctx.answers?.step2_validate || {};
+    const assessment = ctx.answers?.step2_deep_assessment || {};
 
-    // Build flattened capabilities array for backward compatibility
+    // Merge Phase 2a (initiation) and Phase 2b (assessment) data
+    const capabilitySelection = validation.modifiedCapabilities || 
+                                 initiation.capability_selection || [];
+    const assessmentData = assessment.capability_assessments || [];
+
+    // Build flattened capabilities array with full data
     const capabilities = [];
-    const hierarchy = capMapping.capability_hierarchy || [];
     
-    hierarchy.forEach((l1) => {
-      // Add L1 capability
-      capabilities.push({
-        id: l1.id,
-        name: l1.name,
-        description: l1.description || '',
-        level: 1,
-        domain: l1.name,
-        maturity: l1.current_maturity || l1.scores?.maturity || 1,
-        current_maturity: l1.current_maturity || null,
-        target_maturity: l1.target_maturity || null,
-        gap: l1.gap || null,
-        strategic_importance: l1.strategic_importance || 'SUPPORT',
-        strategicImportance: (l1.strategic_importance || 'SUPPORT').toLowerCase(),
-        investment_priority: l1.investment_priority || null,
-        classification: l1.classification || 'Supporting',
-        apqc_source: l1.apqc_source !== false,
-        apqc_id: l1.apqc_id || null,
-        apqc_reference: l1.apqc_reference || null,
-        apqc_code: l1.apqc_code || l1.apqc_id || null,
-        custom_name: l1.custom_name || null,
-        objective_mappings: l1.objective_mappings || [],
-        scores: l1.scores || {},
-        it_enablement: l1.it_enablement || {},
-        benchmark_maturity: l1.benchmark_maturity || null,
-        benchmark_deviation: l1.benchmark_deviation || null,
-        white_spot_flags: l1.white_spot_flags || [],
-        ai_enabled: l1.ai_enabled || false,
-        ai_maturity: l1.ai_maturity || 1,
+    capabilitySelection.forEach((capInit) => {
+      // Find corresponding assessment data
+      const capAssessment = assessmentData.find(a => a.id === capInit.id) || {};
+      
+      // Merge initiation + assessment data
+      const mergedCap = {
+        id: capInit.id,
+        name: capInit.name,
+        description: capInit.description || '',
+        level: capInit.level,
+        domain: capInit.name, // L1 name as domain
+        
+        // From initiation (Phase 2a)
+        classification: capInit.classification || 'Supporting',
+        objective_mappings: capInit.objective_mappings || [],
+        apqc_source: capInit.apqc_source !== false,
+        apqc_id: capInit.apqc_id || null,
+        apqc_reference: capInit.apqc_reference || null,
+        
+        // From assessment (Phase 2b)
+        scores: capAssessment.scores || {},
+        current_maturity: capAssessment.current_maturity || null,
+        target_maturity: capAssessment.target_maturity || null,
+        gap: capAssessment.gap || null,
+        strategic_importance: capAssessment.strategic_importance || 
+                              (capInit.classification === 'Core' || capInit.classification === 'Differentiating' ? 'CORE' : 'SUPPORT'),
+        strategicImportance: (capAssessment.strategic_importance || 'SUPPORT').toLowerCase(),
+        investment_priority: capAssessment.investment_priority || null,
+        it_enablement: capAssessment.it_enablement || {},
+        benchmark_maturity: capAssessment.benchmark_maturity || null,
+        benchmark_deviation: capAssessment.benchmark_deviation || null,
+        white_spot_flags: capAssessment.white_spot_flags || [],
+        ai_enabled: capAssessment.ai_enabled || false,
+        ai_maturity: capAssessment.ai_maturity || 1,
+        
+        // Backward compat
+        maturity: capAssessment.current_maturity || capAssessment.scores?.maturity || 1,
         children: []
-      });
+      };
+      
+      capabilities.push(mergedCap);
 
-      // Add L2 capabilities
-      (l1.children || []).forEach((l2) => {
+      // Process children (L2)
+      (capInit.children || []).forEach((l2Init) => {
+        const l2Assessment = assessmentData.find(a => a.id === l2Init.id) || {};
+        
         const l2Cap = {
-          id: l2.id,
-          name: l2.name,
-          description: l2.description || '',
+          id: l2Init.id,
+          name: l2Init.name,
+          description: l2Init.description || '',
           level: 2,
-          domain: l1.name,
-          maturity: l2.current_maturity || l2.scores?.maturity || 1,
-          current_maturity: l2.current_maturity || null,
-          target_maturity: l2.target_maturity || null,
-          gap: l2.gap || null,
-          strategic_importance: l2.strategic_importance || l1.strategic_importance || 'SUPPORT',
-          strategicImportance: (l2.strategic_importance || l1.strategic_importance || 'SUPPORT').toLowerCase(),
-          investment_priority: l2.investment_priority || null,
-          classification: l2.classification || l1.classification || 'Supporting',
-          apqc_source: l2.apqc_source !== false,
-          apqc_id: l2.apqc_id || null,
-          apqc_reference: l2.apqc_reference || null,
-          objective_mappings: l2.objective_mappings || [],
-          it_enablement: l2.it_enablement || {},
-          white_spot_flags: l2.white_spot_flags || [],
-          ai_enabled: l2.ai_enabled || false,
+          domain: capInit.name,
+          
+          classification: l2Init.classification || capInit.classification || 'Supporting',
+          objective_mappings: l2Init.objective_mappings || [],
+          apqc_source: l2Init.apqc_source !== false,
+          apqc_id: l2Init.apqc_id || null,
+          
+          scores: l2Assessment.scores || {},
+          current_maturity: l2Assessment.current_maturity || null,
+          target_maturity: l2Assessment.target_maturity || null,
+          gap: l2Assessment.gap || null,
+          strategic_importance: l2Assessment.strategic_importance || mergedCap.strategic_importance,
+          strategicImportance: (l2Assessment.strategic_importance || mergedCap.strategic_importance || 'SUPPORT').toLowerCase(),
+          investment_priority: l2Assessment.investment_priority || null,
+          it_enablement: l2Assessment.it_enablement || {},
+          white_spot_flags: l2Assessment.white_spot_flags || [],
+          ai_enabled: l2Assessment.ai_enabled || false,
+          
+          maturity: l2Assessment.current_maturity || l2Assessment.scores?.maturity || 1,
           children: []
         };
+        
         capabilities.push(l2Cap);
-        capabilities[capabilities.length - 1 - (l1.children.indexOf(l2) + 1)].children.push(l2Cap);
+        mergedCap.children.push(l2Cap);
 
-        // Add L3 capabilities
-        (l2.children || []).forEach((l3) => {
+        // Process children (L3)
+        (l2Init.children || []).forEach((l3Init) => {
+          const l3Assessment = assessmentData.find(a => a.id === l3Init.id) || {};
+          
           const l3Cap = {
-            id: l3.id,
-            name: l3.name,
-            description: l3.description || '',
+            id: l3Init.id,
+            name: l3Init.name,
+            description: l3Init.description || '',
             level: 3,
-            domain: l1.name,
-            maturity: l3.current_maturity || l3.scores?.maturity || 1,
-            current_maturity: l3.current_maturity || null,
-            target_maturity: l3.target_maturity || null,
-            gap: l3.gap || null,
-            strategic_importance: l3.strategic_importance || l2.strategic_importance || l1.strategic_importance || 'SUPPORT',
-            strategicImportance: (l3.strategic_importance || l2.strategic_importance || l1.strategic_importance || 'SUPPORT').toLowerCase(),
-            apqc_source: l3.apqc_source !== false,
-            apqc_id: l3.apqc_id || null,
-            objective_mappings: l3.objective_mappings || [],
-            it_enablement: l3.it_enablement || {},
-            white_spot_flags: l3.white_spot_flags || [],
-            ai_enabled: l3.ai_enabled || false
+            domain: capInit.name,
+            
+            objective_mappings: l3Init.objective_mappings || [],
+            apqc_source: l3Init.apqc_source !== false,
+            apqc_id: l3Init.apqc_id || null,
+            
+            current_maturity: l3Assessment.current_maturity || null,
+            target_maturity: l3Assessment.target_maturity || null,
+            gap: l3Assessment.gap || null,
+            strategic_importance: l3Assessment.strategic_importance || l2Cap.strategic_importance,
+            strategicImportance: (l3Assessment.strategic_importance || l2Cap.strategic_importance || 'SUPPORT').toLowerCase(),
+            it_enablement: l3Assessment.it_enablement || {},
+            white_spot_flags: l3Assessment.white_spot_flags || [],
+            ai_enabled: l3Assessment.ai_enabled || false,
+            
+            maturity: l3Assessment.current_maturity || l3Assessment.scores?.maturity || 1
           };
+          
           capabilities.push(l3Cap);
           l2Cap.children.push(l3Cap);
         });
       });
     });
 
+    // Build hierarchical structure for capabilityMap
+    const hierarchy = capabilitySelection.filter(c => c.level === 1).map(l1 => {
+      const l1Full = capabilities.find(c => c.id === l1.id) || l1;
+      return {
+        ...l1Full,
+        children: l1.children || []
+      };
+    });
+
     return {
       apqcFramework: apqcLoad.framework || null,
-      apqcSummary: capMapping.apqc_summary || {},
+      apqcSummary: initiation.apqc_summary || {},
       capabilities,
       capabilityMap: {
         l1_domains: hierarchy,
-        metadata: capMapping.metadata || {}
+        metadata: initiation.metadata || {}
       },
-      gapInsights: capMapping.gap_insights || [],
-      whiteSpots: capMapping.white_spots || [],
+      gapInsights: assessment.gap_insights || [],
+      whiteSpots: assessment.white_spots || [],
       capabilityValidated: validation.validated || false,
-      // Backward compatibility aliases
+      
+      // Phase 2a outputs (for UI reference)
+      objectiveCapabilityMatrix: initiation.objective_capability_matrix || [],
+      focusCapabilities: initiation.focus_capabilities || [],
+      coverageWarnings: initiation.coverage_warnings || [],
+      
+      // Backward compatibility
       capabilityAssessment: {
         capability_ratings: capabilities.filter(c => c.level <= 2).map(c => ({
           capability_id: c.id,
@@ -466,11 +594,12 @@ Return complete JSON with all fields populated.`;
           investment_priority: c.investment_priority,
           ai_enabled: c.ai_enabled
         })),
-        overall_maturity: capabilities.length > 0
-          ? capabilities.filter(c => c.current_maturity).reduce((sum, c) => sum + c.current_maturity, 0) / 
-            capabilities.filter(c => c.current_maturity).length
-          : null,
-        maturity_distribution: {
+        overall_maturity: assessment.summary?.overall_maturity || 
+                          (capabilities.length > 0 && capabilities.filter(c => c.current_maturity).length > 0
+                            ? capabilities.filter(c => c.current_maturity).reduce((sum, c) => sum + c.current_maturity, 0) / 
+                              capabilities.filter(c => c.current_maturity).length
+                            : null),
+        maturity_distribution: assessment.summary?.maturity_distribution || {
           initial: capabilities.filter(c => c.current_maturity === 1).length,
           developing: capabilities.filter(c => c.current_maturity === 2).length,
           defined: capabilities.filter(c => c.current_maturity === 3).length,

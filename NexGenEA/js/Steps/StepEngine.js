@@ -84,6 +84,26 @@ const StepEngine = (() => {
     }
     // Ensure model is always the global window.model if not provided
     if (!model) model = window.model || {};
+    
+    // ── Auto-create project ID if starting Step 1 without one ────────────
+    if (stepId === 'step1' && typeof window !== 'undefined' && !window.currentModelId) {
+      const projectId = 'proj_' + Date.now();
+      const projectName = 'New Project ' + new Date().toLocaleString();
+      
+      window.currentModelId = projectId;
+      window.currentModelName = projectName;
+      
+      // Register with DataManager if available
+      if (typeof dataManager !== 'undefined' && dataManager && typeof dataManager.createProject === 'function') {
+        const dmProject = dataManager.createProject(projectName, 'Auto-created on Step 1 start');
+        window.currentModelId = dmProject.id; // Use DataManager's ID
+      }
+      
+      console.log(`[StepEngine] Auto-created project: ${projectName} (ID: ${window.currentModelId})`);
+      
+      // Update UI
+      if (typeof updateHeaderTitle === 'function') updateHeaderTitle();
+    }
 
     const stepModule = STEP_MODULES[stepId]?.();
     if (!stepModule) {
@@ -269,6 +289,22 @@ const StepEngine = (() => {
 
   // ── Internal (AI-only) task ───────────────────────────────────────────────
   async function _runInternalTask(taskDef, ctx, userInput) {
+    // Check if this task should skip AI and use custom execute function
+    if (taskDef.skipAI === true || taskDef.execute) {
+      if (!taskDef.execute || typeof taskDef.execute !== 'function') {
+        throw new Error(`Task ${taskDef.taskId} has skipAI=true but no execute function defined`);
+      }
+      
+      // Execute custom function directly without AI call
+      const output = await taskDef.execute(ctx);
+      
+      return { 
+        taskId: taskDef.taskId, 
+        output: output,
+        aiResult: { status: 'skipped', reason: 'skipAI' }
+      };
+    }
+
     // Show thinking indicator in chat
     if (typeof showTypingIndicator === 'function') {
       showTypingIndicator();
