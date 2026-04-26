@@ -258,6 +258,9 @@ const StepEngine = (() => {
     } else if (taskType === 'text-input') {
       // ── Text input task: show textarea, await user input ───────────────
       return await _runTextInputTask(taskDef, ctx);
+    } else if (taskType === 'custom-ui') {
+      // ── Custom UI task: render custom interface ─────────────────────────
+      return await _runCustomUITask(taskDef, ctx);
     } else {
       // ── Internal task: fire AI silently ───────────────────────────────
       return await _runInternalTask(taskDef, ctx, userInput);
@@ -416,6 +419,34 @@ const StepEngine = (() => {
     return { taskId: taskDef.taskId, output, aiResult: null };
   }
 
+  // ── Custom UI task: show custom interface in chat, await user action ──────
+  async function _runCustomUITask(taskDef, ctx) {
+    // Check if this is Step1 validation (business-object mode)
+    if (taskDef.taskId === 'step1_validate' && ctx.stepId === 'step1' && 
+        window.model?.workflowMode === 'business-object') {
+      
+      // Render Business Objectives validation UI
+      if (typeof window.renderStep1ValidationUI === 'function') {
+        const answer = await window.renderStep1ValidationUI({
+          businessContext: window.model.businessContext,
+          strategicThemes: window.model.strategicThemes,
+          businessObjectives: window.model.businessObjectives,
+          gapInsights: window.model.gapInsights,
+          aiProcessingLog: window.model.aiProcessingLog
+        });
+        
+        const output = taskDef.wrapAnswer
+          ? taskDef.wrapAnswer(answer, ctx)
+          : { validation: answer, confirmed: answer === 'approve' };
+        
+        return { taskId: taskDef.taskId, output, aiResult: null };
+      }
+    }
+    
+    // Fallback: treat as question task for other custom-ui types
+    return await _runQuestionTask(taskDef, ctx);
+  }
+
   // ── Dependency validation ─────────────────────────────────────────────────
   function _validateDependencies(stepId, model, stepModule) {
     for (const depId of (stepModule.dependsOn || [])) {
@@ -433,23 +464,56 @@ const StepEngine = (() => {
   }
 
   // Backward compat: check old model flags until all steps are migrated
+  // Supports both OLD 7-step and NEW 4-step workflow structures
   function _checkLegacyFlag(depId, model) {
     switch (depId) {
-      case 'step1':  return !!(model.strategicIntentConfirmed ||
-                              model.strategicIntent?.strategic_ambition ||
-                              model.strategicIntent?.burning_platform ||
-                              // Implicit: if BMC or capabilities exist, step1 was done in a prior flow
-                              model.bmc ||
-                              model.capabilities?.length);
-      case 'step2':  return !!(model.bmc?.value_propositions?.length ||
-                              model.bmc?.value_proposition ||
-                              model.bmc);
-      case 'step3':  return !!(model.capabilities?.length);
-      case 'step4':  return !!(model.operatingModel?.current?.value_delivery ||
-                              model.operatingModel?.valueProposition);
+      case 'step1':  
+        // Step 1 unchanged: Business Objectives (old: Strategic Intent)
+        return !!(model.strategicIntentConfirmed ||
+                  model.businessContextConfirmed ||
+                  model.strategicIntent?.strategic_ambition ||
+                  model.strategicIntent?.burning_platform ||
+                  model.businessContext?.objectives?.length ||
+                  // Implicit: if BMC or capabilities exist, step1 was done in a prior flow
+                  model.bmc ||
+                  model.capabilities?.length);
+      
+      case 'step2':  
+        // NEW 4-step: Step 2 = APQC Capability Mapping (old: BMC)
+        // Support both old BMC and new capability model
+        return !!(model.capabilityValidated ||
+                  model.capabilityMap?.l1_domains?.length ||
+                  model.capabilities?.length ||
+                  // OLD 7-step backward compat
+                  model.bmc?.value_propositions?.length ||
+                  model.bmc?.value_proposition ||
+                  model.bmc);
+      
+      case 'step3':  
+        // NEW 4-step: Step 3 = Target Architecture (old: Capability Architecture)
+        // Support both old capabilities and new target arch
+        return !!(model.targetArchDone ||
+                  model.archPrinciples?.length ||
+                  model.targetArchData ||
+                  // OLD 7-step backward compat
+                  model.capabilities?.length);
+      
+      case 'step4':  
+        // NEW 4-step: Step 4 = Roadmap (old: Operating Model)
+        // Support both old operating model and new roadmap
+        return !!(model.roadmap?.waves?.length ||
+                  model.initiatives?.length ||
+                  model.businessContext?.enrichment?.completenessScore === 100 ||
+                  // OLD 7-step backward compat
+                  model.operatingModel?.current?.value_delivery ||
+                  model.operatingModel?.valueProposition);
+      
+      // OLD 7-step dependencies (for legacy saved models)
       case 'step5':  return !!model.gapAnalysisDone;
       case 'step6':  return !!(model.valuePools?.length);
+      case 'step7':
       case 'step7a': return !!model.targetArchDone;
+      
       default: return false;
     }
   }
@@ -530,6 +594,9 @@ const StepEngine = (() => {
   return { run, rollback, stopSpinner, register };
 
 })();
+
+// Export to window
+window.StepEngine = StepEngine;
 
 
 // ── QuestionCard — renders question cards in the chat panel ─────────────────

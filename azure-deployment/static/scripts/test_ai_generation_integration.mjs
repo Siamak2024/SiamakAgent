@@ -68,7 +68,7 @@ async function runTests() {
     //=======================================================================
     log('\n[TEST 1] Platform Initialization with APQC', 'cyan');
     
-    await page.goto(`${BASE_URL}/NexGenEA/NexGen_EA_V4.html`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
+    await page.goto(`${BASE_URL}/NexGenEA/NexGenEA_V11.html`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
     
     // Check if EA_DataManager loaded
     const hasDataManager = await page.evaluate(() => typeof EA_DataManager !== 'undefined');

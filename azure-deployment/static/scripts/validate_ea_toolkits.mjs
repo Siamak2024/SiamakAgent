@@ -101,11 +101,11 @@ expectedToolkits.forEach(tk => {
 });
 
 // Test 3: Check NexGen HTML references
-console.log(`\n${colors.blue}▸ Test 3: Toolkit Links in NexGen_EA_V4.html${colors.reset}\n`);
+console.log(`\n${colors.blue}▸ Test 3: Toolkit Links in NexGenEA_V11.html${colors.reset}\n`);
 
-const mainHtml = readFile('NexGenEA/NexGen_EA_V4.html');
+const mainHtml = readFile('NexGenEA/NexGenEA_V11.html');
 if (!mainHtml) {
-  log('FAIL', 'Cannot read NexGenEA/NexGen_EA_V4.html');
+  log('FAIL', 'Cannot read NexGenEA/NexGenEA_V11.html');
 } else {
   expectedToolkits.forEach(tk => {
     const linkPath = '../' + tk.path;

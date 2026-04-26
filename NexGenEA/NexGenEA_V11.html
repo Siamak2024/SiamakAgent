@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NextGen EA Platform - V5</title>
+<title>NextGen EA Platform - V11</title>
 <link rel="icon" href="data:,">
 <!-- Font Awesome 6.4.0 - Local files to avoid tracking prevention -->
 <link rel="stylesheet" href="../css/fontawesome/all.min.css">
@@ -126,6 +126,15 @@
 <!-- --------------------------------------------------------------- -->
 <link rel="stylesheet" href="../css/ea-design-engine.css" />
 <link rel="stylesheet" href="../css/ea-nordic-theme.css" />
+<!-- Business Objectives File Upload Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js" crossorigin="anonymous"></script>
+<script>
+  // Set up PDF.js worker
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+</script>
 </head>
 <body class="ea-app-shell bg-slate-100 min-h-screen">
 
@@ -690,7 +699,7 @@
           <div id="step6-rationale" class="hidden mt-1 text-[9px] rounded-lg overflow-hidden border border-slate-200"></div>
         </div>
 
-        <div class="mt-0.5 workflow-step-section workflow-step-locked" id="step-7">
+        <div class="mt-0.5 workflow-step-section workflow-step-locked hidden" id="step-7">
           <div class="flex items-center gap-2">
             <span class="workflow-step-badge" id="badge-7">7</span>
             <span class="text-[10px] font-semibold text-slate-600">Target Arch &amp; Roadmap</span>
@@ -1138,7 +1147,7 @@
               <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4" style="background: rgba(44,62,80,0.12);">
                 <i class="fas fa-layer-group text-4xl text-primary"></i>
               </div>
-              <h1 class="text-4xl font-bold text-slate-800 mb-3">Welcome to NextGen EA Platform</h1>
+              <h1 class="text-4xl font-bold text-slate-800 mb-3">Welcome to NextGen EA Platform V11</h1>
               <p class="text-lg text-slate-600 mb-8">AI-powered Enterprise Architecture from Strategy to Execution</p>
             </div>
             
@@ -3976,7 +3985,7 @@ function createNewProject() {
     model: emptyModel,
     chatHistory: aiConversationStore,
     savedAt: new Date().toISOString(),
-    version: '5.0'
+    version: '11.0'
   };
   
   // Save to DataManager (if available)
@@ -4286,7 +4295,7 @@ function saveModelToDB(promptForName = true, autoSave = false) {
     model: model,
     chatHistory: aiConversationStore,
     savedAt: new Date().toISOString(),
-    version: '5.0'
+    version: '11.0'
   };
   
   if (currentModelId) {
@@ -7153,7 +7162,17 @@ function startWorkflowMode(mode) {
   let welcomeMsg = '';
   
   if (mode === 'autopilot') {
-    welcomeMsg = `**Welcome to EA Platform - Autopilot Mode**
+    // Initialize autopilot state to await company description
+    window._autopilotState = {
+      active: true,
+      awaitingCompanyDescription: true,
+      context: {},
+      currentStep: 0,
+      completedSteps: [],
+      generatedData: {}
+    };
+    
+    welcomeMsg = `**Welcome to EA Platform V11 - Autopilot Mode**
 
 I'm your **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
 
@@ -7185,7 +7204,7 @@ Once you submit your organizational summary, I'll automatically process it and g
 
 **Paste your organizational summary below to begin!**`;
   } else if (mode === 'business-object') {
-    welcomeMsg = `**Welcome to EA Platform - Business Objective Mode**
+    welcomeMsg = `**Welcome to EA Platform V11 - Business Objective Mode**
 
 I'm your **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
 
@@ -7214,7 +7233,7 @@ Let's start by understanding your strategic context. I'll ask you questions to d
 *Note: I will adapt ALL my communication, questions, and analysis based on your industry and focus area.*`;
   } else {
     // Standard mode
-    welcomeMsg = `**Welcome to EA Platform - Standard Mode**
+    welcomeMsg = `**Welcome to EA Platform V11 - Standard Mode**
 
 I'm your **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
 
@@ -7294,7 +7313,7 @@ function showExecutiveDashboard() {
 function openDocumentation() {
   const docModal = confirm('Open platform documentation?\\n\\nThis will open the Quick Reference guide in a new window.');
   if (docModal) {
-    window.open('EA_Platform_V4_Quick_Reference.md', '_blank');
+    window.open('EA_Platform_V11_Quick_Reference.md', '_blank');
   }
 }
 
@@ -13360,24 +13379,16 @@ async function processUserMessage(userMessage) {
     window._autopilotState.context.companyDescription = userMessage.trim();
     
     // Save to model
-    if (!model.description || model.description.includes('genomg�r digital transformation')) {
-      model.description = userMessage.trim();
-    }
-    
-    updateAutopilotProgress(4, 'Company description received');
+    model.description = userMessage.trim();
     
     // Now show flow choice buttons
     const flowChoice = `## ✅ Company description received!
 
-**Autopilot context complete:**
-- Region: **${window._autopilotState.context.region}**
-- Industry: **${window._autopilotState.context.industry}**
-- Detail level: **${window._autopilotState.context.detailLevel}**
-- Description: "${userMessage.substring(0, 80)}${userMessage.length > 80 ? '...' : ''}"
+**Description received:** "${userMessage.substring(0, 150)}${userMessage.length > 150 ? '...' : ''}"
 
 AI can now generate:
 
-**? Step 1 Only (Strategic Intent)** - Quick draft for you to review and adjust.
+**📄 Step 1 Only (Strategic Intent)** - Generate Strategic Intent draft for you to review and adjust.
 
 **🚀 Full Autopilot (All 7 steps)** - Generate complete EA model from start to finish. Perfect for test/demo!
 
@@ -13387,7 +13398,7 @@ AI can now generate:
 </button>
 <button class="mode-action-btn mode-action-btn--primary" onclick="runFullAutopilotFlow()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
   <i class="fas fa-rocket"></i>
-  Full Autopilot - All 7 steps (Test/Demo)
+  Full Autopilot - All 7 steps
 </button>`;
     
     addAssistantMessage(flowChoice, { mode: 'autopilot', offersAction: true });
@@ -16656,6 +16667,596 @@ function renderStrategicIntentSection() {
   // Data gaps � interactive: user confirms each item before confirming Step 1
   _renderDataGapsSection(intent, displayEl);
 }
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * BUSINESS OBJECTIVES MODE: Step 1 Validation UI
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Rich interactive UI for validating and editing AI-generated business context,
+ * strategic themes, objectives, and gap insights before proceeding to Step 2.
+ */
+
+// ── File Upload Handlers ──────────────────────────────────────────────────
+
+/**
+ * Extract text from PDF file using PDF.js
+ */
+async function extractTextFromPDF(file) {
+  if (typeof pdfjsLib === 'undefined') {
+    throw new Error('PDF.js library not loaded');
+  }
+  
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = '';
+  
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map(item => item.str).join(' ');
+    fullText += pageText + '\n';
+  }
+  
+  return fullText.trim();
+}
+
+/**
+ * Extract text from DOCX file using Mammoth.js
+ */
+async function extractTextFromDOCX(file) {
+  if (typeof mammoth === 'undefined') {
+    throw new Error('Mammoth.js library not loaded');
+  }
+  
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  return result.value.trim();
+}
+
+/**
+ * Extract text from TXT file
+ */
+async function extractTextFromTXT(file) {
+  return await file.text();
+}
+
+/**
+ * Show toast notification
+ */
+function showToast(message, type = 'info') {
+  const colors = {
+    success: 'bg-green-500',
+    error: 'bg-red-500',
+    warning: 'bg-yellow-500',
+    info: 'bg-blue-500'
+  };
+  
+  const toast = document.createElement('div');
+  toast.className = `fixed bottom-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-[9999] transition-opacity`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+// ── Export Functions ──────────────────────────────────────────────────────
+
+/**
+ * Export business context data as JSON
+ */
+function exportBusinessContextJSON() {
+  const data = {
+    businessContext: window.model.businessContext,
+    strategicThemes: window.model.strategicThemes,
+    businessObjectives: window.model.businessObjectives,
+    gapInsights: window.model.gapInsights,
+    aiProcessingLog: window.model.aiProcessingLog,
+    exportedAt: new Date().toISOString()
+  };
+  
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `business-context-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  showToast('✅ Exported to JSON successfully', 'success');
+}
+
+/**
+ * Export business objectives as CSV
+ */
+function exportBusinessObjectivesCSV() {
+  const objectives = window.model.businessObjectives || [];
+  
+  if (objectives.length === 0) {
+    showToast('⚠️ No objectives to export', 'warning');
+    return;
+  }
+  
+  // CSV header
+  const headers = ['ID', 'Title', 'Description', 'Category', 'KPI', 'Target Value', 'Time Horizon', 'Priority', 'Rationale', 'Linked Themes'];
+  const csvRows = [headers.join(',')];
+  
+  // CSV data rows
+  objectives.forEach(obj => {
+    const row = [
+      obj.id || '',
+      `"${(obj.title || '').replace(/"/g, '""')}"`,
+      `"${(obj.description || '').replace(/"/g, '""')}"`,
+      obj.category || '',
+      `"${(obj.kpi || '').replace(/"/g, '""')}"`,
+      `"${(obj.target_value || '').replace(/"/g, '""')}"`,
+      obj.time_horizon || '',
+      obj.priority || '',
+      `"${(obj.rationale || '').replace(/"/g, '""')}"`,
+      `"${(obj.linked_themes || []).join('; ')}"`
+    ];
+    csvRows.push(row.join(','));
+  });
+  
+  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `business-objectives-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  showToast('✅ Exported to CSV successfully', 'success');
+}
+
+/**
+ * Regenerate objectives (restart Step 1 workflow)
+ */
+function regenerateBusinessObjectives() {
+  if (!confirm('⚠️ This will restart Step 1 and regenerate all objectives. Continue?')) {
+    return;
+  }
+  
+  // Clear Step 1 data
+  if (window.model) {
+    delete window.model.businessContext;
+    delete window.model.strategicThemes;
+    delete window.model.businessObjectives;
+    delete window.model.gapInsights;
+    delete window.model.aiProcessingLog;
+    delete window.model.businessContextConfirmed;
+    
+    if (window.model.steps && window.model.steps.step1) {
+      window.model.steps.step1.status = 'not-started';
+      window.model.steps.step1.completedTasks = [];
+      window.model.steps.step1.answers = {};
+    }
+  }
+  
+  if (typeof autoSaveCurrentModel === 'function') {
+    autoSaveCurrentModel();
+  }
+  
+  showToast('🔄 Step 1 reset. Please restart the workflow.', 'info');
+  
+  // Trigger UI update
+  if (typeof updateWorkflowStepStates === 'function') {
+    updateWorkflowStepStates();
+  }
+}
+
+/**
+ * Approve and continue to Step 2
+ */
+function approveAndContinueToStep2() {
+  const objectives = window.model?.businessObjectives || [];
+  const themes = window.model?.strategicThemes || [];
+  
+  if (objectives.length < 3) {
+    showToast('⚠️ Please define at least 3 business objectives before proceeding', 'warning');
+    return;
+  }
+  
+  if (themes.length < 4) {
+    showToast('⚠️ Please define at least 4 strategic themes before proceeding', 'warning');
+    return;
+  }
+  
+  // Mark as confirmed
+  if (window.model) {
+    window.model.businessContextConfirmed = true;
+  }
+  
+  if (typeof autoSaveCurrentModel === 'function') {
+    autoSaveCurrentModel();
+  }
+  
+  showToast('✅ Business context approved!', 'success');
+  
+  // Resolve the validation task
+  if (window._step1ValidationResolve) {
+    window._step1ValidationResolve('approve');
+    delete window._step1ValidationResolve;
+  }
+}
+
+// ── Inline Editing Functions ─────────────────────────────────────────────
+
+/**
+ * Render a single objective row (editable)
+ */
+function renderObjectiveRow(obj, index) {
+  const themes = window.model?.strategicThemes || [];
+  const themesHtml = themes.map(t => 
+    `<span class="inline-block bg-purple-100 text-purple-800 text-[10px] px-2 py-0.5 rounded">${t.name}</span>`
+  ).join(' ');
+  
+  return `
+    <tr class="hover:bg-gray-50" data-obj-index="${index}">
+      <td class="px-3 py-2 text-xs">${obj.id || ''}</td>
+      <td class="px-3 py-2">
+        <input type="text" value="${(obj.title || '').replace(/"/g, '&quot;')}" 
+               class="w-full text-sm border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+               onblur="validateAndSaveObjectiveField(this, ${index}, 'title')" />
+      </td>
+      <td class="px-3 py-2">
+        <textarea class="w-full text-xs border rounded px-2 py-1 resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  rows="2"
+                  onblur="validateAndSaveObjectiveField(this, ${index}, 'description')">${obj.description || ''}</textarea>
+      </td>
+      <td class="px-3 py-2">
+        <select class="w-full text-xs border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onchange="validateAndSaveObjectiveField(this, ${index}, 'category')">
+          <option value="Growth" ${obj.category === 'Growth' ? 'selected' : ''}>Growth</option>
+          <option value="Efficiency" ${obj.category === 'Efficiency' ? 'selected' : ''}>Efficiency</option>
+          <option value="Risk" ${obj.category === 'Risk' ? 'selected' : ''}>Risk</option>
+          <option value="Sustainability" ${obj.category === 'Sustainability' ? 'selected' : ''}>Sustainability</option>
+        </select>
+      </td>
+      <td class="px-3 py-2">
+        <input type="text" value="${(obj.kpi || '').replace(/"/g, '&quot;')}" 
+               class="w-full text-xs border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+               onblur="validateAndSaveObjectiveField(this, ${index}, 'kpi')" />
+      </td>
+      <td class="px-3 py-2">
+        <input type="text" value="${(obj.target_value || '').replace(/"/g, '&quot;')}" 
+               class="w-full text-xs border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+               onblur="validateAndSaveObjectiveField(this, ${index}, 'target_value')" />
+      </td>
+      <td class="px-3 py-2">
+        <input type="text" value="${obj.time_horizon || ''}" 
+               placeholder="2026 or Q4 2026"
+               class="w-full text-xs border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+               onblur="validateAndSaveObjectiveField(this, ${index}, 'time_horizon')" />
+      </td>
+      <td class="px-3 py-2">
+        <select class="w-full text-xs border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onchange="validateAndSaveObjectiveField(this, ${index}, 'priority')">
+          <option value="High" ${obj.priority === 'High' ? 'selected' : ''}>High</option>
+          <option value="Medium" ${obj.priority === 'Medium' ? 'selected' : ''}>Medium</option>
+          <option value="Low" ${obj.priority === 'Low' ? 'selected' : ''}>Low</option>
+        </select>
+      </td>
+      <td class="px-3 py-2 text-center">
+        <button onclick="deleteObjective(${index})" 
+                class="text-red-600 hover:text-red-800 text-sm" 
+                title="Delete objective">
+          <i class="fas fa-trash"></i>
+        </button>
+      </td>
+    </tr>
+  `;
+}
+
+/**
+ * Validate and save an objective field
+ */
+function validateAndSaveObjectiveField(element, index, field) {
+  const objectives = window.model?.businessObjectives || [];
+  if (!objectives[index]) return;
+  
+  let value = element.value.trim();
+  let isValid = true;
+  
+  // Validation rules
+  if (field === 'title' && value.length < 5) {
+    isValid = false;
+    showToast('⚠️ Title must be at least 5 characters', 'warning');
+  }
+  
+  if (field === 'time_horizon') {
+    const regex = /^\d{4}$|^Q[1-4]\s\d{4}$/;
+    if (!regex.test(value)) {
+      isValid = false;
+      showToast('⚠️ Time horizon must be YYYY or Q# YYYY format', 'warning');
+    }
+  }
+  
+  // Update model
+  if (isValid) {
+    objectives[index][field] = value;
+    objectives[index].isModified = true;
+    element.classList.remove('border-red-500');
+    element.classList.add('border-green-500');
+    setTimeout(() => element.classList.remove('border-green-500'), 2000);
+    
+    if (typeof autoSaveCurrentModel === 'function') {
+      autoSaveCurrentModel();
+    }
+  } else {
+    element.classList.add('border-red-500');
+  }
+}
+
+/**
+ * Delete an objective
+ */
+function deleteObjective(index) {
+  const objectives = window.model?.businessObjectives || [];
+  if (!objectives[index]) return;
+  
+  if (!confirm(`Delete objective: "${objectives[index].title}"?`)) return;
+  
+  objectives.splice(index, 1);
+  
+  if (typeof autoSaveCurrentModel === 'function') {
+    autoSaveCurrentModel();
+  }
+  
+  rerenderObjectivesTable();
+  showToast('✅ Objective deleted', 'success');
+}
+
+/**
+ * Add a new objective
+ */
+function addNewObjective() {
+  const objectives = window.model?.businessObjectives || [];
+  
+  const newObj = {
+    id: `BO-${Date.now()}`,
+    title: 'New Objective',
+    description: 'Enter description...',
+    category: 'Growth',
+    kpi: 'Enter KPI...',
+    target_value: 'Enter target...',
+    time_horizon: '2026',
+    priority: 'Medium',
+    rationale: '',
+    linked_themes: [],
+    isModified: true,
+    generated_at: new Date().toISOString()
+  };
+  
+  objectives.push(newObj);
+  
+  if (typeof autoSaveCurrentModel === 'function') {
+    autoSaveCurrentModel();
+  }
+  
+  rerenderObjectivesTable();
+  showToast('➕ New objective added', 'success');
+}
+
+/**
+ * Sort objectives
+ */
+function sortObjectives(sortBy) {
+  const objectives = window.model?.businessObjectives || [];
+  
+  if (sortBy === 'priority') {
+    const order = { High: 1, Medium: 2, Low: 3 };
+    objectives.sort((a, b) => (order[a.priority] || 99) - (order[b.priority] || 99));
+  } else if (sortBy === 'category') {
+    objectives.sort((a, b) => (a.category || '').localeCompare(b.category || ''));
+  } else if (sortBy === 'time_horizon') {
+    objectives.sort((a, b) => (a.time_horizon || '').localeCompare(b.time_horizon || ''));
+  }
+  
+  if (typeof autoSaveCurrentModel === 'function') {
+    autoSaveCurrentModel();
+  }
+  
+  rerenderObjectivesTable();
+  showToast(`🔄 Sorted by ${sortBy}`, 'info');
+}
+
+/**
+ * Re-render objectives table
+ */
+function rerenderObjectivesTable() {
+  const tbody = document.getElementById('objectives-table-body');
+  if (!tbody) return;
+  
+  const objectives = window.model?.businessObjectives || [];
+  tbody.innerHTML = objectives.map((obj, idx) => renderObjectiveRow(obj, idx)).join('');
+}
+
+// ── Main Validation UI Renderer ───────────────────────────────────────────
+
+/**
+ * Render Step 1 Validation UI
+ * Returns a Promise that resolves when user approves or edits
+ */
+window.renderStep1ValidationUI = function(data) {
+  return new Promise((resolve) => {
+    // Store resolve function for later use
+    window._step1ValidationResolve = resolve;
+    
+    const { businessContext, strategicThemes, businessObjectives, gapInsights, aiProcessingLog } = data;
+    
+    // Build HTML
+    const html = `
+      <div id="step1-validation-ui" class="bg-white rounded-lg shadow-lg p-6 my-4">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">
+          <i class="fas fa-clipboard-check text-blue-600"></i>
+          Review Business Context
+        </h2>
+        <p class="text-sm text-gray-600 mb-6">
+          AI has analyzed your input and generated ${businessObjectives.length} objectives, ${strategicThemes.length} strategic themes, 
+          and ${gapInsights.length} insights. Review and edit below before proceeding to Step 2.
+        </p>
+        
+        <!-- Business Context Section -->
+        <div class="mb-6">
+          <button class="w-full flex items-center justify-between bg-gradient-to-r from-blue-50 to-blue-100 px-4 py-3 rounded-lg hover:from-blue-100 hover:to-blue-200 transition"
+                  onclick="document.getElementById('context-details').classList.toggle('hidden')">
+            <div class="flex items-center gap-2">
+              <i class="fas fa-building text-blue-600"></i>
+              <span class="font-semibold text-gray-900">Business Context</span>
+            </div>
+            <i class="fas fa-chevron-down text-gray-500"></i>
+          </button>
+          <div id="context-details" class="hidden mt-2 p-4 bg-gray-50 rounded-lg text-sm">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <span class="font-semibold text-gray-700">Industry:</span>
+                <span class="text-gray-900">${businessContext.industry || 'N/A'}</span>
+              </div>
+              <div>
+                <span class="font-semibold text-gray-700">Market Summary:</span>
+                <p class="text-gray-900 text-xs mt-1">${businessContext.market_summary || 'N/A'}</p>
+              </div>
+            </div>
+            <div class="mt-3">
+              <span class="font-semibold text-gray-700">Challenges:</span>
+              <ul class="list-disc list-inside text-gray-900 text-xs mt-1">
+                ${(businessContext.challenges || []).map(c => `<li>${c}</li>`).join('')}
+              </ul>
+            </div>
+            <div class="mt-3">
+              <span class="font-semibold text-gray-700">Constraints:</span>
+              <ul class="list-disc list-inside text-gray-900 text-xs mt-1">
+                ${(businessContext.constraints || []).map(c => `<li>${c}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Strategic Themes Section -->
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <i class="fas fa-lightbulb text-yellow-500"></i>
+            Strategic Themes (${strategicThemes.length})
+          </h3>
+          <div class="grid grid-cols-2 gap-3">
+            ${strategicThemes.map(theme => `
+              <div class="border border-purple-200 bg-purple-50 rounded-lg p-3">
+                <h4 class="font-semibold text-purple-900 text-sm flex items-center gap-2">
+                  <i class="fas fa-star text-purple-600"></i>
+                  ${theme.name}
+                </h4>
+                <p class="text-xs text-purple-800 mt-1">${theme.description || ''}</p>
+                ${theme.rationale ? `<p class="text-xs text-purple-600 mt-2 italic">${theme.rationale}</p>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        
+        <!-- Business Objectives Table (Editable) -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <i class="fas fa-bullseye text-green-600"></i>
+              Business Objectives (${businessObjectives.length})
+            </h3>
+            <div class="flex gap-2">
+              <button onclick="sortObjectives('priority')" class="text-xs bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">
+                Sort by Priority
+              </button>
+              <button onclick="sortObjectives('category')" class="text-xs bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">
+                Sort by Category
+              </button>
+              <button onclick="addNewObjective()" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded">
+                <i class="fas fa-plus"></i> Add New
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto border rounded-lg">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">ID</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Title</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Description</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Category</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">KPI</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Target</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Time</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Priority</th>
+                  <th class="px-3 py-2 text-center text-xs font-semibold text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="objectives-table-body" class="divide-y divide-gray-200 bg-white">
+                ${businessObjectives.map((obj, idx) => renderObjectiveRow(obj, idx)).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Gap Insights Section -->
+        ${gapInsights.length > 0 ? `
+          <div class="mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <i class="fas fa-exclamation-triangle text-orange-500"></i>
+              Gap Insights (${gapInsights.length})
+            </h3>
+            <div class="space-y-2">
+              ${gapInsights.map(gap => `
+                <div class="border-l-4 border-orange-500 bg-orange-50 px-4 py-2 rounded">
+                  <span class="font-semibold text-orange-900 text-sm">${gap.type}:</span>
+                  <span class="text-orange-800 text-sm">${gap.description}</span>
+                  ${gap.recommendation ? `<p class="text-xs text-orange-700 mt-1">💡 ${gap.recommendation}</p>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        <!-- AI Metadata Footer -->
+        <div class="mt-6 p-3 bg-gray-100 rounded-lg text-xs text-gray-600">
+          <i class="fas fa-robot"></i> 
+          <strong>AI Processing:</strong> 
+          Unified Instruction v${aiProcessingLog?.[0]?.instruction_version || 'N/A'} | 
+          ${aiProcessingLog?.[0]?.has_file_upload ? '📄 File uploaded' : '✍️ Manual input'} | 
+          Generated at ${new Date(aiProcessingLog?.[0]?.timestamp || Date.now()).toLocaleString()}
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="mt-6 flex gap-3 justify-end">
+          <button onclick="regenerateBusinessObjectives()" 
+                  class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg transition">
+            <i class="fas fa-redo"></i> Regenerate
+          </button>
+          <button onclick="exportBusinessContextJSON()" 
+                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+            <i class="fas fa-download"></i> Export JSON
+          </button>
+          <button onclick="exportBusinessObjectivesCSV()" 
+                  class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+            <i class="fas fa-file-csv"></i> Export CSV
+          </button>
+          <button onclick="approveAndContinueToStep2()" 
+                  class="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-semibold transition shadow-lg">
+            <i class="fas fa-check-circle"></i> Approve & Continue to Step 2
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Insert into chat interface
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatMessages) {
+      const container = document.createElement('div');
+      container.className = 'message assistant';
+      container.innerHTML = html;
+      chatMessages.appendChild(container);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+  });
+};
 
 /**
  * NEW: renderBusinessContextSection() - Business Objectives-driven architecture
@@ -20797,7 +21398,7 @@ WORKSHOP INTEGRATION GUIDE
    &bull; Save JSON file with results
 
 3. IMPORT TO EA PLATFORM
-   &bull; Open EA Platform V3
+   &bull; Open EA Platform V11
    &bull; Go to Toolkits tab
    &bull; Click "Sync" for the toolkit
    &bull; Or use Import function to load JSON

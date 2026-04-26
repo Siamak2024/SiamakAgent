@@ -89,7 +89,7 @@ CanvasApp/
 │
 ├── azure-deployment/static/            # Deployment assets
 │   ├── NexGenEA/
-│   │   └── NexGen_EA_V4.html          # Main EA Platform SPA (~16,000 lines)
+│   │   └── NexGenEA_V11.html          # Main EA Platform SPA (~21,000 lines)
 │   ├── js/                            # Deployment-specific JS (mirrors root js/)
 │   └── ...
 │

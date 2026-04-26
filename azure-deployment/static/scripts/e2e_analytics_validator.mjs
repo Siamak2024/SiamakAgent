@@ -22,8 +22,8 @@ const ROOT = path.resolve('.');
 
 const ANALYTICS_DIR   = path.join(ROOT, 'NexGenEA', 'js', 'Analytics');
 const AZURE_ANALYTICS = path.join(ROOT, 'azure-deployment', 'static', 'NexGenEA', 'js', 'Analytics');
-const MAIN_HTML       = path.join(ROOT, 'NexGenEA', 'NexGen_EA_V4.html');
-const AZURE_HTML      = path.join(ROOT, 'azure-deployment', 'static', 'NexGenEA', 'NexGen_EA_V4.html');
+const MAIN_HTML       = path.join(ROOT, 'NexGenEA', 'NexGenEA_V11.html');
+const AZURE_HTML      = path.join(ROOT, 'azure-deployment', 'static', 'NexGenEA', 'NexGenEA_V11.html');
 
 // ── Colours ──────────────────────────────────────────────────────────────────
 const RED   = '\x1b[31m';

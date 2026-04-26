@@ -112,7 +112,7 @@ Write-Host ""
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "  Server running at $url" -ForegroundColor Green
 Write-Host "  Dev dashboard: $url" -ForegroundColor Green
-Write-Host "  NexGen EA V4:  $url/NexGenEA/NexGen_EA_V4.html" -ForegroundColor Green
+Write-Host "  NexGen EA V11:  $url/NexGenEA/NexGenEA_V11.html" -ForegroundColor Green
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Press Ctrl+C to stop the server." -ForegroundColor Gray

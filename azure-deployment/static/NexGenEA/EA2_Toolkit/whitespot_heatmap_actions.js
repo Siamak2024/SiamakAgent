@@ -393,7 +393,7 @@ function openServiceDrilldown(heatmapId, l2ServiceId) {
                         Map this service to APQC capabilities with intelligent type recommendations (Primary, Secondary, Enabler, Industry-specific).
                     </p>
                     <div style="display: flex; gap: 12px;">
-                        <button class="btn btn-primary btn-sm" onclick="openAPQCMappingModal({id: '${l2ServiceId}', name: '${l2Service.name}', description: '${l2Service.description || ''}', mappedCapabilities: ${JSON.stringify(assessment.mappedCapabilities || [])}}, '${heatmap.customerId}')" style="flex: 1;">
+                        <button class="btn btn-primary btn-sm" onclick="openAPQCMappingModalSafe('${heatmapId}', '${l2ServiceId}', '${heatmap.customerId}')" style="flex: 1;">
                             <i class="fas fa-edit"></i> Edit APQC Mappings
                         </button>
                         <button class="btn btn-secondary btn-sm" onclick="generateAPQCMappings('${heatmapId}', '${l2ServiceId}')">
@@ -504,6 +504,58 @@ function switchDrilldownTab(tabName) {
 // APQC MAPPING FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════
 
+/**
+ * Safe wrapper to open APQC mapping modal without inline JSON issues
+ * @param {string} heatmapId - Heatmap ID
+ * @param {string} l2ServiceId - L2 Service ID
+ * @param {string} customerId - Customer ID
+ */
+function openAPQCMappingModalSafe(heatmapId, l2ServiceId, customerId) {
+    // Get heatmap from engagement manager
+    if (!window.engagementManager) {
+        showNotification('Engagement manager not initialized', 'error');
+        return;
+    }
+
+    const engagement = window.engagementManager.getCurrentEngagement();
+    if (!engagement || !engagement.heatmaps) {
+        showNotification('No engagement data found', 'error');
+        return;
+    }
+
+    const heatmap = engagement.heatmaps.find(h => h.id === heatmapId);
+    if (!heatmap) {
+        showNotification('Heatmap not found', 'error');
+        return;
+    }
+
+    // Find the L2 service
+    const l2Service = heatmap.services?.find(s => s.serviceId === l2ServiceId);
+    if (!l2Service) {
+        showNotification('Service not found', 'error');
+        return;
+    }
+
+    // Get assessment data (contains mappedCapabilities)
+    const assessment = heatmap.hlAssessments?.find(a => a.l2ServiceId === l2ServiceId);
+
+    // Build service object for modal
+    const serviceObj = {
+        id: l2ServiceId,
+        name: l2Service.name || '',
+        description: l2Service.description || '',
+        mappedCapabilities: assessment?.mappedCapabilities || []
+    };
+
+    // Call the original modal function with safe data
+    if (typeof openAPQCMappingModal === 'function') {
+        openAPQCMappingModal(serviceObj, customerId);
+    } else {
+        showNotification('APQC mapping modal not available', 'error');
+        console.error('openAPQCMappingModal function not found');
+    }
+}
+
 function renderAPQCMappingsForService(heatmap, l2ServiceId) {
     const assessment = heatmap.hlAssessments.find(a => a.l2ServiceId === l2ServiceId);
     const mappedCapabilities = assessment?.mappedCapabilities || [];
@@ -583,6 +635,20 @@ async function generateAPQCMappings(heatmapId, l2ServiceId) {
     
     if (!heatmap || !l2Service || !assessment) {
         showNotification('Service not found', 'error');
+        console.error('[APQC] Missing data:', { heatmap: !!heatmap, l2Service: !!l2Service, assessment: !!assessment });
+        return;
+    }
+    
+    // Check if APQC integration is available and loaded
+    if (!window.apqcWhiteSpotIntegration) {
+        showNotification('APQC integration not available', 'error');
+        console.error('[APQC] window.apqcWhiteSpotIntegration is not defined');
+        return;
+    }
+    
+    if (!window.apqcWhiteSpotIntegration.isReady()) {
+        showNotification('APQC framework not loaded. Please wait and try again.', 'warning');
+        console.warn('[APQC] APQC framework not loaded yet');
         return;
     }
     
@@ -590,22 +656,33 @@ async function generateAPQCMappings(heatmapId, l2ServiceId) {
     showNotification('Generating AI-powered APQC mappings...', 'info');
     
     try {
-        // Get L3 components for this service
+        // Get L3 components for this service (optional - fallback to service-level matching)
         const l3Components = window.vivictaServiceLoader.getDLComponentsForService(l2ServiceId);
+        
+        console.log('[APQC] Service:', l2Service.name);
+        console.log('[APQC] L3 Components:', l3Components?.length || 0);
+        
+        if (!l3Components || l3Components.length === 0) {
+            console.log('[APQC] No L3 components - using service-level semantic matching');
+        }
         
         // Generate mapping suggestions using semantic matching
         const suggestions = await window.apqcWhiteSpotIntegration.generateMappingSuggestions(
             l2Service,
             l3Components,
             {
-                minConfidence: 0.5,
+                minConfidence: 0.25,  // Lowered from 0.5 to be more inclusive
                 maxSuggestions: 10,
                 preferredLevels: [3, 4]
             }
         );
         
+        console.log('[APQC] Generated suggestions:', suggestions.length);
+        console.log('[APQC] Suggestions:', suggestions);
+        
         if (suggestions.length === 0) {
-            showNotification('No APQC mappings found with sufficient confidence', 'warning');
+            showNotification(`No APQC mappings found with sufficient confidence for "${l2Service.name}". Try using the manual "Edit APQC Mappings" button instead.`, 'warning');
+            console.warn('[APQC] No suggestions found. This may indicate the APQC framework is not loaded or lacks relevant processes.');
             return;
         }
         
@@ -632,6 +709,8 @@ async function generateAPQCMappings(heatmapId, l2ServiceId) {
                                         type="checkbox" 
                                         id="apqc-suggestion-${idx}"
                                         data-apqc-id="${suggestion.apqcId}"
+                                        data-apqc-name="${encodeURIComponent(suggestion.apqcName)}"
+                                        data-apqc-level="${suggestion.apqcLevel}"
                                         data-rationale="${encodeURIComponent(suggestion.rationale)}"
                                         ${suggestion.confidence >= 0.7 ? 'checked' : ''}
                                         style="margin-top: 4px;"
@@ -639,17 +718,17 @@ async function generateAPQCMappings(heatmapId, l2ServiceId) {
                                     <div style="flex: 1;">
                                         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
                                             <label for="apqc-suggestion-${idx}" style="font-weight: 600; font-size: 13px; color: #111827; cursor: pointer;">
-                                                ${suggestion.apqcProcess.name}
+                                                ${suggestion.apqcName}
                                             </label>
                                             <div style="display: flex; gap: 6px; align-items: center;">
-                                                <span class="badge badge-primary">L${suggestion.apqcProcess.level}</span>
+                                                <span class="badge badge-primary">${suggestion.apqcLevel}</span>
                                                 <span style="font-size: 11px; font-weight: 600; color: ${confidenceColor};">
                                                     ${confidenceLabel} (${Math.round(suggestion.confidence * 100)}%)
                                                 </span>
                                             </div>
                                         </div>
                                         <p style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
-                                            <strong>ID:</strong> ${suggestion.apqcProcess.id}
+                                            <strong>ID:</strong> ${suggestion.apqcId}
                                         </p>
                                         <p style="font-size: 12px; color: #374151; font-style: italic;">
                                             "${suggestion.rationale}"
@@ -689,8 +768,9 @@ function removeAPQCMapping(heatmapId, l2ServiceId, apqcId) {
     const heatmap = engagementManager.getEntity('whiteSpotHeatmaps', heatmapId);
     const assessment = heatmap.hlAssessments.find(a => a.l2ServiceId === l2ServiceId);
     
-    if (assessment && assessment.apqcMappedCapabilities) {
-        assessment.apqcMappedCapabilities = assessment.apqcMappedCapabilities.filter(id => id !== apqcId);
+    if (assessment && assessment.mappedCapabilities) {
+        // Remove the mapping object from mappedCapabilities array
+        assessment.mappedCapabilities = assessment.mappedCapabilities.filter(m => m.apqcId !== apqcId);
         heatmap.metadata.updatedAt = new Date().toISOString();
         engagementManager.updateEntity('whiteSpotHeatmaps', heatmap.id, heatmap);
         
@@ -1210,7 +1290,15 @@ function applyAPQCMappings(heatmapId, l2ServiceId) {
     const heatmap = engagementManager.getEntity('whiteSpotHeatmaps', heatmapId);
     const assessment = heatmap.hlAssessments.find(a => a.l2ServiceId === l2ServiceId);
     
-    if (!assessment) return;
+    if (!assessment) {
+        showNotification('Assessment not found', 'error');
+        return;
+    }
+    
+    // Initialize mappedCapabilities array if it doesn't exist
+    if (!assessment.mappedCapabilities) {
+        assessment.mappedCapabilities = [];
+    }
     
     // Get all checked checkboxes
     const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="apqc-suggestion-"]:checked');
@@ -1221,43 +1309,44 @@ function applyAPQCMappings(heatmapId, l2ServiceId) {
     }
     
     // Extract APQC IDs and create mappings
-    const newMappings = [];
+    let addedCount = 0;
     checkboxes.forEach(cb => {
         const apqcId = cb.getAttribute('data-apqc-id');
-        const rationale = decodeURIComponent(cb.getAttribute('data-rationale'));
+        const apqcName = decodeURIComponent(cb.getAttribute('data-apqc-name') || apqcId);
+        const apqcLevel = cb.getAttribute('data-apqc-level') || 'L3';
+        const rationale = decodeURIComponent(cb.getAttribute('data-rationale') || 'AI-suggested mapping');
         
-        // Add to assessment's mapped capabilities if not already there
-        if (!assessment.apqcMappedCapabilities.includes(apqcId)) {
-            assessment.apqcMappedCapabilities.push(apqcId);
-        }
+        // Check if mapping already exists
+        const existingMapping = assessment.mappedCapabilities.find(m => m.apqcId === apqcId);
         
-        // Add to heatmap's apqcMappings array with full details
-        const existingMapping = heatmap.apqcMappings.find(m => m.apqcId === apqcId && m.mapsToL2?.includes(l2ServiceId));
         if (!existingMapping) {
-            newMappings.push({
+            // Add to assessment's mapped capabilities with correct structure
+            assessment.mappedCapabilities.push({
                 apqcId: apqcId,
-                apqcLevel: parseInt(apqcId.split('.').length),
-                apqcName: window.apqcWhiteSpotIntegration.getProcessById(apqcId)?.name || apqcId,
-                mapsToL2: [l2ServiceId],
-                mapsToL3: [],
+                name: apqcName,  // Use 'name' not 'apqcName' for rendering
+                apqcLevel: apqcLevel,
+                type: 'Primary',  // Default type, can be changed via Edit APQC Mappings
                 rationale: rationale,
-                isCustom: false,
-                confidence: parseFloat(cb.getAttribute('data-confidence')) || 0.7
+                customCapability: false,
+                confidenceScore: 0.7,  // Default confidence for AI suggestions
+                industry: 'cross-industry',  // Default to cross-industry
+                addedDate: new Date().toISOString()
             });
+            addedCount++;
         }
     });
     
-    heatmap.apqcMappings.push(...newMappings);
+    // Update heatmap
     heatmap.metadata.updatedAt = new Date().toISOString();
     engagementManager.updateEntity('whiteSpotHeatmaps', heatmap.id, heatmap);
     
     closeModal();
-    showNotification(`${checkboxes.length} APQC mapping(s) applied successfully`, 'success');
+    showNotification(`${addedCount} APQC mapping(s) applied successfully`, 'success');
     
-    // Refresh the drill-down modal if it's open
+    // Refresh the drill-down modal to show updated mappings
     setTimeout(() => {
         openServiceDrilldown(heatmapId, l2ServiceId);
-    }, 100);
+    }, 200);
 }
 
 /**

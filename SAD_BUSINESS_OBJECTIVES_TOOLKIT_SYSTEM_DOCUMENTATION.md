@@ -633,6 +633,327 @@ try {
 
 ---
 
+### 5.6 NexGenEA Business-Object Mode Integration
+
+**Status**: ✅ Production Ready (April 25, 2026)  
+**Platform**: NexGenEA Platform V11  
+**Workflow Mode**: `business-object`
+
+#### 5.6.1 Overview
+
+The **Business-Object Mode** in NexGenEA Step 1 provides a streamlined, AI-powered workflow for defining business context, strategic themes, and objectives in a **single unified AI instruction**. This replaces the legacy 2-task approach (analyze → synthesize) with a more efficient 8-step internal AI process.
+
+**Key Features**:
+- 🎯 Single unified AI instruction (BUSINESS_OBJECTIVES_UNIFIED_INSTRUCTION_V1)
+- 📄 File upload support (PDF, DOCX, TXT - max 10MB)
+- ✏️ Interactive inline editing UI
+- 📊 Export functionality (JSON, CSV)
+- 🔍 Real-time validation and duplicate detection
+- 🎨 Rich visualization with strategic themes, objectives table, and gap insights
+
+#### 5.6.2 Unified AI Instruction Architecture
+
+**Instruction ID**: `BUSINESS_OBJECTIVES_UNIFIED_INSTRUCTION_V1`  
+**Version**: `v1-20260425`  
+**Token Count**: ~2,100 tokens  
+
+**8-Step Internal Process**:
+
+1. **Structure Context** → Parse and organize input into business context components
+2. **Identify Themes** → Extract 4-6 strategic themes with rationale
+3. **Generate Objectives** → Create 3-5 measurable business objectives (SMART format)
+4. **Improve Quality** → Validate and enhance objectives for clarity and impact
+5. **Detect Gaps** → Identify missing information or misalignments
+6. **Prioritize** → Assign priority levels (High/Medium/Low) based on impact/urgency
+7. **Validate KPIs** → Ensure each objective has measurable KPI + target
+8. **Check Consistency** → Verify alignment between themes, objectives, and context
+
+**JSON Output Schema**:
+```json
+{
+  "businessContext": {
+    "industry": "string",
+    "market_summary": "string",
+    "customer_segments": ["string"],
+    "value_drivers": ["string"],
+    "products_services": ["string"],
+    "challenges": ["string"],
+    "constraints": ["string"],
+    "missing_information": ["string"]
+  },
+  "strategicThemes": [
+    {
+      "id": "ST-{timestamp}",
+      "name": "string",
+      "description": "string",
+      "rationale": "string"
+    }
+  ],
+  "businessObjectives": [
+    {
+      "id": "BO-{timestamp}",
+      "title": "string (5-100 chars)",
+      "description": "string",
+      "category": "Growth|Efficiency|Risk|Sustainability",
+      "kpi": "string",
+      "target_value": "string",
+      "time_horizon": "YYYY or Q# YYYY",
+      "priority": "High|Medium|Low",
+      "rationale": "string",
+      "linked_themes": ["ST-id"]
+    }
+  ],
+  "gapInsights": [
+    {
+      "id": "GI-{timestamp}",
+      "type": "Missing Information|Inconsistency|Risk|Opportunity",
+      "description": "string",
+      "recommendation": "string"
+    }
+  ]
+}
+```
+
+#### 5.6.3 Validation Rules
+
+**Category Validation**:
+- Must be one of: `Growth`, `Efficiency`, `Risk`, `Sustainability`
+- AI-generated values are normalized to match this enum
+
+**Priority Validation**:
+- Must be one of: `High`, `Medium`, `Low`
+- AI-generated values normalized (high/HIGH → High)
+
+**Time Horizon Format**:
+- Regex: `/^\d{4}$|^Q[1-4]\s\d{4}$/`
+- Valid examples: `2026`, `Q4 2026`, `Q1 2027`
+- Invalid examples: `2026-Q4`, `Q4-2026`, `2026-2027`
+
+**Duplicate Detection**:
+- Uses Levenshtein distance similarity calculation
+- Threshold: 85% similarity
+- Compares: title + description combined strings
+- Action: Logs warning, does not block save
+
+**Strategic Theme Requirements**:
+- Minimum: 4 themes
+- Maximum: 6 themes
+- Each theme must have: id, name, description, rationale
+
+**Business Objective Requirements**:
+- Minimum: 3 objectives
+- Each objective must have: id, title, description, category, kpi, target_value, time_horizon, priority, rationale
+- Title: 5-100 characters
+
+#### 5.6.4 File Upload Handlers
+
+**Supported Formats**:
+| Format | Library | Max Size | Extraction Method |
+|--------|---------|----------|-------------------|
+| PDF | PDF.js 3.11.174 | 10MB | Text content extraction (all pages) |
+| DOCX | Mammoth.js 1.6.0 | 10MB | Raw text extraction |
+| TXT | FileReader API | 10MB | Direct text read |
+
+**Implementation**:
+```javascript
+// PDF extraction
+async function extractTextFromPDF(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = '';
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map(item => item.str).join(' ');
+    fullText += pageText + '\n';
+  }
+  return fullText.trim();
+}
+
+// DOCX extraction
+async function extractTextFromDOCX(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  return result.value.trim();
+}
+
+// TXT extraction
+async function extractTextFromTXT(file) {
+  return await file.text();
+}
+```
+
+**Storage**:
+- Extracted text stored in `window._step1FileUploadText` (temporary)
+- Combined with user input in `userPrompt` before AI call
+- File metadata logged in `aiProcessingLog[].has_file_upload`
+
+#### 5.6.5 Interactive Validation UI
+
+**UI Components**:
+
+1. **Business Context Panel** (collapsible)
+   - Industry, market summary, challenges, constraints
+   - Expandable/collapsible for space efficiency
+
+2. **Strategic Themes Grid** (4-6 cards)
+   - Each theme displayed as a card with icon
+   - Shows: name, description, rationale
+   - Visual indicators for theme categories
+
+3. **Business Objectives Table** (editable)
+   - Inline editing for all fields
+   - Real-time validation with visual feedback (green/red borders)
+   - Sort by: Priority, Category, Time Horizon
+   - Actions: Add New, Delete, Export
+
+4. **Gap Insights Panel**
+   - Color-coded by type (Missing Info, Inconsistency, Risk, Opportunity)
+   - Shows description + recommendation
+   - Icon indicators for each type
+
+5. **AI Metadata Footer**
+   - Instruction version, timestamp, file upload indicator
+   - Processing log summary
+
+6. **Action Buttons**
+   - 🔄 Regenerate: Restart Step 1 workflow
+   - 📥 Export JSON: Download complete data model
+   - 📊 Export CSV: Download objectives table
+   - ✅ Approve & Continue: Validate + proceed to Step 2
+
+**Inline Editing Functions**:
+```javascript
+// Save field with validation
+function validateAndSaveObjectiveField(element, index, field) {
+  const objectives = window.model?.businessObjectives || [];
+  let value = element.value.trim();
+  let isValid = true;
+  
+  // Validation rules
+  if (field === 'title' && value.length < 5) {
+    isValid = false;
+    showToast('⚠️ Title must be at least 5 characters', 'warning');
+  }
+  
+  if (field === 'time_horizon') {
+    const regex = /^\d{4}$|^Q[1-4]\s\d{4}$/;
+    if (!regex.test(value)) {
+      isValid = false;
+      showToast('⚠️ Time horizon must be YYYY or Q# YYYY format', 'warning');
+    }
+  }
+  
+  // Update model
+  if (isValid) {
+    objectives[index][field] = value;
+    objectives[index].isModified = true;
+    element.classList.add('border-green-500');
+    autoSaveCurrentModel();
+  } else {
+    element.classList.add('border-red-500');
+  }
+}
+```
+
+#### 5.6.6 Data Model Storage
+
+**Storage Location**: `window.model` (global EA model)
+
+**New Properties**:
+```javascript
+window.model = {
+  // ... existing properties ...
+  
+  // Business-object mode properties
+  businessContext: { /* BusinessContext schema */ },
+  strategicThemes: [ /* StrategicTheme[] */ ],
+  businessObjectives: [ /* BusinessObjective[] */ ],
+  gapInsights: [ /* GapInsight[] */ ],
+  aiProcessingLog: [ /* AIProcessingLog[] */ ],
+  businessContextConfirmed: false,  // Set to true on approval
+  
+  // Workflow mode indicator
+  workflowMode: 'business-object',  // or 'standard' or 'autopilot'
+};
+```
+
+**Persistence**:
+- Auto-saved after each field edit via `autoSaveCurrentModel()`
+- Stored in IndexedDB (primary) / localStorage (fallback)
+- Full model serialization preserves all metadata
+
+#### 5.6.7 Step 2 Integration
+
+**Output Contract**:
+- Step 2 checks `window.model.businessObjectives` existence
+- Step 2 `userPrompt` functions updated to support both modes:
+  - Legacy: `ctx.strategicIntent` 
+  - New: `ctx.businessContext`, `ctx.businessObjectives`, `ctx.strategicThemes`, `ctx.gapInsights`
+
+**Keyword Extraction** (for APQC capability mapping):
+```javascript
+function extractKeywordsFromObjectives(objectives, themes) {
+  const keywords = [];
+  
+  objectives.forEach(obj => {
+    // Extract from title, description, category, KPI
+    keywords.push(obj.title.toLowerCase());
+    keywords.push(...obj.description.toLowerCase().split(' '));
+    keywords.push(obj.category.toLowerCase());
+    keywords.push(obj.kpi.toLowerCase());
+  });
+  
+  themes.forEach(theme => {
+    keywords.push(theme.name.toLowerCase());
+    keywords.push(...theme.description.toLowerCase().split(' '));
+  });
+  
+  // Remove duplicates and common words
+  return [...new Set(keywords)].filter(word => 
+    word.length > 3 && !['with', 'that', 'this', 'from'].includes(word)
+  );
+}
+```
+
+#### 5.6.8 Migration Path
+
+**Backward Compatibility**: ✅ Full backward compatibility maintained
+
+**Legacy Mode Detection**:
+```javascript
+const mode = (typeof window !== 'undefined' && window.model) 
+  ? window.model.workflowMode 
+  : 'standard';
+
+if (mode === 'business-object' && ctx.businessContext) {
+  // Use new data model
+} else if (ctx.strategicIntent) {
+  // Use legacy data model
+}
+```
+
+**No Migration Required**:
+- Existing EA projects continue using `strategicIntent` model
+- New business-object mode projects use `businessContext` model
+- Step2+ modules support both via conditional logic
+
+#### 5.6.9 Testing Checklist
+
+- [x] File upload (PDF, DOCX, TXT) extraction works
+- [x] Unified instruction generates valid JSON
+- [x] Validation rules enforce category/priority/time_horizon formats
+- [x] Duplicate detection flags >85% similar objectives
+- [x] Inline editing updates model and auto-saves
+- [x] Export JSON downloads complete data model
+- [x] Export CSV generates properly escaped CSV
+- [x] Regenerate clears Step 1 data and resets workflow
+- [x] Approve validates minimum requirements (3 objectives, 4 themes)
+- [x] Step 2 receives correct context from Step 1 business-object mode
+- [x] Backward compatibility with legacy strategicIntent mode
+
+---
+
 ## 6. Storage & Persistence
 
 ### 6.1 Storage Architecture

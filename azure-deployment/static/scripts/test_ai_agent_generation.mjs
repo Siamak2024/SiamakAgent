@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const BASE_URL = 'http://localhost:3000';
-const PAGE_URL = `${BASE_URL}/NexGenEA/NexGen_EA_V4.html`;
+const PAGE_URL = `${BASE_URL}/NexGenEA/NexGenEA_V11.html`;
 const TEST_PROJECT_NAME = 'AI Agent Test - Real Estate';
 const COMPANY = 'A Swedish property management company with manual processes in tenant services, ESG reporting, and maintenance operations.';
 

@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const BASE_URL = 'http://localhost:3000';
-const PAGE_URL = `${BASE_URL}/NexGenEA/NexGen_EA_V4.html`;
+const PAGE_URL = `${BASE_URL}/NexGenEA/NexGenEA_V11.html`;
 const DESCRIPTION = 'A real estate company with legacy system';
 const ACTIVE_AREAS = ['finance', 'operation', 'esg'];
 const STEP_TIMEOUT = 120_000; // 2 min per AI step (generous for slow API)

@@ -413,18 +413,51 @@ class APQCWhiteSpotIntegration {
     // Get relevant APQC processes based on L2 service name
     const l2Keywords = this._extractKeywords(dcsL2Service.name);
     
+    // Add description keywords if available
+    if (dcsL2Service.description) {
+      const descKeywords = this._extractKeywords(dcsL2Service.description);
+      l2Keywords.push(...descKeywords);
+    }
+    
     // Search APQC L3-L4 for matches
     const apqcMatches = this._findSemanticMatches(l2Keywords, industry);
 
-    // For each DCS L3 component, find best APQC matches
-    dcsL3Components.forEach(dcsL3 => {
-      const l3Keywords = this._extractKeywords(dcsL3.name);
-      
+    // If L3 components are available, use them for detailed matching
+    if (dcsL3Components && dcsL3Components.length > 0) {
+      dcsL3Components.forEach(dcsL3 => {
+        const l3Keywords = this._extractKeywords(dcsL3.name);
+        
+        apqcMatches.forEach(apqcProcess => {
+          const confidence = this._calculateMatchConfidence(
+            l3Keywords,
+            apqcProcess,
+            dcsL3
+          );
+
+          if (confidence >= minConfidence) {
+            suggestions.push({
+              apqcId: apqcProcess.id,
+              apqcLevel: `L${apqcProcess.level}`,
+              apqcName: apqcProcess.name,
+              apqcDescription: apqcProcess.description,
+              mapsToL3: [dcsL3.id],
+              mapsToL3Names: [dcsL3.name],
+              confidence: confidence,
+              rationale: this._generateRationale(apqcProcess, dcsL3, confidence),
+              isCustom: false,
+              industries: apqcProcess.industries,
+              strategicThemes: apqcProcess.strategicThemes
+            });
+          }
+        });
+      });
+    } else {
+      // Fallback: Use L2 service directly if no L3 components
       apqcMatches.forEach(apqcProcess => {
         const confidence = this._calculateMatchConfidence(
-          l3Keywords,
+          l2Keywords,
           apqcProcess,
-          dcsL3
+          { name: dcsL2Service.name, description: dcsL2Service.description || '' }
         );
 
         if (confidence >= minConfidence) {
@@ -433,17 +466,17 @@ class APQCWhiteSpotIntegration {
             apqcLevel: `L${apqcProcess.level}`,
             apqcName: apqcProcess.name,
             apqcDescription: apqcProcess.description,
-            mapsToL3: [dcsL3.id],
-            mapsToL3Names: [dcsL3.name],
+            mapsToL3: [],
+            mapsToL3Names: [],
             confidence: confidence,
-            rationale: this._generateRationale(apqcProcess, dcsL3, confidence),
+            rationale: this._generateRationaleForService(apqcProcess, dcsL2Service, confidence),
             isCustom: false,
             industries: apqcProcess.industries,
             strategicThemes: apqcProcess.strategicThemes
           });
         }
       });
-    });
+    }
 
     // Sort by confidence and return top N
     return suggestions
@@ -457,12 +490,42 @@ class APQCWhiteSpotIntegration {
    */
   _extractKeywords(name) {
     // Remove common words and extract meaningful terms
-    const stopWords = ['and', 'or', 'the', 'of', 'to', 'for', 'in', 'as', 'a'];
-    return name
+    const stopWords = ['and', 'or', 'the', 'of', 'to', 'for', 'in', 'as', 'a', 'an', 'with', 'by', 'from'];
+    const keywords = name
       .toLowerCase()
       .replace(/[()&]/g, ' ')
       .split(/\s+/)
       .filter(word => word.length > 2 && !stopWords.includes(word));
+    
+    // Add partial word variations for better matching
+    const expandedKeywords = [...keywords];
+    keywords.forEach(kw => {
+      // Add plural/singular variations
+      if (kw.endsWith('s') && kw.length > 3) {
+        expandedKeywords.push(kw.slice(0, -1));
+      } else {
+        expandedKeywords.push(kw + 's');
+      }
+      
+      // Add common IT/business term variations
+      const variations = {
+        'platform': ['infrastructure', 'system', 'architecture'],
+        'cloud': ['saas', 'infrastructure', 'hosted'],
+        'advisory': ['consulting', 'guidance', 'strategy'],
+        'transformation': ['change', 'modernization', 'evolution'],
+        'engineering': ['development', 'technical', 'design'],
+        'security': ['cyber', 'protection', 'compliance'],
+        'data': ['information', 'analytics', 'database'],
+        'application': ['software', 'app', 'system'],
+        'enterprise': ['business', 'corporate', 'organization']
+      };
+      
+      if (variations[kw]) {
+        expandedKeywords.push(...variations[kw]);
+      }
+    });
+    
+    return [...new Set(expandedKeywords)]; // Remove duplicates
   }
 
   /**
@@ -470,18 +533,48 @@ class APQCWhiteSpotIntegration {
    * @private
    */
   _findSemanticMatches(keywords, industry = null) {
-    const l3Matches = this.l3Processes.filter(p => {
+    console.log('[APQC] Searching for keywords:', keywords);
+    console.log('[APQC] L2 Processes available:', this.l2Processes.length);
+    console.log('[APQC] L3 Processes available:', this.l3Processes.length);
+    console.log('[APQC] L4 Processes available:', this.l4Processes.length);
+    
+    // Include L2 processes for broader matches
+    const l2Matches = this.l2Processes.filter(p => {
       const nameWords = p.name.toLowerCase().split(/\s+/);
       const descWords = (p.description || '').toLowerCase().split(/\s+/);
+      const fullText = (p.name + ' ' + (p.description || '')).toLowerCase();
       
       const hasKeywordMatch = keywords.some(kw => 
+        fullText.includes(kw) ||
         nameWords.some(w => w.includes(kw) || kw.includes(w)) ||
         descWords.some(w => w.includes(kw) || kw.includes(w))
       );
 
       const matchesIndustry = !industry || 
-        p.industries.includes(industry) || 
-        p.industries.includes('all');
+        p.industries?.includes(industry) || 
+        p.industries?.includes('all') ||
+        !p.industries || 
+        p.industries.length === 0;
+
+      return hasKeywordMatch && matchesIndustry;
+    });
+    
+    const l3Matches = this.l3Processes.filter(p => {
+      const nameWords = p.name.toLowerCase().split(/\s+/);
+      const descWords = (p.description || '').toLowerCase().split(/\s+/);
+      const fullText = (p.name + ' ' + (p.description || '')).toLowerCase();
+      
+      const hasKeywordMatch = keywords.some(kw => 
+        fullText.includes(kw) ||
+        nameWords.some(w => w.includes(kw) || kw.includes(w)) ||
+        descWords.some(w => w.includes(kw) || kw.includes(w))
+      );
+
+      const matchesIndustry = !industry || 
+        p.industries?.includes(industry) || 
+        p.industries?.includes('all') ||
+        !p.industries || 
+        p.industries.length === 0;
 
       return hasKeywordMatch && matchesIndustry;
     });
@@ -489,20 +582,26 @@ class APQCWhiteSpotIntegration {
     const l4Matches = this.l4Processes.filter(p => {
       const nameWords = p.name.toLowerCase().split(/\s+/);
       const descWords = (p.description || '').toLowerCase().split(/\s+/);
+      const fullText = (p.name + ' ' + (p.description || '')).toLowerCase();
       
       const hasKeywordMatch = keywords.some(kw => 
+        fullText.includes(kw) ||
         nameWords.some(w => w.includes(kw) || kw.includes(w)) ||
         descWords.some(w => w.includes(kw) || kw.includes(w))
       );
 
       const matchesIndustry = !industry || 
-        p.industries.includes(industry) || 
-        p.industries.includes('all');
+        p.industries?.includes(industry) || 
+        p.industries?.includes('all') ||
+        !p.industries || 
+        p.industries.length === 0;
 
       return hasKeywordMatch && matchesIndustry;
     });
 
-    return [...l3Matches, ...l4Matches];
+    console.log('[APQC] Found matches - L2:', l2Matches.length, 'L3:', l3Matches.length, 'L4:', l4Matches.length);
+    
+    return [...l2Matches, ...l3Matches, ...l4Matches];
   }
 
   /**
@@ -573,6 +672,20 @@ class APQCWhiteSpotIntegration {
       return `Moderate match - "${apqcProcess.name}" partially aligns with "${dcsComponent.name}" delivery scope.`;
     } else {
       return `Low-confidence suggestion based on keyword overlap. Review and customize as needed.`;
+    }
+  }
+
+  /**
+   * Generate rationale for service-level mapping (without L3 components)
+   * @private
+   */
+  _generateRationaleForService(apqcProcess, service, confidence) {
+    if (confidence >= 0.7) {
+      return `Strong semantic match between APQC process "${apqcProcess.name}" and service "${service.name}". Both focus on similar business capabilities.`;
+    } else if (confidence >= 0.5) {
+      return `Moderate match - "${apqcProcess.name}" aligns with the "${service.name}" service scope and objectives.`;
+    } else {
+      return `Potential match based on keyword analysis. Review and adjust mapping as needed.`;
     }
   }
 

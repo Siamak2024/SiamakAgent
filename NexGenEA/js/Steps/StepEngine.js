@@ -26,10 +26,10 @@ const StepEngine = (() => {
     step1:  () => typeof Step1  !== 'undefined' ? Step1  : null,
     step2:  () => typeof Step2  !== 'undefined' ? Step2  : null,
     step3:  () => typeof Step3  !== 'undefined' ? Step3  : null,
-    step4:  () => typeof Step4  !== 'undefined' ? Step4  : null,
-    step5:  () => typeof Step5  !== 'undefined' ? Step5  : null,
-    step6:  () => typeof Step6  !== 'undefined' ? Step6  : null,
-    step7:  () => typeof Step7  !== 'undefined' ? Step7  : null,  // ← FIX: was missing, caused "Step module step7 is not loaded"
+    step4:  () => typeof Step4  !== 'undefined' ? Step4  : null, // V10: Benchmark Analysis
+    step5:  () => typeof Step5  !== 'undefined' ? Step5  : null, // V10: Data Collection/Survey
+    step6:  () => typeof Step6  !== 'undefined' ? Step6  : null, // V10: Layers & Gap Analysis
+    step7:  () => typeof Step7  !== 'undefined' ? Step7  : null,
     step7a: () => typeof Step7  !== 'undefined' ? Step7.targetArch : null,
     step7b: () => typeof Step7  !== 'undefined' ? Step7.roadmap    : null
   };
@@ -258,6 +258,9 @@ const StepEngine = (() => {
     } else if (taskType === 'text-input') {
       // ── Text input task: show textarea, await user input ───────────────
       return await _runTextInputTask(taskDef, ctx);
+    } else if (taskType === 'custom-ui') {
+      // ── Custom UI task: render custom interface ─────────────────────────
+      return await _runCustomUITask(taskDef, ctx);
     } else {
       // ── Internal task: fire AI silently ───────────────────────────────
       return await _runInternalTask(taskDef, ctx, userInput);
@@ -414,6 +417,34 @@ const StepEngine = (() => {
       : parsed;
 
     return { taskId: taskDef.taskId, output, aiResult: null };
+  }
+
+  // ── Custom UI task: show custom interface in chat, await user action ──────
+  async function _runCustomUITask(taskDef, ctx) {
+    // Check if this is Step1 validation (business-object mode)
+    if (taskDef.taskId === 'step1_validate' && ctx.stepId === 'step1' && 
+        window.model?.workflowMode === 'business-object') {
+      
+      // Render Business Objectives validation UI
+      if (typeof window.renderStep1ValidationUI === 'function') {
+        const answer = await window.renderStep1ValidationUI({
+          businessContext: window.model.businessContext,
+          strategicThemes: window.model.strategicThemes,
+          businessObjectives: window.model.businessObjectives,
+          gapInsights: window.model.gapInsights,
+          aiProcessingLog: window.model.aiProcessingLog
+        });
+        
+        const output = taskDef.wrapAnswer
+          ? taskDef.wrapAnswer(answer, ctx)
+          : { validation: answer, confirmed: answer === 'approve' };
+        
+        return { taskId: taskDef.taskId, output, aiResult: null };
+      }
+    }
+    
+    // Fallback: treat as question task for other custom-ui types
+    return await _runQuestionTask(taskDef, ctx);
   }
 
   // ── Dependency validation ─────────────────────────────────────────────────

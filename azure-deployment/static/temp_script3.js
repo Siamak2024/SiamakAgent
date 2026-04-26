@@ -1,0 +1,18695 @@
+
+// -- INITIALIZATION & STORAGE ----
+// V3 Enhancement: Use DataManager for unified data management
+let dataManager = null;
+let syncEngine = null;
+let fileManager = null;
+let integrationEngine = null;
+let OPENAI_KEY = '';
+let networkInstance = null;
+let nordicDashboardChart = null;
+let model = {
+  valueStreams:[],
+  capabilities:[],
+  capabilities_tobe:[],
+  processes:[],
+  systems:[],
+  dataDomains:[],
+  aiAgents:[],
+  initiatives:[],
+  operatingModel:{},
+  strategicIntent: null,
+  bmc: null,
+  valuePools: [],
+  masterData: {
+    businessModel: '',
+    offerings: '',
+    customerSegments: '',
+    geographies: '',
+    regulations: '',
+    coreSystems: '',
+    dataLandscape: '',
+    strategicPriorities: '',
+    constraints: ''
+  },
+  aiConfig: {
+    model: 'gpt-5',
+    architectureMode: 'standard'
+  },
+  phase4Config: { industry: 'generic', activeBusinessAreas: ['general'] },
+  scenarios: [],
+  investments: [],
+  stepMeta: {},
+  diagnosticProgress: {
+    currentStep: 1,
+    completedSteps: [],
+    industryProfile: null,       // e.g. 'Banking', 'Healthcare', 'Startup'
+    focusArea: null,              // e.g. 'GDPR', 'Finance', 'Cybersecurity'
+    contextData: {
+      step1_scope: null,          // Scope definition (max 5 bullets)
+      step2_currentState: null,   // AS-IS baseline
+      step3_problems: null,       // Prioritized problem list with impact
+      step4_maturity: null,       // Maturity assessment (1-5)
+      step5_outcomes: null,       // Target outcomes
+      step6_strategicIntent: null,// Strategic Intent (paragraph + bullets)
+      step7_targetArch: null      // EA Target Architecture Input
+    },
+    validationStatus: {
+      step1: false, step2: false, step3: false, step4: false,
+      step5: false, step6: false, step7: false
+    },
+    cxoSummaries: {},             // CxO summaries per step (for Board Report)
+    scenarioAnalysis: null        // Scenario engine output
+  }
+};
+
+// Make model accessible globally for compatibility
+window.model = model;
+
+let currentModelId = null;
+let currentModelName = 'Untitled Model';
+let currentTab = 'home';
+
+// -- Chat auto-save control (disabled during Step workflow) --
+let enableChatAutoSave = false;  // Only save after completing a full step
+
+// -- EA STEP ENGINE FEATURE FLAG -----------------------------------------------
+// Set to false to fall back to the original step functions (safe rollback).
+window.USE_STEP_ENGINE = true; // V5: StepEngine is the only execution path
+
+// StepEngine step registry � populated on DOMContentLoaded once all Step*.js have loaded.
+function registerStepsWhenReady() {
+  if (typeof StepEngine === 'undefined' || typeof Step0 === 'undefined') return;
+  StepEngine.register([Step0, Step1, Step2, Step3, Step4, Step5, Step6, Step7]);
+  _updateContinueBtn();
+}
+document.addEventListener('DOMContentLoaded', registerStepsWhenReady);
+// -----------------------------------------------------------------------------
+const AI_CONVERSATIONS_KEY = 'ea_ai_conversations';
+let aiConversationStore = { conversations: [], activeConversationId: null };
+const APP_LANGUAGE_KEY = 'ea_app_language';
+const APP_LANGUAGE_AUTO = 'auto';
+const SUPPORTED_APP_LANGUAGES = ['en', 'sv', 'no', 'da', 'fi'];
+let uiTranslationInFlight = false;
+
+// -- AI MODEL CONFIGURATION (GPT-5 Primary Strategy) --------------------------
+const AI_MODEL_CONFIG = {
+  // ??? DISCOVERY MODE - Komplex dialog, reasoning, kontextmedveten diskussion
+  discovery: {
+    model: 'gpt-5',
+    temperature: 0.7,
+    timeoutMs: 180000,
+    description: 'Deep reasoning f�r kontext-medveten diskussion av EA resultat'
+  },
+  
+  // ? ACTION MODE - Snabb JSON-generering, strukturerade uppdateringar
+  action: {
+    model: 'gpt-5',
+    temperature: 0.2,
+    timeoutMs: 120000,
+    description: 'Exakt JSON-generering f�r uppdatering av EA modell'
+  },
+  
+  // ??? HEAVY TASKS - Stor arkitekturgenerering (Step 3, 4, 7)
+  heavy: {
+    model: 'gpt-5',
+    temperature: 0.3,
+    timeoutMs: 240000,
+    description: 'Komplex EA arkitektur-generering med djup analys'
+  },
+  
+  // ?? ANALYSIS - Gap analysis, maturity assessment, benchmarking
+  analysis: {
+    model: 'gpt-5',
+    temperature: 0.4,
+    timeoutMs: 180000,
+    description: 'Strategisk analys och insights-generering'
+  },
+  
+  // ?? GENERAL - Standard chat, Q&A
+  general: {
+    model: 'gpt-5',
+    temperature: 0.6,
+    timeoutMs: 120000,
+    description: 'Allm�n EA-r�dgivning och fr�gor'
+  },
+  
+  // ?? LIGHTWEIGHT - Simple translations, quick lookups
+  lightweight: {
+    model: 'gpt-5',
+    temperature: 0.3,
+    timeoutMs: 60000,
+    description: 'Snabba enkla uppgifter'
+  }
+};
+
+// -- ASSISTANT MODE MANAGEMENT ------------------------------------------------
+let assistantMode = 'general'; // 'discovery' | 'action' | 'general'
+let assistantContext = {}; // H�ller kontext f�r aktivt l�ge
+
+function setAssistantMode(mode, context = {}) {
+  assistantMode = mode;
+  assistantContext = context;
+  updateModeBadgeUI();
+  updateChatPlaceholder();
+  console.log(` Assistant Mode: ${mode}`, context);
+}
+
+function getAssistantMode() {
+  return { mode: assistantMode, context: assistantContext };
+}
+
+function updateModeBadgeUI() {
+  const badge = document.getElementById('assistant-mode-badge');
+  const titleText = document.getElementById('chat-title-text');
+  if (!badge) return;
+  
+  badge.classList.remove('mode-discovery', 'mode-action', 'mode-general', 'hidden');
+  
+  switch (assistantMode) {
+    case 'discovery':
+      badge.classList.add('mode-discovery');
+      const stepName = assistantContext.stepName || '';
+      badge.textContent = stepName || 'Discovery';
+      titleText.textContent = 'Advicy Agent � Discovery Mode';
+      break;
+    case 'action':
+      badge.classList.add('mode-action');
+      badge.textContent = 'Action';
+      titleText.textContent = 'Advicy Agent � Action Mode';
+      break;
+    case 'general':
+    default:
+      badge.classList.add('mode-general');
+      badge.textContent = 'General';
+      titleText.textContent = 'Advicy Agent';
+      break;
+  }
+}
+
+function updateChatPlaceholder() {
+  const input = document.getElementById('chat-input');
+  if (!input) return;
+  switch (assistantMode) {
+    case 'discovery':
+      input.placeholder = 'Discuss results, ask questions, suggest improvements...';
+      break;
+    case 'action':
+      input.placeholder = 'Describe the change you want to make...';
+      break;
+    case 'general':
+    default:
+      input.placeholder = 'Ask Advicy Agent about your EA...';
+      break;
+  }
+}
+
+const UI_TRANSLATIONS = {
+  sv: {
+    'Generate Architecture': 'Generera arkitektur',
+    'Capability Map': 'Kapabilitetskarta',
+    'Op Model': 'Operating model',
+    'Gap Analysis': 'Gap-analys',
+    'Target Arch': 'Malaritektur',
+    'Generate Transformation Roadmap': 'Generera transformationsplan',
+    'Executive': 'Ledning',
+    'Benchmark': 'Benchmark',
+    'Data': 'Data',
+    'Layers': 'Lager',
+    'Cap Map': 'Kap.karta',
+    'Graph': 'Graf',
+    'Impact': 'Paverkan',
+    'Target': 'Malbild',
+    'Roadmap': 'Roadmap',
+    'Overview': 'Oversikt',
+    'Architecture': 'Arkitektur',
+    'Analysis': 'Analys',
+    'Transformation': 'Transformation',
+    'Expand': 'Expandera',
+    'Open tool': 'Oppna verktyg',
+    'Instructions': 'Instruktioner',
+    'Use Case': 'Anvandningsfall',
+    'Step 1': 'Step 1',
+    'Step 2': 'Step 2',
+    'Step 3': 'Step 3',
+    'Step 4': 'Step 4',
+    'Step 5': 'Step 5',
+    'Industry Benchmarking & Gap Analysis': 'Branschbenchmarking och gap-analys',
+    'Maturity Domains - Definitions': 'Mognadsdomaner - definitioner',
+    'Maturity Score vs Industry Index': 'Mognadspoang vs branschindex',
+    'Strategic Insights & Opportunity Cost': 'Strategiska insikter och alternativkostnad',
+    'Data Collection & Survey Engine': 'Datainsamling och enkatautomation',
+    'Share of verified data points': 'Andel verifierade datapunkter',
+    'Verification Log': 'Verifieringslogg',
+    'All Areas': 'Alla omraden',
+    'All Domains': 'Alla domaner',
+    'Optimize Prompt with AI': 'Optimera prompt med AI',
+    'AI refines your description into architecture-ready input before generation.': 'AI forfinar din beskrivning till arkitekturredo underlag fore generering.',
+    'Calm overview for executive and delivery teams': 'Lugn oversikt for ledning och leveransteam'
+  },
+  no: {
+    'Generate Architecture': 'Generer arkitektur',
+    'Capability Map': 'Kapasitetskart',
+    'Op Model': 'Driftsmodell',
+    'Gap Analysis': 'Gap-analyse',
+    'Target Arch': 'Malaritektur',
+    'Generate Transformation Roadmap': 'Generer transformasjonsplan',
+    'Executive': 'Ledelse',
+    'Benchmark': 'Benchmark',
+    'Data': 'Data',
+    'Layers': 'Lag',
+    'Cap Map': 'Kap.kart',
+    'Graph': 'Graf',
+    'Impact': 'Effekt',
+    'Target': 'Mal',
+    'Roadmap': 'Roadmap',
+    'Overview': 'Oversikt',
+    'Architecture': 'Arkitektur',
+    'Analysis': 'Analyse',
+    'Transformation': 'Transformasjon',
+    'Expand': 'Utvid',
+    'Open tool': 'Apne verktoy',
+    'Instructions': 'Instruksjoner',
+    'Use Case': 'Brukstilfelle',
+    'Step 1': 'Trinn 1',
+    'Step 2': 'Trinn 2',
+    'Step 3': 'Trinn 3',
+    'Step 4': 'Trinn 4',
+    'Step 5': 'Trinn 5',
+    'Industry Benchmarking & Gap Analysis': 'Bransjebenchmark og gap-analyse',
+    'Maturity Domains - Definitions': 'Modenhetsdomener - definisjoner',
+    'Maturity Score vs Industry Index': 'Modenhetsscore vs bransjeindeks',
+    'Strategic Insights & Opportunity Cost': 'Strategiske innsikter og alternativkostnad',
+    'Data Collection & Survey Engine': 'Datainnsamling og undersokelsesmotor',
+    'Share of verified data points': 'Andel verifiserte datapunkter',
+    'Verification Log': 'Verifiseringslogg',
+    'All Areas': 'Alle omrader',
+    'All Domains': 'Alle domener',
+    'Optimize Prompt with AI': 'Optimaliser prompt med AI',
+    'AI refines your description into architecture-ready input before generation.': 'AI forbedrer beskrivelsen din til arkitekturklart underlag for generering.',
+    'Calm overview for executive and delivery teams': 'Rolig oversikt for ledelse og leveranseteam'
+  },
+  da: {
+    'Generate Architecture': 'Generer arkitektur',
+    'Capability Map': 'Kapabilitetskort',
+    'Op Model': 'Driftsmodel',
+    'Gap Analysis': 'Gap-analyse',
+    'Target Arch': 'Malarkitektur',
+    'Generate Transformation Roadmap': 'Generer transformationsroadmap',
+    'Executive': 'Ledelse',
+    'Benchmark': 'Benchmark',
+    'Data': 'Data',
+    'Layers': 'Lag',
+    'Cap Map': 'Kap.kort',
+    'Graph': 'Graf',
+    'Impact': 'Effekt',
+    'Target': 'Mal',
+    'Roadmap': 'Roadmap',
+    'Overview': 'Overblik',
+    'Architecture': 'Arkitektur',
+    'Analysis': 'Analyse',
+    'Transformation': 'Transformation',
+    'Expand': 'Udvid',
+    'Open tool': 'Abn vaerktoj',
+    'Instructions': 'Instruktioner',
+    'Use Case': 'Anvendelsescase',
+    'Step 1': 'Trin 1',
+    'Step 2': 'Trin 2',
+    'Step 3': 'Trin 3',
+    'Step 4': 'Trin 4',
+    'Step 5': 'Trin 5',
+    'Industry Benchmarking & Gap Analysis': 'Branchebenchmarking og gap-analyse',
+    'Maturity Domains - Definitions': 'Modenhedsdomaner - definitioner',
+    'Maturity Score vs Industry Index': 'Modenhedsscore vs brancheindeks',
+    'Strategic Insights & Opportunity Cost': 'Strategiske indsigter og alternativomkostning',
+    'Data Collection & Survey Engine': 'Dataindsamling og survey-motor',
+    'Share of verified data points': 'Andel verificerede datapunkter',
+    'Verification Log': 'Verificeringslog',
+    'All Areas': 'Alle omrader',
+    'All Domains': 'Alle domaner',
+    'Optimize Prompt with AI': 'Optimer prompt med AI',
+    'AI refines your description into architecture-ready input before generation.': 'AI forfiner din beskrivelse til arkitekturklart input for generering.',
+    'Calm overview for executive and delivery teams': 'Roligt overblik for ledelse og leveringsteams'
+  },
+  fi: {
+    'Generate Architecture': 'Luo arkkitehtuuri',
+    'Capability Map': 'Kyvykkyyskartta',
+    'Op Model': 'Toimintamalli',
+    'Gap Analysis': 'Kuiluanalyysi',
+    'Target Arch': 'Tavoitearkkitehtuuri',
+    'Generate Transformation Roadmap': 'Luo transformaation tiekartta',
+    'Executive': 'Johto',
+    'Benchmark': 'Vertailu',
+    'Data': 'Data',
+    'Layers': 'Tasot',
+    'Cap Map': 'Kyv.kartta',
+    'Graph': 'Graafi',
+    'Impact': 'Vaikutus',
+    'Target': 'Tavoite',
+    'Roadmap': 'Tiekartta',
+    'Overview': 'Yleiskuva',
+    'Architecture': 'Arkkitehtuuri',
+    'Analysis': 'Analyysi',
+    'Transformation': 'Transformaatio',
+    'Expand': 'Laajenna',
+    'Open tool': 'Avaa tyokalu',
+    'Instructions': 'Ohjeet',
+    'Use Case': 'Kayttotapaus',
+    'Step 1': 'Vaihe 1',
+    'Step 2': 'Vaihe 2',
+    'Step 3': 'Vaihe 3',
+    'Step 4': 'Vaihe 4',
+    'Step 5': 'Vaihe 5',
+    'Industry Benchmarking & Gap Analysis': 'Toimialavertailu ja kuiluanalyysi',
+    'Maturity Domains - Definitions': 'Kypsyysalueet - maaritelmat',
+    'Maturity Score vs Industry Index': 'Kypsyystaso vs toimialaindeksi',
+    'Strategic Insights & Opportunity Cost': 'Strategiset havainnot ja vaihtoehtoiskustannus',
+    'Data Collection & Survey Engine': 'Datan keruu ja kyselymoottori',
+    'Share of verified data points': 'Varmennettujen datapisteiden osuus',
+    'Verification Log': 'Varmennusloki',
+    'All Areas': 'Kaikki alueet',
+    'All Domains': 'Kaikki osa-alueet',
+    'Optimize Prompt with AI': 'Optimoi kehote AI:lla',
+    'AI refines your description into architecture-ready input before generation.': 'AI tarkentaa kuvauksesi arkkitehtuurin luontiin sopivaksi syotteeksi.',
+    'Calm overview for executive and delivery teams': 'Selkea yleiskuva johdolle ja toimitustiimeille'
+  }
+};
+
+function normalizeLanguageCode(code) {
+  const raw = String(code || '').toLowerCase().trim();
+  if (!raw) return 'en';
+  if (raw.startsWith('sv')) return 'sv';
+  if (raw.startsWith('nb') || raw.startsWith('nn') || raw.startsWith('no')) return 'no';
+  if (raw.startsWith('da')) return 'da';
+  if (raw.startsWith('fi')) return 'fi';
+  return 'en';
+}
+
+function getBrowserPreferredLanguage() {
+  const list = Array.isArray(navigator.languages) && navigator.languages.length ? navigator.languages : [navigator.language || 'en'];
+  for (const lang of list) {
+    const normalized = normalizeLanguageCode(lang);
+    if (SUPPORTED_APP_LANGUAGES.includes(normalized)) return normalized;
+  }
+  return 'en';
+}
+
+function getAppLanguage() {
+  const savedRaw = String(localStorage.getItem(APP_LANGUAGE_KEY) || '').toLowerCase().trim();
+  if (savedRaw && savedRaw !== APP_LANGUAGE_AUTO) {
+    const saved = normalizeLanguageCode(savedRaw);
+    if (SUPPORTED_APP_LANGUAGES.includes(saved)) return saved;
+  }
+  return getBrowserPreferredLanguage();
+}
+
+function getAppLanguagePreference() {
+  const savedRaw = String(localStorage.getItem(APP_LANGUAGE_KEY) || '').toLowerCase().trim();
+  if (!savedRaw || savedRaw === APP_LANGUAGE_AUTO) return APP_LANGUAGE_AUTO;
+  const normalized = normalizeLanguageCode(savedRaw);
+  return SUPPORTED_APP_LANGUAGES.includes(normalized) ? normalized : APP_LANGUAGE_AUTO;
+}
+
+function setAppLanguage(language, persist = true) {
+  const raw = String(language || '').toLowerCase().trim();
+  const resolved = raw === APP_LANGUAGE_AUTO ? getBrowserPreferredLanguage() : normalizeLanguageCode(raw);
+  if (persist) localStorage.setItem(APP_LANGUAGE_KEY, raw === APP_LANGUAGE_AUTO ? APP_LANGUAGE_AUTO : resolved);
+  applyLanguagePreference(resolved);
+}
+
+function translateLiteral(text, language) {
+  if (!text) return text;
+  const lang = normalizeLanguageCode(language);
+  if (lang === 'en') return text;
+  const cached = getCachedUiTranslations(lang);
+  return (cached[text]) || (UI_TRANSLATIONS[lang] && UI_TRANSLATIONS[lang][text]) || text;
+}
+
+function detectMessageLanguage(text) {
+  const lower = String(text || '').toLowerCase();
+  if (!lower) return null;
+  if (/[\u00E4\u00F6]/.test(lower) || /\b(och|att|for|fran|till|mognad|arkitektur|lagg till)\b/.test(lower)) return 'sv';
+  if (/\b(og|ikke|hva|hvor|til|fra|oppdater|arkitektur)\b/.test(lower)) return 'no';
+  if (/\b(og|ikke|hvad|hvor|til|fra|opdater|arkitektur)\b/.test(lower)) return 'da';
+  if (/\b(ja|tai|ole|on|mita|miksi|arkkitehtuuri|kyvykkyys)\b/.test(lower) || /[\u00E4\u00F6]/.test(lower) && /\b(voi|myos)\b/.test(lower)) return 'fi';
+  if (/^[\x00-\x7F\s\W\d]+$/.test(lower)) return 'en';
+  return null;
+}
+
+function resolveResponseLanguage(userMessage) {
+  // AI responds in the same language the user writes in
+  // Default to English if language cannot be detected from message
+  return detectMessageLanguage(userMessage) || 'en';
+}
+
+function getUiTranslationCacheKey(language) {
+  return `ea_ui_translations_${normalizeLanguageCode(language)}`;
+}
+
+function getCachedUiTranslations(language) {
+  const lang = normalizeLanguageCode(language);
+  try {
+    const raw = localStorage.getItem(getUiTranslationCacheKey(lang));
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function saveCachedUiTranslations(language, additions) {
+  const lang = normalizeLanguageCode(language);
+  const current = getCachedUiTranslations(lang);
+  const next = { ...current, ...(additions || {}) };
+  localStorage.setItem(getUiTranslationCacheKey(lang), JSON.stringify(next));
+}
+
+async function translateUiPhrasesWithAI(phrases, language) {
+  const lang = normalizeLanguageCode(language);
+  const unique = Array.from(new Set((phrases || []).map((x) => String(x || '').trim()).filter(Boolean)));
+  if (!unique.length) return {};
+
+  const response = await callAI(
+    'You are a UI localization translator. Return ONLY valid JSON, no markdown. Preserve placeholders, symbols, and meaning. Keep tone concise.',
+    `Target language: ${lang}\nTranslate each phrase and return JSON object where each key is the source phrase and each value is the translated phrase.\n\nSource phrases:\n${JSON.stringify(unique, null, 2)}`,
+    { taskType: 'lightweight', temperature: 0, includeProjectContext: false, replyLanguage: lang, silentOnNoKey: true }
+  );
+
+  try {
+    const parsed = JSON.parse(extractJSON(response));
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+async function queueUiAiBackfill(root, language) {
+  const lang = normalizeLanguageCode(language);
+  if (lang === 'en' || uiTranslationInFlight) return;
+
+  uiTranslationInFlight = true;
+  try {
+    const known = { ...UI_TRANSLATIONS[lang], ...getCachedUiTranslations(lang) };
+    const skipSelectors = '#chat-messages, #report-content';
+    const candidates = new Set();
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (!node.parentElement || node.parentElement.closest(skipSelectors)) return NodeFilter.FILTER_REJECT;
+        const trimmed = String(node.nodeValue || '').trim();
+        if (!trimmed || trimmed.length < 2 || trimmed.length > 180) return NodeFilter.FILTER_REJECT;
+        if (known[trimmed]) return NodeFilter.FILTER_REJECT;
+        if (/^\d+[\d\s.,%/-]*$/.test(trimmed)) return NodeFilter.FILTER_REJECT;
+        if (/^[{}\[\]<>]+$/.test(trimmed)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+
+    let node;
+    while ((node = walker.nextNode())) {
+      const phrase = String(node.nodeValue || '').trim();
+      if (phrase) candidates.add(phrase);
+      if (candidates.size >= 120) break;
+    }
+
+    const attrNames = ['placeholder', 'title', 'aria-label'];
+    document.querySelectorAll('*').forEach((el) => {
+      if (el.closest(skipSelectors)) return;
+      attrNames.forEach((attr) => {
+        const value = el.getAttribute(attr);
+        if (!value) return;
+        const phrase = String(value).trim();
+        if (!phrase || phrase.length > 180 || known[phrase]) return;
+        candidates.add(phrase);
+      });
+    });
+
+    const pending = Array.from(candidates).filter((phrase) => !known[phrase]);
+    if (!pending.length) return;
+
+    const merged = {};
+    for (let i = 0; i < pending.length; i += 30) {
+      const chunk = pending.slice(i, i + 30);
+      const translated = await translateUiPhrasesWithAI(chunk, lang);
+      Object.assign(merged, translated || {});
+    }
+
+    if (Object.keys(merged).length) {
+      saveCachedUiTranslations(lang, merged);
+      localizeStaticUi(lang, false);
+    }
+  } catch (error) {
+    console.warn('UI AI translation backfill failed:', error?.message || error);
+  } finally {
+    uiTranslationInFlight = false;
+  }
+}
+
+function localizeStaticUi(language, allowAiBackfill = true) {
+  const lang = normalizeLanguageCode(language);
+  document.documentElement.lang = lang;
+  if (lang === 'en') return;
+
+  const skipSelectors = '#chat-messages, #report-content';
+  const root = document.body;
+  if (!root) return;
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (!node.parentElement) return NodeFilter.FILTER_REJECT;
+      if (node.parentElement.closest(skipSelectors)) return NodeFilter.FILTER_REJECT;
+      const trimmed = String(node.nodeValue || '').trim();
+      if (!trimmed) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+
+  const textNodes = [];
+  let node;
+  while ((node = walker.nextNode())) textNodes.push(node);
+
+  textNodes.forEach((textNode) => {
+    const raw = String(textNode.nodeValue || '');
+    const trimmed = raw.trim();
+    const translated = translateLiteral(trimmed, lang);
+    if (translated !== trimmed) {
+      const leading = raw.match(/^\s*/)?.[0] || '';
+      const trailing = raw.match(/\s*$/)?.[0] || '';
+      textNode.nodeValue = leading + translated + trailing;
+    }
+  });
+
+  const attributeNames = ['placeholder', 'title', 'aria-label'];
+  document.querySelectorAll('*').forEach((el) => {
+    if (el.closest(skipSelectors)) return;
+    attributeNames.forEach((attr) => {
+      const value = el.getAttribute(attr);
+      if (!value) return;
+      const translated = translateLiteral(value, lang);
+      if (translated !== value) el.setAttribute(attr, translated);
+    });
+  });
+
+  if (allowAiBackfill) {
+    queueUiAiBackfill(root, lang);
+  }
+}
+
+function applyLanguagePreference(language) {
+  const selected = normalizeLanguageCode(language || getAppLanguage());
+  localizeStaticUi(selected);
+}
+
+function renderLanguageSelector() {
+  const select = document.getElementById('header-language-select');
+  if (!select) return;
+  select.value = getAppLanguagePreference();
+}
+
+function onHeaderLanguageChange(nextLanguage) {
+  const selected = String(nextLanguage || '').toLowerCase().trim();
+  const currentPreference = getAppLanguagePreference();
+  if (selected === currentPreference) return;
+  setAppLanguage(selected === APP_LANGUAGE_AUTO ? APP_LANGUAGE_AUTO : selected, true);
+  location.reload();
+}
+
+// Initialize DataManager, SyncEngine, and FileManager on page load
+window.addEventListener('DOMContentLoaded', () => {
+  console.log('?? NextGen EA V5 initializing...');
+
+  // Seed AdvisyAI with any pre-filled description text on load
+  if (typeof AdvisyAI !== 'undefined') {
+    const descEl = document.getElementById('description');
+    if (descEl && descEl.value) AdvisyAI.updateDescriptionContext(descEl.value);
+  }
+
+  // Load API key from storage into memory at startup
+  if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
+  console.log('?? API Key loaded from storage:', OPENAI_KEY ? '&#x2718; Present' : '? Missing');
+  
+  if (typeof EA_DataManager !== 'undefined') {
+    dataManager = new EA_DataManager();
+    OPENAI_KEY = dataManager.getApiKey() || OPENAI_KEY || '';
+    console.log('? V3 DataManager initialized');
+    
+    // Initialize SyncEngine
+    if (typeof EA_SyncEngine !== 'undefined') {
+      syncEngine = new EA_SyncEngine(dataManager);
+      console.log('? V3 SyncEngine initialized');
+    }
+    
+    // Initialize FileManager
+    if (typeof EA_FileManager !== 'undefined') {
+      fileManager = new EA_FileManager();
+      fileManager.init(dataManager);
+      console.log('? V3 FileManager initialized');
+      
+      // Enable auto-save only when a real project is open (projectId set by loadLastModel or saveModel)
+      // The 'autosave' fallback is intentionally removed � FileManager auto-save requires a DataManager project
+      if (currentModelId) {
+        fileManager.enableAutoSave(currentModelId, currentModelName, () => model, 5);
+      }
+    }
+    
+    // Initialize IntegrationEngine
+    if (typeof EA_IntegrationEngine !== 'undefined') {
+      integrationEngine = new EA_IntegrationEngine();
+      integrationEngine.init(dataManager, fileManager);
+      console.log('? V3 Integration Engine initialized');
+      
+      // Update integration dashboard
+      updateIntegrationDashboard();
+    }
+  } else {
+    console.warn('?? DataManager not loaded, using legacy storage');
+    OPENAI_KEY = localStorage.getItem('ea_api_key') || '';
+  }
+  loadLastModel();
+  setupDescriptionField();
+  
+  // Initialize tab lock states after model loads
+  setTimeout(() => {
+    updateTabLockStates();
+  }, 100);
+  
+  // -- CLEAR CHAT HISTORY COMPLETELY (localStorage + DOM + store) ------------
+  // This must happen BEFORE initChatPanel() which loads from localStorage
+  const AI_CONVERSATIONS_KEY = 'ea_ai_conversations';
+  localStorage.removeItem(AI_CONVERSATIONS_KEY);
+  aiConversationStore = { conversations: [], activeConversationId: null };
+  
+  const chatMessages = document.getElementById('chat-messages');
+  if (chatMessages) chatMessages.innerHTML = '';
+  
+  console.log('? Chat history cleared completely (localStorage + DOM + store)');
+  
+  // -- Check for partially completed step and offer recovery --
+  if (window.model && window.model.steps) {
+    const inProgressSteps = Object.keys(window.model.steps).filter(stepId => {
+      const step = window.model.steps[stepId];
+      return step.status === 'in-progress' && (step.completedTasks || []).length > 0;
+    });
+    
+    if (inProgressSteps.length > 0) {
+      const stepId = inProgressSteps[0];
+      const step = window.model.steps[stepId];
+      console.log(`?? Found incomplete step: ${stepId} (${step.completedTasks.length} tasks completed)`);
+      
+      // Show recovery notification
+      setTimeout(() => {
+        if (confirm(`?? You have an incomplete ${stepId} workflow with ${step.completedTasks.length} answers saved.\n\nWould you like to continue where you left off?`)) {
+          // Resume from where user left off
+          if (typeof StepEngine !== 'undefined') {
+            StepEngine.run(stepId).catch(err => {
+              console.error('Failed to resume step:', err);
+            });
+          }
+        } else {
+          // Reset step status to allow fresh start
+          step.status = 'not-started';
+          step.completedTasks = [];
+          step.answers = {};
+          if (typeof autoSaveCurrentModel === 'function') autoSaveCurrentModel();
+        }
+      }, 1000);
+    }
+  }
+  
+  ensurePhase4Fields();
+  renderPhase4ControlsFromModel();
+  renderActionBar();
+  renderNordicDashboard();
+  renderLanguageSelector();
+  applyLanguagePreference(getAppLanguage());
+  initChatPanel();
+  loadRecentProjects();
+  
+  // -- UNSAVED CHANGES WARNING & PERIODIC AUTO-SAVE ----------------------------
+  window.hasUnsavedChanges = false;
+  
+  // Warn before closing if unsaved changes
+  window.addEventListener('beforeunload', (e) => {
+    if (window.hasUnsavedChanges && currentModelId) {
+      e.preventDefault();
+      e.returnValue = 'You have unsaved changes. Do you really want to leave the page?';
+      return e.returnValue;
+    }
+  });
+  
+  // Periodic auto-save every 2 minutes if project exists and has changes
+  setInterval(() => {
+    if (currentModelId && window.hasUnsavedChanges) {
+      saveModelToDB(false, true); // Auto-save without prompt
+      console.log('? Periodic auto-save triggered');
+    }
+  }, 120000); // 2 minutes
+  
+  // Track model changes
+  const originalModel = JSON.stringify(model);
+  setInterval(() => {
+    if (JSON.stringify(model) !== originalModel) {
+      window.hasUnsavedChanges = true;
+    }
+  }, 10000); // Check every 10 seconds
+  
+  console.log('? Unsaved changes tracking initialized');
+  // Update home view based on project state
+  updateHomeView();
+  // Open the Home tab by default
+  showTab('home', null);
+  // Apply initial tab locks (runs even if no model is loaded)
+  setTimeout(() => { try { updateTabCompletionBadges(); } catch(e) {} }, 50);
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('autoflow') === '1') {
+    setTimeout(() => importAllAvailableToolkits(true), 350);
+  }
+
+  const requestedTab = params.get('tab');
+  if (requestedTab) {
+    const tabButton = document.querySelector(`.tab-btn[onclick*="showTab('${requestedTab}'"]`);
+    if (tabButton) {
+      setTimeout(() => showTab(requestedTab, tabButton), 80);
+    }
+  }
+
+  if (params.get('focus') === 'integration') {
+    setTimeout(() => {
+      const integrationPanel = document.getElementById('integration-dashboard');
+      if (integrationPanel) {
+        integrationPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        integrationPanel.classList.add('ring-4', 'ring-indigo-300', 'ring-offset-2');
+        setTimeout(() => integrationPanel.classList.remove('ring-4', 'ring-indigo-300', 'ring-offset-2'), 2200);
+      }
+    }, 220);
+  }
+});
+
+function setupDescriptionField() {
+  const field = document.getElementById('description');
+  if (!field) return;
+  field.addEventListener('focus', () => {
+    if (!field.dataset.expanded) {
+      field.dataset.expanded = 'true';
+      field.style.height = '170px';
+      updateDescriptionExpandLabel(true);
+    }
+  });
+}
+
+function toggleDescriptionExpand() {
+  const field = document.getElementById('description');
+  if (!field) return;
+  const expanded = field.dataset.expanded === 'true';
+  field.dataset.expanded = expanded ? 'false' : 'true';
+  field.style.height = expanded ? '96px' : '170px';
+  updateDescriptionExpandLabel(!expanded);
+  field.focus();
+}
+
+function updateDescriptionExpandLabel(expanded) {
+  const btn = document.getElementById('description-expand-btn');
+  if (!btn) return;
+  btn.textContent = expanded ? 'Minska' : 'Expandera';
+}
+
+function extractArchitectureSeedFromMessage(text) {
+  return String(text || '')
+    .replace(/^(generate|generera|create|skapa|build|bygg)\s+(enterprise\s+)?(architecture|arkitektur)\s*(for|f�r|for:)?:?/i, '')
+    .replace(/^(generate|generera|create|skapa|build|bygg)\s*/i, '')
+    .trim();
+}
+
+function parsePromptOptimizerResponse(rawText, fallbackText) {
+  const fallback = String(fallbackText || '').trim();
+  const responseText = String(rawText || '').trim();
+  if (!responseText) {
+    return { optimizedPrompt: fallback, checklist: [], detectedIndustry: '', detectedFocus: [] };
+  }
+
+  try {
+    const parsed = JSON.parse(extractJSON(responseText));
+    return {
+      optimizedPrompt: String(parsed.optimizedPrompt || fallback).trim() || fallback,
+      checklist: Array.isArray(parsed.checklist) ? parsed.checklist.map((item) => String(item).trim()).filter(Boolean).slice(0, 5) : [],
+      detectedIndustry: String(parsed.detectedIndustry || '').trim(),
+      detectedFocus: Array.isArray(parsed.detectedFocus) ? parsed.detectedFocus.map((item) => String(item).trim()).filter(Boolean).slice(0, 6) : []
+    };
+  } catch (error) {
+    return { optimizedPrompt: responseText || fallback, checklist: [], detectedIndustry: '', detectedFocus: [] };
+  }
+}
+
+async function optimizeArchitecturePromptText(rawInput, options = {}) {
+  const seed = extractArchitectureSeedFromMessage(rawInput);
+  if (!seed || seed.length < 10) {
+    throw new Error('Please provide a richer organization description before optimization.');
+  }
+
+  const response = await callAI(
+    'You are an enterprise architecture prompt optimizer. Convert rough organization descriptions into concise, high-quality architecture generation input. Return ONLY valid JSON.',
+    `Input description:\n"${seed}"\n\nRewrite and optimize this into a clear architecture generation brief that includes:\n- organization scope/context\n- capability scope\n- constraints and compliance hints\n- modernization priorities\n\nReturn JSON:\n{\n  "optimizedPrompt": "",\n  "checklist": [""],\n  "detectedIndustry": "",\n  "detectedFocus": [""]\n}\n\nRules:\n- Keep optimizedPrompt practical and implementation-oriented.\n- 4 to 8 lines max.\n- No markdown.\n- Preserve user intent and language style when possible.`,
+    { taskType: 'lightweight', temperature: 0.2, timeoutMs: options.timeoutMs || 60000 }
+  );
+
+  return parsePromptOptimizerResponse(response, seed);
+}
+
+async function optimizeDescriptionPrompt() {
+  const field = document.getElementById('description');
+  if (!field) return;
+
+  const current = String(field.value || '').trim();
+  if (!current) {
+    toast('Describe your organization first', true);
+    return;
+  }
+
+  spin('s0', true);
+  try {
+    const optimized = await optimizeArchitecturePromptText(current);
+    field.value = optimized.optimizedPrompt;
+    field.dataset.expanded = 'true';
+    field.style.height = '170px';
+    updateDescriptionExpandLabel(true);
+
+    const focusNote = optimized.detectedFocus.length ? ` Focus: ${optimized.detectedFocus.slice(0, 3).join(', ')}.` : '';
+    toast('Prompt optimized with AI &#x2718;' + focusNote, false);
+    autoSaveCurrentModel();
+  } catch (error) {
+    toast('Optimization failed: ' + error.message, true);
+  }
+  spin('s0', false);
+}
+
+function loadLastModel() {
+
+// V3: Continue loading from last model for backward compatibility
+  const lastModel = localStorage.getItem('ea_current_model');
+  if (lastModel) {
+    try {
+      if (!lastModel.trim().startsWith('{')) {
+        // Recover from accidental non-JSON content in model key (e.g. API key string)
+        localStorage.removeItem('ea_current_model');
+        console.warn('Invalid ea_current_model payload removed from localStorage');
+        return;
+      }
+      const parsed = JSON.parse(lastModel);
+      if (parsed.data && parsed.data.capabilities && parsed.data.capabilities.length > 0) {
+        model = parsed.data;
+        ensurePhase4Fields();
+        currentModelId = parsed.id;
+        currentModelName = parsed.name;
+        updateHeaderTitle();
+        renderLayers();
+        renderCapMap();
+        renderHeatmap();
+        renderMaturityDashboard();
+        populateImpactSelect();
+        renderExecSummary();
+        generateNarrative();
+        updateDataCollectionTab();
+        renderPhase4ControlsFromModel();
+        if (model.initiatives?.length) {
+          renderInitiatives();
+          renderRoadmapVisual();
+        }
+        if (model.operatingModel?.valueProposition) {
+          renderOperatingModel();
+        }
+        if (model.gapAnalysisRaw) {
+          const insightsEl = document.getElementById('insights');
+          if (insightsEl) insightsEl.innerHTML = formatGapAnalysisOutput(model.gapAnalysisRaw);
+        }
+        if (model.targetArch?.length) {
+          renderTargetArchVisual();
+        }
+        if (typeof syncConversationWithCurrentModel === 'function') syncConversationWithCurrentModel();
+        updateWorkflowStepStates();
+        renderStrategicIntentSection();
+        toast('V3 Model loaded &#x2718;', false);
+      }
+    } catch (e) {
+      console.error('Error loading last model:', e);
+      localStorage.removeItem('ea_current_model');
+    }
+  }
+}
+
+// Load saved models list from localStorage
+function getSavedModels() {
+  const saved = localStorage.getItem('ea_saved_models');
+  if (!saved) return [];
+  try {
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Invalid ea_saved_models payload:', e);
+    localStorage.removeItem('ea_saved_models');
+    return [];
+  }
+}
+
+function saveModelsListToStorage(modelsList) {
+  localStorage.setItem('ea_saved_models', JSON.stringify(modelsList));
+}
+
+// Auto-save current model periodically
+function autoSaveCurrentModel() {
+  if (currentModelId && model.capabilities.length > 0) {
+    const modelsList = getSavedModels();
+    const existing = modelsList.find(m => m.id === currentModelId);
+    if (existing) {
+      existing.data = model;
+      existing.updated = new Date().toISOString();
+      saveModelsListToStorage(modelsList);
+      localStorage.setItem('ea_current_model', JSON.stringify({ id: currentModelId, name: currentModelName, data: model }));
+    }
+  }
+}
+
+// Auto-save every 30 seconds
+setInterval(autoSaveCurrentModel, 30000);
+
+// -- API KEY MANAGEMENT ----
+function showSettingsModal() {
+  // Ensure all fields are synced from model before showing
+  ensurePhase4Fields();
+  renderPhase4ControlsFromModel();
+  document.getElementById('settingsModal').classList.remove('hidden');
+}
+
+function closeSettingsModal() {
+  document.getElementById('settingsModal').classList.add('hidden');
+}
+
+function getStoredApiKey() {
+  try {
+    if (dataManager && typeof dataManager.getApiKey === 'function') {
+      return String(dataManager.getApiKey() || '').trim();
+    }
+  } catch (_) {}
+  return String(localStorage.getItem('ea_api_key') || '').trim();
+}
+
+function persistApiKey(value) {
+  OPENAI_KEY = String(value || '').trim();
+  if (dataManager && typeof dataManager.setApiKey === 'function') {
+    dataManager.setApiKey(OPENAI_KEY);
+  } else {
+    localStorage.setItem('ea_api_key', OPENAI_KEY);
+  }
+}
+
+function saveApiKeyFromSettings() {
+  const apiKeyEl = document.getElementById('ai-api-key-input');
+  const keyValue = apiKeyEl ? apiKeyEl.value.trim() : '';
+  persistApiKey(keyValue);
+  // Re-render to show confirmation state
+  renderPhase4ControlsFromModel();
+  autoSaveCurrentModel();
+  toast('API key saved &#x2718; Ready for Generate Architecture', false);
+}
+
+function showApiModal() {
+  document.getElementById('apiKeyInput').value = OPENAI_KEY;
+  document.getElementById('apiModal').classList.remove('hidden');
+}
+
+function closeApiModal() {
+  document.getElementById('apiModal').classList.add('hidden');
+}
+
+function saveApiKey() {
+  persistApiKey(document.getElementById('apiKeyInput').value);
+  
+  closeApiModal();
+  toast('API key saved &#x2718; (V3 unified)', false);
+}
+
+// -- PROGRESSIVE DISCLOSURE ----
+function showProjectDashboard() {
+  const welcomeEl = document.getElementById('first-visit-welcome');
+  const dashboardEl = document.getElementById('project-dashboard');
+  if (welcomeEl) welcomeEl.classList.add('hidden');
+  if (dashboardEl) dashboardEl.classList.remove('hidden');
+  const nameEl = document.getElementById('hero-project-name');
+  if (nameEl) nameEl.textContent = (typeof currentModelName !== 'undefined' && currentModelName) ? currentModelName : 'Untitled Project';
+  const newBtn = document.getElementById('header-new-project-btn');
+  if (newBtn) newBtn.classList.remove('hidden');
+}
+
+function showWelcomeScreen() {
+  const welcomeEl = document.getElementById('first-visit-welcome');
+  const dashboardEl = document.getElementById('project-dashboard');
+  if (welcomeEl) welcomeEl.classList.remove('hidden');
+  if (dashboardEl) dashboardEl.classList.add('hidden');
+  const newBtn = document.getElementById('header-new-project-btn');
+  if (newBtn) newBtn.classList.add('hidden');
+}
+
+function updateHomeView() {
+  // Show dashboard if there's a current project, otherwise show welcome
+  if (currentModelId || (model && (model.capabilities?.length > 0 || model.valueStreams?.length > 0))) {
+    showProjectDashboard();
+  } else {
+    showWelcomeScreen();
+  }
+}
+
+// -- NEW PROJECT MANAGEMENT ----
+function openNewProjectModal() {
+  document.getElementById('newProjectName').value = '';
+  document.getElementById('newProjectDescription').value = '';
+  document.getElementById('newProjectModal').classList.remove('hidden');
+  // Focus on name input
+  setTimeout(() => document.getElementById('newProjectName').focus(), 100);
+}
+
+function closeNewProjectModal() {
+  document.getElementById('newProjectModal').classList.add('hidden');
+}
+
+function createNewProject() {
+  const projectName = document.getElementById('newProjectName').value.trim();
+  const projectDescription = document.getElementById('newProjectDescription').value.trim();
+  
+  if (!projectName) {
+    toast('? Please enter a project name', true);
+    return;
+  }
+  
+  // Generate unique project ID
+  const projectId = 'proj_' + Date.now();
+  
+  // Create empty model structure
+  const emptyModel = {
+    valueStreams: [],
+    capabilities: [],
+    processes: [],
+    systems: [],
+    dataDomains: [],
+    aiAgents: [],
+    initiatives: [],
+    operatingModel: {},
+    masterData: {
+      businessModel: '',
+      offerings: '',
+      customerSegments: '',
+      geographies: '',
+      regulations: '',
+      coreSystems: '',
+      dataLandscape: '',
+      strategicPriorities: '',
+      constraints: ''
+    },
+    aiConfig: {
+      model: 'gpt-5',
+      architectureMode: 'standard'
+    },
+    phase4Config: { industry: 'generic', activeBusinessAreas: ['general'] }
+  };
+  
+  // Set current model
+  currentModelId = projectId;
+  currentModelName = projectName;
+  model = emptyModel;
+  window.model = model; // keep window.model in sync with let model (StepEngine uses window.model)
+  
+  // Initialize new conversation for this project
+  const newConv = {
+    id: 'conv_' + Date.now(),
+    createdAt: new Date().toISOString(),
+    messages: [],
+    mode: 'general',
+    context: {}
+  };
+  aiConversationStore = {
+    conversations: [newConv],
+    activeConversationId: newConv.id
+  };
+  if (enableChatAutoSave) saveConversationHistory();
+  
+  // Prepare project data with chat history
+  const projectData = {
+    model: emptyModel,
+    chatHistory: aiConversationStore,
+    savedAt: new Date().toISOString(),
+    version: '11.0'
+  };
+  
+  // Save to DataManager (if available)
+  if (dataManager) {
+    // EA_DataManager uses createProject(name, description) then updateProject for data
+    const dmProject = dataManager.createProject(projectName, projectDescription);
+    // createProject generates its own ID � align currentModelId with it
+    currentModelId = dmProject.id;
+    dataManager.updateProject(dmProject.id, { data: { platform: projectData } });
+    dataManager.setCurrentProject(dmProject.id);
+
+    // Create initial snapshot with FileManager
+    if (fileManager) {
+      fileManager.saveProjectSnapshot(currentModelId, projectName, projectData, false);
+    }
+  } else {
+    // Fallback to legacy storage
+    localStorage.setItem('ea_current_model', JSON.stringify({
+      id: projectId,
+      name: projectName,
+      data: projectData
+    }));
+  }
+  
+  // Mark as saved (no unsaved changes yet)
+  window.hasUnsavedChanges = false;
+  
+  // Update UI
+  document.getElementById('description').value = projectDescription;
+  ensurePhase4Fields();
+  renderPhase4ControlsFromModel();
+  renderLayers();
+  updateHeaderTitle();
+  if (typeof syncConversationWithCurrentModel === 'function') syncConversationWithCurrentModel();
+  
+  // Restart auto-save with new project ID
+  if (fileManager) {
+    fileManager.disableAutoSave();
+    fileManager.enableAutoSave(projectId, projectName, () => model, 5);
+  }
+  
+  // Close modal and show success
+  closeNewProjectModal();
+  toast(`? Project "${projectName}" created (with backup)`, false);
+  
+  // Show the full dashboard now that we have a project
+  showProjectDashboard();
+}
+
+// -- TOAST NOTIFICATIONS ----
+function toast(msg, err) {
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;bottom:20px;right:20px;z-index:9999;padding:10px 18px;border-radius:10px;color:white;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.2);background:${err?'#dc2626':'#16a34a'}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// -- MODEL MANAGEMENT (LOCALSTORAGE) ----
+function newModel() {
+  // Check for unsaved changes
+  if (model.capabilities.length > 0 || model.systems.length > 0 || model.valueStreams.length > 0) {
+    if (!confirm('Create a new project? Any unsaved changes to the current project will be lost.')) {
+      return;
+    }
+  }
+  
+  // Show the new project modal
+  openNewProjectModal();
+}
+
+// -- DIAGNOSTIC PROGRESS TRACKING (7-STEP EA DIAGNOSTIC) ----------------------
+
+function initDiagnosticProgress() {
+  model.diagnosticProgress = {
+    currentStep: 1,
+    completedSteps: [],
+    industryProfile: null,
+    focusArea: null,
+    contextData: {
+      step1_scope: null,
+      step2_currentState: null,
+      step3_problems: null,
+      step4_maturity: null,
+      step5_outcomes: null,
+      step6_strategicIntent: null,
+      step7_targetArch: null
+    },
+    validationStatus: {
+      step1: false, step2: false, step3: false, step4: false,
+      step5: false, step6: false, step7: false
+    },
+    cxoSummaries: {},
+    scenarioAnalysis: null
+  };
+}
+
+function updateDiagnosticStep(stepNum, data) {
+  if (!model.diagnosticProgress) initDiagnosticProgress();
+  
+  const stepKey = `step${stepNum}_${_getStepDataKey(stepNum)}`;
+  model.diagnosticProgress.contextData[stepKey] = data;
+  
+  // Mark as validated if data provided
+  if (data && data.length > 0) {
+    model.diagnosticProgress.validationStatus[`step${stepNum}`] = true;
+    
+    // Add to completed steps if not already there
+    if (!model.diagnosticProgress.completedSteps.includes(stepNum)) {
+      model.diagnosticProgress.completedSteps.push(stepNum);
+    }
+    
+    // Move to next step
+    if (stepNum < 7) {
+      model.diagnosticProgress.currentStep = stepNum + 1;
+    }
+  }
+  
+  console.log(`? Diagnostic Step ${stepNum} updated:`, data);
+}
+
+function _getStepDataKey(stepNum) {
+  const keyMap = {
+    1: 'scope',
+    2: 'currentState',
+    3: 'problems',
+    4: 'maturity',
+    5: 'outcomes',
+    6: 'strategicIntent',
+    7: 'targetArch'
+  };
+  return keyMap[stepNum] || 'unknown';
+}
+
+function validateStepCompletion(stepNum) {
+  if (!model.diagnosticProgress) return false;
+  return model.diagnosticProgress.validationStatus[`step${stepNum}`] === true;
+}
+
+function getDiagnosticProgress() {
+  if (!model.diagnosticProgress) initDiagnosticProgress();
+  return model.diagnosticProgress;
+}
+
+function setDiagnosticContext(industryProfile, focusArea) {
+  if (!model.diagnosticProgress) initDiagnosticProgress();
+  model.diagnosticProgress.industryProfile = industryProfile;
+  model.diagnosticProgress.focusArea = focusArea;
+  console.log(`? Diagnostic context set: ${industryProfile} / ${focusArea}`);
+}
+
+// -- AUTO CXO SUMMARY GENERATION ----------------------------------------------
+
+async function generateCxOSummaryForStep(stepNum, stepData) {
+  if (!model.diagnosticProgress) initDiagnosticProgress();
+  
+  const industryProfile = model.diagnosticProgress.industryProfile || 'generic';
+  const focusArea = model.diagnosticProgress.focusArea || 'general';
+  
+  const stepTitles = {
+    1: 'Context & Scope',
+    2: 'Current State Assessment',
+    3: 'Friction & Problems',
+    4: 'Maturity & Capability Assessment',
+    5: 'Target Outcomes',
+    6: 'Strategic Intent',
+    7: 'EA Target Architecture'
+  };
+  
+  const stepTitle = stepTitles[stepNum] || `Step ${stepNum}`;
+  
+  const systemPrompt = `You are a **Board Advisor** writing executive summaries for C-level executives.
+
+**Context:**
+- Industry: ${industryProfile}
+- Focus Area: ${focusArea}
+- Diagnostic Step: ${stepNum} - ${stepTitle}
+
+**Your task:**
+Generate a concise CxO summary (max 200 words) in business language following this structure:
+
+1. **Situation** (1-2 sentences: What was assessed)
+2. **Business Impact** (2-3 sentences: Why it matters, quantified if possible)
+3. **Key Findings** (3-4 bullet points: Critical insights)
+4. **Recommendations** (2-3 sentences: What should be done next)
+
+**Rules:**
+- Use business language, not technical jargon
+- Quantify impact where possible (time, cost, risk, revenue)
+- Focus on strategic implications
+- Be specific to ${industryProfile} and ${focusArea}
+- Keep it concise and actionable
+
+**Output format:**
+Use markdown with ## headers, bullet points, and **bold** for key terms.`;
+
+  const userPrompt = `**Step ${stepNum} Data:**
+${JSON.stringify(stepData, null, 2)}
+
+Generate CxO Summary.`;
+
+  try {
+    const summary = await callAI(systemPrompt, userPrompt, {
+      taskType: 'analysis',
+      _traceLabel: `CxO Summary - Step ${stepNum}`
+    });
+    
+    // Save to model
+    model.diagnosticProgress.cxoSummaries[`step${stepNum}`] = {
+      title: stepTitle,
+      summary: summary,
+      timestamp: new Date().toISOString(),
+      step: stepNum
+    };
+    
+    console.log(`CxO Summary generated for Step ${stepNum}`);
+    toast(`CxO Summary generated for ${stepTitle} ?`);
+    
+    return summary;
+    
+  } catch (error) {
+    console.error(`Failed to generate CxO summary for step ${stepNum}:`, error);
+    return null;
+  }
+}
+
+async function generateScenarioAnalysis() {
+  if (!model.diagnosticProgress) return null;
+  
+  const industryProfile = model.diagnosticProgress.industryProfile || 'generic';
+  const focusArea = model.diagnosticProgress.focusArea || 'general';
+  
+  const systemPrompt = `You are a **Strategic Foresight Advisor** creating scenario analysis for C-level decision-making.
+
+**Context:**
+- Industry: ${industryProfile}
+- Focus Area: ${focusArea}
+- Strategic Intent: ${model.strategicIntent?.strategic_ambition || 'Not defined'}
+
+**Your task:**
+Generate 3 strategic scenarios (Best Case, Likely Case, Worst Case) with:
+
+1. **Scenario Name**
+2. **Probability** (%)
+3. **Timeline** (months to impact)
+4. **Business Impact** (Revenue, Cost, Risk)
+5. **Key Drivers** (3-4 factors)
+6. **Recommended Actions** (2-3 specific steps)
+
+Focus on ${industryProfile}-specific risks and ${focusArea}-specific opportunities.
+
+**Output format:**
+Create a table with columns: Scenario | Probability | Timeline | Impact | Actions
+Then add detailed narrative for each scenario (max 100 words each).`;
+
+  const contextData = Object.values(model.diagnosticProgress.contextData).filter(d => d !== null);
+  
+  const userPrompt = `**Diagnostic Context:**
+${JSON.stringify(contextData, null, 2)}
+
+Generate scenario analysis.`;
+
+  try {
+    const scenarios = await callAI(systemPrompt, userPrompt, {
+      taskType: 'analysis',
+      _traceLabel: 'Scenario Analysis'
+    });
+    
+    model.diagnosticProgress.scenarioAnalysis = {
+      content: scenarios,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('? Scenario analysis generated');
+    toast('Scenario Analysis generated ?');
+    
+    return scenarios;
+    
+  } catch (error) {
+    console.error('Failed to generate scenario analysis:', error);
+    return null;
+  }
+}
+
+function saveModelToDB(promptForName = true, autoSave = false) {
+  // Allow saving even without capabilities if we have diagnostic data
+  const hasContent = (model.capabilities && model.capabilities.length > 0) || 
+                     (model.diagnosticProgress && model.diagnosticProgress.completedSteps.length > 0) ||
+                     (model.strategicIntent?.strategic_ambition);
+  
+  if (!hasContent && !autoSave) {
+    toast('No content to save yet', true);
+    return false;
+  }
+  
+  let name = currentModelName || 'Untitled Model';
+  
+  if (promptForName && !autoSave) {
+    name = prompt('Enter project name:', name);
+    if (!name) return false;
+  }
+  
+  const modelsList = getSavedModels();
+  
+  // Include chat history in save
+  const projectData = {
+    model: model,
+    chatHistory: aiConversationStore,
+    savedAt: new Date().toISOString(),
+    version: '11.0'
+  };
+  
+  if (currentModelId) {
+    // Update existing
+    const existing = modelsList.find(m => m.id === currentModelId);
+    if (existing) {
+      existing.name = name;
+      existing.data = projectData;
+      existing.updated = new Date().toISOString();
+    }
+  } else {
+    // Create new
+    currentModelId = 'model_' + Date.now();
+    modelsList.push({
+      id: currentModelId,
+      name: name,
+      data: projectData,
+      created: new Date().toISOString(),
+      updated: new Date().toISOString()
+    });
+  }
+  
+  currentModelName = name;
+  saveModelsListToStorage(modelsList);
+  localStorage.setItem('ea_current_model', JSON.stringify({ id: currentModelId, name: currentModelName, data: projectData }));
+  
+  // Register/update with DataManager to prevent "project not found" warnings
+  if (dataManager) {
+    const existingProject = dataManager.getCurrentProject();
+    if (!existingProject || existingProject.id !== currentModelId) {
+      // Project not registered yet - create it
+      const dmProject = dataManager.createProject(name, model.strategicIntent?.strategic_ambition || 'Enterprise Architecture Model');
+      // Align IDs if DataManager generated a different one
+      if (dmProject && dmProject.id !== currentModelId) {
+        currentModelId = dmProject.id;
+      }
+    } else {
+      // Update existing project
+      dataManager.updateProject(currentModelId, { 
+        name: name,
+        data: { platform: projectData }
+      });
+    }
+  }
+  
+  // Mark as saved (for unsaved changes tracking)
+  window.hasUnsavedChanges = false;
+  
+  // Create file-based snapshot backup
+  if (fileManager) {
+    fileManager.saveProjectSnapshot(currentModelId, currentModelName, projectData, false);
+  }
+  
+  updateHeaderTitle();
+  
+  if (!autoSave) {
+    toast(`Project "${name}" saved successfully ? (with chat history)`, false);
+  }
+  
+  console.log(`? Project saved: ${name} (ID: ${currentModelId})`);
+  return true;
+}
+
+// -- UNIFIED PROJECT / MODEL MANAGER -----------------------------------------
+
+function _getAllEntries() {
+  // Source A: V3 DataManager projects
+  const dmProjects = (dataManager && typeof dataManager.getAllProjects === 'function')
+    ? dataManager.getAllProjects().map(p => ({
+        id: p.id, name: p.name,
+        updated: p.lastModified || p.created,
+        capabilities: p.data?.platform?.capabilities?.length || p.data?.capabilities?.length || 0,
+        systems:      p.data?.platform?.systems?.length      || p.data?.systems?.length      || 0,
+        description:  p.description || '',
+        source: 'dm'
+      }))
+    : [];
+  // Source B: legacy ea_saved_models
+  const legacy = getSavedModels().map(m => ({
+    id: m.id, name: m.name,
+    updated: m.updated || m.created,
+    capabilities: m.data?.capabilities?.length || 0,
+    systems: m.data?.systems?.length || 0,
+    description: '',
+    source: 'legacy'
+  }));
+  // De-dupe: if same id exists in both, prefer DataManager
+  const dmIds = new Set(dmProjects.map(p => p.id));
+  return [...dmProjects, ...legacy.filter(l => !dmIds.has(l.id))]
+    .sort((a, b) => new Date(b.updated) - new Date(a.updated));
+}
+
+function loadModelFromDB() {
+  const entries = _getAllEntries();
+  if (entries.length === 0) {
+    toast('No saved projects or models found', true);
+    return;
+  }
+  _openProjectModal(entries, false);
+}
+
+function openManageProjectsModal() {
+  const entries = _getAllEntries();
+  _openProjectModal(entries, true);
+}
+
+function _openProjectModal(entries, manageMode) {
+  const existing = document.getElementById('model-selector-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center';
+  modal.id = 'model-selector-modal';
+
+  const rowsHtml = entries.length === 0
+    ? '<div class="text-slate-500 text-sm text-center py-6">No saved projects or models found.</div>'
+    : entries.map(e => {
+        const badge = e.source === 'dm'
+          ? '<span style="background:#ede9fe;color:#6d28d9;font-size:9px;font-weight:700;padding:1px 6px;border-radius:9px;margin-left:6px;">PROJECT</span>'
+          : '<span style="background:#f1f5f9;color:#64748b;font-size:9px;font-weight:700;padding:1px 6px;border-radius:9px;margin-left:6px;">MODEL</span>';
+        const updated = (() => { try { return new Date(e.updated).toLocaleString(); } catch(_){return e.updated||'';} })();
+        const loadBtn = manageMode ? '' : `<button onclick="event.stopPropagation(); _loadEntry('${e.id}','${e.source}')" style="font-size:10px;padding:3px 10px;border-radius:6px;background:#1e293b;color:#fff;border:none;cursor:pointer;font-weight:700;">Load</button>`;
+        const onRowClick = manageMode ? '' : `onclick="_loadEntry('${e.id}','${e.source}')"`;
+        return `
+        <div class="border rounded-xl p-3 flex justify-between items-center gap-2 hover:bg-slate-50" style="cursor:${manageMode?'default':'pointer'}" ${onRowClick}>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1 flex-wrap">
+              <span class="font-semibold text-sm truncate">${e.name}</span>${badge}
+            </div>
+            <div class="text-xs text-slate-400 mt-0.5">
+              ${updated} &bull; ${e.capabilities} capabilities &bull; ${e.systems} systems
+              ${e.description ? `<br><span class="italic">${e.description}</span>` : ''}
+            </div>
+          </div>
+          <div class="flex gap-1 shrink-0">
+            ${loadBtn}
+            <button onclick="event.stopPropagation(); _deleteEntry('${e.id}','${e.source}')" style="font-size:10px;padding:3px 10px;border-radius:6px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">Delete</button>
+          </div>
+        </div>`;
+      }).join('');
+
+  modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl flex flex-col" style="width:640px;max-height:80vh;">
+      <div style="padding:20px 24px 12px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:16px;font-weight:800;color:#0f172a;">${manageMode ? '📋 Manage Projects & Models' : '📂 Load Project / Model'}</div>
+          <div style="font-size:11px;color:#64748b;margin-top:2px;">Both <strong>Projects</strong> (DataManager) and <strong>Models</strong> (legacy) are shown</div>
+        </div>
+        <button onclick="closeModal()" style="border:none;background:none;font-size:20px;color:#94a3b8;cursor:pointer;line-height:1;">&times;</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px 24px;display:flex;flex-direction:column;gap:8px;" id="modelList">
+        ${rowsHtml}
+      </div>
+      <div style="padding:12px 24px;border-top:1px solid #e2e8f0;text-align:right;">
+        <button onclick="closeModal()" style="background:#f1f5f9;color:#334155;border:none;border-radius:8px;padding:8px 20px;font-weight:700;font-size:13px;cursor:pointer;">Close</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+  window.closeModal = () => {
+    const m = document.getElementById('model-selector-modal');
+    if (m) m.remove();
+  };
+}
+
+function _loadEntry(id, source) {
+  if (source === 'dm' && dataManager) {
+    const p = dataManager.getProject(id);
+    if (!p) { toast('Project not found', true); return; }
+    currentModelId   = p.id;
+    currentModelName = p.name;
+    // DataManager projects store EA data under .data.platform or directly in .data
+    const projectData = p.data?.platform || p.data || {};
+    
+    // Check if this is new format (with model + chatHistory)
+    if (projectData.model && projectData.chatHistory) {
+      model = projectData.model;
+      aiConversationStore = projectData.chatHistory;
+      if (enableChatAutoSave) saveConversationHistory(); // Persist to localStorage
+    } else {
+      model = projectData;
+    }
+  } else {
+    const saved = getSavedModels().find(m => m.id === id);
+    if (!saved) { toast('Model not found', true); return; }
+    currentModelId   = saved.id;
+    currentModelName = saved.name;
+    
+    // Check if this is new format (with model + chatHistory)
+    if (saved.data && saved.data.model && saved.data.chatHistory) {
+      model = saved.data.model;
+      aiConversationStore = saved.data.chatHistory;
+      if (enableChatAutoSave) saveConversationHistory(); // Persist to localStorage
+    } else {
+      // Legacy format (just model data)
+      model = saved.data;
+    }
+  }
+  
+  // Load chat history into UI
+  refreshChatUI();
+  
+  // Close dialog and navigate home FIRST � before any rendering that might throw
+  closeModal();
+  showProjectDashboard();
+  showTab('home');
+
+  ensurePhase4Fields();
+  ensureBusinessFields();
+  computeDerivedFinancials();
+  try { renderLayers(); } catch(e) { console.warn('renderLayers', e); }
+  try { renderCapMap(); } catch(e) { console.warn('renderCapMap', e); }
+  try { renderHeatmap(); } catch(e) { console.warn('renderHeatmap', e); }
+  try { renderMaturityDashboard(); } catch(e) { console.warn('renderMaturityDashboard', e); }
+  try { populateImpactSelect(); renderExecSummary(); generateNarrative(); updateDataCollectionTab(); } catch(e) { console.warn('renderExec', e); }
+  try { renderPhase4ControlsFromModel(); } catch(e) { console.warn('renderPhase4', e); }
+  const cxoSection = document.getElementById('cxo-narrative-section');
+  if (cxoSection) cxoSection.classList.remove('hidden');
+  if (model.initiatives?.length) { try { renderInitiatives(); renderRoadmapVisual(); } catch(e) { console.warn('renderRoadmap', e); } }
+  if (model.operatingModel && (model.operatingModel?.valueProposition || model.operatingModel?.current?.value_delivery || model.operatingModel?.target?.value_delivery)) { try { renderOperatingModel(); } catch(e) { console.warn('renderOM', e); } }
+  if (model.gapAnalysisRaw) {
+    const insightsEl = document.getElementById('insights');
+    if (insightsEl) insightsEl.innerHTML = formatGapAnalysisOutput(model.gapAnalysisRaw);
+  }
+  if (model.targetArch?.length) { try { renderTargetArchVisual(); } catch(e) { console.warn('renderTarget', e); } }
+  localStorage.setItem('ea_current_model', JSON.stringify({ id: currentModelId, name: currentModelName, data: model }));
+  updateHeaderTitle();
+  if (typeof syncConversationWithCurrentModel === 'function') syncConversationWithCurrentModel();
+  try { updateWorkflowStepStates(); } catch(e) { console.warn('updateWorkflow', e); }
+  try { renderStrategicIntentSection(); } catch(e) { console.warn('renderStrategicIntent', e); }
+  toast(`Loaded: ${currentModelName} (with chat history)`, false);
+}
+
+// -- CHAT UI REFRESH & MANAGEMENT ---------------------------------------------
+
+function refreshChatUI() {
+  const chatMessages = document.getElementById('chat-messages');
+  if (!chatMessages) return;
+  
+  chatMessages.innerHTML = '';
+  
+  const activeConv = getActiveConversation();
+  if (activeConv && activeConv.messages && activeConv.messages.length > 0) {
+    activeConv.messages.forEach(msg => {
+      addMessage(msg.content, msg.role === 'user' ? 'user' : 'ai', false);
+    });
+    scrollToBottom();
+    console.log(`? Chat history loaded: ${activeConv.messages.length} messages`);
+  }
+}
+
+function clearChatHistory() {
+  if (!confirm('Clear all chat history for this project? This cannot be undone.')) return;
+  
+  const activeConv = getActiveConversation();
+  if (activeConv) {
+    activeConv.messages = [];
+    if (enableChatAutoSave) saveConversationHistory();
+  }
+  
+  const chatMessages = document.getElementById('chat-messages');
+  if (chatMessages) chatMessages.innerHTML = '';
+  
+  toast('Chat history cleared ?');
+  console.log('? Chat history cleared');
+}
+
+function startNewChat() {
+  if (!confirm('Start a new chat? Current chat will be archived.')) return;
+  
+  // Create new conversation
+  const newConv = {
+    id: 'conv_' + Date.now(),
+    createdAt: new Date().toISOString(),
+    messages: [],
+    mode: 'general',
+    context: {}
+  };
+  
+  aiConversationStore.conversations.push(newConv);
+  aiConversationStore.activeConversationId = newConv.id;
+  if (enableChatAutoSave) saveConversationHistory();
+  
+  const chatMessages = document.getElementById('chat-messages');
+  if (chatMessages) chatMessages.innerHTML = '';
+  
+  toast('New chat started ?');
+  console.log('? New chat started:', newConv.id);
+}
+
+function trimChatHistory(maxMessages = 50) {
+  const activeConv = getActiveConversation();
+  if (!activeConv || !activeConv.messages) return;
+  
+  if (activeConv.messages.length > maxMessages) {
+    const oldCount = activeConv.messages.length;
+    // Keep system message + last N messages
+    const systemMessages = activeConv.messages.filter(m => m.role === 'system');
+    const otherMessages = activeConv.messages.filter(m => m.role !== 'system').slice(-maxMessages);
+    activeConv.messages = [...systemMessages, ...otherMessages];
+    if (enableChatAutoSave) saveConversationHistory();
+    console.log(`? Chat trimmed: ${oldCount} ? ${activeConv.messages.length} messages`);
+    return oldCount - activeConv.messages.length;
+  }
+  return 0;
+}
+
+function _deleteEntry(id, source) {
+  const label = source === 'dm' ? 'project' : 'model';
+  if (!confirm('Delete this ' + label + '? This cannot be undone.')) return;
+  if (source === 'dm' && dataManager) {
+    dataManager.deleteProject(id);
+    if (dataManager.currentProjectId === id || currentModelId === id) {
+      currentModelId = null; currentModelName = '';
+      localStorage.removeItem('ea_current_model');
+      updateHeaderTitle();
+    }
+  } else {
+    const filtered = getSavedModels().filter(m => m.id !== id);
+    saveModelsListToStorage(filtered);
+    if (currentModelId === id) {
+      currentModelId = null; currentModelName = '';
+      localStorage.removeItem('ea_current_model');
+      updateHeaderTitle();
+    }
+  }
+  toast(label.charAt(0).toUpperCase() + label.slice(1) + ' deleted &#x2718;', false);
+  // Refresh modal in-place
+  const entries = _getAllEntries();
+  const list = document.getElementById('modelList');
+  if (list) {
+    list.innerHTML = entries.length === 0
+      ? '<div class="text-slate-500 text-sm text-center py-6">No saved projects or models found.</div>'
+      : entries.map(e => {
+          const badge = e.source === 'dm'
+            ? '<span style="background:#ede9fe;color:#6d28d9;font-size:9px;font-weight:700;padding:1px 6px;border-radius:9px;margin-left:6px;">PROJECT</span>'
+            : '<span style="background:#f1f5f9;color:#64748b;font-size:9px;font-weight:700;padding:1px 6px;border-radius:9px;margin-left:6px;">MODEL</span>';
+          const updated = (() => { try { return new Date(e.updated).toLocaleString(); } catch(_){return e.updated||'';} })();
+          return `
+          <div class="border rounded-xl p-3 flex justify-between items-center gap-2 hover:bg-slate-50">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-1 flex-wrap"><span class="font-semibold text-sm truncate">${e.name}</span>${badge}</div>
+              <div class="text-xs text-slate-400 mt-0.5">${updated} &bull; ${e.capabilities} capabilities &bull; ${e.systems} systems${e.description?`<br><span class="italic">${e.description}</span>`:''}</div>
+            </div>
+            <div class="flex gap-1 shrink-0">
+              <button onclick="event.stopPropagation(); _loadEntry('${e.id}','${e.source}')" style="font-size:10px;padding:3px 10px;border-radius:6px;background:#1e293b;color:#fff;border:none;cursor:pointer;font-weight:700;">Load</button>
+              <button onclick="event.stopPropagation(); _deleteEntry('${e.id}','${e.source}')" style="font-size:10px;padding:3px 10px;border-radius:6px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">Delete</button>
+            </div>
+          </div>`;
+        }).join('');
+  }
+}
+
+// Legacy shim � keep existing callers working
+function showModelSelector(models) { loadModelFromDB(); }
+function selectModel(id) { _loadEntry(id, 'legacy'); }
+function deleteModelFromDB(id) { _deleteEntry(id, 'legacy'); }
+
+function updateHeaderTitle() {
+  const titleEl = document.querySelector('header .font-bold.text-base');
+  if (titleEl) {
+    titleEl.textContent = currentModelName || 'AI Enterprise Architecture Platform';
+  }
+}
+
+// -- EXPORT / IMPORT ----
+function exportModel() {
+  if (fileManager) {
+    // Use FileManager for enhanced export with backup
+    const filename = fileManager.exportProjectToDownload(currentModelId, currentModelName, model);
+    
+    // Also create a snapshot
+    fileManager.saveProjectSnapshot(currentModelId, currentModelName, model, false);
+    
+    toast(`Model exported &#x2718; (${filename})`, false);
+  } else {
+    // Fallback to legacy export
+    const exportData = {
+      name: currentModelName,
+      exported: new Date().toISOString(),
+      model: model
+    };
+    const a = document.createElement('a');
+    a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
+    a.download = `${currentModelName.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.json`;
+    a.click();
+    toast('Model exported &#x2718;', false);
+  }
+}
+
+function importModel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  if (fileManager) {
+    // Use FileManager for enhanced import
+    fileManager.importFromFile(file)
+      .then(imported => {
+        model = imported.data || imported.model || imported;
+        currentModelId = imported.projectId || null;
+        currentModelName = imported.projectName || imported.name || 'Imported Model';
+        
+        ensurePhase4Fields();
+        ensureBusinessFields();
+        
+        // ========== PHASE 6: DATA MIGRATION ==========
+        // Check if model needs migration from strategicIntent to businessContext
+        let migrated = false;
+        if (model.strategicIntent && !model.businessContext) {
+          console.log('🔄 Migrating legacy model to Business Context architecture...');
+          
+          // Use businessContext module for migration
+          if (typeof BusinessContext !== 'undefined' && BusinessContext.migrateStrategicIntentToBusinessContext) {
+            BusinessContext.migrateStrategicIntentToBusinessContext(model);
+            migrated = true;
+            
+            toast('✅ Model migrated to Business Context architecture', false);
+          }
+        }
+        
+        // Ensure businessContext has enrichment structure
+        if (model.businessContext && !model.businessContext.enrichment) {
+          if (typeof BusinessContext !== 'undefined' && BusinessContext.initializeEnrichment) {
+            model.businessContext.enrichment = BusinessContext.initializeEnrichment();
+          }
+        }
+        
+        // Show migration banner if migration occurred
+        if (migrated) {
+          const migrationBanner = document.getElementById('migration-banner');
+          if (migrationBanner) {
+            migrationBanner.classList.remove('hidden');
+            migrationBanner.innerHTML = `
+              <div class="flex items-center gap-2 text-[10px] bg-blue-50 border border-blue-200 rounded-lg p-2">
+                <i class="fas fa-info-circle text-blue-600"></i>
+                <span class="text-blue-900">
+                  <strong>Model Migrated:</strong> Your EA model has been updated to the new Business Context architecture. 
+                  Legacy Strategic Intent data preserved for compatibility.
+                </span>
+              </div>`;
+          }
+        }
+        // ========== END PHASE 6 MIGRATION ==========
+        
+        computeDerivedFinancials();
+        renderLayers();
+        renderCapMap();
+        renderHeatmap();
+        renderMaturityDashboard();
+        populateImpactSelect();
+        renderExecSummary();
+        generateNarrative();
+        updateDataCollectionTab();
+        renderPhase4ControlsFromModel();
+        
+        if (model.initiatives?.length) {
+          renderInitiatives();
+          renderRoadmapVisual();
+        }
+        
+        if (model.operatingModel?.valueProposition) {
+          renderOperatingModel();
+        }
+        
+        updateHeaderTitle();
+        if (typeof syncConversationWithCurrentModel === 'function') syncConversationWithCurrentModel();
+        toast('Model imported ✓', false);
+      })
+      .catch(error => {
+        console.error('Import error:', error);
+        toast('Invalid JSON file: ' + error.message, true);
+      });
+  } else {
+    // Fallback to legacy import
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const imported = JSON.parse(e.target.result);
+        model = imported.model || imported;
+        currentModelId = null;
+        currentModelName = imported.name || 'Imported Model';
+        
+        ensurePhase4Fields();
+        ensureBusinessFields();
+        
+        // ========== PHASE 6: DATA MIGRATION ==========
+        let migrated = false;
+        if (model.strategicIntent && !model.businessContext) {
+          console.log('🔄 Migrating legacy model to Business Context architecture...');
+          
+          if (typeof BusinessContext !== 'undefined' && BusinessContext.migrateStrategicIntentToBusinessContext) {
+            BusinessContext.migrateStrategicIntentToBusinessContext(model);
+            migrated = true;
+            toast('✅ Model migrated to Business Context architecture', false);
+          }
+        }
+        
+        if (model.businessContext && !model.businessContext.enrichment) {
+          if (typeof BusinessContext !== 'undefined' && BusinessContext.initializeEnrichment) {
+            model.businessContext.enrichment = BusinessContext.initializeEnrichment();
+          }
+        }
+        
+        if (migrated) {
+          const migrationBanner = document.getElementById('migration-banner');
+          if (migrationBanner) {
+            migrationBanner.classList.remove('hidden');
+            migrationBanner.innerHTML = `
+              <div class="flex items-center gap-2 text-[10px] bg-blue-50 border border-blue-200 rounded-lg p-2">
+                <i class="fas fa-info-circle text-blue-600"></i>
+                <span class="text-blue-900">
+                  <strong>Model Migrated:</strong> Your EA model has been updated to the new Business Context architecture.
+                </span>
+              </div>`;
+          }
+        }
+        // ========== END PHASE 6 MIGRATION ==========
+        
+        computeDerivedFinancials();
+        renderLayers();
+        renderCapMap();
+        renderHeatmap();
+        renderMaturityDashboard();
+        populateImpactSelect();
+        renderExecSummary();
+        generateNarrative();
+        updateDataCollectionTab();
+        renderPhase4ControlsFromModel();
+        
+        if (model.initiatives?.length) {
+          renderInitiatives();
+          renderRoadmapVisual();
+        }
+        
+        if (model.operatingModel?.valueProposition) {
+          renderOperatingModel();
+        }
+        
+        updateHeaderTitle();
+        if (typeof syncConversationWithCurrentModel === 'function') syncConversationWithCurrentModel();
+        toast('Model imported &#x2718;', false);
+      } catch (error) {
+        console.error('Import error:', error);
+        toast('Invalid JSON file', true);
+      }
+    };
+    reader.readAsText(file);
+  }
+}
+
+// -- OPENAI INTEGRATION ----
+function buildMasterDataPromptContext() {
+  ensurePhase4Fields();
+  const md = model.masterData || {};
+  const aiCfg = model.aiConfig || {};
+  const activeAreas = normalizeBusinessAreas(model.phase4Config?.activeBusinessAreas || ['general']).join(', ');
+  const lines = [
+    `Industry Profile: ${model.phase4Config?.industry || 'generic'}`,
+    `Active Business Areas: ${activeAreas}`,
+    `Business Model: ${md.businessModel || 'Not specified'}`,
+    `Offerings: ${md.offerings || 'Not specified'}`,
+    `Customer Segments: ${md.customerSegments || 'Not specified'}`,
+    `Geographies: ${md.geographies || 'Not specified'}`,
+    `Regulations: ${md.regulations || 'Not specified'}`,
+    `Core Systems: ${md.coreSystems || 'Not specified'}`,
+    `Data Landscape: ${md.dataLandscape || 'Not specified'}`,
+    `Strategic Priorities: ${md.strategicPriorities || 'Not specified'}`,
+    `Constraints: ${md.constraints || 'Not specified'}`
+  ];
+  return lines.join('\n');
+}
+
+// Build Business Objectives context for AI prompts (Business Object workflow)
+function buildBusinessObjectivesContext() {
+  const businessObjectives = model.businessObjectives;
+  if (!businessObjectives) return '';
+  
+  const lines = ['=== BUSINESS OBJECTIVES (Strategic Goals) ==='];
+  
+  if (businessObjectives.primaryObjectives?.length > 0) {
+    lines.push('\nPrimary Objectives:');
+    businessObjectives.primaryObjectives.forEach((obj, i) => {
+      lines.push(`${i + 1}. ${obj}`);
+    });
+  }
+  
+  if (businessObjectives.keyChallenges?.length > 0) {
+    lines.push('\nKey Challenges:');
+    businessObjectives.keyChallenges.forEach((challenge, i) => {
+      lines.push(`${i + 1}. ${challenge}`);
+    });
+  }
+  
+  if (businessObjectives.strategicContext && Object.keys(businessObjectives.strategicContext).length > 0) {
+    lines.push('\nStrategic Context:');
+    Object.entries(businessObjectives.strategicContext).forEach(([key, value]) => {
+      const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      lines.push(`- ${label}: ${value}`);
+    });
+  }
+  
+  lines.push('');
+  lines.push('IMPORTANT: All generated artifacts (BMC, Capability Map, etc.) MUST align with these business objectives.');
+  lines.push('');
+  
+  return lines.join('\n');
+}
+
+async function callAI(sys, user, options = {}) {
+  ensurePhase4Fields();
+
+  // Prompt Trace � show editable system+user card in sidebar (skip _fromChat to avoid re-run loop)
+  if (window._advisyPromptTrace && !options._fromChat) {
+    renderPromptTrace(options._traceLabel || options.taskType || 'callAI', sys, user);
+    const panel = document.getElementById('ai-chat-panel');
+    if (panel && panel.classList.contains('hidden')) toggleChatPanel();
+  }
+
+  // -- Model Configuration Based on Task Type --------------------------------
+  const taskType = options.taskType || 'general';
+  const modelConfig = AI_MODEL_CONFIG[taskType] || AI_MODEL_CONFIG.general;
+  
+  console.log(`?? AI Call: ${taskType} | Model: ${modelConfig.model} | Temp: ${modelConfig.temperature}`);
+  
+  const includeProjectContext = options.includeProjectContext !== false;
+  const masterDataContext = includeProjectContext ? buildMasterDataPromptContext() : '';
+  const businessObjectivesContext = includeProjectContext ? buildBusinessObjectivesContext() : '';
+
+  const replyLanguage = normalizeLanguageCode(options.replyLanguage || getAppLanguage());
+  const expectsJson = /return\s+only\s+valid\s+json|json\s+only|return\s+json/i.test(String(sys || '') + '\n' + String(user || ''));
+  const languageInstruction = replyLanguage === 'en'
+    ? ''
+    : (expectsJson
+      ? `\n\nResponse Language Policy:\n- Respond in ${replyLanguage}.\n- Keep required JSON keys, schema, and enum tokens exactly as requested.\n- Translate only natural-language values.`
+      : `\n\nResponse Language Policy:\n- Respond in ${replyLanguage}.`);
+
+  // Responses API format: instructions (system) + input (user)
+  // Include Business Objectives context when available (Business Object workflow)
+  const contextSections = [masterDataContext, businessObjectivesContext].filter(Boolean);
+  const fullContext = contextSections.length > 0 ? contextSections.join('\n\n') : '';
+  
+  const instructions = includeProjectContext && fullContext
+    ? `${sys}${languageInstruction}\n\nProject Context:\n${fullContext}`
+    : `${sys}${languageInstruction}`;
+
+  const input = includeProjectContext && fullContext
+    ? `${user}\n\nAnalysis Constraints:\n- Avoid generic advice\n- Use the provided master data and business context\n- Tailor output to the selected industry and business areas\n${businessObjectivesContext ? '- Align ALL outputs with the Business Objectives listed above' : ''}`
+    : `${user}`;
+
+  const timeoutMs = Number(options.timeoutMs || modelConfig.timeoutMs);
+  const reasoning = options.reasoning || modelConfig.reasoning;
+  // Reasoning models (o1, o3, o4-mini, gpt-5) do not support temperature
+  const isReasoningModel = /^(o1|o3|o4|gpt-5)/i.test(modelConfig.model);
+  const temperature = isReasoningModel ? undefined : Number(options.temperature ?? modelConfig.temperature);
+
+  // GPT-5 via Responses API with reasoning enabled
+  const createOpts = {
+    model: modelConfig.model,
+    instructions,
+    ...(temperature !== undefined && { temperature }),
+    timeout: timeoutMs,
+    reasoning
+  };
+
+  let response;
+  try {
+    if (typeof AzureOpenAIProxy === 'undefined') throw new Error('Proxy not available (running locally)');
+    response = await AzureOpenAIProxy.create(input, createOpts);
+    console.log(`? AI response via Responses API (${modelConfig.model})`);
+  } catch (proxyErr) {
+    // Fallback: direct Responses API with the user's stored API key
+    const _silentFallback = proxyErr.message === 'Proxy not available (running locally)'
+      || /AzureOpenAIProxy is not defined/i.test(proxyErr.message);
+    if (!_silentFallback) {
+      console.warn('Proxy failed, trying direct API key fallback...', proxyErr.message);
+    }
+    if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
+    if (!OPENAI_KEY) {
+      if (options.silentOnNoKey) throw new Error('No API key available for optional translation.');
+      showSettingsModal();
+      throw new Error('No API key provided. Please save your OpenAI API key in Settings or Quick Entry field.');
+    }
+   const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + OPENAI_KEY },
+        body: JSON.stringify({ 
+          model: modelConfig.model, 
+          input, 
+          instructions, 
+          ...(temperature !== undefined && { temperature }),
+          reasoning 
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || 'Direct API error');
+      // Normalise output_text if the raw response does not include it
+      if (!data.output_text && data.output) {
+        const textItem = (data.output || []).find(o => o.type === 'message');
+        const textContent = textItem?.content?.find(c => c.type === 'output_text' || c.type === 'text');
+        data.output_text = textContent?.text || '';
+      }
+      response = data;
+      console.log(`? AI response via direct Responses API (${modelConfig.model})`);
+    } catch (directErr) {
+      clearTimeout(timer);
+      console.error('Direct API also failed:', directErr);
+      throw new Error(directErr.message || proxyErr.message || 'API error');
+    }
+  }
+
+  // Thinking card – DISABLED: thinking process should not be visible to users
+  // if (response?.output) {
+  //   const thinkingParts = [];
+  //   for (const item of (response.output || [])) {
+  //     if (item.type === 'reasoning' && Array.isArray(item.summary)) {
+  //       thinkingParts.push(...item.summary.map(s => s.text || '').filter(Boolean));
+  //     }
+  //   }
+  //   if (thinkingParts.length) {
+  //     const panel = document.getElementById('ai-chat-panel');
+  //     if (panel && panel.classList.contains('hidden')) toggleChatPanel();
+  //     renderThinkingCard(options._traceLabel || options.taskType || taskType, thinkingParts.join('\n\n'));
+  //   }
+  // }
+
+  return response?.output_text || '';
+}
+function extractJSON(text) {
+  const m = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (m) return m[1].trim();
+  const a = text.indexOf('['), b = text.indexOf('{');
+  const start = a === -1 ? b : b === -1 ? a : Math.min(a, b);
+  if (start === -1) return text;
+  return text.slice(start, Math.max(text.lastIndexOf(']'), text.lastIndexOf('}')) + 1);
+}
+
+// -- PHASE 4: INDUSTRY + BUSINESS AREA CONFIG ----
+const PHASE4_BUSINESS_AREAS = ['general', 'operations', 'erp', 'finance', 'esg', 'itsm', 'gdpr', 'cybersecurity'];
+const PHASE4_INDUSTRY_PROFILES = {
+  'generic': { branch: 'generic', benchPeer: 'Industry Peer Group A', areas: ['general', 'operations', 'erp', 'finance'] },
+  'startup': { branch: 'startup', benchPeer: 'Industry Peer Group A', areas: ['general', 'operations', 'finance', 'itsm', 'cybersecurity'] },
+  'domain-specific': { branch: 'domain-specific', benchPeer: 'Industry Peer Group A', areas: ['general', 'operations', 'erp', 'finance', 'esg', 'itsm', 'cybersecurity'] },
+  'fintech': { branch: 'fintech', benchPeer: 'Global Asset Management', areas: ['general', 'operations', 'erp', 'finance', 'gdpr', 'cybersecurity'] },
+  'industry-specific': { branch: 'industry-specific', benchPeer: 'Industry Peer Group A', areas: ['general', 'operations', 'erp', 'finance', 'esg', 'itsm', 'cybersecurity'] },
+  'banking': { branch: 'banking', benchPeer: 'Global Asset Management', areas: ['general', 'operations', 'erp', 'finance', 'gdpr', 'cybersecurity'] },
+  'healthcare': { branch: 'healthcare', benchPeer: 'Public Housing (Sweden)', areas: ['general', 'operations', 'erp', 'finance', 'gdpr', 'cybersecurity'] },
+  'public-sector': { branch: 'public-sector', benchPeer: 'Public Housing (Sweden)', areas: ['general', 'operations', 'erp', 'finance', 'esg', 'gdpr'] },
+  'retail': { branch: 'retail', benchPeer: 'Industry Peer Group A', areas: ['general', 'operations', 'erp', 'finance', 'itsm', 'gdpr'] },
+  'insurance': { branch: 'insurance', benchPeer: 'Global Asset Management', areas: ['general', 'operations', 'erp', 'finance', 'gdpr', 'cybersecurity'] }
+};
+const PHASE4_AREA_BASELINES = {
+  'generic': { general: 3.0, operations: 3.0, erp: 3.0, finance: 3.0, esg: 2.8, itsm: 3.0, gdpr: 2.9, cybersecurity: 3.0 },
+  'startup': { general: 2.8, operations: 3.1, erp: 2.7, finance: 3.0, esg: 2.5, itsm: 3.3, gdpr: 2.6, cybersecurity: 3.1 },
+  'domain-specific': { general: 3.1, operations: 3.4, erp: 3.3, finance: 3.3, esg: 3.3, itsm: 3.2, gdpr: 3.0, cybersecurity: 3.2 },
+  'fintech': { general: 3.3, operations: 3.5, erp: 3.2, finance: 3.8, esg: 2.9, itsm: 3.3, gdpr: 3.7, cybersecurity: 3.9 },
+  'industry-specific': { general: 3.1, operations: 3.3, erp: 3.4, finance: 3.3, esg: 3.4, itsm: 3.2, gdpr: 2.9, cybersecurity: 3.0 },
+  'banking': { general: 3.4, operations: 3.6, erp: 3.4, finance: 4.0, esg: 3.0, itsm: 3.3, gdpr: 3.6, cybersecurity: 3.8 },
+  'healthcare': { general: 3.0, operations: 3.4, erp: 3.2, finance: 3.3, esg: 3.0, itsm: 3.1, gdpr: 3.5, cybersecurity: 3.4 },
+  'public-sector': { general: 2.9, operations: 3.1, erp: 3.2, finance: 3.2, esg: 3.2, itsm: 3.0, gdpr: 3.3, cybersecurity: 3.1 },
+  'retail': { general: 3.0, operations: 3.5, erp: 3.3, finance: 3.4, esg: 2.9, itsm: 3.3, gdpr: 3.2, cybersecurity: 3.0 },
+  'insurance': { general: 3.3, operations: 3.4, erp: 3.3, finance: 3.8, esg: 3.0, itsm: 3.2, gdpr: 3.5, cybersecurity: 3.7 }
+};
+
+function normalizeBusinessAreas(areas) {
+  const list = Array.isArray(areas) ? areas : [];
+  const normalized = [...new Set(list.filter(a => PHASE4_BUSINESS_AREAS.includes(a)))];
+  return normalized.length ? normalized : ['general'];
+}
+
+function ensureMasterDataFields() {
+  if (!model.masterData || typeof model.masterData !== 'object') {
+    model.masterData = {};
+  }
+  model.masterData = {
+    businessModel: String(model.masterData.businessModel || '').trim(),
+    offerings: String(model.masterData.offerings || '').trim(),
+    customerSegments: String(model.masterData.customerSegments || '').trim(),
+    geographies: String(model.masterData.geographies || '').trim(),
+    regulations: String(model.masterData.regulations || '').trim(),
+    coreSystems: String(model.masterData.coreSystems || '').trim(),
+    dataLandscape: String(model.masterData.dataLandscape || '').trim(),
+    strategicPriorities: String(model.masterData.strategicPriorities || '').trim(),
+    constraints: String(model.masterData.constraints || '').trim()
+  };
+}
+
+function ensureAIConfigFields() {
+  if (!model.aiConfig || typeof model.aiConfig !== 'object') {
+    model.aiConfig = {};
+  }
+  model.aiConfig = {
+    model: 'gpt-5',
+    architectureMode: ['draft', 'standard', 'deep'].includes(String(model.aiConfig.architectureMode || '').toLowerCase())
+      ? String(model.aiConfig.architectureMode || '').toLowerCase()
+      : 'standard'
+  };
+}
+
+function ensurePhase4Fields() {
+  ensureMasterDataFields();
+  ensureAIConfigFields();
+  if (!model.phase4Config || typeof model.phase4Config !== 'object') {
+    model.phase4Config = { industry: 'generic', activeBusinessAreas: ['general'] };
+  }
+
+  const industry = (model.phase4Config.industry || 'generic');
+  model.phase4Config.industry = PHASE4_INDUSTRY_PROFILES[industry] ? industry : 'generic';
+  model.phase4Config.activeBusinessAreas = normalizeBusinessAreas(model.phase4Config.activeBusinessAreas);
+
+  model.capabilities = (model.capabilities || []).map(c => ({
+    ...c,
+    businessAreas: normalizeBusinessAreas(c.businessAreas || model.phase4Config.activeBusinessAreas)
+  }));
+}
+
+function capabilityHasBusinessArea(capability, area) {
+  if (area === 'all') return true;
+  const areas = normalizeBusinessAreas(capability.businessAreas || []);
+  return areas.includes(area);
+}
+
+function setIndustryProfile(industry) {
+  if (typeof AdvisyAI !== 'undefined') AdvisyAI.updateIndustryLayer(industry);
+  const profile = PHASE4_INDUSTRY_PROFILES[industry] || PHASE4_INDUSTRY_PROFILES.generic;
+  model.phase4Config = {
+    industry,
+    activeBusinessAreas: normalizeBusinessAreas(profile.areas)
+  };
+  // Sync ESG layer: buildSystemPrompt() reads window.model live, but log for traceability
+  if (typeof AdvisyAI !== 'undefined') {
+    const hasESG = model.phase4Config.activeBusinessAreas.includes('esg');
+    console.log('[AdvisyAI] ESG layer:', hasESG ? 'active' : 'inactive', '| Industry:', industry);
+  }
+
+  renderPhase4ControlsFromModel();
+  updateDataCollectionTab();
+  renderCapMap();
+  renderHeatmap();
+  renderPhase4Dashboard();
+  autoSaveCurrentModel();
+}
+
+function setActiveBusinessAreasFromUI() {
+  const selected = Array.from(document.querySelectorAll('input[name="phase4-area-toggle"]:checked')).map(el => el.value);
+  model.phase4Config.activeBusinessAreas = normalizeBusinessAreas(selected);
+  if (typeof AdvisyAI !== 'undefined') {
+    const hasESG = model.phase4Config.activeBusinessAreas.includes('esg');
+    console.log('[AdvisyAI] ESG layer:', hasESG ? 'active' : 'inactive');
+  }
+  syncAreaFilterSelectors();
+  updateDataCollectionTab();
+  renderCapMap();
+  renderHeatmap();
+  renderPhase4Dashboard();
+  autoSaveCurrentModel();
+}
+
+function setMasterDataField(field, value) {
+  ensureMasterDataFields();
+  if (!(field in model.masterData)) return;
+  model.masterData[field] = String(value || '').trim();
+  autoSaveCurrentModel();
+}
+
+function setAIConfigField(field, value) {
+  ensureAIConfigFields();
+  if (!(field in model.aiConfig)) return;
+  model.aiConfig[field] = String(value || '').trim();
+  autoSaveCurrentModel();
+}
+
+function getMasterDataFields() {
+  return [
+    'businessModel',
+    'customerSegments',
+    'geographies',
+    'regulations',
+    'coreSystems',
+    'dataLandscape',
+    'strategicPriorities',
+    'constraints'
+  ];
+}
+
+function hasMeaningfulMasterData() {
+  ensureMasterDataFields();
+  return getMasterDataFields().some(field => String(model.masterData[field] || '').trim().length > 0);
+}
+
+function mergeMasterDataFields(values, fillOnlyEmpty = false) {
+  ensureMasterDataFields();
+  let updated = 0;
+
+  getMasterDataFields().forEach(field => {
+    const nextValue = String(values?.[field] || '').trim();
+    if (!nextValue) return;
+    const currentValue = String(model.masterData[field] || '').trim();
+    if (fillOnlyEmpty && currentValue) return;
+    if (currentValue === nextValue) return;
+    model.masterData[field] = nextValue;
+    updated += 1;
+  });
+
+  return updated;
+}
+
+async function populateMasterDataFromDescription(openSettings = true, fillOnlyEmpty = false) {
+  ensurePhase4Fields();
+
+  const description = synthesiseDescription();
+  if (!description) {
+    toast('Describe your organisation first', true);
+    return false;
+  }
+
+  try {
+    const response = await callAI(
+      'Extract enterprise context into structured master data. Return ONLY valid JSON with string values. Use concise business language and leave unknown values as empty strings.',
+      `Organisation description:\n${description}\n\nReturn JSON with exactly these keys:\n{"businessModel":"","offerings":"","customerSegments":"","geographies":"","regulations":"","coreSystems":"","dataLandscape":"","strategicPriorities":"","constraints":""}`,
+      { taskType: 'lightweight', temperature: 0.1 }
+    );
+
+    const extracted = parseJSONResponse(response);
+    const updated = mergeMasterDataFields(extracted, fillOnlyEmpty);
+
+    renderPhase4ControlsFromModel();
+    if (openSettings) showSettingsModal();
+    autoSaveCurrentModel();
+
+    if (updated > 0) {
+      toast('Master data populated by AI. Review and adjust before generating architecture.');
+      return true;
+    }
+
+    toast('No new master data could be inferred. Review the settings manually.', true);
+    return false;
+  } catch (e) {
+    toast('Could not populate master data: ' + e.message, true);
+    return false;
+  }
+}
+
+function renderPhase4ControlsFromModel() {
+  ensurePhase4Fields();
+  if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
+  const industryEl = document.getElementById('phase4-industry-select');
+  if (industryEl) industryEl.value = model.phase4Config.industry;
+  const apiKeyEl = document.getElementById('ai-api-key-input');
+  if (apiKeyEl) apiKeyEl.value = OPENAI_KEY || '';
+
+  const mdBindings = [
+    ['md-business-model', 'businessModel'],
+    ['md-offerings', 'offerings'],
+    ['md-customer-segments', 'customerSegments'],
+    ['md-geographies', 'geographies'],
+    ['md-regulations', 'regulations'],
+    ['md-core-systems', 'coreSystems'],
+    ['md-data-landscape', 'dataLandscape'],
+    ['md-strategic-priorities', 'strategicPriorities'],
+    ['md-constraints', 'constraints']
+  ];
+  mdBindings.forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = model.masterData?.[key] || '';
+  });
+  const archModeEl = document.getElementById('ai-architecture-mode');
+  if (archModeEl) archModeEl.value = model.aiConfig?.architectureMode || 'standard';
+  const areaContainer = document.getElementById('phase4-area-toggles');
+  if (areaContainer) {
+    areaContainer.innerHTML = PHASE4_BUSINESS_AREAS.map(area => {
+      const checked = model.phase4Config.activeBusinessAreas.includes(area) ? 'checked' : '';
+      return `<label class="flex items-center gap-1 px-1.5 py-1 rounded border bg-white border-slate-200">
+        <input type="checkbox" name="phase4-area-toggle" value="${area}" ${checked} onchange="setActiveBusinessAreasFromUI()">
+        <span class="uppercase text-[9px] font-bold text-slate-600">${area}</span>
+      </label>`;
+    }).join('');
+  }
+
+  const profile = PHASE4_INDUSTRY_PROFILES[model.phase4Config.industry] || PHASE4_INDUSTRY_PROFILES.generic;
+  const branchSelect = document.getElementById('survey-branch');
+  if (branchSelect) branchSelect.value = profile.branch;
+
+  const benchPeer = document.getElementById('bench-peer');
+  if (benchPeer && profile.benchPeer) benchPeer.value = profile.benchPeer;
+
+  syncAreaFilterSelectors();
+}
+
+function syncAreaFilterSelectors() {
+  const activeAreas = normalizeBusinessAreas(model.phase4Config?.activeBusinessAreas || ['general']);
+  const controls = [
+    { id: 'survey-business-area', withAll: false },
+    { id: 'survey-area-filter', withAll: true },
+    { id: 'capmap-area-filter', withAll: true },
+    { id: 'heatmap-area-filter', withAll: true }
+  ];
+
+  controls.forEach(cfg => {
+    const el = document.getElementById(cfg.id);
+    if (!el) return;
+    const current = el.value || (cfg.withAll ? 'all' : activeAreas[0]);
+    const allOpt = cfg.withAll ? '<option value="all">All Areas</option>' : '';
+    el.innerHTML = allOpt + activeAreas.map(area => `<option value="${area}">${area.toUpperCase()}</option>`).join('');
+    if (cfg.withAll) {
+      el.value = (current === 'all' || activeAreas.includes(current)) ? current : 'all';
+    } else {
+      el.value = activeAreas.includes(current) ? current : activeAreas[0];
+    }
+  });
+}
+
+function getAreaFilteredCapabilities(filterId) {
+  const area = document.getElementById(filterId)?.value || 'all';
+  return (model.capabilities || []).filter(c => capabilityHasBusinessArea(c, area));
+}
+
+function renderPhase4Dashboard() {
+  ensurePhase4Fields();
+
+  // Show placeholder, hide content until Step 3 capabilities exist
+  const placeholder = document.getElementById('phase4-placeholder');
+  const wrapper = document.getElementById('phase4-kpis-wrapper');
+  const areaSection = document.getElementById('phase4-area-grid')?.closest('.bg-white');
+  const recSection = document.getElementById('phase4-recommendations')?.closest('.bg-white');
+  const hasData = model.capabilities && model.capabilities.length > 0;
+
+  if (placeholder) placeholder.classList.toggle('hidden', hasData);
+  if (wrapper) wrapper.classList.toggle('hidden', !hasData);
+  if (areaSection) areaSection.classList.toggle('hidden', !hasData);
+  if (recSection) recSection.classList.toggle('hidden', !hasData);
+  if (!hasData) return;
+
+  const activeAreas = normalizeBusinessAreas(model.phase4Config.activeBusinessAreas);
+  const industry = model.phase4Config.industry || 'generic';
+  const baseline = PHASE4_AREA_BASELINES[industry] || PHASE4_AREA_BASELINES.generic;
+
+  const industryBadge = document.getElementById('phase4-industry-badge');
+  if (industryBadge) industryBadge.textContent = industry.toUpperCase();
+
+  const stats = activeAreas.map(area => {
+    const caps = (model.capabilities || []).filter(c => capabilityHasBusinessArea(c, area));
+    const count = caps.length;
+    const avg = count ? caps.reduce((s, c) => s + (Number(c.maturity) || 0), 0) / count : 0;
+    const delta = avg - Number(baseline[area] || 3);
+    return { area, count, avg, delta, baseline: Number(baseline[area] || 3) };
+  });
+
+  const overallAvg = stats.length ? (stats.reduce((s, x) => s + x.avg, 0) / stats.length) : 0;
+  const overallDelta = stats.length ? (stats.reduce((s, x) => s + x.delta, 0) / stats.length) : 0;
+  const coverage = model.capabilities.length ? Math.round((stats.reduce((s, x) => s + x.count, 0) / model.capabilities.length) * 100) : 0;
+  const weakAreas = stats.filter(x => x.delta < 0).length;
+
+  const kpiContainer = document.getElementById('phase4-kpis');
+  if (kpiContainer) {
+    kpiContainer.innerHTML = `
+      <div class="kpi-card"><div class="text-[10px] uppercase text-slate-500 font-bold">Area Maturity Avg</div><div class="text-2xl font-black text-blue-700">${overallAvg.toFixed(1)}</div><div class="text-[9px] text-slate-500">Across active areas</div></div>
+      <div class="kpi-card"><div class="text-[10px] uppercase text-slate-500 font-bold">Benchmark Delta</div><div class="text-2xl font-black ${overallDelta >= 0 ? 'text-green-700' : 'text-red-700'}">${overallDelta >= 0 ? '+' : ''}${overallDelta.toFixed(1)}</div><div class="text-[9px] text-slate-500">vs industry baseline</div></div>
+      <div class="kpi-card"><div class="text-[10px] uppercase text-slate-500 font-bold">Area Coverage</div><div class="text-2xl font-black text-indigo-700">${coverage}%</div><div class="text-[9px] text-slate-500">Capabilities tagged in active areas</div></div>
+      <div class="kpi-card"><div class="text-[10px] uppercase text-slate-500 font-bold">Areas Below Baseline</div><div class="text-2xl font-black ${weakAreas ? 'text-amber-700' : 'text-green-700'}">${weakAreas}</div><div class="text-[9px] text-slate-500">Need intervention</div></div>
+    `;
+  }
+
+  const areaGrid = document.getElementById('phase4-area-grid');
+  if (areaGrid) {
+    areaGrid.innerHTML = stats.map(s => {
+      const pct = Math.max(0, Math.min(100, Math.round((s.avg / 5) * 100)));
+      return `
+        <div class="p-2.5 border rounded-lg bg-slate-50">
+          <div class="flex justify-between items-center mb-1">
+            <div class="text-[10px] font-bold uppercase text-slate-700">${s.area}</div>
+            <div class="text-[10px] text-slate-500">${s.count} caps</div>
+          </div>
+          <div class="h-2 bg-slate-200 rounded-full overflow-hidden mb-1">
+            <div class="h-2 rounded-full ${s.delta >= 0 ? 'bg-green-500' : 'bg-red-500'}" style="width:${pct}%"></div>
+          </div>
+          <div class="flex justify-between text-[10px]">
+            <span class="text-slate-600">Maturity ${s.avg.toFixed(1)}</span>
+            <span class="${s.delta >= 0 ? 'text-green-700' : 'text-red-700'} font-bold">${s.delta >= 0 ? '+' : ''}${s.delta.toFixed(1)} vs ${s.baseline.toFixed(1)}</span>
+          </div>
+        </div>
+      `;
+    }).join('') || '<div class="text-[11px] text-slate-400">No data for active areas yet.</div>';
+  }
+
+  const rec = document.getElementById('phase4-recommendations');
+  if (rec) {
+    const sorted = [...stats].sort((a, b) => a.delta - b.delta);
+    const top = sorted.slice(0, 3);
+    rec.innerHTML = top.length ? top.map(s => `
+      <div class="p-2 border rounded bg-white">
+        <div class="text-[11px] font-bold text-slate-700 uppercase">${s.area}</div>
+        <div class="text-[10px] text-slate-600">Prioritize uplift initiatives and targeted surveys. Current ${s.avg.toFixed(1)} vs baseline ${s.baseline.toFixed(1)}.</div>
+      </div>
+    `).join('') : '<div class="text-[11px] text-slate-400">Generate architecture to get recommendations.</div>';
+  }
+}
+
+function mapIndustryToProfileKey(industryText) {
+  const t = (industryText || '').toLowerCase();
+  if (t.includes('startup') || t.includes('scaleup') || t.includes('venture')) return 'startup';
+  if (t.includes('domain-specific') || (t.includes('property') && t.includes('tech'))) return 'domain-specific';
+  if (t.includes('fintech') || (t.includes('financial') && t.includes('tech'))) return 'fintech';
+  if (t.includes('industry-specific') || t.includes('domain-specific')) return 'industry-specific';
+  if (t.includes('bank')) return 'banking';
+  if (t.includes('health')) return 'healthcare';
+  if (t.includes('public') || t.includes('municipal') || t.includes('government')) return 'public-sector';
+  if (t.includes('retail') || t.includes('commerce')) return 'retail';
+  if (t.includes('insurance')) return 'insurance';
+  return 'generic';
+}
+
+// -- PHASE 6: BENCHMARKING ----
+const benchDomains = ["Digitalisation", "Innovation", "Sustainability", "Process Optimisation", "Data Governance"];
+
+// Peer benchmarks by industry (scale 0-5)
+const peerBenchmarks = {
+  "Industry Peer Group A": [3.2, 2.8, 3.5, 3.0, 2.9],
+  "Nordic Commercial RE": [3.2, 2.8, 3.5, 3.0, 2.9],
+  "Global Asset Management": [3.8, 3.5, 3.2, 3.6, 3.7],
+  "Public Housing (Sweden)": [2.9, 2.5, 4.0, 3.1, 2.7]
+};
+
+function calculateMaturityScores() {
+  // Calculate actual maturity based on architecture model
+  const scores = [];
+  
+  // 1. DIGITALISATION - Based on systems, AI agents, and digital capabilities
+  const digitalSystems = (model.systems || []).filter(s => 
+    s.name?.toLowerCase().includes('digital') || 
+    s.name?.toLowerCase().includes('platform') ||
+    s.name?.toLowerCase().includes('cloud') ||
+    s.name?.toLowerCase().includes('api')
+  ).length;
+  const aiAgents = (model.aiAgents || []).length;
+  const totalSystems = (model.systems || []).length || 1;
+  const digitalScore = Math.min(5, 
+    1.5 + (digitalSystems / totalSystems * 2) + (aiAgents * 0.3)
+  );
+  scores.push(digitalScore);
+  
+  // 2. INNOVATION - Based on AI agents, new capabilities, and modern systems
+  const innovationCapabilities = (model.capabilities || []).filter(c =>
+    c.name?.toLowerCase().includes('ai') ||
+    c.name?.toLowerCase().includes('automation') ||
+    c.name?.toLowerCase().includes('innovation') ||
+    c.name?.toLowerCase().includes('analytics')
+  ).length;
+  const totalCaps = (model.capabilities || []).length || 1;
+  const innovationScore = Math.min(5,
+    1.5 + (innovationCapabilities / totalCaps * 2.5) + (aiAgents * 0.25)
+  );
+  scores.push(innovationScore);
+  
+  // 3. SUSTAINABILITY - Based on sustainability-related capabilities and processes
+  const sustainabilityCaps = (model.capabilities || []).filter(c =>
+    c.name?.toLowerCase().includes('sustain') ||
+    c.name?.toLowerCase().includes('environment') ||
+    c.name?.toLowerCase().includes('esg') ||
+    c.name?.toLowerCase().includes('green') ||
+    c.name?.toLowerCase().includes('energy')
+  ).length;
+  const sustainabilityScore = Math.min(5,
+    1.5 + (sustainabilityCaps * 0.8) + (totalCaps > 10 ? 0.5 : 0)
+  );
+  scores.push(sustainabilityScore);
+  
+  // 4. PROCESS OPTIMISATION - Based on processes and automation
+  const totalProcesses = (model.processes || []).length || 1;
+  const optimizedProcesses = (model.processes || []).filter(p =>
+    p.name?.toLowerCase().includes('automat') ||
+    p.name?.toLowerCase().includes('optimize') ||
+    p.name?.toLowerCase().includes('streamlin')
+  ).length;
+  const processScore = Math.min(5,
+    1.5 + (totalProcesses / 10) + (optimizedProcesses * 0.5) + (aiAgents * 0.15)
+  );
+  scores.push(processScore);
+  
+  // 5. DATA GOVERNANCE - Based on data domains and related capabilities
+  const dataDomains = (model.dataDomains || []).length;
+  const dataCapabilities = (model.capabilities || []).filter(c =>
+    c.name?.toLowerCase().includes('data') ||
+    c.name?.toLowerCase().includes('analytics') ||
+    c.name?.toLowerCase().includes('reporting') ||
+    c.name?.toLowerCase().includes('governance')
+  ).length;
+  const dataScore = Math.min(5,
+    1.5 + (dataDomains * 0.4) + (dataCapabilities * 0.3)
+  );
+  scores.push(dataScore);
+  
+  return scores;
+}
+
+// -- PHASE 8: DATA COLLECTION ----
+const SURVEY_TEMPLATE_LIBRARY = {
+  general: [
+    'How standardized is this capability across teams?',
+    'How measurable is performance for this capability?',
+    'How automated is the end-to-end workflow?',
+    'How resilient is this capability under disruption?',
+    'How clear is ownership and governance for this capability?'
+  ],
+  operations: [
+    'How predictable and stable are daily operations for this capability?',
+    'How mature are runbook/SOP practices for this capability?',
+    'How efficient are handoffs across teams in this capability flow?',
+    'How quickly can operational bottlenecks be detected and removed?',
+    'How strong is continuous improvement for this capability?'
+  ],
+  erp: [
+    'How standardized are ERP master data definitions for this capability?',
+    'How integrated is this capability with ERP transactions end-to-end?',
+    'How reliable is ERP data quality and reconciliation for this flow?',
+    'How mature are ERP controls, approvals, and segregation of duties?',
+    'How quickly can ERP process changes be deployed without disruption?'
+  ],
+  finance: [
+    'How accurate and timely is financial reporting for this capability?',
+    'How mature are budgeting and forecasting support in this capability?',
+    'How strong are financial controls and auditability for this process?',
+    'How automated are close, reconciliation, and exception handling steps?',
+    'How well does this capability support cost and profitability insights?'
+  ],
+  esg: [
+    'How well does this capability support sustainability KPIs?',
+    'How auditable are ESG-related data points in this capability?',
+    'How automated is regulatory ESG reporting for this capability?',
+    'How effectively does this capability reduce energy or emissions?',
+    'How transparent is this capability for stakeholder ESG reporting?'
+  ],
+  itsm: [
+    'How mature are incident and request workflows in this capability?',
+    'How strong is SLA measurement and reporting for this capability?',
+    'How mature is change management around this capability?',
+    'How proactive is problem management for recurring failures?',
+    'How integrated is this capability with service catalog and CMDB?'
+  ],
+  gdpr: [
+    'How clearly are personal data flows mapped in this capability?',
+    'How mature are consent and legal basis controls?',
+    'How effective are data minimization and retention controls?',
+    'How quickly can subject rights requests be fulfilled?',
+    'How robust are privacy-by-design controls in this capability?'
+  ],
+  cybersecurity: [
+    'How strong is identity and access control in this capability?',
+    'How mature is detection and response for security events?',
+    'How consistently is security patching and hardening applied?',
+    'How resilient is this capability against ransomware/service outages?',
+    'How complete is third-party risk control for this capability?'
+  ]
+};
+
+let surveyEngineState = {
+  config: null,
+  generatedAt: null,
+  surveys: {}
+};
+let activeSurveyCapabilityId = null;
+
+function getSurveyStateKey() {
+  return 'ea_phase3_surveys_' + (currentModelId || 'default');
+}
+
+function loadSurveyEngineState() {
+  try {
+    const raw = localStorage.getItem(getSurveyStateKey());
+    if (raw) {
+      surveyEngineState = JSON.parse(raw);
+    }
+  } catch (e) {
+    surveyEngineState = { config: null, generatedAt: null, surveys: {} };
+  }
+}
+
+function saveSurveyEngineState() {
+  localStorage.setItem(getSurveyStateKey(), JSON.stringify(surveyEngineState));
+}
+
+function getSurveyConfigFromUI() {
+  return {
+    branch: document.getElementById('survey-branch')?.value || 'generic',
+    subject: document.getElementById('survey-subject')?.value || 'technology',
+    businessArea: document.getElementById('survey-business-area')?.value || 'general',
+    stakeholder: document.getElementById('survey-stakeholder')?.value?.trim() || 'Business Owner'
+  };
+}
+
+function syncBusinessAreaSelectors() {
+  syncAreaFilterSelectors();
+}
+
+function normalizeCapabilityQuestion(question, capabilityName, config) {
+  return question
+    .replace('this capability', '"' + capabilityName + '" capability') +
+    ' [' + config.subject + '/' + config.branch + ']';
+}
+
+function buildDynamicSurveyForCapability(capability, config) {
+  const base = SURVEY_TEMPLATE_LIBRARY[config.businessArea] || SURVEY_TEMPLATE_LIBRARY.general;
+  const questions = base.map((q, i) => ({
+    id: capability.id + '_q' + (i + 1),
+    text: normalizeCapabilityQuestion(q, capability.name, config),
+    score: null
+  }));
+
+  return {
+    capabilityId: capability.id,
+    capabilityName: capability.name,
+    domain: capability.domain,
+    aiMaturityEstimate: capability.maturity,
+    stakeholder: config.stakeholder,
+    questions,
+    answeredCount: 0,
+    completed: false,
+    lastUpdated: null
+  };
+}
+
+function generateDynamicSurveys() {
+  if (!model.capabilities.length) {
+    toast('Generate architecture first to create surveys', true);
+    return;
+  }
+
+  const config = getSurveyConfigFromUI();
+  const filter = document.getElementById('survey-domain-filter')?.value || 'all';
+  const areaFilter = document.getElementById('survey-area-filter')?.value || 'all';
+  const targetCaps = model.capabilities.filter(c => (filter === 'all' || c.domain === filter) && capabilityHasBusinessArea(c, areaFilter));
+  if (!targetCaps.length) {
+    toast('No capabilities match current domain filter', true);
+    return;
+  }
+
+  surveyEngineState.config = config;
+  surveyEngineState.generatedAt = new Date().toISOString();
+  surveyEngineState.surveys = surveyEngineState.surveys || {};
+
+  targetCaps.forEach(cap => {
+    surveyEngineState.surveys[cap.id] = buildDynamicSurveyForCapability(cap, config);
+  });
+
+  saveSurveyEngineState();
+  generateSurveyChecklists();
+  updateSurveyHealth();
+  toast('Dynamic surveys generated for ' + targetCaps.length + ' capabilities &#x2718;');
+}
+
+function updateSurveySummaryStats() {
+  const surveys = Object.values(surveyEngineState.surveys || {});
+  const surveyCount = surveys.length;
+  const answeredCount = surveys.reduce((sum, s) => sum + (s.answeredCount || 0), 0);
+  const generatedAt = surveyEngineState.generatedAt ? new Date(surveyEngineState.generatedAt).toLocaleString() : '-';
+
+  const el1 = document.getElementById('survey-generated-count');
+  const el2 = document.getElementById('survey-answered-count');
+  const el3 = document.getElementById('survey-generated-at');
+  if (el1) el1.innerText = surveyCount;
+  if (el2) el2.innerText = answeredCount;
+  if (el3) el3.innerText = generatedAt;
+}
+
+function updateDataCollectionTab() {
+  ensurePhase4Fields();
+  loadSurveyEngineState();
+  syncBusinessAreaSelectors();
+  // Update domain filter dropdown
+  const domainFilter = document.getElementById('survey-domain-filter');
+  const uniqueDomains = [...new Set(model.capabilities.map(c => c.domain))];
+  const currentValue = domainFilter.value;
+  domainFilter.innerHTML = '<option value="all">All Domains</option>' + 
+    uniqueDomains.map(d => `<option value="${d}">${d}</option>`).join('');
+  // Restore previous filter if it still exists
+  if (uniqueDomains.includes(currentValue) || currentValue === 'all') {
+    domainFilter.value = currentValue;
+  }
+  // Regenerate survey list
+  generateSurveyChecklists();
+  updateSurveyHealth();
+  updateSurveySummaryStats();
+}
+
+function generateSurveyChecklists() {
+  const container = document.getElementById('survey-list');
+  if (!model.capabilities.length) {
+    container.innerHTML = `
+      <div class="text-slate-400 text-xs py-6 space-y-3">
+        <div class="text-center">⚠️ No capability data found.</div>
+        <div class="text-center text-slate-500">Describe your business scenario below and start with AI, or import from the toolkit flow.</div>
+        <div class="max-w-2xl mx-auto">
+          <textarea id="survey-scenario-input" class="w-full border border-slate-300 rounded-lg p-2 text-[11px] h-24 resize-none text-slate-700" placeholder="Ex: Industry-specific company with 50 employees, ESG focus, rising operating costs, and a need for predictive maintenance and better Customer experience."></textarea>
+        </div>
+        <div class="flex items-center justify-center gap-2 flex-wrap">
+          <button onclick="generateArchitectureFromScenarioInput()" class="text-[10px] bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded border border-blue-700 font-bold">Generate architecture from scenario</button>
+          <button onclick="askAssistantFromScenarioInput()" class="text-[10px] bg-cyan-50 hover:bg-cyan-100 text-cyan-700 px-3 py-1.5 rounded border border-cyan-200 font-bold">Send to AI Assistant</button>
+          <button onclick="importAllAvailableToolkits()" class="text-[10px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded border border-indigo-200 font-bold">Import toolkit data</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+  const filter = document.getElementById('survey-domain-filter').value;
+  const areaFilter = document.getElementById('survey-area-filter')?.value || 'all';
+  container.innerHTML = model.capabilities
+    .filter(c => (filter === 'all' || c.domain === filter) && capabilityHasBusinessArea(c, areaFilter))
+    .map(c => {
+      const survey = surveyEngineState.surveys?.[c.id] || null;
+      const areaBadges = normalizeBusinessAreas(c.businessAreas).map(area => `<span class="text-[8px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-bold uppercase">${area}</span>`).join(' ');
+      const surveyMeta = survey
+        ? `<div class="text-[9px] text-indigo-600 mt-1">Survey: ${survey.answeredCount}/${survey.questions.length} answered${survey.completed ? ' &bull; completed' : ''}</div>`
+        : '<div class="text-[9px] text-slate-400 mt-1">Survey: not generated</div>';
+
+      return `
+      <div class="p-3 bg-slate-50 border rounded-lg flex items-center justify-between">
+        <div>
+          <div class="font-bold text-[11px]">${c.name}</div>
+          <div class="text-[9px] text-slate-500">${c.domain} | AI-Estimat: ${c.maturity}/5</div>
+          <div class="mt-1 flex flex-wrap gap-1">${areaBadges}</div>
+          ${surveyMeta}
+        </div>
+        <div class="flex items-center gap-3">
+          <input type="number" step="0.1" min="1" max="5" value="${c.maturity}" 
+            class="w-12 text-center border rounded text-[10px]" 
+            onchange="updateCapField('${c.id}', 'maturity', this.value)">
+          <button onclick="openCapabilitySurvey('${c.id}')" class="px-3 py-1 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">Survey</button>
+          <button onclick="verifySurveyCapability('${c.id}', this)" 
+            class="px-3 py-1 rounded text-[9px] font-bold ${c.verified ? 'bg-green-500 text-white' : 'bg-white border text-slate-600'}">
+            ${c.verified ? 'Verified' : 'Verify'}
+          </button>
+        </div>
+      </div>
+    `;
+    }).join('');
+}
+
+function verifySurveyCapability(id, btn) {
+  const cap = model.capabilities.find(c => c.id === id);
+  if(cap) {
+    cap.verified = !cap.verified;
+    btn.className = `px-3 py-1 rounded text-[9px] font-bold ${cap.verified ? 'bg-green-500 text-white' : 'bg-white border text-slate-600'}`;
+    btn.innerText = cap.verified ? 'Verified' : 'Verify';
+    updateSurveyHealth();
+    autoSaveCurrentModel();
+  }
+}
+
+function updateSurveyHealth() {
+  const total = model.capabilities.length;
+  const verified = model.capabilities.filter(c => c.verified).length;
+  const score = total ? Math.round((verified/total)*100) : 0;
+  document.getElementById('survey-health-gauge').innerText = score + '%';
+  updateSurveySummaryStats();
+}
+
+function openCapabilitySurvey(capabilityId) {
+  const cap = model.capabilities.find(c => c.id === capabilityId);
+  if (!cap) return;
+
+  if (!surveyEngineState.surveys[capabilityId]) {
+    const config = surveyEngineState.config || getSurveyConfigFromUI();
+    surveyEngineState.surveys[capabilityId] = buildDynamicSurveyForCapability(cap, config);
+    surveyEngineState.generatedAt = surveyEngineState.generatedAt || new Date().toISOString();
+    saveSurveyEngineState();
+  }
+
+  activeSurveyCapabilityId = capabilityId;
+  const survey = surveyEngineState.surveys[capabilityId];
+  document.getElementById('survey-response-title').innerText = survey.capabilityName;
+  document.getElementById('survey-response-meta').innerText = survey.domain + ' &bull; Stakeholder: ' + survey.stakeholder;
+
+  document.getElementById('survey-response-body').innerHTML = survey.questions.map((q, i) => `
+    <div class="p-3 border rounded-lg bg-slate-50">
+      <div class="text-[11px] font-semibold text-slate-700 mb-2">Q${i + 1}. ${q.text}</div>
+      <div class="flex items-center gap-2">
+        <input type="number" min="1" max="5" step="1" value="${q.score || ''}" placeholder="1-5"
+          class="w-20 border rounded p-1.5 text-[11px]"
+          onchange="setSurveyQuestionScore('${capabilityId}','${q.id}', this.value)">
+        <span class="text-[10px] text-slate-500">1 Initial &bull; 3 Defined &bull; 5 Optimized</span>
+      </div>
+    </div>
+  `).join('');
+
+  const modal = document.getElementById('survey-response-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeSurveyResponseModal() {
+  const modal = document.getElementById('survey-response-modal');
+  modal.classList.remove('flex');
+  modal.classList.add('hidden');
+}
+
+function setSurveyQuestionScore(capabilityId, questionId, val) {
+  const survey = surveyEngineState.surveys?.[capabilityId];
+  if (!survey) return;
+  const q = survey.questions.find(x => x.id === questionId);
+  if (!q) return;
+  const n = Number(val);
+  q.score = Number.isFinite(n) ? Math.max(1, Math.min(5, Math.round(n))) : null;
+  survey.answeredCount = survey.questions.filter(x => Number.isFinite(Number(x.score))).length;
+  survey.completed = survey.answeredCount === survey.questions.length;
+  survey.lastUpdated = new Date().toISOString();
+  saveSurveyEngineState();
+}
+
+function submitCapabilitySurvey() {
+  if (!activeSurveyCapabilityId) return;
+  const survey = surveyEngineState.surveys?.[activeSurveyCapabilityId];
+  const cap = model.capabilities.find(c => c.id === activeSurveyCapabilityId);
+  if (!survey || !cap) return;
+
+  const scored = survey.questions
+    .map(q => Number(q.score))
+    .filter(v => Number.isFinite(v));
+
+  if (scored.length) {
+    const avg = scored.reduce((a, b) => a + b, 0) / scored.length;
+    cap.maturity = Math.max(1, Math.min(5, Number(avg.toFixed(1))));
+    cap.verified = survey.completed;
+    autoSaveCurrentModel();
+    renderLayers();
+    renderCapMap();
+    renderHeatmap();
+    renderMaturityDashboard();
+  }
+
+  saveSurveyEngineState();
+  generateSurveyChecklists();
+  updateSurveyHealth();
+  closeSurveyResponseModal();
+  toast('Survey response saved &#x2718;');
+}
+
+function updateCapField(id, field, val) {
+  const cap = model.capabilities.find(c => c.id === id);
+  if(cap) {
+    cap[field] = parseFloat(val);
+    // Update related views when maturity changes
+    if (field === 'maturity') {
+      renderLayers();
+      renderCapMap();
+      renderHeatmap();
+      renderMaturityDashboard();
+    }
+    autoSaveCurrentModel();
+  }
+}
+
+function generateArchitectureFromScenarioInput() {
+  const scenario = document.getElementById('survey-scenario-input')?.value?.trim();
+  if (!scenario) {
+    toast('Write a business scenario first', true);
+    return;
+  }
+  const desc = document.getElementById('description');
+  if (desc) desc.value = scenario;
+  generateArchitecture();
+}
+
+function askAssistantFromScenarioInput() {
+  const scenario = document.getElementById('survey-scenario-input')?.value?.trim();
+  if (!scenario) {
+    toast('Write a business scenario first', true);
+    return;
+  }
+
+  const prompt = 'Generate enterprise architecture from this business scenario:\n\n' + scenario + '\n\nAsk clarifying questions if needed before finalizing.';
+  const chatInput = document.getElementById('chat-input');
+  if (chatInput) chatInput.value = prompt;
+
+  if (typeof toggleChatPanel === 'function') {
+    const panel = document.getElementById('ai-chat-panel');
+    const isHidden = panel && panel.style.display === 'none';
+    if (isHidden) toggleChatPanel();
+  }
+
+  if (typeof sendMessage === 'function') {
+    sendMessage();
+  } else {
+    toast('AI Assistant is not available right now', true);
+  }
+}
+
+function exportSurveyCSV() {
+  let csv = "ID,Name,Domain,Maturity,Verified,SurveyQuestions,Answered,SurveyCompleted\n";
+  model.capabilities.forEach(c => {
+    const s = surveyEngineState.surveys?.[c.id];
+    csv += `${c.id},"${c.name}","${c.domain}",${c.maturity},${c.verified||false},${s?.questions?.length||0},${s?.answeredCount||0},${s?.completed||false}\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.setAttribute('hidden', ''); a.setAttribute('href', url); a.setAttribute('download', 'ea_survey_data.csv');
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+// -- TABS ----
+window.showTab = function showTab(name, btn) {
+  // Guard: block navigation to locked tabs
+  const resolvedBtn0 = btn || findTabButton(name);
+  if (resolvedBtn0 && resolvedBtn0.classList.contains('tab-btn--locked')) {
+    const reason = resolvedBtn0.getAttribute('data-tab-locked-reason') || 'Content not yet generated';
+    toast('\uD83D\uDD12 ' + reason, true);
+    return;
+  }
+  
+  // Guard: check if tab exists to prevent crashes
+  const targetTab = document.getElementById('tab-' + name);
+  if (!targetTab) {
+    console.error('Tab not found:', name);
+    toast('⚠️ Tab "' + name + '" does not exist', true);
+    return;
+  }
+  
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+  targetTab.classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  if (resolvedBtn0) resolvedBtn0.classList.add('active');
+  const _cp = document.querySelector('.ea-content-panel');
+  if (_cp) _cp.scrollTop = 0;
+  document.querySelectorAll('.ea-header-icon--home').forEach((iconBtn) => {
+    iconBtn.classList.toggle('is-active', name === 'home');
+  });
+  document.querySelectorAll('.ea-header-icon--toolkit').forEach((iconBtn) => {
+    iconBtn.classList.toggle('is-active', name === 'toolkits');
+  });
+  currentTab = name;
+  if (typeof AdvisyAI !== 'undefined') AdvisyAI.setActiveView(name);
+  if (name === 'bmc') console.log('BMC tab selected - no legacy canvas rendering'); // removed obsolete renderBMCCanvas
+  if (name === 'phase4') setTimeout(renderPhase4Dashboard, 50);
+  if (name === 'layers') setTimeout(renderLayers, 50);
+  if (name === 'capmap') setTimeout(renderCapMap, 50);
+  if (name === 'heatmap') setTimeout(renderHeatmap, 50);
+  if (name === 'graph') setTimeout(renderGraph, 80);
+  if (name === 'cfo') setTimeout(renderCFO, 50);
+  if(name==='bench') setTimeout(renderBenchmarking,50);
+  if(name==='survey') setTimeout(()=>{ generateSurveyChecklists(); updateSurveyHealth(); },50);
+  if (name === 'exec') setTimeout(renderExecSummary, 50);
+  if (name === 'toolkits') setTimeout(updateToolkitBadges, 50);
+  if (name === 'home') {
+    setTimeout(renderNordicDashboard, 50);
+    setTimeout(loadRecentProjects, 100);
+  }
+  if (name === 'maturity') setTimeout(renderMaturityDashboard, 50);
+  if (name === 'scenarios') setTimeout(renderDecisionScenarios, 50);
+  if (name === 'financials') setTimeout(renderFinancials, 50);
+  if (name === 'optimisation') setTimeout(renderOptimisation, 50);
+  if (name === 'valuepools') setTimeout(renderValuePoolsPanel, 50);
+  // -- Analytics tabs: refresh context status on tab open ----------------
+  if (name === 'analytics-di')        setTimeout(() => _refreshAnalyticsContext('decision-intelligence'), 50);
+  if (name === 'analytics-financial') setTimeout(() => _refreshAnalyticsContext('financial'), 50);
+  if (name === 'analytics-scenarios') setTimeout(() => _refreshAnalyticsContext('scenarios'), 50);
+  if (name === 'analytics-optimize')  setTimeout(() => _refreshAnalyticsContext('optimize'), 50);
+  // -- BUG-9 FIX: Add missing auto-renders for Step4-7 tabs --
+  if (name === 'opmodel')    setTimeout(renderOperatingModel, 50);
+  if (name === 'targetarch') setTimeout(renderTargetArchVisual, 50);
+  if (name === 'roadmapvis') { setTimeout(renderRoadmapVisual, 50); setTimeout(renderInitiatives, 80); }
+  if (name === 'gap')        setTimeout(renderGapContent, 50);
+  // -- END BUG-9 FIX ------------------------------------------
+}
+
+// Example: Call highlightTab('exec', true) when Step 1 is completed
+// You should call highlightTab('capmap', true) when capability map is generated, etc.
+
+// Example hooks (add these in your workflow where content is generated):
+// highlightTab('exec', true); // Highlight Executive tab
+// highlightTab('capmap', true); // Highlight Capability Map tab
+// highlightTab('bench', true); // Highlight Benchmark tab
+// highlightTab('survey', true); // Highlight Data Collection tab
+
+// Remove highlight when content is cleared or reset:
+// highlightTab('exec', false);
+// highlightTab('capmap', false);
+// ...
+
+// ----------------------------------------------------------------------
+// PARALLEL ANALYTICS WORKFLOWS � runAnalyticsTab + helpers
+// ----------------------------------------------------------------------
+
+const _ANALYTICS_TAB_KEYS = {
+  'decision-intelligence': 'di',
+  'financial':             'financial',
+  'scenarios':             'scenarios',
+  'optimize':              'optimize'
+};
+
+/** Refresh the context-status badge for an analytics tab. */
+function _refreshAnalyticsContext(tabId) {
+  const key = _ANALYTICS_TAB_KEYS[tabId];
+  if (!key || typeof AnalyticsContextBuilder === 'undefined') return;
+  const ctx = AnalyticsContextBuilder.buildContext(window.model || {});
+  const pct = ctx.workflowStatus?.completionPercentage || 0;
+  
+  // Build detailed status based on available data
+  const dataStatus = [];
+  if (ctx.strategicIntent) dataStatus.push('? Strategic Intent');
+  else dataStatus.push('⚠️ Strategic Intent missing');
+  
+  if (ctx.capabilities && ctx.capabilities.length > 0) dataStatus.push(`? ${ctx.capabilities.length} Capabilities`);
+  else dataStatus.push('⚠️ Capabilities missing');
+  
+  if (ctx.gapAnalysis && ctx.gapAnalysis.length > 0) dataStatus.push(`? ${ctx.gapAnalysis.length} Gaps`);
+  else dataStatus.push('⚠️ Gap Analysis missing');
+  
+  if (ctx.roadmap && ctx.roadmap.initiatives?.length > 0) dataStatus.push(`? ${ctx.roadmap.initiatives.length} Initiatives`);
+  else dataStatus.push('⚠️ Roadmap missing');
+  
+  const statusText = pct === 0 
+    ? '⚠️ No EA workflow data yet. Analytics will work with limited context. Complete Steps 1-3 for better results.'
+    : `EA Context: ${dataStatus.join(' � ')}. ${pct < 100 ? 'Analytics can run with partial data � results improve as you complete more steps.' : '? All data available!'}`;
+  
+  const el = document.getElementById('analytics-' + key + '-context-text');
+  if (el) {
+    el.textContent = statusText;
+    el.classList.remove('text-slate-500', 'text-amber-600', 'text-emerald-600');
+    el.classList.add(pct === 0 ? 'text-amber-600' : pct === 100 ? 'text-emerald-600' : 'text-slate-500');
+  }
+}
+
+/** Collect user input for a specific analytics tab. */
+function _getAnalyticsUserInput(tabId) {
+  if (tabId === 'financial') {
+    return {
+      budgetK:  parseFloat(document.getElementById('analytics-financial-budget')?.value || '0') || undefined,
+      horizon:  document.getElementById('analytics-financial-horizon')?.value || '3 years'
+    };
+  }
+  if (tabId === 'scenarios') {
+    const type   = document.getElementById('analytics-scenarios-type')?.value || 'budget-cut';
+    const mag    = document.getElementById('analytics-scenarios-magnitude')?.value || '30%';
+    const capId  = document.getElementById('analytics-scenarios-capid')?.value?.trim() || undefined;
+    return { scenarioType: type, magnitude: mag, capabilityId: capId };
+  }
+  if (tabId === 'optimize') {
+    const raw = {
+      strategy:   parseFloat(document.getElementById('opt-w-strategy')?.value  || '0'),
+      speed:      parseFloat(document.getElementById('opt-w-speed')?.value     || '0'),
+      cost:       parseFloat(document.getElementById('opt-w-cost')?.value      || '0'),
+      risk:       parseFloat(document.getElementById('opt-w-risk')?.value      || '0'),
+      dependency: parseFloat(document.getElementById('opt-w-dependency')?.value|| '0'),
+      feasibility:parseFloat(document.getElementById('opt-w-feasibility')?.value||'0')
+    };
+    const total = Object.values(raw).reduce((s, v) => s + (v || 0), 0);
+    const weights = total > 0
+      ? Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, (v || 0) / total]))
+      : {};
+    return { weights };
+  }
+  return {};
+}
+
+/** Render analytics results into the results panel. */
+function _renderAnalyticsResults(tabId, result) {
+  const key     = _ANALYTICS_TAB_KEYS[tabId];
+  const el      = document.getElementById('analytics-' + key + '-results');
+  if (!el) return;
+
+  const output  = result.output || {};
+  const warns   = result.warnings || [];
+
+  let html = '<div class="space-y-4">';
+
+  // -- Status bar ----------------------------------------------------
+  html += `<div class="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3">
+    <i class="fas fa-circle-check text-green-600 text-lg"></i>
+    <div>
+      <div class="text-[11px] font-bold text-green-800">Analysis complete � ${result.metadata?.totalTasks || 0} tasks</div>
+      <div class="text-[10px] text-green-700">${Math.round((result.metadata?.durationMs || 0) / 1000)}s � ${new Date(result.completedAt).toLocaleTimeString()}</div>
+    </div>
+  </div>`;
+
+  // -- Warnings ------------------------------------------------------
+  if (warns.length) {
+    html += `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+      <div class="text-[10px] font-bold text-amber-700 mb-1">Warnings (${warns.length})</div>
+      <ul class="text-[10px] text-amber-700 space-y-0.5">` +
+      warns.map(w => `<li><i class="fas fa-triangle-exclamation mr-1"></i>${w}</li>`).join('') +
+      '</ul></div>';
+  }
+
+  // -- Tab-specific output rendering ---------------------------------
+  if (tabId === 'decision-intelligence') {
+    if (output.executiveSummary) {
+      html += _analyticsCard('Executive Summary', `<p class="text-[11px] text-slate-700">${output.executiveSummary}</p>`);
+    }
+    if (output.topPriorities?.length) {
+      html += _analyticsCard('Top Priorities', '<div class="space-y-2">' +
+        output.topPriorities.map(p =>
+          `<div class="p-2 bg-blue-50 rounded-lg"><div class="text-[11px] font-bold text-blue-800">${p.name || ''}</div><div class="text-[10px] text-blue-700">${p.why || ''} � ${p.timeline || ''}</div></div>`
+        ).join('') + '</div>');
+    }
+    if (output.quickWins?.length) {
+      html += _analyticsCard('Quick Wins (' + output.quickWins.length + ')', '<div class="space-y-1">' +
+        output.quickWins.slice(0, 5).map(w =>
+          `<div class="p-2 bg-green-50 rounded-lg flex gap-2"><span class="inline-block w-12 text-[9px] font-bold text-green-700 uppercase">${w.riskLevel || 'low'}</span><span class="text-[10px] text-green-800">${w.action || ''} <span class="text-slate-500">(${w.timeline || ''})</span></span></div>`
+        ).join('') + '</div>');
+    }
+    if (output.recommendations?.length) {
+      html += _analyticsCard('Recommendations', '<ol class="list-decimal pl-4 space-y-1">' +
+        output.recommendations.map(r => `<li class="text-[11px] text-slate-700">${r}</li>`).join('') + '</ol>');
+    }
+  }
+
+  if (tabId === 'financial') {
+    const fi6 = result.taskResults?.['fi-6']?.output || output;
+    if (fi6.executiveSummary) {
+      html += _analyticsCard('Financial Executive Summary', `<p class="text-[11px] text-slate-700">${fi6.executiveSummary}</p>`);
+    }
+    const metrics = [
+      { label: 'Investment Required', val: fi6.investmentRequired != null ? `$${(fi6.investmentRequired/1000).toFixed(1)}M` : '�' },
+      { label: 'Expected Return',     val: fi6.expectedReturn     != null ? `$${(fi6.expectedReturn/1000).toFixed(1)}M` : '�' },
+      { label: 'ROI',                 val: fi6.roiPct             != null ? `${fi6.roiPct}%` : '�' },
+      { label: 'Payback Period',      val: fi6.paybackMonths      != null ? `${fi6.paybackMonths} months` : '�' }
+    ];
+    html += _analyticsCard('Key Metrics', '<div class="grid grid-cols-4 gap-3">' +
+      metrics.map(m =>
+        `<div class="bg-slate-50 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-500">${m.label}</div><div class="text-sm font-bold text-slate-800">${m.val}</div></div>`
+      ).join('') + '</div>');
+    if (fi6.nextSteps?.length) {
+      html += _analyticsCard('Next Steps', '<ol class="list-decimal pl-4 space-y-1">' +
+        fi6.nextSteps.map(s => `<li class="text-[11px] text-slate-700">${s}</li>`).join('') + '</ol>');
+    }
+  }
+
+  if (tabId === 'scenarios') {
+    const sc6 = result.taskResults?.['sc-6']?.output || {};
+    const sc5 = result.taskResults?.['sc-5']?.output || {};
+    if (output.scenarioName) {
+      html += _analyticsCard('Scenario: ' + output.scenarioName,
+        `<div class="grid grid-cols-3 gap-3">
+          <div class="bg-amber-50 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-500">Severity</div><div class="text-sm font-bold text-amber-700">${output.impactSeverity || '�'}/100</div></div>
+          <div class="bg-slate-50 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-500">Timeline Delta</div><div class="text-sm font-bold text-slate-800">+${output.timelineDeltaMonths || 0} months</div></div>
+          <div class="bg-red-50 rounded-lg p-2 text-center"><div class="text-[10px] text-slate-500">Value Lost</div><div class="text-sm font-bold text-red-700">$${((output.valueLostK||0)/1000).toFixed(1)}M</div></div>
+        </div>`);
+    }
+    if (sc6.mitigationActions?.length) {
+      html += _analyticsCard('Mitigation Actions (' + sc6.mitigationActions.length + ')', '<div class="space-y-1">' +
+        sc6.mitigationActions.slice(0, 5).map(a =>
+          `<div class="p-2 bg-slate-50 rounded-lg"><span class="inline-block mr-2 text-[9px] font-bold uppercase ${a.priority === 'high' ? 'text-red-600' : a.priority === 'medium' ? 'text-amber-600' : 'text-green-600'}">${a.priority}</span><span class="text-[10px] text-slate-700">${a.action}</span></div>`
+        ).join('') + '</div>');
+    }
+    if (sc6.recommendation) {
+      html += _analyticsCard('Recommendation', `<p class="text-[11px] text-slate-700">${sc6.recommendation}</p>`);
+    }
+  }
+
+  if (tabId === 'optimize') {
+    const op5 = result.taskResults?.['op-5']?.output || output;
+    if (op5.recommendedAlternativeName) {
+      html += _analyticsCard('Recommended: ' + op5.recommendedAlternativeName,
+        `<p class="text-[11px] text-slate-700 mb-2">${op5.rationale || ''}</p>
+         <div class="text-[10px] font-bold text-slate-600 mb-1">Key Advantages</div>
+         <ul class="list-disc pl-4 space-y-0.5">` +
+        (op5.keyAdvantages || []).map(a => `<li class="text-[10px] text-slate-700">${a}</li>`).join('') +
+        '</ul>');
+    }
+    if (op5.suggestedAdaptations?.length) {
+      html += _analyticsCard('Suggested Adaptations', '<ol class="list-decimal pl-4 space-y-1">' +
+        op5.suggestedAdaptations.map(a => `<li class="text-[10px] text-slate-700">${a}</li>`).join('') + '</ol>');
+    }
+    if (op5.nextSteps?.length) {
+      html += _analyticsCard('Next Steps', '<ol class="list-decimal pl-4 space-y-1">' +
+        op5.nextSteps.map(s => `<li class="text-[11px] text-slate-700">${s}</li>`).join('') + '</ol>');
+    }
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+  el.classList.remove('hidden');
+}
+
+function _analyticsCard(title, body) {
+  return `<div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+    <div class="p-3 bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-700 uppercase tracking-wide">${title}</div>
+    <div class="p-4">${body}</div>
+  </div>`;
+}
+
+/** Public entry point � called by each analytics tab's Run button. */
+async function runAnalyticsTab(tabId) {
+  const key = _ANALYTICS_TAB_KEYS[tabId];
+  if (!key) { console.error('Unknown analytics tab:', tabId); return; }
+
+  if (typeof AnalyticsWorkflowEngine === 'undefined') {
+    toast('Analytics engine not loaded yet. Please refresh the page.', true);
+    return;
+  }
+
+  const runBtn    = document.getElementById('analytics-' + key + '-run-btn');
+  const progressEl = document.getElementById('analytics-' + key + '-progress');
+  const barEl     = document.getElementById('analytics-' + key + '-progress-bar');
+  const labelEl   = document.getElementById('analytics-' + key + '-task-label');
+  const countEl   = document.getElementById('analytics-' + key + '-task-count');
+  const resultsEl  = document.getElementById('analytics-' + key + '-results');
+
+  if (runBtn) { runBtn.disabled = true; runBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Running�</span>'; }
+  if (progressEl) progressEl.classList.remove('hidden');
+  if (resultsEl)  resultsEl.classList.add('hidden');
+
+  AnalyticsWorkflowEngine.onProgress(({ taskId, completedTasks, totalTasks, progress, title }) => {
+    if (barEl)  barEl.style.width = progress + '%';
+    if (labelEl) labelEl.textContent = title || taskId;
+    if (countEl) countEl.textContent = completedTasks + ' / ' + totalTasks + ' tasks';
+  });
+
+  const userInput = _getAnalyticsUserInput(tabId);
+
+  try {
+    const result = await AnalyticsWorkflowEngine.run(tabId, userInput, window.model || {});
+    if (result.status === 'success' || result.status === 'partial') {
+      _renderAnalyticsResults(tabId, result);
+      // Persist back into model
+      if (window.model) {
+        if (!window.model.analytics) window.model.analytics = {};
+        window.model.analytics[tabId] = { latestResult: result, lastRunAt: new Date().toISOString() };
+      }
+    } else {
+      if (resultsEl) {
+        resultsEl.innerHTML = '<div class="bg-red-50 border border-red-200 rounded-xl p-4 text-[11px] text-red-700"><i class="fas fa-circle-xmark mr-2"></i>Analysis failed: ' + (result.error || 'Unknown error') + '</div>';
+        resultsEl.classList.remove('hidden');
+      }
+    }
+  } catch (err) {
+    console.error('Analytics tab error:', err);
+    if (resultsEl) {
+      resultsEl.innerHTML = '<div class="bg-red-50 border border-red-200 rounded-xl p-4 text-[11px] text-red-700"><i class="fas fa-circle-xmark mr-2"></i>' + err.message + '</div>';
+      resultsEl.classList.remove('hidden');
+    }
+  } finally {
+    if (runBtn) { runBtn.disabled = false; runBtn.innerHTML = '<i class="fas fa-rotate-right"></i><span>Re-run</span>'; }
+    if (barEl)  barEl.style.width = '100%';
+  }
+}
+
+/** 
+ * AI-assisted quick start for Analytics tabs (standalone usage without EA Workflow).
+ * Shows modal with example prompts and generates minimal test data for quick testing.
+ */
+async function showAnalyticsQuickStart(tabId) {
+  const examples = {
+    'decision-intelligence': [
+      'Generate 5 retail capabilities for quick DI analysis',
+      'Create 8 financial services capabilities with maturity scores',
+      'Build 6 manufacturing capabilities focused on Industry 4.0'
+    ],
+    'financial': [
+      'Generate 5 capabilities with cost estimates for financial analysis',
+      'Create retail capabilities with investment and ROI data',
+      'Build healthcare capabilities with value pool estimates'
+    ],
+    'scenarios': [
+      'Create 5 capabilities for scenario stress-testing',
+      'Generate manufacturing capabilities for disruption modeling',
+      'Build financial services capabilities for resilience testing'
+    ],
+    'optimize': [
+      'Generate 5 capabilities with dependencies for roadmap optimization',
+      'Create retail capabilities with strategic importance scores',
+      'Build 7 capabilities across different domains for optimization'
+    ]
+  };
+
+  const tabNames = {
+    'decision-intelligence': 'Decision Intelligence',
+    'financial': 'Financial Analytics',
+    'scenarios': 'Scenario Analytics',
+    'optimize': 'Optimize Analytics'
+  };
+
+  const exampleList = examples[tabId] || [];
+  const tabName = tabNames[tabId] || tabId;
+
+  const modalHtml = `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" id="quick-start-modal" onclick="if(event.target === this) document.getElementById('quick-start-modal').remove()">
+      <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+        <div class="p-6 border-b border-slate-200 bg-gradient-to-r from-purple-50 to-blue-50">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-lg font-bold text-slate-800 flex items-center">
+                <i class="fas fa-wand-magic-sparkles text-purple-600 mr-2"></i>
+                AI Quick Start: ${tabName}
+              </div>
+              <div class="text-xs text-slate-600 mt-1">Generate test data with natural language prompts</div>
+            </div>
+            <button onclick="document.getElementById('quick-start-modal').remove()" class="text-slate-400 hover:text-slate-600">
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
+        </div>
+        
+        <div class="p-6">
+          <div class="mb-4">
+            <label class="text-sm font-bold text-slate-700 block mb-2">
+              <i class="fas fa-comment-dots mr-1"></i>Describe what you want to test:
+            </label>
+            <textarea 
+              id="quick-start-prompt" 
+              rows="3"
+              placeholder="Example: Generate 5 retail capabilities with high strategic importance..."
+              class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            ></textarea>
+          </div>
+          
+          <div class="mb-4">
+            <div class="text-xs font-bold text-slate-600 mb-2">
+              <i class="fas fa-lightbulb text-amber-500 mr-1"></i>Quick Examples:
+            </div>
+            <div class="grid gap-2">
+              ${exampleList.map((ex, idx) => `
+                <button 
+                  onclick="document.getElementById('quick-start-prompt').value = '${ex}'; document.getElementById('quick-start-prompt').focus();"
+                  class="text-left text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-all"
+                >
+                  <i class="fas fa-arrow-right text-purple-500 mr-2"></i>${ex}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+          
+          <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div class="text-xs font-bold text-blue-900 mb-1">
+              <i class="fas fa-info-circle mr-1"></i>How it works:
+            </div>
+            <div class="text-xs text-blue-800">
+              Advicy AI will generate minimal EA context (capabilities, strategic intent) based on your prompt. 
+              This allows you to test Analytics features without completing the full 7-step EA Workflow.
+            </div>
+          </div>
+          
+          <div class="flex justify-end gap-3">
+            <button 
+              onclick="document.getElementById('quick-start-modal').remove()" 
+              class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              onclick="generateAnalyticsQuickStartData('${tabId}')" 
+              class="px-4 py-2 text-sm bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg"
+            >
+              <i class="fas fa-magic mr-2"></i>Generate Test Data
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Append modal to body
+  const modalContainer = document.createElement('div');
+  modalContainer.innerHTML = modalHtml;
+  document.body.appendChild(modalContainer.firstElementChild);
+}
+
+/**
+ * Generate minimal test data for Analytics using AI based on user's freetext prompt.
+ * Integrates with existing chat/AI system.
+ */
+async function generateAnalyticsQuickStartData(tabId) {
+  const promptEl = document.getElementById('quick-start-prompt');
+  const userPrompt = promptEl ? promptEl.value.trim() : '';
+  
+  if (!userPrompt) {
+    toast('Please describe what you want to generate', true);
+    return;
+  }
+
+  // Close modal and show progress
+  const modal = document.getElementById('quick-start-modal');
+  if (modal) modal.remove();
+
+  toast('<i class="fas fa-spinner fa-spin mr-2"></i>Generating test data with AI...', false);
+
+  // Build specialized system prompt for quick start data generation
+  const systemPrompt = `You are an Enterprise Architecture assistant specializing in rapid test data generation.
+
+**TASK:** Generate minimal EA context for Analytics testing based on user's request.
+
+**USER REQUEST:** "${userPrompt}"
+
+**REQUIRED OUTPUT FORMAT (valid JSON only):**
+{
+  "strategicIntent": {
+    "vision": "Brief vision statement matching user's industry/context",
+    "mission": "Brief mission statement",
+    "industry": "Detected industry (Retail/Financial Services/Healthcare/Manufacturing/Other)",
+    "strategicThemes": ["Theme 1", "Theme 2", "Theme 3"]
+  },
+  "capabilities": [
+    {
+      "id": "cap-1",
+      "name": "[Verb] [Object]",
+      "domain": "Customer|Product|Operations|Risk|Finance|Technology|Support",
+      "valueStream": "Primary value stream name",
+      "maturity": 3,
+      "strategicImportance": "high|medium|low",
+      "revenueExposure": "high|medium|low",
+      "regulatoryExposure": "high|medium|low",
+      "operationalCriticality": 3,
+      "dependsOnCapabilities": [],
+      "fteHoursSavedPct": 15,
+      "invoiceVolumeImpactPct": 5,
+      "investmentEstimate": 150000,
+      "riskExposureEstimate": 500000
+    }
+  ]
+}
+
+**RULES:**
+1. Generate 5-8 capabilities unless user specifies different count
+2. Capability names MUST follow [Verb][Object] format (e.g., "Manage Customer Onboarding", "Process Claims")
+3. Spread capabilities across 3-4 different domains
+4. Vary maturity levels (1-5) and strategic importance
+5. Make estimates realistic for the industry
+6. Keep strategicIntent brief and focused
+7. Output ONLY the JSON object, no explanatory text
+
+Generate now:`;
+
+  try {
+    const response = await callAI([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ], {
+      temperature: 0.7,
+      max_tokens: 2000
+    });
+
+    // Parse AI response
+    let generatedData;
+    try {
+      // Extract JSON from response (AI might add markdown code blocks)
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('No JSON found in response');
+      generatedData = JSON.parse(jsonMatch[0]);
+    } catch (parseErr) {
+      console.error('Failed to parse AI response:', response);
+      throw new Error('AI generated invalid JSON format');
+    }
+
+    // Validate and populate model
+    if (!window.model) window.model = {};
+    
+    if (generatedData.strategicIntent) {
+      window.model.strategicIntent = generatedData.strategicIntent;
+    }
+    
+    if (generatedData.capabilities && Array.isArray(generatedData.capabilities)) {
+      window.model.capabilities = generatedData.capabilities;
+      
+      // Extract value streams from capabilities
+      const valueStreams = [...new Set(generatedData.capabilities.map(c => c.valueStream).filter(Boolean))];
+      if (!window.model.valueStreams) window.model.valueStreams = [];
+      window.model.valueStreams = valueStreams.map(vs => ({ name: vs }));
+    }
+
+    // Save to localStorage
+    if (typeof autoSaveModel === 'function') {
+      autoSaveModel();
+    }
+
+    // Refresh analytics context display
+    _refreshAnalyticsContext(tabId);
+
+    toast(`? Generated ${generatedData.capabilities?.length || 0} capabilities for ${generatedData.strategicIntent?.industry || 'testing'}`, false);
+
+    // Show success message with action prompt
+    setTimeout(() => {
+      if (confirm(`Test data generated successfully!\n\n${generatedData.capabilities?.length || 0} capabilities created across ${window.model.valueStreams?.length || 0} value streams.\n\nClick OK to run ${tabId.replace('-', ' ')} analysis now.`)) {
+        runAnalyticsTab(tabId);
+      }
+    }, 1000);
+
+  } catch (err) {
+    console.error('Quick start data generation failed:', err);
+    toast('Failed to generate test data: ' + err.message, true);
+  }
+}
+
+// -- END PARALLEL ANALYTICS WORKFLOWS ----------------------------------
+
+function openHomeFromHeader(btn) {
+  const homeBtn = document.querySelector('.tab-btn[data-tab="home"]');
+  showTab('home', homeBtn || null);
+  if (btn) btn.blur();
+}
+
+function openToolkitFromHeader(btn) {
+  showTab('toolkits', null);
+  if (btn) btn.blur();
+}
+
+// -- UX IMPROVEMENTS: NEW FUNCTIONS ----
+
+// Workflow Path Navigation
+function startArchitectWorkflow() {
+  // Show workflow mode selection modal
+  showWorkflowModeSelection();
+}
+
+function showWorkflowModeSelection() {
+  // Create modal for workflow mode selection
+  const modal = document.createElement('div');
+  modal.id = 'workflow-mode-selection-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;box-shadow:0 25px 60px rgba(0,0,0,0.35);width:100%;max-width:680px;max-height:88vh;overflow:hidden;">
+      <div style="padding:24px 28px;background:linear-gradient(135deg,#1e3a5f 0%,#2c5282 100%);">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <i class="fas fa-route" style="font-size:24px;color:#fff;"></i>
+          <div>
+            <div style="font-size:18px;font-weight:700;color:#fff;">Choose Your Workflow Mode</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:2px;">Select the best approach for your EA engagement</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:28px;">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <!-- Autopilot Mode -->
+          <div onclick="startWorkflowMode('autopilot')" style="border:2px solid #e2e8f0;border-radius:12px;padding:18px;cursor:pointer;transition:all 200ms;" onmouseover="this.style.borderColor='#2c5282';this.style.background='#f8fafc'" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='transparent'">
+            <div style="display:flex;gap:16px;">
+              <div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#3b82f6 0%,#2563eb 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas fa-magic" style="font-size:22px;color:#fff;"></i>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:6px;">Autopilot Mode</div>
+                <div style="font-size:13px;color:#64748b;line-height:1.5;margin-bottom:8px;">AI generates complete EA model end-to-end with minimal input. Provide organizational summary (500+ words) and let AI handle all 7 steps automatically.</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <span style="font-size:10px;font-weight:600;color:#2563eb;background:#dbeafe;padding:4px 8px;border-radius:4px;">⚡ FASTEST</span>
+                  <span style="font-size:10px;font-weight:600;color:#059669;background:#d1fae5;padding:4px 8px;border-radius:4px;">✓ Rich Profile</span>
+                  <span style="font-size:10px;font-weight:600;color:#7c3aed;background:#ede9fe;padding:4px 8px;border-radius:4px;">55% Time Saved</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Standard Mode -->
+          <div onclick="startWorkflowMode('standard')" style="border:2px solid #e2e8f0;border-radius:12px;padding:18px;cursor:pointer;transition:all 200ms;" onmouseover="this.style.borderColor='#2c5282';this.style.background='#f8fafc'" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='transparent'">
+            <div style="display:flex;gap:16px;">
+              <div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#10b981 0%,#059669 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas fa-list-check" style="font-size:22px;color:#fff;"></i>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:6px;">Standard Mode</div>
+                <div style="font-size:13px;color:#64748b;line-height:1.5;margin-bottom:8px;">Comprehensive diagnostic: Answer 7-9 questions about your organization, challenges, scale, stakeholders, and scope. Full Business Context analysis.</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <span style="font-size:10px;font-weight:600;color:#059669;background:#d1fae5;padding:4px 8px;border-radius:4px;">✓ RECOMMENDED</span>
+                  <span style="font-size:10px;font-weight:600;color:#dc2626;background:#fee2e2;padding:4px 8px;border-radius:4px;">Full Context</span>
+                  <span style="font-size:10px;font-weight:600;color:#7c3aed;background:#ede9fe;padding:4px 8px;border-radius:4px;">Quick Start</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Business Object Mode -->
+          <div onclick="startWorkflowMode('business-object')" style="border:2px solid #e2e8f0;border-radius:12px;padding:18px;cursor:pointer;transition:all 200ms;" onmouseover="this.style.borderColor='#2c5282';this.style.background='#f8fafc'" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='transparent'">
+            <div style="display:flex;gap:16px;">
+              <div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas fa-bullseye" style="font-size:22px;color:#fff;"></i>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:6px;">Business Objective Mode</div>
+                <div style="font-size:13px;color:#64748b;line-height:1.5;margin-bottom:8px;">Paste your business objectives in chat. AI analyzes, enriches with web research, creates knowledge base JSON, then generates Business Context. No questionnaire.</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <span style="font-size:10px;font-weight:600;color:#d97706;background:#fef3c7;padding:4px 8px;border-radius:4px;">🎯 STRATEGIC</span>
+                  <span style="font-size:10px;font-weight:600;color:#059669;background:#d1fae5;padding:4px 8px;border-radius:4px;">AI Enrichment</span>
+                  <span style="font-size:10px;font-weight:600;color:#7c3aed;background:#ede9fe;padding:4px 8px;border-radius:4px;">Knowledge Base</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:14px 28px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:flex-end;">
+        <button onclick="closeWorkflowModeSelection()" class="ea-btn ea-btn--ghost" style="font-size:13px;"><i class="fas fa-times mr-2"></i>Cancel</button>
+      </div>
+    </div>
+  `;
+  
+  // Close on backdrop click
+  modal.addEventListener('click', e => { if (e.target === modal) closeWorkflowModeSelection(); });
+  // Close on Escape
+  modal._escHandler = e => { if (e.key === 'Escape') closeWorkflowModeSelection(); };
+  document.addEventListener('keydown', modal._escHandler);
+  document.body.appendChild(modal);
+}
+
+function closeWorkflowModeSelection() {
+  const modal = document.getElementById('workflow-mode-selection-modal');
+  if (modal) {
+    document.removeEventListener('keydown', modal._escHandler);
+    modal.remove();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Business Object Mode: Chat-based enrichment workflow
+// ═══════════════════════════════════════════════════════════════════════════
+async function startBusinessObjectEnrichment() {
+  console.log('[BusinessObject] Starting chat-based enrichment workflow');
+  
+  // Welcome message
+  addAssistantMessage(`**🎯 Welcome to Business Objective Mode!**
+
+I'm your AI Enterprise Architecture advisor. I'll help you create a comprehensive Business Context by:
+
+1. **Analyzing** your business objectives description
+2. **Enriching** with industry research and best practices  
+3. **Creating** a knowledge base JSON file
+4. **Generating** your complete Business Context
+
+**To begin, please paste your business objectives below** including:
+- Primary objectives you want to achieve
+- Key constraints (budget, timeline, regulatory, organizational)
+- Success metrics and KPIs
+- Any strategic vision or challenges
+
+**Example:**
+*"We need to reduce operational costs by 20% while improving customer satisfaction from 3.2 to 4.5 within 18 months. Budget: $2M. Must comply with GDPR. Success metrics: Cost per transaction, NPS score, time-to-market."*
+
+💬 **Type or paste your description in the chat box below and press Enter.**`);
+  
+  // Set up one-time listener for user input
+  window._businessObjectAwaitingInput = true;
+  window._businessObjectInputHandler = async (userInput) => {
+    if (!window._businessObjectAwaitingInput) return;
+    
+    window._businessObjectAwaitingInput = false;
+    console.log('[BusinessObject] Received user input, starting enrichment');
+    
+    try {
+      await enrichBusinessObjectives(userInput);
+    } catch (err) {
+      console.error('[BusinessObject] Enrichment failed:', err);
+      addAssistantMessage(`❌ **Enrichment failed**: ${err.message}\n\nPlease try again or contact support.`);
+      window._businessObjectAwaitingInput = true; // Allow retry
+    }
+  };
+}
+
+async function enrichBusinessObjectives(userInput) {
+  // Step 1: Show that AI is analyzing
+  addAssistantMessage(`📊 **Analyzing your business objectives...**\n\nI'm extracting key information from your description.`);
+  showTypingIndicator();
+  
+  try {
+    // Step 2: Call AI to analyze input
+    const analysisPrompt = `You are an Enterprise Architecture advisor. Analyze this business objectives description and extract structured data.
+
+User input:
+---
+${userInput}
+---
+
+Extract and return ONLY valid JSON:
+{
+  "org_name": "extracted organization name or 'Unknown'",
+  "industry": "extracted or inferred industry",
+  "primaryObjectives": ["objective 1", "objective 2", "objective 3"],
+  "constraints": [
+    {"type": "Financial|Operational|Organisational|Technical|External", "description": "detailed constraint"}
+  ],
+  "successMetrics": ["metric 1", "metric 2"],
+  "keyChallenges": ["challenge 1", "challenge 2"],
+  "strategicVision": {
+    "ambition": "long-term vision statement",
+    "themes": ["theme 1", "theme 2"],
+    "timeframe": "e.g., 18 months, 2 years"
+  },
+  "researchTopics": ["topic 1 to search", "topic 2 to search"]
+}
+
+Be thorough. If information is not explicitly stated, infer from context. Generate 3-5 research topics for web enrichment.`;
+
+    const analysisResult = await callAI(analysisPrompt, { 
+      temperature: 0.3,
+      systemPrompt: 'You are a structured data extraction expert. Return only valid JSON, no markdown, no explanation.'
+    });
+    
+    hideTypingIndicator();
+    
+    // Parse AI response
+    let extractedData;
+    try {
+      const jsonMatch = analysisResult.match(/\{[\s\S]*\}/);
+      extractedData = JSON.parse(jsonMatch ? jsonMatch[0] : analysisResult);
+    } catch (e) {
+      throw new Error(`Failed to parse AI analysis: ${e.message}`);
+    }
+    
+    // Show extraction results
+    const objList = (extractedData.primaryObjectives || []).map((o, i) => `${i + 1}. ${o}`).join('\n');
+    const conList = (extractedData.constraints || []).map((c, i) => `${i + 1}. [${c.type}] ${c.description}`).join('\n');
+    const metList = (extractedData.successMetrics || []).map((m, i) => `${i + 1}. ${m}`).join('\n');
+    
+    addAssistantMessage(`✅ **Extraction Complete**
+
+**Organization:** ${extractedData.org_name}  
+**Industry:** ${extractedData.industry}
+
+**Primary Objectives:**
+${objList || '(none extracted)'}
+
+**Constraints:**
+${conList || '(none extracted)'}
+
+**Success Metrics:**
+${metList || '(none extracted)'}`);
+    
+    // Step 3: Web search enrichment
+    addAssistantMessage(`🔍 **Enriching with industry research...**\n\nSearching for: ${(extractedData.researchTopics || []).join(', ')}`);
+    showTypingIndicator();
+    
+    const enrichmentResults = await performWebEnrichment(extractedData);
+    
+    hideTypingIndicator();
+    
+    addAssistantMessage(`✅ **Enrichment Complete**\n\nFound ${enrichmentResults.searchResults.length} relevant sources with industry benchmarks and best practices.`);
+    
+    // Step 4: Create JSON knowledge file
+    const knowledgeFile = {
+      metadata: {
+        created: new Date().toISOString(),
+        source: 'business-object-mode',
+        userInput: userInput
+      },
+      extracted: extractedData,
+      enrichment: enrichmentResults,
+      businessContext: {
+        org_name: extractedData.org_name,
+        industry: extractedData.industry,
+        primaryObjectives: (extractedData.primaryObjectives || []).map(obj => ({ objective: obj })),
+        constraints: extractedData.constraints || [],
+        successMetrics: (extractedData.successMetrics || []).map(m => ({ metric: m })),
+        keyChallenges: (extractedData.keyChallenges || []).map(ch => ({ challenge: ch })),
+        strategicVision: extractedData.strategicVision || {},
+        enrichment: {
+          researchSources: enrichmentResults.sources,
+          benchmarks: enrichmentResults.benchmarks
+        }
+      }
+    };
+    
+    // Save to localStorage
+    const filename = `business-objectives-${Date.now()}.json`;
+    localStorage.setItem(`knowledge_${filename}`, JSON.stringify(knowledgeFile, null, 2));
+    
+    addAssistantMessage(`💾 **Knowledge Base Created**
+
+Saved: \`${filename}\`
+
+**Ready to generate your Business Context?**
+
+<button class="mode-action-btn mode-action-btn--action" onclick="finalizeBusinessObjectEnrichment('${filename}')">
+  <i class="fas fa-check-circle"></i>
+  Generate Business Context
+</button>
+
+<button class="mode-action-btn mode-action-btn--ghost" onclick="startBusinessObjectEnrichment()">
+  <i class="fas fa-redo"></i>
+  Start Over
+</button>`);
+    
+  } catch (err) {
+    hideTypingIndicator();
+    throw err;
+  }
+}
+
+async function performWebEnrichment(extractedData) {
+  // Use existing web search functionality
+  const searchResults = [];
+  const researchTopics = extractedData.researchTopics || [];
+  
+  // Perform searches (limit to 3 topics to avoid rate limits)
+  for (const topic of researchTopics.slice(0, 3)) {
+    try {
+      // Use Bing search if available
+      if (typeof searchWeb === 'function') {
+        const results = await searchWeb(topic);
+        searchResults.push({ topic, results });
+      }
+    } catch (e) {
+      console.warn(`[BusinessObject] Search failed for topic "${topic}":`, e);
+    }
+  }
+  
+  // Extract benchmarks and sources
+  const sources = searchResults.flatMap(sr => 
+    (sr.results || []).slice(0, 2).map(r => ({
+      title: r.name || r.title,
+      url: r.url,
+      snippet: r.snippet || r.description
+    }))
+  );
+  
+  const benchmarks = {
+    industry: extractedData.industry,
+    searchedTopics: researchTopics,
+    sourcesFound: sources.length
+  };
+  
+  return { searchResults, sources, benchmarks };
+}
+
+async function finalizeBusinessObjectEnrichment(filename) {
+  console.log('[BusinessObject] Finalizing enrichment, starting StepEngine');
+  
+  // Load knowledge file
+  const knowledgeData = localStorage.getItem(`knowledge_${filename}`);
+  if (!knowledgeData) {
+    addAssistantMessage(`❌ **Error**: Knowledge file not found. Please try again.`);
+    return;
+  }
+  
+  const knowledge = JSON.parse(knowledgeData);
+  
+  // Store enriched data in model
+  if (!window.model) window.model = {};
+  window.model.businessObjectKnowledge = knowledge;
+  window.model.businessContext = knowledge.businessContext;
+  window.model.businessContextConfirmed = true;
+  
+  // Create legacy strategicIntent structure for backward compatibility with Step 2+
+  const bc = knowledge.businessContext;
+  window.model.strategicIntent = {
+    strategic_ambition: bc.strategicVision?.ambition || '',
+    industry: bc.industry || '',
+    burning_platform: (bc.keyChallenges || []).map(c => c.challenge || c).join('; '),
+    key_constraints: (bc.constraints || []).map(c => `[${c.type}] ${c.description}`),
+    success_metrics: (bc.successMetrics || []).map(m => m.metric || m),
+    strategic_themes: bc.strategicVision?.themes || [],
+    timeframe: bc.strategicVision?.timeframe || '',
+    primaryObjectives: (bc.primaryObjectives || []).map(o => o.objective || o)
+  };
+  window.model.strategicIntentConfirmed = true;
+  
+  // Mark Step 1 as completed in StepEngine's tracking system
+  if (!window.model.steps) window.model.steps = {};
+  window.model.steps.step1 = {
+    ...(window.model.steps.step1 || {}),
+    status: 'completed',
+    completedAt: new Date().toISOString(),
+    output: knowledge.businessContext,
+    completedTasks: ['business-object-enrichment'],
+    answers: {
+      'business-object-enrichment': knowledge
+    }
+  };
+  
+  // Save model
+  if (typeof autoSaveCurrentModel === 'function') autoSaveCurrentModel();
+  
+  // Show success and render
+  addAssistantMessage(`✅ **Business Context Generated!**\n\nYour enriched Business Context has been created. View it in the **Executive** tab.`);
+  
+  // Render Business Context section
+  if (typeof renderBusinessContextSection === 'function') renderBusinessContextSection();
+  if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
+  if (typeof updateWorkflowProgress === 'function') updateWorkflowProgress([1]);
+  if (typeof showTab === 'function' && typeof findTabButton === 'function') {
+    showTab('exec', findTabButton('exec'));
+  }
+  
+  // Show continue button
+  addAssistantMessage(`**Next Step:**\n\n<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step2', window.model); }">
+  <i class="fas fa-arrow-right"></i>
+  Continue to Step 2: Business Model Canvas
+</button>`);
+}
+
+function startWorkflowMode(mode) {
+  closeWorkflowModeSelection();
+  
+  // Save workflow mode to model
+  if (!window.model) window.model = {};
+  window.model.workflowMode = mode;
+  
+  // Open chat panel for all modes
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel) {
+    panel.classList.remove('hidden');
+    document.body.classList.add('chat-sidebar-open');
+    _updateSidebarToggleIcon(true);
+  }
+  
+  // Clear chat history
+  const chatMessages = document.getElementById('chat-messages');
+  if (chatMessages) chatMessages.innerHTML = '';
+  
+  // BUSINESS OBJECT MODE: Chat-based enrichment flow (no StepEngine yet)
+  if (mode === 'business-object') {
+    console.log('[Workflow] Starting Business Object Mode - chat-based enrichment');
+    
+    // Start chat-based enrichment workflow
+    if (typeof startBusinessObjectEnrichment === 'function') {
+      startBusinessObjectEnrichment();
+    } else {
+      console.error('[Workflow] startBusinessObjectEnrichment not defined');
+      addAssistantMessage(`❌ **Error**: Business Object Mode is not fully configured. Please contact support.`);
+    }
+    return;
+  }
+  
+  // STANDARD MODE: Use StepEngine's QuestionCard-based flow
+  if (mode === 'standard') {
+    console.log('[Workflow] Starting Step 1 with StepEngine (Standard Mode)');
+    
+    // Start StepEngine flow (will show QuestionCard with multi-select)
+    if (typeof StepEngine !== 'undefined' && StepEngine.run) {
+      StepEngine.run('step1', {}, window.model).catch(err => {
+        console.error('[Workflow] Step 1 failed:', err);
+        if (typeof addAssistantMessage === 'function') {
+          addAssistantMessage(`❌ **Error starting Step 1**: ${err.message}\n\nPlease try again or contact support.`);
+        }
+      });
+    } else {
+      console.error('[Workflow] StepEngine not available');
+    }
+    return;
+  }
+  
+  // FALLBACK: Autopilot mode still uses Discovery Mode (freeform description)
+  setAssistantMode('discovery', { step: 1, stepName: 'Describe your organization', workflowMode: mode });
+  
+  // Clear chat history for fresh start (reuse chatMessages from above)
+  if (chatMessages) chatMessages.innerHTML = '';
+  
+  // Generate welcome message based on mode
+  let welcomeMsg = '';
+  
+  if (mode === 'autopilot') {
+    // Initialize autopilot state to await company description
+    window._autopilotState = {
+      active: true,
+      awaitingCompanyDescription: true,
+      context: {},
+      currentStep: 0,
+      completedSteps: [],
+      generatedData: {}
+    };
+    
+    welcomeMsg = `**Welcome to EA Platform V11 - Autopilot Mode**
+
+I'm your **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
+
+In **Autopilot Mode**, I'll generate your complete Enterprise Architecture model end-to-end with minimal input from you.
+
+---
+
+## STEP 0: ORGANIZATION PROFILE
+
+Please provide a **detailed organizational summary** (500+ words recommended) covering:
+
+✓ **Organization Overview**: Name, industry, size, mission
+✓ **Strategic Priorities**: Current goals and timeframes (2026-2028)
+✓ **Challenges**: Key problems you're facing today
+✓ **Technology Landscape**: Current systems, cloud/AI adoption, tech debt
+✓ **Financial Context**: Revenue, growth rate, investment capacity
+✓ **Market Position**: Competitors, differentiators, opportunities
+
+**The more detail you provide, the better your EA model will be.**
+
+Once you submit your organizational summary, I'll automatically process it and generate:
+→ Strategic Intent
+→ Business Model Canvas
+→ Capability Map
+→ Operating Model
+→ Gap Analysis
+→ Value Pools
+→ Transformation Roadmap
+
+**Paste your organizational summary below to begin!**`;
+  } else if (mode === 'business-object') {
+    welcomeMsg = `**Welcome to EA Platform V11 - Business Objective Mode**
+
+I'm your **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
+
+In **Business Objective Mode**, I'll help you define clear business objectives first, then map them to capabilities and EA insights.
+
+---
+
+## STEP 1: UNDERSTAND GOALS
+
+Let's start by understanding your strategic context. I'll ask you questions to define:
+
+→ **Business Objectives**: What outcomes you need to achieve
+→ **Strategic Context**: Industry, challenges, opportunities
+→ **Outcome Statements**: Clear, measurable goals
+
+**I'll ask one question at a time (maximum 3 questions).**
+
+---
+
+### Question 1 of 3
+
+**What type of organization are you?**
+
+(e.g., Startup, Fintech, Banking, Healthcare, Public Sector, Retail, Insurance, Manufacturing, etc.)
+
+*Note: I will adapt ALL my communication, questions, and analysis based on your industry and focus area.*`;
+  } else {
+    // Standard mode
+    welcomeMsg = `**Welcome to EA Platform V11 - Standard Mode**
+
+I'm your **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
+
+I'll guide you through a structured **7-step EA diagnostic process** that leads to:
+
+→ Clear Strategic Intent
+→ EA Transformation Foundation
+→ Data & AI-driven Target Architecture
+
+---
+
+## STEP 1: CONTEXT & SCOPE
+
+Let's begin by defining the framework:
+
+1. **Industry Profile** - What type of organization/industry is this?
+   (e.g., Startup, Fintech, Banking, Healthcare, Public Sector, Retail, Insurance)
+
+2. **Focus Area** - What area are we focusing on?
+   (e.g., General, ERP, ESG, GDPR, Finance, ITSM, Cybersecurity)
+
+3. **Situation** - Is this a problem situation or a general improvement initiative?
+
+**NOTE:** I will adapt ALL my communication, questions, and analysis based on your industry and focus area.
+
+**Please answer the first question to begin!**`;
+  }
+
+  addMessage(welcomeMsg, 'ai');
+  
+  // Store workflow mode in model
+  if (typeof model !== 'undefined') {
+    model.workflowMode = mode;
+  }
+  
+  // Focus on chat input
+  setTimeout(() => {
+    const input = document.getElementById('chat-input');
+    if (input) {
+      input.focus();
+      if (mode === 'autopilot') {
+        input.placeholder = 'Paste your detailed organizational summary here (500+ words)...';
+      } else if (mode === 'business-object') {
+        input.placeholder = 'Type your organization type (e.g., Healthcare, Fintech)...';
+      } else {
+        input.placeholder = 'Answer the questions step by step...';
+      }
+    }
+  }, 300);
+  
+  const modeLabels = {
+    'autopilot': 'Autopilot Mode - Rich Profile Processing',
+    'business-object': 'Business Objective Mode - Strategic Goals First',
+    'standard': 'Standard Mode - Step-by-Step EA Diagnostic'
+  };
+  toast(`AI Discovery Mode activated - ${modeLabels[mode]}`);
+}
+
+function startWorkshopFlow() {
+  showTab('toolkits');
+  toast('Opening Strategic Toolkits for Business Workshop');
+}
+
+function showExecutiveDashboard() {
+  if (model.capabilities && model.capabilities.length > 0) {
+    document.getElementById('enterprise-dashboard-section').classList.remove('hidden');
+    showTab('home');
+    setTimeout(() => {
+      document.getElementById('enterprise-dashboard-section').scrollIntoView({ behavior: 'smooth' });
+    }, 200);
+  } else {
+    showTab('exec');
+    toast('Executive dashboard available after architecture generation');
+  }
+}
+
+function openDocumentation() {
+  const docModal = confirm('Open platform documentation?\\n\\nThis will open the Quick Reference guide in a new window.');
+  if (docModal) {
+    window.open('EA_Platform_V11_Quick_Reference.md', '_blank');
+  }
+}
+
+// Update Workflow Progress Indicator - UPDATED FOR 4-STEP WORKFLOW
+function updateWorkflowProgress(completedSteps) {
+  const progressIndicator = document.getElementById('workflow-progress-indicator');
+  if (!progressIndicator) return;
+  
+  progressIndicator.classList.remove('hidden');
+  
+  // NEW 4-STEP WORKFLOW: Update sidebar badges
+  for (let i = 1; i <= 4; i++) {
+    const stepDiv = document.getElementById(`step-${i}`);
+    const badge = document.getElementById(`badge-${i}`);
+    const doneSpan = document.getElementById(`step${i}-done`);
+    
+    if (!stepDiv) continue;
+    
+    stepDiv.classList.remove('workflow-step-locked', 'workflow-step-active', 'workflow-step-completed');
+    if (badge) badge.classList.remove('workflow-step-badge--active', 'workflow-step-badge--completed');
+    
+    if (completedSteps.includes(i)) {
+      stepDiv.classList.add('workflow-step-completed');
+      if (badge) badge.classList.add('workflow-step-badge--completed');
+      if (doneSpan) doneSpan.classList.remove('hidden');
+    } else if (completedSteps.length + 1 === i) {
+      stepDiv.classList.add('workflow-step-active');
+      if (badge) badge.classList.add('workflow-step-badge--active');
+    } else {
+      stepDiv.classList.add('workflow-step-locked');
+    }
+  }
+  
+  // LEGACY 7-STEP SUPPORT: If steps 5-7 are in completedSteps, show them
+  if (completedSteps.some(s => s > 4)) {
+    for (let i = 5; i <= 7; i++) {
+      const stepDiv = document.getElementById(`step-${i}`);
+      if (stepDiv) {
+        stepDiv.classList.remove('hidden');
+        if (completedSteps.includes(i)) {
+          stepDiv.classList.add('workflow-step-completed');
+          const doneSpan = document.getElementById(`step${i}-done`);
+          if (doneSpan) doneSpan.classList.remove('hidden');
+        }
+      }
+    }
+  }
+  
+  // Update progress percentage (25% per step in 4-step workflow)
+  const percentage = Math.round((completedSteps.length / 4) * 100);
+  if (typeof updateWorkflowProgressBar === 'function') {
+    updateWorkflowProgressBar(percentage);
+  }
+}
+
+// CxO Summary Generation - Unified Function
+async function generateCxOSummary(context, contextData) {
+  if (!OPENAI_KEY && !API_HAS_KEY) {
+    toast('Please configure your OpenAI API key in Settings', true);
+    return;
+  }
+
+  // Remove any existing modal
+  const existing = document.getElementById('cxo-summary-modal');
+  if (existing) existing.remove();
+
+  // Build modal with inline styles so Nordic theme CSS can't override critical layout
+  const modal = document.createElement('div');
+  modal.id = 'cxo-summary-modal';
+  modal.setAttribute('style', 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;');
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;box-shadow:0 25px 60px rgba(0,0,0,0.35);width:100%;max-width:860px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;background:linear-gradient(135deg,#1e3a5f 0%,#2c5282 100%);flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <i class="fas fa-file-chart-line" style="font-size:20px;color:#fff;"></i>
+          <div>
+            <div style="font-size:16px;font-weight:700;color:#fff;">Executive Summary</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:1px;">${context}</div>
+          </div>
+        </div>
+        <button onclick="closeCxOModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:8px;width:36px;height:36px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Close">&times;</button>
+      </div>
+      <div id="cxo-modal-body" style="flex:1;overflow-y:auto;padding:24px;">
+        <div style="display:flex;align-items:center;justify-content:center;padding:48px 0;">
+          <div style="text-align:center;">
+            <div class="animate-spin rounded-full" style="width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#2c5282;border-radius:50%;margin:0 auto 12px;"></div>
+            <div style="font-size:13px;color:#64748b;">Generating executive summary�</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:12px 24px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+        <div style="font-size:11px;color:#94a3b8;">AI-generated � review before sharing</div>
+        <div style="display:flex;gap:8px;">
+          <button id="cxo-copy-btn" onclick="copyCxOSummary()" disabled class="ea-btn ea-btn--secondary" style="opacity:0.4;"><i class="fas fa-copy mr-2"></i>Copy Text</button>
+          <button onclick="closeCxOModal()" class="ea-btn ea-btn--ghost"><i class="fas fa-times mr-1.5"></i>Close</button>
+        </div>
+      </div>
+    </div>
+  `;
+  // Close on backdrop click
+  modal.addEventListener('click', e => { if (e.target === modal) closeCxOModal(); });
+  // Close on Escape
+  modal._escHandler = e => { if (e.key === 'Escape') closeCxOModal(); };
+  document.addEventListener('keydown', modal._escHandler);
+  document.body.appendChild(modal);
+
+  try {
+    let summaryData = contextData || extractContextData(context);
+    
+    const prompt = `You are a CxO advisory consultant preparing an executive summary for the board.
+    
+Context: ${context}
+
+Create a comprehensive 5-paragraph executive summary:
+1. **Situation** (Current state assessment - 2-3 sentences)
+2. **Business Impact** (Quantified impact on revenue, cost, risk - with specific numbers)
+3. **Key Findings** (3-4 bullet points of critical insights)
+4. **Strategic Recommendations** (Prioritized actions - 3-4 bullets)
+5. **Next Steps** (Immediate actionable items with timeline)
+
+Use business language, avoid technical jargon. Focus on outcomes and decisions.
+Be concise but compelling. Include metrics where available.
+
+Data:
+${JSON.stringify(summaryData, null, 2)}`;
+
+    const narrative = await callAI(
+      'You are a strategic board advisor. Create clear, decision-focused executive summaries.',
+      prompt
+    );
+
+    updateCxOModalContent(narrative, summaryData);
+    
+  } catch (error) {
+    console.error('CxO Summary generation failed:', error);
+    const body = document.getElementById('cxo-modal-body');
+    if (body) body.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;color:#991b1b;font-size:13px;"><i class="fas fa-exclamation-triangle" style="margin-right:8px;"></i>Failed to generate summary. Please check your API key and try again.</div>`;
+  }
+}
+
+function extractContextData(context) {
+  const data = {
+    context: context,
+    timestamp: new Date().toISOString(),
+    projectName: model.projectName || 'Unnamed Project',
+    description: model.description || '',
+  };
+
+  if (context === 'gap-analysis' && model.gaps) {
+    data.gaps = model.gaps.slice(0, 5);
+    data.gapCount = model.gaps.length;
+  }
+
+  if (context === 'maturity' && model.capabilities) {
+    const avgMaturity = model.capabilities.reduce((sum, c) => sum + (c.maturity || 0), 0) / model.capabilities.length;
+    data.averageMaturity = avgMaturity.toFixed(2);
+    data.lowMaturityCount = model.capabilities.filter(c => c.maturity <= 2).length;
+  }
+
+  if (context === 'operating-model' && model.operatingModel) {
+    data.operatingModel = model.operatingModel;
+  }
+
+  if (context === 'roadmap' && model.initiatives) {
+    data.initiatives = model.initiatives.slice(0, 8);
+    data.totalInitiatives = model.initiatives.length;
+  }
+
+  if (context === 'benchmarking') {
+    data.benchmarkData = 'Industry comparison data';
+  }
+
+  // Financial data if available
+  if (model.capabilities) {
+    data.totalSavings = model.capabilities.reduce((sum, c) => sum + (c.annualSavingsEstimate || 0), 0);
+    data.totalRisk = model.capabilities.reduce((sum, c) => sum + (c.riskExposure || 0), 0);
+  }
+
+  return data;
+}
+
+function updateCxOModalContent(narrative, data) {
+  const modal = document.getElementById('cxo-summary-modal');
+  if (!modal) return;
+
+  const contentDiv = modal.querySelector('.p-6');
+  contentDiv.innerHTML = `
+    <div class="prose max-w-none">
+      <div class="ea-cxo-summary-content text-slate-700 leading-relaxed" contenteditable="true">
+        ${narrative.replace(/\\n/g, '<br><br>')}
+      </div>
+    </div>
+    <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+      <div class="text-xs font-bold text-blue-700 uppercase mb-2">Summary Metadata</div>
+      <div class="grid grid-cols-2 gap-2 text-sm text-slate-600">
+        <div><strong>Project:</strong> ${data.projectName}</div>
+        <div><strong>Generated:</strong> ${new Date().toLocaleDateString()}</div>
+        <div><strong>Context:</strong> ${data.context}</div>
+        <div><strong>AI Model:</strong> GPT-4o</div>
+      </div>
+    </div>
+  `;
+
+  // Enable export buttons
+  modal.querySelectorAll('button[onclick^="exportCxO"], button[onclick^="copyCxO"]').forEach(btn => {
+    btn.disabled = false;
+  });
+}
+
+function closeCxOModal() {
+  const modal = document.getElementById('cxo-summary-modal');
+  if (modal) {
+    if (modal._escHandler) document.removeEventListener('keydown', modal._escHandler);
+    modal.remove();
+  }
+}
+
+function copyCxOSummary() {
+  const body = document.getElementById('cxo-modal-body');
+  if (!body) return;
+  const text = body.innerText;
+  navigator.clipboard.writeText(text).then(() => { toast('Summary copied to clipboard ?'); });
+}
+
+function exportCxOSummary(format) {
+  toast(`Export to ${format.toUpperCase()} - Feature coming soon`);
+  // Placeholder for future PDF/PowerPoint export functionality
+}
+
+// Load Recent Projects
+function loadRecentProjects() {
+  const projectsList = document.getElementById('recent-projects-list');
+  if (!projectsList) return;
+
+  const allProjects = JSON.parse(localStorage.getItem('ea_all_models') || '{}');
+  const projectKeys = Object.keys(allProjects).sort((a, b) => {
+    const timeA = allProjects[a].lastModified || 0;
+    const timeB = allProjects[b].lastModified || 0;
+    return timeB - timeA;
+  }).slice(0, 5);
+
+  if (projectKeys.length === 0) {
+    projectsList.innerHTML = '<div class="text-sm text-slate-400 italic text-center py-6">No recent projects yet.</div>';
+    return;
+  }
+
+  projectsList.innerHTML = projectKeys.map(key => {
+    const project = allProjects[key];
+    const lastModified = project.lastModified ? new Date(project.lastModified).toLocaleDateString() : 'Unknown';
+    const capCount = project.capabilities ? project.capabilities.length : 0;
+    
+    return `
+      <div class="project-card" onclick="loadProjectByName('${key}')">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <div class="font-bold text-sm text-slate-800">${key}</div>
+            <div class="text-xs text-slate-500 mt-1">${capCount} capabilities � Last modified: ${lastModified}</div>
+          </div>
+          <i class="fas fa-chevron-right text-slate-400"></i>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function loadProjectByName(projectName) {
+  const allProjects = JSON.parse(localStorage.getItem('ea_all_models') || '{}');
+  if (allProjects[projectName]) {
+    model = allProjects[projectName];
+    model.projectName = projectName;
+    populateModelInUI();
+    toast(`Loaded project: ${projectName}`);
+    showProjectDashboard();
+    showTab('home');
+  }
+}
+
+function renderActionBar() {
+  const target = document.getElementById('dashboard-action-bar');
+  if (!target || typeof EANordicUI === 'undefined') return;
+  // Action bar is now contextual - only shows when inside a project
+  // Primary entry actions (New/Open) are on the home page instead
+  target.innerHTML = '';
+}
+
+function toggleDashboardFilters() {
+  const panel = document.getElementById('dashboard-filter-panel');
+  if (!panel) return;
+  panel.classList.toggle('hidden');
+}
+
+function getNordicFilteredCapabilities() {
+  const areaFilter = document.getElementById('dashboard-area-filter')?.value || 'all';
+  const priorityFilter = document.getElementById('dashboard-priority-filter')?.value || 'all';
+  const source = model.capabilities || [];
+
+  return source.filter((capability) => {
+    const matchesArea = areaFilter === 'all' || capabilityHasBusinessArea(capability, areaFilter);
+    const matchesPriority = priorityFilter === 'all' || (capability.strategicImportance || 'medium') === priorityFilter;
+    return matchesArea && matchesPriority;
+  });
+}
+
+function getHeatLevel(capability) {
+  const maturity = Number(capability.maturity || 1);
+  const strategicImportance = (capability.strategicImportance || 'medium').toLowerCase();
+
+  if (strategicImportance === 'high' && maturity <= 1) return 5;
+  if (strategicImportance === 'high' && maturity === 2) return 4;
+  if (strategicImportance === 'high' && maturity === 3) return 3;
+  if (strategicImportance === 'medium' && maturity <= 2) return 3;
+  if (strategicImportance === 'medium' && maturity === 3) return 2;
+  if (strategicImportance === 'low' && maturity <= 2) return 4;
+  if (maturity >= 5) return 1;
+  if (maturity === 4) return 2;
+  return 1;
+}
+
+function getStatusLevel(capability) {
+  const strategicImportance = capability.strategicImportance || 'medium';
+  if (strategicImportance === 'high') return 'high';
+  if (strategicImportance === 'low') return 'low';
+  return 'medium';
+}
+
+function renderNordicDashboard() {
+  if (typeof EANordicUI === 'undefined') return;
+
+  const areaSelect = document.getElementById('dashboard-area-filter');
+  if (areaSelect && areaSelect.options.length === 1) {
+    ensurePhase4Fields();
+    syncAreaFilterSelectors();
+    const areas = Array.from(new Set((model.phase4Config?.activeBusinessAreas || ['general']).concat('general')));
+    areaSelect.innerHTML = '<option value="all">All areas</option>' + areas.map((area) => `<option value="${area}">${area.toUpperCase()}</option>`).join('');
+  }
+
+  const capabilities = getNordicFilteredCapabilities();
+  const metricTarget = document.getElementById('nordic-dashboard-metrics');
+  const chartCanvas = document.getElementById('nordic-dashboard-chart');
+  const signalsTarget = document.getElementById('nordic-priority-signals');
+  const heatmapTarget = document.getElementById('nordic-heatmap');
+  const postureTarget = document.getElementById('nordic-posture');
+  const tableTarget = document.getElementById('nordic-focus-table');
+  const legendTarget = document.getElementById('nordic-heatmap-legend');
+  const summaryTarget = document.getElementById('dashboard-action-summary');
+  const homeSummaryTarget = document.getElementById('home-dynamic-summary');
+
+  if (!metricTarget || !chartCanvas || !signalsTarget || !heatmapTarget || !postureTarget || !tableTarget || !legendTarget) return;
+
+  if (!capabilities.length) {
+    metricTarget.innerHTML = EANordicUI.emptyState('No capabilities match the current filter.');
+    signalsTarget.innerHTML = EANordicUI.emptyState('Adjust the filters to inspect another subset.');
+    heatmapTarget.innerHTML = EANordicUI.emptyState('Heatmap cells will appear here once capabilities are available.');
+    postureTarget.innerHTML = EANordicUI.emptyState('No posture insights available for the current selection.');
+    tableTarget.innerHTML = EANordicUI.emptyState('No capabilities to list.');
+    if (nordicDashboardChart) {
+      nordicDashboardChart.destroy();
+      nordicDashboardChart = null;
+    }
+    if (homeSummaryTarget) {
+      homeSummaryTarget.innerHTML = [
+        '<span class="ea-pill-note"><i class="fas fa-layer-group"></i><span>No architecture yet</span></span>',
+        '<span class="ea-pill-note"><i class="fas fa-wand-magic-sparkles"></i><span>Run Generate Architecture</span></span>',
+        '<span class="ea-pill-note"><i class="fas fa-sliders"></i><span>Then filter by business area</span></span>'
+      ].join('');
+    }
+    return;
+  }
+
+  const averageMaturity = (capabilities.reduce((sum, capability) => sum + Number(capability.maturity || 1), 0) / capabilities.length).toFixed(1);
+  const highFocus = capabilities.filter((capability) => (capability.strategicImportance || 'medium') === 'high').length;
+  const activeGaps = capabilities.filter((capability) => getHeatLevel(capability) >= 4).length;
+  const automatedCoverage = model.aiAgents.length ? Math.min(100, Math.round((model.aiAgents.length / Math.max(capabilities.length, 1)) * 100)) : 24;
+
+  metricTarget.innerHTML = [
+    EANordicUI.metricCard({ label: 'Capabilities in scope', value: String(capabilities.length), meta: 'Filtered operating landscape' }),
+    EANordicUI.metricCard({ label: 'Average maturity', value: `${averageMaturity}/5`, meta: 'Balanced capability baseline' }),
+    EANordicUI.metricCard({ label: 'High-focus domains', value: String(highFocus), meta: 'Strategic items requiring leadership attention' }),
+    EANordicUI.metricCard({ label: 'Automation coverage', value: `${automatedCoverage}%`, meta: 'AI agents and automation touchpoints' })
+  ].join('');
+
+  const domains = {};
+  capabilities.forEach((capability) => {
+    const domain = capability.domain || 'General';
+    if (!domains[domain]) {
+      domains[domain] = { total: 0, count: 0 };
+    }
+    domains[domain].total += Number(capability.maturity || 1);
+    domains[domain].count += 1;
+  });
+
+  const chartEntries = Object.entries(domains)
+    .map(([domain, stats]) => ({ domain, average: Number((stats.total / stats.count).toFixed(1)) }))
+    .sort((left, right) => right.average - left.average)
+    .slice(0, 6);
+
+  const chartColors = chartEntries.map((entry) => {
+    if (entry.average <= 2.5) return '#4A7763';
+    if (entry.average <= 3.5) return '#A9C9D6';
+    return '#2C3E50';
+  });
+
+  if (nordicDashboardChart) {
+    nordicDashboardChart.destroy();
+  }
+  nordicDashboardChart = new Chart(chartCanvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: chartEntries.map((entry) => entry.domain),
+      datasets: [{
+        data: chartEntries.map((entry) => entry.average),
+        backgroundColor: chartColors,
+        borderRadius: 8,
+        borderSkipped: false,
+        maxBarThickness: 34
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1F2A33',
+          titleColor: '#FFFFFF',
+          bodyColor: '#FFFFFF',
+          displayColors: false,
+          callbacks: {
+            label: (context) => `Avg maturity: ${context.raw}/5`
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 5,
+          ticks: { color: '#5F6B75', stepSize: 1 },
+          grid: { color: 'rgba(214, 222, 229, 0.8)' },
+          border: { display: false }
+        },
+        x: {
+          ticks: { color: '#5F6B75' },
+          grid: { display: false },
+          border: { display: false }
+        }
+      }
+    }
+  });
+
+  const focusList = capabilities
+    .slice()
+    .sort((left, right) => getHeatLevel(right) - getHeatLevel(left) || Number(left.maturity || 1) - Number(right.maturity || 1))
+    .slice(0, 4);
+
+  signalsTarget.innerHTML = focusList.map((capability) => `
+    <div class="ea-summary-list__item">
+      <div>
+        <strong>${capability.name}</strong>
+        <span>${capability.domain || 'General'} domain � Maturity ${capability.maturity || 1}/5</span>
+      </div>
+      ${EANordicUI.statusBadge({ level: getStatusLevel(capability), label: `${(capability.strategicImportance || 'medium').toUpperCase()} focus`, icon: 'fas fa-circle' })}
+    </div>`).join('');
+
+  heatmapTarget.innerHTML = focusList.concat(capabilities.filter((capability) => !focusList.includes(capability))).slice(0, 24).map((capability) => EANordicUI.heatCell({
+    level: getHeatLevel(capability),
+    title: `${capability.name} � ${capability.domain || 'General'} � Maturity ${capability.maturity || 1}/5 � ${(capability.strategicImportance || 'medium').toUpperCase()} importance`
+  })).join('');
+
+  legendTarget.innerHTML = [
+    EANordicUI.legendItem('ea-heat-1', 'Heat 1'),
+    EANordicUI.legendItem('ea-heat-2', 'Heat 2'),
+    EANordicUI.legendItem('ea-heat-3', 'Heat 3'),
+    EANordicUI.legendItem('ea-heat-4', 'Heat 4'),
+    EANordicUI.legendItem('ea-heat-5', 'Heat 5')
+  ].join('');
+
+  postureTarget.innerHTML = [
+    {
+      title: 'Active gaps',
+      detail: `${activeGaps} capabilities sit in the top two heat levels and should enter the next steering review.`,
+      badge: EANordicUI.statusBadge({ level: activeGaps > 2 ? 'low' : 'medium', label: activeGaps > 2 ? 'High pressure' : 'Watch list', icon: 'fas fa-wave-square' })
+    },
+    {
+      title: 'Automation readiness',
+      detail: `${automatedCoverage}% of filtered scope has direct AI or automation support represented in the model.`,
+      badge: EANordicUI.statusBadge({ level: automatedCoverage >= 50 ? 'high' : 'medium', label: automatedCoverage >= 50 ? 'Strong coverage' : 'Build coverage', icon: 'fas fa-robot' })
+    },
+    {
+      title: 'Average maturity signal',
+      detail: `Current baseline is ${averageMaturity}/5. Use it to track whether roadmap execution is improving operational resilience.`,
+      badge: EANordicUI.statusBadge({ level: Number(averageMaturity) >= 4 ? 'high' : Number(averageMaturity) >= 3 ? 'medium' : 'low', label: 'Baseline signal', icon: 'fas fa-chart-line' })
+    }
+  ].map((item) => `
+    <div class="ea-summary-list__item">
+      <div>
+        <strong>${item.title}</strong>
+        <span>${item.detail}</span>
+      </div>
+      ${item.badge}
+    </div>`).join('');
+
+  const rows = capabilities
+    .slice()
+    .sort((left, right) => getHeatLevel(right) - getHeatLevel(left) || Number(left.maturity || 1) - Number(right.maturity || 1))
+    .slice(0, 8);
+  tableTarget.innerHTML = `
+    <table class="ea-data-table">
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th>Domain</th>
+          <th>Status</th>
+          <th>Maturity</th>
+          <th>Heat</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((capability) => `
+          <tr>
+            <td>
+              <strong>${capability.name}</strong>
+              <div class="ea-muted">${(capability.businessAreas || ['general']).join(', ')}</div>
+            </td>
+            <td>${capability.domain || 'General'}</td>
+            <td>${EANordicUI.statusBadge({ level: getStatusLevel(capability), label: `${(capability.strategicImportance || 'medium').toUpperCase()} focus`, icon: 'fas fa-circle' })}</td>
+            <td>${capability.maturity || 1}/5</td>
+            <td>Heat ${getHeatLevel(capability)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+
+  if (summaryTarget) {
+    summaryTarget.textContent = `${capabilities.length} capabilities in the current executive view`;
+  }
+  if (homeSummaryTarget) {
+    homeSummaryTarget.innerHTML = [
+      `<span class="ea-pill-note"><i class="fas fa-layer-group"></i><span>${capabilities.length} capabilities</span></span>`,
+      `<span class="ea-pill-note"><i class="fas fa-robot"></i><span>${model.aiAgents.length || 0} AI agents</span></span>`,
+      `<span class="ea-pill-note"><i class="fas fa-road"></i><span>${model.initiatives?.length || 0} initiatives</span></span>`
+    ].join('');
+  }
+}
+
+function updateToolkitBadges() {
+  // Update sync status badges for all toolkits
+  if (!syncEngine || !currentModelId) return;
+  
+  const status = syncEngine.getSyncStatus(currentModelId);
+  Object.keys(status).forEach(toolkit => {
+    const badge = document.getElementById(`sync-badge-${toolkit}`);
+    if (badge && status[toolkit].hasData) {
+      badge.className = 'text-[9px] px-2 py-0.5 rounded-full bg-green-500 text-white font-bold';
+      badge.textContent = 'Has Data';
+    }
+  });
+}
+
+// -- SPINNER ----
+function spin(id, on) { document.getElementById(id)?.classList.toggle('hidden', !on); }
+
+// callAI and extractJSON functions now handled by client-integration.js
+
+
+
+// -- PHASE 5: BOARD REPORT GENERATION ----
+function openReportModal() {
+  if (!model.capabilities.length) {
+    alert("Please generate an architecture first.");
+    return;
+  }
+  document.getElementById('report-modal').classList.remove('hidden');
+  document.getElementById('report-loading').classList.remove('hidden');
+  document.getElementById('report-content').classList.add('hidden');
+  generateFullReport();
+}
+
+function closeReportModal() {
+  document.getElementById('report-modal').classList.add('hidden');
+}
+
+function printReport() {
+  window.print();
+}
+
+async function generateFullReport() {
+  const progress = document.getElementById('report-progress');
+  const contentDiv = document.getElementById('report-content');
+
+  // Collect CxO summaries from diagnostic progress
+  const cxoSummaries = model.diagnosticProgress?.cxoSummaries || {};
+  const scenarioAnalysis = model.diagnosticProgress?.scenarioAnalysis?.content || null;
+  const industryProfile = model.diagnosticProgress?.industryProfile || 'generic';
+  const focusArea = model.diagnosticProgress?.focusArea || 'general';
+
+  const dataPack = {
+    org: document.getElementById('description').value,
+    industryProfile,
+    focusArea,
+    kpis: {
+      savings: document.getElementById('kpi-savings').textContent,
+      risk: document.getElementById('kpi-risk').textContent,
+      co2: document.getElementById('kpi-co2').textContent,
+      alignment: document.getElementById('exec-alignment').textContent,
+      aiReady: document.getElementById('exec-aiready').textContent,
+      techDebt: document.getElementById('exec-techdebt').textContent
+    },
+    topGaps: model.capabilities.filter(c => c.strategicImportance==='high' && c.maturity<=2).map(c => c.name),
+    topSavings: model.capabilities.sort((a,b) => (b.annualSavingsEstimate||0) - (a.annualSavingsEstimate||0)).slice(0,3).map(c => ({name:c.name, val:fmtMoney(c.annualSavingsEstimate)})),
+    roadmap: model.initiatives.slice(0,5).map(i => `${i.name} (${i.phase})`),
+    cxoSummaries: Object.entries(cxoSummaries).map(([key, value]) => ({
+      step: value.step,
+      title: value.title,
+      summary: value.summary
+    })),
+    scenarioAnalysis
+  };
+
+  try {
+    progress.textContent = "Writing executive board report with diagnostic insights...";
+    const reportBody = await callAI(
+      `You are a strategic Board Advisor writing for C-level executives.
+       Generate a complete board report in ENGLISH based on the provided data.
+       Use professional business language. Focus on Business Outcomes: Cost, Risk, Competitiveness, Sustainability.
+
+       **CONTEXT:**
+       - Industry: ${industryProfile}
+       - Focus Area: ${focusArea}
+
+       **STRUCTURE:**
+       1. **Title:** Strategic Architecture Analysis & Transformation Plan
+       2. **Organization & Background** (Short paragraph)
+       3. **Executive Summary** (Board-level, 150-200 words): Strategic intent, expected outcomes, business impact
+       4. **Diagnostic Insights** (Aggregate CxO summaries from 7-step diagnostic):
+          - Present summaries as progressive story: Context ? Current State ? Problems ? Maturity ? Outcomes ? Strategic Intent ? Target Architecture
+          - Use headers for each diagnostic step
+       5. **Scenario Analysis:**
+          - Present 3 scenarios (Best/Likely/Worst Case) with probabilities, timelines, impacts, actions
+          - Format as table or structured sections
+       6. **Capability Mapping & Heat Analysis:**
+          - Top gaps, strategic importance, maturity levels
+          - Savings potential per capability area
+       7. **Dependency & Risk:**
+          - Technical debt, operational risk, integration complexity
+       8. **CFO View:**
+          - Financial summary: ROI, Cost Savings, CO2 reduction
+          - Investment requirements vs. savings timeline
+       9. **Operating Model & Roadmap:**
+          - Transformation phases, quick wins, Year 1 initiatives
+       10. **Strategic Recommendations:**
+           - What the board should decide (3-5 specific recommendations)
+           - Resource requirements and governance
+
+       **FORMATTING:**
+       - Use HTML5 semantic tags: <h1 class="report-h1">, <h2 class="report-h2">, <h3 class="report-h3">
+       - Paragraphs: <p class="report-p">
+       - Key insights: <div class="report-card">
+       - Tables: <table class="report-table">
+       - Lists: <ul class="report-list">
+
+       **TONE:** Direct, data-driven, commercially focused. No jargon unless industry-specific.`,
+      `**DATA PACK:**\n${JSON.stringify(dataPack, null, 2)}`,
+      { taskType: 'heavy', temperature: 0.25, _traceLabel: 'Board Report Generation' }
+    );
+
+    contentDiv.innerHTML = reportBody;
+    document.getElementById('report-loading').classList.add('hidden');
+    contentDiv.classList.remove('hidden');
+  } catch (e) {
+    contentDiv.innerHTML = `<p class="text-red-600">An error occurred during generation: ${e.message}</p>`;
+    document.getElementById('report-loading').classList.add('hidden');
+    contentDiv.classList.remove('hidden');
+  }
+}
+
+// -- PHASE 1: CONVERSATIONAL EA ASSISTANT ----
+function initChatPanel() {
+  loadConversationHistory();
+
+  const sendButton = document.getElementById('send-chat');
+  const input = document.getElementById('chat-input');
+  if (sendButton && input) {
+    sendButton.addEventListener('click', sendMessage);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      toggleChatPanel();
+    }
+    if (e.key === 'Escape') {
+      const panel = document.getElementById('ai-chat-panel');
+      if (panel && !panel.classList.contains('hidden')) {
+        closeChatPanel();
+      }
+    }
+  });
+
+  syncConversationWithCurrentModel();
+  renderActiveConversation();
+  _initChatSidebarResize();
+  
+  // Initialize mode badge UI
+  updateModeBadgeUI();
+}
+
+function _initChatSidebarResize() {
+  const handle = document.getElementById('chat-resize-handle');
+  const panel  = document.getElementById('ai-chat-panel');
+  if (!handle || !panel) return;
+  let startX, startW;
+
+  // Restore saved width
+  const saved = parseInt(localStorage.getItem('advicy_sidebar_w') || '0', 10);
+  if (saved >= 240 && saved <= 700) _applySidebarWidth(saved);
+
+  handle.addEventListener('mousedown', (e) => {
+    startX = e.clientX;
+    startW = panel.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+
+    function onMove(ev) {
+      const diff = startX - ev.clientX;
+      const newW = Math.max(240, Math.min(700, startW + diff));
+      _applySidebarWidth(newW);
+    }
+    function onUp() {
+      localStorage.setItem('advicy_sidebar_w', panel.offsetWidth);
+      handle.classList.remove('dragging');
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+function _applySidebarWidth(w) {
+  const panel = document.getElementById('ai-chat-panel');
+  if (!panel) return;
+  panel.style.width = w + 'px';
+  // update grid right padding to match
+  const style = document.getElementById('_sidebar-width-style') || (() => {
+    const s = document.createElement('style');
+    s.id = '_sidebar-width-style';
+    document.head.appendChild(s);
+    return s;
+  })();
+  style.textContent = `body.chat-sidebar-open .ea-shell-grid{padding-right:calc(${w}px + 24px)!important;}`;
+}
+
+function toggleChatPanel() {
+  const panel = document.getElementById('ai-chat-panel');
+  if (!panel) return;
+  const isOpen = !panel.classList.contains('hidden');
+  if (isOpen) {
+    panel.classList.add('hidden');
+    document.body.classList.remove('chat-sidebar-open');
+    _updateSidebarToggleIcon(false);
+  } else {
+    panel.classList.remove('hidden');
+    document.body.classList.add('chat-sidebar-open');
+    _updateSidebarToggleIcon(true);
+    clearUnreadCount();
+    const input = document.getElementById('chat-input');
+    if (input) input.focus({ preventScroll: true });
+  }
+}
+
+function _updateSidebarToggleIcon(open) {
+  const btn = document.getElementById('sidebar-toggle-btn');
+  if (!btn) return;
+  btn.style.background = open ? 'rgba(14,122,254,0.18)' : '';
+  btn.style.color = open ? '#60a5fa' : '';
+}
+
+function minimizeChatPanel() {
+  closeChatPanel(); // sidebar has no minimize � just close
+}
+
+function closeChatPanel() {
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel) panel.classList.add('hidden');
+  document.body.classList.remove('chat-sidebar-open');
+  _updateSidebarToggleIcon(false);
+}
+
+function getDefaultEaAssistantWelcome() {
+  // Default welcome message in English
+  // AI will automatically respond in the same language the user writes in
+  return "Hi! I am your NextGen EA Assistant, and I am context-aware of the view you are working in.\n\n" +
+    "You can write naturally or run commands, for example:\n" +
+    "- Generate architecture for a Industry-specific organization\n" +
+    "- Update roadmap\n" +
+    "- Update capability map\n" +
+    "- Update operating model\n" +
+    "- Update target architecture\n\n" +
+    "What would you like to do now?";
+}
+
+function getUserPreferredLanguage() {
+  // Default to English - AI will respond in the same language the user writes in
+  return 'en';
+}
+
+function clearActiveConversationHistory() {
+  const conversation = getActiveConversation();
+  conversation.messages = [];
+  conversation.lastUpdate = Date.now();
+  if (enableChatAutoSave) saveConversationHistory();
+  renderActiveConversation();
+  addAssistantMessage('Chat history cleared. What would you like to work on next?');
+  clearUnreadCount();
+  const input = document.getElementById('chat-input');
+  if (input) {
+    input.value = '';
+    input.focus({ preventScroll: true });
+  }
+}
+
+function startNewConversationChat() {
+  createConversation(currentModelName || 'EA Conversation');
+  renderActiveConversation();
+  addAssistantMessage(getDefaultEaAssistantWelcome());
+  clearUnreadCount();
+  const input = document.getElementById('chat-input');
+  if (input) {
+    input.value = '';
+    input.focus({ preventScroll: true });
+  }
+}
+
+function clearUnreadCount() {
+  const unreadCount = document.getElementById('unread-count');
+  if (!unreadCount) return;
+  unreadCount.textContent = '0';
+  unreadCount.style.display = 'none';
+}
+
+function incrementUnreadCount() {
+  const panel = document.getElementById('ai-chat-panel');
+  if (!panel || !panel.classList.contains('hidden')) return;
+
+  const unreadCount = document.getElementById('unread-count');
+  if (!unreadCount) return;
+  const value = Number(unreadCount.textContent || '0') + 1;
+  unreadCount.textContent = String(value);
+  unreadCount.style.display = 'flex';
+  // Also highlight the header toggle button
+  const btn = document.getElementById('sidebar-toggle-btn');
+  if (btn) btn.style.color = '#f59e0b';
+}
+
+function hasExistingConversation() {
+  const conversation = getActiveConversation();
+  return !!(conversation && conversation.messages && conversation.messages.length > 0);
+}
+
+function createConversation(title) {
+  const conversation = {
+    id: 'conv_' + Date.now(),
+    title: title || currentModelName || 'EA Conversation',
+    startDate: Date.now(),
+    lastUpdate: Date.now(),
+    linkedModelId: currentModelId || 'unsaved',
+    status: 'active',
+    messages: []
+  };
+  aiConversationStore.conversations.push(conversation);
+  aiConversationStore.activeConversationId = conversation.id;
+  if (enableChatAutoSave) saveConversationHistory();
+  return conversation;
+}
+
+function getActiveConversation() {
+  const activeId = aiConversationStore.activeConversationId;
+  let conversation = aiConversationStore.conversations.find(c => c.id === activeId);
+  if (!conversation) {
+    conversation = createConversation(currentModelName);
+  }
+  return conversation;
+}
+
+/**
+ * Returns the description field value, synthesising it from the active Discovery
+ * chat session if the textarea is empty. Writes the result back to the textarea
+ * so subsequent functions can read it too. Returns '' if nothing found.
+ */
+function synthesiseDescription() {
+  let desc = document.getElementById('description').value.trim();
+  if (desc) return desc;
+
+  const conversation = getActiveConversation();
+  const msgs = conversation.messages || [];
+  const lastWelcomeIdx = (() => {
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === 'assistant' && /describe your organisation|tell me about|welcome/i.test(msgs[i].content)) return i;
+    }
+    return 0;
+  })();
+  const sessionMsgs = msgs.slice(lastWelcomeIdx);
+  const lastAiSummary = [...sessionMsgs].reverse().find(m =>
+    m.role === 'assistant' &&
+    !(m.metadata && m.metadata.isActionButton) &&
+    m.content && m.content.trim().length > 80 &&
+    !/^\?|^\?\?/.test(m.content.trim())
+  );
+  const userMsgs = sessionMsgs
+    .filter(m => m.role === 'user' && m.content && m.content.trim().length > 20
+      && !/^\s*(proceed|yes|ja|sure|ok|go ahead|gå vidare|kör|fortsätt|done|redo|klart|sounds good|looks good)\s*$/i.test(m.content.trim()))
+    .map(m => m.content.trim());
+
+  if (lastAiSummary) {
+    const cleaned = lastAiSummary.content
+      .replace(/>\s*[\s\S]*/g, '')
+      .replace(/\*\*Ready to proceed[\s\S]*/gi, '')
+      .trim();
+    const userContext = userMsgs.length ? `Original user input:\n${userMsgs.join('\n')}\n\nAI-enriched context:\n` : '';
+    desc = userContext + cleaned;
+  } else if (userMsgs.length) {
+    desc = userMsgs.join('\n\n');
+  }
+
+  if (desc) document.getElementById('description').value = desc;
+  return desc;
+}
+
+function syncConversationWithCurrentModel() {
+  const conversation = getActiveConversation();
+  conversation.linkedModelId = currentModelId || 'unsaved';
+  conversation.title = currentModelName || conversation.title;
+  conversation.lastUpdate = Date.now();
+  if (enableChatAutoSave) saveConversationHistory();
+
+  if (!hasExistingConversation()) {
+    addAssistantMessage(getDefaultEaAssistantWelcome());
+  }
+}
+
+function loadConversationHistory() {
+  try {
+    const saved = localStorage.getItem(AI_CONVERSATIONS_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && Array.isArray(parsed.conversations)) {
+        aiConversationStore = parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load conversation history', e);
+    aiConversationStore = { conversations: [], activeConversationId: null };
+  }
+}
+
+function saveConversationHistory() {
+  const MAX_ATTEMPTS = 5;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      localStorage.setItem(AI_CONVERSATIONS_KEY, JSON.stringify(aiConversationStore));
+      return; // success
+    } catch (e) {
+      if (e.name !== 'QuotaExceededError' && e.name !== 'NS_ERROR_DOM_QUOTA_REACHED') throw e;
+      // Storage full � trim the oldest messages from the active conversation and retry
+      const conv = aiConversationStore.conversations.find(c => c.id === aiConversationStore.activeConversationId);
+      if (!conv || !conv.messages || conv.messages.length < 20) break; // nothing safe to trim
+      // Remove the oldest 10 non-user messages (large AI responses)
+      let removed = 0;
+      conv.messages = conv.messages.filter(m => {
+        if (removed >= 10 || m.role === 'user') return true;
+        removed++;
+        return false;
+      });
+      console.warn(`saveConversationHistory: quota exceeded, trimmed ${removed} old messages (attempt ${attempt + 1})`);
+    }
+  }
+  console.error('saveConversationHistory: could not persist after trimming � localStorage quota exhausted');
+}
+
+function addMessageToConversation(role, content, metadata = null) {
+  const conversation = getActiveConversation();
+  // Cap assistant messages at 10 000 chars to avoid blowing localStorage quota.
+  // The actual structured data lives in model.* � the chat copy is display-only.
+  const MAX_CHAT_CHARS = 10000;
+  const storedContent = (role === 'assistant' && typeof content === 'string' && content.length > MAX_CHAT_CHARS)
+    ? content.slice(0, MAX_CHAT_CHARS) + '\n\n_[message truncated for storage � full data saved in model]_'
+    : content;
+  conversation.messages.push({
+    id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+    role,
+    content: storedContent,
+    timestamp: Date.now(),
+    metadata
+  });
+  conversation.lastUpdate = Date.now();
+  if (enableChatAutoSave) saveConversationHistory();
+}
+
+function renderActiveConversation() {
+  const messagesContainer = document.getElementById('chat-messages');
+  if (!messagesContainer) return;
+  messagesContainer.innerHTML = '';
+
+  const conversation = getActiveConversation();
+  (conversation.messages || []).forEach((message) => {
+    if (message.role === 'user') {
+      renderMessage(message.content, true, message.timestamp, message.metadata, false);
+    } else {
+      renderMessage(message.content, false, message.timestamp, message.metadata, false);
+    }
+  });
+  scrollToBottom();
+}
+
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function parseMarkdown(text) {
+  if (!text) return '';
+  // -- PRESERVE EMBEDDED HTML BLOCKS (action buttons, divs) -----------------
+  // Extract raw HTML elements before escaping so they render as live HTML.
+  const rawHtmlBlocks = [];
+  const textForParsing = text.replace(/<(div|button)\b[^>]*>[\s\S]*?<\/\1>/gi, (match) => {
+    rawHtmlBlocks.push(match);
+    return `%%HTMLBLOCK_${rawHtmlBlocks.length - 1}%%`;
+  });
+  // Escape HTML first (XSS safety � placeholders contain no special chars)
+  let t = escapeHtml(textForParsing);
+  
+  // -- TABLE DETECTION & RENDERING --------------------------------------------
+  // Detect Markdown tables (| header | header |\n|---|---|\n| cell | cell |)
+  const tableRegex = /^(\|.+\|\s*\n)(\|[-:\s|]+\|\s*\n)((\|.+\|\s*\n?)+)/gm;
+  t = t.replace(tableRegex, (match) => {
+    const rows = match.trim().split('\n').map(r => r.trim());
+    if (rows.length < 3) return match; // Need header + separator + data
+    
+    const headerCells = rows[0].split('|').filter(c => c.trim()).map(c => c.trim());
+    const dataRows = rows.slice(2).map(row => 
+      row.split('|').filter(c => c.trim()).map(c => c.trim())
+    );
+    
+    let tableHtml = '<table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;background:#1a1a1a;border-radius:8px;overflow:hidden;border:1px solid #404040;">';
+    
+    // Header
+    tableHtml += '<thead><tr style="background:#0066cc;color:#ffffff;">';
+    headerCells.forEach(cell => {
+      tableHtml += `<th style="padding:10px 14px;text-align:left;font-weight:600;">${cell}</th>`;
+    });
+    tableHtml += '</tr></thead>';
+    
+    // Body
+    tableHtml += '<tbody>';
+    dataRows.forEach((rowCells, idx) => {
+      const rowBg = idx % 2 === 0 ? '#2d2d2d' : '#1a1a1a';
+      tableHtml += `<tr style="background:${rowBg};">`;
+      rowCells.forEach(cell => {
+        tableHtml += `<td style="padding:8px 14px;border-top:1px solid #404040;color:#e0e0e0;">${cell}</td>`;
+      });
+      tableHtml += '</tr>';
+    });
+    tableHtml += '</tbody></table>';
+    
+    return tableHtml;
+  });
+  
+  // -- INLINE FORMATTING ------------------------------------------------------
+  t = t.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  t = t.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ffffff;font-weight:700;">$1</strong>');
+  t = t.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  t = t.replace(/`([^`]+)`/g, '<code style="font-family:monospace;background:#1a1a1a;padding:2px 6px;border-radius:4px;font-size:12px;color:#66d9ef;font-weight:500;border:1px solid #404040;">$1</code>');
+  
+  // -- BLOCK PROCESSING -------------------------------------------------------
+  const lines = t.split('\n');
+  const out = [];
+  let inUL = false, inOL = false, inCodeBlock = false, codeLines = [];
+  
+  const closeList = () => {
+    if (inUL) { out.push('</ul>'); inUL = false; }
+    if (inOL) { out.push('</ol>'); inOL = false; }
+  };
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    
+    // Code blocks (```)
+    if (trimmed.startsWith('```')) {
+      if (!inCodeBlock) {
+        closeList();
+        inCodeBlock = true;
+        codeLines = [];
+        continue;
+      } else {
+        const codeContent = codeLines.join('\n');
+        out.push(`<pre style="background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;margin:10px 0;overflow-x:auto;font-size:10px;line-height:1.6;font-family:monospace;"><code>${codeContent}</code></pre>`);
+        inCodeBlock = false;
+        continue;
+      }
+    }
+    
+    if (inCodeBlock) {
+      codeLines.push(line);
+      continue;
+    }
+    
+    // Headings
+    const h3m = trimmed.match(/^### (.+)$/);
+    const h2m = trimmed.match(/^## (.+)$/);
+    const h1m = trimmed.match(/^# (.+)$/);
+    if (h1m || h2m || h3m) {
+      closeList();
+      if (h3m)      out.push(`<div style="font-size:14px;font-weight:600;color:#b0b0b0;margin:16px 0 8px;">${h3m[1]}</div>`);
+      else if (h2m) out.push(`<div style="font-size:15px;font-weight:700;color:#e0e0e0;border-bottom:2px solid #0066cc;padding-bottom:6px;margin:18px 0 10px;">${h2m[1]}</div>`);
+      else          out.push(`<div style="font-size:16px;font-weight:700;color:#ffffff;margin:20px 0 10px;">${h1m[1]}</div>`);
+      continue;
+    }
+    
+    // Horizontal rule
+    if (/^---+$/.test(trimmed)) {
+      closeList();
+      out.push('<hr style="border:none;border-top:1px solid #404040;margin:14px 0;">');
+      continue;
+    }
+    
+    // Blockquote (> text)
+    const quotem = trimmed.match(/^> (.+)$/);
+    if (quotem) {
+      closeList();
+      out.push(`<div style="border-left:3px solid #0066cc;background:#1a1a1a;padding:10px 14px;margin:10px 0;border-radius:4px;font-style:italic;color:#b0b0b0;">${quotem[1]}</div>`);
+      continue;
+    }
+    
+    // Unordered list
+    const ulm = trimmed.match(/^[-*�] (.+)$/);
+    if (ulm) {
+      if (!inUL) { closeList(); out.push('<ul style="margin:8px 0;padding-left:20px;list-style-type:disc;color:#b0b0b0;">'); inUL = true; }
+      out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${ulm[1]}</li>`);
+      continue;
+    }
+    
+    // Ordered list
+    const olm = trimmed.match(/^\d+\.\s(.+)$/);
+    if (olm) {
+      if (!inOL) { closeList(); out.push('<ol style="margin:8px 0;padding-left:22px;color:#b0b0b0;">'); inOL = true; }
+      out.push(`<li style="margin-bottom:6px;line-height:1.6;color:#e0e0e0;">${olm[1]}</li>`);
+      continue;
+    }
+    
+    // Empty line ? paragraph spacer
+    if (trimmed === '') {
+      closeList();
+      out.push('<div style="height:10px;"></div>');
+      continue;
+    }
+    
+    // Raw HTML block placeholder � pass through unmodified (restored below)
+    if (/^%%HTMLBLOCK_\d+%%$/.test(trimmed)) {
+      closeList();
+      out.push(trimmed);
+      continue;
+    }
+
+    // Regular paragraph
+    closeList();
+    out.push(`<p style="line-height:1.65;margin-bottom:8px;color:#e0e0e0;">${trimmed}</p>`);
+  }
+  
+  closeList();
+  let _result = out.join('');
+  // Restore preserved HTML blocks
+  if (rawHtmlBlocks.length) {
+    _result = _result.replace(/%%HTMLBLOCK_(\d+)%%/g, (_, i) => rawHtmlBlocks[+i] || '');
+  }
+  return _result;
+}
+
+// -- Prompt Trace (Advicy AI) ----------------------------------------------
+window._advisyPromptTrace = false;
+
+function togglePromptTrace() { /* no-op � prompt trace disabled in AdvicyAI */ }
+
+/**
+ * Thinking Card � shows the model's reasoning/thinking summary (GPT-5 reasoning output)
+ * as a collapsible dark card in the chat sidebar. Collapsed by default (thinking can be long).
+ */
+function renderThinkingCard(label, thinkingText) {
+  const messagesContainer = document.getElementById('chat-messages');
+  if (!messagesContainer) return;
+  const cardId = 'tc-' + Date.now();
+  const escaped = (thinkingText || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'margin:6px 0;width:100%;box-sizing:border-box;';
+  wrapper.innerHTML = `
+    <div id="${cardId}" style="border:1px solid #2a3d2a;border-radius:8px;background:#1a2a1a;font-size:12px;overflow:hidden;width:100%;box-sizing:border-box;">
+      <div onclick="(function(el){
+          const body=el.nextElementSibling;
+          const arrow=el.querySelector('.tc-arrow');
+          const open=body.style.display!=='none';
+          body.style.display=open?'none':'block';
+          arrow.textContent=open?'?':'?';
+        })(this)"
+        style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:#1e2e1e;cursor:pointer;user-select:none;border-bottom:1px solid #2a3d2a;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;">??</span>
+          <span style="font-weight:700;color:#4ec9b0;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Thinking</span>
+          <span style="color:#4a6a4a;font-size:11px;">�</span>
+          <span style="color:#8fbf8f;font-size:11px;font-weight:600;">${label || 'Reasoning'}</span>
+        </div>
+        <span class="tc-arrow" style="color:#4a6a4a;font-size:10px;">?</span>
+      </div>
+      <div style="padding:10px 12px;display:none;box-sizing:border-box;">
+        <textarea readonly
+          style="width:100%;min-height:120px;max-height:320px;resize:vertical;
+                 font-size:11px;line-height:1.6;font-family:'Cascadia Code','Fira Code','Consolas',monospace;
+                 border:1px solid #2a3d2a;border-radius:6px;padding:8px;
+                 background:#111a11;color:#b5d9b5;
+                 box-sizing:border-box;outline:none;"
+        >${escaped}</textarea>
+      </div>
+    </div>`;
+  messagesContainer.appendChild(wrapper);
+  scrollToBottom();
+}
+
+function renderPromptTrace(label, sys, user) {
+  // System prompts and raw AI prompt traces are not shown in AdvicyAI chat.
+  return;
+  const messagesContainer = document.getElementById('chat-messages');
+  if (!messagesContainer) return;
+  const traceId = 'pt-' + Date.now();
+  const sysEsc  = (sys  || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const userEsc = (user || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'margin:6px 0;width:100%;box-sizing:border-box;';
+  wrapper.innerHTML = `
+    <div id="${traceId}" style="border:1px solid #3a3a3a;border-radius:8px;background:#252526;font-size:12px;overflow:hidden;width:100%;box-sizing:border-box;">
+
+      <!-- Header / toggle -->
+      <div onclick="(function(el){
+          const body=el.nextElementSibling;
+          const arrow=el.querySelector('.pt-arrow');
+          const open=body.style.display!=='none';
+          body.style.display=open?'none':'block';
+          arrow.textContent=open?'?':'?';
+        })(this)"
+        style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:#2d2d2d;cursor:pointer;user-select:none;border-bottom:1px solid #3a3a3a;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="color:#9d80f7;font-size:12px;font-weight:700;">�</span>
+          <span style="font-weight:700;color:#9d80f7;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Prompt Trace</span>
+          <span style="color:#858585;font-size:11px;">�</span>
+          <span style="color:#cccccc;font-size:11px;font-weight:600;">${label || 'Workflow'}</span>
+        </div>
+        <span class="pt-arrow" style="color:#858585;font-size:10px;">?</span>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:10px 12px;display:block;box-sizing:border-box;">
+
+        <!-- SYSTEM -->
+        <div style="margin-bottom:8px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;color:#9d80f7;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">
+            <span style="width:8px;height:8px;border-radius:2px;background:#7c3aed;display:inline-block;"></span>
+            SYSTEM
+          </label>
+          <textarea id="${traceId}-sys"
+            spellcheck="false"
+            style="width:100%;min-height:100px;max-height:260px;resize:vertical;
+                   font-size:11px;line-height:1.5;font-family:'Cascadia Code','Fira Code','Consolas',monospace;
+                   border:1px solid #3a3a3a;border-radius:6px;padding:8px;
+                   background:#1e1e1e;color:#ce9178;
+                   box-sizing:border-box;outline:none;"
+            onfocus="this.style.borderColor='#9d80f7'"
+            onblur="this.style.borderColor='#3a3a3a'"
+          >${sysEsc}</textarea>
+        </div>
+
+        <!-- USER PROMPT -->
+        <div style="margin-bottom:10px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;color:#4ec9b0;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">
+            <span style="width:8px;height:8px;border-radius:2px;background:#4ec9b0;display:inline-block;"></span>
+            USER PROMPT
+          </label>
+          <textarea id="${traceId}-user"
+            spellcheck="false"
+            style="width:100%;min-height:70px;max-height:180px;resize:vertical;
+                   font-size:11px;line-height:1.5;font-family:'Cascadia Code','Fira Code','Consolas',monospace;
+                   border:1px solid #3a3a3a;border-radius:6px;padding:8px;
+                   background:#1e1e1e;color:#9cdcfe;
+                   box-sizing:border-box;outline:none;"
+            onfocus="this.style.borderColor='#4ec9b0'"
+            onblur="this.style.borderColor='#3a3a3a'"
+          >${userEsc}</textarea>
+        </div>
+
+        <!-- Actions row -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <span id="${traceId}-status" style="font-size:10px;color:#858585;"></span>
+          <button id="${traceId}-run"
+            onclick="(async function(btn){
+              const s = document.getElementById('${traceId}-sys').value;
+              const u = document.getElementById('${traceId}-user').value;
+              const status = document.getElementById('${traceId}-status');
+              btn.disabled = true;
+              btn.style.opacity = '0.6';
+              btn.textContent = 'Running�';
+              status.textContent = '';
+              try {
+                showTypingIndicator();
+                const panel = document.getElementById('ai-chat-panel');
+                if (panel && panel.classList.contains('hidden')) toggleChatPanel();
+                const res = await callAI(s, u, { _fromChat: true });
+                hideTypingIndicator();
+                addAssistantMessage(res);
+                status.style.color = '#4ec9b0';
+                status.textContent = 'Done';
+              } catch(e) {
+                hideTypingIndicator();
+                addAssistantMessage('Re-run error: ' + e.message);
+                status.style.color = '#f48771';
+                status.textContent = '? Failed';
+              } finally {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.innerHTML = '&#9654; Re-run';
+              }
+            })(this)"
+            style="display:flex;align-items:center;gap:6px;
+                   background:#7c3aed;color:#fff;border:none;border-radius:6px;
+                   padding:6px 16px;font-size:11px;font-weight:700;cursor:pointer;
+                   transition:background 0.15s;white-space:nowrap;"
+            onmouseover="this.style.background='#6d28d9'"
+            onmouseout="this.style.background='#7c3aed'"
+          >&#9654; Re-run</button>
+        </div>
+      </div>
+    </div>`;
+
+  messagesContainer.appendChild(wrapper);
+  scrollToBottom();
+}
+// -----------------------------------------------------------------------------
+
+function renderMessage(content, isUser, timestamp = Date.now(), metadata = null, increaseUnread = true) {
+  const messagesContainer = document.getElementById('chat-messages');
+  if (!messagesContainer) return;
+
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'chat-message ' + (isUser ? 'user-message' : 'assistant-message');
+  const iconClass = isUser ? 'fa-user' : 'fa-robot';
+  const messageHtml = parseMarkdown(content);
+  let actionsHtml = '';
+  if (metadata && metadata.affectedCapabilities && metadata.affectedCapabilities.length) {
+    actionsHtml = `<div class="message-actions"><button onclick="showTab('capmap', findTabButton('capmap'))">View Changes (${metadata.affectedCapabilities.length})</button></div>`;
+  } else if (metadata && metadata.pendingRecommendations) {
+    actionsHtml = `<div class="message-actions flex gap-2 mt-2 flex-wrap">
+      <button onclick="confirmApplyRecommendations()" style="background:#16a34a;color:#fff;padding:4px 12px;border-radius:4px;font-size:10px;font-weight:700;border:none;cursor:pointer;">&#10003; Yes, apply all changes</button>
+      <button onclick="skipRecommendations()" style="background:#e2e8f0;color:#334155;padding:4px 12px;border-radius:4px;font-size:10px;font-weight:700;border:none;cursor:pointer;">&#10007; Skip</button>
+    </div>`;
+  }
+
+  messageDiv.innerHTML = `
+    <div class="message-avatar"><i class="fas ${iconClass}"></i></div>
+    <div class="message-content">
+      <div class="message-text">${messageHtml}</div>
+      <div class="message-time">${formatTime(timestamp)}</div>
+      ${actionsHtml}
+    </div>
+  `;
+
+  messagesContainer.appendChild(messageDiv);
+  scrollToBottom();
+
+  if (!isUser && increaseUnread) incrementUnreadCount();
+  
+  return messageDiv; // Return reference for streaming
+}
+
+// -- STREAMING MESSAGE SUPPORT -----------------------------------------------------------------
+let streamingMessageDiv = null;
+let streamingContent = '';
+
+function startStreamingMessage() {
+  const messagesContainer = document.getElementById('chat-messages');
+  if (!messagesContainer) return null;
+  
+  streamingContent = '';
+  streamingMessageDiv = document.createElement('div');
+  streamingMessageDiv.className = 'chat-message assistant-message streaming';
+  streamingMessageDiv.innerHTML = `
+    <div class="message-avatar"><i class="fas fa-robot"></i></div>
+    <div class="message-content">
+      <div class="message-text"></div>
+      <div class="message-time">${formatTime(Date.now())}</div>
+    </div>
+  `;
+  
+  messagesContainer.appendChild(streamingMessageDiv);
+  scrollToBottom();
+  return streamingMessageDiv;
+}
+
+function updateStreamingMessage(chunk) {
+  if (!streamingMessageDiv) return;
+  
+  streamingContent += chunk;
+  const messageText = streamingMessageDiv.querySelector('.message-text');
+  if (messageText) {
+    messageText.innerHTML = parseMarkdown(streamingContent) + '<span class="cursor-blink" style="display:inline-block;width:2px;height:12px;background:#3b82f6;margin-left:2px;animation:blink 1s infinite;"></span>';
+  }
+  scrollToBottom();
+}
+
+function finalizeStreamingMessage() {
+  if (!streamingMessageDiv) return;
+  
+  const messageText = streamingMessageDiv.querySelector('.message-text');
+  if (messageText) {
+    messageText.innerHTML = parseMarkdown(streamingContent);
+  }
+  streamingMessageDiv.classList.remove('streaming');
+  
+  // Add to conversation history
+  addMessageToConversation('assistant', streamingContent, { streamed: true });
+  
+  streamingMessageDiv = null;
+  streamingContent = '';
+  scrollToBottom();
+}
+
+function addUserMessage(content, metadata = null) {
+  addMessageToConversation('user', content, metadata);
+  renderMessage(content, true, Date.now(), metadata, false);
+}
+
+function addAssistantMessage(content, metadata = null) {
+  addMessageToConversation('assistant', content, metadata);
+  renderMessage(content, false, Date.now(), metadata, true);
+  
+  // Store language preference if Swedish content detected
+  if (/[������]/.test(content)) {
+    try {
+      localStorage.setItem('ea_preferred_language', 'sv');
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+  }
+}
+
+function scrollToBottom() {
+  const messagesContainer = document.getElementById('chat-messages');
+  if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function showTypingIndicator() {
+  const messagesContainer = document.getElementById('chat-messages');
+  if (!messagesContainer || document.getElementById('typing-indicator-message')) return;
+
+  const typingMessage = document.createElement('div');
+  typingMessage.id = 'typing-indicator-message';
+  typingMessage.className = 'chat-message assistant-message';
+  typingMessage.innerHTML = `
+    <div class="message-avatar"><i class="fas fa-robot"></i></div>
+    <div class="message-content">
+      <div class="typing-indicator"><span></span><span></span><span></span></div>
+    </div>
+  `;
+  messagesContainer.appendChild(typingMessage);
+  scrollToBottom();
+}
+
+function hideTypingIndicator() {
+  const typingMessage = document.getElementById('typing-indicator-message');
+  if (typingMessage) typingMessage.remove();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  if (!input) return;
+  const content = input.value.trim();
+  if (!content) return;
+
+  // If Business Object Mode is awaiting input, route to enrichment handler
+  if (window._businessObjectAwaitingInput && typeof window._businessObjectInputHandler === 'function') {
+    addUserMessage(content);
+    input.value = '';
+    window._businessObjectInputHandler(content);
+    return;
+  }
+
+  // If there's an active QuestionCard, route message to it instead
+  if (input.dataset.activeQuestionCard) {
+    const cardId = input.dataset.activeQuestionCard;
+    if (typeof _qcSubmit === 'function') {
+      _qcSubmit(cardId);
+      return;
+    }
+  }
+
+  addUserMessage(content);
+  input.value = '';
+  showTypingIndicator();
+
+  try {
+    const response = await processUserMessage(content);
+    hideTypingIndicator();
+    // Check if handler already displayed the message (discovery/action modes)
+    if (response && !response._handled) {
+      addAssistantMessage(response.content, response.metadata || null);
+    }
+  } catch (e) {
+    hideTypingIndicator();
+    addAssistantMessage('I hit an error while processing your request: ' + e.message);
+  }
+}
+
+function buildConversationContext() {
+  const activeTab = getActiveTabContext();
+  const conversation = getActiveConversation();
+  const recentMessages = (conversation.messages || []).slice(-10).map((m) => ({ role: m.role, content: m.content }));
+
+  return {
+    organizationInfo: model.organizationInfo || {},
+    masterData: model.masterData || {},
+    aiConfig: model.aiConfig || {},
+    currentCapabilities: model.capabilities || [],
+    capabilityCount: (model.capabilities || []).length,
+    hasExistingArchitecture: (model.capabilities || []).length > 0,
+    activeView: activeTab.label,
+    activeTabId: activeTab.tabId,
+    kpis: {
+      savings: document.getElementById('kpi-savings')?.textContent || '0',
+      risk: document.getElementById('kpi-risk')?.textContent || '0',
+      co2: document.getElementById('kpi-co2')?.textContent || '0'
+    },
+    toolkitContext: getToolkitAssistantContext(),
+    availableAgentActions: [
+      'generate architecture',
+      'generate capability map',
+      'generate operating model',
+      'generate target architecture',
+      'generate roadmap',
+      'open roadmap',
+      'open roadmap visual',
+      'open capability map',
+      'open toolkits',
+      'open guided workflow',
+      'sync toolkit',
+      'sync all toolkits',
+      'import toolkit',
+      'import all available toolkits',
+      'show sync status',
+      'open integration help'
+    ],
+    completedSteps: {
+      step1_strategic_intent: model.strategicIntent ? {
+        ambition: model.strategicIntent.strategic_ambition || '',
+        themes: model.strategicIntent.strategic_themes || [],
+        constraints: model.strategicIntent.key_constraints || [],
+        metrics: model.strategicIntent.success_metrics || [],
+        org_name: model.strategicIntent.org_name || '',
+        industry: model.strategicIntent.industry || '',
+        timeframe: model.strategicIntent.timeframe || ''
+      } : null,
+      // NEW: Business Context (business-object mode)
+      step1_business_context: model.businessContext ? {
+        industry: model.businessContext.industry || '',
+        market_summary: model.businessContext.market_summary || '',
+        customer_segments: model.businessContext.customer_segments || [],
+        value_drivers: model.businessContext.value_drivers || [],
+        challenges: model.businessContext.challenges || [],
+        constraints: model.businessContext.constraints || [],
+        strategicThemes: model.strategicThemes || [],
+        businessObjectives: model.businessObjectives || [],
+        gapInsights: model.gapInsights || []
+      } : null,
+      step2_bmc: model.bmc ? {
+        value_proposition: model.bmc.value_proposition || '',
+        customer_segments: model.bmc.customer_segments || [],
+        revenue_streams: model.bmc.revenue_streams || [],
+        key_activities: model.bmc.key_activities || [],
+        key_resources: model.bmc.key_resources || [],
+        key_partners: model.bmc.key_partners || [],
+        channels: model.bmc.channels || [],
+        cost_structure: model.bmc.cost_structure || [],
+        customer_relationships: model.bmc.customer_relationships || []
+      } : null,
+      step3_capabilities: {
+        count: (model.capabilities || []).length,
+        domains: [...new Set((model.capabilities || []).map(c => c.domain))],
+        avg_maturity: (model.capabilities || []).length
+          ? ((model.capabilities || []).reduce((s, c) => s + Number(c.maturity || 0), 0) / model.capabilities.length).toFixed(1)
+          : 0,
+        top_strategic: (model.capabilities || []).filter(c => c.strategicImportance === 'high').map(c => c.name).slice(0, 6),
+        systems: (model.systems || []).map(s => ({ name: s.name, criticality: s.criticality })),
+        ai_agents: (model.aiAgents || []).map(a => ({ name: a.name, supportsCapability: a.supportsCapability }))
+      },
+      step4_operating_model: (model.operatingModel && model.operatingModel.valueProposition) ? {
+        value_proposition: model.operatingModel.valueProposition,
+        key_activities: (model.operatingModel.keyActivities || []).slice(0, 6),
+        key_resources: (model.operatingModel.keyResources || []).slice(0, 6),
+        key_partners: (model.operatingModel.keyPartners || []).slice(0, 4),
+        channels: (model.operatingModel.channels || []).slice(0, 4),
+        cost_structure: (model.operatingModel.costStructure || []).slice(0, 4),
+        revenue_streams: (model.operatingModel.revenueStreams || []).slice(0, 6)
+      } : null,
+      step5_gap_analysis: model.gapAnalysisDone ? 'completed' : null,
+      step6_value_pools: (model.valuePools && model.valuePools.length) ? model.valuePools.slice(0, 6) : null,
+      step7_target_arch: (model.targetArch && model.targetArch.length) ? {
+        count: model.targetArch.length,
+        initiatives_count: (model.initiatives || []).length,
+        items: model.targetArch.slice(0, 5).map(t => ({ name: t.name || t.title || '', status: t.status || '' })),
+        top_initiatives: (model.initiatives || []).slice(0, 5).map(i => ({ name: i.name || i.title || '', phase: i.phase || '', priority: i.priority || '' }))
+      } : null
+    },
+    conversationHistory: recentMessages,
+    preferredLanguage: getAppLanguage()
+  };
+}
+
+function getActiveTabContext() {
+  const activeBtn = document.querySelector('.tab-btn.active');
+  const visibleTab = Array.from(document.querySelectorAll('[id^="tab-"]')).find((el) => !el.classList.contains('hidden'));
+  const tabId = visibleTab ? visibleTab.id.replace('tab-', '') : 'home';
+  return {
+    tabId,
+    label: (activeBtn?.textContent || tabId || 'General').trim()
+  };
+}
+
+function findTabButton(tabId) {
+  return document.querySelector(`.tab-btn[onclick*="showTab('${tabId}'"]`);
+}
+
+function normalizeCapabilityDomain(domainText) {
+  const raw = (domainText || '').trim();
+  const lower = raw.toLowerCase();
+  if (/customer|kund/.test(lower)) return 'Customer';
+  if (/product|produkt/.test(lower)) return 'Product';
+  if (/operation|drift|process/.test(lower)) return 'Operations';
+  if (/risk/.test(lower)) return 'Risk';
+  if (/finance|finans|ekonomi/.test(lower)) return 'Finance';
+  if (/technology|tech|it/.test(lower)) return 'Technology';
+  if (/support|st�d/.test(lower)) return 'Support';
+  return raw || 'Operations';
+}
+
+function normalizeOpModelBlockKey(blockText) {
+  const lower = (blockText || '').toLowerCase().trim();
+  if (/value proposition|v�rdeerbjudande/.test(lower)) return 'valueProposition';
+  if (/customer segment|kundsegment/.test(lower)) return 'customerSegments';
+  if (/key activit|nyckelaktivitet/.test(lower)) return 'keyActivities';
+  if (/key resource|nyckelresurs/.test(lower)) return 'keyResources';
+  if (/key partner|partner/.test(lower)) return 'keyPartners';
+  if (/channel|kanal/.test(lower)) return 'channels';
+  if (/cost structure|kostnadsstruktur/.test(lower)) return 'costStructure';
+  if (/revenue stream|int�ktsstr�m/.test(lower)) return 'revenueStreams';
+  return null;
+}
+
+function getOpModelBlockLabel(blockKey) {
+  const labels = {
+    valueProposition: 'Value Proposition',
+    customerSegments: 'Customer Segments',
+    keyActivities: 'Key Activities',
+    keyResources: 'Key Resources',
+    keyPartners: 'Key Partners',
+    channels: 'Channels',
+    costStructure: 'Cost Structure',
+    revenueStreams: 'Revenue Streams'
+  };
+  return labels[blockKey] || blockKey;
+}
+
+function ensureOperatingModelShape() {
+  if (!model.operatingModel || typeof model.operatingModel !== 'object') {
+    model.operatingModel = {};
+  }
+  const om = model.operatingModel;
+  if (!om.valueProposition) om.valueProposition = '';
+  ['customerSegments', 'keyActivities', 'keyResources', 'keyPartners', 'channels', 'costStructure', 'revenueStreams'].forEach((k) => {
+    if (!Array.isArray(om[k])) om[k] = [];
+  });
+}
+
+function cleanListItemText(text) {
+  return String(text || '').trim().replace(/^["'�”]+|["'�”]+$/g, '').replace(/[.,;:!?]+$/, '').trim();
+}
+
+function addOpModelItem(blockKey, itemText) {
+  ensureOperatingModelShape();
+  const value = cleanListItemText(itemText);
+  if (!value) return { ok: false, reason: 'empty-item' };
+
+  if (blockKey === 'valueProposition') {
+    model.operatingModel.valueProposition = value;
+    return { ok: true, changed: true };
+  }
+
+  const list = model.operatingModel[blockKey];
+  const exists = list.some((x) => String(x).toLowerCase() === value.toLowerCase());
+  if (exists) return { ok: true, changed: false, reason: 'exists' };
+  list.push(value);
+  return { ok: true, changed: true };
+}
+
+function removeOpModelItem(blockKey, itemText) {
+  ensureOperatingModelShape();
+
+  if (blockKey === 'valueProposition') {
+    const hadValue = !!model.operatingModel.valueProposition;
+    model.operatingModel.valueProposition = '';
+    return { ok: true, changed: hadValue, removed: hadValue ? 'value proposition' : null };
+  }
+
+  const list = model.operatingModel[blockKey];
+  if (!list.length) return { ok: true, changed: false, reason: 'empty-list' };
+
+  const value = cleanListItemText(itemText || '');
+  if (!value) {
+    const removed = list.pop();
+    return { ok: true, changed: true, removed };
+  }
+
+  const idx = list.findIndex((x) => String(x).toLowerCase() === value.toLowerCase());
+  if (idx === -1) return { ok: true, changed: false, reason: 'not-found' };
+  const removed = list.splice(idx, 1)[0];
+  return { ok: true, changed: true, removed };
+}
+
+function updateOpModelItem(blockKey, oldText, newText) {
+  ensureOperatingModelShape();
+  const nextValue = cleanListItemText(newText);
+  if (!nextValue) return { ok: false, reason: 'empty-new-value' };
+
+  if (blockKey === 'valueProposition') {
+    const prev = model.operatingModel.valueProposition || '';
+    model.operatingModel.valueProposition = nextValue;
+    return { ok: true, changed: prev !== nextValue };
+  }
+
+  const list = model.operatingModel[blockKey];
+  const prevValue = cleanListItemText(oldText || '');
+  if (!prevValue) {
+    if (!list.length) {
+      list.push(nextValue);
+      return { ok: true, changed: true, reason: 'added-as-first' };
+    }
+    const changed = list[0] !== nextValue;
+    list[0] = nextValue;
+    return { ok: true, changed };
+  }
+
+  const idx = list.findIndex((x) => String(x).toLowerCase() === prevValue.toLowerCase());
+  if (idx === -1) return { ok: true, changed: false, reason: 'not-found' };
+  const changed = list[idx] !== nextValue;
+  list[idx] = nextValue;
+  return { ok: true, changed };
+}
+
+function parseAssistantCommand(userMessage) {
+  const rawMessage = String(userMessage || '').trim();
+  const actionVerbCount = (rawMessage.match(/\b(open|go to|show|launch|sync|synchronize|import|generate|create|build|update|refresh)\b/gi) || []).length;
+  if (actionVerbCount > 1) {
+    const chainedSegments = rawMessage.split(/\s+(?:and|och|&)\s+/i).map((segment) => segment.trim()).filter(Boolean);
+    if (chainedSegments.length > 1) {
+      const chainedCommands = chainedSegments
+        .map((segment) => parseAssistantCommand(segment))
+        .filter((command) => command && command.type !== 'multi');
+      if (chainedCommands.length > 1) {
+        return { type: 'multi', commands: chainedCommands };
+      }
+    }
+  }
+
+  const text = (userMessage || '').toLowerCase();
+
+  const optimizePromptMatch = (userMessage || '').match(/(?:optimi[sz]e|improve|refine|f�rb�ttra|forbattra)\s+(?:the\s+)?(?:prompt|description|organisation description|organization description)\s*[:\-]?\s*(.*)/i);
+  if (optimizePromptMatch) {
+    return {
+      type: 'run',
+      action: 'optimize_prompt',
+      promptText: cleanListItemText(optimizePromptMatch[1] || '')
+    };
+  }
+
+  const addOpMatch = (userMessage || '').match(/(?:l�gg\s+till|lagg\s+till|add)\s+(.+?)\s+(?:i|under|to|into)\s+(value proposition|customer segments?|key activit(?:y|ies)|key resources?|key partners?|channels?|cost structure|revenue streams?)/i);
+  if (addOpMatch) {
+    return {
+      type: 'run',
+      action: 'opmodel_add_item',
+      blockKey: normalizeOpModelBlockKey(addOpMatch[2]),
+      value: cleanListItemText(addOpMatch[1])
+    };
+  }
+
+  const removeOpWithItemMatch = (userMessage || '').match(/(?:ta\s+bort|remove|delete)\s+(.+?)\s+(?:fr�n|from)\s+(value proposition|customer segments?|key activit(?:y|ies)|key resources?|key partners?|channels?|cost structure|revenue streams?)/i);
+  if (removeOpWithItemMatch) {
+    return {
+      type: 'run',
+      action: 'opmodel_remove_item',
+      blockKey: normalizeOpModelBlockKey(removeOpWithItemMatch[2]),
+      value: cleanListItemText(removeOpWithItemMatch[1])
+    };
+  }
+
+  const removeOpMatch = (userMessage || '').match(/(?:ta\s+bort|remove|delete)\s+(value proposition|customer segments?|key activit(?:y|ies)|key resources?|key partners?|channels?|cost structure|revenue streams?)/i);
+  if (removeOpMatch) {
+    return {
+      type: 'run',
+      action: 'opmodel_remove_item',
+      blockKey: normalizeOpModelBlockKey(removeOpMatch[1]),
+      value: ''
+    };
+  }
+
+  const updateOpFullMatch = (userMessage || '').match(/(?:uppdatera|update|ändra|andra)\s+(value proposition|customer segments?|key activit(?:y|ies)|key resources?|key partners?|channels?|cost structure|revenue streams?)\s+(?:från|from)\s+(.+?)\s+(?:till|to)\s+(.+)/i);
+  if (updateOpFullMatch) {
+    return {
+      type: 'run',
+      action: 'opmodel_update_item',
+      blockKey: normalizeOpModelBlockKey(updateOpFullMatch[1]),
+      fromValue: cleanListItemText(updateOpFullMatch[2]),
+      toValue: cleanListItemText(updateOpFullMatch[3])
+    };
+  }
+
+  const updateOpSimpleMatch = (userMessage || '').match(/(?:uppdatera|update|ändra|andra)\s+(value proposition|customer segments?|key activit(?:y|ies)|key resources?|key partners?|channels?|cost structure|revenue streams?)\s+(?:till|to)\s+(.+)/i);
+  if (updateOpSimpleMatch) {
+    return {
+      type: 'run',
+      action: 'opmodel_update_item',
+      blockKey: normalizeOpModelBlockKey(updateOpSimpleMatch[1]),
+      fromValue: '',
+      toValue: cleanListItemText(updateOpSimpleMatch[2])
+    };
+  }
+
+  const addUnderMatch = (userMessage || '').match(/(?:l�gg\s+till|lagg\s+till|add)\s+(.+?)\s+(?:under|i|in|within)\s+([a-zA-Z������\-\s]+)/i);
+  if (addUnderMatch) {
+    return {
+      type: 'run',
+      action: 'add_capability_under_domain',
+      capabilityName: addUnderMatch[1].trim(),
+      domain: normalizeCapabilityDomain(addUnderMatch[2])
+    };
+  }
+
+  const toolkitMatch = (userMessage || '').match(/(?:\bbmc\b|business model canvas|value chain|capability map|capability mapping|capmap|strategy workbench|wardley|maturity toolbox|\bmaturity\b)/i);
+  const resolvedToolkitId = toolkitMatch ? resolveToolkitCommandId(toolkitMatch[0]) : null;
+
+  if (/(sync all|sync everything|sync toolkits|synchronize all)/i.test(text)) {
+    return { type: 'run', action: 'sync_all_toolkits' };
+  }
+
+  if (/(import all|import available toolkits|import all available)/i.test(text)) {
+    return { type: 'run', action: 'import_all_toolkits' };
+  }
+
+  if (/(show sync status|sync status|integration status)/i.test(text)) {
+    return { type: 'run', action: 'show_sync_status' };
+  }
+
+  if (/(guided workflow|workflow hub)/i.test(text) && /(open|launch|go to|show)/i.test(text)) {
+    return { type: 'run', action: 'open_guided_workflow' };
+  }
+
+  if (/(integration help|workflow help|integration guide)/i.test(text) && /(open|show|launch)/i.test(text)) {
+    return { type: 'run', action: 'open_integration_help' };
+  }
+
+  if (/(open|launch|show|go to).*(toolkits?)/i.test(text)) {
+    return { type: 'navigate', tabId: 'toolkits' };
+  }
+
+  if (resolvedToolkitId && /(open|launch|show)/i.test(text)) {
+    return { type: 'run', action: 'launch_toolkit', toolkitId: resolvedToolkitId };
+  }
+
+  if (resolvedToolkitId && /(sync|synchronize)/i.test(text)) {
+    return { type: 'run', action: 'sync_toolkit', toolkitId: resolvedToolkitId };
+  }
+
+  if (resolvedToolkitId && /(import|load into platform|bring into platform)/i.test(text)) {
+    return { type: 'run', action: 'import_toolkit', toolkitId: resolvedToolkitId };
+  }
+
+  const runWords = '(generate|generera|create|skapa|build|bygg|update|uppdatera|refresh|f�rnya|regenerate)';
+  if (new RegExp(`${runWords}.*(architecture|arkitektur)`).test(text) || /^(architecture|arkitektur)\b/.test(text)) {
+    return { type: 'run', action: 'generate_architecture' };
+  }
+  if (new RegExp(`${runWords}.*(roadmap|transformationsplan)`).test(text) || /\broadmap\b/.test(text) && /(update|uppdatera|generate|generera)/.test(text)) {
+    return { type: 'run', action: 'generate_roadmap' };
+  }
+  if (new RegExp(`${runWords}.*(capability map|capability|f�rm�ga|f�rm�gekarta)`).test(text) || /\bcapability map\b/.test(text)) {
+    return { type: 'run', action: 'generate_capability_map' };
+  }
+  if (new RegExp(`${runWords}.*(operating model|op model|operativ modell)`).test(text)) {
+    return { type: 'run', action: 'generate_operating_model' };
+  }
+  if (new RegExp(`${runWords}.*(target architecture|target arch|m�larkitektur)`).test(text)) {
+    return { type: 'run', action: 'generate_target_architecture' };
+  }
+
+  if (/(go to|open|visa|�ppna|g� till).*(roadmap visual|timeline)/.test(text)) return { type: 'navigate', tabId: 'roadmapvis' };
+  if (/(go to|open|visa|�ppna|g� till).*(roadmap)/.test(text)) return { type: 'navigate', tabId: 'roadmap' };
+  if (/(go to|open|visa|�ppna|g� till).*(capability map|capmap|f�rm�ga)/.test(text)) return { type: 'navigate', tabId: 'capmap' };
+  if (/(go to|open|visa|�ppna|g� till).*(op model|operating model)/.test(text)) return { type: 'navigate', tabId: 'opmodel' };
+  if (/(go to|open|visa|�ppna|g� till).*(target|m�larkitektur)/.test(text)) return { type: 'navigate', tabId: 'targetarch' };
+
+  return null;
+}
+
+async function executeAssistantCommand(command, userMessage, context) {
+  if (!command) return null;
+
+  if (command.type === 'multi' && Array.isArray(command.commands)) {
+    const results = [];
+    const affectedCapabilities = [];
+
+    for (const subCommand of command.commands) {
+      const subResult = await executeAssistantCommand(subCommand, userMessage, context);
+      if (subResult?.content) results.push(subResult.content);
+      if (Array.isArray(subResult?.metadata?.affectedCapabilities)) {
+        affectedCapabilities.push(...subResult.metadata.affectedCapabilities);
+      }
+    }
+
+    if (!results.length) return null;
+
+    return {
+      content: results.join('\n\n'),
+      metadata: affectedCapabilities.length ? { affectedCapabilities: Array.from(new Set(affectedCapabilities)) } : null
+    };
+  }
+
+  if (command.type === 'navigate' && command.tabId) {
+    const tabBtn = findTabButton(command.tabId);
+    showTab(command.tabId, tabBtn || null);
+    return {
+      content: `Navigated to **${command.tabId}**. You are now in **${getActiveTabContext().label}**.`,
+      metadata: null
+    };
+  }
+
+  if (command.type !== 'run') return null;
+
+  if (command.action === 'launch_toolkit' && command.toolkitId) {
+    launchToolkit(command.toolkitId);
+    return {
+      content: `Opened toolkit **${getToolkitDisplayName(command.toolkitId)}** in a new window.`,
+      metadata: null
+    };
+  }
+
+  if (command.action === 'sync_toolkit' && command.toolkitId) {
+    syncToolkit(command.toolkitId);
+    return {
+      content: `Started sync for **${getToolkitDisplayName(command.toolkitId)}**.`,
+      metadata: null
+    };
+  }
+
+  if (command.action === 'sync_all_toolkits') {
+    syncAllToolkits();
+    return {
+      content: 'Started sync across all available toolkits.',
+      metadata: null
+    };
+  }
+
+  if (command.action === 'import_toolkit' && command.toolkitId) {
+    importFromToolkit(mapToolkitToImportId(command.toolkitId));
+    const toolkitsBtn = findTabButton('toolkits');
+    showTab('toolkits', toolkitsBtn || null);
+    return {
+      content: `Imported available data from **${getToolkitDisplayName(command.toolkitId)}** into the platform and opened **Toolkits**.`,
+      metadata: null
+    };
+  }
+
+  if (command.action === 'import_all_toolkits') {
+    importAllAvailableToolkits(false);
+    const toolkitsBtn = findTabButton('toolkits');
+    showTab('toolkits', toolkitsBtn || null);
+    return {
+      content: 'Imported data from all currently available toolkits and opened **Toolkits**.',
+      metadata: null
+    };
+  }
+
+  if (command.action === 'show_sync_status') {
+    showSyncStatus();
+    return {
+      content: 'Opened current sync status for toolkit integrations.',
+      metadata: null
+    };
+  }
+
+  if (command.action === 'open_guided_workflow') {
+    window.open('../Integration_Workflow_Hub.html', '_blank');
+    return {
+      content: 'Opened the Guided Workflow hub in a new window.',
+      metadata: null
+    };
+  }
+
+  if (command.action === 'open_integration_help') {
+    openIntegrationHelp();
+    return {
+      content: 'Opened the integration help guide.',
+      metadata: null
+    };
+  }
+
+  if (command.action === 'optimize_prompt') {
+    const field = document.getElementById('description');
+    const sourceText = (command.promptText || '').trim() || String(field?.value || '').trim() || extractArchitectureSeedFromMessage(userMessage || '');
+
+    if (!sourceText || sourceText.length < 10) {
+      return {
+        content: 'Please provide a richer organization description first, then I can optimize it for architecture generation.',
+        metadata: null
+      };
+    }
+
+    const optimized = await optimizeArchitecturePromptText(sourceText);
+    if (field) field.value = optimized.optimizedPrompt;
+    autoSaveCurrentModel();
+
+    return {
+      content:
+        `Prompt optimized and saved to **Organisation Description**.\n\n` +
+        `${optimized.optimizedPrompt}\n\n` +
+        `Use **Generate Architecture** next, or ask me: "generate architecture from optimized prompt".`,
+      metadata: null
+    };
+  }
+
+  if (command.action === 'opmodel_add_item' || command.action === 'opmodel_remove_item' || command.action === 'opmodel_update_item') {
+    const blockKey = command.blockKey;
+    if (!blockKey) {
+      return {
+        content: 'I could not identify which Op Model block to update. Try: "Add Partner API to Channels".',
+        metadata: null
+      };
+    }
+
+    if (!model.capabilities.length) {
+      return {
+        content: 'Generate architecture first so Op Model has context, then I can update blocks directly.',
+        metadata: null
+      };
+    }
+
+    if (!model.operatingModel || !model.operatingModel.valueProposition) {
+      await generateOperatingModel();
+    }
+
+    let result;
+    if (command.action === 'opmodel_add_item') {
+      result = addOpModelItem(blockKey, command.value);
+    } else if (command.action === 'opmodel_remove_item') {
+      result = removeOpModelItem(blockKey, command.value);
+    } else {
+      result = updateOpModelItem(blockKey, command.fromValue, command.toValue);
+    }
+
+    if (!result || !result.ok) {
+      return {
+        content: 'Could not apply Op Model update. Please check the command format and try again.',
+        metadata: null
+      };
+    }
+
+    renderOperatingModel();
+    const opBtn = findTabButton('opmodel');
+    showTab('opmodel', opBtn || null);
+    autoSaveCurrentModel();
+
+    const blockLabel = getOpModelBlockLabel(blockKey);
+    if (!result.changed) {
+      const details = result.reason === 'not-found'
+        ? 'No matching item found to update/remove.'
+        : result.reason === 'exists'
+          ? 'The item already exists in that block.'
+          : result.reason === 'empty-list'
+            ? 'That block is currently empty.'
+            : 'No data changed.';
+      return {
+        content: `Op Model command processed for **${blockLabel}**. ${details}`,
+        metadata: null
+      };
+    }
+
+    const actionText = command.action === 'opmodel_add_item'
+      ? 'added'
+      : command.action === 'opmodel_remove_item'
+        ? 'removed'
+        : 'updated';
+
+    return {
+      content: `Op Model updated: **${blockLabel}** ${actionText} successfully.`,
+      metadata: null
+    };
+  }
+
+  if (command.action === 'generate_architecture') {
+    const descField = document.getElementById('description');
+    if (descField && (!descField.value || descField.value.trim().length < 20)) {
+      const stripped = userMessage
+        .replace(/^(generate|generera|create|skapa|build|bygg)\s+(architecture|arkitektur)\s*/i, '')
+        .replace(/^(generate|generera|create|skapa|build|bygg)\s*/i, '')
+        .trim();
+      if (stripped.length >= 20) descField.value = stripped;
+    }
+
+    let optimizationNote = '';
+    if (descField && descField.value && descField.value.trim().length >= 20) {
+      try {
+        const optimized = await optimizeArchitecturePromptText(descField.value, { timeoutMs: 45000 });
+        if (optimized.optimizedPrompt && optimized.optimizedPrompt !== descField.value.trim()) {
+          descField.value = optimized.optimizedPrompt;
+          optimizationNote = '\nPrompt was optimized with AI before generation.';
+        }
+      } catch (_) {
+        // Continue generation even if optimization is unavailable.
+      }
+    }
+
+    await generateArchitecture();
+    return {
+      content:
+        `Architecture command completed in **${context.activeView}**.\n\n` +
+        `Current model: **${(model.capabilities || []).length} capabilities**, ` +
+        `**${(model.systems || []).length} systems**, **${(model.aiAgents || []).length} AI agents**.\n` +
+        `Say "update roadmap" or "update target architecture" to continue.${optimizationNote}`,
+      metadata: { affectedCapabilities: (model.capabilities || []).map((c) => c.id).filter(Boolean) }
+    };
+  }
+
+  if (command.action === 'generate_roadmap') {
+    await generateRoadmap();
+    const count = (model.initiatives || []).length;
+    return {
+      content: count
+        ? `Roadmap updated with **${count} initiatives**. Open **Roadmap** or **Roadmap Visual** to review.`
+        : 'Roadmap command executed, but no initiatives were generated. Ensure architecture exists and try again.',
+      metadata: null
+    };
+  }
+
+  if (command.action === 'generate_capability_map') {
+    await generateCapabilityMap();
+    return {
+      content: `Capability Map updated. Active context: **${getActiveTabContext().label}** with **${(model.capabilities || []).length} capabilities**.`,
+      metadata: { affectedCapabilities: (model.capabilities || []).map((c) => c.id).filter(Boolean) }
+    };
+  }
+
+  if (command.action === 'add_capability_under_domain') {
+    if (!context.hasExistingArchitecture) {
+      return {
+        content: 'Start by generating an architecture first, then I can add capabilities under domains.',
+        metadata: null
+      };
+    }
+
+    const capabilityName = (command.capabilityName || '').replace(/[.,;:!?]+$/, '').trim();
+    if (!capabilityName) {
+      return {
+        content: 'I could not parse the capability name. Try: "L�gg till Customer Relationship Management under Customer".',
+        metadata: null
+      };
+    }
+
+    const normalized = normalizeCapabilities([{
+      id: 'cap_' + Date.now(),
+      name: capabilityName,
+      domain: command.domain || 'Operations',
+      maturity: 2,
+      strategicImportance: 'high',
+      description: `Added from assistant command: ${capabilityName}`
+    }])[0];
+
+    const exists = (model.capabilities || []).some((c) =>
+      (c.name || '').toLowerCase() === (normalized.name || '').toLowerCase() &&
+      (c.domain || '').toLowerCase() === (normalized.domain || '').toLowerCase()
+    );
+
+    if (!exists) {
+      model.capabilities.push(normalized);
+      ensureBusinessFields();
+      computeDerivedFinancials();
+      renderLayers();
+      renderCapMap();
+      renderHeatmap();
+      renderMaturityDashboard();
+      renderExecSummary();
+      autoSaveCurrentModel();
+    }
+
+    const capMapBtn = findTabButton('capmap');
+    showTab('capmap', capMapBtn || null);
+
+    return {
+      content: exists
+        ? `Capability **${normalized.name}** already exists under **${normalized.domain}**. I opened **Capability Map**.`
+        : `Added **${normalized.name}** under **${normalized.domain}** and refreshed **Capability Map**.`,
+      metadata: { affectedCapabilities: [normalized.id] }
+    };
+  }
+
+  if (command.action === 'generate_operating_model') {
+    await generateOperatingModel();
+    const hasModel = !!model.operatingModel?.valueProposition;
+    return {
+      content: hasModel
+        ? 'Operating Model updated successfully. Open **Op Model** for the latest canvas.'
+        : 'Operating Model command executed, but no operating model was generated. Ensure architecture exists and try again.',
+      metadata: null
+    };
+  }
+
+  if (command.action === 'generate_target_architecture') {
+    await generateTargetArch();
+    const count = (model.targetArch || []).length;
+    return {
+      content: count
+        ? `Target Architecture updated with **${count} capability uplift items**.`
+        : 'Target Architecture command executed, but no target architecture items were generated.',
+      metadata: null
+    };
+  }
+
+  return null;
+}
+
+function detectIntent(userMessage) {
+  const text = userMessage.toLowerCase();
+  if (/generate|generera|create architecture|start architecture|new architecture|build architecture|skapa arkitektur|bygg arkitektur/.test(text)) return 'generate_architecture';
+  if (/add capability|new capability|add a capability|include capability|l�gg till|lagg till/.test(text)) return 'add_capability';
+  if (/refine|change|update capability|modify capability|improve/.test(text)) return 'refine_capability';
+  if (/gap|missing|bottleneck|lucka|flaskhals/.test(text)) return 'gap_analysis';
+  if (/maturity|assess maturity|assessment|mognad/.test(text)) return 'maturity_assessment';
+  if (/analys|analy[sz]e|review|recommend|what should|suggest|optimis|optimiz|f�rb�ttra|forbattra|update model|modify model|improve model|update all|apply change/.test(text)) return 'analyze_and_recommend';
+  return 'general_question';
+}
+
+// -- STEP-FOCUSED CHAT ---------------------------------------------------------
+const STEP_NAMES = {
+  1: 'Strategic Intent',
+  2: 'Business Model Canvas',
+  3: 'Capability Map',
+  4: 'Operating Model',
+  5: 'Gap Analysis',
+  6: 'Value Pools',
+  7: 'Target Architecture & Roadmap'
+};
+
+function openStepChat(stepNum) {
+  window._stepChatContext = { step: stepNum, name: STEP_NAMES[stepNum] || ('Step ' + stepNum) };
+  const titleEl = document.getElementById('chat-title-text');
+  if (titleEl) titleEl.textContent = 'Step ' + stepNum + ': ' + window._stepChatContext.name;
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel) panel.classList.remove('hidden');
+  clearUnreadCount();
+  const input = document.getElementById('chat-input');
+  if (input) {
+    input.placeholder = 'Discuss or refine Step ' + stepNum + ' � type "exit" to return to general mode';
+    input.focus({ preventScroll: true });
+  }
+  const opening = buildStepOpeningCritique(stepNum);
+  if (opening) addAssistantMessage(opening);
+}
+
+function closeStepChatContext() {
+  window._stepChatContext = null;
+  const titleEl = document.getElementById('chat-title-text');
+  if (titleEl) titleEl.textContent = 'EA Assistant';
+  const input = document.getElementById('chat-input');
+  if (input) input.placeholder = 'Describe your organization or ask a question...';
+}
+
+function buildStepOpeningCritique(stepNum) {
+  const si = model.strategicIntent;
+  const siLine = si ? `**Strategic ambition:** ${si.strategic_ambition || ''}` : null;
+  switch (stepNum) {
+    case 1: {
+      if (!si) return 'Step 1 is not yet complete.';
+      const themes = (si.strategic_themes || []).join(' � ');
+      const metrics = (si.success_metrics || []).join(' � ');
+      return `**Step 1 � Strategic Intent**\n\n${siLine}\n**Themes:** ${themes}\n**Success Metrics:** ${metrics}\n\nI can help you:\n- Challenge whether this ambition is genuinely differentiated or still generic\n- Refine themes to be specific about HOW value is created\n- Strengthen metrics to be quantifiable\n- Make trade-offs (cost vs growth) more explicit\n\nWhat would you like to explore or change?`;
+    }
+    case 2: {
+      if (!model.bmc) return 'Step 2 is not yet complete.';
+      const vp = model.bmc.value_proposition || '';
+      const siCtx = si ? `\n**Strategic ambition:** "${si.strategic_ambition}"` : '';
+      return `**Step 2 � Business Model Canvas**${siCtx}\n\n**Value Proposition:** ${vp}\n\nI can help you:\n- Verify the value proposition delivers the strategic ambition\n- Identify misalignments between revenue streams and strategic themes\n- Challenge whether key activities reflect true differentiators\n- Flag cost structures that contradict the strategic direction\n\nWhat would you like to discuss or refine?`;
+    }
+    case 3: {
+      const capCount = (model.capabilities || []).length;
+      const highStr = (model.capabilities || []).filter(c => c.strategicImportance === 'high').map(c => c.name).slice(0, 4).join(', ');
+      const avgMat = capCount ? ((model.capabilities || []).reduce((s, c) => s + Number(c.maturity || 0), 0) / capCount).toFixed(1) : 0;
+      return `**Step 3 � Capability Map**\n${siLine || ''}\n\n**${capCount} capabilities** � Avg maturity: **${avgMat}/5**\n**High strategic importance:** ${highStr || 'none flagged'}\n\nI can help you:\n- Verify high-importance capabilities align to strategic themes\n- Add capabilities the strategy requires but are missing\n- Adjust maturity levels to reflect reality\n- Remove or merge redundant capabilities\n\nWhat would you like to discuss?`;
+    }
+    case 4: {
+      if (!model.operatingModel || !model.operatingModel.valueProposition) return 'Step 4 is not yet complete.';
+      const vp = model.operatingModel.valueProposition;
+      const acts = (model.operatingModel.keyActivities || []).slice(0, 3).join(', ');
+      return `**Step 4 � Operating Model**\n${siLine || ''}\n\n**Value Proposition:** ${vp}\n**Key Activities (sample):** ${acts}\n\nI can help you:\n- Verify key activities reflect what the org must excel at to deliver the strategic ambition\n- Check whether cost structure reflects cost-reduction OR investment-led direction\n- Add/remove items from any block\n- Identify misalignments between the operating model and strategic intent\n\nWhat would you like to discuss?`;
+    }
+    case 5: {
+      return `**Step 5 � Gap Analysis**\n${siLine || ''}\n\nI can help you:\n- Identify which gaps are most critical to the strategic ambition\n- Challenge severity ratings of specific gaps\n- Find gaps the strategic intent implies but the AI missed\n- Re-run the analysis with a tighter strategic focus\n\nWhat would you like to explore?`;
+    }
+    case 6: {
+      const vpCount = (model.valuePools || []).length;
+      const vpNames = (model.valuePools || []).slice(0, 4).map(v => typeof v === 'string' ? v : (v.name || '')).join(', ');
+      return `**Step 6 � Value Pools**\n${siLine || ''}\n\n**${vpCount} value pools:** ${vpNames || 'none identified'}\n\nI can help you:\n- Verify value pools are sequenced by strategic priority (not just size)\n- Add value pools the strategy implies but the AI missed\n- Challenge whether pools are specific enough to guide investment decisions\n\nWhat would you like to discuss?`;
+    }
+    case 7: {
+      const archCount = (model.targetArch || []).length;
+      const initCount = (model.initiatives || []).length;
+      return `**Step 7 � Target Architecture & Roadmap**\n${siLine || ''}\n\n**${archCount} capability uplifts** � **${initCount} initiatives**\n\nI can help you:\n- Verify Year 1 initiatives deliver quick wins aligned to strategic constraints\n- Challenge whether target maturity levels are driven by strategy or just fill gaps\n- Move initiatives between phases based on strategic priority\n- Deprioritize high-cost, low-strategic-value items\n\nWhat would you like to discuss?`;
+    }
+    default: return null;
+  }
+}
+
+async function handleStepFocusedMessage(userMessage, context, stepCtx) {
+  const stepNum = stepCtx.step;
+  const stepName = stepCtx.name;
+  const si = model.strategicIntent;
+
+  const priorContext = {
+    step1_strategic_intent: si ? { ambition: si.strategic_ambition, themes: si.strategic_themes, constraints: si.key_constraints, metrics: si.success_metrics, timeframe: si.timeframe } : null,
+    step2_bmc: stepNum >= 2 ? model.bmc : null,
+    step3_capabilities: stepNum >= 3 ? {
+      count: (model.capabilities || []).length,
+      domains: [...new Set((model.capabilities || []).map(c => c.domain))],
+      avg_maturity: (model.capabilities || []).length ? ((model.capabilities || []).reduce((s, c) => s + Number(c.maturity || 0), 0) / model.capabilities.length).toFixed(1) : 0,
+      items: (model.capabilities || []).map(c => ({ name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance }))
+    } : null,
+    step4_operating_model: stepNum >= 4 ? model.operatingModel : null,
+    step5_gap_done: stepNum >= 5 ? !!model.gapAnalysisDone : null,
+    step6_value_pools: stepNum >= 6 ? model.valuePools : null,
+    step7_target_arch: stepNum >= 7 ? model.targetArch : null,
+    step7_initiatives: stepNum >= 7 ? (model.initiatives || []).map(i => ({ name: i.name || i.title, phase: i.phase, priority: i.priority })) : null
+  };
+
+  const stepSystemPrompts = {
+    1: !model.strategicIntent?.strategic_ambition ? `You are an expert AI assistant acting as a **Senior Enterprise Architect, Management Consultant, and Data Strategy Advisor**.
+
+Your role is to **guide the user through a structured diagnostic and strategic process** to describe the current state of an organization or business unit, and transform that into **clear Strategic Intent and EA transformation input**, with strong focus on **AI and data-driven decision-making**.
+
+**MANDATORY PROCESS (DO NOT SKIP STEPS):**
+
+STEP 1 � CONTEXT & SCOPE: Define boundaries (org type, focus area, problem vs improvement)
+STEP 2 � CURRENT STATE: Build objective baseline (processes, systems, data, organization)
+STEP 3 � FRICTION & PROBLEMS: Identify pain points with business impact
+STEP 4 � MATURITY & CAPABILITY: Assess current maturity (1-5) and gaps
+STEP 5 � TARGET OUTCOMES: Define business-driven ambition (NOT technical solutions)
+STEP 6 � STRATEGIC INTENT: Synthesize into strategic direction (paragraph + bullets)
+STEP 7 � EA TARGET INPUT: Prepare transformation foundation (capabilities, principles, priorities)
+
+**CORE PRINCIPLES:**
+� Ask ONE focused question at a time
+� Always validate and refine user input
+� Challenge vague or generic answers
+� Identify gaps, inconsistencies, missing data
+� Separate facts from assumptions
+� Think in three levels: Operational (what) ? Tactical (why) ? Strategic (what should change)
+� Never move forward until sufficient clarity is reached
+� Use clear headings, bullet points, simple professional language
+
+**QUALITY CONTROL:**
+� Highlight missing information
+� Flag unclear inputs
+� Identify contradictions
+� Push for clarity and precision
+
+**BEHAVIOR:**
+� Act as senior advisor, not passive assistant
+� Be direct and analytical
+� Force concrete answers with examples
+� End each interaction with short structured summary
+
+When you reach STEP 6 and have generated Strategic Intent, format it as: \"##STRATEGIC_INTENT_READY##\" followed by the structured output, so the system can capture it.` 
+    : `You are a senior strategy advisor reviewing Step 1 (Strategic Intent). Critically evaluate whether the ambition is truly differentiated, whether themes explain HOW value is created, whether metrics are quantifiable, and whether trade-offs are visible. When the user agrees with a change, embed it as a \`\`\`json block with action "update_strategic_intent" and field/value.`,
+    2: `You are a senior strategy advisor reviewing Step 2 (Business Model Canvas) against Strategic Intent. Evaluate: value proposition vs strategic ambition, revenue streams vs themes, key activities as differentiators, cost structure vs strategic direction. To apply changes, embed \`\`\`json with action "update_bmc" and field/value.`,
+    3: `You are a senior enterprise architect reviewing Step 3 (Capability Map) against Steps 1�2. Evaluate: high-importance capabilities vs strategic themes, missing capabilities, realistic maturity levels, redundancies. To apply, embed \`\`\`json with "add_capability", "update_capability", or "remove_capability".`,
+    4: `You are a senior EA and operating model expert reviewing Step 4 (TO-BE Operating Model) � the most strategically critical step. The operating model must be shaped by strategic direction. Evaluate: key activities vs what the org must excel at, cost structure vs cost-reduction or investment-led strategy, internal contradictions. To apply, embed \`\`\`json with action "update_operating_model" and field (one of: valueProposition, keyActivities, keyResources, keyPartners, channels, costStructure, revenueStreams) and value.`,
+    5: `You are a senior EA expert reviewing Step 5 (Gap Analysis) against Steps 1�4. Identify which gaps are most critical to the strategic ambition, challenge severity ratings, find gaps the strategy implies but the AI missed. Suggest re-running with sharper strategic focus if needed.`,
+    6: `You are a senior strategy advisor reviewing Step 6 (Value Pools) against strategic intent. Value pools must be sequenced by strategic priority. To apply, embed \`\`\`json with action "update_value_pools" and value as array.`,
+    7: `You are a senior EA transformation expert reviewing Step 7 (Target Architecture & Roadmap) against all prior steps. Evaluate Year 1 initiative sequencing, target maturity vs strategic need, phase design for cost-reduction vs value-creation strategy. To apply, embed \`\`\`json with action "update_initiatives" and value as array.`
+  };
+
+  const _stepBasePrompt = (stepSystemPrompts[stepNum] || `You are a senior EA advisor reviewing Step ${stepNum} (${stepName}).`) +
+    ' Be direct and commercially sharp. When proposing changes, discuss first. If user confirms, embed the change as a ```json ... ``` block for automatic application. Otherwise respond conversationally.' +
+    '\n\nFormatting rules: Write for a C-level audience. Use ## for section headers, bullet points starting with "- " for lists, leave a blank line between each section, and keep sentences concise and commercially focused. Avoid technical jargon unless necessary.';
+  // Inject industry + ESG layers from AdvisyAI around the step-specific prompt
+  const systemPrompt = (typeof AdvisyAI !== 'undefined')
+    ? AdvisyAI.buildSystemPrompt({ stepNum, stepOverridePrompt: _stepBasePrompt, userText: userMessage })
+    : _stepBasePrompt;
+
+  const recentMessages = (getActiveConversation().messages || []).slice(-8).map(m => ({ role: m.role, content: String(m.content || '').slice(0, 500) }));
+
+  const userPrompt = `You are in a focused working session on Step ${stepNum}: ${stepName}.
+
+Full EA context (Steps 1�${stepNum}):
+${JSON.stringify(priorContext, null, 2)}
+
+Recent conversation:
+${recentMessages.map(m => m.role + ': ' + m.content).join('\n')}
+
+User: ${userMessage}
+
+Available apply-actions (embed as \`\`\`json if user confirms a change):
+- update_strategic_intent: { "action": "update_strategic_intent", "field": "strategic_ambition|strategic_themes|key_constraints|success_metrics", "value": "..." }
+- update_bmc: { "action": "update_bmc", "field": "value_proposition|customer_segments|key_activities|key_resources|key_partners|channels|cost_structure|revenue_streams", "value": "..." } (TO-BE BMC only)
+- update_bmc_current: { "action": "update_bmc_current", "field": "value_proposition|customer_segments|key_activities|key_resources|key_partners|channels|cost_structure|revenue_streams", "value": "..." } (AS-IS BMC)
+- update_capability: { "action": "update_capability", "id": "...", "name": "...", "field": "maturity|strategicImportance|description|domain", "value": "..." }
+- add_capability: { "action": "add_capability", "name": "...", "domain": "...", "maturity": 2, "strategicImportance": "high", "description": "..." }
+- remove_capability: { "action": "remove_capability", "id": "...", "name": "..." }
+- update_operating_model: { "action": "update_operating_model", "field": "valueProposition|keyActivities|keyResources|keyPartners|channels|costStructure|revenueStreams", "value": "..." }
+- update_value_pools: { "action": "update_value_pools", "value": [...] }
+- update_initiatives: { "action": "update_initiatives", "value": [...] }
+- add_system: { "action": "add_system", "name": "...", "status": "active|legacy|planned", "category": "core|supporting|infrastructure", "supportsCapability": "<capability name>", "criticality": "high|medium|low", "description": "..." }
+- update_system: { "action": "update_system", "name": "<existing system name>", "field": "status|category|supportsCapability|criticality|description", "value": "..." }
+- remove_system: { "action": "remove_system", "name": "<system name>" }
+- add_ai_agent: { "action": "add_ai_agent", "name": "...", "purpose": "...", "supportsCapability": "<capability name>", "status": "active|planned|experimental", "capabilities": "...", "triggerConditions": "..." }
+- update_ai_agent: { "action": "update_ai_agent", "name": "<existing agent name>", "field": "purpose|supportsCapability|status|capabilities|triggerConditions", "value": "..." }
+- remove_ai_agent: { "action": "remove_ai_agent", "name": "<agent name>" }`;
+
+  try {
+    const raw = await callAI(systemPrompt, userPrompt, { taskType: 'heavy', temperature: 0.35, replyLanguage: context.preferredLanguage });
+    const jsonMatch = raw.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      try {
+        const action = JSON.parse(jsonMatch[1]);
+        const applyResult = applyAIRecommendations({ recommendations: Array.isArray(action) ? action : [action] });
+        const narrative = raw.replace(/```json[\s\S]*?```/, '').trim();
+        return { content: (narrative ? narrative + '\n\n' : '') + `**Applied:** ${applyResult.content}`, metadata: applyResult.metadata };
+      } catch (_) { /* fall through to plain response */ }
+    }
+    return { content: raw, metadata: null };
+  } catch (e) {
+    return { content: 'Error in step discussion: ' + e.message, metadata: null };
+  }
+}
+
+// -- DISCOVERY & ACTION MODE FUNCTIONS ----------------------------------------
+
+function getStepContextSummary(stepNum) {
+  const si = model.strategicIntent;
+  const capCount = (model.capabilities || []).length;
+  const sysCount = (model.systems || []).length;
+  
+  switch (stepNum) {
+    case 1:
+      if (!si) return 'Step 1 is not completed yet.';
+      return `**Strategic Ambition:** ${si.strategic_ambition || 'not defined'}\\n**Teman:** ${(si.strategic_themes || []).join(', ') || 'none'}\\n**Success Metrics:** ${(si.success_metrics || []).join(', ') || 'none'}`;
+    case 2:
+      if (!model.bmc) return 'Step 2 is not completed yet.';
+      return `**Value Proposition:** ${model.bmc.value_proposition || 'not defined'}\\n**Customer Segments:** ${(model.bmc.customer_segments || []).join(', ') || 'none'}`;
+    case 3:
+      return `**Capabilities generated:** ${capCount}\\n**System:** ${sysCount}\\n**Avg Maturity:** ${capCount ? (model.capabilities.reduce((s,c)=>s+(c.maturity||0),0)/capCount).toFixed(1) : 0}/5`;
+    case 4:
+      if (!model.operatingModel?.valueProposition) return 'Step 4 is not completed yet.';
+      return `**Operating Model VP:** ${model.operatingModel.valueProposition}\\n**Key Activities:** ${(model.operatingModel.keyActivities||[]).length} defined`;
+    case 5:
+      return `**Gap Analysis:** ${(model.gapAnalysis?.gaps||[]).length || 0} gaps identified`;
+    case 6:
+      return `**Value Pools:** ${(model.valuePools||[]).length} pools identified`;
+    case 7:
+      return `**Target Architecture:** ${(model.targetArch||[]).length} uplifts\\n**Initiatives:** ${(model.initiatives||[]).length} defined`;
+    default:
+      return 'Context information loading...';
+  }
+}
+
+function enterDiscoveryModeForStep(stepNum, stepName) {
+  setAssistantMode('discovery', { step: stepNum, stepName, workflowMode: model.workflowMode || 'business-object' });
+  
+  // Open chat panel
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel) {
+    panel.classList.remove('hidden');
+    document.body.classList.add('chat-sidebar-open');
+    _updateSidebarToggleIcon(true);
+  }
+  
+  // Get Business Objectives context
+  const businessObjectives = model.businessObjectives ? 
+    JSON.stringify(model.businessObjectives.primaryObjectives || [], null, 2) : 
+    'No objectives defined yet';
+  
+  const welcomeMsg = `## 📋 Step ${stepNum}: ${stepName}
+
+**Business Object Mode - 3 Questions Maximum**
+
+I'll help you create ${stepName} aligned with your business objectives:
+
+${businessObjectives}
+
+---`;
+
+  addAssistantMessage(welcomeMsg, { mode: 'discovery', step: stepNum });
+  
+  // Auto-start the first question for this step
+  setTimeout(async () => {
+    showTypingIndicator();
+    
+    try {
+      const systemPrompt = getFirstQuestionPromptForStep(stepNum, stepName);
+      
+      const response = await AIService.call({
+        taskId: `step${stepNum}_question_1`,
+        taskType: 'general',
+        systemPrompt: systemPrompt,
+        userPrompt: `Generate the first question for ${stepName}.`,
+        expectsJson: true,
+        replyLanguage: 'en'
+      });
+      
+      hideTypingIndicator();
+      
+      const questionData = response.parsedOutput;
+      const questionMsg = `### Question 1 of 3
+
+${questionData.question}
+
+${questionData.options ? questionData.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n') : ''}
+
+💡 *${questionData.hint || `Your answer will help shape the ${stepName}.`}*`;
+
+      addAssistantMessage(questionMsg, { mode: 'discovery', step: stepNum });
+      scrollToBottom();
+      
+    } catch (error) {
+      hideTypingIndicator();
+      addAssistantMessage(`❌ Error generating question: ${error.message}\n\nPlease describe your thoughts to continue.`, { mode: 'discovery', step: stepNum, error: true });
+    }
+  }, 1000);
+  
+  scrollToBottom();
+  
+  const input = document.getElementById('chat-input');
+  if (input) input.focus({ preventScroll: true });
+}
+
+async function handleDiscoveryMessage(userMessage) {
+  const modeInfo = getAssistantMode();
+  const stepNum = modeInfo.context.step;
+  const stepName = modeInfo.context.stepName;
+  const workflowMode = modeInfo.context.workflowMode || model.workflowMode || 'standard';
+  
+  // Build conversation history
+  const recentMessages = (getActiveConversation()?.messages || [])
+    .slice(-6)
+    .map(m => `${m.role}: ${m.content}`)
+    .join('\\n');
+  
+  // Count how many questions have been asked so far (look for "Question X of Y" pattern)
+  const conversation = getActiveConversation();
+  const questionCount = (conversation?.messages || []).filter(m => {
+    if (m.role !== 'assistant') return false;
+    // Look for "Question 1 of 3", "Question 2 of 3", etc.
+    return /Question \d+ of \d+/.test(m.content);
+  }).length;
+  
+  // SPECIAL HANDLING FOR STEP 1: Organization Description (Initial workflow start)
+  if (stepNum === 1 && !model.strategicIntent?.strategic_ambition) {
+    
+    // BUSINESS OBJECT MODE: First extract data from Business Object description
+    // Trigger extraction if: (1) First message (questionCount 0-1) AND (2) Long comprehensive description (>200 chars)
+    // MUST CHECK THIS BEFORE ANY EARLY RETURNS!
+    if (workflowMode === 'business-object' && questionCount <= 1 && userMessage.length > 200) {
+      // User provided a Business Object description - analyze it first!
+      showTypingIndicator();
+      
+      addAssistantMessage(`🔍 **Analyzing Business Object Description...**
+
+I'll extract your strategic objectives, challenges, and context from your description.
+
+**Progress:**
+- ✅ Reading your description...
+- 🔄 Transform and structure...
+- ⏳ Extracting key information...
+- ⏳ Validating completeness...`, {
+        mode: 'discovery',
+        step: 1,
+        isTyping: false,
+        offersAction: false
+      });
+
+      try {
+        // Call AI extraction with lenient rules
+        const systemPrompt = `You are a Senior Enterprise Architect analyzing a Business Object description.
+
+**Your Task:**
+Extract structured information about business objectives, challenges, and strategic context.
+
+**Be LENIENT with completeness assessment:**
+- If the description is 500+ words with strategic detail, likely mark all sections complete
+- If you find at least 2-3 clear objectives/goals, mark completeness.objectives = TRUE
+- If you find at least 2-3 challenges or pain points, mark completeness.challenges = TRUE  
+- If you find context about industry/market/customers, mark completeness.context = TRUE
+
+**Return ONLY valid JSON:**
+{
+  "primaryObjectives": ["objective 1", "objective 2", ...],
+  "keyChallenges": ["challenge 1", "challenge 2", ...],
+  "strategicContext": "Brief summary of industry, market position, and strategic direction",
+  "completeness": {
+    "objectives": true/false,
+    "challenges": true/false,
+    "context": true/false
+  },
+  "missingData": ["What specific information is missing (if any)"]
+}`;
+
+        const userPrompt = `Analyze this organization description:
+
+${userMessage}`;
+
+        const extractionResult = await callAI(systemPrompt, userPrompt, { 
+          taskType: 'architecture'
+        });
+
+        hideTypingIndicator();
+
+        // Update progress message
+        const lastMsg = document.querySelector('#chat-messages .message:last-child .message-content');
+        if (lastMsg) {
+          lastMsg.innerHTML = `🔍 **Analyzing Business Object Description...**
+
+**Progress:**
+- ✅ Reading your description...
+- ✅ Transform and structure...
+- ✅ Extracting key information...
+- 🔄 Validating completeness...`;
+        }
+
+        // Parse extraction result
+        const extracted = typeof extractionResult === 'string' ? JSON.parse(extractionResult) : extractionResult;
+        const completeness = extracted.completeness || {};
+        const missing = extracted.missingData || [];
+
+        // LENIENT COMPLETENESS CHECK:
+        // Consider complete if: (1) All flags true OR (2) No missing data AND some data extracted
+        const allComplete = (completeness.objectives && completeness.challenges && completeness.context) ||
+                           (missing.length === 0 && (extracted.primaryObjectives?.length > 0 || extracted.keyChallenges?.length > 0));
+
+        // Update final progress
+        if (lastMsg) {
+          lastMsg.innerHTML = `🔍 **Analyzing Business Object Description...**
+
+**Progress:**
+- ✅ Reading your description...
+- ✅ Transform and structure...
+- ✅ Extracting key information...
+- ✅ Validating completeness...`;
+        }
+
+        if (allComplete) {
+          // COMPLETE - Generate Business Objectives summary
+          const summarySystemPrompt = `You are a Senior Enterprise Architect creating a Business Objectives statement.
+
+Format the output as:
+
+## Business Objectives
+
+[Strategic Context Summary]
+
+### Primary Objectives
+1. [Objective 1]
+2. [Objective 2]
+...
+
+### Key Challenges
+1. [Challenge 1]
+2. [Challenge 2]
+...
+
+### Strategic Context
+[Industry, market position, strategic direction]
+
+---
+
+**Would you like to proceed with this as your Business Objectives for Step 1?**`;
+
+          const summaryUserPrompt = `Create a comprehensive Business Objectives statement based on this extracted data:
+
+${JSON.stringify(extracted, null, 2)}`;
+
+          const summary = await callAI(summarySystemPrompt, summaryUserPrompt, { 
+            taskType: 'architecture'
+          });
+
+          // Show Business Objectives summary
+          addAssistantMessage(summary + `
+
+<button class="mode-action-btn mode-action-btn--primary" onclick="confirmStrategicIntentFromChat(\`${summary.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)">
+  <i class="fas fa-check"></i>
+  Yes, save & continue to Step 2
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="addUserMessage('I want to revise the objectives'); handleChatSubmit(event);">
+  <i class="fas fa-edit"></i>
+  Revise objectives
+</button>`, {
+            mode: 'discovery',
+            step: 1,
+            offersAction: true
+          });
+
+          return; // Exit after showing summary
+        } else {
+          // INCOMPLETE - Ask follow-up questions about missing data
+          const followUpSystemPrompt = `You are a Senior Enterprise Architect gathering business objectives.
+
+Generate ONE specific follow-up question to fill the most critical information gap. Keep it concise and actionable.`;
+
+          const followUpUserPrompt = `The user provided: "${userMessage}"
+
+Extracted data shows these gaps: ${JSON.stringify(missing)}
+
+What is the most important follow-up question?`;
+
+          const followUpQuestion = await callAI(followUpSystemPrompt, followUpUserPrompt, { 
+            taskType: 'discovery'
+          });
+
+          addAssistantMessage(`📋 **Almost there!** I extracted some information but need a bit more detail.
+
+${followUpQuestion}
+
+*(This helps me create complete Business Objectives for your EA model)*`, {
+            mode: 'discovery',
+            step: 1
+          });
+
+          return; // Exit after asking follow-up
+        }
+
+      } catch (error) {
+        console.error('Extraction failed:', error);
+        hideTypingIndicator();
+        
+        // FALLBACK: If extraction fails completely but we have comprehensive input, proceed anyway
+        if (userMessage.length > 500) {
+          addAssistantMessage(`⚠️ Extraction encountered an issue, but I see you provided comprehensive detail.
+
+Let me ask a quick clarifying question to ensure I understand your strategic objectives correctly.
+
+**Question 2 of 3:** What are your top 3 strategic priorities for the next 12-24 months?`, {
+            mode: 'discovery',
+            step: 1
+          });
+          return;
+        }
+        
+        // Otherwise fall through to standard questions
+      }
+    }
+    
+    // Check if this is the first message - recommend Guided Workflow (ONLY for non-Business-Object modes)
+    const userMessages = (conversation?.messages || []).filter(m => m.role === 'user');
+    
+    if ((userMessages.length === 0 || userMessage.toLowerCase().includes('börja') || userMessage.toLowerCase().includes('starta')) && workflowMode !== 'business-object') {
+      const recommendMsg = `## 👋 Welcome to Strategic Intent (Step 1)!
+
+**Choose how you want to create your Strategic Intent:**
+
+### 🚀 Autopilot (Fastest - 1 min)
+AI makes a realistic assessment of your business based on minimal input (3 questions):
+- Geographic region (Sweden, Nordics, Global, etc.)
+- Industry/sector
+- Initial detail level
+
+AI then fills in a first draft that you can adjust before proceeding.
+
+### ⚡ Guided Workflow (Recommended - 5-10 min)
+Systematic process where AI asks ONE question at a time with concrete answer options. Ensures completeness and industry adaptation.
+
+### 💬 Free Chat (Flexible)
+Discuss freely with AI which asks follow-up questions. Suitable when you already have a clear picture of your situation.
+
+---
+
+**What would you like to do?**
+
+<button class="mode-action-btn mode-action-btn--primary" onclick="startAutopilotMode()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+  <i class="fas fa-magic"></i>
+  Autopilot - Create draft now (1 min)
+</button>
+<button class="mode-action-btn mode-action-btn--action" onclick="startGuidedWorkflow()">
+  <i class="fas fa-route"></i>
+  Guided Workflow (Recommended)
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="addUserMessage('I want to continue with chat'); handleChatSubmit(event);">
+  <i class="fas fa-comments"></i>
+  Fri Chat
+</button>`;
+
+      addAssistantMessage(recommendMsg, { mode: 'discovery', step: 1, offersAction: true });
+      return;
+    }
+    
+    // BUSINESS OBJECT MODE extraction check was moved above - this comment marks the original location
+    if (workflowMode === 'business-object' && questionCount <= 1 && userMessage.length > 200) {
+      // User provided a Business Object description - analyze it first!
+      showTypingIndicator();
+      
+      addAssistantMessage(`🔍 **Analyzing Business Object Description...**
+
+📖 Reading... ✓
+🔄 Transform... ✓
+📊 Extracting... `, { mode: 'discovery', step: 1 });
+      
+      setTimeout(async () => {
+        try {
+          // Extract data from Business Object description
+          const extractionPrompt = `You are a Senior Enterprise Architect analyzing a Business Object description.
+
+**TASK**: Extract business objectives, challenges, and strategic context from the text below.
+
+**Business Object Description:**
+${userMessage}
+
+**Output Format (JSON):**
+{
+  "primaryObjectives": ["objective 1", "objective 2", "..."],
+  "keyChallenges": ["challenge 1", "challenge 2", "..."],
+  "strategicContext": {
+    "industry": "detected industry or 'Unknown'",
+    "organizationSize": "detected size or 'Unknown'",
+    "marketPosition": "detected position or 'Unknown'",
+    "transformationReadiness": "detected readiness or 'Unknown'"
+  },
+  "completeness": {
+    "objectives": true/false,
+    "challenges": true/false,
+    "context": true/false
+  },
+  "missingData": ["What specific information is missing or unclear"]
+}
+
+**Extraction Rules:**
+- Extract what you can find from the description
+- Mark completeness.objectives = TRUE if you found at least 2-3 objectives/goals
+- Mark completeness.challenges = TRUE if you found at least 2 challenges/problems
+- Mark completeness.context = TRUE if you can infer industry OR organization type
+- Only add items to missingData if critical strategic information is completely absent
+- If the description is comprehensive (500+ words with clear strategic detail), likely mark all sections complete
+- Be lenient: partial information is better than asking unnecessary questions`;
+
+          const extractResponse = await AIService.call({
+            taskId: 'extract_business_objectives',
+            taskType: 'general',
+            systemPrompt: extractionPrompt,
+            userPrompt: 'Analyze the Business Object description above.',
+            expectsJson: true,
+            replyLanguage: 'en'
+          });
+          
+          addAssistantMessage(`🔍 **Analyzing Business Object Description...**
+
+📖 Reading... ✓
+🔄 Transform... ✓
+📊 Extracting... ✓
+✅ Validating... `, { mode: 'discovery', step: 1 });
+          
+          setTimeout(async () => {
+            const extracted = extractResponse.data || {};
+            const completeness = extracted.completeness || {};
+            const missing = extracted.missingData || [];
+            
+            // FIX: If no specific missing data identified, treat as complete
+            // even if completeness flags are false (AI was overly cautious)
+            const allComplete = (completeness.objectives && completeness.challenges && completeness.context) || 
+                                 (missing.length === 0 && (extracted.primaryObjectives?.length > 0 || extracted.keyChallenges?.length > 0));
+            
+            if (allComplete) {
+              // All data available - generate directly!
+              hideTypingIndicator();
+              addAssistantMessage(`🔍 **Analysis Complete!** ✅
+
+All necessary information extracted from your Business Object description:
+- ✓ Primary Objectives: ${extracted.primaryObjectives?.length || 0} identified
+- ✓ Key Challenges: ${extracted.keyChallenges?.length || 0} identified  
+- ✓ Strategic Context: Complete
+
+No additional questions needed! Generating Business Objectives summary...`, { mode: 'discovery', step: 1 });
+              
+              setTimeout(async () => {
+                showTypingIndicator();
+                // Generate final output
+                const synthesisPrompt = `Based on the extracted data below, create a comprehensive Business Objectives summary.
+
+**Extracted Data:**
+${JSON.stringify(extracted, null, 2)}
+
+**Required Output Format:**
+
+## Business Objectives Summary
+
+### Primary Objectives (2026-2028)
+${extracted.primaryObjectives?.map(o => `- ${o}`).join('\n') || '- [Generate from context]'}
+
+### Key Challenges
+${extracted.keyChallenges?.map(c => `- ${c}`).join('\n') || '- [Generate from context]'}
+
+### Strategic Context
+- **Industry**: ${extracted.strategicContext?.industry || '[Infer from context]'}
+- **Organization Size**: ${extracted.strategicContext?.organizationSize || '[Infer from context]'}
+- **Market Position**: ${extracted.strategicContext?.marketPosition || '[Infer from context]'}
+- **Transformation Readiness**: ${extracted.strategicContext?.transformationReadiness || '[Infer from context]'}
+
+##BUSINESS_OBJECTIVES_READY##`;
+
+                const finalResponse = await AIService.call({
+                  taskId: 'synthesize_business_objectives',
+                  taskType: 'general',
+                  systemPrompt: synthesisPrompt,
+                  userPrompt: 'Generate the Business Objectives summary.',
+                  expectsJson: false,
+                  replyLanguage: 'en'
+                });
+                
+                hideTypingIndicator();
+                const outputText = finalResponse.rawOutput.replace('##BUSINESS_OBJECTIVES_READY##', '').trim();
+                
+                const confirmMsg = `${outputText}
+
+---
+
+## ✓ Business Objectives Ready!
+
+Do you want to save this and proceed?
+
+<button class="mode-action-btn mode-action-btn--action" onclick="confirmStrategicIntentFromChat(\`${outputText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+  <i class="fas fa-check-circle"></i>
+  Yes, save & continue
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-edit"></i>
+  No, adjust first
+</button>`;
+                
+                addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1, offersAction: true });
+              }, 1000);
+              
+            } else {
+              // Some data missing - check if we should ask questions
+              hideTypingIndicator();
+              const missing = extracted.missingData || [];
+              
+              // CRITICAL CHECK: If no specific missing data identified (missing.length === 0),
+              // treat extraction as complete and synthesize directly (AI was overly cautious)
+              if (missing.length === 0 || (extracted.primaryObjectives?.length > 0 && extracted.keyChallenges?.length > 0 && extracted.strategicContext?.industry)) {
+                addAssistantMessage(`🔍 **Analysis Complete!** ✅
+
+Extracted sufficient information from your Business Object description:
+${completeness.objectives ? '- ✓ Primary Objectives' : '- ⚠️ Objectives (partial)'}
+${completeness.challenges ? '- ✓ Key Challenges' : '- ⚠️ Challenges (partial)'}
+${completeness.context ? '- ✓ Strategic Context' : '- ⚠️ Context (inferred)'}
+
+No additional questions needed! Generating Business Objectives summary...`, { mode: 'discovery', step: 1 });
+                
+                // Redirect to complete path
+                setTimeout(async () => {
+                  showTypingIndicator();
+                  // Generate final output
+                  const synthesisPrompt = `Based on the extracted data below, create a comprehensive Business Objectives summary.
+
+**Extracted Data:**
+${JSON.stringify(extracted, null, 2)}
+
+**Required Output Format:**
+
+## Business Objectives Summary
+
+### Primary Objectives (2026-2028)
+${extracted.primaryObjectives?.map(o => `- ${o}`).join('\n') || '- [Generate from context]'}
+
+### Key Challenges
+${extracted.keyChallenges?.map(c => `- ${c}`).join('\n') || '- [Generate from context]'}
+
+### Strategic Context
+- **Industry**: ${extracted.strategicContext?.industry || '[Infer from context]'}
+- **Organization Size**: ${extracted.strategicContext?.organizationSize || '[Infer from context]'}
+- **Market Position**: ${extracted.strategicContext?.marketPosition || '[Infer from context]'}
+- **Transformation Readiness**: ${extracted.strategicContext?.transformationReadiness || '[Infer from context]'}
+
+##BUSINESS_OBJECTIVES_READY##`;
+
+                  const finalResponse = await AIService.call({
+                    taskId: 'synthesize_business_objectives',
+                    taskType: 'general',
+                    systemPrompt: synthesisPrompt,
+                    userPrompt: 'Generate the Business Objectives summary.',
+                    expectsJson: false,
+                    replyLanguage: 'en'
+                  });
+                  
+                  hideTypingIndicator();
+                  const outputText = finalResponse.rawOutput.replace('##BUSINESS_OBJECTIVES_READY##', '').trim();
+                  
+                  const confirmMsg = `${outputText}
+
+---
+
+## ✓ Business Objectives Ready!
+
+Do you want to save this and proceed?
+
+<button class="mode-action-btn mode-action-btn--action" onclick="confirmStrategicIntentFromChat(\`${outputText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+  <i class="fas fa-check-circle"></i>
+  Yes, save & continue
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-edit"></i>
+  No, adjust first
+</button>`;
+                  
+                  addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1, offersAction: true });
+                }, 1000);
+                
+              } else {
+                // Missing data identified - ask targeted questions
+                addAssistantMessage(`🔍 **Analysis Complete!** ⚠️
+
+Extracted from your Business Object description:
+${completeness.objectives ? '- ✓ Primary Objectives' : '- ⚠️ Objectives need clarification'}
+${completeness.challenges ? '- ✓ Key Challenges' : '- ⚠️ Challenges need clarification'}
+${completeness.context ? '- ✓ Strategic Context' : '- ⚠️ Context needs clarification'}
+
+I need to ask ${missing.length <= 3 ? missing.length : 3} clarifying questions to complete the analysis.`, { mode: 'discovery', step: 1 });
+                
+                // Store extracted data in conversation context
+                if (!window._businessObjectExtracted) window._businessObjectExtracted = {};
+                window._businessObjectExtracted = extracted;
+                
+                // Now proceed with targeted questions - actually ask the first question!
+                setTimeout(async () => {
+                  scrollToBottom();
+                  showTypingIndicator();
+                  
+                  // Build targeted question prompt based on what's missing
+                  const targetedPrompt = `You are a Senior Enterprise Architect. Based on the following extracted data and missing information, ask ONE targeted question to fill in the gaps.
+
+**Extracted Data:**
+${JSON.stringify(extracted, null, 2)}
+
+**Missing/Unclear Information:**
+${missing.join(', ')}
+
+**IMPORTANT:** This is Question 1 of 3. Ask ONLY about the most critical missing information.
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question about the missing information",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this matters (1 sentence)",
+  "questionNumber": 1
+}
+
+Now ask the first targeted question in JSON format.`;
+
+                  try {
+                    const questionResponse = await AIService.call({
+                      taskId: 'business_object_targeted_question',
+                      taskType: 'general',
+                      systemPrompt: targetedPrompt,
+                      userPrompt: 'Generate the first targeted question.',
+                      expectsJson: true,
+                      replyLanguage: 'en'
+                    });
+                    
+                    hideTypingIndicator();
+                    
+                    // Display the question
+                    const questionData = questionResponse.parsedOutput;
+                    const questionMsg = `### Question 1 of 3
+
+${questionData.question}
+
+${questionData.options ? questionData.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n') : ''}
+
+💡 *${questionData.hint || 'Your answer will help complete the Business Objectives analysis.'}*`;
+
+                    addAssistantMessage(questionMsg, { mode: 'discovery', step: 1 });
+                    scrollToBottom();
+                    
+                  } catch (error) {
+                    hideTypingIndicator();
+                    addAssistantMessage(`❌ Error generating targeted question: ${error.message}\n\nPlease tell me more about the missing areas mentioned above.`, { mode: 'discovery', error: true });
+                  }
+                }, 500);
+              }
+            }
+          }, 1500);
+          
+        } catch (error) {
+          hideTypingIndicator();
+          addAssistantMessage(`❌ Error analyzing Business Object description: ${error.message}\n\nLet me ask you questions instead.`, { mode: 'discovery', error: true });
+        }
+      }, 1000);
+      
+      return;
+    }
+    
+    showTypingIndicator();
+    
+    // CONTEXT-AWARE SYSTEM PROMPT BASED ON WORKFLOW MODE
+    let systemPrompt = '';
+    let maxQuestions = 5;
+    
+    if (workflowMode === 'business-object') {
+      // BUSINESS OBJECT MODE: Focus on strategic objectives with 3-question limit
+      maxQuestions = 3;
+      
+      // Check if we have extracted data to reference
+      const extractedData = window._businessObjectExtracted || null;
+      const extractedContext = extractedData ? `
+
+**EXTRACTED DATA FROM BUSINESS OBJECT DESCRIPTION:**
+- Primary Objectives: ${JSON.stringify(extractedData.primaryObjectives || [])}
+- Key Challenges: ${JSON.stringify(extractedData.keyChallenges || [])}
+- Strategic Context: ${JSON.stringify(extractedData.strategicContext || {})}
+- Missing/Unclear: ${JSON.stringify(extractedData.missingData || [])}
+
+**CRITICAL: Only ask questions about information that is MISSING or UNCLEAR from the extracted data above. Do NOT ask about information that is already available.**` : '';
+      
+      // Enforce hard stop after 3 questions
+      if (questionCount >= maxQuestions) {
+        hideTypingIndicator();
+        addAssistantMessage(`**You've answered all 3 questions!**
+
+I now have enough information to define your Business Objectives. Let me synthesize this into a structured summary...`, { mode: 'discovery', step: 1 });
+        
+        // Force synthesis
+        setTimeout(async () => {
+          showTypingIndicator();
+          try {
+            // Define synthesis system prompt with full context
+            const synthesisSystemPrompt = `You are a Senior Enterprise Architect and Strategy Consultant.
+
+**TASK:** Based on the conversation history below, synthesize a comprehensive Business Objectives summary.
+
+**Required Output Format:**
+
+## Business Objectives Summary
+
+### Primary Objectives (2026-2028)
+- [Objective 1 from conversation]
+- [Objective 2 from conversation]
+- [Objective 3 from conversation]
+- [Additional objectives as needed]
+
+### Key Challenges
+- [Challenge 1 from conversation]
+- [Challenge 2 from conversation]
+- [Challenge 3 from conversation]
+- [Additional challenges as needed]
+
+### Strategic Context
+- **Industry**: [from conversation]
+- **Organization Size**: [from conversation or infer]
+- **Market Position**: [from conversation or infer]
+- **Transformation Readiness**: [from conversation]
+
+##BUSINESS_OBJECTIVES_READY##
+
+**Conversation History:**
+${recentMessages}`;
+
+            const synthesisPrompt = `Synthesize the Business Objectives from the conversation above. Respond in English.`;
+            const response = await AIService.call({
+              taskId: 'business_objectives_synthesis',
+              taskType: 'general',
+              systemPrompt: synthesisSystemPrompt,
+              userPrompt: synthesisPrompt,
+              expectsJson: false,
+              replyLanguage: 'en'
+            });
+            
+            hideTypingIndicator();
+            const outputText = response.rawOutput.replace('##BUSINESS_OBJECTIVES_READY##', '').trim();
+            
+            const confirmMsg = `${outputText}
+
+---
+
+## ✓ Business Objectives Ready!
+
+Do you want to save this and proceed?
+
+<button class="mode-action-btn mode-action-btn--action" onclick="confirmStrategicIntentFromChat(\`${outputText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+  <i class="fas fa-check-circle"></i>
+  Yes, save & continue
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-edit"></i>
+  No, adjust first
+</button>`;
+            
+            addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1, offersAction: true });
+          } catch (error) {
+            hideTypingIndicator();
+            addAssistantMessage(`Error synthesizing objectives: ${error.message}`, { mode: 'discovery', error: true });
+          }
+        }, 1000);
+        
+        return;
+      }
+      
+      systemPrompt = `You are a Senior Enterprise Architect and Strategy Consultant specializing in Business Objectives and EA alignment.
+
+**IMPORTANT: You have already asked ${questionCount} questions. This will be question ${questionCount + 1} of 3.**
+${extractedContext}
+
+**TASK:** Ask me questions until you have enough information to define clear Business Objectives, Strategic Context, and Key Challenges for the organization. Ask me one question at a time but limit the total number of questions to a maximum of 3 questions. Focus on strategic outcomes: business objectives, challenges, and organizational context.
+
+**CRITICAL INSTRUCTION**: Each question must be DIFFERENT and build on previous answers. Ask about:
+- Question 1: Primary business objectives (revenue, customer experience, efficiency, innovation)
+- Question 2: Key challenges preventing objective achievement  
+- Question 3: Strategic context (industry, size, market position, transformation readiness)
+
+Do NOT repeat the same question. Progress through Questions 1 → 2 → 3 sequentially.
+
+**Your Current Question Number: ${questionCount + 1}**
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question (MUST BE DIFFERENT from previous questions)",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this matters (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After 3 questions, synthesize this output:**
+
+## Business Objectives Summary
+
+### Primary Objectives (2026-2028)
+[List 3-5 objectives based on answers]
+
+### Key Challenges
+[List 3-5 challenges based on answers]
+
+### Strategic Context
+- **Industry**: [from answers]
+- **Organization Size**: [from answers]
+- **Market Position**: [from answers]
+- **Transformation Readiness**: [from answers]
+
+##BUSINESS_OBJECTIVES_READY##
+
+Context so far:
+${recentMessages}
+
+${questionCount === 0 ? 'Now you can ask me the first question.' : `You have already asked question ${questionCount}. Now ask question ${questionCount + 1} which must be DIFFERENT and focus on a NEW topic.`}
+Respond in English.`;
+      
+    } else if (workflowMode === 'autopilot') {
+      // AUTOPILOT MODE: This shouldn't use chat - redirect to organization profile input
+      hideTypingIndicator();
+      addAssistantMessage(`**Autopilot Mode** processes your organizational summary automatically.
+
+Please paste your **detailed organizational summary** (500+ words) covering:
+- Organization overview
+- Strategic priorities
+- Challenges & opportunities
+- Technology landscape
+- Financial context
+- Market position
+
+Once submitted, I'll process it automatically and generate your complete EA model.`, { mode: 'discovery', step: 1 });
+      return;
+      
+    } else {
+      // STANDARD MODE: 5 questions, detailed EA context
+      maxQuestions = 5;
+      systemPrompt = `You are a Senior Enterprise Architect guiding Strategic Intent creation.
+
+**WORKFLOW MODE: Standard Mode**
+
+**CRITICAL RULES:**
+1. Ask ONLY ONE question at a time with 4-5 specific options
+2. MAXIMUM ${maxQuestions} questions total (currently asked: ${questionCount})
+
+**Progression:**
+Q1 → Industry/sector + organization type
+Q2 → Main business pain/trigger right now
+Q3 → Scale (revenue range, employees, geographic presence)
+Q4 → Strategic ambition in next 12-24 months
+Q5 → Key constraints (budget, timeline, regulatory) + success metrics
+
+**Return format (JSON):**
+{
+  "question": "Your focused question",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Brief context why this matters (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After Q${maxQuestions}, synthesize Strategic Intent and mark with ##STRATEGIC_INTENT_READY##**
+
+Context so far:
+${recentMessages}
+
+Respond in English.`;
+    }
+    
+    const userPrompt = userMessage;
+    
+    try {
+      // Determine completion marker based on workflow mode
+      const completionMarker = workflowMode === 'business-object' 
+        ? '##BUSINESS_OBJECTIVES_READY##' 
+        : '##STRATEGIC_INTENT_READY##';
+      
+      const response = await AIService.call({
+        taskId: 'discovery_step1_chat',
+        taskType: 'general',
+        systemPrompt,
+        userPrompt,
+        expectsJson: !recentMessages.includes(completionMarker),
+        replyLanguage: userMessage.match(/[åäöÅÄÖ]/) ? 'sv' : 'en'
+      });
+      
+      hideTypingIndicator();
+      
+      // Check if ready (Strategic Intent or Business Objectives)
+      if (response.rawOutput.includes(completionMarker)) {
+        const intentText = response.rawOutput.replace(completionMarker, '').trim();
+        
+        const readyLabel = workflowMode === 'business-object' 
+          ? 'Business Objectives Ready!' 
+          : 'Strategic Intent Ready!';
+        
+        const confirmMsg = `${intentText}
+
+---
+
+## ✓ ${readyLabel}
+
+Do you want to save this and proceed?
+
+<button class="mode-action-btn mode-action-btn--action" onclick="confirmStrategicIntentFromChat(\`${intentText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+  <i class="fas fa-check-circle"></i>
+  Yes, save & continue
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-edit"></i>
+  No, adjust first
+</button>`;
+        
+        addAssistantMessage(confirmMsg, { mode: 'discovery', step: 1, offersAction: true });
+      } else {
+        // Parse question JSON and format
+        try {
+          const q = JSON.parse(response.rawOutput.trim());
+          
+          // Add question counter display
+          const questionProgress = workflowMode === 'business-object' 
+            ? `**Question ${q.questionNumber || questionCount + 1} of ${maxQuestions}**\n\n` 
+            : '';
+          
+          let msg = questionProgress + `## ${q.question}\n\n`;
+          if (q.hint) msg += `*${q.hint}*\n\n`;
+          msg += `**Choose an option or describe in your own words:**\n`;
+          q.options.forEach((opt, i) => msg += `${i + 1}. ${opt}\n`);
+          addAssistantMessage(msg, { mode: 'discovery', step: 1 });
+        } catch (parseErr) {
+          addAssistantMessage(response.rawOutput, { mode: 'discovery', step: 1 });
+        }
+      }
+      
+      scrollToBottom();
+      
+    } catch (error) {
+      hideTypingIndicator();
+      addAssistantMessage(`❌ An error occurred: ${error.message}\n\nTip: Use **Guided Workflow** for best results.`, { mode: 'discovery', error: true });
+    }
+    
+    return; // Exit early for Step 1 special handling
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BUSINESS OBJECT MODE: Steps 2-7 with 3-question limit
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (workflowMode === 'business-object' && stepNum >= 2) {
+    
+    // Enforce hard stop after 3 questions
+    if (questionCount >= 3) {
+      showTypingIndicator();
+      addAssistantMessage(`**You've answered all 3 questions for ${stepName}!**
+
+I now have enough information to generate this step. Let me create the content...`, { mode: 'discovery', step: stepNum });
+      
+      // Force synthesis
+      setTimeout(async () => {
+        try {
+          const synthesisPrompt = `Synthesize ${stepName} content based on the conversation and mark with the appropriate completion marker.`;
+          const completionMarker = getCompletionMarkerForStep(stepNum);
+          
+          const response = await AIService.call({
+            taskId: `step${stepNum}_synthesis`,
+            taskType: 'general',
+            systemPrompt: getSystemPromptForStep(stepNum, questionCount, model),
+            userPrompt: synthesisPrompt,
+            expectsJson: false,
+            replyLanguage: 'en'
+          });
+          
+          hideTypingIndicator();
+          const outputText = response.rawOutput.replace(completionMarker, '').trim();
+          
+          const confirmMsg = `${outputText}
+
+---
+
+## ✓ ${stepName} Ready!
+
+Do you want to save this and proceed?
+
+<button class="mode-action-btn mode-action-btn--action" onclick="confirmStepOutputFromChat(${stepNum}, \`${outputText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+  <i class="fas fa-check-circle"></i>
+  Yes, save & continue
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-edit"></i>
+  No, adjust first
+</button>`;
+          
+          addAssistantMessage(confirmMsg, { mode: 'discovery', step: stepNum, offersAction: true });
+        } catch (error) {
+          hideTypingIndicator();
+          addAssistantMessage(`Error generating ${stepName}: ${error.message}`, { mode: 'discovery', error: true });
+        }
+      }, 1000);
+      
+      return;
+    }
+    
+    // Check if user wants to skip/proceed without answering
+    const wantsToSkip = /skip|go forward|proceed|continue|next|move on|^go$/i.test(userMessage.trim());
+    
+    if (wantsToSkip) {
+      // User wants to proceed without answering - generate output with available context
+      showTypingIndicator();
+      
+      const skipMsg = `**Proceeding without additional questions...**
+      
+I'll generate the ${stepName} content based on the information we have so far.`;
+      
+      addAssistantMessage(skipMsg, { mode: 'discovery', step: stepNum });
+      
+      // Trigger step generation (simplified - in real implementation would call StepEngine)
+      setTimeout(() => {
+        hideTypingIndicator();
+        const tabName = getTabNameForStep(stepNum);
+        const completeMsg = `**${stepName} Generated!**
+
+Based on your Business Objectives from Step 1, I've generated the ${stepName} content.
+
+**Next Steps:**
+- Review the generated content in the ${stepName} tab
+- Make adjustments if needed
+- Proceed to the next step when ready
+
+<button class="mode-action-btn mode-action-btn--action" onclick="showTab('${tabName}'); setAssistantMode('general', {});">
+  <i class="fas fa-eye"></i>
+  View ${stepName}
+</button>`;
+        
+        addAssistantMessage(completeMsg, { mode: 'discovery', step: stepNum, offersAction: true });
+      }, 1500);
+      
+      return;
+    }
+    
+    // Business Object Mode question flow for Steps 2-7
+    showTypingIndicator();
+    
+    // Get previous step context
+    const step1Context = model.strategicIntent ? JSON.stringify(model.strategicIntent, null, 2) : 'Not available';
+    const businessObjectives = model.businessObjectives ? JSON.stringify(model.businessObjectives, null, 2) : step1Context;
+    
+    // Step-specific system prompts with 3-question limits
+    let systemPrompt = '';
+    let completionMarker = '';
+    
+    if (stepNum === 2) {
+      // Step 2: Business Model Canvas
+      completionMarker = '##BMC_READY##';
+      systemPrompt = `You are a Senior Enterprise Architect and Business Model expert.
+
+**IMPORTANT: You have already asked ${questionCount} questions. This will be question ${questionCount + 1} of 3.**
+
+**Context from Step 1 (Business Objectives):**
+${businessObjectives}
+
+**TASK:** Ask me questions until you have enough information to create a Business Model Canvas aligned with the business objectives above. Ask me one question at a time but limit the total number of questions to a maximum of 3 questions. Focus on: value propositions, customer segments, channels, key activities, resources, and partners.
+
+**Your Current Question Number: ${questionCount + 1}**
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question linking BMC to business objectives",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this matters for business model transformation (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After 3 questions, synthesize Business Model Canvas and mark with ${completionMarker}**
+
+**IMPORTANT:** User can type "go forward" or "skip" to proceed without answering more questions.
+
+${questionCount === 0 ? 'Now you can ask me the first question.' : 'Now ask the next question based on the conversation above.'}
+Respond in English.`;
+      
+    } else if (stepNum === 3) {
+      // Step 3: Capability Map
+      completionMarker = '##CAPABILITIES_READY##';
+      const step2Context = model.bmc ? JSON.stringify(model.bmc, null, 2) : 'Not available';
+      
+      systemPrompt = `You are a Senior Enterprise Architect specializing in capability mapping and APQC framework.
+
+**IMPORTANT: You have already asked ${questionCount} questions. This will be question ${questionCount + 1} of 3.**
+
+**Context from Steps 1-2:**
+Business Objectives: ${businessObjectives}
+Business Model: ${step2Context}
+
+**TASK:** Ask me questions until you have enough information to create a Capability Map using APQC framework aligned with the business objectives and business model above. Ask me one question at a time but limit the total number of questions to a maximum of 3 questions. Focus on: core capabilities needed, current maturity levels, and investment priorities.
+
+**Your Current Question Number: ${questionCount + 1}**
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question on capability-to-objective mapping (MUST BE DIFFERENT from previous questions)",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "How this shapes capability prioritization (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After 3 questions, synthesize Capability Map and mark with ${completionMarker}**
+
+**IMPORTANT:** User can type "go forward" or "skip" to proceed without answering.
+
+${questionCount === 0 ? 'Now you can ask me the first question.' : `You have already asked question ${questionCount}. Now ask question ${questionCount + 1} which must be DIFFERENT and focus on a NEW topic.`}
+Respond in English.`;
+      
+    } else if (stepNum === 4) {
+      // Step 4: Operating Model
+      completionMarker = '##OPERATING_MODEL_READY##';
+      const step3Context = model.capabilities ? `${model.capabilities.length} capabilities mapped` : 'Not available';
+      
+      systemPrompt = `You are a Senior Enterprise Architect specializing in operating models and organizational design.
+
+**IMPORTANT: You have already asked ${questionCount} questions. This will be question ${questionCount + 1} of 3.**
+
+**Context from Steps 1-3:**
+Business Objectives: ${businessObjectives}
+Capabilities: ${step3Context}
+
+**TASK:** Ask me questions until you have enough information to define an Operating Model that organizes and governs the capabilities. Ask me one question at a time but limit the total number of questions to a maximum of 3 questions. Focus on: organizational structure, governance model, and key processes/technology enablers.
+
+**CRITICAL INSTRUCTION**: Each question must be DIFFERENT and build on previous answers. Ask about:
+- Question 1: How to organize capabilities (centralized vs decentralized)
+- Question 2: Governance model (decision rights, accountability, funding)
+- Question 3: Key processes and technology enablers
+
+Do NOT repeat the same question. Progress through Questions 1 → 2 → 3 sequentially.
+
+**Your Current Question Number: ${questionCount + 1}**
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question on operating model design (MUST BE DIFFERENT from previous questions)",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this matters for execution (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After 3 questions, synthesize Operating Model and mark with ${completionMarker}**
+
+**IMPORTANT:** User can type "go forward" or "skip" to proceed.
+
+${questionCount === 0 ? 'Now you can ask me the first question.' : `You have already asked question ${questionCount}. Now ask question ${questionCount + 1} which must be DIFFERENT and focus on a NEW topic.`}
+Respond in English.`;
+      
+    } else if (stepNum === 5) {
+      // Step 5: Gap Analysis
+      completionMarker = '##GAP_ANALYSIS_READY##';
+      
+      systemPrompt = `You are a Senior Enterprise Architect specializing in gap analysis and maturity assessment.
+
+**IMPORTANT: You have already asked ${questionCount} questions. This will be question ${questionCount + 1} of 3.**
+
+**Context from Steps 1-4:**
+Business Objectives: ${businessObjectives}
+
+**TASK:** Ask me questions until you have enough information to create a Gap Analysis identifying critical gaps between current and target state. Ask me one question at a time but limit the total number of questions to a maximum of 3 questions. Focus on: capability gaps, risk assessment, and closure feasibility.
+
+**CRITICAL INSTRUCTION**: Each question must be DIFFERENT. Ask about:
+- Question 1: Critical gaps between current and target capabilities
+- Question 2: Highest risk gaps to objective achievement
+- Question 3: Feasibility of closing gaps (quick wins vs long-term)
+
+Do NOT repeat the same question. Progress through Questions 1 → 2 → 3 sequentially.
+
+**Your Current Question Number: ${questionCount + 1}**
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question on gap prioritization (MUST BE DIFFERENT from previous questions)",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this gap analysis matters (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After 3 questions, synthesize Gap Analysis and mark with ${completionMarker}**
+
+${questionCount === 0 ? 'Now you can ask me the first question.' : `You have already asked question ${questionCount}. Now ask question ${questionCount + 1} which must be DIFFERENT.`}
+Respond in English.`;
+      
+    } else if (stepNum === 6) {
+      // Step 6: Value Pools
+      completionMarker = '##VALUE_POOLS_READY##';
+      
+      systemPrompt = `You are a Senior Enterprise Architect and Value Management expert.
+
+**IMPORTANT: You have already asked ${questionCount} questions. This will be question ${questionCount + 1} of 3.**
+
+**Context from Steps 1-5:**
+Business Objectives: ${businessObjectives}
+
+**TASK:** Ask me questions until you have enough information to identify and prioritize Value Pools aligned with the business objectives. Ask me one question at a time but limit the total number of questions to a maximum of 3 questions. Focus on: value opportunities, effort/investment required, and prioritization.
+
+**CRITICAL INSTRUCTION**: Each question must be DIFFERENT. Ask about:
+- Question 1: Highest value opportunities (revenue, cost reduction, risk mitigation, CX)
+- Question 2: Effort and investment required for each value pool
+- Question 3: Sequencing and prioritization (dependencies, quick wins)
+
+Do NOT repeat the same question. Progress through Questions 1 → 2 → 3 sequentially.
+
+**Your Current Question Number: ${questionCount + 1}**
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question on value prioritization (MUST BE DIFFERENT from previous questions)",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this value pool matters (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After 3 questions, synthesize Value Pools and mark with ${completionMarker}**
+
+${questionCount === 0 ? 'Now you can ask me the first question.' : `You have already asked question ${questionCount}. Now ask question ${questionCount + 1} which must be DIFFERENT.`}
+Respond in English.`;
+      
+    } else if (stepNum === 7) {
+      // Step 7: Roadmap
+      completionMarker = '##ROADMAP_READY##';
+      
+      systemPrompt = `You are a Senior Enterprise Architect and Transformation Planning expert.
+
+**IMPORTANT: You have already asked ${questionCount} questions. This will be question ${questionCount + 1} of 3.**
+
+**Context from Steps 1-6:**
+Business Objectives: ${businessObjectives}
+
+**TASK:** Ask me questions until you have enough information to create a Transformation Roadmap with waves, milestones, and dependencies. Ask me one question at a time but limit the total number of questions to a maximum of 3 questions. Focus on: transformation waves, key milestones, and critical dependencies/risks.
+
+**CRITICAL INSTRUCTION**: Each question must be DIFFERENT. Ask about:
+- Question 1: Transformation waves (0-6m quick wins, 6-18m foundations, 18-36m strategic)
+- Question 2: Key milestones and success criteria for each wave
+- Question 3: Critical dependencies and risks in the roadmap
+
+Do NOT repeat the same question. Progress through Questions 1 → 2 → 3 sequentially.
+
+**Your Current Question Number: ${questionCount + 1}**
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question on roadmap planning (MUST BE DIFFERENT from previous questions)",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this roadmap element matters (1 sentence)",
+  "questionNumber": ${questionCount + 1}
+}
+
+**After 3 questions, synthesize Transformation Roadmap and mark with ${completionMarker}**
+
+${questionCount === 0 ? 'Now you can ask me the first question.' : `You have already asked question ${questionCount}. Now ask question ${questionCount + 1} which must be DIFFERENT.`}
+Respond in English.`;
+    }
+    
+    const userPrompt = userMessage;
+    
+    try {
+      const response = await AIService.call({
+        taskId: `discovery_step${stepNum}_chat`,
+        taskType: 'general',
+        systemPrompt,
+        userPrompt,
+        expectsJson: !recentMessages.includes(completionMarker),
+        replyLanguage: userMessage.match(/[åäöÅÄÖ]/) ? 'sv' : 'en'
+      });
+      
+      hideTypingIndicator();
+      
+      // Check if step output is ready
+      if (response.rawOutput.includes(completionMarker)) {
+        const outputText = response.rawOutput.replace(completionMarker, '').trim();
+        
+        const confirmMsg = `${outputText}
+
+---
+
+## ✓ ${stepName} Ready!
+
+Do you want to save this and proceed?
+
+<button class="mode-action-btn mode-action-btn--action" onclick="confirmStepOutputFromChat(${stepNum}, \`${outputText.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+  <i class="fas fa-check-circle"></i>
+  Yes, save & continue
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-edit"></i>
+  No, adjust first
+</button>`;
+        
+        addAssistantMessage(confirmMsg, { mode: 'discovery', step: stepNum, offersAction: true });
+      } else {
+        // Parse question JSON and format
+        try {
+          const q = JSON.parse(response.rawOutput.trim());
+          
+          // Add question counter display
+          const questionProgress = `**Question ${q.questionNumber || questionCount + 1} of 3**\n\n`;
+          
+          let msg = questionProgress + `## ${q.question}\n\n`;
+          if (q.hint) msg += `*${q.hint}*\n\n`;
+          msg += `**Choose an option, describe in your own words, or type "go forward" to skip:**\n`;
+          q.options.forEach((opt, i) => msg += `${i + 1}. ${opt}\n`);
+          addAssistantMessage(msg, { mode: 'discovery', step: stepNum });
+        } catch (parseErr) {
+          addAssistantMessage(response.rawOutput, { mode: 'discovery', step: stepNum });
+        }
+      }
+      
+      scrollToBottom();
+      
+    } catch (error) {
+      hideTypingIndicator();
+      addAssistantMessage(`❌ An error occurred: ${error.message}`, { mode: 'discovery', error: true });
+    }
+    
+    return; // Exit early for Business Object Mode Steps 2-7
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STANDARD DISCOVERY MODE (for steps with existing results)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Build step-specific context using existing _buildStepContext
+  const stepContext = _buildStepContext(stepNum);
+  
+  const systemPrompt = `You are an expert Enterprise Architect with 15+ years of experience. You are in **Discovery Mode** for **${stepName}** (Step ${stepNum}).
+
+**Your role:**
+- Discuss and analyze the results from Step ${stepNum}
+- Explain why certain choices were made
+- Identify improvement opportunities
+- Ask critical questions that challenge the results
+- If the user wants to make changes, suggest switching to Action Mode
+
+**Current Step ${stepNum} context:**
+${stepContext}
+
+**Important principles:**
+- Be specific - refer to concrete elements in the results
+- Challenge generic answers - push for strategic clarity
+- If the user proposes a change, confirm what should be changed and suggest: "Would you like me to apply this change? I'll switch to Action Mode."
+
+**Formatting:**
+- Use ## for headings
+- Use **bold** for important concepts
+- Lists with - item
+- Leave blank lines between paragraphs
+- Tables where appropriate (| header | header |)
+
+Respond in English unless the user writes in Swedish.`;
+
+  const userPrompt = `**Recent conversation:**
+${recentMessages}
+
+**User's question:**
+${userMessage}`;
+
+  showTypingIndicator();
+  
+  try {
+    const response = await callAI(systemPrompt, userPrompt, { 
+      taskType: 'discovery',
+      _traceLabel: `Discovery: ${stepName}`
+    });
+    
+    hideTypingIndicator();
+    
+    // Check if user wants to make changes
+    const wantsAction = /\u00e4ndra|uppdatera|l\u00e4gg till|ta bort|f\u00f6rb\u00e4ttra|justera|fixa|modify|update|add|remove|change/i.test(userMessage);
+    
+    if (wantsAction && response.toLowerCase().includes('action mode')) {
+      // Offer to switch to Action Mode
+      const actionPrompt = `${response}
+
+<button class="mode-action-btn mode-action-btn--action" onclick="switchToActionMode('${userMessage.replace(/'/g, "\\'")}')">
+  <i class="fas fa-bolt"></i>
+  Switch to Action Mode & Apply
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="continueDiscovery()">
+  <i class="fas fa-comments"></i>
+  Continue discussion
+</button>`;
+      
+      addAssistantMessage(actionPrompt, { mode: 'discovery', step: stepNum, offersAction: true });
+    } else {
+      addAssistantMessage(response, { mode: 'discovery', step: stepNum });
+    }
+    
+  } catch (error) {
+    hideTypingIndicator();
+    addAssistantMessage(`❌ An error occurred: ${error.message}`, { mode: 'discovery', error: true });
+  }
+  
+  scrollToBottom();
+}
+
+function switchToActionMode(proposedChange) {
+  const currentContext = assistantContext;
+  setAssistantMode('action', { ...currentContext, proposedChange });
+  
+  const msg = proposedChange 
+    ? `**Action Mode activated ⚡**\n\nI'm preparing to apply: "${proposedChange}"\n\nConfirm or adjust the change, and I'll update the EA model.`
+    : `**Action Mode activated ⚡**\n\nDescribe what change you want to make to the EA model, and I'll apply it directly.`;
+  
+  addAssistantMessage(msg, { mode: 'action' });
+  scrollToBottom();
+}
+
+function continueDiscovery() {
+  addAssistantMessage('Great! Let\'s continue the discussion. What would you like to explore more?', { mode: 'discovery' });
+  scrollToBottom();
+}
+
+function saveOrgDescriptionAndProceed(description) {
+  // Save description to the description field
+  const descField = document.getElementById('description');
+  if (descField) {
+    descField.value = description;
+  }
+  
+  // Exit Discovery mode and return to General mode
+  setAssistantMode('general', {});
+  
+  // Show confirmation message
+  addAssistantMessage(`**Organization Description Saved!**
+
+The description has been saved and we can proceed.
+
+## Next Step: Start Workflow
+
+I have now analyzed your organization. Click on **"Start Workflow"** in the left panel to continue.`, 
+    { mode: 'general' });
+  
+  scrollToBottom();
+  
+  // Highlight the continue button in left panel
+  setTimeout(() => {
+    const continueBtn = document.getElementById('btn-continue-workflow');
+    if (continueBtn) {
+      continueBtn.classList.add('pulse');
+      continueBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 500);
+  
+  toast('Organization description saved! Proceed to Step 2');
+}
+
+// Start Guided Workflow from Discovery Mode
+function startGuidedWorkflow() {
+  // Close chat panel
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel) {
+    panel.classList.add('hidden');
+    document.body.classList.remove('chat-sidebar-open');
+  }
+  
+  // Switch to workflow tab
+  // Remove workflow tab navigation (doesn't exist)
+  // Just run Step 2 directly
+  
+  // Start Step 1
+  setTimeout(() => {
+    if (typeof StepEngine !== 'undefined' && StepEngine.run) {
+      StepEngine.run('step1');
+    } else {
+      console.warn('StepEngine not available');
+      toast('Guided Workflow will be available soon');
+    }
+  }, 300);
+}
+
+// Confirm Strategic Intent from chat and save to model
+function confirmStrategicIntentFromChat(intentText) {
+  // Parse the Business Objectives output - handle structured format with headers
+  const lines = intentText.split('\n').map(l => l.trim()).filter(l => l);
+  
+  // Extract sections based on headers
+  const primaryObjectives = [];
+  const keyChallenges = [];
+  const strategicContext = {};
+  let currentSection = null;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Detect sections
+    if (line.match(/Primary Objectives|Business Objectives/i)) {
+      currentSection = 'objectives';
+      continue;
+    } else if (line.match(/Key Challenges|Challenges/i)) {
+      currentSection = 'challenges';
+      continue;
+    } else if (line.match(/Strategic Context|Context/i)) {
+      currentSection = 'context';
+      continue;
+    }
+    
+    // Extract bullet points, numbered lists, or list items
+    // Handle: "-", "•", "*", "1.", "2.", etc.
+    const listMatch = line.match(/^(?:[-•*]|\d+\.)\s*(.+)/);
+    if (listMatch && currentSection === 'objectives') {
+      primaryObjectives.push(listMatch[1]);
+    } else if (listMatch && currentSection === 'challenges') {
+      keyChallenges.push(listMatch[1]);
+    } else if (listMatch && currentSection === 'context') {
+      const contextItem = listMatch[1];
+      // Parse context items like "Industry: Financial Services"
+      if (contextItem.includes(':')) {
+        const [key, value] = contextItem.split(':').map(s => s.trim());
+        strategicContext[key.toLowerCase().replace(/\s+/g, '_')] = value;
+      }
+    } else if (line.match(/^\*\*(.+?)\*\*:?\s*(.+)/) && currentSection === 'context') {
+      // Parse markdown bold format like "**Industry**: Financial Services"
+      const match = line.match(/^\*\*(.+?)\*\*:?\s*(.+)/);
+      strategicContext[match[1].toLowerCase().replace(/\s+/g, '_')] = match[2];
+    }
+  }
+  
+  // Fallback: if sections not detected, extract any list items
+  if (primaryObjectives.length === 0) {
+    const listItems = lines.filter(l => /^(?:[-•*]|\d+\.)/.test(l)).map(l => l.replace(/^(?:[-•*]|\d+\.)\s*/, ''));
+    primaryObjectives.push(...listItems.slice(0, 5));
+  }
+  
+  // Build strategic ambition summary
+  const ambition = primaryObjectives.length > 0 
+    ? `Achieve ${primaryObjectives.slice(0, 3).join(', ')} through strategic transformation.`
+    : 'Strategic transformation focused on business objectives and operational excellence.';
+  
+  // Save to model as both strategicIntent (legacy) and businessObjectives (new)
+  model.businessObjectives = {
+    primaryObjectives: primaryObjectives.slice(0, 5),
+    keyChallenges: keyChallenges.slice(0, 5),
+    strategicContext: strategicContext,
+    createdAt: new Date().toISOString()
+  };
+  
+  model.strategicIntent = {
+    strategic_ambition: ambition,
+    strategic_themes: primaryObjectives.slice(0, 4),
+    success_metrics: keyChallenges.slice(0, 3) || ['Revenue growth', 'Customer satisfaction'],
+    strategic_constraints: [strategicContext.industry || 'Industry context', strategicContext.market_position || 'Market position']
+  };
+  model.strategicIntentConfirmed = true;
+  
+  // Save to database
+  saveModelToDB(false, true);
+  
+  console.log('[Business Object] Strategic Intent saved:', model.strategicIntent);
+  console.log('[Business Object] Business Objectives saved:', model.businessObjectives);
+  
+  // Render Strategic Intent in Executive tab
+  renderStrategicIntentSection();
+  
+  console.log('[Business Object] Strategic Intent section rendered');
+  
+  // Update tab lock states to unlock and highlight Executive tab
+  if (typeof updateTabLockStates === 'function') {
+    updateTabLockStates();
+    console.log('[Business Object] Tab lock states updated');
+  }
+  
+  // Highlight Executive tab to indicate content is available
+  highlightTab('exec');
+  
+  console.log('[Business Object] Executive tab highlight requested');
+  
+  // Show success message (English)
+  addAssistantMessage(`✅ **Business Objectives Saved!**
+
+You can now proceed to the next step in the workflow.
+
+<button class="mode-action-btn mode-action-btn--action" onclick="startBMCGeneration();">
+  <i class="fas fa-arrow-right"></i>
+  Continue to Step 2: Business Model Canvas
+</button>`, { mode: 'general' });
+  
+  // Exit Discovery mode
+  setAssistantMode('general', {});
+  
+  toast('Business Objectives saved! ✅');
+  scrollToBottom();
+}
+
+// Map workflow step numbers to actual tab names
+function getTabNameForStep(stepNum) {
+  const tabMapping = {
+    1: 'exec',         // Strategic Intent/Business Objectives → Executive Summary tab
+    2: 'bmc',          // Business Model Canvas → BMC tab
+    3: 'capmap',       // Capability Map → Capability Map tab
+    4: 'opmodel',      // Operating Model → Operating Model tab
+    5: 'gap',          // Gap Analysis → Gap Analysis tab
+    6: 'valuepools',   // Value Pools → Value Pools tab
+    7: 'roadmapvis'    // Roadmap → Roadmap Visualization tab
+  };
+  return tabMapping[stepNum] || 'exec';
+}
+
+// Helper function to get completion marker for each step
+function getCompletionMarkerForStep(stepNum) {
+  const markers = {
+    1: '##BUSINESS_OBJECTIVES_READY##',
+    2: '##BMC_READY##',
+    3: '##CAPABILITIES_READY##',
+    4: '##OPERATING_MODEL_READY##',
+    5: '##GAP_ANALYSIS_READY##',
+    6: '##VALUE_POOLS_READY##',
+    7: '##ROADMAP_READY##'
+  };
+  return markers[stepNum] || '##READY##';
+}
+
+// Helper function to get system prompt for each step (synthesis mode with conversation history)
+function getSystemPromptForStep(stepNum, questionCount, model) {
+  const step1Context = model.strategicIntent ? JSON.stringify(model.strategicIntent, null, 2) : 'Not available';
+  const businessObjectives = model.businessObjectives ? JSON.stringify(model.businessObjectives, null, 2) : step1Context;
+  
+  // Get recent conversation messages
+  const conversation = getActiveConversation();
+  const recentMessages = (conversation?.messages || [])
+    .slice(-8)
+    .map(m => `${m.role}: ${m.content}`)
+    .join('\n');
+  
+  const prompts = {
+    2: `You are a Senior Enterprise Architect and Business Model expert.
+
+**TASK:** Synthesize a Business Model Canvas based on the conversation history below and the business objectives.
+
+**Business Objectives Context:**
+${businessObjectives}
+
+**Conversation History:**
+${recentMessages}
+
+**Required Output Format:**
+
+## Business Model Canvas
+
+### Value Propositions
+- [Value proposition 1]
+- [Value proposition 2]
+
+### Customer Segments
+- [Segment 1]
+- [Segment 2]
+
+### Channels
+- [Channel 1]
+- [Channel 2]
+
+### Key Activities
+- [Activity 1]
+- [Activity 2]
+
+### Key Resources
+- [Resource 1]
+- [Resource 2]
+
+### Key Partners
+- [Partner 1]
+- [Partner 2]
+
+### Cost Structure
+- [Cost 1]
+- [Cost 2]
+
+### Revenue Streams
+- [Revenue 1]
+- [Revenue 2]
+
+##BMC_READY##
+
+Synthesize the BMC from the conversation above. Respond in English.`,
+    3: `You are a Senior Enterprise Architect specializing in capability mapping and APQC framework.
+
+**TASK:** Synthesize a Capability Map based on the conversation history below and the business objectives.
+
+**Business Objectives Context:**
+${businessObjectives}
+
+**Conversation History:**
+${recentMessages}
+
+**Required Output Format:**
+
+## Capability Map
+
+### Core Capabilities
+- [Capability 1 with maturity level]
+- [Capability 2 with maturity level]
+
+### Investment Priorities
+- [Priority 1]
+- [Priority 2]
+
+##CAPABILITIES_READY##
+
+Synthesize the capability map from the conversation above. Respond in English.`,
+    4: `You are a Senior Enterprise Architect specializing in operating models.
+
+**TASK:** Synthesize an Operating Model based on the conversation history below and the business objectives.
+
+**Business Objectives Context:**
+${businessObjectives}
+
+**Conversation History:**
+${recentMessages}
+
+**Required Output Format:**
+
+## Operating Model
+
+### Organization Structure
+- [Structure element 1]
+- [Structure element 2]
+
+### Governance Model
+- [Governance element 1]
+- [Governance element 2]
+
+### Key Processes
+- [Process 1]
+- [Process 2]
+
+##OPERATING_MODEL_READY##
+
+Synthesize the operating model from the conversation above. Respond in English.`,
+    5: `You are a Senior Enterprise Architect specializing in gap analysis.
+
+**TASK:** Synthesize a Gap Analysis based on the conversation history below and the business objectives.
+
+**Business Objectives Context:**
+${businessObjectives}
+
+**Conversation History:**
+${recentMessages}
+
+**Required Output Format:**
+
+## Gap Analysis
+
+### Critical Gaps
+- [Gap 1 with impact assessment]
+- [Gap 2 with impact assessment]
+
+### Risk Assessment
+- [Risk 1]
+- [Risk 2]
+
+### Closure Feasibility
+- [Quick win 1]
+- [Strategic investment 1]
+
+##GAP_ANALYSIS_READY##
+
+Synthesize the gap analysis from the conversation above. Respond in English.`,
+    6: `You are a Senior Enterprise Architect and Value Management expert.
+
+**TASK:** Synthesize Value Pools based on the conversation history below and the business objectives.
+
+**Business Objectives Context:**
+${businessObjectives}
+
+**Conversation History:**
+${recentMessages}
+
+**Required Output Format:**
+
+## Value Pools
+
+### High-Value Opportunities
+- [Opportunity 1 with value estimate]
+- [Opportunity 2 with value estimate]
+
+### Effort/Investment Required
+- [Investment 1]
+- [Investment 2]
+
+### Prioritization
+- [Priority 1]
+- [Priority 2]
+
+##VALUE_POOLS_READY##
+
+Synthesize the value pools from the conversation above. Respond in English.`,
+    7: `You are a Senior Enterprise Architect and Transformation Planning expert.
+
+**TASK:** Synthesize a Transformation Roadmap based on the conversation history below and the business objectives.
+
+**Business Objectives Context:**
+${businessObjectives}
+
+**Conversation History:**
+${recentMessages}
+
+**Required Output Format:**
+
+## Transformation Roadmap
+
+### Wave 1 (0-6 months)
+- [Initiative 1]
+- [Initiative 2]
+
+### Wave 2 (6-18 months)
+- [Initiative 3]
+- [Initiative 4]
+
+### Wave 3 (18-36 months)
+- [Initiative 5]
+- [Initiative 6]
+
+### Key Milestones
+- [Milestone 1]
+- [Milestone 2]
+
+### Critical Dependencies
+- [Dependency 1]
+- [Dependency 2]
+
+##ROADMAP_READY##
+
+Synthesize the transformation roadmap from the conversation above. Respond in English.`
+  };
+  
+  return prompts[stepNum] || 'Synthesize output based on conversation.';
+}
+
+// Confirm Step Output from Business Object Mode chat and save to model
+function confirmStepOutputFromChat(stepNum, outputText) {
+  console.log(`[EA Pipeline] Saving Step ${stepNum} output...`);
+  
+  // Parse the output text (simplified - in production would parse JSON or structured data)
+  const lines = outputText.split('\n').filter(l => l.trim());
+  
+  // Save to model based on step number
+  // UNIFIED EA PIPELINE: All workflow modes produce same data structure
+  if (stepNum === 2) {
+    // Business Model Canvas - Standard structure for ALL workflow modes
+    model.bmc = {
+      value_propositions: extractBullets(outputText, 'Value Propositions'),
+      customer_segments: extractBullets(outputText, 'Customer Segments'),
+      customer_relationships: extractBullets(outputText, 'Relationships'),
+      channels: extractBullets(outputText, 'Channels'),
+      key_activities: extractBullets(outputText, 'Key Activities'),
+      key_resources: extractBullets(outputText, 'Key Resources'),
+      key_partners: extractBullets(outputText, 'Partners'),
+      cost_structure: extractBullets(outputText, 'Cost Structure'),
+      revenue_streams: extractBullets(outputText, 'Revenue Streams'),
+      // Add context tracking for Business Object workflow
+      source: model.workflowMode || 'standard',
+      alignedToObjectives: model.businessObjectives ? true : false,
+      createdAt: new Date().toISOString()
+    };
+    model.bmcConfirmed = true;
+    console.log('[EA Pipeline] BMC saved:', model.bmc);
+    
+  } else if (stepNum === 3) {
+    // Capability Map - Standard structure for ALL workflow modes
+    const extractedCaps = extractBullets(outputText, 'Capabilities') || [];
+    
+    // Convert to full capability objects if not already
+    if (!model.capabilities) model.capabilities = [];
+    
+    extractedCaps.forEach((capName, idx) => {
+      // Check if capability already exists
+      const existing = model.capabilities.find(c => c.name === capName);
+      if (!existing) {
+        model.capabilities.push({
+          id: `cap_${Date.now()}_${idx}`,
+          name: capName,
+          domain: 'Business',  // Default, can be refined
+          maturity: 2,         // Default maturity
+          verified: false,
+          source: model.workflowMode || 'standard',
+          alignedToObjectives: model.businessObjectives ? true : false
+        });
+      }
+    });
+    
+    model.capabilitiesConfirmed = true;
+    console.log('[EA Pipeline] Capabilities saved:', model.capabilities.length);
+    
+  } else if (stepNum === 4) {
+    // Operating Model - Standard structure for ALL workflow modes
+    model.operatingModel = {
+      structure: extractBullets(outputText, 'Structure'),
+      governance: extractBullets(outputText, 'Governance'),
+      processes: extractBullets(outputText, 'Processes'),
+      // Metadata
+      source: model.workflowMode || 'standard',
+      alignedToObjectives: model.businessObjectives ? true : false,
+      createdAt: new Date().toISOString()
+    };
+    model.operatingModelConfirmed = true;
+    console.log('[EA Pipeline] Operating Model saved:', model.operatingModel);
+    
+  } else if (stepNum === 5) {
+    // Gap Analysis - Standard structure for ALL workflow modes
+    model.gapAnalysis = {
+      gaps: extractBullets(outputText, 'Gaps'),
+      priorities: extractBullets(outputText, 'Priorities'),
+      // Metadata
+      source: model.workflowMode || 'standard',
+      alignedToObjectives: model.businessObjectives ? true : false,
+      createdAt: new Date().toISOString()
+    };
+    model.gapAnalysisConfirmed = true;
+    console.log('[EA Pipeline] Gap Analysis saved:', model.gapAnalysis);
+    
+  } else if (stepNum === 6) {
+    // Value Pools - Standard structure for ALL workflow modes
+    model.valuePools = extractBullets(outputText, 'Value Pools') || [];
+    model.valuePoolsConfirmed = true;
+    console.log('[EA Pipeline] Value Pools saved:', model.valuePools.length);
+    
+  } else if (stepNum === 7) {
+    // Roadmap - Standard structure for ALL workflow modes
+    model.roadmap = {
+      waves: extractBullets(outputText, 'Waves'),
+      milestones: extractBullets(outputText, 'Milestones'),
+      // Metadata
+      source: model.workflowMode || 'standard',
+      alignedToObjectives: model.businessObjectives ? true : false,
+      createdAt: new Date().toISOString()
+    };
+    model.roadmapConfirmed = true;
+    console.log('[EA Pipeline] Roadmap saved:', model.roadmap);
+  }
+  
+  // Save to database
+  saveModelToDB(false, true);
+  
+  console.log(`[EA Pipeline] Step ${stepNum} saved to database`);
+  
+  // Update tab lock states to unlock tabs based on new content
+  if (typeof updateTabLockStates === 'function') {
+    updateTabLockStates();
+    console.log('[EA Pipeline] Tab lock states updated');
+  }
+  
+  // Render in appropriate tab and highlight it
+  // UNIFIED EA PIPELINE: Same rendering logic for all workflow modes
+  if (stepNum === 2) {
+    // Render Business Model Canvas
+    // BMC canvas rendering removed - obsolete legacy function
+    if (typeof renderBMCPanel === 'function') renderBMCPanel();
+    const tabName = getTabNameForStep(2);
+    highlightTab(tabName);
+    console.log(`[EA Pipeline] BMC rendered and tab '${tabName}' highlighted`);
+  }
+  if (stepNum === 3) {
+    // Render Capability Map
+    if (typeof renderCapMap === 'function') renderCapMap();
+    if (typeof renderHeatmap === 'function') renderHeatmap();
+    const tabName = getTabNameForStep(3);
+    highlightTab(tabName);
+    console.log(`[EA Pipeline] Capabilities rendered and tab '${tabName}' highlighted`);
+  }
+  if (stepNum === 4) {
+    // Render Operating Model (check if function exists)
+    if (typeof renderOperatingModel === 'function') renderOperatingModel();
+    // Only highlight tab if Operating Model content actually exists
+    const om = model.operatingModel;
+    const hasOpModelContent = om && (om.valueProposition || om.current?.value_delivery || om.target?.value_delivery);
+    if (hasOpModelContent) {
+      const tabName = getTabNameForStep(4);
+      highlightTab(tabName);
+      console.log(`[EA Pipeline] Operating Model rendered and tab '${tabName}' highlighted`);
+    } else {
+      console.log(`[EA Pipeline] Operating Model step completed but no content to display`);
+    }
+  }
+  if (stepNum === 5) {
+    // Render Gap Analysis (check if function exists)
+    if (typeof renderGapAnalysis === 'function') renderGapAnalysis();
+    const tabName = getTabNameForStep(5);
+    highlightTab(tabName);
+    console.log(`[EA Pipeline] Gap Analysis rendered and tab '${tabName}' highlighted`);
+  }
+  if (stepNum === 6) {
+    // Render Value Pools (check if function exists)
+    if (typeof renderValuePools === 'function') renderValuePools();
+    // Only highlight tab if Value Pools content actually exists
+    const valuePools = model.valuePools;
+    const hasValuePoolsContent = Array.isArray(valuePools) && valuePools.length > 0;
+    if (hasValuePoolsContent) {
+      const tabName = getTabNameForStep(6);
+      highlightTab(tabName);
+      console.log(`[EA Pipeline] Value Pools rendered and tab '${tabName}' highlighted`);
+    } else {
+      console.log(`[EA Pipeline] Value Pools step completed but no content to display`);
+    }
+  }
+  if (stepNum === 7) {
+    // Render Roadmap (check if function exists)
+    if (typeof renderRoadmapVis === 'function') renderRoadmapVis();
+    const tabName = getTabNameForStep(7);
+    highlightTab(tabName);
+    console.log(`[EA Pipeline] Roadmap rendered and tab '${tabName}' highlighted`);
+  }
+  
+  // Show success message
+  const nextStep = stepNum + 1;
+  const nextStepName = getStepName(nextStep);
+  
+  let msg = `✓ **Step ${stepNum} Saved!**\n\n`;
+  
+  if (nextStep <= 7) {
+    msg += `You can now proceed to Step ${nextStep}: ${nextStepName}.\n\n`;
+    msg += `<button class="mode-action-btn mode-action-btn--action" onclick="enterDiscoveryModeForStep(${nextStep}, '${nextStepName}')">
+  <i class="fas fa-arrow-right"></i>
+  Continue to ${nextStepName}
+</button>`;
+  } else {
+    msg += `**All steps completed!** Your Business Object transformation plan is ready.\n\n`;
+    msg += `<button class="mode-action-btn mode-action-btn--action" onclick="showTab('exec'); setAssistantMode('general', {});">
+  <i class="fas fa-chart-line"></i>
+  View Executive Summary
+</button>`;
+  }
+  
+  addAssistantMessage(msg, { mode: 'general' });
+  
+  // Exit Discovery mode
+  setAssistantMode('general', {});
+  
+  toast(`Step ${stepNum} saved! ✓`);
+  scrollToBottom();
+}
+
+// Helper function to extract bullet points from text
+function extractBullets(text, sectionHeader) {
+  const lines = text.split('\n');
+  const bullets = [];
+  let inSection = false;
+  
+  for (let line of lines) {
+    if (sectionHeader && line.includes(sectionHeader)) {
+      inSection = true;
+      continue;
+    }
+    if (inSection && /^[-•*]\s/.test(line.trim())) {
+      bullets.push(line.replace(/^[-•*]\s*/, '').trim());
+    }
+    if (inSection && line.startsWith('##') && !line.includes(sectionHeader)) {
+      break; // End of section
+    }
+  }
+  
+  return bullets.length > 0 ? bullets : ['Generated content - review in tab'];
+}
+
+// Helper function to get step name
+function getStepName(stepNum) {
+  const names = {
+    1: 'Strategic Intent',
+    2: 'Business Model Canvas',
+    3: 'Capability Map',
+    4: 'Operating Model',
+    5: 'Gap Analysis',
+    6: 'Value Pools',
+    7: 'Target Architecture & Roadmap'
+  };
+  return names[stepNum] || `Step ${stepNum}`;
+}
+
+// Helper function to generate first question prompts for each step
+function getFirstQuestionPromptForStep(stepNum, stepName) {
+  const businessObjectives = model.businessObjectives ? 
+    JSON.stringify(model.businessObjectives, null, 2) : 
+    'No objectives defined yet';
+  
+  const prompts = {
+    2: `You are a Senior Enterprise Architect and Business Model expert.
+
+**Context - Business Objectives:**
+${businessObjectives}
+
+**TASK:** Ask the FIRST question (Question 1 of 3) for Business Model Canvas.
+
+**Focus for Question 1:** Value propositions - How will the organization deliver value to achieve these objectives?
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question about value propositions",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this matters for the Business Model Canvas (1 sentence)",
+  "questionNumber": 1
+}`,
+    
+    3: `You are a Senior Enterprise Architect specializing in capability mapping.
+
+**Context - Business Objectives:**
+${businessObjectives}
+
+**TASK:** Ask the FIRST question (Question 1 of 3) for Capability Map.
+
+**Focus for Question 1:** Critical capabilities - What must the organization be able to DO to achieve these objectives?
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question about critical capabilities",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this capability matters for achieving objectives (1 sentence)",
+  "questionNumber": 1
+}`,
+    
+    4: `You are a Senior Enterprise Architect specializing in operating models.
+
+**Context - Business Objectives:**
+${businessObjectives}
+
+**TASK:** Ask the FIRST question (Question 1 of 3) for Operating Model.
+
+**Focus for Question 1:** Organizational structure - How should capabilities be organized (centralized vs decentralized)?
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question about organizational structure",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this structure matters for execution (1 sentence)",
+  "questionNumber": 1
+}`,
+    
+    5: `You are a Senior Enterprise Architect specializing in gap analysis.
+
+**Context - Business Objectives:**
+${businessObjectives}
+
+**TASK:** Ask the FIRST question (Question 1 of 3) for Gap Analysis.
+
+**Focus for Question 1:** Critical gaps - What are the most critical gaps between current and target state?
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question about critical capability gaps",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why identifying this gap matters (1 sentence)",
+  "questionNumber": 1
+}`,
+    
+    6: `You are a Senior Enterprise Architect and Value Management expert.
+
+**Context - Business Objectives:**
+${businessObjectives}
+
+**TASK:** Ask the FIRST question (Question 1 of 3) for Value Pools.
+
+**Focus for Question 1:** Value opportunities - What are the highest value opportunities (revenue, cost reduction, risk mitigation, CX)?
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question about value opportunities",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this value pool matters (1 sentence)",
+  "questionNumber": 1
+}`,
+    
+    7: `You are a Senior Enterprise Architect and Transformation Planning expert.
+
+**Context - Business Objectives:**
+${businessObjectives}
+
+**TASK:** Ask the FIRST question (Question 1 of 3) for Transformation Roadmap.
+
+**Focus for Question 1:** Transformation waves - How should initiatives be sequenced (0-6m quick wins, 6-18m foundations, 18-36m strategic)?
+
+**Question Format (JSON):**
+{
+  "question": "Your focused question about transformation waves",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this sequencing matters (1 sentence)",
+  "questionNumber": 1
+}`
+  };
+  
+  return prompts[stepNum] || `Ask the first question for ${stepName}.`;
+}
+
+// ============================================================================
+// AUTOPILOT MODE - Quick Strategic Intent generation with minimal input
+// ============================================================================
+
+// Autopilot state tracker
+window._autopilotState = {
+  active: false,
+  currentStep: 0,
+  completedSteps: [],
+  context: {},
+  generatedData: {}
+};
+
+async function startAutopilotMode() {
+  // Initialize autopilot state
+  window._autopilotState = {
+    active: true,
+    currentStep: 0,
+    completedSteps: [],
+    context: {},
+    generatedData: {}
+  };
+  
+  // Show the autopilot questionnaire
+  const autopilotMsg = `## 🚀 Autopilot - Quick EA Model Generation
+
+**Autopilot mode** generates a complete EA model (all 7 steps) based on minimal input. Perfect for testing, demos, and rapid prototyping.
+
+Answer 3 quick questions and AI will create a realistic first draft:
+
+**1. Geographic Operating Region:**
+
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotRegion('Sweden')">🇸🇪 Sweden</button>
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotRegion('Nordics')">🌐 Nordics (SE/NO/DK/FI)</button>
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotRegion('Europe')">🇪🇺 Europe</button>
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotRegion('Global')">🌍 Global</button>
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotRegion('Other')">🌎 Other...</button>`;
+
+  addAssistantMessage(autopilotMsg, { mode: 'autopilot', step: 1, offersAction: true });
+  
+  // Progress tracking via left sidebar only
+  scrollToBottom();
+}
+
+function setAutopilotRegion(region) {
+  if (!window._autopilotState) window._autopilotState = { context: {} };
+  window._autopilotState.context.region = region;
+  
+  if (region === 'Other') {
+    addUserMessage('Other geographic region');
+    addAssistantMessage('Please specify the geographic region (e.g., "Middle East", "South America", "Asia"):');
+    return;
+  }
+  
+  addUserMessage(region);
+  
+  // Next question: Industry/Sector
+  const industryMsg = `**2. Industry/Sector:**
+
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotIndustry('Real Estate')">🏢 Real Estate</button>
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotIndustry('Finance/Banking')">💰 Finance/Banking</button>
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotIndustry('Public Sector')">🏛️ Public Sector</button>
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotIndustry('Retail/Trade')">🛒 Retail/Trade</button>
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotIndustry('Manufacturing')">🏭 Manufacturing</button>
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotIndustry('Tech/SaaS')">💻 Tech/SaaS</button>
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotIndustry('Other')">📦 Other...</button>`;
+  
+  addAssistantMessage(industryMsg, { mode: 'autopilot', offersAction: true });
+  scrollToBottom();
+}
+
+function setAutopilotIndustry(industry) {
+  if (!window._autopilotState) window._autopilotState = { context: {} };
+  window._autopilotState.context.industry = industry;
+  
+  if (industry === 'Other') {
+    addUserMessage('Other industry');
+    addAssistantMessage('Please specify industry/sector:');
+    return;
+  }
+  
+  addUserMessage(industry);
+  updateAutopilotProgress(2, 'Industry selected');
+  // Next question: Detail level
+  const detailMsg = `**3. Initial Detail Level:**
+
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotDetailLevel('low')">⚡ Low - Overview (fastest)</button>
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotDetailLevel('medium')">⚖️ Medium - Balanced (recommended)</button>
+<button class="mode-action-btn mode-action-btn--small" onclick="setAutopilotDetailLevel('high')">🎯 High - Detailed (takes longer)</button>`;
+  
+  addAssistantMessage(detailMsg, { mode: 'autopilot', offersAction: true });
+  scrollToBottom();
+}
+
+async function setAutopilotDetailLevel(level) {
+  if (!window._autopilotState) window._autopilotState = { context: {} };
+  window._autopilotState.context.detailLevel = level;
+  
+  const levelText = level === 'low' ? 'Low' : level === 'medium' ? 'Medium' : 'High';
+  addUserMessage(levelText + ' detail level');
+  updateAutopilotProgress(3, 'Detail level selected');
+  
+  // NEW: Ask for company description (4th question)
+  const companyDescMsg = `**4. Describe your company/organization:**
+
+Provide a brief description of your business (2-5 sentences). For example:
+- What do you do? What are your main products/services?
+- What are your biggest challenges right now?
+- Are there specific goals or initiatives you're focusing on?
+
+*Example: "We are a property management company with 800 apartments in Stockholm and Gothenburg. Focus is on ESG reporting and digitization of tenant communication. Major challenge is replacing our old property management system."*
+
+**Write your description in the chat below** 👇`;
+  
+  addAssistantMessage(companyDescMsg, { mode: 'autopilot', awaitingInput: true });
+  window._autopilotState.awaitingCompanyDescription = true;
+  scrollToBottom();
+}
+
+// Show Autopilot Progress Tracker UI
+function showAutopilotProgressTracker() {
+  // Remove existing tracker if present
+  const existing = document.getElementById('autopilot-progress-tracker');
+  if (existing) existing.remove();
+  
+  // Create progress tracker
+  const tracker = document.createElement('div');
+  tracker.id = 'autopilot-progress-tracker';
+  tracker.style.cssText = 'position: fixed; top: 80px; right: 20px; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 16px; width: 280px; z-index: 1000; border: 2px solid #667eea;';
+  
+  tracker.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+      <div style="font-size: 13px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+        <i class="fas fa-rocket" style="color: #667eea;"></i>
+        Autopilot Progress
+      </div>
+      <button onclick="closeAutopilotTracker()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 16px; padding: 0; width: 20px; height: 20px;" title="St�ng">�</button>
+    </div>
+    <div id="autopilot-steps-list" style="display: flex; flex-direction: column; gap: 8px;">
+      ${[
+        { num: 1, label: 'Strategic Intent', icon: 'bullseye' },
+        { num: 2, label: 'Business Model Canvas', icon: 'diagram-project' },
+        { num: 3, label: 'Capability Map', icon: 'sitemap' },
+        { num: 4, label: 'Operating Model', icon: 'gears' },
+        { num: 5, label: 'Gap Analysis', icon: 'chart-line' },
+        { num: 6, label: 'Value Pools', icon: 'coins' },
+        { num: 7, label: 'Roadmap', icon: 'route' }
+      ].map(step => `
+        <div id="autopilot-step-${step.num}" class="autopilot-step" data-step="${step.num}" style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 6px; background: #f8fafc; border: 1px solid #e2e8f0; transition: all 0.2s;">
+          <div class="autopilot-step-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #e2e8f0; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0;">
+            ${step.num}
+          </div>
+          <div style="flex: 1; font-size: 11px; font-weight: 600; color: #64748b;">
+            ${step.label}
+          </div>
+          <div class="autopilot-step-status" style="font-size: 14px; color: #cbd5e1;">
+            <i class="fas fa-circle" style="font-size: 6px;"></i>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div id="autopilot-current-status" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #64748b; font-weight: 600;">
+      Status: Initialiserar...
+    </div>
+  `;
+  
+  document.body.appendChild(tracker);
+}
+
+function updateAutopilotProgress(stepNum, statusText) {
+  if (!window._autopilotState) return;
+  
+  const tracker = document.getElementById('autopilot-progress-tracker');
+  if (!tracker) return;
+  
+  // Update current step in state
+  window._autopilotState.currentStep = stepNum;
+  
+  // Update status text
+  const statusEl = document.getElementById('autopilot-current-status');
+  if (statusEl) {
+    statusEl.textContent = `Status: ${statusText}`;
+  }
+  
+  // Update step visuals
+  for (let i = 1; i <= 7; i++) {
+    const stepEl = document.getElementById(`autopilot-step-${i}`);
+    if (!stepEl) continue;
+    
+    const icon = stepEl.querySelector('.autopilot-step-icon');
+    const status = stepEl.querySelector('.autopilot-step-status');
+    
+    if (i < stepNum || window._autopilotState.completedSteps.includes(i)) {
+      // Completed
+      stepEl.style.background = '#dcfce7';
+      stepEl.style.borderColor = '#86efac';
+      icon.style.background = '#22c55e';
+      icon.style.color = 'white';
+      status.innerHTML = '<i class="fas fa-check-circle" style="color: #22c55e;"></i>';
+    } else if (i === stepNum) {
+      // Active/In Progress
+      stepEl.style.background = '#dbeafe';
+      stepEl.style.borderColor = '#93c5fd';
+      icon.style.background = '#3b82f6';
+      icon.style.color = 'white';
+      icon.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size: 10px;"></i>';
+      status.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="color: #3b82f6;"></i>';
+    } else {
+      // Pending
+      stepEl.style.background = '#f8fafc';
+      stepEl.style.borderColor = '#e2e8f0';
+      icon.style.background = '#e2e8f0';
+      icon.style.color = '#94a3b8';
+      icon.textContent = i;
+      status.innerHTML = '<i class="fas fa-circle" style="font-size: 6px; color: #cbd5e1;"></i>';
+    }
+  }
+}
+
+function markAutopilotStepComplete(stepNum) {
+  if (!window._autopilotState) return;
+  
+  if (!window._autopilotState.completedSteps.includes(stepNum)) {
+    window._autopilotState.completedSteps.push(stepNum);
+  }
+  
+  const stepEl = document.getElementById(`autopilot-step-${stepNum}`);
+  if (stepEl) {
+    const icon = stepEl.querySelector('.autopilot-step-icon');
+    const status = stepEl.querySelector('.autopilot-step-status');
+    
+    stepEl.style.background = '#dcfce7';
+    stepEl.style.borderColor = '#86efac';
+    icon.style.background = '#22c55e';
+    icon.style.color = 'white';
+    icon.innerHTML = '<i class="fas fa-check" style="font-size: 11px;"></i>';
+    status.innerHTML = '<i class="fas fa-check-circle" style="color: #22c55e;"></i>';
+  }
+}
+
+function closeAutopilotTracker() {
+  const tracker = document.getElementById('autopilot-progress-tracker');
+  if (tracker) tracker.remove();
+  
+  // Only deactivate autopilot if not in middle of generation
+  if (window._autopilotState && !window._autopilotState.generating) {
+    window._autopilotState.active = false;
+  }
+}
+
+// Quality Review for Strategic Intent
+function generateStrategicIntentQualityReview(strategicIntent, ctx) {
+  const themes = strategicIntent.strategic_themes || [];
+  const metrics = strategicIntent.success_metrics || [];
+  const constraints = strategicIntent.strategic_constraints || [];
+  const ambition = strategicIntent.strategic_ambition || '';
+  
+  // Calculate completeness score
+  let score = 0;
+  const checks = [];
+  
+  // Ambition quality (0-20 points)
+  if (ambition.split('.').length >= 3) {
+    score += 20;
+    checks.push('? Comprehensive ambition (3+ sentences)');
+  } else if (ambition.split('.').length >= 2) {
+    score += 10;
+    checks.push('?? Ambition could be more detailed (add transformation context)');
+  } else {
+    checks.push('? Ambition too brief - add current challenge, vision, and target state');
+  }
+  
+  // Themes quality (0-25 points)
+  if (themes.length >= 5) {
+    score += 25;
+    checks.push(`? Good coverage with ${themes.length} strategic themes`);
+  } else if (themes.length >= 4) {
+    score += 15;
+    checks.push(`?? ${themes.length} themes - consider adding 1-2 more (operations, skills, innovation)`);
+  } else {
+    checks.push(`? Only ${themes.length} themes - need 5-6 for comprehensive strategy`);
+  }
+  
+  // Metrics quality (0-30 points)
+  const metricsWithNumbers = metrics.filter(m => /\d+/.test(m));
+  const metricsWithDates = metrics.filter(m => /20\d{2}|Q\d/.test(m));
+  if (metrics.length >= 5 && metricsWithNumbers.length >= 5 && metricsWithDates.length >= 4) {
+    score += 30;
+    checks.push(`? Well-quantified metrics (${metrics.length} metrics with targets and dates)`);
+  } else if (metrics.length >= 4) {
+    score += 20;
+    checks.push(`?? ${metrics.length} metrics - add 1-2 more dimensions (quality, compliance, growth)`);
+    } else {
+    checks.push(`? Only ${metrics.length} metrics - need 5-6 covering customer, cost, time, quality, compliance`);
+  }
+  
+  // Constraints quality (0-25 points)
+  const constraintsWithSpecifics = constraints.filter(c => /\d+|20\d{2}|�|SEK|\$/.test(c));
+  if (constraints.length >= 4 && constraintsWithSpecifics.length >= 3) {
+    score += 25;
+    checks.push(`? Realistic constraints (${constraints.length} with specifics)`);
+  } else if (constraints.length >= 3) {
+    score += 15;
+    checks.push(`?? ${constraints.length} constraints - add resource/skill gaps or organizational barriers`);
+  } else {
+    checks.push(`? Only ${constraints.length} constraints - need 4-5 (legacy tech, regulatory, budget, skills, org)`);
+  }
+  
+  const scoreEmoji = score >= 85 ? '??' : score >= 70 ? '?' : score >= 50 ? '??' : '?';
+  const scoreLabel = score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 50 ? 'Needs Improvement' : 'Incomplete';
+  
+  // Generate refinement questions
+  const refinementQuestions = [];
+  
+  if (ambition.split('.').length < 3) {
+    refinementQuestions.push({
+      section: 'Strategic Ambition',
+      question: `What is the **current challenge or pain point** driving this transformation in your ${ctx.industry || 'industry'}?`,
+      placeholder: `e.g., "High operational costs", "Customer churn", "Regulatory pressure"...`
+    });
+  }
+  
+  if (themes.length < 5) {
+    const missingAreas = [];
+    const themesText = themes.join(' ').toLowerCase();
+    if (!themesText.includes('skill') && !themesText.includes('workforce') && !themesText.includes('upskill')) {
+      missingAreas.push('workforce/skills development');
+    }
+    if (!themesText.includes('operational') && !themesText.includes('efficiency') && !themesText.includes('process')) {
+      missingAreas.push('operational excellence');
+    }
+    if (!themesText.includes('innovation') && !themesText.includes('new') && !themesText.includes('competitive')) {
+      missingAreas.push('innovation/differentiation');
+    }
+    
+    refinementQuestions.push({
+      section: 'Strategic Themes',
+      question: `You have ${themes.length} themes. Consider adding themes related to: ${missingAreas.join(', ')}. What initiatives are planned in these areas?`,
+      placeholder: `e.g., "Training program for 50 staff on new tools by Q2 2025"...`
+    });
+  }
+  
+  if (metrics.length < 5) {
+    const missingMetrics = [];
+    const metricsText = metrics.join(' ').toLowerCase();
+if (!metricsText.includes('nps') && !metricsText.includes('satisfaction') && !metricsText.includes('customer')) {
+      missingMetrics.push('customer satisfaction/NPS');
+    }
+    if (!metricsText.includes('time') && !metricsText.includes('speed') && !metricsText.includes('cycle')) {
+      missingMetrics.push('process speed/time-to-market');
+    }
+    if (!metricsText.includes('compliance') && !metricsText.includes('risk') && !metricsText.includes('audit')) {
+      missingMetrics.push('compliance/risk reduction');
+    }
+    
+    refinementQuestions.push({
+      section: 'Success Metrics',
+      question: `You have ${metrics.length} metrics. What are your targets for: ${missingMetrics.join(', ')}?`,
+      placeholder: `e.g., "Reduce processing time from 14 days to 5 days by Q2 2026"...`
+    });
+  }
+  
+  if (constraints.length < 4) {
+    const missingConstraints = [];
+    const constraintsText = constraints.join(' ').toLowerCase();
+    if (!constraintsText.includes('legacy') && !constraintsText.includes('system') && !constraintsText.includes('erp')) {
+      missingConstraints.push('legacy systems (name, age, cost)');
+    }
+    if (!constraintsText.includes('budget') && !constraintsText.includes('�') && !constraintsText.includes('sek')) {
+      missingConstraints.push('budget limitations (specific amount)');
+    }
+    if (!constraintsText.includes('skill') && !constraintsText.includes('resource') && !constraintsText.includes('headcount')) {
+      missingConstraints.push('skills/resource gaps (specifics)');
+    }
+    
+    refinementQuestions.push({
+      section: 'Strategic Constraints',
+      question: `You have ${constraints.length} constraints. Consider adding: ${missingConstraints.join(', ')}. What are the key barriers?`,
+      placeholder: `e.g., "Use legacy ERP from 2012 with �500K annual maintenance cost"...`
+    });
+  }
+  
+  // Build quality review message
+  let reviewMsg = `---
+
+## ?? Quality Review: ${scoreEmoji} ${score}/100 (${scoreLabel})
+
+${checks.map(c => c).join('\n')}
+
+`;
+  
+  if (refinementQuestions.length > 0) {
+    reviewMsg += `\n### ?? Refinement Questions
+
+To improve your Strategic Intent to "Excellent" level, please provide additional context:
+
+${refinementQuestions.map((q, i) => `**${i + 1}. ${q.section}**
+${q.question}
+${q.placeholder}
+`).join('\n')}
+
+**How to improve:**
+<button class="mode-action-btn mode-action-btn--action" onclick="improveStrategicIntentWithAI();">
+  <i class="fas fa-magic"></i>
+  Answer questions with AI help
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="openStrategicIntentTab();">
+  <i class="fas fa-edit"></i>
+  Edit manually in Executive tab
+</button>
+
+`;
+  }
+  
+  reviewMsg += `---
+
+## ?? Next Steps
+
+<button class="mode-action-btn mode-action-btn--primary" onclick="confirmAutopilotAndContinue();" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none;">
+  <i class="fas fa-check-circle"></i>
+  ${score >= 70 ? 'Looks Good - Continue to Step 2 (BMC)' : 'Skip Review - Continue to Step 2 (Testing)'}
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="regenerateAutopilotStrategicIntent();">
+  <i class="fas fa-redo"></i>
+  Regenerate with more detail
+</button>`;
+  
+  return reviewMsg;
+}
+
+// Base system prompt from instruction file: NexGenEA/js/Instructions/step1/1_0_strategic_intent_autopilot.instruction.md
+async function generateAutopilotStrategicIntent() {
+  const ctx = window._autopilotState?.context || {};
+  
+  addAssistantMessage(`? Generating Strategic Intent based on:\n- Region: **${ctx.region}**\n- Industry: **${ctx.industry}**\n- Detail Level: **${ctx.detailLevel}**\n- Company: "${ctx.companyDescription?.substring(0, 60)}..."\n\nPlease wait...`, { mode: 'autopilot' });
+  showTypingIndicator();
+  
+  // Get company description from autopilot context (user's input), then model, then placeholder
+  const companyDesc = ctx.companyDescription || model?.description || 
+    `Ett ${ctx.industry}-företag verksamt i ${ctx.region} som genomgår digital transformation och EA-modernisering.`;
+  
+  // Use user's description for generation (not placeholder)
+  const actualCompanyDesc = ctx.companyDescription || model?.description || '';
+  
+  if (!actualCompanyDesc) {
+    hideTypingIndicator();
+    addAssistantMessage('❌ No company description provided. Please describe your company first, or restart Autopilot and answer all 4 questions.', { mode: 'autopilot' });
+    return;
+  }
+  
+  const systemPrompt = `You are a Senior Enterprise Architect with 20+ years of experience in ${ctx.industry} sector.
+
+**TASK:** Generate a realistic, industry-grounded Strategic Intent for a ${ctx.industry} organization operating in ${ctx.region}.
+
+**CRITICAL RULES:**
+1. Be REALISTIC and SPECIFIC to ${ctx.industry} in ${ctx.region}
+2. Include actual industry challenges, regulations, and market dynamics
+3. NO generic consulting language - use concrete terms from ${ctx.industry}
+4. Reference real systems, processes, and pain points common in this sector
+5. Strategic ambition must reflect ${ctx.region} market maturity and regulatory environment
+
+**Detail Level:** ${ctx.detailLevel}
+- low: High-level strategic direction only (3-4 themes, 3 metrics)
+- medium: Balanced � key themes, quantified metrics, and constraints (5-6 themes, 4-5 metrics)
+- high: Comprehensive � detailed themes, quantified metrics, specific constraints (7-8 themes, 6+ metrics)
+
+**CRITICAL: Derive EVERYTHING from the company description below. Do NOT use generic industry templates. The themes, metrics, constraints and ambition must reflect what THIS specific company described, not what a typical company in this industry usually does.**
+
+**Output Format (JSON):**
+{
+  "strategic_ambition": "2-3 sentence executive summary of strategic direction � grounded in the company's actual stated challenges and goals",
+  "strategic_themes": ["theme derived from company description", "..."],
+  "success_metrics": ["metric with specific target derived from company context", "..."],
+  "strategic_constraints": ["constraint explicitly or implicitly mentioned in company description", "..."]
+}
+
+Return ONLY valid JSON.`;
+
+  const userPrompt = `Company context: ${actualCompanyDesc}
+
+Region: ${ctx.region}
+Industry: ${ctx.industry}
+Detail level: ${ctx.detailLevel}
+
+Generate Strategic Intent now.`;
+
+  try {
+    const response = await AIService.call({
+      taskId: 'autopilot_strategic_intent',
+      taskType: 'general',
+      systemPrompt,
+      userPrompt,
+      expectsJson: true,
+      replyLanguage: 'sv'
+    });
+    
+    hideTypingIndicator();
+    
+    // Parse the JSON response
+    const strategicIntent = JSON.parse(response.rawOutput.trim());
+
+    // -- BUG-10 FIX: Normalize schema for StepEngine compatibility ----------
+    // Autopilot generates 'strategic_constraints' but Steps 2-7 read 'key_constraints'.
+    // Also bridge other standard fields that downstream steps expect.
+    strategicIntent.key_constraints        = strategicIntent.key_constraints
+                                              || strategicIntent.strategic_constraints || [];
+    strategicIntent.burning_platform       = strategicIntent.burning_platform
+                                              || (strategicIntent.key_constraints || []).slice(0, 2).join('. ') || '';
+    strategicIntent.investigation_scope    = strategicIntent.investigation_scope
+                                              || strategicIntent.strategic_themes || [];
+    strategicIntent.expected_outcomes      = strategicIntent.expected_outcomes
+                                              || strategicIntent.success_metrics || [];
+    strategicIntent.situation_narrative    = strategicIntent.situation_narrative
+                                              || strategicIntent.strategic_ambition || '';
+    strategicIntent.industry               = strategicIntent.industry || ctx.industry || '';
+    strategicIntent.timeframe              = strategicIntent.timeframe || '3-5 years';
+    // -- END BUG-10 FIX -----------------------------------------------------
+
+    // Save to model
+    model.strategicIntent = strategicIntent;
+    model.strategicIntentConfirmed = false; // User sees quality review in standard autopilot
+    model.description = actualCompanyDesc; // Save user's actual description
+    
+    // Format for display
+    const displayMsg = `## 📋 Strategic Intent - Första Utkast
+
+**Strategisk Ambition:**
+${strategicIntent.strategic_ambition}
+
+**Strategiska Teman:**
+${strategicIntent.strategic_themes.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+
+**Framg�ngsm�tt:**
+${strategicIntent.success_metrics.map((m, i) => `� ${m}`).join('\n')}
+
+**Begr�nsningar:**
+${strategicIntent.strategic_constraints.map((c, i) => `� ${c}`).join('\n')}`;
+    
+    addAssistantMessage(displayMsg, { mode: 'autopilot' });
+    
+    // Generate quality review and refinement questions
+    const qualityReview = generateStrategicIntentQualityReview(strategicIntent, ctx);
+    addAssistantMessage(qualityReview, { mode: 'autopilot', offersAction: true });
+    
+    // Save to database (draft mode)
+    saveModelToDB(false, true);
+    
+    // Render Strategic Intent in the Executive tab
+    renderStrategicIntentSection();
+    
+    // Store in autopilot state and mark as complete
+    if (window._autopilotState) {
+      window._autopilotState.generatedData.strategicIntent = strategicIntent;
+      window._autopilotState.completedSteps.push(1);
+    }
+    
+    // Update left sidebar to show completion
+    updateWorkflowStepStates();
+    
+    toast('✅ Strategic Intent draft created! Review the quality report.');
+    scrollToBottom();
+    
+  } catch (error) {
+    hideTypingIndicator();
+    addAssistantMessage(`❌ An error occurred during generation: ${error.message}\n\nTry again or choose Guided Workflow instead.`, { mode: 'autopilot', error: true });
+  }
+}
+
+// Improve Strategic Intent with AI guidance
+async function improveStrategicIntentWithAI() {
+  const ctx = window._autopilotState?.context || {};
+  const industry = ctx.industry || 'your industry';
+  
+  addAssistantMessage(`?? I'll help you refine your Strategic Intent with industry-specific guidance.
+
+Please answer the refinement questions above **one at a time**. I'll use GPT-5 to generate contextual suggestions based on your ${industry} context.
+
+**Simply type your answer** to any question, like:
+- "Our main challenge is..."
+- "We want to add a theme about..."
+- "Our current NPS is X and target is Y..."
+
+Or type **"generate suggestions"** and I'll use AI to propose specific improvements based on your company description.
+
+Type your refinement or "done" when satisfied.`);
+  
+  window._refiningStrategicIntent = true;
+  scrollToBottom();
+}
+
+// Regenerate Strategic Intent with more detail
+async function regenerateAutopilotStrategicIntent() {
+  const ctx = window._autopilotState?.context || {};
+  
+  addAssistantMessage(`?? I'll regenerate with **maximum detail and realism** using GPT-5's industry knowledge.
+
+**Optional:** Provide any additional context to improve generation quality:
+- Specific systems you currently use
+- Current performance metrics (costs, NPS, processing times, etc.)
+- Regulatory deadlines or compliance requirements
+- Strategic priorities for the next 2-3 years
+
+Type your additional context below, or click "Regenerate Now" to proceed with current information.
+
+<button class="mode-action-btn mode-action-btn--primary" onclick="executeAutopilotRegeneration();" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+  <i class="fas fa-redo"></i>
+  Regenerate Now
+</button>`);
+  
+  window._awaitingRegenerationContext = true;
+  scrollToBottom();
+}
+
+// Execute regeneration
+async function executeAutopilotRegeneration() {
+  window._awaitingRegenerationContext = false;
+  
+  // Ask AI to regenerate with explicit instruction for more detail
+  const ctx = window._autopilotState?.context || {};
+  ctx.regenerationRequested = true; // Flag for AI to generate even more detail
+  
+  addAssistantMessage('? Regenerating with maximum detail level...', { mode: 'autopilot' });
+  
+  // Re-run generation
+  await generateAutopilotStrategicIntent();
+}
+
+function openStrategicIntentTab() {
+  // Render the Strategic Intent content first
+  renderStrategicIntentSection();
+  
+  // Switch to Executive tab (which displays Strategic Intent)
+  showTab('exec');
+  
+  // Close chat panel
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel) {
+    panel.classList.add('hidden');
+    document.body.classList.remove('chat-sidebar-open');
+  }
+  
+  toast('📋 Strategic Intent visas i Executive-fliken');
+}
+
+// Helper function to start BMC generation via chat
+function startBMCGeneration() {
+  // Check if we're in Business Object workflow mode
+  const workflowMode = model.workflowMode || 'standard';
+  
+  if (workflowMode === 'business-object') {
+    // Business Object Mode: Start discovery flow for Step 2
+    const panel = document.getElementById('ai-chat-panel');
+    if (panel) {
+      panel.classList.remove('hidden');
+      document.body.classList.add('chat-sidebar-open');
+    }
+    
+    // Start Step 2 in Discovery mode with Business Object context
+    setAssistantMode('discovery', { 
+      step: 2, 
+      stepName: 'Business Model Canvas',
+      workflowMode: 'business-object'
+    });
+    
+    // Show welcome message for Step 2
+    const objectives = model.businessObjectives?.primaryObjectives?.length > 0 && 
+                       model.businessObjectives.primaryObjectives[0] !== '--' ? 
+      model.businessObjectives.primaryObjectives.map((obj, i) => `${i + 1}. ${obj}`).join('\n') : 
+      'No objectives defined yet (please complete Step 1 first)';
+    
+    addAssistantMessage(`## 📊 Step 2: Business Model Canvas
+
+**Business Object Mode - 3 Questions Maximum**
+
+I'll help you create a Business Model Canvas aligned with your business objectives:
+
+${objectives}
+
+I'll ask up to 3 focused questions about:
+1. Value propositions for your objectives
+2. Customer segments and channels
+3. Key activities, resources, and partners
+
+---`, { mode: 'discovery', step: 2 });
+    
+    // Auto-start the first question for Step 2
+    setTimeout(async () => {
+      showTypingIndicator();
+      
+      try {
+        // Get Business Objectives context
+        const businessObjectives = model.businessObjectives ? 
+          JSON.stringify(model.businessObjectives, null, 2) : 
+          'No objectives defined yet';
+        
+        const systemPrompt = `You are a Senior Enterprise Architect and Business Model expert.
+
+**TASK:** Ask the FIRST question (Question 1 of 3) to gather information for creating a Business Model Canvas aligned with these objectives.
+
+**Focus for Question 1:** Value propositions - How will the organization deliver value to achieve these objectives?
+
+**Return ONLY valid JSON:**
+{
+  "question": "Your focused question about value propositions",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "hint": "Why this matters for the Business Model Canvas (1 sentence)",
+  "questionNumber": 1
+}`;
+
+        const userPrompt = `Business Objectives Context:
+${businessObjectives}
+
+Generate the first question for Business Model Canvas in JSON format.`;
+
+        const response = await callAI(systemPrompt, userPrompt, {
+          taskType: 'discovery'
+        });
+        
+        hideTypingIndicator();
+        
+        // Parse JSON response with error handling
+        let questionData;
+        try {
+          questionData = typeof response === 'string' ? JSON.parse(response) : response;
+        } catch (parseErr) {
+          throw new Error(`Failed to parse AI response: ${parseErr.message}`);
+        }
+        
+        // Validate response structure
+        if (!questionData || !questionData.question) {
+          throw new Error('AI response missing required "question" field');
+        }
+        
+        const questionMsg = `### Question 1 of 3
+
+${questionData.question}
+
+${questionData.options ? questionData.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n') : ''}
+
+💡 *${questionData.hint || 'Your answer will help shape the Business Model Canvas.'}*`;
+
+        addAssistantMessage(questionMsg, { mode: 'discovery', step: 2 });
+        scrollToBottom();
+        
+      } catch (error) {
+        hideTypingIndicator();
+        addAssistantMessage(`❌ Error generating question: ${error.message}\n\nPlease describe your value propositions to continue.`, { mode: 'discovery', step: 2, error: true });
+      }
+    }, 1000);
+    
+    toast('✅ Starting Step 2: Business Model Canvas');
+    scrollToBottom();
+    return;
+  }
+  
+  // Standard/Autopilot Mode: Use StepEngine
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel) {
+    panel.classList.remove('hidden');
+    document.body.classList.add('chat-sidebar-open');
+  }
+  
+  // Give UI time to render, then start Step 2
+  setTimeout(() => {
+    if (typeof StepEngine !== 'undefined' && StepEngine.run) {
+      StepEngine.run('step2', window.model);
+      toast('✨ Starting Business Model Canvas generation...');
+    } else {
+      console.error('StepEngine not available');
+      toast('❌ Error: StepEngine not loaded. Please refresh the page.', true);
+    }
+  }, 300);
+}
+
+function confirmAutopilotAndContinue() {
+  // Mark as confirmed
+  model.strategicIntentConfirmed = true;
+  
+  // Save to database
+  saveModelToDB(false, true);
+  
+  addAssistantMessage(`✅ **Strategic Intent Approved!**
+
+You can now proceed to **Step 2: Business Model Canvas**.
+
+<button class="mode-action-btn mode-action-btn--action" onclick="startBMCGeneration();">
+  <i class="fas fa-arrow-right"></i>
+  Start Step 2: BMC
+</button>`, { mode: 'general' });
+  
+  // Exit autopilot mode
+  setAssistantMode('general', {});
+  window._autopilotContext = null;
+  
+  toast('✅ Strategic Intent approved! Ready for Step 2');
+  scrollToBottom();
+}
+
+function regenerateAutopilot() {
+  addAssistantMessage('Okay, let\'s start over. What assumptions would you like to change?', { mode: 'autopilot' });
+  startAutopilotMode();
+}
+
+// -- FULL AUTOPILOT FLOW - All 7 Steps ----
+async function runFullAutopilotFlow() {
+  const ctx = window._autopilotState?.context || {};
+  
+  addAssistantMessage(`?? **Autopilot Mode: Full EA Framework Generation**
+
+I will generate all 7 steps based on:
+- **Region:** ${ctx.region}
+- **Industry:** ${ctx.industry}
+- **Detail Level:** ${ctx.detailLevel}
+
+This uses the same integrated StepEngine as Standard mode, ensuring all steps build on each other and Strategic Intent.
+
+**Progress:**
+1. ? Strategic Intent
+2. ? Business Model Canvas
+3. ? Capability Map
+4. ? Operating Model
+5. ? Gap Analysis
+6. ? Value Pools
+7. ? Transformation Roadmap
+
+<button class="mode-action-btn mode-action-btn--secondary" onclick="stopAutopilot();">
+  <i class="fas fa-stop-circle"></i>
+  Stop Autopilot
+</button>`, { mode: 'autopilot' });
+
+  // Mark autopilot as running
+  if (!window._autopilotState) {
+    window._autopilotState = { active: true, currentStep: 0, completedSteps: [], context: ctx, generatedData: {} };
+  }
+  window._autopilotState.running = true;
+  
+  try {
+    // CRITICAL: Use StepEngine for all steps to ensure proper context integration
+    // Each step builds on previous outputs via StepContext.build()
+    
+    // STEP 1: Business Context (formerly Strategic Intent)
+    if (!window._autopilotState.completedSteps.includes(1)) {
+      await generateAutopilotStrategicIntent();
+
+      // -- BUG-1 FIX: Mark step1 as completed so StepEngine dependency checks pass --
+      // generateAutopilotStrategicIntent() sets strategicIntentConfirmed=false for the
+      // quality-review UX. But StepEngine._validateDependencies('step2') needs either
+      // model.steps.step1.status==='completed' OR !!strategicIntentConfirmed.
+      // In full autopilot we skip the user review step, so we mark it confirmed here.
+      window.model.strategicIntentConfirmed = true;
+      if (!window.model.steps) window.model.steps = {};
+      window.model.steps.step1 = {
+        id: 'step1',
+        name: 'Strategic Intent',
+        status: 'completed',
+        startedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString(),
+        output: window.model.strategicIntent
+      };
+      // -- END BUG-1 FIX ------------------------------------------------------
+
+      window._autopilotState.completedSteps.push(1);
+    }
+    
+    // STEP 2: Business Model Canvas (uses Strategic Intent from Step 1)
+    if (window._autopilotState.running && !window._autopilotState.completedSteps.includes(2)) {
+      addAssistantMessage('? **Step 2:** Generating Business Model Canvas...', { mode: 'autopilot' });
+      await StepEngine.run('step2', window.model);
+      window._autopilotState.completedSteps.push(2);
+      addAssistantMessage('? **Step 2 complete:** Business Model Canvas', { mode: 'autopilot' });
+    }
+    
+    // STEP 3: Capability Map (uses Strategic Intent + BMC)
+    if (window._autopilotState.running && !window._autopilotState.completedSteps.includes(3)) {
+      addAssistantMessage('? **Step 3:** Generating Capability Map...', { mode: 'autopilot' });
+      await StepEngine.run('step3', window.model);
+      window._autopilotState.completedSteps.push(3);
+      addAssistantMessage('? **Step 3 complete:** Capability Map', { mode: 'autopilot' });
+    }
+    
+    // STEP 4: Operating Model (uses Strategic Intent + BMC + Capabilities)
+    if (window._autopilotState.running && !window._autopilotState.completedSteps.includes(4)) {
+      addAssistantMessage('? **Step 4:** Designing Target Operating Model...', { mode: 'autopilot' });
+      await StepEngine.run('step4', window.model);
+      window._autopilotState.completedSteps.push(4);
+      addAssistantMessage('? **Step 4 complete:** Operating Model', { mode: 'autopilot' });
+    }
+    
+    // STEP 5: Gap Analysis (uses all previous outputs)
+    if (window._autopilotState.running && !window._autopilotState.completedSteps.includes(5)) {
+      addAssistantMessage('? **Step 5:** Performing Gap Analysis...', { mode: 'autopilot' });
+      await StepEngine.run('step5', window.model);
+      window._autopilotState.completedSteps.push(5);
+      addAssistantMessage('? **Step 5 complete:** Gap Analysis', { mode: 'autopilot' });
+    }
+    
+    // STEP 6: Value Pools (uses Strategic Intent + Gaps + BMC)
+    if (window._autopilotState.running && !window._autopilotState.completedSteps.includes(6)) {
+      addAssistantMessage('? **Step 6:** Identifying Value Pools...', { mode: 'autopilot' });
+      await StepEngine.run('step6', window.model);
+      window._autopilotState.completedSteps.push(6);
+      addAssistantMessage('? **Step 6 complete:** Value Pools & Strategic Options', { mode: 'autopilot' });
+    }
+    
+    // STEP 7: Transformation Roadmap (uses ALL previous outputs + Strategic Intent)
+    if (window._autopilotState.running && !window._autopilotState.completedSteps.includes(7)) {
+      addAssistantMessage('? **Step 7:** Creating Transformation Roadmap...', { mode: 'autopilot' });
+      await StepEngine.run('step7', window.model);
+      window._autopilotState.completedSteps.push(7);
+      addAssistantMessage('? **Step 7 complete:** Target Architecture & Roadmap', { mode: 'autopilot' });
+    }
+    
+    // Autopilot complete - all 7 steps
+    if (window._autopilotState.running) {
+      addAssistantMessage(`## ✅ Autopilot Complete - Full EA Framework Generated!
+
+All 7 steps are now complete and fully integrated:
+1. ✓ Strategic Intent
+2. ✓ Business Model Canvas
+3. ✓ Capability Map
+4. ✓ Operating Model  
+5. ✓ Gap Analysis
+6. ✓ Value Pools
+7. ✓ **Target Architecture & Transformation Roadmap**
+
+**Key Integration Points:**
+- All outputs trace back to your Strategic Intent (ambition, themes, outcomes)
+- BMC transformation moves inform Operating Model design
+- Capability gaps drive Gap Analysis and Value Pools
+- Target Architecture reflects your strategic themes and operating model
+- Roadmap initiatives address priority gaps and value pools
+
+**What you can do now:**
+1. 📋 **Review each step** in the left sidebar tabs
+2. 📊 **View Dashboard** to see enterprise-wide analytics
+3. 📄 **Export results** as PDF or JSON
+4. ✏️ **Refine** any step using the "Discuss" button
+
+<button class="mode-action-btn mode-action-btn--primary" onclick="showTab('home', null);">
+  <i class="fas fa-table-cells-large"></i>
+  View Enterprise Dashboard
+</button>
+
+<button class="mode-action-btn mode-action-btn--secondary" onclick="showTab('step7', null);">
+  <i class="fas fa-road"></i>
+  View Transformation Roadmap
+</button>`, { mode: 'general' });
+      
+      window._autopilotState.running = false;
+      window._autopilotState.active = false;
+      
+      toast('✅ Full EA Framework generated! All 7 steps integrated.');
+      
+      // Update workflow progress
+      if (typeof updateWorkflowProgress === 'function') {
+        updateWorkflowProgress([1, 2, 3, 4, 5, 6, 7]);
+      }
+    }
+    
+  } catch (error) {
+    window._autopilotState.running = false;
+    addAssistantMessage(`⚠️ Autopilot stopped due to an error in Step ${window._autopilotState.completedSteps.length + 1}:\n\n${error.message}\n\nPartial results are saved. You can review what was generated and continue manually from here.`, { mode: 'autopilot', error: true });
+    console.error('[Autopilot] Error:', error);
+  }
+}
+
+function stopAutopilot() {
+  if (window._autopilotState) {
+    window._autopilotState.running = false;
+  }
+  addAssistantMessage('⏸️ Autopilot stopped. All generated steps are saved. Would you like to continue manually?', { mode: 'general' });
+  toast('Autopilot stopped');
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// -- AUTOPILOT STEP GENERATORS ----
+
+async function generateAutopilotBMC() {
+  const ctx = window._autopilotState?.context || {};
+  const strategicIntent = model?.strategicIntent;
+  
+  updateAutopilotProgress(2, 'Genererar Business Model Canvas...');
+  
+  const strategicAmbition = strategicIntent?.strategic_ambition || '';
+  const themes = (strategicIntent?.strategic_themes || []).join(', ');
+  const constraints = (strategicIntent?.key_constraints || []).join(', ');
+  
+  // Base system prompt from instruction file: NexGenEA/js/Instructions/step2/2_0_bmc_autopilot.instruction.md
+  const systemPrompt = `You are a Business Model expert generating a complete Business Model Canvas aligned with Strategic Intent in AUTOPILOT mode.
+
+**Context:** Industry: ${ctx.industry} | Region: ${ctx.region} | Detail level: ${ctx.detailLevel}
+
+**Strategic Context:**
+- Ambition: ${strategicAmbition}
+- Themes: ${themes}
+- Constraints: ${constraints}
+
+---
+
+## CRITICAL RULES
+
+### 1. VALUE PROPOSITION (MANDATORY)
+**Format:** String (2-4 sentences) � NOT an array
+**Requirements:**
+- MUST be a complete, compelling statement describing unique value delivered to customers
+- MUST directly reflect the strategic ambition: "${strategicAmbition}"
+- MUST explain what customer problem is solved and how
+- Follow this pattern: "We help [customer segment] achieve [outcome] by providing [solution]. Unlike [traditional approach], our [differentiator] enables [benefit]. This directly supports [strategic theme]."
+- NEVER leave empty or use placeholder text
+
+### 2. CONTEXT GROUNDING
+All elements MUST be derived from the company description and strategic context provided in the user prompt � NOT from generic ${ctx.industry} templates. Generate content unique to THIS specific organisation's situation.
+
+### 3. STRATEGIC ALIGNMENT
+Every BMC element should trace to strategic themes: ${themes}
+
+### 4. COMPLETENESS
+- ALL fields must be populated � NO empty arrays or placeholder strings
+- Minimum content: value_proposition (2-4 sentences), customer_segments (2-4), channels (3-5), customer_relationships (2-3), revenue_streams (2-4 with pricing models), key_resources (3-5), key_activities (3-5), key_partners (2-4), cost_structure (3-5)
+
+---
+
+## OUTPUT FORMAT (JSON only)
+
+{
+  "value_proposition": "REQUIRED: 2-4 sentence string following pattern above",
+  "customer_segments": ["segment 1 with characteristics", "segment 2", "segment 3"],
+  "channels": ["specific channel 1", "channel 2", "channel 3", "channel 4"],
+  "customer_relationships": ["relationship type 1", "type 2", "type 3"],
+  "revenue_streams": ["stream 1 with pricing model", "stream 2", "stream 3"],
+  "key_resources": ["critical resource 1", "resource 2", "resource 3", "resource 4"],
+  "key_activities": ["core activity 1", "activity 2", "activity 3", "activity 4"],
+  "key_partners": ["partner type 1", "partner 2", "partner 3"],
+  "cost_structure": ["cost category 1", "cost 2", "cost 3", "cost 4"]
+}
+
+Return ONLY valid JSON. No markdown, no comments.`;
+
+  const userPrompt = `Company: "${ctx.companyDescription || model?.description || ''}"
+
+Strategic Ambition: "${strategicAmbition}"
+Strategic Themes: ${themes}
+Constraints: ${constraints}
+
+Generate a complete Business Model Canvas grounded in THIS company's actual context above. Every element � value proposition, segments, channels, activities � must reflect what this specific company does, not a generic ${ctx.industry} template.
+
+The Value Proposition MUST be a single coherent 2-4 sentence string (NOT an array).`;
+  
+  try {
+    const response = await AIService.call({
+      taskId: 'autopilot_bmc',
+      taskType: 'general',
+      systemPrompt,
+      userPrompt,
+      expectsJson: true
+    });
+    
+    const bmc = JSON.parse(response.rawOutput.trim());
+    model.bmc = bmc;
+    window._autopilotState.generatedData.bmc = bmc;
+    window._autopilotState.completedSteps.push(2);
+    
+    saveModelToDB(false, true);
+    markAutopilotStepComplete(2);
+    
+  } catch (error) {
+    updateAutopilotProgress(2, 'Fel vid BMC-generering');
+    throw error;
+  }
+}
+
+// Base system prompt from instruction file: NexGenEA/js/Instructions/step3/3_0_capability_map_autopilot.instruction.md
+async function generateAutopilotCapabilityMap() {
+  const ctx = window._autopilotState?.context || {};
+  const strategicIntent = model?.strategicIntent;
+  const bmc = model?.bmc;
+  
+  updateAutopilotProgress(3, 'Genererar Capability Map...');
+  
+  const systemPrompt = `You are an Enterprise Architect specializing in capability modeling for ${ctx.industry}.
+
+**TASK:** Generate a comprehensive Capability Map organized by domains.
+
+**Context:**
+- Industry: ${ctx.industry}
+- Strategic Intent: ${JSON.stringify(strategicIntent)}
+- BMC: ${JSON.stringify(bmc)}
+
+**CRITICAL RULES:**
+1. Use standard EA capability domains (e.g., Customer, Product, Operations, Support, Technology)
+2. Each capability must have: id, name, domain, maturity (1-5), strategic importance (low/medium/high/critical)
+3. Include ${ctx.detailLevel === 'high' ? '20-25' : ctx.detailLevel === 'medium' ? '12-15' : '8-10'} capabilities
+4. Capabilities must reflect ${ctx.industry} reality and BMC key activities
+
+**Output Format (JSON):**
+{
+  "capabilities": [
+    {
+      "id": "cap_001",
+      "name": "Customer Onboarding",
+      "domain": "Customer",
+      "maturity": 3,
+      "strategicImportance": "high",
+      "description": "Brief description"
+    },
+    ...
+  ]
+}
+
+Return ONLY valid JSON.`;
+
+  const userPrompt = `Generate Capability Map.`;
+  
+  try {
+    const response = await AIService.call({
+      taskId: 'autopilot_capabilities',
+      taskType: 'heavy',
+      systemPrompt,
+      userPrompt,
+      expectsJson: true
+    });
+    
+    const data = JSON.parse(response.rawOutput.trim());
+    model.capabilities = data.capabilities || [];
+    window._autopilotState.generatedData.capabilities = data.capabilities;
+    window._autopilotState.completedSteps.push(3);
+    
+    saveModelToDB(false, true);
+    markAutopilotStepComplete(3);
+    
+  } catch (error) {
+    updateAutopilotProgress(3, 'Fel vid Capability Map-generering');
+    throw error;
+  }
+}
+
+// Base system prompt from instruction file: NexGenEA/js/Instructions/step4/4_0_operating_model_autopilot.instruction.md
+async function generateAutopilotOperatingModel() {
+  const ctx = window._autopilotState?.context || {};
+  const capabilities = model?.capabilities || [];
+  
+  updateAutopilotProgress(4, 'Genererar Operating Model...');
+  
+  const systemPrompt = `You are an Operating Model expert for ${ctx.industry}.
+
+**TASK:** Generate Operating Model dimensions: governance, organization, processes, data, technology.
+
+**Context:**
+- Industry: ${ctx.industry}
+- Capabilities: ${capabilities.length} defined
+
+**Output Format (JSON):**
+{
+  "governance": { "structure": "...", "decisionRights": "...", "kpis": ["..."] },
+  "organization": { "structure": "...", "roles": ["..."], "culture": "..." },
+  "processes": { "coreProcesses": ["..."], "maturity": "..." },
+  "data": { "strategy": "...", "governance": "...", "platforms": ["..."] },
+  "technology": { "architecture": "...", "platforms": ["..."], "investmentFocus": "..." }
+}
+
+Return ONLY valid JSON.`;
+
+  const userPrompt = `Generate Operating Model.`;
+  
+  try {
+    const response = await AIService.call({
+      taskId: 'autopilot_operating_model',
+      taskType: 'general',
+      systemPrompt,
+      userPrompt,
+      expectsJson: true
+    });
+    
+    const opModel = JSON.parse(response.rawOutput.trim());
+    model.operatingModel = opModel;
+    window._autopilotState.generatedData.operatingModel = opModel;
+    window._autopilotState.completedSteps.push(4);
+    
+    saveModelToDB(false, true);
+    markAutopilotStepComplete(4);
+    
+  } catch (error) {
+    updateAutopilotProgress(4, 'Fel vid Operating Model-generering');
+    throw error;
+  }
+}
+
+// Base system prompt from instruction file: NexGenEA/js/Instructions/step5/5_0_gap_analysis_autopilot.instruction.md
+async function generateAutopilotGapAnalysis() {
+  const ctx = window._autopilotState?.context || {};
+  const capabilities = model?.capabilities || [];
+  
+  updateAutopilotProgress(5, 'Genererar Gap Analysis...');
+  
+  const systemPrompt = `You are a Gap Analysis expert for ${ctx.industry}.
+
+**TASK:** Identify capability gaps (current vs target state).
+
+**Context:**
+- ${capabilities.length} capabilities with current maturity
+- Need to define target state and gaps
+
+**Output Format (JSON):**
+{
+  "gaps": [
+    {
+      "capability": "Customer Onboarding",
+      "currentMaturity": 2,
+      "targetMaturity": 4,
+      "gap": 2,
+      "priority": "high",
+      "reasoning": "..."
+    },
+    ...
+  ]
+}
+
+Return ONLY valid JSON with top 8-10 gaps.`;
+
+  const userPrompt = `Current capabilities: ${JSON.stringify(capabilities.map(c => ({ name: c.name, maturity: c.maturity })))}`;
+  
+  try {
+    const response = await AIService.call({
+      taskId: 'autopilot_gap_analysis',
+      taskType: 'analysis',
+      systemPrompt,
+      userPrompt,
+      expectsJson: true
+    });
+    
+    const gapData = JSON.parse(response.rawOutput.trim());
+    model.gapAnalysis = gapData;
+    window._autopilotState.generatedData.gapAnalysis = gapData;
+    window._autopilotState.completedSteps.push(5);
+    
+    saveModelToDB(false, true);
+    markAutopilotStepComplete(5);
+    
+  } catch (error) {
+    updateAutopilotProgress(5, 'Fel vid Gap Analysis-generering');
+    throw error;
+  }
+}
+
+// Base system prompt from instruction file: NexGenEA/js/Instructions/step6/6_0_value_pools_autopilot.instruction.md
+async function generateAutopilotValuePools() {
+  const ctx = window._autopilotState?.context || {};
+  const bmc = model?.bmc;
+  const gaps = model?.gapAnalysis?.gaps || [];
+  
+  updateAutopilotProgress(6, 'Genererar Value Pools...');
+  
+  const systemPrompt = `You are a Value Pool expert for ${ctx.industry}.
+
+**TASK:** Identify value pools (business opportunities) from EA transformation.
+
+**Context:**
+- BMC revenue streams: ${JSON.stringify(bmc?.revenue_streams)}
+- Top capability gaps: ${gaps.slice(0, 5).map(g => g.capability).join(', ')}
+
+**Output Format (JSON):**
+{
+  "valuePools": [
+    {
+      "name": "Pool name",
+      "estimatedValue": "�X M annually",
+      "timeToValue": "6-12 months",
+      "confidence": "high",
+      "enablers": ["capability 1", "capability 2"]
+    },
+    ...
+  ]
+}
+
+Return ONLY valid JSON with 5-7 value pools.`;
+
+  const userPrompt = `Generate Value Pools for ${ctx.industry}.`;
+  
+  try {
+    const response = await AIService.call({
+      taskId: 'autopilot_value_pools',
+      taskType: 'analysis',
+      systemPrompt,
+      userPrompt,
+      expectsJson: true
+    });
+    
+    const rawData = JSON.parse(response.rawOutput.trim());
+    // Normalize: AI may return {valuePools:[...]} or {value_pools:[...]} or array directly
+    const vpArray = Array.isArray(rawData)
+      ? rawData
+      : (rawData.valuePools || rawData.value_pools || []);
+    model.valuePools = vpArray;  // Always store as array
+    window._autopilotState.generatedData.valuePools = vpArray;
+    window._autopilotState.completedSteps.push(6);
+    
+    saveModelToDB(false, true);
+    markAutopilotStepComplete(6);
+    
+  } catch (error) {
+    updateAutopilotProgress(6, 'Fel vid Value Pool-generering');
+    throw error;
+  }
+}
+
+// Base system prompt from instruction file: NexGenEA/js/Instructions/step7/7_0_roadmap_autopilot.instruction.md
+async function generateAutopilotRoadmap() {
+  const ctx = window._autopilotState?.context || {};
+  const gaps = model?.gapAnalysis?.gaps || [];
+  const valuePools = Array.isArray(model.valuePools)
+    ? model.valuePools
+    : (model?.valuePools?.valuePools || model?.valuePools?.value_pools || []);
+  
+  updateAutopilotProgress(7, 'Genererar Transformation Roadmap...');
+  
+  const systemPrompt = `You are a Transformation Roadmap expert for ${ctx.industry}.
+
+**TASK:** Create a 12-18 month transformation roadmap with prioritized initiatives.
+
+**Context:**
+- Top gaps: ${gaps.slice(0, 8).map(g => `${g.capability} (gap: ${g.gap})`).join(', ')}
+- Value pools: ${valuePools.map(v => v.name).join(', ')}
+
+**Output Format (JSON):**
+{
+  "initiatives": [
+    {
+      "id": "init_001",
+      "name": "Initiative name",
+      "description": "...",
+      "timeline": "Q1 2025",
+      "priority": "P1",
+      "dependencies": [],
+      "kpis": ["KPI 1", "KPI 2"],
+      "estimatedCost": "�X M",
+      "expectedValue": "�Y M"
+    },
+    ...
+  ],
+  "timeline": {
+    "Q1_2025": ["init_001", "init_002"],
+    "Q2_2025": ["init_003"],
+    ...
+  }
+}
+
+Return ONLY valid JSON with 8-12 initiatives across 4-6 quarters.`;
+
+  const userPrompt = `Generate Transformation Roadmap.`;
+  
+  try {
+    const response = await AIService.call({
+      taskId: 'autopilot_roadmap',
+      taskType: 'heavy',
+      systemPrompt,
+      userPrompt,
+      expectsJson: true
+    });
+    
+    const roadmap = JSON.parse(response.rawOutput.trim());
+    model.roadmap = roadmap;
+    window._autopilotState.generatedData.roadmap = roadmap;
+    window._autopilotState.completedSteps.push(7);
+    
+    saveModelToDB(false, true);
+    markAutopilotStepComplete(7);
+    
+  } catch (error) {
+    updateAutopilotProgress(7, 'Fel vid Roadmap-generering');
+    throw error;
+  }
+}
+
+async function handleActionMessage(userMessage) {
+  const modeInfo = getAssistantMode();
+  const proposedChange = modeInfo.context.proposedChange || userMessage;
+  
+  // Build current model context
+  const modelContext = JSON.stringify({
+    strategicIntent: model.strategicIntent,
+    bmc: model.bmc,
+    capabilities: (model.capabilities || []).map(c => ({ id: c.id, name: c.name, domain: c.domain, maturity: c.maturity })),
+    operatingModel: model.operatingModel,
+    systems: (model.systems || []).map(s => ({ name: s.name, status: s.status }))
+  }, null, 2);
+  
+  const systemPrompt = `Du \u00e4r en expert Enterprise Architect i **Action Mode**. Din uppgift \u00e4r att omvandla anv\u00e4ndarens \u00f6nskem\u00e5l till exakta EA-modell uppdateringar.
+
+**Tillg\u00e4ngliga actions:**
+- update_strategic_intent: { "action": "update_strategic_intent", "field": "strategic_ambition|strategic_themes|key_constraints|success_metrics", "value": "..." }
+- update_bmc: { "action": "update_bmc", "field": "value_proposition|customer_segments|key_activities|...", "value": "..." }
+- update_capability: { "action": "update_capability", "id": "...", "field": "name|maturity|strategicImportance|description", "value": "..." }
+- add_capability: { "action": "add_capability", "name": "...", "domain": "...", "maturity": 2, "strategicImportance": "high", "description": "..." }
+- remove_capability: { "action": "remove_capability", "id": "..." }
+- add_system: { "action": "add_system", "name": "...", "status": "active", "category": "core", "description": "..." }
+
+**Din process:**
+1. F\u00f6rst\u00e5 exakt vad anv\u00e4ndaren vill \u00e4ndra
+2. Generera r\u00e4tt JSON-action
+3. F\u00f6rklara vad som kommer att h\u00e4nda
+4. Embed JSON i \`\`\`json block
+
+Return JSON + explanation.`;
+
+  const userPrompt = `**Current EA Model:**
+\`\`\`json
+${modelContext}
+\`\`\`
+
+**Requested change:**
+"${proposedChange}"
+
+Generate the action JSON to fulfill this request.`;
+
+  showTypingIndicator();
+  
+  try {
+    const response = await callAI(systemPrompt, userPrompt, { 
+      taskType: 'action',
+      _traceLabel: 'Action Mode'
+    });
+    
+    hideTypingIndicator();
+    
+    // Parse and execute command
+    const command = parseAssistantCommand(response);
+    if (command && command.action) {
+      addAssistantMessage(response, { mode: 'action', hasCommand: true });
+      const context = buildConversationContext();
+      await executeAssistantCommand(command, userMessage, context);
+      
+      // Return to Discovery Mode after action
+      setTimeout(() => returnToDiscoveryMode(), 1000);
+    } else {
+      addAssistantMessage(response + '\\n\\n\u274c Could not generate a valid action. Would you like to clarify?', { mode: 'action', error: true });
+    }
+    
+  } catch (error) {
+    hideTypingIndicator();
+    addAssistantMessage(`\u274c Action Mode error: ${error.message}`, { mode: 'action', error: true });
+  }
+  
+  scrollToBottom();
+}
+
+function returnToDiscoveryMode() {
+  const prevContext = assistantContext;
+  setAssistantMode('discovery', { step: prevContext.step, stepName: prevContext.stepName });
+  addAssistantMessage('The change has been completed. Would you like to discuss anything else or make more changes?', { mode: 'discovery' });
+  scrollToBottom();
+}
+
+async function processUserMessage(userMessage) {
+  const context = buildConversationContext();
+  context.preferredLanguage = resolveResponseLanguage(userMessage);
+
+  // -- AUTOPILOT COMPANY DESCRIPTION INPUT -----------------------------------
+  if (window._autopilotState?.awaitingCompanyDescription) {
+    window._autopilotState.awaitingCompanyDescription = false;
+    window._autopilotState.context.companyDescription = userMessage.trim();
+    
+    // Save to model
+    model.description = userMessage.trim();
+    
+    // Now show flow choice buttons
+    const flowChoice = `## ✅ Company description received!
+
+**Description received:** "${userMessage.substring(0, 150)}${userMessage.length > 150 ? '...' : ''}"
+
+AI can now generate:
+
+**📄 Step 1 Only (Strategic Intent)** - Generate Strategic Intent draft for you to review and adjust.
+
+**🚀 Full Autopilot (All 7 steps)** - Generate complete EA model from start to finish. Perfect for test/demo!
+
+<button class="mode-action-btn mode-action-btn--action" onclick="generateAutopilotStrategicIntent()">
+  <i class="fas fa-file-alt"></i>
+  Step 1 Only - Strategic Intent
+</button>
+<button class="mode-action-btn mode-action-btn--primary" onclick="runFullAutopilotFlow()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+  <i class="fas fa-rocket"></i>
+  Full Autopilot - All 7 steps
+</button>`;
+    
+    addAssistantMessage(flowChoice, { mode: 'autopilot', offersAction: true });
+    scrollToBottom();
+    return { _handled: true };
+  }
+
+  // -- DISCOVERY MODE ---------------------------------------------------------
+  const currentMode = getAssistantMode();
+  if (currentMode.mode === 'discovery') {
+    await handleDiscoveryMessage(userMessage);
+    return { _handled: true };
+  }
+  
+  // -- ACTION MODE ------------------------------------------------------------
+  if (currentMode.mode === 'action') {
+    await handleActionMessage(userMessage);
+    return { _handled: true };
+  }
+
+  // -- WORKFLOW SELECTION -----------------------------------------------------
+  if (/\b(i want|start|begin)\s+(standard workflow|guided workflow)\b/i.test(userMessage)) {
+    const lang = getAppLanguage();
+    const response = lang === 'sv' 
+      ? `## ⚡ Standard Workflow valt!
+
+The structured approach guides you step-by-step through all 7 EA components:
+
+1. 🎯 **Strategic Intent** – Strategic ambition and objectives
+2. 📊 **Business Model Canvas** – Value proposition and business model
+3. 🗃️ **Capability Map** – Organizational capabilities
+4. ⚙️ **Operating Model** – Operating model
+5. 🔍 **Gap Analysis** – Gap analysis and maturity assessment
+6. 💰 **Value Pools** – Value pools and potential opportunities
+7. 🗺️ **Target Architecture & Roadmap** – Target architecture and roadmap
+
+**Next step:** Start with Step 1 by clicking **"Start Step 1"** in the main menu, or ask me: "start step 1" / "begin with strategic intent".
+
+You can also ask me about any of the steps to learn more!`
+      : `## ⚡ Standard Workflow Selected!
+
+The structured approach guides you step-by-step through all 7 EA components:
+
+1. 🎯 **Strategic Intent** – Strategic ambition and objectives
+2. 📊 **Business Model Canvas** – Value proposition and business model
+3. 🗃️ **Capability Map** – Organizational capabilities
+4. ⚙️ **Operating Model** – Operating model
+5. 🔍 **Gap Analysis** – Gap analysis and maturity assessment
+6. 💰 **Value Pools** – Value pools and potential opportunities
+7. 🗺️ **Target Architecture & Roadmap** – Target architecture and roadmap
+
+**Next step:** Begin with Step 1 by clicking **"Start Step 1"** in the main menu, or ask me: "start step 1" / "begin strategic intent".
+
+You can also ask me about any of the steps to learn more!`;
+    
+    return { content: response, metadata: null };
+  }
+
+  if (/\b(i want|start|begin)\s+(free chat|flexible|freeform)\s*(mode)?\b/i.test(userMessage)) {
+    const lang = getAppLanguage();
+    const response = lang === 'sv'
+      ? `## 💬 Free Chat Mode!
+
+You can now give direct commands or ask questions freely, for example:
+
+- "Generate architecture for a retail company"
+- "Create a capability map for banking"
+- "Add a capability under Customer"
+- "Show roadmap"
+- "Open capability map"
+
+**Tip:** I understand both English and Swedish. Just describe what you want to do!
+
+Want to follow the structured approach instead? Say "start step 1" or "begin standard workflow".`
+      : `## 💬 Free Chat Mode!
+
+You can now give direct commands or ask questions freely, for example:
+
+- "Generate architecture for a retail company"
+- "Create a capability map for banking"
+- "Add a capability under Customer"
+- "Show roadmap"
+- "Open capability map"
+
+**Tip:** I understand both English and Swedish. Just describe what you want to do!
+
+Want to follow the structured approach instead? Say "start step 1" or "begin standard workflow".`;
+    
+    return { content: response, metadata: null };
+  }
+
+  // -- START STEP 1 (Strategic Intent) ----------------------------------------
+  if (/\b(start|begin|börja)\s+(step 1|steg 1|strategic intent)\b/i.test(userMessage)) {
+    // Start preliminary questionnaire before Step 1
+    setTimeout(() => {
+      startPreliminaryQuestionnaire();
+    }, 500);
+    
+    const lang = getAppLanguage();
+    const response = lang === 'sv'
+      ? `## 🎯 Startar Strategic Intent (Step 1)!
+
+Innan vi börjar behöver jag lite kontext om din organisation...`
+      : `## 🎯 Starting Strategic Intent (Step 1)!
+
+Before we begin, I need some context about your organization...`;
+    
+    return { content: response, metadata: null };
+  }
+
+  // If a step-focused chat is active, route through step-specific handler
+  if (window._stepChatContext) {
+    if (/\b(exit|close|back|general|reset context)\b/i.test(userMessage)) {
+      closeStepChatContext();
+      return { content: 'Returned to general EA Assistant mode. What would you like to work on?', metadata: null };
+    }
+    const stepResult = await handleStepFocusedMessage(userMessage, context, window._stepChatContext);
+    return stepResult;
+  }
+
+  // Handle pending recommendations confirmation
+  // Handle pending add-capability confirmation
+  if (window._pendingAddCapability) {
+    if (/\b(yes|confirm|add it|add this|ok\b|go ahead|sure|proceed)\b/i.test(userMessage)) {
+      const p = window._pendingAddCapability;
+      window._pendingAddCapability = null;
+      const normalized = normalizeCapabilities([p])[0];
+      model.capabilities.push(normalized);
+      ensureBusinessFields(); computeDerivedFinancials();
+      renderLayers(); renderCapMap(); renderHeatmap(); renderMaturityDashboard(); renderExecSummary();
+      autoSaveCurrentModel();
+      return { content: `Added **${normalized.name}** (${normalized.domain}, M${normalized.maturity}, ${normalized.strategicImportance} importance) to the capability map.`, metadata: { affectedCapabilities: [normalized.id] } };
+    }
+    if (/\b(no|cancel|skip|don't|discard|nope|nej)\b/i.test(userMessage)) {
+      window._pendingAddCapability = null;
+      return { content: 'Cancelled. Let me know if you want to add a different capability or make other changes.', metadata: null };
+    }
+    // Treat as an adjustment to the pending proposal
+    const adjusted = await handleAddCapability(userMessage, context);
+    return adjusted;
+  }
+
+  if (window._pendingRecommendations) {
+    if (/\b(yes|apply|ja|ok\b|confirm|proceed|sure|do it|go ahead)\b/i.test(userMessage)) {
+      const result = applyAIRecommendations(window._pendingRecommendations);
+      return result;
+    }
+    if (/\b(no|skip|cancel|ignore|nej|avbryt|nope|don't)\b/i.test(userMessage)) {
+      window._pendingRecommendations = null;
+      return { content: 'Recommendations discarded. Let me know if you would like a different analysis.', metadata: null };
+    }
+  }
+
+  const command = parseAssistantCommand(userMessage);
+  if (command) {
+    const commandResult = await executeAssistantCommand(command, userMessage, context);
+    if (commandResult) {
+      return commandResult;
+    }
+  }
+  const intent = detectIntent(userMessage);
+
+  let result;
+  switch (intent) {
+    case 'generate_architecture':
+      result = await handleGenerateArchitecture(userMessage, context);
+      break;
+    case 'add_capability':
+      result = await handleAddCapability(userMessage, context);
+      break;
+    case 'refine_capability':
+      result = await handleRefineCapability(userMessage, context);
+      break;
+    case 'gap_analysis':
+      result = await handleGapAnalysis(context);
+      break;
+    case 'maturity_assessment':
+      result = await handleMaturityAssessment(context);
+      break;
+    case 'analyze_and_recommend':
+      result = await handleAnalyzeAndApply(userMessage, context);
+      break;
+    default:
+      result = await handleGeneralQuestion(userMessage, context);
+      break;
+  }
+
+  return result;
+}
+
+async function handleGenerateArchitecture(userMessage, context) {
+  const lower = userMessage.toLowerCase();
+  const wantsReplace = /replace|from scratch|new one/.test(lower);
+  const wantsAugment = /augment|add to existing|extend/.test(lower);
+
+  if (context.hasExistingArchitecture && !wantsReplace && !wantsAugment) {
+    return {
+      content:
+        'You already have an architecture with **' + context.capabilityCount + '** capabilities.\n\n' +
+        'Should I:\n' +
+        '1. **Replace** it based on your new description\n' +
+        '2. **Augment** it by adding more capabilities\n' +
+        '3. **Refine** the existing architecture\n\n' +
+        'Reply with replace, augment, or refine and include your context.',
+      metadata: null
+    };
+  }
+
+  spin('s1', true);
+  try {
+    const sourceSeed = extractArchitectureSeedFromMessage(userMessage) || userMessage;
+    let optimizedSeed = sourceSeed;
+    let optimizationNote = '';
+
+    try {
+      const optimized = await optimizeArchitecturePromptText(sourceSeed, { timeoutMs: 45000 });
+      if (optimized.optimizedPrompt) {
+        optimizedSeed = optimized.optimizedPrompt;
+        optimizationNote = ' Prompt optimized before generation.';
+      }
+    } catch (_) {
+      // Continue generation with original seed if optimizer is unavailable.
+    }
+
+    const orgInfo = await extractOrganizationInfo(optimizedSeed);
+    const fullArch = await generateArchitectureFromPrompt(optimizedSeed, orgInfo || {});
+
+    if (wantsAugment && model.capabilities.length) {
+      const existingNames = new Set(model.capabilities.map(c => (c.name || '').toLowerCase()));
+      const newCaps = normalizeCapabilities(fullArch.capabilities || []);
+      newCaps.forEach((cap) => {
+        if (!existingNames.has((cap.name || '').toLowerCase())) model.capabilities.push(cap);
+      });
+    } else {
+      model = { ...model, ...fullArch };
+      model.capabilities = normalizeCapabilities(model.capabilities || []);
+    }
+
+    model.organizationInfo = orgInfo || model.organizationInfo || {};
+    if (orgInfo && orgInfo.context) document.getElementById('description').value = orgInfo.context;
+    if (!orgInfo?.context) document.getElementById('description').value = optimizedSeed;
+
+    if (orgInfo?.industry) {
+      const profileKey = mapIndustryToProfileKey(orgInfo.industry);
+      const profile = PHASE4_INDUSTRY_PROFILES[profileKey] || PHASE4_INDUSTRY_PROFILES.generic;
+      model.phase4Config = {
+        industry: profileKey,
+        activeBusinessAreas: normalizeBusinessAreas(profile.areas)
+      };
+    }
+
+    ensurePhase4Fields();
+    ensureBusinessFields();
+    computeDerivedFinancials();
+    renderLayers();
+    renderCapMap();
+    renderHeatmap();
+    renderMaturityDashboard();
+    populateImpactSelect();
+    renderExecSummary();
+    generateNarrative();
+    updateDataCollectionTab();
+    renderPhase4ControlsFromModel();
+    autoSaveCurrentModel();
+
+    return {
+      content:
+        `Great, I generated **${model.capabilities.length} capabilities** across ` +
+        `**${new Set(model.capabilities.map(c => c.domain || 'General')).size} domains** with ` +
+        `**${(model.systems||[]).length} systems** and **${(model.aiAgents||[]).length} AI agents**.\n\n` +
+        `Organization: ${orgInfo?.name || 'Not specified'}\n` +
+        `Industry: ${orgInfo?.industry || 'General'}\n\n` +
+        'Switch to the **Dep. Graph** tab to see the dependency graph. Ask me to add capabilities, run gap analysis, or generate a maturity assessment.' + optimizationNote,
+      metadata: { affectedCapabilities: model.capabilities.map(c => c.id).filter(Boolean) }
+    };
+  } finally {
+    spin('s1', false);
+  }
+}
+
+async function handleAddCapability(userMessage, context) {
+  if (!context.hasExistingArchitecture) {
+    return {
+      content: 'Start by generating an architecture first, then I can add specific capabilities.',
+      metadata: null
+    };
+  }
+
+  const existingDomains = [...new Set((model.capabilities || []).map(c => c.domain || 'Operations'))].join(', ');
+  const existingVS = [...new Set((model.valueStreams || []).map(v => v.name || v))].join(', ');
+  const si = model.strategicIntent;
+
+  // Use AI to validate and enrich the request � always produces a proposal the user can confirm or adjust
+  const raw = await callAI(
+    `You are a senior enterprise architect. Validate a request to add a new capability to an existing architecture.
+Rules:
+- Ensure there is no duplicate of an existing capability (by name or intent)
+- Ensure the domain, maturity (1-5) and strategic importance are appropriate given the strategic context
+- Ensure the capability is grounded in the strategy or BMC � reject out-of-scope requests
+- If any required field is missing or ambiguous, propose the most reasonable value and flag it for confirmation
+- Always return a single JSON proposal object plus a validation_notes string
+Return ONLY valid JSON � no markdown.`,
+    `User request: "${userMessage}"
+
+Existing capabilities (${(model.capabilities||[]).length}):
+${JSON.stringify((model.capabilities||[]).map(c=>({name:c.name,domain:c.domain,maturity:c.maturity,strategicImportance:c.strategicImportance})))}
+
+Existing domains: ${existingDomains}
+Value streams: ${existingVS}
+Strategic ambition: ${si?.strategic_ambition || 'not defined'}
+Strategic themes: ${(si?.strategic_themes||[]).join(' � ')}
+
+Return JSON:
+{"proposal":{"name":"","domain":"Customer|Product|Operations|Risk|Finance|Technology|Support","valueStream":"","maturity":2,"strategicImportance":"high|medium|low","description":"one sentence describing what this capability does and why it matters"},"validation_notes":"any warnings, assumptions or fields that need user confirmation","is_duplicate":false,"duplicate_of":""}`,
+    { taskType: 'lightweight', temperature: 0.2, _traceLabel: 'Add Capability � Validate' }
+  );
+
+  let parsed;
+  try { parsed = JSON.parse(extractJSON(raw)); } catch(_) { parsed = null; }
+
+  if (!parsed?.proposal) {
+    // Fallback: generate directly
+    const newCapability = await generateSingleCapability(userMessage, context);
+    const normalized = normalizeCapabilities([newCapability])[0];
+    model.capabilities.push(normalized);
+    ensureBusinessFields(); computeDerivedFinancials();
+    renderLayers(); renderCapMap(); renderHeatmap(); renderMaturityDashboard(); renderExecSummary();
+    autoSaveCurrentModel();
+    return { content: `Added **${normalized.name}** (${normalized.domain}, M${normalized.maturity}, ${normalized.strategicImportance} importance).`, metadata: { affectedCapabilities: [normalized.id] } };
+  }
+
+  if (parsed.is_duplicate) {
+    return {
+      content: `? **Duplicate detected** � a similar capability already exists: **${parsed.duplicate_of}**.\n\n${parsed.validation_notes}\n\nIf you want to update the existing capability instead, say: _"update capability ${parsed.duplicate_of}"_`,
+      metadata: null
+    };
+  }
+
+  const p = parsed.proposal;
+  // Stage the capability for confirmation
+  window._pendingAddCapability = p;
+
+  return {
+    content: `**Proposed new capability:**\n\n` +
+      `**Name:** ${p.name}\n` +
+      `**Domain:** ${p.domain}\n` +
+      `**Value Stream:** ${p.valueStream || 'not assigned'}\n` +
+      `**Maturity:** ${p.maturity}/5\n` +
+      `**Strategic Importance:** ${p.strategicImportance}\n` +
+      `**Description:** ${p.description}\n\n` +
+      (parsed.validation_notes ? `? _${parsed.validation_notes}_\n\n` : '') +
+      `Reply **"confirm"** to add this capability, or tell me what to adjust.`,
+    metadata: null
+  };
+}
+
+async function handleRefineCapability(userMessage, context) {
+  if (!context.hasExistingArchitecture) {
+    return { content: 'Generate an architecture first so I can refine capabilities.', metadata: null };
+  }
+
+  const raw = await callAI(
+    `You are a senior enterprise architect. Analyze a refinement request and return structured change proposals for specific capabilities.
+- Match capability names exactly from the provided list
+- Each recommendation must target a specific capability by id and name
+- Valid fields to update: maturity (1-5), strategicImportance (high/medium/low), domain, description, valueStream
+- Return ONLY valid JSON � no markdown, no prose.`,
+    `Current capabilities:
+${JSON.stringify((model.capabilities||[]).map(c=>({id:c.id,name:c.name,domain:c.domain,maturity:c.maturity,strategicImportance:c.strategicImportance,description:c.description})))}
+
+Strategic ambition: ${model.strategicIntent?.strategic_ambition || 'not defined'}
+
+User refinement request: "${userMessage}"
+
+Return JSON:
+{"summary":"2-sentence rationale","recommendations":[{"action":"update_capability","id":"<id>","name":"<name>","field":"maturity|strategicImportance|domain|description|valueStream","value":"<new value>","description":"why"}]}`,
+    { taskType: 'lightweight', temperature: 0.2, replyLanguage: context.preferredLanguage, _traceLabel: 'Refine Capability' }
+  );
+
+  let parsed;
+  try { parsed = JSON.parse(extractJSON(raw)); } catch(_) { parsed = null; }
+
+  if (!parsed?.recommendations?.length) {
+    return { content: raw, metadata: null };
+  }
+
+  window._pendingRecommendations = parsed;
+
+  const lines = parsed.recommendations.map((r, i) =>
+    `${i+1}. **${r.name}** � set ${r.field} to \`${r.value}\`: ${r.description}`
+  ).join('\n');
+
+  return {
+    content: `**Capability refinement proposal:**\n\n${parsed.summary}\n\n${lines}\n\nReply **"apply"** to make these changes, or tell me what to adjust.`,
+    metadata: { pendingRecommendations: parsed }
+  };
+}
+
+function getGapAnalysisContextSnapshot() {
+  const capabilities = model.capabilities || [];
+  const initiatives = model.initiatives || [];
+  const systems = model.systems || [];
+  const aiAgents = model.aiAgents || [];
+  const domainCounts = capabilities.reduce((acc, capability) => {
+    const domain = capability.domain || 'General';
+    acc[domain] = (acc[domain] || 0) + 1;
+    return acc;
+  }, {});
+
+  const lowMaturityHotspots = capabilities
+    .filter((capability) => Number(capability.maturity || 0) <= 2)
+    .sort((left, right) => {
+      const l = left.strategicImportance === 'high' ? 0 : left.strategicImportance === 'medium' ? 1 : 2;
+      const r = right.strategicImportance === 'high' ? 0 : right.strategicImportance === 'medium' ? 1 : 2;
+      return l - r;
+    })
+    .slice(0, 8)
+    .map((capability) => ({
+      name: capability.name,
+      domain: capability.domain || 'General',
+      maturity: Number(capability.maturity || 0),
+      strategicImportance: capability.strategicImportance || 'medium'
+    }));
+
+  const topInitiatives = initiatives.slice(0, 8).map((initiative) => ({
+    name: initiative.name,
+    impactsCapability: initiative.impactsCapability || '',
+    priority: initiative.priority || 'medium',
+    complexity: initiative.complexity || 'medium'
+  }));
+
+  const integrationSources = [
+    { id: 'bmc', key: 'bmc_latest' },
+    { id: 'valueChain', key: 'valuechain_latest' },
+    { id: 'capability', key: 'capability_latest' },
+    { id: 'strategy', key: 'strategy_latest' },
+    { id: 'maturity', key: 'maturity_latest' }
+  ];
+
+  const toolkitContext = integrationSources.map((source) => {
+    const payload = dataManager?.getIntegrationData ? dataManager.getIntegrationData(source.key) : null;
+    if (!payload) {
+      return { source: source.id, available: false };
+    }
+
+    return {
+      source: source.id,
+      available: true,
+      lastUpdated: payload.lastUpdated || payload.exportedAt || payload.generatedAt || null,
+      capabilityCount: Array.isArray(payload.capabilities) ? payload.capabilities.length : undefined,
+      componentCount: Array.isArray(payload.components) ? payload.components.length : undefined,
+      activityCount: Array.isArray(payload.activities) ? payload.activities.length : undefined,
+      score: payload.totalScore || payload.score || payload.maturityScore || null,
+      framework: payload.frameworkName || payload.framework || null
+    };
+  });
+
+  return {
+    organizationContext: String(document.getElementById('description')?.value || '').slice(0, 1600),
+    industryProfile: model.phase4Config?.industry || 'generic',
+    activeBusinessAreas: normalizeBusinessAreas(model.phase4Config?.activeBusinessAreas || ['general']),
+    architectureStats: {
+      capabilityCount: capabilities.length,
+      systemCount: systems.length,
+      aiAgentCount: aiAgents.length,
+      initiativeCount: initiatives.length,
+      averageMaturity: capabilities.length
+        ? Number((capabilities.reduce((sum, capability) => sum + Number(capability.maturity || 0), 0) / capabilities.length).toFixed(2))
+        : 0,
+      domainCounts
+    },
+    lowMaturityHotspots,
+    topInitiatives,
+    toolkitContext
+  };
+}
+
+async function requestDynamicGapAnalysis(contextHint = {}) {
+  const snapshot = getGapAnalysisContextSnapshot();
+  const capabilityIndex = (model.capabilities || []).map(c => ({
+    name: c.name,
+    domain: c.domain,
+    maturity: c.maturity,
+    strategicImportance: c.strategicImportance,
+    targetMaturity: ((model.targetArch || []).find(t => t.name === c.name) || {}).targetMaturity || null
+  }));
+  const sysGap = (window._stepPrompts && window._stepPrompts.step_5) ||
+    'You are an enterprise architecture gap analysis expert. Stay industry-agnostic by default, and adapt only to evidence from provided context. Return ONLY valid JSON, no markdown.';
+  return callAI(
+    sysGap,
+    `Create a clear and actionable gap analysis using architecture and toolkit context.
+
+Context:
+${JSON.stringify({ ...snapshot, contextHint }, null, 2)}
+
+Capability model (${capabilityIndex.length} capabilities):
+${JSON.stringify(capabilityIndex, null, 2)}
+
+Return JSON with this exact shape:
+{
+  "title": "Gap Analysis",
+  "executiveSummary": "2 concise sentences",
+  "gapAnalysis": [{"title":"","detail":"","severity":"high|medium|low","capability_ref":"capability name from the capability model","priority_score":{"strategic_alignment":5,"financial_impact":5,"feasibility":3,"urgency":4,"weighted_total":4.3},"classification":"quick_win|foundation|strategic_bet|defer","cost_of_gap_annual":0}],
+  "desiredState": [{"title":"","detail":""}],
+  "currentState": [{"title":"","detail":""}],
+  "actionSteps": [{"title":"","detail":"","owner":"Business|Technology|Data|Risk|Operations","timeHorizon":"0-90 days|3-6 months|6-12 months","depends_on":[]}]
+}
+
+Rules:
+- 4 to 6 rows per lane.
+- Every gap must reference a specific capability by name from the provided capability model.
+- priority_score.weighted_total = (strategic_alignment*0.35 + financial_impact*0.30 + urgency*0.25 + feasibility*0.10).
+- classification: quick_win = high impact + low complexity; foundation = enables other gaps; strategic_bet = high impact + high complexity + long horizon; defer = low impact.
+- cost_of_gap_annual: estimated annual cost (�) of not closing this gap.
+- depends_on in actionSteps: list action titles that must complete first (empty array if none).
+- Ensure each action maps to a corresponding gap and is practical.
+- Do not include commentary outside JSON.`,
+    { taskType: 'heavy', temperature: 0.2, replyLanguage: contextHint.preferredLanguage || getAppLanguage() }
+  );
+}
+
+function parseGapAnalysisJson(rawText) {
+  const text = String(rawText || '').trim();
+  if (!text) return null;
+
+  try {
+    const parsed = JSON.parse(extractJSON(text));
+    if (parsed && typeof parsed === 'object') return parsed;
+  } catch (error) {
+    // Fallback to text-based parser in formatGapAnalysisOutput.
+  }
+
+  return null;
+}
+
+async function handleGapAnalysis(context) {
+  if (!context.hasExistingArchitecture) {
+    return { content: 'I need an architecture first. Describe your organization and I will generate one.', metadata: null };
+  }
+
+  spin('s5', true);
+  try {
+    const insights = await requestDynamicGapAnalysis({ source: 'assistant_chat', activeView: context.activeView || null, preferredLanguage: context.preferredLanguage || getAppLanguage() });
+    document.getElementById('insights').innerHTML = formatGapAnalysisOutput(insights);
+    const structured = parseGapAnalysisJson(insights);
+    const summary = structured?.executiveSummary || 'Gap analysis completed and rendered in the Gap tab.';
+    return { content: `Here is the gap analysis.\n\n${summary}`, metadata: null };
+  } finally {
+    spin('s5', false);
+  }
+}
+
+async function handleMaturityAssessment(context) {
+  if (!context.hasExistingArchitecture) {
+    return { content: 'I need an architecture first. Ask me to generate one.', metadata: null };
+  }
+
+  analyseMaturity();
+  const maturityByDomain = {};
+  (model.capabilities || []).forEach((c) => {
+    const domain = c.domain || 'General';
+    if (!maturityByDomain[domain]) maturityByDomain[domain] = [];
+    maturityByDomain[domain].push(Number(c.maturity || 0));
+  });
+
+  const summary = Object.keys(maturityByDomain).map((domain) => {
+    const values = maturityByDomain[domain];
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+    return `${domain}: ${avg.toFixed(1)}/5`;
+  }).join('\n');
+
+  return {
+    content: `Maturity assessment complete.\n\nAverage maturity by domain:\n${summary}`,
+    metadata: null
+  };
+}
+
+async function handleGeneralQuestion(userMessage, context) {
+  const si = model.strategicIntent;
+  const caps = model.capabilities || [];
+  const bmc = model.bmc || {};
+  const om = model.operatingModel || {};
+  const vp = model.valuePools || [];
+  const initiatives = model.initiatives || [];
+  const targetArch = model.targetArch || [];
+
+  // -- NEW USER WORKFLOW CHOICE --------------------------------------------------
+  // Show workflow options for new users UNLESS they're making a direct generation request
+  const hasAnySteps = si || caps.length || bmc.value_proposition || om.valueProposition || vp.length || initiatives.length || targetArch.length || model.gapAnalysisDone;
+  const messageCount = (context.chatHistory || []).length;
+  const isDirectGenerationRequest = /\b(generate|create|build|make|show me|add|generer|skapa)\b.*\b(architecture|bmc|canvas|capability|cap map|operating model|gaps?|maturity|arkitektur|f�rm�ga)/i.test(userMessage);
+  
+  if (!hasAnySteps && messageCount < 2 && !isDirectGenerationRequest) {
+    return {
+      content: `## Welcome! Choose how to build your Enterprise Architecture:
+
+**🚀 Autopilot** (Fastest - 5 min)
+- Answer 3 quick questions  
+- AI generates all 7 EA steps automatically
+- Best for: Quick start, demos, testing
+
+**⚡ Standard Workflow** (Recommended - 15-30 min)
+- Step-by-step guidance with focused questions
+- More control over each component
+- Best for: Production models, detailed planning
+
+**💬 Free Chat** (Flexible)
+- Direct commands like "generate architecture for retail company"
+- Best for: Experienced EA users
+
+---
+
+<button class="mode-action-btn mode-action-btn--primary" onclick="startAutopilotMode()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+  <i class="fas fa-magic"></i> Start Autopilot
+</button>
+<button class="mode-action-btn mode-action-btn--action" onclick="addUserMessage('I want standard workflow'); sendMessage();" style="background: #4A7763; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-left: 8px;">
+  <i class="fas fa-route"></i> Standard Workflow  
+</button>
+<button class="mode-action-btn mode-action-btn--secondary" onclick="addUserMessage('I want free chat mode'); sendMessage();" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-left: 8px;">
+  <i class="fas fa-comments"></i> Free Chat
+</button>
+
+*Or just type a command directly, like "generate architecture for a retail company"*`,
+      metadata: { requiresChoice: true }
+    };
+  }
+
+  // Build rich step context from structured model data (independent of chat history; survives page refresh)
+  const stepDetails = [];
+
+  // Step 1: Check for business-object mode (new) OR legacy strategic intent
+  if (model.businessContext) {
+    // NEW: Business-object mode
+    const bc = model.businessContext;
+    const themes = model.strategicThemes || [];
+    const objectives = model.businessObjectives || [];
+    const gaps = model.gapInsights || [];
+    
+    const objectivesSummary = objectives.slice(0, 8).map(obj => 
+      `  - [${obj.priority}/${obj.category}] ${obj.title}: ${obj.kpi} → ${obj.target_value} (${obj.time_horizon})`
+    ).join('\n');
+    
+    const themesSummary = themes.slice(0, 6).map(t => `  - ${t.name}`).join('\n');
+    
+    const gapsSummary = gaps.length > 0 
+      ? `\n  gap_insights (${gaps.length}):\n` + gaps.slice(0, 5).map(g => `    - [${g.type}] ${g.description}`).join('\n')
+      : '';
+    
+    stepDetails.push(
+      `Step 1 � Business Context (business-object mode):\n` +
+      `  industry: ${bc.industry || 'N/A'}\n` +
+      `  market_summary: ${(bc.market_summary || '').slice(0, 150)}...\n` +
+      `  challenges: ${(bc.challenges || []).join(', ')}\n` +
+      `  constraints: ${(bc.constraints || []).join(', ')}\n` +
+      `  strategic_themes (${themes.length}):\n${themesSummary}\n` +
+      `  business_objectives (${objectives.length}):\n${objectivesSummary}${gapsSummary}`
+    );
+  } else if (si) {
+    // LEGACY: Strategic Intent mode
+    stepDetails.push(
+      `Step 1 � Strategic Intent:\n` +
+      `  ambition: ${si.strategic_ambition || 'not set'}\n` +
+      `  themes: ${(si.strategic_themes || []).join('; ') || 'none'}\n` +
+      `  constraints: ${(si.key_constraints || []).join('; ') || 'none'}\n` +
+      `  metrics: ${(si.success_metrics || []).join('; ') || 'none'}\n` +
+      `  timeframe: ${si.timeframe || 'not set'}`
+    );
+  }
+
+  if (bmc.value_proposition) {
+    stepDetails.push(
+      `Step 2 � Business Model Canvas (TO-BE):\n` +
+      `  value_proposition: ${bmc.value_proposition}\n` +
+      `  customer_segments: ${(bmc.customer_segments || []).join(', ') || 'none'}\n` +
+      `  key_activities: ${(bmc.key_activities || []).join(', ') || 'none'}\n` +
+      `  revenue_streams: ${(bmc.revenue_streams || []).join(', ') || 'none'}\n` +
+      `  key_partners: ${(bmc.key_partners || []).join(', ') || 'none'}`
+    );
+  }
+
+  if (caps.length) {
+    const avgMat = (caps.reduce((s, c) => s + Number(c.maturity || 0), 0) / caps.length).toFixed(1);
+    const capLines = caps.slice(0, 20).map(c => `  - ${c.name} [${c.domain}] maturity:${c.maturity}/5 importance:${c.strategicImportance}`).join('\n');
+    stepDetails.push(`Step 3 � Capability Map (${caps.length} capabilities, avg maturity ${avgMat}/5):\n${capLines}`);
+  }
+
+  if (om.valueProposition) {
+    stepDetails.push(
+      `Step 4 � Operating Model:\n` +
+      `  value_proposition: ${om.valueProposition}\n` +
+      `  key_activities: ${(om.keyActivities || []).join(', ') || 'none'}\n` +
+      `  key_resources: ${(om.keyResources || []).join(', ') || 'none'}\n` +
+      `  cost_structure: ${om.costStructure || 'not set'}\n` +
+      `  revenue_streams: ${(om.revenueStreams || []).join(', ') || 'none'}`
+    );
+  }
+
+  if (model.gapAnalysisDone && model.gapAnalysisRaw) {
+    const parsedGaps = parseGapAnalysisJson(model.gapAnalysisRaw);
+    if (parsedGaps) {
+      const gapLines = (parsedGaps.gapAnalysis || []).slice(0, 10)
+        .map(g => `  - [${g.severity}] ${g.title}: ${g.detail ? g.detail.slice(0, 80) : ''} (ref: ${g.capability_ref || '?'}, class: ${g.classification || '?'})`)
+        .join('\n');
+      stepDetails.push(
+        `Step 5 � Gap Analysis:\n` +
+        `  summary: ${parsedGaps.executiveSummary || 'completed'}\n` +
+        `  gaps (${(parsedGaps.gapAnalysis || []).length}):\n${gapLines}`
+      );
+    } else {
+      stepDetails.push(`Step 5 � Gap Analysis:\n  ${String(model.gapAnalysisRaw).slice(0, 600)}`);
+    }
+  } else if (model.gapAnalysisDone) {
+    stepDetails.push('Step 5 � Gap Analysis: completed');
+  }
+
+  if (vp.length) {
+    const vpLines = vp.map(v => `  - ${v.name || v.title || v.area || ''}: ${v.estimatedValue || v.value || ''} priority:${v.priority || v.rank || '?'}`).join('\n');
+    stepDetails.push(`Step 6 � Value Pools (${vp.length}):\n${vpLines}`);
+  }
+
+  if (targetArch.length || initiatives.length) {
+    const archLines = targetArch.slice(0, 12).map(t => `  - ${t.name} [${t.domain}] ${t.currentMaturity}?${t.targetMaturity} (${t.strategicImportance})`).join('\n');
+    const initLines = initiatives.slice(0, 10).map(i => `  - ${i.name || i.title} Phase ${i.phase} ${i.estimatedBusinessValue || ''} [${i.priority || ''}]`).join('\n');
+    stepDetails.push(`Step 7 � Target Architecture & Roadmap:\n  Capability uplifts (${targetArch.length}):\n${archLines}\n  Initiatives (${initiatives.length}):\n${initLines}`);
+  }
+
+  const stepsContext = stepDetails.length
+    ? `\n\nCompleted EA steps (full detail):\n${stepDetails.join('\n\n')}`
+    : '\n\nNo EA steps completed yet.';
+
+  // ── INJECT BUSINESS CONTEXT KNOWLEDGE (if relevant to query) ──────────────
+  let businessContextKnowledge = '';
+  if (shouldInjectBusinessContext(userMessage)) {
+    businessContextKnowledge = buildBusinessContextPromptContext();
+    if (businessContextKnowledge) {
+      console.log('[AI Assistant] 📚 Injecting Business Context knowledge into prompt');
+    }
+  }
+
+  const systemPrompt = (typeof AdvisyAI !== 'undefined')
+    ? AdvisyAI.buildSystemPrompt({ userText: userMessage })
+    : `You are Advicy AI, a senior enterprise architecture and business strategy advisor. You guide users through a 7-step EA framework: (1) Strategic Intent, (2) Business Model Canvas, (3) Capability Map, (4) Operating Model, (5) Gap Analysis, (6) Value Pools, (7) Target Architecture & Roadmap.\n\nYou have full awareness of the user's completed steps and their outputs. When answering, always orient guidance toward the strategic ambition captured in Step 1. Reference specific step outputs when relevant, flag cross-step dependencies, and suggest next actions that are correctly sequenced in the EA workflow.${businessContextKnowledge ? '\n\nYou also have access to detailed Business Context knowledge from Step 1 (business objectives, strategic themes, risks, gaps). Use this knowledge to provide specific, contextual answers about the organization\'s strategic direction, priorities, and challenges.' : ''}\n\nFormatting rules: Write for a C-level audience. Use ## for section headers, bullet points starting with "- " for lists, leave a blank line between each section, and keep sentences concise and commercially focused.`;
+
+  const answerRequirements = '\n- Reference specific step outputs when relevant (e.g. "Based on your ambition to...", "Your gap analysis shows...")\n- Flag cross-step dependencies if the question touches multiple steps\n- Suggest concrete next actions within the platform\n- Be concise and commercially sharp' + (businessContextKnowledge ? '\n- When answering about business objectives, risks, themes, or strategy, reference the specific Business Context data (objectives, KPIs, priorities, gaps)' : '');
+
+  const response = await callAI(
+    systemPrompt,
+    `Context: ${JSON.stringify(context)}${stepsContext}${businessContextKnowledge}\n\nActive tab: ${context.activeView}\n\nUser question: ${userMessage}\n\nAnswer requirements:${answerRequirements}`,
+    { taskType: 'lightweight', temperature: 0.3, replyLanguage: context.preferredLanguage }
+  );
+  return {
+    content: `Context: **${context.activeView}**\n\n${response}`,
+    metadata: null
+  };
+}
+
+// Global pending recommendations store
+window._pendingRecommendations = null;
+
+async function handleAnalyzeAndApply(userMessage, context) {
+  const si = model.strategicIntent || {};
+  const caps = (model.capabilities || []).map(c => ({ id: c.id, name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance, description: c.description }));
+  const bmc = model.bmc || {};
+  const opModel = model.operatingModel || {};
+  const valuePools = (model.valuePools || []).slice(0, 8);
+  const initiatives = (model.initiatives || []).map(i => ({ name: i.name || i.title, phase: i.phase, priority: i.priority, estimatedBusinessValue: i.estimatedBusinessValue, impactsCapability: i.impactsCapability }));
+  const targetArch = (model.targetArch || []).map(t => ({ name: t.name, domain: t.domain, currentMaturity: t.currentMaturity, targetMaturity: t.targetMaturity, strategicImportance: t.strategicImportance, action: t.action }));
+
+  const focusStep = /step\s*1|strategic\s*intent/i.test(userMessage) ? 1
+    : /step\s*2|business\s*model|bmc/i.test(userMessage) ? 2
+    : /step\s*3|capabilit/i.test(userMessage) ? 3
+    : /step\s*4|operating\s*model/i.test(userMessage) ? 4
+    : /step\s*5|gap\s*analysis/i.test(userMessage) ? 5
+    : /step\s*6|value\s*pool/i.test(userMessage) ? 6
+    : /step\s*7|target\s*arch|roadmap/i.test(userMessage) ? 7 : null;
+
+  const systemPrompt = `You are an expert enterprise architecture consultant with strategic advisory experience. Analyze the full EA model and return structured JSON recommendations grounded in the strategic intent. Return ONLY valid JSON � no markdown, no prose outside the JSON.`;
+
+  const userPrompt = `Full EA model:
+Strategic Intent: ${JSON.stringify(si)}
+Business Model Canvas: ${JSON.stringify(bmc)}
+Capabilities (${caps.length}): ${JSON.stringify(caps)}
+Operating Model: ${JSON.stringify(opModel)}
+Value Pools: ${JSON.stringify(valuePools)}
+Target Architecture: ${JSON.stringify(targetArch)}
+Roadmap Initiatives: ${JSON.stringify(initiatives)}
+Active view: ${context.activeView}${focusStep ? `\nUser focus area: Step ${focusStep}` : ''}
+
+User request: ${userMessage}
+
+Return JSON:
+{
+  "summary": "2-3 sentence analysis grounded in the strategic ambition",
+  "recommendations": [
+    {"action": "update_strategic_intent", "field": "strategic_ambition|strategic_themes|key_constraints|success_metrics", "value": "...", "description": "Why"},
+    {"action": "update_bmc", "field": "value_proposition|customer_segments|key_activities|key_resources|key_partners|channels|cost_structure|revenue_streams", "value": "...", "description": "Why"},
+    {"action": "update_capability", "id": "<id>", "name": "<name>", "field": "maturity|strategicImportance|description|domain", "value": "...", "description": "Why"},
+    {"action": "add_capability", "name": "...", "domain": "...", "maturity": 2, "strategicImportance": "high|medium|low", "description": "..."},
+    {"action": "update_value_pools", "value": [...], "description": "Why"},
+    {"action": "update_initiatives", "value": [...], "description": "Why"}
+  ]
+}
+Include 3-8 focused, actionable recommendations that close the gap between current model state and the strategic ambition.`;
+
+  let parsed = null;
+  try {
+    const raw = await callAI(systemPrompt, userPrompt, { taskType: 'heavy', temperature: 0.2 });
+    parsed = parseJSONResponse(raw);
+  } catch (e) {
+    return { content: 'Unable to generate structured recommendations. Please try again or rephrase.', metadata: null };
+  }
+
+  if (!parsed || !Array.isArray(parsed.recommendations) || !parsed.recommendations.length) {
+    return { content: 'I analyzed the model but found no concrete improvements to recommend at this time.', metadata: null };
+  }
+
+  window._pendingRecommendations = parsed;
+
+  const lines = parsed.recommendations.map((r, i) => {
+    if (r.action === 'add_capability') return `${i+1}. **Add capability** "${r.name}" (${r.domain}, maturity ${r.maturity}) � ${r.description}`;
+    if (r.action === 'update_capability') return `${i+1}. **Update capability** "${r.name}": set ${r.field} = ${r.value} � ${r.description}`;
+    if (r.action === 'update_strategic_intent') return `${i+1}. **Update strategic intent** (${r.field}) � ${r.description}`;
+    if (r.action === 'update_bmc') return `${i+1}. **Update business model** (${r.field}) � ${r.description}`;
+    if (r.action === 'update_value_pools') return `${i+1}. **Update value pools** � ${r.description}`;
+    if (r.action === 'update_initiatives') return `${i+1}. **Update roadmap initiatives** � ${r.description}`;
+    return `${i+1}. ${r.description}`;
+  }).join('\n');
+
+  return {
+    content: `**Analysis complete**\n\n${parsed.summary}\n\n**Recommended changes (${parsed.recommendations.length}):**\n${lines}\n\nWould you like me to apply all these changes?`,
+    metadata: { pendingRecommendations: parsed }
+  };
+}
+
+function applyAIRecommendations(pendingRecs) {
+  if (!pendingRecs || !Array.isArray(pendingRecs.recommendations)) {
+    return { content: 'No recommendations to apply.', metadata: null };
+  }
+  let applied = 0;
+  const newCaps = [];
+
+  for (const rec of pendingRecs.recommendations) {
+    try {
+      if (rec.action === 'update_capability') {
+        const cap = model.capabilities.find(c => c.id === rec.id);
+        if (cap) {
+          if (rec.field === 'maturity') {
+            cap.maturity = Math.max(1, Math.min(5, parseInt(rec.value, 10) || cap.maturity));
+          } else {
+            cap[rec.field] = rec.value;
+          }
+          applied++;
+        }
+      } else if (rec.action === 'add_capability') {
+        const newCap = {
+          id: 'cap_ai_' + Date.now() + '_' + applied,
+          name: rec.name || 'New Capability',
+          domain: rec.domain || 'Operations',
+          maturity: Math.max(1, Math.min(5, parseInt(rec.maturity, 10) || 2)),
+          strategicImportance: rec.strategicImportance || 'medium',
+          description: rec.description || '',
+          businessAreas: model.phase4Config?.activeBusinessAreas || ['general'],
+          what: rec.what || rec.name || '',
+          revenueExposure: 'medium', regulatoryExposure: 'medium',
+          operationalCriticality: 3, fteHoursSavedPct: 10,
+          investmentEstimate: 100000, riskExposureEstimate: 200000
+        };
+        model.capabilities.push(newCap);
+        newCaps.push(newCap.name);
+        applied++;
+      } else if (rec.action === 'remove_capability') {
+        const before = model.capabilities.length;
+        model.capabilities = model.capabilities.filter(c =>
+          c.id !== rec.id && c.name.toLowerCase() !== (rec.name || '').toLowerCase()
+        );
+        if (model.capabilities.length < before) applied++;
+      } else if (rec.action === 'update_strategic_intent') {
+        if (!model.strategicIntent) model.strategicIntent = {};
+        const arrayFields = ['strategic_themes', 'key_constraints', 'success_metrics'];
+        if (arrayFields.includes(rec.field) && typeof rec.value === 'string') {
+          model.strategicIntent[rec.field] = rec.value.split(/[,;]\s*/).map(s => s.trim()).filter(Boolean);
+        } else {
+          model.strategicIntent[rec.field] = rec.value;
+        }
+        // Reset confirmation � user must re-confirm after AI edits
+        model.strategicIntentConfirmed = false;
+        applied++;
+      } else if (rec.action === 'update_bmc') {
+        if (!model.bmc) model.bmc = {};
+        const snakeToCamel = s => s.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
+        const camelField = snakeToCamel(rec.field || '');
+        if (model.bmc.hasOwnProperty(rec.field)) {
+          model.bmc[rec.field] = rec.value;
+        } else if (model.bmc.hasOwnProperty(camelField)) {
+          model.bmc[camelField] = rec.value;
+        } else {
+          model.bmc[rec.field] = rec.value;
+        }
+        applied++;
+      } else if (rec.action === 'update_bmc_current') {
+        // AS-IS BMC (model.bmc_current)
+        if (!model.bmc_current) model.bmc_current = {};
+        const snakeToCamel2 = s => s.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
+        const cf2 = snakeToCamel2(rec.field || '');
+        model.bmc_current[model.bmc_current.hasOwnProperty(rec.field) ? rec.field : cf2] = rec.value;
+        applied++;
+      } else if (rec.action === 'update_operating_model') {
+        // Step 4 Operating Model (model.operatingModel � camelCase keys)
+        if (!model.operatingModel) model.operatingModel = {};
+        const snakeToCamel3 = s => s.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
+        const omField = snakeToCamel3(rec.field || '');
+        const targetField = model.operatingModel.hasOwnProperty(rec.field) ? rec.field : omField;
+        model.operatingModel[targetField] = rec.value;
+        applied++;
+      } else if (rec.action === 'update_value_pools') {
+        if (Array.isArray(rec.value)) {
+          model.valuePools = rec.value;
+          applied++;
+        }
+      } else if (rec.action === 'update_initiatives') {
+        if (Array.isArray(rec.value)) {
+          model.initiatives = rec.value;
+          applied++;
+        }
+      } else if (rec.action === 'add_system') {
+        if (!model.systems) model.systems = [];
+        model.systems.push({ name: rec.name||'New System', status: rec.status||'active', category: rec.category||'core', supportsCapability: rec.supportsCapability||null, criticality: rec.criticality||'medium', description: rec.description||'' });
+        applied++;
+      } else if (rec.action === 'update_system') {
+        const sys = (model.systems||[]).find(s => s.name.toLowerCase()===(rec.name||'').toLowerCase());
+        if (sys && rec.field) { sys[rec.field]=rec.value; applied++; }
+      } else if (rec.action === 'remove_system') {
+        const before=(model.systems||[]).length;
+        model.systems=(model.systems||[]).filter(s=>s.name.toLowerCase()!==(rec.name||'').toLowerCase());
+        if (model.systems.length<before) applied++;
+      } else if (rec.action === 'add_ai_agent') {
+        if (!model.aiAgents) model.aiAgents = [];
+        model.aiAgents.push({ name: rec.name||'New AI Agent', purpose: rec.purpose||'', supportsCapability: rec.supportsCapability||null, status: rec.status||'active', capabilities: rec.capabilities||'', triggerConditions: rec.triggerConditions||'' });
+        applied++;
+      } else if (rec.action === 'update_ai_agent') {
+        const agent=(model.aiAgents||[]).find(a=>a.name.toLowerCase()===(rec.name||'').toLowerCase());
+        if (agent && rec.field) { agent[rec.field]=rec.value; applied++; }
+      } else if (rec.action === 'remove_ai_agent') {
+        const before=(model.aiAgents||[]).length;
+        model.aiAgents=(model.aiAgents||[]).filter(a=>a.name.toLowerCase()!==(rec.name||'').toLowerCase());
+        if (model.aiAgents.length<before) applied++;
+      }
+    } catch (_) {}
+  }
+
+  autoSaveCurrentModel();
+  renderLayers();
+  renderCapMap();
+  renderHeatmap();
+  if (typeof renderStrategicIntentSection === 'function') renderStrategicIntentSection();
+  if (typeof renderExecSummary === 'function') renderExecSummary();
+  if (typeof renderMaturityDashboard === 'function') renderMaturityDashboard();
+  if (typeof renderGraph === 'function') renderGraph();
+  if (typeof renderInitiatives === 'function') renderInitiatives();
+  if (typeof renderRoadmapVisual === 'function') renderRoadmapVisual();
+  if (typeof renderOperatingModel === 'function') renderOperatingModel();
+  updateWorkflowStepStates();
+  // If strategic intent was modified, show confirm button so user re-confirms
+  if (!model.strategicIntentConfirmed && model.strategicIntent) {
+    const confirmBtn = document.getElementById('btn-step1-confirm');
+    if (confirmBtn) confirmBtn.classList.remove('hidden');
+  }
+
+  window._pendingRecommendations = null;
+  const addedStr = newCaps.length ? `\n\nNew capabilities added: ${newCaps.join(', ')}.` : '';
+  return { content: `Applied ${applied} changes to the model.${addedStr}\n\nAll views have been refreshed.`, metadata: { affectedCapabilities: model.capabilities.slice(0, applied) } };
+}
+
+function confirmApplyRecommendations() {
+  const pending = window._pendingRecommendations;
+  if (!pending) { addAssistantMessage('No pending recommendations to apply.'); return; }
+  const result = applyAIRecommendations(pending);
+  addAssistantMessage(result.content, result.metadata);
+}
+
+function skipRecommendations() {
+  window._pendingRecommendations = null;
+  addAssistantMessage('Recommendations discarded. Let me know if you would like a different analysis or any other changes.');
+}
+
+function normalizeCapabilities(capabilities) {
+  return (capabilities || []).map((cap, index) => {
+    const safeName = cap.name || `Capability ${index + 1}`;
+    const defaultAreas = model.phase4Config?.activeBusinessAreas || ['general'];
+    return {
+      id: cap.id || ('cap_' + Date.now() + '_' + index),
+      name: safeName,
+      domain: cap.domain || 'Operations',
+      maturity: Math.max(1, Math.min(5, Number(cap.maturity || 3))),
+      strategicImportance: cap.strategicImportance || 'medium',
+      description: cap.description || '',
+      businessAreas: normalizeBusinessAreas(cap.businessAreas || defaultAreas),
+      ...cap
+    };
+  });
+}
+
+async function generateArchitectureFromPrompt(prompt, orgInfo) {
+  const response = await callAI('Return ONLY valid JSON, no markdown.',
+    `Generate enterprise architecture for: "${prompt}"
+Organization: ${orgInfo?.name || 'Unknown'}
+Industry: ${orgInfo?.industry || 'General'}
+Return JSON:
+{"valueStreams":[{"name":""}],"capabilities":[{"name":"","domain":"Customer|Product|Operations|Risk|Finance|Technology|Support","valueStream":"","maturity":3,"strategicImportance":"low|medium|high","revenueExposure":"low|medium|high","regulatoryExposure":"low|medium|high","operationalCriticality":3,"dependsOnCapabilities":[""],"fteHoursSavedPct":15,"invoiceVolumeImpactPct":5,"investmentEstimate":150000,"riskExposureEstimate":500000}],"systems":[{"name":"","supportsCapability":"","criticality":"low|medium|high"}],"dataDomains":[{"name":""}],"aiAgents":[{"name":"","supportsCapability":"","criticality":"low|medium|high"}]}
+Rules: 4-6 value streams, 14-18 capabilities (each must have valueStream set to one of the generated value stream names), 6-10 systems, 3-5 AI agents.`, { taskType: 'heavy', temperature: 0.2 });
+  return parseJSONResponse(response);
+}
+
+async function extractOrganizationInfo(message) {
+  const response = await callAI(
+    'Extract organization info from text. Return JSON only.',
+    `Extract organization information from this message: ${message}\n\nReturn JSON object with keys: name, industry, size, context`,
+    { taskType: 'lightweight', temperature: 0.1 }
+  );
+  return parseJSONResponse(response);
+}
+
+async function generateSingleCapability(requestText, context) {
+  const response = await callAI(
+    'Generate exactly one enterprise capability. Return ONLY valid JSON, no markdown, no explanation.',
+    `Current capability count: ${context.capabilityCount}.\nExisting domains: ${[...new Set((context.currentCapabilities || []).map(c => c.domain || 'General'))].join(', ')}\n\nUser request: ${requestText}\n\nReturn a single JSON object (not an array) with exactly these keys: id, name, domain, maturity, strategicImportance, description.\nExample: {"id":"cap_new","name":"Contract Lifecycle Management","domain":"Operations","maturity":2,"strategicImportance":"high","description":"Manages the full contract lifecycle."}`,
+    { taskType: 'lightweight', temperature: 0.2 }
+  );
+  const result = parseJSONResponse(response);
+  // Unwrap if AI returned an array instead of a single object
+  return Array.isArray(result) ? result[0] : result;
+}
+
+function parseJSONResponse(response) {
+  const cleaned = extractJSON((response || '').trim());
+  try {
+    return JSON.parse(cleaned);
+  } catch (e) {
+    throw new Error('AI returned invalid JSON');
+  }
+}
+
+// Backward-compatible wrappers
+function toggleAIChat() { toggleChatPanel(); }
+function sendAIMessage() { sendMessage(); }
+function addMessage(text, isUser) {
+  if (isUser) addUserMessage(text);
+  else addAssistantMessage(text);
+}
+
+// -- PHASE 1: business value fields ----
+function ensureBusinessFields() {
+  model.capabilities = (model.capabilities||[]).map(c => ({
+    revenueExposure: 'medium',
+    regulatoryExposure: 'medium',
+    operationalCriticality: 3,
+    fteHoursSavedPct: 0,
+    invoiceVolumeImpactPct: 0, sustainabilityImpactPct: 0,
+    annualSavingsEstimate: null,
+    investmentEstimate: null,
+    riskExposureEstimate: null,
+    paybackMonths: null,
+    roiMultiple: null,
+    businessAreas: normalizeBusinessAreas(c.businessAreas || model.phase4Config?.activeBusinessAreas || ['general']),
+    ...c
+  }));
+}
+// Ensure API key is loaded from storage if not already in memory
+  if (!OPENAI_KEY) OPENAI_KEY = getStoredApiKey();
+  
+  
+
+// -- STEP 1: CLARIFY STRATEGIC INTENT -----------------------------------------
+
+// -- Workflow continue button --------------------------------------------------
+function _runNextStep() {
+  const order = ['step1','step2','step3','step4','step5','step6','step7'];
+  const bridges = {
+    step1: clarifyStrategicIntent,
+    step2: generateBMC,
+    step3: generateArchitecture,
+    step4: generateOperatingModel,
+    step5: analyseGaps,
+    step6: generateValuePools,
+    step7: generateRoadmap
+  };
+  
+  // NEW: Check if this is the first workflow start and workflow mode not yet selected
+  const firstStep = order.find(id => !_isStepDone(id));
+  if (firstStep === 'step1' && !model.workflowMode) {
+    // Show workflow mode selection modal before starting step1
+    startArchitectWorkflow();
+    return;
+  }
+  
+  for (const id of order) {
+    if (!_isStepDone(id)) { bridges[id](); return; }
+  }
+  // All complete
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel && panel.classList.contains('hidden') && typeof toggleChatPanel === 'function') toggleChatPanel();
+  if (typeof addAssistantMessage === 'function') {
+    addAssistantMessage('?? **All 7 steps complete!** Your EA model is fully generated.\n\nReview the **Executive**, **Roadmap**, and **Target Arch** tabs � or click **Discuss** next to any step to refine with AI.');
+  }
+}
+
+function _isStepDone(stepId) {
+  if (window.model?.steps?.[stepId]?.status === 'completed') return true;
+  const m = window.model || {};
+  return !!({ step1: m.strategicIntentConfirmed, step2: m.bmc || m.bmcCurrent,
+    step3: m.capabilities?.length, step4: m.operatingModel,
+    step5: m.gapAnalysisDone || m.gapAnalysis, step6: m.valuePools?.length,
+    step7: m.targetArchDone || m.targetArch || m.roadmap }[stepId]);
+}
+
+function _updateContinueBtn() {
+  const btn   = document.getElementById('btn-continue-workflow');
+  const icon  = document.getElementById('continue-btn-icon');
+  const label = document.getElementById('continue-btn-label');
+  if (!btn || !label) return;
+  const names = { step1:'Strategic Intent', step2:'Business Model Canvas',
+    step3:'Capability Map', step4:'Operating Model', step5:'Gap Analysis',
+    step6:'Value Pools', step7:'Target Arch & Roadmap' };
+  const next = ['step1','step2','step3','step4','step5','step6','step7'].find(id => !_isStepDone(id));
+  if (!next) {
+    if (icon) icon.className = 'fas fa-check-circle';
+    label.textContent = 'All Steps Complete';
+    btn.disabled = true; btn.style.opacity = '0.6';
+  } else {
+    if (icon) icon.className = 'fas fa-play';
+    label.textContent = next === 'step1' ? 'Start Workflow' : `Continue ? ${names[next]}`;
+    btn.disabled = false; btn.style.opacity = '1';
+  }
+}
+
+function startNewWorkflow() {
+  const hasData = model.strategicIntent || model.bmc || (model.capabilities||[]).length || model.operatingModel || model.targetArch;
+  if (hasData && !confirm('This will clear all generated results and start a fresh workflow. Continue?')) return;
+  resetWorkflowModel();
+  
+  // After reset, open AI sidebar in Discovery mode to start fresh
+  setTimeout(() => {
+    startArchitectWorkflow();
+  }, 300);
+}
+
+function resetWorkflowModel() {
+  // Reset all generated model data
+  model.strategicIntent = null;
+  model.strategicIntentConfirmed = false;
+  model.bmc = null;
+  model.bmc_current = null;
+  model.bmc_analysis = null;
+  model.stepMeta = {};
+  model.capabilities = [];
+  model.capabilities_tobe = [];
+  model.operatingModel = null;
+  model.targetArch = null;
+  model.targetArchDone = false;
+  model.initiatives = [];
+  model.valuePools = [];
+  model.gapAnalysisDone = false;
+  model.valueStreams = [];
+  model.processes = [];
+  model.systems = [];
+  model.dataDomains = [];
+  model.aiAgents = [];
+  model.aiBenchmark = null;
+  model.scenarios = [];
+  model.investments = [];
+  window._stepChatContext = null;
+  window._pendingRecommendations = null;
+  window._stepPrompts = null;
+  window._step1Hypothesis = null;
+  window._step1Questions = null;
+  window._cgAnswers = null;
+
+  // Reset current model identity so auto-save doesn't overwrite old model
+  currentModelId = null;
+  currentModelName = 'Untitled Model';
+  updateHeaderTitle();
+
+  // Remove auto-save FileManager interval � will be re-enabled when user saves
+  if (typeof fileManager !== 'undefined' && fileManager && fileManager.disableAutoSave) {
+    fileManager.disableAutoSave();
+  }
+
+  // Hide confirm button
+  const confirmBtn = document.getElementById('btn-step1-confirm');
+  if (confirmBtn) confirmBtn.classList.add('hidden');
+
+  // Clear the description textarea
+  const descEl = document.getElementById('description');
+  if (descEl) descEl.value = '';
+
+  // Clear rendered content areas
+  const clearIds = ['exec-content', 'bmc-content', 'capmap-content', 'heatmap-content',
+    'opmodel-content', 'insights', 'valuepools-content', 'targetarch-content',
+    'roadmapvis-content', 'initiatives-content'];
+  clearIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+
+  // Clear step rationale cards and clarification gate
+  for (let i = 1; i <= 7; i++) {
+    const r = document.getElementById('step' + i + '-rationale');
+    if (r) { r.innerHTML = ''; r.classList.add('hidden'); }
+  }
+  const gate = document.getElementById('clarification-gate-card');
+  if (gate) gate.remove();
+
+  // Re-render the Strategic Intent section so it shows the placeholder (not old content)
+  renderStrategicIntentSection();
+
+  // Reset chat context title
+  closeStepChatContext();
+
+  autoSaveCurrentModel();
+  updateWorkflowStepStates();
+  showTab('exec', findTabButton('exec'));
+  toast('Workflow reset � ready for a new EA generation');
+}
+
+/**
+ * Pre-Step 1 � Prompt Optimiser
+ * Makes a lightweight AI call to analyse the company description and generate a
+ * tailored, industry-specific system prompt for Step 1. This replaces the static
+ * generic prompt with one that is specific to the exact organisation type, industry
+ * dynamics, competitive context, and macroeconomic environment inferred from the
+ * user's input. Falls back gracefully to a static base prompt if the call fails.
+ *
+ * @param {string} desc  The user's organisation description
+ * @returns {Promise<string>}  Tailored system prompt ready for the Step 1 callAI()
+ */
+async function _buildOptimizedStep1Prompt(desc) {
+  const metaSys = `You are the Context Engine for an enterprise architecture platform. Your task is to analyse a company description and produce TWO things in a single JSON response:
+
+1. A structured Context Object that classifies the organisation with confidence-scored fields.
+2. Industry-calibrated system prompts for all 7 workflow steps, each containing the right expert persona, precise industry terminology, and a quality gate instruction.
+
+Each step prompt must be a complete system prompt string � not a title, not a summary. It must include:
+- A named expert persona with 15+ years of relevant experience
+- Industry context grounded ONLY in what the user described � never invent company attributes
+- A "Return ONLY valid JSON, no markdown" instruction (except step_1 which has its own JSON gate added separately)
+- A quality gate: "Generic output that could apply to any industry is unacceptable"
+
+CRITICAL � COMPANY ATTRIBUTE RULE: Do NOT invent specific service lines, geographic corridors, system names, customer types, or revenue figures that the user did not state. If an attribute is unknown, mark it with [to be confirmed] rather than fabricating a plausible-sounding value. Only use details explicitly stated by the user in the company description.
+
+CRITICAL � LANGUAGE RULE: ALL clarification_questions, options, and text content MUST be in English. Never use Swedish, Norwegian, Danish, Finnish, or any other language. The platform's default language is English.
+
+Return ONLY valid JSON � no prose, no markdown outside the JSON structure.`;
+
+  const metaUser = `Company description: "${desc}"
+
+Return JSON with this exact shape:
+{
+  "context": {
+    "org_name": "",
+    "industry": "",
+    "sub_sector": "",
+    "org_type": "enterprise|SME|startup|public-sector|PE-backed",
+    "maturity_estimate": "1|2|3|4|5",
+    "scale_estimate": "estimated revenue range and headcount",
+    "primary_challenge": "",
+    "strategic_posture": "survival|stabilize|grow|transform|disrupt",
+    "regulatory_flags": [],
+    "clarification_needed": ["any field where confidence is below 0.7"]
+  },
+  "hypothesis": {
+    "interpretation": "1-2 sentence plain-English interpretation of what this organisation likely is and the core architectural challenge",
+    "assumed_pain_points": ["inferred pain 1", "inferred pain 2"],
+    "assumed_core_systems": ["inferred system type 1"],
+    "confidence": 0.0
+  },
+  "clarification_questions": [
+    {
+      "id": "objective",
+      "question": "What is the primary business objective for this engagement?",
+      "options": ["Reduce operational cost", "Scale the organisation", "Improve decision-making", "Prepare for exit or sale", "Digital transformation", "Regulatory compliance", "Other"]
+    },
+    {
+      "id": "pain",
+      "question": "What is the single biggest pain or blocker today?",
+      "options": ["Reporting too slow or inaccurate", "Systems not integrated", "High operational cost", "Can't scale with current setup", "Data quality or visibility gaps", "Compliance or risk exposure", "Other"]
+    },
+    {
+      "id": "scope",
+      "question": "What is the approximate organisational scale?",
+      "options": ["<50 employees / startup", "50�500 employees / SME", "500�5000 employees / mid-market", "5000+ employees / enterprise", "Public sector / non-profit"]
+    },
+    {
+      "id": "maturity",
+      "question": "How would you describe current systems and data maturity?",
+      "options": ["Mostly manual / Excel-driven", "Some systems, largely fragmented", "Integrated systems but poor analytics", "Data-mature, optimisation needed", "Advanced � cloud-native, data-driven"]
+    }
+  ],
+  "step_prompts": {
+    "step_1": "You are a senior strategy advisor with 15+ years in [industry]. Your task is to translate the company description into a structured Strategic Intent brief for a Senior Enterprise Architect. The output must define business context, clarify the problem, and set a strong foundation for architectural investigation. It must be specific, commercially grounded, and tailored to the company � never generic. Produce ALL SIX sections mapped to the JSON fields: (1) STRATEGIC AMBITION + SITUATION NARRATIVE � describe company context, industry dynamics, current challenges, and why the situation constrains performance and competitiveness; articulate executive ambition (efficiency/scalability/growth/transformation); keep it business-focused not technical. (2) INVESTIGATION SCOPE [investigation_scope] � what the Senior EA must investigate: current-state limitations in systems/processes/data/organisation; root causes of inefficiencies; required capabilities for future goals; strategic options such as optimise/replace/transform. (3) KEY CONSTRAINTS [key_constraints] � exactly 5 items, one per category in this order prefixed with its label: 'Operational: ...', 'Financial: ...', 'Organisational: ...', 'Technical: ...', 'External: ...'. (4) SUCCESS METRICS [success_metrics] � mix of operational KPIs (cycle times, utilisation, service levels), financial KPIs (cost reduction, margin, ROI), quality/risk indicators (error rates, reliability, compliance), data/decision metrics (visibility, real-time). Use directional framing: 'Reduction in...', 'Improvement in...', 'Increase in...'. No invented numbers. (5) KEY ASSUMPTIONS TO VALIDATE [key_assumptions_to_validate] � 5-8 explicit engagement assumptions the EA work must test before committing to direction. These are strategic assumptions � not data gaps. Examples: whether the problem is system-driven vs process/organisational; data availability for automation; feasibility of integration; business readiness for change; whether expected ROI is achievable; vendor or contractual constraints. (6) EXPECTED OUTCOMES [expected_outcomes] � exactly 3 things this EA work will deliver. CRITICAL RULES: Do NOT invent specific service lines, corridors, system names, revenue figures, or company attributes not stated by the user. Mark unknown attributes with [to be confirmed]. C-level tone, plain boardroom English.",
+    "step_2": "You are a business model strategist with deep [industry] expertise. Analyse the strategic intent and produce both the current-state and target-state Business Model Canvas for this organisation. Every block must reflect industry-specific dynamics and the stated strategic ambition. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
+    "step_3": "You are a senior enterprise architect with 15+ years in [industry] transformation. Generate a complete capability architecture grounded in the strategic ambition. Use [industry]-specific capability names, value streams, and system archetypes. Every financial estimate must reflect realistic [industry] benchmarks. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
+    "step_4": "You are a senior operating model designer specialising in [industry] transformation. Design the TO-BE operating model that directly delivers the stated strategic ambition. Every section must reflect the strategic direction and be specific to this industry. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
+    "step_5": "You are a senior EA gap analysis specialist with deep [industry] expertise. Analyse the current versus desired capability state and produce a capability-anchored gap analysis. Reference specific capabilities by name, score each gap by strategic alignment and financial impact, and classify by action urgency. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
+    "step_6": "You are a transformation value architect with [industry] economics expertise. Identify the highest-value transformation pools grounded in the capability model and strategic themes. Every value pool must be anchored to a named capability and quantified against [industry] benchmarks. Generic output is unacceptable. Return ONLY valid JSON, no markdown.",
+    "step_7": "You are a senior transformation programme director with [industry] delivery experience. Build a phased transformation roadmap sequenced by strategic priority, capability dependency, and deliverable complexity. Every initiative must link to a named capability and a strategic theme. Include clear phase gate criteria. Generic output is unacceptable. Return ONLY valid JSON, no markdown."
+  }
+}`;
+
+  let contextObj = {};
+  let stepPrompts = {};
+
+  try {
+    const rawJson = await callAI(metaSys, metaUser, {
+      taskType: 'lightweight',
+      temperature: 0.5,
+      _traceLabel: 'Pre-Step 1 � Context Engine'
+    });
+    const parsed = JSON.parse(extractJSON(rawJson));
+    if (parsed && typeof parsed === 'object') {
+      contextObj = parsed.context || {};
+      stepPrompts = parsed.step_prompts || {};
+      if (parsed.hypothesis) window._step1Hypothesis = parsed.hypothesis;
+      if (parsed.clarification_questions) window._step1Questions = parsed.clarification_questions;
+    }
+  } catch (_e) {
+    // Silently fall through � static fallback applied below
+  }
+
+  // Store context and step prompts for downstream steps to use
+  model.contextObj = contextObj;
+  window._stepPrompts = stepPrompts;
+
+  // JSON output schema for Step 1 (always appended � never lost)
+  const jsonSchema = '\n\nOutput requirements � Return ONLY valid JSON (no markdown, no explanation):\n' +
+    '{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","situation_narrative":"","strategic_themes":["","",""],"investigation_scope":["","","","",""],"key_constraints":["","","","",""],"success_metrics":["","","","","",""],"key_assumptions_to_validate":["","","","","",""],"expected_outcomes":["","",""],"burning_platform":"","assumptions_and_caveats":[""],"_meta":{"assumptions":["key assumption driving this analysis"],"confidence":0.0,"dataSources":["company description","strategic context"],"keyDrivers":["top driver 1","top driver 2","top driver 3"]}}\n\n' +
+    'Rules:\n' +
+    '- strategic_ambition: 1 sentence � executive ambition (efficiency/scalability/growth/transformation). C-level tone. No invented numbers.\n' +
+    '- situation_narrative: 2-3 sentences � company context, industry dynamics, why the current situation constrains performance and competitiveness. Grounded ONLY in what user stated. Business-focused not technical.\n' +
+    '- strategic_themes: exactly 3 � top-level strategic directions, plain English, max 8 words each\n' +
+    '- investigation_scope: 4-6 items � what the Senior EA must investigate. Cover: (1) current-state system/process/data/org limitations, (2) root causes of inefficiency, (3) required future capabilities, (4) strategic options. Start each with "Whether", "How", "What", or an action noun.\n' +
+    '- key_constraints: exactly 5 items � one per category in this order, prefixed with its label: "Operational: ...", "Financial: ...", "Organisational: ...", "Technical: ...", "External: ..."\n' +
+    '- success_metrics: 5-6 items � mix of operational KPIs (cycle times, utilisation, service levels), financial KPIs (cost reduction, margin, ROI), quality/risk indicators, data/decision metrics. Use "Reduction in...", "Improvement in...", "Increase in..." framing. No invented baselines or numbers.\n' +
+    '- key_assumptions_to_validate: 5-8 ENGAGEMENT ASSUMPTIONS that must be tested before committing to architecture direction. Strategic assumptions � not data gaps. Example: "The ERP system is the primary bottleneck rather than process or organisational factors."\n' +
+    '- expected_outcomes: exactly 3 � what this EA engagement will deliver (e.g. "A clear view of current-state gaps and risks")\n' +
+    '- timeframe: survival/PE-backed = "12-18 months"; standard = "3 years"; long-term = "3-5 years"\n' +
+    '- burning_platform: 1 sentence � urgency driver. Grounded only in what user stated.\n' +
+    '- assumptions_and_caveats: DATA GAPS only � every attribute inferred not stated by user (scale, revenue, headcount, systems, geography). Format: "[Attribute]; to be confirmed."\n' +
+    '- Quality gate: any specific detail not present in the user description must appear in assumptions_and_caveats, never in the main fields.';
+
+  const step1Prompt = stepPrompts.step_1;
+  if (step1Prompt && step1Prompt.trim().length > 80) {
+    return {
+      sysPrompt: step1Prompt.trim() + jsonSchema,
+      hypothesis: window._step1Hypothesis || null,
+      questions: window._step1Questions || []
+    };
+  }
+
+  // Fallback: static base prompt + schema
+  return {
+    sysPrompt: 'You are a senior strategy advisor with 15+ years of cross-industry experience. ' +
+      'Translate the company description into a structured Strategic Intent brief for a Senior Enterprise Architect. ' +
+      'Produce all six sections: (1) Strategic Ambition + Situation Narrative � business context, challenges, why the current situation constrains performance; ' +
+      '(2) Investigation Scope � what the EA must investigate: current-state limitations, root causes, required capabilities, strategic options (optimise/replace/transform); ' +
+      '(3) Key Constraints � exactly 5 items, one each for Operational, Financial, Organisational, Technical, and External, each prefixed with its category label; ' +
+      '(4) Success Metrics � operational, financial, quality/risk, and data/decision KPIs using directional framing (Reduction in / Improvement in / Increase in), no invented numbers; ' +
+      '(5) Key Assumptions to Validate � 5-8 explicit engagement assumptions that must be tested before committing to architecture direction (strategic assumptions, not data gaps); ' +
+      '(6) Expected Outcomes � exactly 3 things this EA work will deliver. ' +
+      'C-level tone, plain boardroom English. Do NOT invent specifics not stated by the user � mark unknowns as [to be confirmed].' +
+      jsonSchema,
+    hypothesis: window._step1Hypothesis || null,
+    questions: window._step1Questions || []
+  };
+}
+
+// -- CLARIFICATION GATE -------------------------------------------------------
+// Renders an interactive hypothesis + 4-question card in the AI sidebar chat.
+// Returns a Promise that resolves with { skipped: true } or an answers object.
+function _showClarificationGate(hypothesis, questions) {
+  return new Promise(resolve => {
+    const existing = document.getElementById('clarification-gate-card');
+    if (existing) existing.remove();
+
+    const answers = {};
+    const conf = hypothesis && hypothesis.confidence != null ? Math.round(hypothesis.confidence * 100) : null;
+    const confColor = conf == null ? '#64748b' : conf >= 75 ? '#16a34a' : conf >= 50 ? '#d97706' : '#dc2626';
+
+    const hypothesisHtml = hypothesis ? `
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;">&#128269; Initial Hypothesis</span>
+          ${conf != null ? `<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:9999px;background:${confColor}18;color:${confColor};">&#x25CF; ${conf}% confidence</span>` : ''}
+        </div>
+        <div style="font-size:11px;color:#334155;line-height:1.5;margin-bottom:6px;">${hypothesis.interpretation || ''}</div>
+        ${(hypothesis.assumed_pain_points||[]).length ? `<div style="font-size:10px;color:#64748b;margin-bottom:2px;"><strong>Likely pain points:</strong> ${hypothesis.assumed_pain_points.join(' � ')}</div>` : ''}
+        ${(hypothesis.assumed_core_systems||[]).length ? `<div style="font-size:10px;color:#64748b;"><strong>Assumed systems:</strong> ${hypothesis.assumed_core_systems.join(' � ')}</div>` : ''}
+      </div>` : '';
+
+    const questionsHtml = (questions || []).map((q, qi) => `
+      <div style="margin-bottom:10px;" id="cg-q-${qi}">
+        <div style="font-size:10px;font-weight:700;color:#334155;margin-bottom:5px;">
+          ${qi + 1}. ${q.question}
+          <span style="font-size:8px;color:#94a3b8;font-weight:400;margin-left:4px;">(Select one or more)</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;">
+          ${(q.options || []).map((opt, oi) => `
+            <button type="button"
+              onclick="_cgSelectOption(${qi}, '${q.id}', ${oi}, this, '${opt.replace(/'/g, "\\'")}')"
+              style="font-size:9px;padding:3px 8px;border-radius:6px;border:1px solid #cbd5e1;background:#fff;color:#475569;cursor:pointer;transition:all 0.15s;"
+              data-qi="${qi}" data-oi="${oi}" data-option="${opt}">
+              ${opt}
+            </button>`).join('')}
+        </div>
+        <div id="cg-q-${qi}-custom" style="margin-top:6px;display:none;">
+          <input type="text" id="cg-q-${qi}-custom-input" placeholder="Type your custom answer..."
+            style="width:100%;font-size:9px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;color:#334155;"
+            oninput="_cgUpdateCustomInput(${qi}, '${q.id}', this.value)">
+        </div>
+      </div>`).join('');
+
+    const card = document.createElement('div');
+    card.id = 'clarification-gate-card';
+    card.className = 'chat-message assistant-message';
+    card.innerHTML = `
+      <div class="message-avatar"><i class="fas fa-robot"></i></div>
+      <div class="message-content" style="width:100%;">
+        <div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:8px;">Before generating � confirm a few key details</div>
+        <div style="font-size:10px;color:#64748b;margin-bottom:10px;line-height:1.4;">Answer what you can. You can select multiple options per question. Choose "Other" to add your own custom answer. Skip questions that aren't relevant. The AI will use your answers to produce a sharper, more grounded output.</div>
+        ${hypothesisHtml}
+        ${questionsHtml}
+        <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
+          <button type="button" id="cg-generate-btn"
+            onclick="_cgSubmit()"
+            style="flex:1;font-size:10px;font-weight:700;padding:7px 12px;border-radius:8px;border:none;background:#4f46e5;color:#fff;cursor:pointer;">
+            &#128640; Generate Strategic Intent
+          </button>
+          <button type="button"
+            onclick="_cgSkip()"
+            style="font-size:9px;color:#94a3b8;background:none;border:none;cursor:pointer;padding:4px 6px;white-space:nowrap;">
+            Skip &#8594;
+          </button>
+        </div>
+      </div>`;
+
+    // Attach to message container
+    const container = document.getElementById('chat-messages');
+    if (container) { container.appendChild(card); scrollToBottom(); }
+
+    // Store answers ref and resolve fn on window so inline onclick can reach them
+    window._cgAnswers = answers;
+    window._cgResolve = resolve;
+
+    window._cgSelectOption = (qi, id, oi, btn, optionText) => {
+      const isSelected = btn.style.background === 'rgb(79, 70, 229)' || btn.style.background === '#4f46e5';
+      
+      // Toggle selection
+      if (isSelected) {
+        // Deselect
+        btn.style.background = '#fff';
+        btn.style.color = '#475569';
+        btn.style.borderColor = '#cbd5e1';
+        
+        // Remove from answers - handle both single and multi-select
+        if (Array.isArray(window._cgAnswers[id])) {
+          window._cgAnswers[id] = window._cgAnswers[id].filter(v => v !== optionText);
+          if (window._cgAnswers[id].length === 0) delete window._cgAnswers[id];
+        } else if (window._cgAnswers[id] === optionText) {
+          delete window._cgAnswers[id];
+        }
+        
+        // Hide custom input if deselecting "Other"
+        if (optionText.toLowerCase().includes('other')) {
+          const customDiv = document.getElementById(`cg-q-${qi}-custom`);
+          if (customDiv) customDiv.style.display = 'none';
+        }
+      } else {
+        // Select
+        btn.style.background = '#4f46e5';
+        btn.style.color = '#fff';
+        btn.style.borderColor = '#4f46e5';
+        
+        // Add to answers - support multi-select by using array
+        if (window._cgAnswers[id]) {
+          // Already has an answer - convert to array if needed
+          if (!Array.isArray(window._cgAnswers[id])) {
+            window._cgAnswers[id] = [window._cgAnswers[id]];
+          }
+          if (!window._cgAnswers[id].includes(optionText)) {
+            window._cgAnswers[id].push(optionText);
+          }
+        } else {
+          window._cgAnswers[id] = optionText;
+        }
+        
+        // Show custom input if selecting "Other"
+        if (optionText.toLowerCase().includes('other')) {
+          const customDiv = document.getElementById(`cg-q-${qi}-custom`);
+          if (customDiv) {
+            customDiv.style.display = 'block';
+            const input = document.getElementById(`cg-q-${qi}-custom-input`);
+            if (input) input.focus();
+          }
+        }
+      }
+    };
+
+    window._cgUpdateCustomInput = (qi, id, value) => {
+      if (value.trim()) {
+        // Update the answer with custom value
+        const currentAnswer = window._cgAnswers[id];
+        if (Array.isArray(currentAnswer)) {
+          // Remove any previous "Other" entries and add custom value
+          window._cgAnswers[id] = currentAnswer.filter(v => !v.toLowerCase().includes('other'));
+          window._cgAnswers[id].push(value.trim());
+        } else {
+          window._cgAnswers[id] = value.trim();
+        }
+      }
+    };
+
+    window._cgSubmit = () => {
+      card.style.opacity = '0.5';
+      card.style.pointerEvents = 'none';
+      const res = window._cgResolve;
+      window._cgResolve = null;
+      if (res) res({ ...window._cgAnswers });
+    };
+
+    window._cgSkip = () => {
+      card.style.opacity = '0.5';
+      card.style.pointerEvents = 'none';
+      const res = window._cgResolve;
+      window._cgResolve = null;
+      if (res) res({ skipped: true });
+    };
+  });
+}
+
+// -- PRELIMINARY QUESTIONNAIRE (Before Step 1) ---------------------------------
+async function startPreliminaryQuestionnaire() {
+  const lang = getAppLanguage();
+  
+  // Question 1: Industry
+  const industry = await QuestionCard.show({
+    taskId: 'preliminary_industry',
+    title: lang === 'sv' ? 'Question 1 of 3' : 'Question 1 of 3',
+    question: lang === 'sv' 
+      ? 'Vilken bransch verkar din organisation i?' 
+      : 'What industry does your organization operate in?',
+    options: [
+      'Financial Services / Banking',
+      'Insurance',
+      'Healthcare',
+      'Retail / E-commerce',
+      'Manufacturing',
+      'Technology / Software',
+      'Telecommunications',
+      'Energy / Utilities',
+      'Government / Public Sector',
+      'Real Estate / Property',
+      'Transportation / Logistics',
+      'Professional Services',
+      'Education',
+      'Other'
+    ],
+    allowSkip: false,
+    taskIndex: 0,
+    totalTasks: 3
+  });
+  
+  // Question 2: Company Size
+  const companySize = await QuestionCard.show({
+    taskId: 'preliminary_size',
+    title: lang === 'sv' ? 'Question 2 of 3' : 'Question 2 of 3',
+    question: lang === 'sv'
+      ? 'Hur stor är er organisation?'
+      : 'What is the size of your organization?',
+    options: [
+      'Startup (< 50 employees)',
+      'Small (50-250 employees)',
+      'Medium (250-1,000 employees)',
+      'Large (1,000-5,000 employees)',
+      'Enterprise (5,000+ employees)',
+      'Government / Public Sector'
+    ],
+    allowSkip: false,
+    taskIndex: 1,
+    totalTasks: 3
+  });
+  
+  // Question 3: Geographic Region
+  const geography = await QuestionCard.show({
+    taskId: 'preliminary_geography',
+    title: lang === 'sv' ? 'Question 3 of 3' : 'Question 3 of 3',
+    question: lang === 'sv'
+      ? 'Vilken geografisk region verkar ni i?'
+      : 'What geographic region do you operate in?',
+    options: [
+      'Sweden',
+      'Nordics (Sweden, Norway, Denmark, Finland)',
+      'Europe',
+      'North America',
+      'Asia Pacific',
+      'Middle East',
+      'Africa',
+      'Latin America',
+      'Global / Multi-region'
+    ],
+    allowSkip: false,
+    taskIndex: 2,
+    totalTasks: 3
+  });
+  
+  // Store preliminary context
+  if (!model.masterData) model.masterData = {};
+  model.masterData.industry = industry;
+  model.masterData.companySize = companySize;
+  model.masterData.geography = geography;
+  
+  // Show confirmation and proceed to Step 1
+  const confirmMsg = lang === 'sv'
+    ? `## ✅ Kontext mottagen!
+
+**Din organisations profil:**
+- 🏢 **Bransch:** ${industry}
+- 📊 **Storlek:** ${companySize}
+- 🌍 **Region:** ${geography}
+
+Now let's proceed to **Step 1: Business Context** where you describe your organization's strategic challenge...`
+    : `## ✅ Context Received!
+
+**Your organization profile:**
+- 🏢 **Industry:** ${industry}
+- 📊 **Size:** ${companySize}
+- 🌍 **Region:** ${geography}
+
+Now proceeding to **Step 1: Business Context** where you'll describe your organization's strategic challenge...`;
+  
+  addAssistantMessage(confirmMsg);
+  
+  // Small delay then start Step 1
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  await clarifyStrategicIntent();
+}
+
+async function clarifyStrategicIntent() {
+  // -- Ensure chat panel is open --
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel && panel.classList.contains('hidden') && typeof toggleChatPanel === 'function') {
+    toggleChatPanel();
+    // Small delay to let chat panel animate open before showing content
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+
+  // -- Check if preliminary context is needed --
+  if (!model.masterData || !model.masterData.industry || !model.masterData.companySize || !model.masterData.geography) {
+    // First time starting Step 1 - collect preliminary context
+    await startPreliminaryQuestionnaire();
+    return; // startPreliminaryQuestionnaire will call clarifyStrategicIntent again
+  }
+
+  // -- Get or request description via chat --
+  let desc = (document.getElementById('description')?.value || '').trim();
+
+  if (!desc) {
+    desc = await QuestionCard.show({
+      taskId:     'org_description_entry',
+      title:      'Step 1 � Strategic Intent',
+      question:   'To begin, tell me about your organisation.\n\nDescribe: **what it does**, the **main challenge** you want to address, and **what needs to change**.',
+      options:    [],
+      guidance:   'Example: "We are a Nordic retail bank with 500 staff. Loan decisioning takes 5 days due to three legacy core banking systems. We need same-day digital onboarding."',
+      allowSkip:  false,
+      taskIndex:  0,
+      totalTasks: 10
+    });
+    const descEl = document.getElementById('description');
+    if (descEl) descEl.value = desc;
+    if (typeof AdvisyAI !== 'undefined' && AdvisyAI.updateDescriptionContext) {
+      AdvisyAI.updateDescriptionContext(desc);
+    }
+  }
+
+  return StepEngine.run('step1', { initialPrompt: desc }, window.model);
+
+  // If the description field is empty, synthesize it from the Discovery Mode
+  // conversation � the user provided context via chat rather than the text area.
+  if (!desc) {
+    const conversation = getActiveConversation();
+    const msgs = conversation.messages || [];
+
+    // Find the start of the current session (last welcome/reset message)
+    const lastWelcomeIdx = (() => {
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        if (msgs[i].role === 'assistant' && /describe your organisation|beskriv din organisation|tell me about|welcome/i.test(msgs[i].content)) return i;
+      }
+      return 0;
+    })();
+    const sessionMsgs = msgs.slice(lastWelcomeIdx);
+
+    // Prefer the AI's last enriched-context synthesis � that is what the user approved
+    // by clicking "Proceed". Exclude action-button-only messages (isActionButton flag)
+    // and very short messages (< 80 chars = unlikely to be a real synthesis).
+    const lastAiSummary = [...sessionMsgs]
+      .reverse()
+      .find(m =>
+        m.role === 'assistant' &&
+        !(m.metadata && m.metadata.isActionButton) &&
+        m.content && m.content.trim().length > 80 &&
+        !/^\?|^\?\?/.test(m.content.trim()) // skip error / streaming-start messages
+      );
+
+    // Also collect user messages as supplementary context
+    const userMsgs = sessionMsgs
+      .filter(m => m.role === 'user' && m.content && m.content.trim().length > 20
+        && !/^\s*(proceed|yes|ja|sure|ok|go ahead|g� vidare|k�r|forts�tt|done|redo|klart|sounds good|looks good)\s*$/i.test(m.content.trim()))
+      .map(m => m.content.trim());
+
+    if (lastAiSummary) {
+      // Use the AI�s enriched synthesis as the primary description.
+      // Strip markdown action footers (� the �> ?? _Want to�� line and anything after it)
+      const cleaned = lastAiSummary.content
+        .replace(/>[^\r\n]*/g, '')
+        .replace(/\*\*Ready to proceed[\s\S]*/gi, '')
+        .trim();
+      // Prepend raw user input as a heading so the upstream prompt builder has both
+      const userContext = userMsgs.length ? `Original user input:\n${userMsgs.join('\n')}\n\nAI-enriched context:\n` : '';
+      desc = userContext + cleaned;
+      document.getElementById('description').value = desc;
+    } else if (userMsgs.length) {
+      desc = userMsgs.join('\n\n');
+      document.getElementById('description').value = desc;
+    }
+  }
+
+  if (!desc) { toast('Describe your organisation first', true); return; }
+
+  // Refinement mode: Strategic Intent already exists � user clicked Refresh after editing
+  const isRefine = !!model.strategicIntent;
+
+  if (!isRefine) {
+    // Fresh run � confirm reset only if downstream results exist
+    const hasDownstream = model.bmc || (model.capabilities||[]).length;
+    if (hasDownstream && !confirm('Running Step 1 again will clear all previously generated results and start fresh. Continue?')) return;
+    if (hasDownstream) resetWorkflowModel();
+  }
+
+  // Feed description to AdvisyAI context + auto-enable prompt trace for this run
+  if (typeof AdvisyAI !== 'undefined') AdvisyAI.updateDescriptionContext(desc);
+
+  // Open sidebar early so the user sees the optimiser running before the spinner hides it
+  const _earlyPanel = document.getElementById('ai-chat-panel');
+  if (_earlyPanel && _earlyPanel.classList.contains('hidden')) toggleChatPanel();
+  addAssistantMessage(isRefine
+    ? '?? **Refining Strategic Intent** � incorporating your edits and updating the analysis�'
+    : '**Analysing your company context** � building a tailored, industry-specific system prompt before generating the Strategic Intent�');
+
+  spin('s0', true);
+  try {
+    // Pre-pass: AI generates a company-specific, macro-aware system prompt for Step 1
+    // Also returns hypothesis + clarification questions for the gate
+    const { sysPrompt, hypothesis, questions } = await _buildOptimizedStep1Prompt(desc);
+
+    // -- CLARIFICATION GATE (fresh runs only, not refine) --------------------
+    let clarificationContext = '';
+    if (!isRefine && questions && questions.length) {
+      spin('s0', false); // pause spinner while user answers
+      addAssistantMessage('**Context analysed** � please answer a few quick questions to sharpen the output:');
+      const answers = await _showClarificationGate(hypothesis, questions);
+      spin('s0', true); // restart spinner for the main AI call
+      if (!answers.skipped) {
+        const answered = Object.entries(answers).filter(([,v]) => v).map(([k,v]) => `${k}: ${v}`);
+        if (answered.length) {
+          clarificationContext = `\n\nUser-confirmed clarifications (treat these as ground truth � do not mark as [to be confirmed]):\n${answered.join('\n')}`;
+          addAssistantMessage(`**Confirmed context:**\n${answered.map(a => `� ${a}`).join('\n')}\n\n_Generating Strategic Intent now�_`);
+        }
+      } else {
+        addAssistantMessage('_Skipped clarification � generating from description alone�_');
+      }
+    }
+
+    const userPrompt = isRefine
+      ? `Refine and improve the Strategic Intent for this organisation based on the updated context below.\n\nOrganisation description:\n"${desc}"\n\nCurrent Strategic Intent (reviewed and potentially edited by the user � preserve all confirmed details, resolve any "To be confirmed" placeholders if now clarified, and improve quality where possible):\n${JSON.stringify(model.strategicIntent, null, 2)}\n\nReturn the same JSON schema, fully populated.`
+      : `Extract structured Strategic Intent for this organisation:\n\n"${desc}"${clarificationContext}`;
+    const raw = await callAI(sysPrompt, userPrompt,
+      { taskType: 'lightweight', temperature: 0.3, _traceLabel: isRefine ? 'Step 1 � Refine Strategic Intent' : 'Step 1 � Strategic Intent' }
+    );
+    const _si1parsed = JSON.parse(extractJSON(raw));
+    if (_si1parsed._meta) { model.stepMeta = model.stepMeta || {}; model.stepMeta[1] = _si1parsed._meta; delete _si1parsed._meta; }
+    model.strategicIntent = _si1parsed;
+    renderStrategicIntentSection();
+    updateWorkflowStepStates();
+    showTab('exec', findTabButton('exec'));
+    toast('Strategic Intent clarified &#x2714;');
+
+    // -- Post result summary to Advicy AI sidebar ----------------------------
+    const si = model.strategicIntent;
+    const themes = (si.strategic_themes || []).map(t => `� ${t}`).join('\n');
+    const metrics = (si.success_metrics || []).map(m => `� ${m}`).join('\n');
+    const chatMsg = `**Step 1 � Strategic Intent generated**\n\nReview the full output in the **Executive** tab ? Strategic Intent card.`;
+    addAssistantMessage(chatMsg);
+
+    // -- Prompt user to save project if still unsaved ----------------------
+    const isProjectSaved = dataManager && dataManager.getCurrentProject();
+    const isUntitled = !currentModelName || currentModelName === 'Untitled Model';
+    if (!isProjectSaved || isUntitled) {
+      const savePrompt = `?? **Tip:** Your Strategic Intent is ready! Consider **saving your project** now (click the ?? save icon in the header) to give it a meaningful name and avoid losing your work.`;
+      setTimeout(() => addAssistantMessage(savePrompt), 1500);
+    }
+
+    // -- Pre-BMC review: questions + assumptions ------------------------------
+    const ctx = model.contextObj || {};
+    const clarify = ctx.clarification_needed || [];
+    // Only show clarification prompts for fields not already answered via the gate
+    const gateAnswers = window._cgAnswers || {};
+    const preBmcQuestions = [
+      (clarify.includes('sub_sector') && !gateAnswers.scope) ? `� What type of ${ctx.industry || 'company'} is this exactly? (sub-sector, business model)` : null,
+      (clarify.includes('scale_estimate') && !gateAnswers.scope) ? `� What is the approximate revenue and headcount?` : null,
+      (clarify.includes('maturity_estimate') && !gateAnswers.maturity) ? `� How would you rate digital/EA maturity today � nascent, developing, or established?` : null,
+      `� Is the strategic ambition above directionally correct, or does it need adjustment?`,
+      `� Are there regulatory deadlines or hard budget constraints the plan must respect?`,
+      `� What is one capability or system that is blocking progress most today?`,
+    ].filter(Boolean).join('\n');
+
+    const caveatLines = (si.assumptions_and_caveats || []).length
+      ? '\n\n**? AI-estimated (not stated by user � validate with client):**\n' + (si.assumptions_and_caveats || []).map(c => `? ${c}`).join('\n')
+      : '';
+
+    addAssistantMessage(
+      `**Review before proceeding to Step 2:**\n\n` +
+      `Use the chat to refine any part of the Strategic Intent. When ready, click **Confirm Step 1** in the panel to unlock the Business Model Canvas.\n\n` +
+      `**Suggested questions to address with the client:**\n${preBmcQuestions}${caveatLines}`
+    );
+
+    // Show confirm button
+    const confirmBtn = document.getElementById('btn-step1-confirm');
+    if (confirmBtn) confirmBtn.classList.remove('hidden');
+
+    // Open sidebar if not already open
+    const _panel = document.getElementById('ai-chat-panel');
+    if (_panel && _panel.classList.contains('hidden')) toggleChatPanel();
+  } catch (_e) { /* legacy */ }
+}
+
+function confirmStrategicIntent() {
+  if (!model.strategicIntent) return;
+  model.strategicIntentConfirmed = true;
+  updateWorkflowStepStates();
+  updateWorkflowProgress([1]); // Mark Step 1 as completed
+  const confirmBtn = document.getElementById('btn-step1-confirm');
+  if (confirmBtn) confirmBtn.classList.add('hidden');
+  toast('Step 1 confirmed � Business Model Canvas unlocked ?');
+  const si = model.strategicIntent;
+  const totalDataGaps = (si.assumptions_and_caveats || []).length;
+  const confirmedDataGaps = (si.data_gap_answers || []).filter(a => a && a.trim()).length;
+  const dataGapLine = totalDataGaps > 0
+    ? `\n� **Data gaps confirmed:** ${confirmedDataGaps}/${totalDataGaps}${confirmedDataGaps < totalDataGaps ? ' � remaining can be confirmed during the engagement' : ''}`
+    : '';
+  addAssistantMessage(
+    `**Step 1 confirmed**\n\n` +
+    `Business Model Canvas (Step 2) is now unlocked. The EA brief is grounded in:\n` +
+    `� **Ambition:** ${si.strategic_ambition || ''}\n` +
+    `� **Themes:** ${(si.strategic_themes || []).join(' � ')}${dataGapLine}\n\n` +
+    `_You can still refine the Strategic Intent via the ? Edit button or chat. Re-confirm when satisfied._`
+  );
+}
+
+// -- STEP 2: GENERATE BUSINESS MODEL CANVAS -----------------------------------
+async function generateBMC() {
+  return StepEngine.run('step2', window.model);
+}
+async function _v5LegacyBMC(_desc) { const desc = _desc; // V5 legacy � never called
+  if (!model.strategicIntent && !desc) { toast('Complete Step 1 first', true); return; }
+  if (!model.strategicIntentConfirmed) {
+    toast('Confirm the Strategic Intent first � click "? Confirm Step 1" in the workflow panel', true);
+    addAssistantMessage('**Step 2 is locked.** Please review the Strategic Intent and click **Confirm Step 1** in the left panel to unlock the Business Model Canvas.');
+    return;
+  }
+  spin('s2b', true);
+  try {
+    const _si2 = model.strategicIntent;
+    const intentCtx2 = _si2 ? [
+      `Strategic ambition: ${_si2.strategic_ambition}`,
+      _si2.situation_narrative   ? `Situation: ${_si2.situation_narrative}` : null,
+      _si2.burning_platform      ? `Urgency: ${_si2.burning_platform}` : null,
+      (_si2.strategic_themes||[]).length  ? `Strategic themes: ${_si2.strategic_themes.join(' � ')}` : null,
+      (_si2.key_constraints||[]).length   ? `Key constraints: ${_si2.key_constraints.join(' | ')}` : null,
+      (_si2.success_metrics||[]).length   ? `Success metrics: ${_si2.success_metrics.join(' | ')}` : null,
+      (_si2.investigation_scope||[]).length ? `EA investigation scope: ${_si2.investigation_scope.join(' | ')}` : null,
+      (_si2.key_assumptions_to_validate||[]).length ? `Key assumptions to validate: ${_si2.key_assumptions_to_validate.join(' | ')}` : null,
+      (_si2.expected_outcomes||[]).length ? `Expected outcomes: ${_si2.expected_outcomes.join(' | ')}` : null,
+    ].filter(Boolean).join('\n') : '';
+    const sysBMC = (window._stepPrompts && window._stepPrompts.step_2) ||
+      'You are a business model strategist. Return ONLY valid JSON, no markdown.';
+    const isRefineBMC = !!(model.bmc || model.bmc_current);
+    const existingBmcCtx = isRefineBMC
+      ? `\n\nExisting Business Model Canvas (user-reviewed, may contain manual edits � refine and improve while preserving all confirmed details):\nCurrent State (AS-IS): ${JSON.stringify(model.bmc_current || {})}\nTarget State (TO-BE): ${JSON.stringify(model.bmc || {})}`
+      : '';
+    const raw = await callAI(
+      sysBMC,
+      `${isRefineBMC ? 'Refine and improve' : 'Generate'} a Business Model Canvas (current AND target state) for this organisation:\n\n"${desc}"\n\n${intentCtx2}${existingBmcCtx}\n\nReturn JSON:\n{"current_state_bmc":{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]},"target_state_bmc":{"value_proposition":"","customer_segments":[""],"channels":[""],"customer_relationships":[""],"key_activities":[""],"key_resources":[""],"key_partners":[""],"cost_structure":[""],"revenue_streams":[""]},"model_shift_analysis":{"blocks_requiring_transformation":[""],"revenue_concentration_risk":"","new_revenue_streams_enabled":[""],"cost_lines_addressable":[""]},"_meta":{"assumptions":["key assumption driving this BMC"],"confidence":0.0,"dataSources":["strategic intent","company description"],"keyDrivers":["top BMC driver 1","top BMC driver 2"]}}`,
+      { taskType: 'heavy', temperature: 0.2, _traceLabel: isRefineBMC ? 'Step 2 � Refine BMC' : 'Step 2 � Business Model Canvas' }
+    );
+    const parsed = JSON.parse(extractJSON(raw));
+    if (parsed._meta) { model.stepMeta = model.stepMeta || {}; model.stepMeta[2] = parsed._meta; }
+    // target_state_bmc is stored in model.bmc for backwards compatibility with Steps 3�7
+    model.bmc = parsed.target_state_bmc || parsed;
+    model.bmc_current = parsed.current_state_bmc || null;
+    model.bmc_analysis = parsed.model_shift_analysis || null;
+    updateWorkflowStepStates();
+    updateWorkflowProgress([1, 2]); // Mark Steps 1-2 as completed
+    renderBMCPanel();
+    toast('Business Model Canvas generated &#x2714;');
+    const bmc = model.bmc;
+    const shiftMsg = model.bmc_analysis
+      ? `\n\n**Model Shift:** ${(model.bmc_analysis.blocks_requiring_transformation||[]).join(', ')} require transformation. Revenue risk: ${model.bmc_analysis.revenue_concentration_risk||'n/a'}`
+      : '';
+} // end _v5LegacyBMC
+
+function renderBMCPanel() { /* removed - obsolete legacy BMC panel rendering function (~285 lines) */ }
+
+// -- STEP 6: IDENTIFY VALUE POOLS ---------------------------------------------
+async function generateValuePools() {
+  return StepEngine.run('step6', window.model);
+}
+
+async function _v5LegacyVP_dead() { /* removed */ }
+
+function renderValuePoolsPanel() { /* removed - obsolete legacy rendering function */ }
+
+// -- CROSS-STEP CONTEXT BUILDER ----------------------------------------------
+// (Defined below after helper functions)
+
+// -- RENDER STRATEGIC INTENT SECTION (EXEC TAB) -------------------------------
+function enterIntentEditMode() {
+  const si = model.strategicIntent;
+
+  const _bmcBlock = (cls, label, data, isText) => {
+    const content = isText
+      ? `<div class="bmc-block-text">${data ? parseMarkdown(data) : '<span style="color:#94a3b8;font-style:italic;font-size:9px;">Not yet defined</span>'}</div>`
+      : (Array.isArray(data) && data.length)
+        ? `<ul class="bmc-block-items">${data.map(it => `<li>${it}</li>`).join('')}</ul>`
+        : `<span style="color:#94a3b8;font-style:italic;font-size:9px;">Not yet defined</span>`;
+    return `<div class="bmc-block ${cls}"><div class="bmc-block-label">${label}</div>${content}</div>`;
+  };
+
+  const renderCanvas = (b) => `
+    <div class="bmc-canvas">
+      ${_bmcBlock('bmc-block-kp', 'Key Partners', b.key_partners, false)}
+      ${_bmcBlock('bmc-block-ka', 'Key Activities', b.key_activities, false)}
+      ${_bmcBlock('bmc-block-kr', 'Key Resources', b.key_resources, false)}
+      ${_bmcBlock('bmc-block-vp', 'Value Proposition', b.value_proposition, true)}
+      ${_bmcBlock('bmc-block-cr', 'Customer Relationships', b.customer_relationships, false)}
+      ${_bmcBlock('bmc-block-ch', 'Channels', b.channels, false)}
+      ${_bmcBlock('bmc-block-cs', 'Customer Segments', b.customer_segments, false)}
+      ${_bmcBlock('bmc-block-cost', 'Cost Structure', b.cost_structure, false)}
+      ${_bmcBlock('bmc-block-rev', 'Revenue Streams', b.revenue_streams, false)}
+    </div>`;
+
+  const shiftHtml = (model.bmc_analysis && hasDual) ? `
+    <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-[10px]">
+      <div class="font-bold text-amber-700 uppercase text-[9px] mb-2 tracking-wide"><i class="fas fa-arrows-rotate mr-1"></i>Model Shift Analysis</div>
+      <div class="text-amber-800 mb-1"><span class="font-semibold">Transformation blocks:</span> ${(model.bmc_analysis.blocks_requiring_transformation||[]).join(' � ')}</div>
+      <div class="text-amber-800 mb-1"><span class="font-semibold">Revenue concentration risk:</span> ${model.bmc_analysis.revenue_concentration_risk||''}</div>
+      <div class="text-amber-800 mb-1"><span class="font-semibold">New revenue streams:</span> ${(model.bmc_analysis.new_revenue_streams_enabled||[]).join(' � ')}</div>
+      ${(model.bmc_analysis.cost_lines_addressable||[]).length ? `<div class="text-amber-800"><span class="font-semibold">Cost lines addressable:</span> ${model.bmc_analysis.cost_lines_addressable.join(' � ')}</div>` : ''}
+    </div>` : '';
+
+  const togglesHtml = hasDual ? `
+    <div class="bmc-state-toggle flex gap-1 mb-4" id="bmc-state-toggle">
+      <button id="bmc-btn-current" onclick="_bmcSetState('current')" class="${activeState==='current'?'active':''}">Current State (AS-IS)</button>
+      <button id="bmc-btn-target" onclick="_bmcSetState('target')" class="${activeState==='target'?'active':''}">Target State (TO-BE)</button>
+    </div>` : '';
+
+  const _ta = (id, label, val, isText, rows) => `
+    <div>
+      <div class="text-xs font-bold text-slate-500 uppercase mb-1">${label}</div>
+      <textarea id="${id}" rows="${rows||3}" spellcheck="false" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-400 resize-y">${isText ? (val||'') : (Array.isArray(val)?val.join('\n'):'')}</textarea>
+    </div>`;
+
+  section.innerHTML = `
+    <!-- BMC VIEW CARD -->
+    <div id="bmc-view-card" class="intent-card mb-0">
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Business Model Canvas � Step 2</div>
+          <div class="text-[10px] text-slate-500">${hasDual ? 'Review and edit the <b>Current State (AS-IS)</b> before switching to Target State (TO-BE) for Step 3.' : 'Target State'}</div>
+        </div>
+        <div class="flex gap-1.5 flex-shrink-0">
+          <button onclick="enterBMCEditMode()" class="text-[10px] text-slate-500 hover:text-slate-700 border border-slate-200 rounded-lg px-2 py-1 transition-colors" title="Edit BMC manually">
+            <i class="fas fa-pen mr-1"></i>Edit
+          </button>
+          <button onclick="generateBMC()" class="text-[10px] text-slate-500 hover:text-slate-700 border border-slate-200 rounded-lg px-2 py-1 transition-colors" title="Re-run AI to regenerate BMC">
+            <i class="fas fa-rotate-right mr-1"></i>Refresh
+          </button>
+        </div>
+      </div>
+      ${togglesHtml}
+      <div id="bmc-canvas-wrap">${renderCanvas(activeBmc)}</div>
+      ${shiftHtml}
+    </div>
+    <!-- BMC EDIT FORM (hidden by default) -->
+    <div id="bmc-edit-form" class="hidden intent-card mb-0">
+      <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+        <i class="fas fa-pen mr-1.5"></i>Edit Business Model Canvas${hasDual ? ' &mdash; <span id="bmc-edit-state-label">' + (activeState==='current'?'Current State (AS-IS)':'Target State') + '</span>' : ''}
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        ${_ta('bmc-edit-vp','Value Proposition',bmc.value_proposition,true,4)}
+        ${_ta('bmc-edit-cs','Customer Segments <span class="normal-case font-normal text-slate-400">(one per line)</span>',bmc.customer_segments,false,4)}
+      </div>
+      <div class="grid grid-cols-3 gap-3 mb-3">
+        ${_ta('bmc-edit-kp','Key Partners <span class="normal-case font-normal text-slate-400">(one per line)</span>',bmc.key_partners,false,3)}
+        ${_ta('bmc-edit-ka','Key Activities <span class="normal-case font-normal text-slate-400">(one per line)</span>',bmc.key_activities,false,3)}
+        ${_ta('bmc-edit-kr','Key Resources <span class="normal-case font-normal text-slate-400">(one per line)</span>',bmc.key_resources,false,3)}
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        ${_ta('bmc-edit-cr','Customer Relationships <span class="normal-case font-normal text-slate-400">(one per line)</span>',bmc.customer_relationships,false,3)}
+        ${_ta('bmc-edit-ch','Channels <span class="normal-case font-normal text-slate-400">(one per line)</span>',bmc.channels,false,3)}
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        ${_ta('bmc-edit-cost','Cost Structure <span class="normal-case font-normal text-slate-400">(one per line)</span>',bmc.cost_structure,false,3)}
+        ${_ta('bmc-edit-rev','Revenue Streams <span class="normal-case font-normal text-slate-400">(one per line)</span>',bmc.revenue_streams,false,3)}
+      </div>
+      <div class="flex gap-2">
+        <button onclick="saveBMCEdits()" class="ea-btn ea-btn--primary flex-1 justify-center"><i class="fas fa-save mr-1.5"></i><span class="text-sm">Save Changes</span></button>
+        <button onclick="cancelBMCEdit()" class="ea-btn ea-btn--ghost flex-1 justify-center"><span class="text-sm">Cancel</span></button>
+      </div>
+    </div>`;
+  showTab('opmodel', null);
+}
+
+function _bmcSetState(state) {
+  const section = document.getElementById('bmc-tab-section');
+  if (!section) return;
+  section._bmcActiveState = state;
+  const tBtn = document.getElementById('bmc-btn-target');
+  const cBtn = document.getElementById('bmc-btn-current');
+  if (tBtn) tBtn.classList.toggle('active', state === 'target');
+  if (cBtn) cBtn.classList.toggle('active', state === 'current');
+  const b = (state === 'current' && model.bmc_current) ? model.bmc_current : model.bmc;
+  const _bmcBlock = (cls, label, data, isText) => {
+    const content = isText
+      ? `<div class="bmc-block-text">${data ? parseMarkdown(data) : '<span style="color:#94a3b8;font-style:italic;font-size:9px;">Not yet defined</span>'}</div>`
+      : (Array.isArray(data) && data.length)
+        ? `<ul class="bmc-block-items">${data.map(it => `<li>${it}</li>`).join('')}</ul>`
+        : `<span style="color:#94a3b8;font-style:italic;font-size:9px;">Not yet defined</span>`;
+    return `<div class="bmc-block ${cls}"><div class="bmc-block-label">${label}</div>${content}</div>`;
+  };
+  const wrap = document.getElementById('bmc-canvas-wrap');
+  if (wrap) wrap.innerHTML = `<div class="bmc-canvas">
+    ${_bmcBlock('bmc-block-kp','Key Partners',b.key_partners,false)}
+    ${_bmcBlock('bmc-block-ka','Key Activities',b.key_activities,false)}
+    ${_bmcBlock('bmc-block-kr','Key Resources',b.key_resources,false)}
+    ${_bmcBlock('bmc-block-vp','Value Proposition',b.value_proposition,true)}
+    ${_bmcBlock('bmc-block-cr','Customer Relationships',b.customer_relationships,false)}
+    ${_bmcBlock('bmc-block-ch','Channels',b.channels,false)}
+    ${_bmcBlock('bmc-block-cs','Customer Segments',b.customer_segments,false)}
+    ${_bmcBlock('bmc-block-cost','Cost Structure',b.cost_structure,false)}
+    ${_bmcBlock('bmc-block-rev','Revenue Streams',b.revenue_streams,false)}
+  </div>`;
+}
+
+function enterBMCEditMode() {
+  const section = document.getElementById('bmc-tab-section');
+  const state = (section?._bmcActiveState === 'current' && model.bmc_current) ? 'current' : 'target';
+  const b = state === 'current' ? model.bmc_current : model.bmc;
+  if (!b) return;
+  const g = (id, val) => { const e = document.getElementById(id); if (e) e.value = val || ''; };
+  g('bmc-edit-vp', b.value_proposition);
+  g('bmc-edit-cs', (b.customer_segments||[]).join('\n'));
+  g('bmc-edit-kp', (b.key_partners||[]).join('\n'));
+  g('bmc-edit-ka', (b.key_activities||[]).join('\n'));
+  g('bmc-edit-kr', (b.key_resources||[]).join('\n'));
+  g('bmc-edit-cr', (b.customer_relationships||[]).join('\n'));
+  g('bmc-edit-ch', (b.channels||[]).join('\n'));
+  g('bmc-edit-cost', (b.cost_structure||[]).join('\n'));
+  g('bmc-edit-rev', (b.revenue_streams||[]).join('\n'));
+  const lbl = document.getElementById('bmc-edit-state-label');
+  if (lbl) lbl.textContent = state === 'current' ? 'Current State (AS-IS)' : 'Target State';
+  const form = document.getElementById('bmc-edit-form');
+  if (form) form.__bmcEditState = state;
+  document.getElementById('bmc-view-card')?.classList.add('hidden');
+  form?.classList.remove('hidden');
+  setTimeout(() => document.getElementById('bmc-edit-vp')?.focus(), 50);
+}
+
+function saveBMCEdits() {
+  const form = document.getElementById('bmc-edit-form');
+  const state = form?.__bmcEditState || 'target';
+  const b = state === 'current' ? model.bmc_current : model.bmc;
+  if (!b) return;
+  const g = id => (document.getElementById(id)?.value || '').trim();
+  const lines = str => str.split('\n').map(s => s.trim()).filter(Boolean);
+  b.value_proposition = g('bmc-edit-vp');
+  b.customer_segments = lines(g('bmc-edit-cs'));
+  b.key_partners = lines(g('bmc-edit-kp'));
+  b.key_activities = lines(g('bmc-edit-ka'));
+  b.key_resources = lines(g('bmc-edit-kr'));
+  b.customer_relationships = lines(g('bmc-edit-cr'));
+  b.channels = lines(g('bmc-edit-ch'));
+  b.cost_structure = lines(g('bmc-edit-cost'));
+  b.revenue_streams = lines(g('bmc-edit-rev'));
+  form?.classList.add('hidden');
+  document.getElementById('bmc-view-card')?.classList.remove('hidden');
+  renderBMCPanel();
+  autoSaveCurrentModel();
+  toast('Business Model Canvas updated ?');
+  addAssistantMessage(
+    `**Business Model Canvas updated manually**\n\n` +
+    `The ${state === 'current' ? 'Current State (AS-IS)' : 'Target State'} BMC has been saved. Use the ? Edit button to make further changes or **Refresh** to re-run the AI.`
+  );
+}
+
+function cancelBMCEdit() {
+  document.getElementById('bmc-edit-form')?.classList.add('hidden');
+  document.getElementById('bmc-view-card')?.classList.remove('hidden');
+}
+
+// -- CROSS-STEP CONTEXT BUILDER ----------------------------------------------
+// Constructs a cumulative, structured context block for any step >= 2.
+// Pulls all completed prior-step outputs from model so the AI never loses context.
+function _buildStepContext(stepNum) {
+  const si = model.strategicIntent || {};
+  const parts = [];
+
+  if (si.strategic_ambition) {
+    parts.push([
+      '=== STEP 1 � STRATEGIC INTENT ===',
+      si.org_name    ? `Organisation: ${si.org_name}` : null,
+      si.industry    ? `Industry: ${si.industry}${si.timeframe ? ' | Timeframe: ' + si.timeframe : ''}` : null,
+      `Strategic ambition: ${si.strategic_ambition}`,
+      si.situation_narrative  ? `Situation narrative: ${si.situation_narrative}` : null,
+      si.burning_platform     ? `Burning platform (urgency): ${si.burning_platform}` : null,
+      (si.strategic_themes||[]).length   ? `Strategic themes: ${si.strategic_themes.join(' � ')}` : null,
+      (si.key_constraints||[]).length    ? `Key constraints:\n${si.key_constraints.map(c=>'  - '+c).join('\n')}` : null,
+      (si.success_metrics||[]).length    ? `Success metrics:\n${si.success_metrics.map(m=>'  - '+m).join('\n')}` : null,
+      (si.investigation_scope||[]).length ? `EA investigation scope:\n${si.investigation_scope.map(i=>'  - '+i).join('\n')}` : null,
+      (si.key_assumptions_to_validate||[]).length ? `Key assumptions to validate:\n${si.key_assumptions_to_validate.map(a=>'  - '+a).join('\n')}` : null,
+      (si.expected_outcomes||[]).length  ? `Expected outcomes:\n${si.expected_outcomes.map(o=>'  - '+o).join('\n')}` : null,
+    ].filter(Boolean).join('\n'));
+  }
+
+  if (stepNum >= 3 && model.bmc) {
+    const b = model.bmc;
+    parts.push([
+      '=== STEP 2 � BUSINESS MODEL CANVAS (TARGET STATE) ===',
+      b.value_proposition           ? `Value proposition: ${b.value_proposition}` : null,
+      (b.customer_segments||[]).length ? `Customer segments: ${b.customer_segments.join(' � ')}` : null,
+      (b.revenue_streams||[]).length   ? `Revenue streams: ${b.revenue_streams.join(' � ')}` : null,
+      (b.channels||[]).length          ? `Channels: ${b.channels.join(' � ')}` : null,
+      (b.customer_relationships||[]).length ? `Customer relationships: ${b.customer_relationships.join(' � ')}` : null,
+      (b.key_activities||[]).length    ? `Key activities: ${b.key_activities.join(' � ')}` : null,
+      (b.key_resources||[]).length     ? `Key resources: ${b.key_resources.join(' � ')}` : null,
+      (b.key_partners||[]).length      ? `Key partners: ${b.key_partners.slice(0,4).join(' � ')}` : null,
+      (b.cost_structure||[]).length    ? `Cost structure: ${b.cost_structure.slice(0,3).join(' � ')}` : null,
+      model.bmc_analysis ? `Model shift: ${(model.bmc_analysis.blocks_requiring_transformation||[]).join(', ')} require transformation; revenue concentration risk: ${model.bmc_analysis.revenue_concentration_risk||'n/a'}` : null,
+    ].filter(Boolean).join('\n'));
+  }
+
+  if (stepNum >= 4 && model.capabilities.length) {
+    const highCaps = model.capabilities.filter(c => c.strategicImportance === 'high').map(c => c.name);
+    const weakCaps = model.capabilities.filter(c => Number(c.maturity) <= 2).map(c => `${c.name} (M${c.maturity}, ${c.domain})`);
+    parts.push([
+      '=== STEP 3 � CAPABILITY ARCHITECTURE ===',
+      `Total: ${model.capabilities.length} capabilities | ${(model.systems||[]).length} systems | ${(model.aiAgents||[]).length} AI agents`,
+      highCaps.length ? `High-strategic-importance capabilities: ${highCaps.join(', ')}` : null,
+      weakCaps.length ? `Low-maturity capabilities (=2, priority uplift): ${weakCaps.join(', ')}` : null,
+    ].filter(Boolean).join('\n'));
+  }
+
+  if (stepNum >= 5 && model.operatingModel?.valueProposition) {
+    const om = model.operatingModel;
+    parts.push([
+      '=== STEP 4 � OPERATING MODEL ===',
+      `Value proposition: ${om.valueProposition}`,
+      (om.keyActivities||[]).length  ? `Key activities: ${om.keyActivities.slice(0,4).join(' � ')}` : null,
+      (om.costStructure||[]).length  ? `Cost structure: ${om.costStructure.slice(0,3).join(' � ')}` : null,
+      (om.revenueStreams||[]).length ? `Revenue streams: ${om.revenueStreams.slice(0,3).join(' � ')}` : null,
+      (om.keyPartners||[]).length    ? `Key partners: ${om.keyPartners.slice(0,3).join(' � ')}` : null,
+    ].filter(Boolean).join('\n'));
+  }
+
+  if (stepNum >= 6 && model.gapAnalysisDone) {
+    const topGaps = model.capabilities
+      .filter(c => c.strategicImportance === 'high' && Number(c.maturity) <= 3)
+      .sort((a,b) => Number(a.maturity) - Number(b.maturity))
+      .slice(0, 6)
+      .map(c => `${c.name} (M${c.maturity}, ${c.domain})`);
+    parts.push([
+      '=== STEP 5 � GAP ANALYSIS (COMPLETED) ===',
+      topGaps.length
+        ? `Priority capability gaps (high-importance, low maturity):\n${topGaps.map(g=>'  - '+g).join('\n')}`
+        : 'Gap analysis completed � see capability maturity scores.',
+    ].filter(Boolean).join('\n'));
+  }
+
+  if (stepNum >= 7 && (model.valuePools||[]).length) {
+    parts.push([
+      '=== STEP 6 � VALUE POOLS ===',
+      ...model.valuePools.map(p => `  - ${p.name} (driver: ${p.value_driver}, horizon: ${p.time_horizon}, impact: ${p.potential_impact}): ${p.description}`),
+    ].join('\n'));
+  }
+
+  return parts.join('\n\n');
+}
+
+// -- STEP 6: IDENTIFY VALUE POOLS ---------------------------------------------
+async function generateValuePools() {
+  return StepEngine.run('step6', window.model);
+}
+
+async function _v5LegacyVP_dead() { /* removed */ }
+
+function renderValuePoolsPanel() { /* removed - obsolete legacy rendering function */ }
+
+// -- RENDER STRATEGIC INTENT SECTION (EXEC TAB) -------------------------------
+function enterIntentEditMode() {
+  const si = model.strategicIntent;
+  if (!si) return;
+  // Populate form fields
+  const g = (id, val) => { const e = document.getElementById(id); if (e) e.value = val || ''; };
+  g('intent-edit-org-name', si.org_name);
+  g('intent-edit-industry', si.industry);
+  g('intent-edit-timeframe', si.timeframe);
+  g('intent-edit-situation-narrative', si.situation_narrative);
+  g('intent-edit-ambition', si.strategic_ambition);
+  g('intent-edit-themes', (si.strategic_themes || []).join('\n'));
+  g('intent-edit-constraints', (si.key_constraints || []).join('\n'));
+  g('intent-edit-metrics', (si.success_metrics || []).join('\n'));
+  g('intent-edit-key-assumptions', (si.key_assumptions_to_validate || []).join('\n'));
+  g('intent-edit-expected-outcomes', (si.expected_outcomes || []).join('\n'));
+  g('intent-edit-burning-platform', si.burning_platform);
+  // Toggle visibility
+  document.getElementById('intent-view-card')?.classList.add('hidden');
+  ['intent-burning-platform','intent-caveats','intent-investigation-scope','intent-assumptions-validate','intent-expected-outcomes'].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
+  });
+  document.getElementById('intent-edit-form')?.classList.remove('hidden');
+  // Focus on ambition field
+  setTimeout(() => document.getElementById('intent-edit-ambition')?.focus(), 50);
+}
+
+function saveIntentEdits() {
+  const si = model.strategicIntent;
+  if (!si) return;
+  const g = id => (document.getElementById(id)?.value || '').trim();
+  const lines = str => str.split('\n').map(s => s.trim()).filter(Boolean);
+  si.org_name = g('intent-edit-org-name');
+  si.industry = g('intent-edit-industry');
+  si.timeframe = g('intent-edit-timeframe');
+  si.situation_narrative = g('intent-edit-situation-narrative');
+  si.strategic_ambition = g('intent-edit-ambition');
+  si.strategic_themes = lines(g('intent-edit-themes'));
+  si.key_constraints = lines(g('intent-edit-constraints'));
+  si.success_metrics = lines(g('intent-edit-metrics'));
+  si.burning_platform = g('intent-edit-burning-platform');
+  si.key_assumptions_to_validate = lines(g('intent-edit-key-assumptions'));
+  si.expected_outcomes = lines(g('intent-edit-expected-outcomes'));
+  // Reset confirmation � user must re-confirm after manual edits
+  model.strategicIntentConfirmed = false;
+  updateWorkflowStepStates();
+  const confirmBtn = document.getElementById('btn-step1-confirm');
+  if (confirmBtn) confirmBtn.classList.remove('hidden');
+  // Exit edit mode and redraw
+  document.getElementById('intent-edit-form')?.classList.add('hidden');
+  document.getElementById('intent-view-card')?.classList.remove('hidden');
+  renderStrategicIntentSection();
+  autoSaveCurrentModel();
+  toast('Strategic Intent updated � please re-confirm before proceeding to Step 2');
+  addAssistantMessage(
+    `**Strategic Intent updated manually**\n\n` +
+    `The intent has been edited. Please review the changes and click **Confirm Step 1** in the left panel when you're satisfied � this will re-unlock Step 2.`
+  );
+}
+
+function cancelIntentEdit() {
+  document.getElementById('intent-edit-form')?.classList.add('hidden');
+  document.getElementById('intent-view-card')?.classList.remove('hidden');
+  renderStrategicIntentSection();
+}
+
+// --- STEP 5: GAP ANALYSIS MANUAL EDIT -----------------------------------------
+function _gapEditRowHtml(g, i) {
+  const cap  = (g.capability || g.capability_area || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const desc = (g.gap_description || g.description || '').replace(/</g, '&lt;');
+  const prio = g.priority || g.severity || 'medium';
+  const impact = g.impact_score || g.impact || '';
+  const effort = g.effort_score || g.effort || '';
+  return `<div class="bg-white border border-slate-200 rounded-xl p-3" data-gap-idx="${i}">
+    <div class="flex gap-2 mb-2 items-end">
+      <div class="flex-1">
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Capability / Gap Title</label>
+        <input id="gec-cap-${i}" type="text" value="${cap}"
+          class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Priority</label>
+        <select id="gec-prio-${i}" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400">
+          <option value="critical" ${prio==='critical'?'selected':''}>Critical</option>
+          <option value="high" ${prio==='high'?'selected':''}>High</option>
+          <option value="medium" ${prio==='medium'?'selected':''}>Medium</option>
+          <option value="low" ${prio==='low'?'selected':''}>Low</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Impact (1-5)</label>
+        <input id="gec-impact-${i}" type="number" min="1" max="5" value="${impact}"
+          class="w-14 border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Effort (1-5)</label>
+        <input id="gec-effort-${i}" type="number" min="1" max="5" value="${effort}"
+          class="w-14 border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <button onclick="removeGapEditRow(${i})" class="text-[9px] text-red-400 hover:text-red-600 px-1" title="Remove gap"><i class="fas fa-trash"></i></button>
+    </div>
+    <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Description</label>
+    <textarea id="gec-desc-${i}" rows="2"
+      class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400 resize-y">${desc}</textarea>
+  </div>`;
+}
+
+let _gapEditData = [];
+
+function enterGapEditMode() {
+  _gapEditData = JSON.parse(JSON.stringify(
+    (model.priorityGaps?.length ? model.priorityGaps : (model.gapAnalysis?.gaps || []))
+  ));
+  _refreshGapEditList();
+  document.getElementById('insights')?.classList.add('hidden');
+  document.getElementById('gap-edit-form')?.classList.remove('hidden');
+}
+
+function _refreshGapEditList() {
+  const el = document.getElementById('gap-edit-list');
+  if (el) el.innerHTML = _gapEditData.map((g, i) => _gapEditRowHtml(g, i)).join('');
+}
+
+function addGapEditRow() {
+  _gapEditData.push({ capability: '', gap_description: '', priority: 'medium', impact_score: 3, effort_score: 3 });
+  _refreshGapEditList();
+}
+
+function removeGapEditRow(i) {
+  _gapEditData.splice(i, 1);
+  _refreshGapEditList();
+}
+
+function saveGapEdits() {
+  const saved = _gapEditData.map((g, i) => {
+    const cap    = document.getElementById('gec-cap-' + i)?.value.trim() || g.capability || '';
+    const prio   = document.getElementById('gec-prio-' + i)?.value || g.priority || 'medium';
+    const desc   = document.getElementById('gec-desc-' + i)?.value.trim() || g.gap_description || '';
+    const impact = parseInt(document.getElementById('gec-impact-' + i)?.value) || g.impact_score || 3;
+    const effort = parseInt(document.getElementById('gec-effort-' + i)?.value) || g.effort_score || 3;
+    return { ...g, capability: cap, capability_area: cap, priority: prio, severity: prio,
+             gap_description: desc, description: desc, impact_score: impact, effort_score: effort };
+  });
+  if (model.gapAnalysis) model.gapAnalysis.gaps = saved;
+  model.priorityGaps = saved;
+  cancelGapEdit();
+  autoSaveCurrentModel();
+  toast('Gap Analysis updated ?');
+  addAssistantMessage('**Gap Analysis updated manually.** Your edits have been saved. Re-running Step 5 will overwrite these manual changes.');
+}
+
+function cancelGapEdit() {
+  document.getElementById('gap-edit-form')?.classList.add('hidden');
+  document.getElementById('insights')?.classList.remove('hidden');
+  if (typeof renderGapContent === 'function') renderGapContent();
+}
+
+// --- STEP 6: VALUE POOLS MANUAL EDIT ------------------------------------------
+function _vpEditRowHtml(p, i) {
+  const name  = (p.name || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const desc  = (p.description || '').replace(/</g, '&lt;');
+  const theme = (p.linked_strategic_theme || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const risks = (p.risks_if_missed || '').replace(/</g, '&lt;');
+  const eur   = p.estimated_annual_value_eur || '';
+  const driver = p.value_driver || 'revenue';
+  const impact = p.potential_impact || 'medium';
+  const horizon = p.time_horizon || 'medium';
+  return `<div class="bg-white border border-slate-200 rounded-xl p-3" data-vp-idx="${i}">
+    <div class="flex gap-2 mb-2 items-end">
+      <div class="flex-1">
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Value Pool Name</label>
+        <input id="vpc-name-${i}" type="text" value="${name}"
+          class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Driver</label>
+        <select id="vpc-driver-${i}" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400">
+          <option value="revenue" ${driver==='revenue'?'selected':''}>Revenue</option>
+          <option value="cost" ${driver==='cost'?'selected':''}>Cost</option>
+          <option value="risk" ${driver==='risk'?'selected':''}>Risk</option>
+          <option value="experience" ${driver==='experience'?'selected':''}>Experience</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Impact</label>
+        <select id="vpc-impact-${i}" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400">
+          <option value="high" ${impact==='high'?'selected':''}>High</option>
+          <option value="medium" ${impact==='medium'?'selected':''}>Medium</option>
+          <option value="low" ${impact==='low'?'selected':''}>Low</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Horizon</label>
+        <select id="vpc-horizon-${i}" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400">
+          <option value="short" ${horizon==='short'?'selected':''}>Short</option>
+          <option value="medium" ${horizon==='medium'?'selected':''}>Medium</option>
+          <option value="long" ${horizon==='long'?'selected':''}>Long</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">EUR/yr</label>
+        <input id="vpc-eur-${i}" type="number" min="0" value="${eur}"
+          class="w-24 border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <button onclick="removeValuePoolEditRow(${i})" class="text-[9px] text-red-400 hover:text-red-600 px-1" title="Remove"><i class="fas fa-trash"></i></button>
+    </div>
+    <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Description</label>
+    <textarea id="vpc-desc-${i}" rows="2"
+      class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400 resize-y mb-2">${desc}</textarea>
+    <div class="flex gap-2">
+      <div class="flex-1">
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Strategic Theme</label>
+        <input id="vpc-theme-${i}" type="text" value="${theme}"
+          class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <div class="flex-1">
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Risks if Missed</label>
+        <input id="vpc-risks-${i}" type="text" value="${risks}"
+          class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+    </div>
+  </div>`;
+}
+
+let _vpEditData = [];
+
+function enterValuePoolEditMode() {
+  _vpEditData = JSON.parse(JSON.stringify(model.valuePools || []));
+  _refreshVpEditList();
+  document.getElementById('valuepools-content')?.classList.add('hidden');
+  document.getElementById('vp-edit-form')?.classList.remove('hidden');
+}
+
+function _refreshVpEditList() {
+  const el = document.getElementById('vp-edit-list');
+  if (el) el.innerHTML = _vpEditData.map((p, i) => _vpEditRowHtml(p, i)).join('');
+}
+
+function addValuePoolEditRow() {
+  _vpEditData.push({ name: '', description: '', value_driver: 'revenue', potential_impact: 'medium', time_horizon: 'medium', estimated_annual_value_eur: 0, enabling_capabilities: [], risks_if_missed: '', linked_strategic_theme: '' });
+  _refreshVpEditList();
+}
+
+function removeValuePoolEditRow(i) {
+  _vpEditData.splice(i, 1);
+  _refreshVpEditList();
+}
+
+function saveValuePoolEdits() {
+  const saved = _vpEditData.map((p, i) => ({
+    ...p,
+    name:   document.getElementById('vpc-name-' + i)?.value.trim() || p.name || '',
+    description: document.getElementById('vpc-desc-' + i)?.value.trim() || p.description || '',
+    value_driver: document.getElementById('vpc-driver-' + i)?.value || p.value_driver || 'revenue',
+    potential_impact: document.getElementById('vpc-impact-' + i)?.value || p.potential_impact || 'medium',
+    time_horizon: document.getElementById('vpc-horizon-' + i)?.value || p.time_horizon || 'medium',
+    estimated_annual_value_eur: parseFloat(document.getElementById('vpc-eur-' + i)?.value) || p.estimated_annual_value_eur || 0,
+    linked_strategic_theme: document.getElementById('vpc-theme-' + i)?.value.trim() || p.linked_strategic_theme || '',
+    risks_if_missed: document.getElementById('vpc-risks-' + i)?.value.trim() || p.risks_if_missed || ''
+  }));
+  model.valuePools = saved;
+  cancelValuePoolEdit();
+  autoSaveCurrentModel();
+  toast('Value Pools updated ?');
+  addAssistantMessage('**Value Pools updated manually.** Changes saved. Re-running Step 6 will overwrite these manual edits.');
+}
+
+function cancelValuePoolEdit() {
+  document.getElementById('vp-edit-form')?.classList.add('hidden');
+  document.getElementById('valuepools-content')?.classList.remove('hidden');
+  if (typeof renderValuePoolsPanel === 'function') renderValuePoolsPanel();
+}
+
+// --- STEP 7: INITIATIVES / ROADMAP MANUAL EDIT --------------------------------
+function _initiativeEditRowHtml(ini, i) {
+  const name  = (ini.name || ini.title || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const phase = (ini.phase || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const cap   = (ini.impactsCapability || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const prio  = ini.priority || 'medium';
+  const bv    = ini.estimatedBusinessValue || 'medium';
+  const cx    = ini.complexity || 'medium';
+  return `<div class="bg-white border border-slate-200 rounded-xl p-3" data-ini-idx="${i}">
+    <div class="flex gap-2 mb-2 items-end">
+      <div class="flex-1">
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Initiative Name</label>
+        <input id="iec-name-${i}" type="text" value="${name}"
+          class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Phase / Wave</label>
+        <input id="iec-phase-${i}" type="text" value="${phase}" placeholder="e.g. Year 1 Q1-Q2"
+          class="w-28 border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Priority</label>
+        <select id="iec-prio-${i}" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400">
+          <option value="high" ${prio==='high'?'selected':''}>High</option>
+          <option value="medium" ${prio==='medium'?'selected':''}>Medium</option>
+          <option value="low" ${prio==='low'?'selected':''}>Low</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Biz Value</label>
+        <select id="iec-bv-${i}" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400">
+          <option value="high" ${bv==='high'?'selected':''}>High</option>
+          <option value="medium" ${bv==='medium'?'selected':''}>Medium</option>
+          <option value="low" ${bv==='low'?'selected':''}>Low</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Complexity</label>
+        <select id="iec-cx-${i}" class="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400">
+          <option value="high" ${cx==='high'?'selected':''}>High</option>
+          <option value="medium" ${cx==='medium'?'selected':''}>Medium</option>
+          <option value="low" ${cx==='low'?'selected':''}>Low</option>
+        </select>
+      </div>
+      <button onclick="removeInitiativeEditRow(${i})" class="text-[9px] text-red-400 hover:text-red-600 px-1" title="Remove"><i class="fas fa-trash"></i></button>
+    </div>
+    <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Impacts Capability</label>
+    <input id="iec-cap-${i}" type="text" value="${cap}" placeholder="e.g. Digital Customer Engagement"
+      class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-800 focus:outline-none focus:border-blue-400"/>
+  </div>`;
+}
+
+let _initiativeEditData = [];
+
+function enterInitiativeEditMode() {
+  _initiativeEditData = JSON.parse(JSON.stringify(model.initiatives || []));
+  _refreshInitiativeEditList();
+  document.getElementById('roadmapvis-content')?.classList.add('hidden');
+  document.getElementById('initiative-edit-form')?.classList.remove('hidden');
+}
+
+function _refreshInitiativeEditList() {
+  const el = document.getElementById('initiative-edit-list');
+  if (el) el.innerHTML = _initiativeEditData.map((ini, i) => _initiativeEditRowHtml(ini, i)).join('');
+}
+
+function addInitiativeEditRow() {
+  _initiativeEditData.push({ name: '', phase: '', priority: 'medium', estimatedBusinessValue: 'medium', complexity: 'medium', impactsCapability: '' });
+  _refreshInitiativeEditList();
+}
+
+function removeInitiativeEditRow(i) {
+  _initiativeEditData.splice(i, 1);
+  _refreshInitiativeEditList();
+}
+
+function saveInitiativeEdits() {
+  const saved = _initiativeEditData.map((ini, i) => ({
+    ...ini,
+    name:   document.getElementById('iec-name-' + i)?.value.trim() || ini.name || '',
+    title:  document.getElementById('iec-name-' + i)?.value.trim() || ini.title || '',
+    phase:  document.getElementById('iec-phase-' + i)?.value.trim() || ini.phase || '',
+    priority: document.getElementById('iec-prio-' + i)?.value || ini.priority || 'medium',
+    estimatedBusinessValue: document.getElementById('iec-bv-' + i)?.value || ini.estimatedBusinessValue || 'medium',
+    complexity: document.getElementById('iec-cx-' + i)?.value || ini.complexity || 'medium',
+    impactsCapability: document.getElementById('iec-cap-' + i)?.value.trim() || ini.impactsCapability || ''
+  }));
+  model.initiatives = saved;
+  cancelInitiativeEdit();
+  autoSaveCurrentModel();
+  toast('Roadmap updated ?');
+  addAssistantMessage('**Roadmap initiatives updated manually.** Changes saved. Re-running Step 7 will overwrite these manual edits.');
+}
+
+function cancelInitiativeEdit() {
+  document.getElementById('initiative-edit-form')?.classList.add('hidden');
+  document.getElementById('roadmapvis-content')?.classList.remove('hidden');
+  if (typeof renderInitiatives === 'function') renderInitiatives();
+  if (typeof renderRoadmapVisual === 'function') renderRoadmapVisual();
+}
+
+function _renderKeyAssumptionsSection(intent, displayEl) {
+  const assumptions = intent.key_assumptions_to_validate || [];
+  let el = document.getElementById('intent-assumptions-validate');
+  if (!assumptions.length) { if (el) el.classList.add('hidden'); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'intent-assumptions-validate';
+    el.className = 'mt-2 p-3 rounded-lg text-[10px] bg-white border border-slate-200';
+    if (displayEl) displayEl.appendChild(el);
+  } else {
+    el.className = 'mt-2 p-3 rounded-lg text-[10px] bg-white border border-slate-200';
+  }
+  const itemsHtml = assumptions.map(a =>
+    `<li class="text-slate-700 leading-relaxed">${a}</li>`
+  ).join('');
+  el.innerHTML = `
+    <div class="font-bold text-slate-500 uppercase text-[9px] tracking-widest mb-1.5">Key Assumptions to Validate</div>
+    <ul class="list-disc list-inside space-y-0.5">${itemsHtml}</ul>
+    <div class="mt-1.5 text-[9px] text-slate-400 italic">These pre-requisites are passed to subsequent steps to ground the analysis.</div>`;
+  el.classList.remove('hidden');
+}
+
+function _renderDataGapsSection(intent, displayEl) {
+  const gaps = intent.assumptions_and_caveats || [];
+  const answers = intent.data_gap_answers || [];
+  let el = document.getElementById('intent-caveats');
+  if (!gaps.length) { if (el) el.classList.add('hidden'); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'intent-caveats';
+    el.className = 'mt-2 p-3 rounded-lg text-[10px] bg-white border border-slate-200';
+    if (displayEl) displayEl.appendChild(el);
+  } else {
+    el.className = 'mt-2 p-3 rounded-lg text-[10px] bg-white border border-slate-200';
+  }
+  const confirmedCount = answers.filter(a => a && a.trim()).length;
+  const itemsHtml = gaps.map((g, i) => {
+    const ans = answers[i] || '';
+    const isConfirmed = ans.trim().length > 0;
+    return `<div class="mb-2 last:mb-0">
+      <div class="flex items-start gap-1.5">
+        <button onclick="toggleDataGapInput(${i})" class="mt-0.5 flex-shrink-0 w-3.5 h-3.5 rounded border ${isConfirmed ? 'bg-emerald-500 border-emerald-500' : 'bg-transparent border-slate-300'} flex items-center justify-center transition-colors" title="${isConfirmed ? 'Confirmed � click to edit' : 'Click to add confirmation'}">
+          ${isConfirmed ? '<i class="fas fa-check text-[7px] text-white"></i>' : ''}
+        </button>
+        <div class="flex-1">
+          <div class="text-slate-700 leading-relaxed">${g}</div>
+          ${isConfirmed ? `<div class="mt-0.5 text-emerald-600 italic text-[9px] cursor-pointer" onclick="toggleDataGapInput(${i})">? ${ans.replace(/</g,'&lt;')}</div>` : ''}
+          <div id="data-gap-input-${i}" class="hidden mt-1">
+            <div class="flex gap-1">
+              <input type="text" id="data-gap-answer-${i}" value="${ans.replace(/"/g,'&quot;')}" placeholder="Confirm or provide the actual value..." class="flex-1 bg-white border border-slate-300 rounded px-2 py-1 text-[10px] text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-400" onkeydown="if(event.key==='Enter'){saveDataGapAnswer(${i});}" />
+              <button onclick="saveDataGapAnswer(${i})" class="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white text-[9px] rounded font-semibold transition-colors flex-shrink-0">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="flex items-center justify-between mb-2">
+      <div class="font-bold text-slate-600 uppercase text-[9px] tracking-widest">Data Gaps � To Be Confirmed</div>
+      <div class="text-[9px] ${confirmedCount === gaps.length && gaps.length > 0 ? 'text-emerald-600 font-semibold' : 'text-slate-400'}">${confirmedCount}/${gaps.length} confirmed</div>
+    </div>
+    ${itemsHtml}
+    <div class="mt-2 text-[9px] italic ${confirmedCount === gaps.length && gaps.length > 0 ? 'text-emerald-600' : 'text-slate-400'}">
+      ${confirmedCount === gaps.length && gaps.length > 0 ? 'All data gaps confirmed � EA brief is fully grounded.' : 'Click the checkbox to confirm each item or provide the actual value.'}
+    </div>`;
+  el.classList.remove('hidden');
+}
+
+function toggleDataGapInput(idx) {
+  const inputDiv = document.getElementById('data-gap-input-' + idx);
+  if (inputDiv) {
+    const isHidden = inputDiv.classList.contains('hidden');
+    inputDiv.classList.toggle('hidden', !isHidden);
+    if (isHidden) { setTimeout(() => document.getElementById('data-gap-answer-' + idx)?.focus(), 50); }
+  }
+}
+
+function saveDataGapAnswer(idx) {
+  const si = model.strategicIntent;
+  if (!si) return;
+  const inputEl = document.getElementById('data-gap-answer-' + idx);
+  if (!inputEl) return;
+  const value = inputEl.value.trim();
+  if (!Array.isArray(si.data_gap_answers)) {
+    si.data_gap_answers = Array((si.assumptions_and_caveats || []).length).fill('');
+  }
+  while (si.data_gap_answers.length < (si.assumptions_and_caveats || []).length) {
+    si.data_gap_answers.push('');
+  }
+  si.data_gap_answers[idx] = value;
+  autoSaveCurrentModel();
+  const displayEl = document.getElementById('intent-display-section');
+  _renderDataGapsSection(si, displayEl);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ORGANIZATION PROFILE - Display & Edit Functions (Phase 5)
+// ══════════════════════════════════════════════════════════════════════════
+
+function renderOrganizationProfile() {
+  const profile = model.organizationProfile;
+  const completeness = model.organizationProfileCompleteness || 0;
+  const displayEl = document.getElementById('org-profile-display-section');
+  
+  if (!profile || completeness < 40) {
+    // Hide profile section if not exists or too incomplete
+    if (displayEl) displayEl.classList.add('hidden');
+    return;
+  }
+  
+  if (displayEl) displayEl.classList.remove('hidden');
+
+  // Helper to safely set text content
+  const set = (id, val) => {
+    const e = document.getElementById(id);
+    if (e) e.textContent = val || 'Not specified';
+  };
+
+  // Completeness badge
+  const badge = document.getElementById('org-profile-completeness-badge');
+  if (badge) {
+    badge.textContent = `${completeness}% Complete`;
+    if (completeness >= 80) {
+      badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700';
+    } else if (completeness >= 60) {
+      badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700';
+    } else {
+      badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700';
+    }
+  }
+
+  // Executive Summary
+  const execSummary = profile.executiveSummary || {};
+  set('org-profile-one-line-pitch', execSummary.oneLinePitch || profile.organizationName || 'Organization');
+  
+  const factsEl = document.getElementById('org-profile-three-key-facts');
+  if (factsEl && execSummary.threeKeyFacts && execSummary.threeKeyFacts.length) {
+    factsEl.innerHTML = execSummary.threeKeyFacts.map(f => `<div>• ${f}</div>`).join('');
+  } else if (factsEl) {
+    factsEl.innerHTML = '';
+  }
+  
+  set('org-profile-transformation-readiness', 
+    execSummary.transformationReadiness ? `Transformation Readiness: ${execSummary.transformationReadiness}` : '');
+
+  // Core Identity
+  set('org-profile-org-name', profile.organizationName || 'Organization');
+  const sizeText = [];
+  if (profile.industry) sizeText.push(profile.industry);
+  if (profile.companySize?.employees) sizeText.push(`${profile.companySize.employees} employees`);
+  if (profile.companySize?.sizeCategory) sizeText.push(profile.companySize.sizeCategory);
+  set('org-profile-industry-size', sizeText.join(' • '));
+  set('org-profile-mission', profile.missionStatement || 'Not specified');
+
+  // Strategic Context
+  const prioritiesEl = document.getElementById('org-profile-priorities');
+  if (prioritiesEl && profile.strategicPriorities && profile.strategicPriorities.length) {
+    prioritiesEl.innerHTML = profile.strategicPriorities.slice(0, 3).map(p => 
+      `<li>${p.priority}${p.timeframe ? ` (${p.timeframe})` : ''}</li>`
+    ).join('');
+  } else if (prioritiesEl) {
+    prioritiesEl.innerHTML = '<li class="text-slate-400">None specified</li>';
+  }
+
+  const challengesEl = document.getElementById('org-profile-challenges');
+  if (challengesEl && profile.challenges && profile.challenges.length) {
+    challengesEl.innerHTML = profile.challenges.slice(0, 3).map(c => 
+      `<li>${c.challenge}</li>`
+    ).join('');
+  } else if (challengesEl) {
+    challengesEl.innerHTML = '<li class="text-slate-400">None specified</li>';
+  }
+
+  // Technology Landscape (in expandable details)
+  const techEl = document.getElementById('org-profile-tech');
+  if (techEl && profile.technologyLandscape) {
+    const tech = profile.technologyLandscape;
+    const techItems = [];
+    if (tech.cloudAdoption) techItems.push(`Cloud: ${tech.cloudAdoption}`);
+    if (tech.aiAdoption) techItems.push(`AI: ${tech.aiAdoption}`);
+    if (tech.techDebt) techItems.push(`Tech Debt: ${tech.techDebt}`);
+    techEl.innerHTML = techItems.length ? techItems.map(t => `<div>• ${t}</div>`).join('') : '<div class="text-slate-400">Not specified</div>';
+  }
+
+  // Financial Context
+  const financialEl = document.getElementById('org-profile-financial');
+  if (financialEl && profile.financial) {
+    const fin = profile.financial;
+    const finItems = [];
+    if (fin.revenue) finItems.push(`Revenue: ${fin.revenue}`);
+    if (fin.growthRate) finItems.push(`Growth: ${fin.growthRate}`);
+    if (fin.investmentCapacity) finItems.push(`Investment: ${fin.investmentCapacity}`);
+    financialEl.innerHTML = finItems.length ? finItems.map(f => `<div>• ${f}</div>`).join('') : '<div class="text-slate-400">Not specified</div>';
+  }
+
+  // Opportunities
+  const oppsEl = document.getElementById('org-profile-opportunities');
+  if (oppsEl && profile.opportunities && profile.opportunities.length) {
+    oppsEl.innerHTML = profile.opportunities.slice(0, 3).map(o => 
+      `<li>${o.opportunity}</li>`
+    ).join('');
+  } else if (oppsEl) {
+    oppsEl.innerHTML = '<li class="text-slate-400">None specified</li>';
+  }
+
+  // Constraints
+  const constraintsEl = document.getElementById('org-profile-constraints');
+  if (constraintsEl && profile.constraints && profile.constraints.length) {
+    constraintsEl.innerHTML = profile.constraints.slice(0, 3).map(c => 
+      `<li>${c.type ? `${c.type}: ` : ''}${c.description}</li>`
+    ).join('');
+  } else if (constraintsEl) {
+    constraintsEl.innerHTML = '<li class="text-slate-400">None specified</li>';
+  }
+
+  // Warnings
+  const warningsSection = document.getElementById('org-profile-warnings');
+  const warningsList = document.getElementById('org-profile-warnings-list');
+  if (profile.metadata?.warnings && profile.metadata.warnings.length > 0) {
+    if (warningsSection) warningsSection.classList.remove('hidden');
+    if (warningsList) {
+      warningsList.innerHTML = profile.metadata.warnings.map(w => `<li>${w}</li>`).join('');
+    }
+  } else {
+    if (warningsSection) warningsSection.classList.add('hidden');
+  }
+}
+
+function toggleOrgProfileDetails() {
+  const detailsEl = document.getElementById('org-profile-details');
+  const iconEl = document.getElementById('org-profile-details-icon');
+  const labelEl = document.getElementById('org-profile-details-label');
+  
+  if (!detailsEl) return;
+  
+  const isHidden = detailsEl.classList.contains('hidden');
+  if (isHidden) {
+    detailsEl.classList.remove('hidden');
+    if (iconEl) iconEl.className = 'fas fa-chevron-up mr-1';
+    if (labelEl) labelEl.textContent = 'Hide full profile';
+  } else {
+    detailsEl.classList.add('hidden');
+    if (iconEl) iconEl.className = 'fas fa-chevron-down mr-1';
+    if (labelEl) labelEl.textContent = 'Show full profile';
+  }
+}
+
+function editOrganizationProfile() {
+  const profile = model.organizationProfile;
+  if (!profile) {
+    alert('No organization profile to edit. Please complete Step 0 with a detailed organizational summary first.');
+    return;
+  }
+
+  // Populate edit form
+  const set = (id, val) => {
+    const e = document.getElementById(id);
+    if (e) e.value = val || '';
+  };
+
+  // Core Identity
+  set('edit-org-name', profile.organizationName);
+  set('edit-industry', profile.industry);
+  set('edit-employees', profile.companySize?.employees);
+  set('edit-size-category', profile.companySize?.sizeCategory);
+  set('edit-mission', profile.missionStatement);
+
+  // Strategic Context
+  if (profile.strategicPriorities && profile.strategicPriorities.length) {
+    const priorities = profile.strategicPriorities.map(p => 
+      `${p.priority}${p.timeframe ? ` | ${p.timeframe}` : ''}`
+    ).join('\n');
+    set('edit-priorities', priorities);
+  }
+  
+  if (profile.challenges && profile.challenges.length) {
+    set('edit-challenges', profile.challenges.map(c => c.challenge).join('\n'));
+  }
+  
+  if (profile.opportunities && profile.opportunities.length) {
+    set('edit-opportunities', profile.opportunities.map(o => o.opportunity).join('\n'));
+  }
+  
+  if (profile.constraints && profile.constraints.length) {
+    const constraints = profile.constraints.map(c => 
+      c.type ? `${c.type}: ${c.description}` : c.description
+    ).join('\n');
+    set('edit-constraints', constraints);
+  }
+
+  // Technology & Financial
+  set('edit-cloud-adoption', profile.technologyLandscape?.cloudAdoption);
+  set('edit-ai-adoption', profile.technologyLandscape?.aiAdoption);
+  set('edit-tech-debt', profile.technologyLandscape?.techDebt);
+  set('edit-revenue', profile.financial?.revenue);
+  set('edit-growth-rate', profile.financial?.growthRate);
+  set('edit-investment-capacity', profile.financial?.investmentCapacity);
+
+  // Show modal
+  const modal = document.getElementById('orgProfileEditModal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeOrgProfileEditModal() {
+  const modal = document.getElementById('orgProfileEditModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function saveOrgProfileEdits() {
+  const profile = model.organizationProfile;
+  if (!profile) return;
+
+  // Get values from form
+  const get = (id) => {
+    const e = document.getElementById(id);
+    return e ? e.value.trim() : '';
+  };
+
+  // Update profile object
+  profile.organizationName = get('edit-org-name') || profile.organizationName;
+  profile.industry = get('edit-industry') || profile.industry;
+  profile.missionStatement = get('edit-mission') || profile.missionStatement;
+
+  // Company Size
+  if (!profile.companySize) profile.companySize = {};
+  const employees = parseInt(get('edit-employees'));
+  if (!isNaN(employees)) profile.companySize.employees = employees;
+  profile.companySize.sizeCategory = get('edit-size-category') || profile.companySize.sizeCategory;
+
+  // Strategic Priorities (parse from textarea)
+  const prioritiesText = get('edit-priorities');
+  if (prioritiesText) {
+    profile.strategicPriorities = prioritiesText.split('\n').filter(line => line.trim()).map(line => {
+      const parts = line.split('|').map(p => p.trim());
+      return {
+        priority: parts[0],
+        timeframe: parts[1] || '',
+        importance: 'High',
+        rationale: ''
+      };
+    });
+  }
+
+  // Challenges
+  const challengesText = get('edit-challenges');
+  if (challengesText) {
+    profile.challenges = challengesText.split('\n').filter(line => line.trim()).map(challenge => ({
+      challenge: challenge,
+      impact: '',
+      urgency: ''
+    }));
+  }
+
+  // Opportunities
+  const opportunitiesText = get('edit-opportunities');
+  if (opportunitiesText) {
+    profile.opportunities = opportunitiesText.split('\n').filter(line => line.trim()).map(opp => ({
+      opportunity: opp,
+      valueStatement: '',
+      feasibility: ''
+    }));
+  }
+
+  // Constraints
+  const constraintsText = get('edit-constraints');
+  if (constraintsText) {
+    profile.constraints = constraintsText.split('\n').filter(line => line.trim()).map(line => {
+      const colonIdx = line.indexOf(':');
+      if (colonIdx > 0) {
+        return {
+          type: line.substring(0, colonIdx).trim(),
+          description: line.substring(colonIdx + 1).trim(),
+          severity: ''
+        };
+      }
+      return {
+        type: '',
+        description: line,
+        severity: ''
+      };
+    });
+  }
+
+  // Technology Landscape
+  if (!profile.technologyLandscape) profile.technologyLandscape = {};
+  profile.technologyLandscape.cloudAdoption = get('edit-cloud-adoption') || profile.technologyLandscape.cloudAdoption;
+  profile.technologyLandscape.aiAdoption = get('edit-ai-adoption') || profile.technologyLandscape.aiAdoption;
+  profile.technologyLandscape.techDebt = get('edit-tech-debt') || profile.technologyLandscape.techDebt;
+
+  // Financial
+  if (!profile.financial) profile.financial = {};
+  profile.financial.revenue = get('edit-revenue') || profile.financial.revenue;
+  profile.financial.growthRate = get('edit-growth-rate') || profile.financial.growthRate;
+  profile.financial.investmentCapacity = get('edit-investment-capacity') || profile.financial.investmentCapacity;
+
+  // Recalculate completeness
+  if (typeof EA_OrganizationProfileProcessor !== 'undefined' && EA_OrganizationProfileProcessor.calculateCompleteness) {
+    try {
+      model.organizationProfileCompleteness = EA_OrganizationProfileProcessor.calculateCompleteness(profile);
+      console.log('[OrgProfile] Recalculated completeness:', model.organizationProfileCompleteness + '%');
+    } catch (err) {
+      console.warn('[OrgProfile] Could not recalculate completeness:', err);
+    }
+  }
+
+  // Update timestamps
+  if (!profile.metadata) profile.metadata = {};
+  profile.metadata.updatedAt = new Date().toISOString();
+
+  // Save to model
+  model.organizationProfile = profile;
+  if (typeof autoSaveCurrentModel === 'function') {
+    autoSaveCurrentModel();
+  }
+
+  // Re-render
+  renderOrganizationProfile();
+  closeOrgProfileEditModal();
+  
+  // Show success message
+  console.log('[OrgProfile] Profile updated successfully');
+  alert('Organization profile updated successfully!');
+}
+
+function renderStrategicIntentSection() {
+  // NEW: Forward to renderBusinessContextSection if businessContext exists
+  if (model.businessContext) {
+    renderBusinessContextSection();
+    return;
+  }
+  
+  const intent = model.strategicIntent;
+  const businessObjectives = model.businessObjectives;
+  const displayEl = document.getElementById('intent-display-section');
+  const placeholderEl = document.getElementById('intent-placeholder');
+  
+  if (!intent && !businessObjectives) {
+    if (displayEl) displayEl.classList.add('hidden');
+    if (placeholderEl) placeholderEl.classList.remove('hidden');
+    return;
+  }
+  
+  if (displayEl) displayEl.classList.remove('hidden');
+  if (placeholderEl) placeholderEl.classList.add('hidden');
+
+  // Render Business Objectives if available (Business Object workflow)
+  const businessObjSection = document.getElementById('business-objectives-section');
+  const businessObjContent = document.getElementById('business-objectives-content');
+  
+  if (businessObjectives && businessObjSection && businessObjContent) {
+    businessObjSection.classList.remove('hidden');
+    
+    let html = '';
+    
+    // Primary Objectives
+    if (businessObjectives.primaryObjectives?.length > 0) {
+      html += '<div class="mb-2">';
+      html += '<div class="font-bold text-amber-800 text-[10px] mb-1">Primary Objectives:</div>';
+      html += '<ul class="space-y-0.5 ml-3 list-disc list-inside">';
+      businessObjectives.primaryObjectives.forEach(obj => {
+        html += `<li class="text-slate-700">${obj}</li>`;
+      });
+      html += '</ul></div>';
+    }
+    
+    // Key Challenges
+    if (businessObjectives.keyChallenges?.length > 0) {
+      html += '<div class="mb-2">';
+      html += '<div class="font-bold text-amber-800 text-[10px] mb-1">Key Challenges:</div>';
+      html += '<ul class="space-y-0.5 ml-3 list-disc list-inside">';
+      businessObjectives.keyChallenges.forEach(challenge => {
+        html += `<li class="text-slate-700">${challenge}</li>`;
+      });
+      html += '</ul></div>';
+    }
+    
+    // Strategic Context
+    if (businessObjectives.strategicContext && Object.keys(businessObjectives.strategicContext).length > 0) {
+      html += '<div>';
+      html += '<div class="font-bold text-amber-800 text-[10px] mb-1">Strategic Context:</div>';
+      html += '<div class="text-slate-700 space-y-0.5">';
+      Object.entries(businessObjectives.strategicContext).forEach(([key, value]) => {
+        const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        html += `<div><span class="font-semibold">${label}:</span> ${value}</div>`;
+      });
+      html += '</div></div>';
+    }
+    
+    businessObjContent.innerHTML = html;
+  } else if (businessObjSection) {
+    businessObjSection.classList.add('hidden');
+  }
+
+  // Standard Strategic Intent rendering
+  if (!intent) return;
+
+  // Initialise data_gap_answers array if missing or wrong length
+  const dataGapCount = (intent.assumptions_and_caveats || []).length;
+  if (!Array.isArray(intent.data_gap_answers)) {
+    intent.data_gap_answers = Array(dataGapCount).fill('');
+  } else if (intent.data_gap_answers.length !== dataGapCount) {
+    intent.data_gap_answers = Array.from({ length: dataGapCount }, (_, i) =>
+      (intent.data_gap_answers[i] || '')
+    );
+  }
+
+  const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val || ''; };
+  const setMd = (id, val) => { const e = document.getElementById(id); if (e) e.innerHTML = parseMarkdown(val || ''); };
+  set('intent-org-name', intent.org_name || 'Organisation');
+  set('intent-industry-timeframe', [intent.industry, intent.timeframe].filter(Boolean).join(' \u00b7 '));
+  setMd('intent-ambition', intent.strategic_ambition || '');
+
+  // Situation narrative � shown inline beneath the ambition
+  const narrativeEl = document.getElementById('intent-situation-narrative');
+  if (narrativeEl) {
+    narrativeEl.textContent = intent.situation_narrative || '';
+    narrativeEl.classList.toggle('hidden', !intent.situation_narrative);
+  }
+
+  const themesEl = document.getElementById('intent-themes');
+  if (themesEl) {
+    themesEl.innerHTML = (intent.strategic_themes || []).map(t => `<span class="intent-theme-pill">${t}</span>`).join('');
+  }
+  const constraintsEl = document.getElementById('intent-constraints');
+  if (constraintsEl) {
+    constraintsEl.innerHTML = (intent.key_constraints || []).map(c => `<li>${c}</li>`).join('');
+  }
+  const metricsEl = document.getElementById('intent-metrics');
+  if (metricsEl) {
+    metricsEl.innerHTML = (intent.success_metrics || []).map(m => `<li>${m}</li>`).join('');
+  }
+
+  // Burning platform
+  let burnEl = document.getElementById('intent-burning-platform');
+  if (intent.burning_platform) {
+    if (!burnEl) {
+      burnEl = document.createElement('div');
+      burnEl.id = 'intent-burning-platform';
+      burnEl.className = 'mt-2 p-3 bg-white border border-slate-200 rounded-lg text-[10px]';
+      if (displayEl) displayEl.appendChild(burnEl);
+    } else {
+      burnEl.className = 'mt-2 p-3 bg-white border border-slate-200 rounded-lg text-[10px]';
+    }
+    burnEl.innerHTML = `<div class="font-bold text-slate-600 uppercase text-[9px] tracking-widest mb-1">? Burning Platform</div><div class="text-slate-700">${parseMarkdown(intent.burning_platform)}</div>`;
+    burnEl.classList.remove('hidden');
+  } else if (burnEl) {
+    burnEl.classList.add('hidden');
+  }
+
+  // Key questions / investigation scope
+  let scopeEl = document.getElementById('intent-investigation-scope');
+  if ((intent.investigation_scope || []).length) {
+    if (!scopeEl) {
+      scopeEl = document.createElement('div');
+      scopeEl.id = 'intent-investigation-scope';
+      scopeEl.className = 'mt-2 p-3 bg-white border border-slate-200 rounded-lg text-[10px]';
+      if (displayEl) displayEl.appendChild(scopeEl);
+    } else {
+      scopeEl.className = 'mt-2 p-3 bg-white border border-slate-200 rounded-lg text-[10px]';
+    }
+    scopeEl.innerHTML = `<div class="font-bold text-slate-600 uppercase text-[9px] tracking-widest mb-1.5">Key Questions for Enterprise Architecture</div><ul class="list-disc list-inside text-slate-700 space-y-0.5">${(intent.investigation_scope || []).map(s => `<li>${s}</li>`).join('')}</ul>`;
+    scopeEl.classList.remove('hidden');
+  } else if (scopeEl) { scopeEl.classList.add('hidden'); }
+
+  // Key assumptions � plain read-only list, passed to downstream steps as pre-requisites
+  _renderKeyAssumptionsSection(intent, displayEl);
+
+  // Expected outcomes
+  let outcomesEl = document.getElementById('intent-expected-outcomes');
+  if ((intent.expected_outcomes || []).length) {
+    if (!outcomesEl) {
+      outcomesEl = document.createElement('div');
+      outcomesEl.id = 'intent-expected-outcomes';
+      outcomesEl.className = 'mt-2 p-3 bg-white border border-slate-200 rounded-lg text-[10px]';
+      if (displayEl) displayEl.appendChild(outcomesEl);
+    } else {
+      outcomesEl.className = 'mt-2 p-3 bg-white border border-slate-200 rounded-lg text-[10px]';
+    }
+    outcomesEl.innerHTML = `<div class="font-bold text-slate-600 uppercase text-[9px] tracking-widest mb-1.5">This Work Will Deliver</div><ul class="list-disc list-inside text-slate-700 space-y-0.5">${(intent.expected_outcomes || []).map(o => `<li>${o}</li>`).join('')}</ul>`;
+    outcomesEl.classList.remove('hidden');
+  } else if (outcomesEl) { outcomesEl.classList.add('hidden'); }
+
+  // Data gaps � interactive: user confirms each item before confirming Step 1
+  _renderDataGapsSection(intent, displayEl);
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * BUSINESS OBJECTIVES MODE: Step 1 Validation UI
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Rich interactive UI for validating and editing AI-generated business context,
+ * strategic themes, objectives, and gap insights before proceeding to Step 2.
+ */
+
+// ── File Upload Handlers ──────────────────────────────────────────────────
+
+/**
+ * Extract text from PDF file using PDF.js
+ */
+async function extractTextFromPDF(file) {
+  if (typeof pdfjsLib === 'undefined') {
+    throw new Error('PDF.js library not loaded');
+  }
+  
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = '';
+  
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map(item => item.str).join(' ');
+    fullText += pageText + '\n';
+  }
+  
+  return fullText.trim();
+}
+
+/**
+ * Extract text from DOCX file using Mammoth.js
+ */
+async function extractTextFromDOCX(file) {
+  if (typeof mammoth === 'undefined') {
+    throw new Error('Mammoth.js library not loaded');
+  }
+  
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  return result.value.trim();
+}
+
+/**
+ * Extract text from TXT file
+ */
+async function extractTextFromTXT(file) {
+  return await file.text();
+}
+
+/**
+ * Show toast notification
+ */
+function showToast(message, type = 'info') {
+  const colors = {
+    success: 'bg-green-500',
+    error: 'bg-red-500',
+    warning: 'bg-yellow-500',
+    info: 'bg-blue-500'
+  };
+  
+  const toast = document.createElement('div');
+  toast.className = `fixed bottom-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-[9999] transition-opacity`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+// ── Export Functions ──────────────────────────────────────────────────────
+
+/**
+ * Export business context data as JSON
+ */
+function exportBusinessContextJSON() {
+  const data = {
+    businessContext: window.model.businessContext,
+    strategicThemes: window.model.strategicThemes,
+    businessObjectives: window.model.businessObjectives,
+    gapInsights: window.model.gapInsights,
+    aiProcessingLog: window.model.aiProcessingLog,
+    exportedAt: new Date().toISOString()
+  };
+  
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `business-context-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  showToast('✅ Exported to JSON successfully', 'success');
+}
+
+/**
+ * Export business objectives as CSV
+ */
+function exportBusinessObjectivesCSV() {
+  const objectives = window.model.businessObjectives || [];
+  
+  if (objectives.length === 0) {
+    showToast('⚠️ No objectives to export', 'warning');
+    return;
+  }
+  
+  // CSV header
+  const headers = ['ID', 'Title', 'Description', 'Category', 'KPI', 'Target Value', 'Time Horizon', 'Priority', 'Rationale', 'Linked Themes'];
+  const csvRows = [headers.join(',')];
+  
+  // CSV data rows
+  objectives.forEach(obj => {
+    const row = [
+      obj.id || '',
+      `"${(obj.title || '').replace(/"/g, '""')}"`,
+      `"${(obj.description || '').replace(/"/g, '""')}"`,
+      obj.category || '',
+      `"${(obj.kpi || '').replace(/"/g, '""')}"`,
+      `"${(obj.target_value || '').replace(/"/g, '""')}"`,
+      obj.time_horizon || '',
+      obj.priority || '',
+      `"${(obj.rationale || '').replace(/"/g, '""')}"`,
+      `"${(obj.linked_themes || []).join('; ')}"`
+    ];
+    csvRows.push(row.join(','));
+  });
+  
+  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `business-objectives-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  showToast('✅ Exported to CSV successfully', 'success');
+}
+
+/**
+ * Regenerate objectives (restart Step 1 workflow)
+ */
+function regenerateBusinessObjectives() {
+  if (!confirm('⚠️ This will restart Step 1 and regenerate all objectives. Continue?')) {
+    return;
+  }
+  
+  // Clear Step 1 data
+  if (window.model) {
+    delete window.model.businessContext;
+    delete window.model.strategicThemes;
+    delete window.model.businessObjectives;
+    delete window.model.gapInsights;
+    delete window.model.aiProcessingLog;
+    delete window.model.businessContextConfirmed;
+    
+    if (window.model.steps && window.model.steps.step1) {
+      window.model.steps.step1.status = 'not-started';
+      window.model.steps.step1.completedTasks = [];
+      window.model.steps.step1.answers = {};
+    }
+  }
+  
+  if (typeof autoSaveCurrentModel === 'function') {
+    autoSaveCurrentModel();
+  }
+  
+  showToast('🔄 Step 1 reset. Please restart the workflow.', 'info');
+  
+  // Trigger UI update
+  if (typeof updateWorkflowStepStates === 'function') {
+    updateWorkflowStepStates();
+  }
+}
+
+/**
+ * Approve and continue to Step 2
+ */
+function approveAndContinueToStep2() {
+  const objectives = window.model?.businessObjectives || [];
+  const themes = window.model?.strategicThemes || [];
+  
+  if (objectives.length < 3) {
+    showToast('⚠️ Please define at least 3 business objectives before proceeding', 'warning');
+    return;
+  }
+  
+  if (themes.length < 4) {
+    showToast('⚠️ Please define at least 4 strategic themes before proceeding', 'warning');
+    return;
+  }
+  
+  // Mark as confirmed
+  if (window.model) {
+    window.model.businessContextConfirmed = true;
+  }
+  
+  if (typeof autoSaveCurrentModel === 'function') {
+    autoSaveCurrentModel();
+  }
+  
+  // Auto-save business context as knowledge source for AI Assistant
+  saveBusinessContextKnowledge();
+  
+  showToast('✅ Business context approved!', 'success');
+  
+  // Resolve the validation task
+  if (window._step1ValidationResolve) {
+    window._step1ValidationResolve('approve');
+    delete window._step1ValidationResolve;
+  }
+}
+
+// ── Inline Editing Functions ─────────────────────────────────────────────
+
+/**
+ * Render a single objective row (editable)
+ */
+function renderObjectiveRow(obj, index) {
+  const themes = window.model?.strategicThemes || [];
+  const themesHtml = themes.map(t => 
+    `<span class="inline-block bg-purple-100 text-purple-800 text-[10px] px-2 py-0.5 rounded">${t.name}</span>`
+  ).join(' ');
+  
+  return `
+    <tr class="hover:bg-gray-50" data-obj-index="${index}">
+      <td class="px-3 py-2 text-xs">${obj.id || ''}</td>
+      <td class="px-3 py-2">
+        <input type="text" value="${(obj.title || '').replace(/"/g, '&quot;')}" 
+               class="w-full text-sm border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+               onblur="validateAndSaveObjectiveField(this, ${index}, 'title')" />
+      </td>
+      <td class="px-3 py-2">
+        <textarea class="w-full text-xs border rounded px-2 py-1 resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  rows="2"
+                  onblur="validateAndSaveObjectiveField(this, ${index}, 'description')">${obj.description || ''}</textarea>
+      </td>
+      <td class="px-3 py-2">
+        <select class="w-full text-xs border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onchange="validateAndSaveObjectiveField(this, ${index}, 'category')">
+          <option value="Growth" ${obj.category === 'Growth' ? 'selected' : ''}>Growth</option>
+          <option value="Efficiency" ${obj.category === 'Efficiency' ? 'selected' : ''}>Efficiency</option>
+          <option value="Risk" ${obj.category === 'Risk' ? 'selected' : ''}>Risk</option>
+          <option value="Sustainability" ${obj.category === 'Sustainability' ? 'selected' : ''}>Sustainability</option>
+        </select>
+      </td>
+      <td class="px-3 py-2">
+        <input type="text" value="${(obj.kpi || '').replace(/"/g, '&quot;')}" 
+               class="w-full text-xs border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+               onblur="validateAndSaveObjectiveField(this, ${index}, 'kpi')" />
+      </td>
+      <td class="px-3 py-2">
+        <input type="text" value="${(obj.target_value || '').replace(/"/g, '&quot;')}" 
+               class="w-full text-xs border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+               onblur="validateAndSaveObjectiveField(this, ${index}, 'target_value')" />
+      </td>
+      <td class="px-3 py-2">
+        <input type="text" value="${obj.time_horizon || ''}" 
+               placeholder="2026 or Q4 2026"
+               class="w-full text-xs border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+               onblur="validateAndSaveObjectiveField(this, ${index}, 'time_horizon')" />
+      </td>
+      <td class="px-3 py-2">
+        <select class="w-full text-xs border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onchange="validateAndSaveObjectiveField(this, ${index}, 'priority')">
+          <option value="High" ${obj.priority === 'High' ? 'selected' : ''}>High</option>
+          <option value="Medium" ${obj.priority === 'Medium' ? 'selected' : ''}>Medium</option>
+          <option value="Low" ${obj.priority === 'Low' ? 'selected' : ''}>Low</option>
+        </select>
+      </td>
+      <td class="px-3 py-2 text-center">
+        <button onclick="deleteObjective(${index})" 
+                class="text-red-600 hover:text-red-800 text-sm" 
+                title="Delete objective">
+          <i class="fas fa-trash"></i>
+        </button>
+      </td>
+    </tr>
+  `;
+}
+
+/**
+ * Validate and save an objective field
+ */
+function validateAndSaveObjectiveField(element, index, field) {
+  const objectives = window.model?.businessObjectives || [];
+  if (!objectives[index]) return;
+  
+  let value = element.value.trim();
+  let isValid = true;
+  
+  // Validation rules
+  if (field === 'title' && value.length < 5) {
+    isValid = false;
+    showToast('⚠️ Title must be at least 5 characters', 'warning');
+  }
+  
+  if (field === 'time_horizon') {
+    const regex = /^\d{4}$|^Q[1-4]\s\d{4}$/;
+    if (!regex.test(value)) {
+      isValid = false;
+      showToast('⚠️ Time horizon must be YYYY or Q# YYYY format', 'warning');
+    }
+  }
+  
+  // Update model
+  if (isValid) {
+    objectives[index][field] = value;
+    objectives[index].isModified = true;
+    element.classList.remove('border-red-500');
+    element.classList.add('border-green-500');
+    setTimeout(() => element.classList.remove('border-green-500'), 2000);
+    
+    if (typeof autoSaveCurrentModel === 'function') {
+      autoSaveCurrentModel();
+    }
+  } else {
+    element.classList.add('border-red-500');
+  }
+}
+
+/**
+ * Delete an objective
+ */
+function deleteObjective(index) {
+  const objectives = window.model?.businessObjectives || [];
+  if (!objectives[index]) return;
+  
+  if (!confirm(`Delete objective: "${objectives[index].title}"?`)) return;
+  
+  objectives.splice(index, 1);
+  
+  if (typeof autoSaveCurrentModel === 'function') {
+    autoSaveCurrentModel();
+  }
+  
+  rerenderObjectivesTable();
+  showToast('✅ Objective deleted', 'success');
+}
+
+/**
+ * Add a new objective
+ */
+function addNewObjective() {
+  const objectives = window.model?.businessObjectives || [];
+  
+  const newObj = {
+    id: `BO-${Date.now()}`,
+    title: 'New Objective',
+    description: 'Enter description...',
+    category: 'Growth',
+    kpi: 'Enter KPI...',
+    target_value: 'Enter target...',
+    time_horizon: '2026',
+    priority: 'Medium',
+    rationale: '',
+    linked_themes: [],
+    isModified: true,
+    generated_at: new Date().toISOString()
+  };
+  
+  objectives.push(newObj);
+  
+  if (typeof autoSaveCurrentModel === 'function') {
+    autoSaveCurrentModel();
+  }
+  
+  rerenderObjectivesTable();
+  showToast('➕ New objective added', 'success');
+}
+
+/**
+ * Sort objectives
+ */
+function sortObjectives(sortBy) {
+  const objectives = window.model?.businessObjectives || [];
+  
+  if (sortBy === 'priority') {
+    const order = { High: 1, Medium: 2, Low: 3 };
+    objectives.sort((a, b) => (order[a.priority] || 99) - (order[b.priority] || 99));
+  } else if (sortBy === 'category') {
+    objectives.sort((a, b) => (a.category || '').localeCompare(b.category || ''));
+  } else if (sortBy === 'time_horizon') {
+    objectives.sort((a, b) => (a.time_horizon || '').localeCompare(b.time_horizon || ''));
+  }
+  
+  if (typeof autoSaveCurrentModel === 'function') {
+    autoSaveCurrentModel();
+  }
+  
+  rerenderObjectivesTable();
+  showToast(`🔄 Sorted by ${sortBy}`, 'info');
+}
+
+/**
+ * Re-render objectives table
+ */
+function rerenderObjectivesTable() {
+  const tbody = document.getElementById('objectives-table-body');
+  if (!tbody) return;
+  
+  const objectives = window.model?.businessObjectives || [];
+  tbody.innerHTML = objectives.map((obj, idx) => renderObjectiveRow(obj, idx)).join('');
+}
+
+// ── Knowledge Source Management ──────────────────────────────────────────
+
+/**
+ * Save Business Context as knowledge source JSON file
+ * Auto-called after Step 1 approval for AI Assistant reference
+ */
+function saveBusinessContextKnowledge() {
+  if (!window.model?.businessContext) {
+    console.warn('[Knowledge] No business context to save');
+    return;
+  }
+  
+  const knowledgeData = {
+    version: 'BusinessContext_v1',
+    createdAt: new Date().toISOString(),
+    lastUpdated: new Date().toISOString(),
+    source: 'NexGenEA_Step1_BusinessObjectMode',
+    businessContext: window.model.businessContext,
+    strategicThemes: window.model.strategicThemes || [],
+    businessObjectives: window.model.businessObjectives || [],
+    gapInsights: window.model.gapInsights || [],
+    aiProcessingLog: window.model.aiProcessingLog || [],
+    metadata: {
+      totalObjectives: (window.model.businessObjectives || []).length,
+      totalThemes: (window.model.strategicThemes || []).length,
+      totalGaps: (window.model.gapInsights || []).length,
+      highPriorityObjectives: (window.model.businessObjectives || []).filter(o => o.priority === 'High').length,
+      categoryCounts: (window.model.businessObjectives || []).reduce((acc, obj) => {
+        acc[obj.category] = (acc[obj.category] || 0) + 1;
+        return acc;
+      }, {})
+    }
+  };
+  
+  // Save to localStorage as knowledge cache
+  try {
+    localStorage.setItem('ea_business_context_knowledge', JSON.stringify(knowledgeData));
+    console.log('[Knowledge] ✅ Business Context saved to knowledge cache');
+  } catch (e) {
+    console.error('[Knowledge] ❌ Failed to save to localStorage:', e);
+  }
+  
+  // Also export as downloadable JSON for external knowledge bases
+  const blob = new Blob([JSON.stringify(knowledgeData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `business-context-knowledge-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  console.log('[Knowledge] 📄 Business Context exported as JSON file');
+}
+
+/**
+ * Load Business Context knowledge from cache or model
+ */
+function loadBusinessContextKnowledge() {
+  // Try localStorage cache first
+  try {
+    const cached = localStorage.getItem('ea_business_context_knowledge');
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (e) {
+    console.warn('[Knowledge] Failed to load from cache:', e);
+  }
+  
+  // Fallback to current model
+  if (window.model?.businessContext) {
+    return {
+      version: 'BusinessContext_v1',
+      businessContext: window.model.businessContext,
+      strategicThemes: window.model.strategicThemes || [],
+      businessObjectives: window.model.businessObjectives || [],
+      gapInsights: window.model.gapInsights || [],
+      aiProcessingLog: window.model.aiProcessingLog || []
+    };
+  }
+  
+  return null;
+}
+
+/**
+ * Build AI prompt context from Business Context knowledge
+ * Returns formatted string for injection into system prompts
+ */
+function buildBusinessContextPromptContext() {
+  const knowledge = loadBusinessContextKnowledge();
+  if (!knowledge) return '';
+  
+  const bc = knowledge.businessContext || {};
+  const themes = knowledge.strategicThemes || [];
+  const objectives = knowledge.businessObjectives || [];
+  const gaps = knowledge.gapInsights || [];
+  
+  // Build structured context
+  let context = '\n\n=== BUSINESS CONTEXT KNOWLEDGE (Step 1 Approved) ===\n';
+  
+  // Business Context Summary
+  context += `\nOrganization Context:\n`;
+  context += `  Industry: ${bc.industry || 'N/A'}\n`;
+  context += `  Market Summary: ${(bc.market_summary || '').slice(0, 200)}\n`;
+  if (bc.customer_segments?.length) {
+    context += `  Customer Segments: ${bc.customer_segments.join(', ')}\n`;
+  }
+  if (bc.value_drivers?.length) {
+    context += `  Value Drivers: ${bc.value_drivers.join(', ')}\n`;
+  }
+  if (bc.challenges?.length) {
+    context += `  Challenges: ${bc.challenges.join(' | ')}\n`;
+  }
+  if (bc.constraints?.length) {
+    context += `  Constraints: ${bc.constraints.join(' | ')}\n`;
+  }
+  
+  // Strategic Themes
+  if (themes.length) {
+    context += `\nStrategic Themes (${themes.length}):\n`;
+    themes.forEach(theme => {
+      context += `  • ${theme.name}: ${theme.description}\n`;
+      if (theme.rationale) {
+        context += `    Rationale: ${theme.rationale}\n`;
+      }
+    });
+  }
+  
+  // Business Objectives
+  if (objectives.length) {
+    context += `\nBusiness Objectives (${objectives.length}):\n`;
+    objectives.forEach(obj => {
+      context += `  [${obj.priority}/${obj.category}] ${obj.title}\n`;
+      context += `    Description: ${obj.description}\n`;
+      context += `    KPI: ${obj.kpi} → Target: ${obj.target_value} (by ${obj.time_horizon})\n`;
+      if (obj.rationale) {
+        context += `    Rationale: ${obj.rationale}\n`;
+      }
+    });
+  }
+  
+  // Gap Insights
+  if (gaps.length) {
+    context += `\nGap Insights (${gaps.length}):\n`;
+    gaps.forEach(gap => {
+      context += `  [${gap.type}] ${gap.description}\n`;
+      if (gap.recommendation) {
+        context += `    → Recommendation: ${gap.recommendation}\n`;
+      }
+    });
+  }
+  
+  context += '\n=== END BUSINESS CONTEXT KNOWLEDGE ===\n\n';
+  
+  return context;
+}
+
+/**
+ * Detect if user query is about business objectives, risks, or strategic topics
+ * Returns true if Business Context should be injected into AI prompt
+ */
+function shouldInjectBusinessContext(userMessage) {
+  const keywords = [
+    'business objective', 'objectives', 'strategic objective',
+    'risk', 'risks', 'constraints', 'challenge',
+    'strategic theme', 'themes', 'strategy',
+    'kpi', 'target', 'goal', 'goals',
+    'priority', 'priorities',
+    'gap', 'gaps', 'insight',
+    'market', 'customer segment', 'value driver',
+    'time horizon', 'timeline',
+    'what are we trying to achieve', 'what is our strategy',
+    'what are the risks', 'what are the challenges'
+  ];
+  
+  const lowerMessage = userMessage.toLowerCase();
+  return keywords.some(keyword => lowerMessage.includes(keyword));
+}
+
+// ── Main Validation UI Renderer ───────────────────────────────────────────
+
+/**
+ * Render Step 1 Validation UI
+ * Returns a Promise that resolves when user approves or edits
+ */
+window.renderStep1ValidationUI = function(data) {
+  return new Promise((resolve) => {
+    // Store resolve function for later use
+    window._step1ValidationResolve = resolve;
+    
+    const { businessContext, strategicThemes, businessObjectives, gapInsights, aiProcessingLog } = data;
+    
+    // Build HTML
+    const html = `
+      <div id="step1-validation-ui" class="bg-white rounded-lg shadow-lg p-6 my-4">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">
+          <i class="fas fa-clipboard-check text-blue-600"></i>
+          Review Business Context
+        </h2>
+        <p class="text-sm text-gray-600 mb-6">
+          AI has analyzed your input and generated ${businessObjectives.length} objectives, ${strategicThemes.length} strategic themes, 
+          and ${gapInsights.length} insights. Review and edit below before proceeding to Step 2.
+        </p>
+        
+        <!-- Business Context Section -->
+        <div class="mb-6">
+          <button class="w-full flex items-center justify-between bg-gradient-to-r from-blue-50 to-blue-100 px-4 py-3 rounded-lg hover:from-blue-100 hover:to-blue-200 transition"
+                  onclick="document.getElementById('context-details').classList.toggle('hidden')">
+            <div class="flex items-center gap-2">
+              <i class="fas fa-building text-blue-600"></i>
+              <span class="font-semibold text-gray-900">Business Context</span>
+            </div>
+            <i class="fas fa-chevron-down text-gray-500"></i>
+          </button>
+          <div id="context-details" class="hidden mt-2 p-4 bg-gray-50 rounded-lg text-sm">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <span class="font-semibold text-gray-700">Industry:</span>
+                <span class="text-gray-900">${businessContext.industry || 'N/A'}</span>
+              </div>
+              <div>
+                <span class="font-semibold text-gray-700">Market Summary:</span>
+                <p class="text-gray-900 text-xs mt-1">${businessContext.market_summary || 'N/A'}</p>
+              </div>
+            </div>
+            <div class="mt-3">
+              <span class="font-semibold text-gray-700">Challenges:</span>
+              <ul class="list-disc list-inside text-gray-900 text-xs mt-1">
+                ${(businessContext.challenges || []).map(c => `<li>${c}</li>`).join('')}
+              </ul>
+            </div>
+            <div class="mt-3">
+              <span class="font-semibold text-gray-700">Constraints:</span>
+              <ul class="list-disc list-inside text-gray-900 text-xs mt-1">
+                ${(businessContext.constraints || []).map(c => `<li>${c}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Strategic Themes Section -->
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <i class="fas fa-lightbulb text-yellow-500"></i>
+            Strategic Themes (${strategicThemes.length})
+          </h3>
+          <div class="grid grid-cols-2 gap-3">
+            ${strategicThemes.map(theme => `
+              <div class="border border-purple-200 bg-purple-50 rounded-lg p-3">
+                <h4 class="font-semibold text-purple-900 text-sm flex items-center gap-2">
+                  <i class="fas fa-star text-purple-600"></i>
+                  ${theme.name}
+                </h4>
+                <p class="text-xs text-purple-800 mt-1">${theme.description || ''}</p>
+                ${theme.rationale ? `<p class="text-xs text-purple-600 mt-2 italic">${theme.rationale}</p>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        
+        <!-- Business Objectives Table (Editable) -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <i class="fas fa-bullseye text-green-600"></i>
+              Business Objectives (${businessObjectives.length})
+            </h3>
+            <div class="flex gap-2">
+              <button onclick="sortObjectives('priority')" class="text-xs bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">
+                Sort by Priority
+              </button>
+              <button onclick="sortObjectives('category')" class="text-xs bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">
+                Sort by Category
+              </button>
+              <button onclick="addNewObjective()" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded">
+                <i class="fas fa-plus"></i> Add New
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto border rounded-lg">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">ID</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Title</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Description</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Category</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">KPI</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Target</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Time</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Priority</th>
+                  <th class="px-3 py-2 text-center text-xs font-semibold text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="objectives-table-body" class="divide-y divide-gray-200 bg-white">
+                ${businessObjectives.map((obj, idx) => renderObjectiveRow(obj, idx)).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Gap Insights Section -->
+        ${gapInsights.length > 0 ? `
+          <div class="mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <i class="fas fa-exclamation-triangle text-orange-500"></i>
+              Gap Insights (${gapInsights.length})
+            </h3>
+            <div class="space-y-2">
+              ${gapInsights.map(gap => `
+                <div class="border-l-4 border-orange-500 bg-orange-50 px-4 py-2 rounded">
+                  <span class="font-semibold text-orange-900 text-sm">${gap.type}:</span>
+                  <span class="text-orange-800 text-sm">${gap.description}</span>
+                  ${gap.recommendation ? `<p class="text-xs text-orange-700 mt-1">💡 ${gap.recommendation}</p>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        <!-- AI Metadata Footer -->
+        <div class="mt-6 p-3 bg-gray-100 rounded-lg text-xs text-gray-600">
+          <i class="fas fa-robot"></i> 
+          <strong>AI Processing:</strong> 
+          Unified Instruction v${aiProcessingLog?.[0]?.instruction_version || 'N/A'} | 
+          ${aiProcessingLog?.[0]?.has_file_upload ? '📄 File uploaded' : '✍️ Manual input'} | 
+          Generated at ${new Date(aiProcessingLog?.[0]?.timestamp || Date.now()).toLocaleString()}
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="mt-6 flex gap-3 justify-end">
+          <button onclick="regenerateBusinessObjectives()" 
+                  class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg transition">
+            <i class="fas fa-redo"></i> Regenerate
+          </button>
+          <button onclick="exportBusinessContextJSON()" 
+                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+            <i class="fas fa-download"></i> Export JSON
+          </button>
+          <button onclick="exportBusinessObjectivesCSV()" 
+                  class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+            <i class="fas fa-file-csv"></i> Export CSV
+          </button>
+          <button onclick="approveAndContinueToStep2()" 
+                  class="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-semibold transition shadow-lg">
+            <i class="fas fa-check-circle"></i> Approve & Continue to Step 2
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Insert into chat interface
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatMessages) {
+      const container = document.createElement('div');
+      container.className = 'message assistant';
+      container.innerHTML = html;
+      chatMessages.appendChild(container);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+  });
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STEP 2 VALIDATION UI - APQC Capability Mapping Review & Editing
+// ══════════════════════════════════════════════════════════════════════════════
+window.renderStep2ValidationUI = function(ctx) {
+  return new Promise((resolve) => {
+    window._step2ValidationResolver = resolve;
+    
+    const { apqcSummary, capabilityMap, gapInsights, whiteSpots } = ctx.model || {};
+    const capabilities = capabilityMap?.l1_domains || [];
+    const totalCaps = apqcSummary?.total_apqc_capabilities || capabilities.length || 0;
+    const customCaps = apqcSummary?.total_custom_capabilities || 0;
+    const totalGaps = gapInsights?.length || 0;
+    const totalWhiteSpots = whiteSpots?.length || 0;
+    
+    const html = `
+      <div id="step2-validation-ui" class="bg-white rounded-lg shadow-lg p-6 my-4">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">
+          <i class="fas fa-sitemap text-blue-600"></i>
+          Review APQC Capability Map
+        </h2>
+        <p class="text-sm text-gray-600 mb-6">
+          AI has mapped ${totalCaps} APQC-aligned capabilities (${customCaps} custom), identified ${totalGaps} gaps, and detected ${totalWhiteSpots} white spots. Review and edit before proceeding.
+        </p>
+        
+        <!-- APQC Summary -->
+        <div class="mb-6">
+          <button class="w-full flex items-center justify-between bg-gradient-to-r from-purple-50 to-purple-100 px-4 py-3 rounded-lg hover:from-purple-100 hover:to-purple-200 transition"
+                  onclick="document.getElementById('apqc-summary-details').classList.toggle('hidden')">
+            <div class="flex items-center gap-2">
+              <i class="fas fa-book text-purple-600"></i>
+              <span class="font-semibold text-gray-900">APQC Framework: ${apqcSummary?.framework_version || 'PCF v8.0'}</span>
+            </div>
+            <i class="fas fa-chevron-down text-gray-500"></i>
+          </button>
+          <div id="apqc-summary-details" class="hidden mt-2 p-4 bg-gray-50 rounded-lg text-sm">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <span class="font-semibold text-gray-700">Business Type:</span>
+                <span class="text-gray-900">${apqcSummary?.business_type || 'N/A'}</span>
+              </div>
+              <div>
+                <span class="font-semibold text-gray-700">Strategic Focus:</span>
+                <span class="text-gray-900">${(apqcSummary?.strategic_focus || []).join(', ') || 'N/A'}</span>
+              </div>
+            </div>
+            <div class="mt-3">
+              <span class="font-semibold text-gray-700">Selected L1 Categories:</span>
+              <ul class="list-disc list-inside text-gray-900 text-xs mt-1">
+                ${(apqcSummary?.selected_l1_categories || []).map(c => `<li>${c}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Capabilities Table (Editable) -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <i class="fas fa-layer-group text-blue-600"></i>
+              Capabilities (${totalCaps})
+            </h3>
+            <div class="flex gap-2">
+              <button onclick="expandAllCapabilities()" class="text-xs bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">
+                <i class="fas fa-expand"></i> Expand All
+              </button>
+              <button onclick="addCustomCapability()" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded">
+                <i class="fas fa-plus"></i> Add Custom
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto border rounded-lg max-h-96 overflow-y-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Capability</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Source</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Objectives</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Current</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Target</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Gap</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Importance</th>
+                </tr>
+              </thead>
+              <tbody id="capabilities-table-body" class="divide-y divide-gray-200 bg-white">
+                ${capabilities.map((l1, idx) => renderCapabilityRow(l1, idx)).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Gap Insights -->
+        ${totalGaps > 0 ? `
+          <div class="mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <i class="fas fa-exclamation-triangle text-orange-500"></i>
+              Gap Insights (${totalGaps})
+            </h3>
+            <div class="space-y-2 max-h-64 overflow-y-auto">
+              ${gapInsights.map(gap => `
+                <div class="border-l-4 ${
+                  gap.priority === 'HIGH' ? 'border-red-500 bg-red-50' :
+                  gap.priority === 'MEDIUM' ? 'border-orange-500 bg-orange-50' :
+                  'border-yellow-500 bg-yellow-50'
+                } px-4 py-2 rounded">
+                  <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                      <span class="font-semibold text-sm">${gap.capability_name}</span>
+                      <span class="text-xs ml-2 px-2 py-0.5 rounded ${gap.priority === 'HIGH' ? 'bg-red-600 text-white' : gap.priority === 'MEDIUM' ? 'bg-orange-600 text-white' : 'bg-yellow-600 text-white'}">
+                        ${gap.priority}
+                      </span>
+                    </div>
+                    <span class="text-xs text-gray-600">${gap.timeframe || 'N/A'}</span>
+                  </div>
+                  <p class="text-sm mt-1">${gap.gap_description}</p>
+                  <p class="text-xs mt-1 text-gray-700">💡 ${gap.recommendation || 'See details'}</p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        <!-- White Spots -->
+        ${totalWhiteSpots > 0 ? `
+          <div class="mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <i class="fas fa-lightbulb text-yellow-500"></i>
+              White-Spot Capabilities (${totalWhiteSpots})
+            </h3>
+            <div class="grid grid-cols-2 gap-3">
+              ${whiteSpots.map(ws => `
+                <div class="border border-yellow-300 bg-yellow-50 rounded-lg p-3">
+                  <h4 class="font-semibold text-yellow-900 text-sm flex items-center gap-2">
+                    <i class="fas fa-flag text-yellow-600"></i>
+                    ${ws.capability_name}
+                  </h4>
+                  <p class="text-xs text-yellow-800 mt-1">${ws.reason}: ${(ws.required_for || []).join(', ')}</p>
+                  <p class="text-xs text-yellow-700 mt-2 italic">💡 ${ws.recommendation || 'Consider adding'}</p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        <!-- Action Buttons -->
+        <div class="mt-6 flex gap-3 justify-end">
+          <button onclick="regenerateCapabilityMap()" 
+                  class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg transition">
+            <i class="fas fa-redo"></i> Regenerate
+          </button>
+          <button onclick="exportCapabilityMapJSON()" 
+                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+            <i class="fas fa-download"></i> Export JSON
+          </button>
+          <button onclick="approveAndContinueToStep3()" 
+                  class="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-semibold transition shadow-lg">
+            <i class="fas fa-check-circle"></i> Approve & Continue to Step 3
+          </button>
+        </div>
+      </div>
+    `;
+    
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatMessages) {
+      const container = document.createElement('div');
+      container.className = 'message assistant';
+      container.innerHTML = html;
+      chatMessages.appendChild(container);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+  });
+};
+
+function renderCapabilityRow(l1, idx) {
+  const source = l1.apqc_source !== false ? 'APQC' : 'Custom';
+  const objectives = (l1.objective_mappings || []).slice(0, 2).join(', ') || 'None';
+  const gap = l1.gap || (l1.target_maturity || 0) - (l1.current_maturity || 0);
+  const gapClass = gap >= 2 ? 'text-red-600 font-bold' : gap >= 1 ? 'text-orange-600' : 'text-green-600';
+  
+  return `
+    <tr class="hover:bg-gray-50">
+      <td class="px-3 py-2 text-sm font-medium text-gray-900">${l1.name}</td>
+      <td class="px-3 py-2 text-xs">
+        <span class="px-2 py-0.5 rounded ${source === 'APQC' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}">
+          ${source}
+        </span>
+      </td>
+      <td class="px-3 py-2 text-xs text-gray-600">${objectives}</td>
+      <td class="px-3 py-2 text-sm">${l1.current_maturity || 'N/A'}</td>
+      <td class="px-3 py-2 text-sm">${l1.target_maturity || 'N/A'}</td>
+      <td class="px-3 py-2 text-sm ${gapClass}">${gap > 0 ? '+' + gap : gap}</td>
+      <td class="px-3 py-2 text-xs">
+        <span class="px-2 py-0.5 rounded ${
+          l1.strategic_importance === 'CORE' ? 'bg-red-100 text-red-800' :
+          l1.strategic_importance === 'DIFFERENTIATING' ? 'bg-blue-100 text-blue-800' :
+          'bg-gray-100 text-gray-800'
+        }">
+          ${l1.strategic_importance || 'SUPPORT'}
+        </span>
+      </td>
+    </tr>
+  `;
+}
+
+function expandAllCapabilities() {
+  // TODO: Implement expand/collapse for L2/L3 capabilities
+  toast('Expand functionality coming soon');
+}
+
+function addCustomCapability() {
+  // TODO: Implement add custom capability dialog
+  toast('Add custom capability coming soon');
+}
+
+function regenerateCapabilityMap() {
+  if (confirm('Regenerate capability map? This will replace the current map.')) {
+    // Re-run Step2.1 task
+    if (window.StepEngine && typeof window.StepEngine.run === 'function') {
+      window.StepEngine.run('step2', window.model);
+    }
+  }
+}
+
+function exportCapabilityMapJSON() {
+  const data = {
+    apqcSummary: window.model.apqcSummary,
+    capabilityMap: window.model.capabilityMap,
+    gapInsights: window.model.gapInsights,
+    whiteSpots: window.model.whiteSpots
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `capability-map-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Capability map exported');
+}
+
+function approveAndContinueToStep3() {
+  if (window._step2ValidationResolver) {
+    window.model.capabilityValidated = true;
+    window._step2ValidationResolver({ validated: true, approved: true });
+    window._step2ValidationResolver = null;
+    toast('Capability map approved');
+    if (typeof autoSaveCurrentModel === 'function') autoSaveCurrentModel();
+  }
+}
+
+/**
+ * NEW: renderBusinessContextSection() - Business Objectives-driven architecture
+ * Replaces renderStrategicIntentSection() for new data model
+ * Falls back to renderStrategicIntentSection() for legacy models
+ */
+function renderBusinessContextSection() {
+  // Check if new businessContext exists
+  const businessContext = model.businessContext;
+  
+  // Fallback to legacy rendering if only old model exists
+  if (!businessContext && model.strategicIntent) {
+    renderStrategicIntentSection();
+    return;
+  }
+  
+  // Migration banner: Show if both old and new exist
+  const migrationBanner = document.getElementById('migration-banner');
+  if (migrationBanner && businessContext && model.strategicIntent) {
+    migrationBanner.classList.remove('hidden');
+    migrationBanner.innerHTML = `
+      <div class="flex items-center gap-2 text-[10px] bg-blue-50 border border-blue-200 rounded-lg p-2">
+        <i class="fas fa-info-circle text-blue-600"></i>
+        <span class="text-blue-900">
+          <strong>Data Model Updated:</strong> Your EA model now uses Business Context architecture. 
+          Legacy Strategic Intent preserved for compatibility.
+        </span>
+      </div>`;
+  }
+  
+  const displayEl = document.getElementById('intent-display-section');
+  const placeholderEl = document.getElementById('intent-placeholder');
+  
+  if (!businessContext) {
+    if (displayEl) displayEl.classList.add('hidden');
+    if (placeholderEl) placeholderEl.classList.remove('hidden');
+    return;
+  }
+  
+  if (displayEl) displayEl.classList.remove('hidden');
+  if (placeholderEl) placeholderEl.classList.add('hidden');
+
+  // NEW: Render Business Context with Primary Objectives FIRST
+  const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val || ''; };
+  const setMd = (id, val) => { const e = document.getElementById(id); if (e) e.innerHTML = parseMarkdown(val || ''); };
+  
+  // Organization Identity (MANDATORY) - with web validation transparency
+  set('intent-org-name', businessContext.org_name || 'Organization');
+  set('intent-industry-timeframe', businessContext.industry || '');
+  
+  // Show web validation transparency for organization
+  const orgTransparencyEl = document.getElementById('org-transparency-indicator');
+  if (orgTransparencyEl && businessContext.enrichment?.validatedData?.organization) {
+    const orgData = businessContext.enrichment.validatedData.organization;
+    const icon = orgData.source === 'web_search' ? '✓' : '⊙';
+    const color = orgData.source === 'web_search' ? 'green' : 'amber';
+    const confidence = orgData.confidence ? Math.round(orgData.confidence * 100) : 0;
+    
+    orgTransparencyEl.innerHTML = `
+      <div class="flex items-center gap-1 text-[9px] text-${color}-700">
+        <span>${icon}</span>
+        <span>${orgData.transparency || orgData.source}</span>
+        ${confidence > 0 ? `(Confidence: ${confidence}%)` : ''}
+      </div>`;
+    orgTransparencyEl.classList.remove('hidden');
+  }
+  
+  // Check for contradictions and show warnings
+  if (typeof WebSearch !== 'undefined' && WebSearch.detectContradictions) {
+    const contradictions = WebSearch.detectContradictions(model);
+    const contradictionsEl = document.getElementById('businesscontext-contradictions');
+    if (contradictionsEl && contradictions.length > 0) {
+      contradictionsEl.innerHTML = `
+        <div class="bg-red-50 border border-red-300 rounded-lg p-2 space-y-1">
+          <div class="font-bold text-red-900 text-[10px] mb-1">
+            <i class="fas fa-exclamation-triangle"></i> Contradictions Detected
+          </div>
+          ${contradictions.map(c => `<div class="text-[9px] text-red-800">${c}</div>`).join('')}
+        </div>`;
+      contradictionsEl.classList.remove('hidden');
+    } else if (contradictionsEl) {
+      contradictionsEl.classList.add('hidden');
+    }
+  }
+  
+  // PRIMARY OBJECTIVES (CRITICAL - drives everything)
+  const objectivesEl = document.getElementById('business-objectives-section');
+  const objectivesContent = document.getElementById('business-objectives-content');
+  
+  if (objectivesEl && objectivesContent && businessContext.primaryObjectives?.length > 0) {
+    objectivesEl.classList.remove('hidden');
+    
+    let html = '<div class="space-y-3">';
+    
+    // Enrichment completeness indicator
+    if (businessContext.enrichment && businessContext.enrichment.completenessScore > 0) {
+      const score = businessContext.enrichment.completenessScore;
+      const color = score >= 80 ? 'green' : score >= 50 ? 'amber' : 'slate';
+      html += `<div class="flex items-center gap-2 text-[9px] bg-${color}-50 border border-${color}-200 rounded px-2 py-1">`;
+      html += `<i class="fas fa-chart-line text-${color}-600"></i>`;
+      html += `<span class="text-${color}-900">Enrichment: <strong>${score}%</strong> complete</span>`;
+      html += '</div>';
+    }
+    
+    // Primary Objectives - PROMINENT DISPLAY
+    html += '<div class="mb-3">';
+    html += '<div class="font-bold text-amber-900 text-[11px] mb-2 uppercase tracking-wide">📌 Primary Objectives</div>';
+    html += '<div class="space-y-2">';
+    businessContext.primaryObjectives.forEach((obj, idx) => {
+      html += '<div class="bg-amber-50 border border-amber-200 rounded-lg p-2">';
+      html += `<div class="font-semibold text-slate-800 text-[10px] mb-1">${idx + 1}. ${obj.objective || obj}</div>`;
+      if (obj.category) {
+        html += `<div class="text-[9px] text-slate-600"><span class="font-semibold">Category:</span> ${obj.category}</div>`;
+      }
+      if (obj.measurable && obj.kpis && obj.kpis.length > 0) {
+        html += `<div class="text-[9px] text-slate-600 mt-1"><span class="font-semibold">KPIs:</span> ${obj.kpis.join(', ')}</div>`;
+      }
+      
+      // Show web validation if available
+      if (businessContext.enrichment?.validatedData?.objectiveBenchmarks) {
+        const benchmark = businessContext.enrichment.validatedData.objectiveBenchmarks.find(b => b.objective === obj.objective);
+        if (benchmark) {
+          const feasibility = Math.round(benchmark.feasibilityScore * 100);
+          html += `<div class="text-[9px] text-green-700 mt-1 flex items-center gap-1">`;
+          html += `<i class="fas fa-check-circle"></i> Validated via web search (Feasibility: ${feasibility}%)`;
+          html += '</div>';
+        }
+      }
+      html += '</div>';
+    });
+    html += '</div></div>';
+    
+    // Key Challenges
+    if (businessContext.keyChallenges?.length > 0) {
+      html += '<div class="mb-2">';
+      html += '<div class="font-bold text-slate-700 text-[10px] mb-1.5">Key Challenges</div>';
+      html += '<ul class="space-y-1 ml-3 list-disc list-inside text-[10px]">';
+      businessContext.keyChallenges.forEach(challenge => {
+        const ch = typeof challenge === 'string' ? challenge : challenge.challenge;
+        const impact = challenge.impact ? ` (Impact: ${challenge.impact})` : '';
+        html += `<li class="text-slate-700">${ch}${impact}</li>`;
+      });
+      html += '</ul></div>';
+    }
+    
+    // Success Metrics
+    if (businessContext.successMetrics?.length > 0) {
+      html += '<div class="mb-2">';
+      html += '<div class="font-bold text-slate-700 text-[10px] mb-1.5">Success Metrics</div>';
+      html += '<ul class="space-y-1 ml-3 list-disc list-inside text-[10px]">';
+      businessContext.successMetrics.forEach(metric => {
+        const m = typeof metric === 'string' ? metric : metric.metric;
+        const target = metric.target ? ` → ${metric.target}` : '';
+        const time = metric.timeframe ? ` (${metric.timeframe})` : '';
+        html += `<li class="text-slate-700">${m}${target}${time}</li>`;
+      });
+      html += '</ul></div>';
+    }
+    
+    // Constraints (NEW FORMAT: businessContext.constraints OR LEGACY: key_constraints)
+    const constraintsToDisplay = businessContext.constraints || 
+      (businessContext.key_constraints ? businessContext.key_constraints.map(c => {
+        const match = c.match(/^(Operational|Financial|Organisational|Technical|External):\s*(.+)$/i);
+        return match ? { type: match[1], description: match[2].trim() } : { type: 'General', description: c };
+      }) : []);
+    
+    if (constraintsToDisplay.length > 0) {
+      html += '<div class="mb-2">';
+      html += '<div class="font-bold text-slate-700 text-[10px] mb-1.5">Constraints</div>';
+      html += '<ul class="space-y-1 ml-3 list-disc list-inside text-[10px]">';
+      constraintsToDisplay.forEach(constraint => {
+        const type = constraint.type ? `[${constraint.type}] ` : '';
+        const desc = typeof constraint === 'string' ? constraint : constraint.description;
+        html += `<li class="text-slate-700">${type}${desc}</li>`;
+      });
+      html += '</ul></div>';
+    }
+    
+    // Strategic Vision (DEMOTED - shown last and collapsed by default)
+    if (businessContext.strategicVision && businessContext.strategicVision.ambition) {
+      html += '<details class="mt-2">';
+      html += '<summary class="font-bold text-slate-600 text-[10px] cursor-pointer hover:text-slate-800">Strategic Vision (Optional)</summary>';
+      html += '<div class="mt-2 ml-3 space-y-1">';
+      html += `<div class="text-[10px] text-slate-700">${businessContext.strategicVision.ambition}</div>`;
+      if (businessContext.strategicVision.themes && businessContext.strategicVision.themes.length > 0) {
+        html += `<div class="text-[9px] text-slate-600">Themes: ${businessContext.strategicVision.themes.join(', ')}</div>`;
+      }
+      if (businessContext.strategicVision.timeframe) {
+        html += `<div class="text-[9px] text-slate-600">Timeframe: ${businessContext.strategicVision.timeframe}</div>`;
+      }
+      html += '</div></details>';
+    }
+    
+    // Organization validation (if available)
+    if (businessContext.enrichment?.validatedData?.organizationValidation) {
+      const orgVal = businessContext.enrichment.validatedData.organizationValidation;
+      if (orgVal.confidence > 0.8) {
+        html += '<div class="mt-2 text-[9px] text-green-700 flex items-center gap-1 bg-green-50 border border-green-200 rounded px-2 py-1">';
+        html += '<i class="fas fa-check-circle"></i>';
+        html += `<span>Organization verified: ${orgVal.org_name} (${orgVal.industry}) - ${Math.round(orgVal.confidence * 100)}% confidence</span>`;
+        html += '</div>';
+      }
+    }
+    
+    html += '</div>';
+    objectivesContent.innerHTML = html;
+  } else if (objectivesEl) {
+    objectivesEl.classList.add('hidden');
+  }
+  
+  // Backward compatibility: also render legacy fields if they exist
+  if (businessContext.strategic_ambition) {
+    setMd('intent-ambition', businessContext.strategic_ambition);
+  } else if (businessContext.strategicVision?.ambition) {
+    setMd('intent-ambition', businessContext.strategicVision.ambition);
+  }
+  
+  const themesEl = document.getElementById('intent-themes');
+  if (themesEl && businessContext.strategicVision?.themes) {
+    themesEl.innerHTML = businessContext.strategicVision.themes.map(t => `<span class="intent-theme-pill">${t}</span>`).join('');
+  }
+}
+
+// -- UPDATE WORKFLOW STEP STATES -----------------------------------------------
+function updateWorkflowStepStates() {
+  const done = [
+    !!(model.businessContext || model.strategicIntent),  // NEW: Check both models
+    !!model.bmc,
+    model.capabilities.length > 0,
+    Object.keys(model.operatingModel||{}).length > 0,
+    !!model.gapAnalysisDone,
+    model.valuePools && model.valuePools.length > 0,
+    !!model.targetArchDone
+  ];
+  
+  // Map steps to their viewable tabs
+  const stepTabs = [
+    null, // Step 1: Business Context (shown in sidebar, no tab)
+    model.bmc ? ['bmc'] : [], // Step 2: BMC
+    model.capabilities.length > 0 ? ['layers', 'capmap', 'heatmap', 'graph'] : [], // Step 3: Architecture
+    Object.keys(model.operatingModel||{}).length > 0 ? ['opmodel'] : [], // Step 4: Operating Model
+    model.gapAnalysisDone ? ['gap', 'maturity'] : [], // Step 5: Gap & Maturity
+    (model.valuePools && model.valuePools.length > 0) ? ['valuepools'] : [], // Step 6: Value Pools
+    model.targetArchDone ? ['targetarch', 'roadmapvis'] : [] // Step 7: Target & Roadmap
+  ];
+  
+  for (let i = 1; i <= 7; i++) {
+    const stepEl = document.getElementById('step-' + i);
+    const badge = document.getElementById('badge-' + i);
+    const doneIcon = document.getElementById('step' + i + '-done');
+    const rationaleEl = document.getElementById('step' + i + '-rationale');
+    if (!stepEl) continue;
+    
+    const isDone = done[i - 1];
+    const isUnlocked = i === 1 || (i === 2 ? (!!model.strategicIntent && !!model.strategicIntentConfirmed) : done[i - 2]);
+    
+    if (badge) {
+      badge.className = 'workflow-step-badge' + (isDone ? ' workflow-step-badge--done' : isUnlocked ? ' workflow-step-badge--active' : '');
+      if (isDone) badge.innerHTML = '<i class="fas fa-check text-[8px]"></i>';
+      else badge.textContent = String(i);
+    }
+    if (isUnlocked) stepEl.classList.remove('workflow-step-locked');
+    else stepEl.classList.add('workflow-step-locked');
+    if (doneIcon) doneIcon.classList.toggle('hidden', !isDone);
+    stepEl.classList.toggle('step-complete', isDone);
+    
+    // Show available tabs for completed steps
+    if (isDone && stepTabs[i - 1] && stepTabs[i - 1].length > 0) {
+      const tabs = stepTabs[i - 1];
+      const tabLabels = {
+        'bmc': 'BMC',
+        'layers': 'Layers',
+        'capmap': 'Cap Map',
+        'heatmap': 'Heatmap',
+        'graph': 'Graph',
+        'opmodel': 'Op Model',
+        'gap': 'Gap',
+        'maturity': 'Maturity',
+        'valuepools': 'Value Pools',
+        'targetarch': 'Target',
+        'roadmapvis': 'Roadmap'
+      };
+      
+      // Create or update tab buttons section
+      let tabsContainer = stepEl.querySelector('.step-tabs-container');
+      if (!tabsContainer) {
+        tabsContainer = document.createElement('div');
+        tabsContainer.className = 'step-tabs-container';
+        tabsContainer.style.cssText = 'margin-top: 6px; display: flex; flex-wrap: wrap; gap: 3px;';
+        stepEl.appendChild(tabsContainer);
+      }
+      
+      tabsContainer.innerHTML = tabs.map(tab => `
+        <button 
+          onclick="showTab('${tab}', findTabButton('${tab}'))" 
+          class="text-[8px] px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold transition-colors"
+          title="Open ${tabLabels[tab]} tab"
+        >
+          <i class="fas fa-eye mr-0.5"></i> ${tabLabels[tab]}
+        </button>
+      `).join('');
+    }
+    
+    if (isDone) renderStepRationale(i);
+  }
+  // updateTabCompletionBadges removed - legacy function not implemented in V5
+  _updateContinueBtn();
+  
+  // Update tab lock states based on content availability
+  updateTabLockStates();
+}
+
+// -- UPDATE TAB LOCK STATES ----------------------------------------------------
+// Locks/unlocks tabs based on content availability and highlights tabs with generated content
+function updateTabLockStates() {
+  // Define which tabs are always available (no content required)
+  const alwaysAvailable = ['home'];
+  
+  // Map content checks to tab names
+  const contentChecks = {
+    'exec': () => !!model.strategicIntent || !!model.businessObjectives,  // Check for either Strategic Intent or Business Objectives
+    'bmc': () => !!model.bmc,
+    'layers': () => model.capabilities.length > 0 || model.systems.length > 0 || model.valueStreams.length > 0,
+    'capmap': () => model.capabilities.length > 0,
+    'heatmap': () => model.capabilities.length > 0,
+    'graph': () => model.capabilities.length > 0,
+    'opmodel': () => {
+      const om = model.operatingModel;
+      return om && (om.valueProposition || om.current?.value_delivery || om.target?.value_delivery || !!model.operatingModelConfirmed);
+    },
+    'gap': () => !!model.gapAnalysis || !!model.gapAnalysisConfirmed,
+    'valuepools': () => (Array.isArray(model.valuePools) && model.valuePools.length > 0) || !!model.valuePoolsConfirmed,
+    'maturity': () => model.capabilities.length > 0,
+    'targetarch': () => !!model.targetArchDone,
+    'roadmapvis': () => !!model.roadmap || !!model.roadmapConfirmed,
+    'phase4': () => model.capabilities.length > 0,
+    'bench': () => model.capabilities.length > 0,
+    'survey': () => model.capabilities.length > 0,
+    'cfo': () => model.capabilities.length > 0,
+    'impact': () => model.capabilities.length > 0,
+    'toolkits': () => true, // Always available
+    'scenarios': () => model.capabilities.length > 0,
+    'financials': () => model.capabilities.length > 0 && model.targetArchDone,
+    'optimisation': () => model.capabilities.length > 0 && model.targetArchDone,
+    // Analytics tabs � progressively available as data is generated
+    'analytics-di': () => model.capabilities.length > 0, // Decision Intelligence: needs capabilities (Step 3+)
+    'analytics-financial': () => model.capabilities.length > 0 && (model.valuePools?.length > 0 || model.gapAnalysisDone), // Financial: needs value pools or gaps (Step 5+)
+    'analytics-scenarios': () => model.capabilities.length > 0, // Scenarios: needs capabilities (Step 3+)
+    'analytics-optimize': () => model.capabilities.length > 0 && (model.initiatives?.length > 0 || model.targetArchDone) // Optimize: needs initiatives (Step 7+)
+  };
+  
+  // Get all tab buttons
+  const allTabButtons = document.querySelectorAll('.tab-btn');
+  
+  allTabButtons.forEach(btn => {
+    // Extract tab name from onclick attribute
+    const onclickAttr = btn.getAttribute('onclick');
+    if (!onclickAttr) return;
+    
+    const match = onclickAttr.match(/showTab\(['"]([^'"]+)['"]/);
+    if (!match) return;
+    
+    const tabName = match[1];
+    
+    // Check if tab should be available
+    const isAlwaysAvailable = alwaysAvailable.includes(tabName);
+    const hasContent = contentChecks[tabName] ? contentChecks[tabName]() : false;
+    const shouldBeAvailable = isAlwaysAvailable || hasContent;
+    
+    // Update lock state
+    if (shouldBeAvailable) {
+      // Unlock tab
+      btn.classList.remove('tab-btn--locked');
+      btn.removeAttribute('data-tab-locked-reason');
+      
+      // Highlight tabs with generated content (not always-available tabs)
+      if (hasContent && !isAlwaysAvailable) {
+        btn.classList.add('tab-btn--highlight');
+        btn.title = btn.title.replace(' (locked)', '') + ' ?';
+      }
+    } else {
+      // Lock tab
+      btn.classList.add('tab-btn--locked');
+      btn.classList.remove('tab-btn--highlight');
+      
+      // Set lock reason based on tab type
+      let lockReason = 'Content not yet generated';
+      if (['exec', 'bmc'].includes(tabName)) {
+        lockReason = 'Complete Step 1 & 2 to unlock';
+      } else if (['layers', 'capmap', 'heatmap', 'graph', 'maturity', 'phase4', 'bench', 'survey', 'cfo', 'impact'].includes(tabName)) {
+        lockReason = 'Generate architecture (Step 3) to unlock';
+      } else if (tabName === 'opmodel') {
+        lockReason = 'Complete Operating Model (Step 4) to unlock';
+      } else if (tabName === 'gap') {
+        lockReason = 'Complete Gap Analysis (Step 5) to unlock';
+      } else if (tabName === 'valuepools') {
+        lockReason = 'Complete Value Pools analysis (Step 6) to unlock';
+      } else if (['targetarch', 'roadmapvis'].includes(tabName)) {
+        lockReason = 'Generate Target Architecture (Step 7) to unlock';
+      } else if (['financials', 'optimisation'].includes(tabName)) {
+        lockReason = 'Complete architecture & target state to unlock';
+      } else if (tabName === 'analytics-di') {
+        lockReason = 'Generate Capability Map (Step 3) to unlock Decision Intelligence';
+      } else if (tabName === 'analytics-financial') {
+        lockReason = 'Complete Gap Analysis or Value Pools (Step 5+) to unlock Financial Analytics';
+      } else if (tabName === 'analytics-scenarios') {
+        lockReason = 'Generate Capability Map (Step 3) to unlock Scenario Analytics';
+      } else if (tabName === 'analytics-optimize') {
+        lockReason = 'Generate Roadmap (Step 7) to unlock Optimization Analytics';
+      }
+      
+      btn.setAttribute('data-tab-locked-reason', lockReason);
+      btn.title = btn.title.replace(' ?', '').replace(' (locked)', '') + ' (locked)';
+    }
+  });
+  
+  // Special handling: Home tab should show enterprise dashboard only after Step 3
+  const homeBtn = document.querySelector(".tab-btn[onclick*=\"showTab('home'\"]");
+  if (homeBtn && model.capabilities.length > 0) {
+    homeBtn.classList.add('tab-btn--highlight');
+  }
+}
+
+// Helper function to find tab button
+function findTabButton(tabId) {
+  return document.querySelector(`.tab-btn[onclick*="showTab('${tabId}'"]`);
+}
+
+// -- WHY THIS? � STEP RATIONALE CARD ----
+function renderStepRationale(stepNum) {
+  const el = document.getElementById('step' + stepNum + '-rationale');
+  const meta = (model.stepMeta || {})[stepNum];
+  if (!el || !meta) return;
+  const conf = Number(meta.confidence) || 0;
+  const confPct = Math.round(conf * 100);
+  const confColor = conf >= 0.8 ? '#16a34a' : conf >= 0.6 ? '#d97706' : '#dc2626';
+  const sources = (meta.dataSources || []).filter(Boolean);
+  const assumptions = (meta.assumptions || []).filter(Boolean);
+  const keyDrivers = (meta.keyDrivers || []).filter(Boolean).slice(0, 3);
+  el.classList.remove('hidden');
+  el.innerHTML =
+    `<div onclick="this.nextElementSibling.classList.toggle('hidden')" style="cursor:pointer;padding:5px 8px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:9px;font-weight:700;color:#475569;">&#128269; Why this?</span>
+      <span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:9999px;background:${confColor}20;color:${confColor};">&#x25CF; ${confPct}% confidence</span>
+    </div>
+    <div class="hidden" style="padding:6px 8px;background:#fff;">
+      ${sources.length ? `<div style="font-size:8px;color:#64748b;margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Sources: ${sources.join(' � ')}</div>` : ''}
+      ${assumptions.map(a => `<div style="font-size:9px;color:#475569;margin-bottom:2px;">&#8226; ${a}</div>`).join('')}
+      ${keyDrivers.map(d => `<div style="font-size:9px;color:#6366f1;margin-bottom:2px;">&#8594; ${d}</div>`).join('')}
+    </div>`;
+}
+
+// -- ARCHITECTURE GENERATION HELPERS ----
+function _setStep3Status(text, type) {
+  const el = document.getElementById('step3-status');
+  if (!el) return;
+  if (!text) { el.classList.add('hidden'); el.textContent = ''; return; }
+  el.classList.remove('hidden');
+  el.textContent = text;
+  el.className = 'text-[9px] mt-1 px-0.5 ' +
+    (type === 'done' ? 'text-green-600' : type === 'error' ? 'text-red-500' : 'text-blue-500');
+}
+
+function _showCFOSkeleton() {
+  ['kpi-savings','kpi-risk','kpi-roi','kpi-payback'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '...';
+  });
+  const top = document.getElementById('cfo-top-savings');
+  if (top) top.innerHTML = '<div class="text-slate-400 text-xs animate-pulse">Enriching financial estimates...</div>';
+  const top2 = document.getElementById('cfo-top-risk');
+  if (top2) top2.innerHTML = '';
+}
+
+function _showBenchSkeleton() {
+  const el = document.getElementById('bench-insights');
+  if (el) el.innerHTML = '<div class="text-blue-500 text-xs text-center py-6 animate-pulse">? Generating AI benchmark for your industry...</div>';
+}
+
+async function _enrichCapabilityFinancials(desc, si, capabilities) {
+  const isCostreduction = /cost|efficien|lean|optim|save|reduc/i.test(((si||{}).strategic_ambition || desc));
+  const raw = await callAI(
+    'You are a financial analyst specializing in enterprise transformation ROI. Return ONLY valid JSON, no markdown.',
+    `Estimate financial impact for each capability for this organization: "${desc}"
+Strategic direction: ${isCostreduction ? 'COST-REDUCTION / EFFICIENCY' : 'VALUE-CREATION / GROWTH'}
+${(si||{}).strategic_ambition ? 'Strategic ambition: ' + si.strategic_ambition : ''}
+Capabilities to estimate:
+${JSON.stringify(capabilities.map(c => ({ name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance })))}
+
+Return JSON array � one object per capability (keep exact name):
+[{"name":"","fteHoursSavedPct":15,"invoiceVolumeImpactPct":5,"investmentEstimate":150000,"riskExposureEstimate":500000,"revenueUpliftEstimate":200000,"sustainabilityImpactPct":8,"revenueExposure":"low|medium|high","regulatoryExposure":"low|medium|high","confidence":0.75,"assumptions":"key assumption driving these estimates"}]
+Rules: fteHoursSavedPct = % of 1 FTE annual hours saved by automating this capability (0�80). investmentEstimate = realistic one-time EUR investment. riskExposureEstimate = annual EUR risk this capability mitigates. revenueUpliftEstimate = annual EUR revenue value enabled or protected. sustainabilityImpactPct = % CO2/energy reduction (0�25). Base estimates on org description and strategic direction. Be realistic.`,
+    { taskType: 'heavy', temperature: 0.15, timeoutMs: 90000 }
+  );
+  return JSON.parse(extractJSON(raw));
+}
+
+async function _generateAIBenchmark(desc, si, industry) {
+  const raw = await callAI(
+    'You are an industry analyst with expertise in enterprise maturity benchmarking. Return ONLY valid JSON, no markdown.',
+    `Generate realistic maturity benchmarks for this organization's industry peer group.
+Organization: "${desc}"
+Industry: ${industry}
+${(si||{}).strategic_ambition ? 'Strategic ambition: ' + si.strategic_ambition : ''}
+Benchmark these 5 domains (scale 1.0�5.0):
+1. Digitalisation � cloud, APIs, digital systems
+2. Innovation � AI, automation, analytics
+3. Sustainability � ESG capabilities
+4. Process Optimisation � lean, automation
+5. Data Governance � data quality, analytics, compliance
+
+Return JSON:
+{"peerGroupName":"<industry peer group name>","peerScores":[3.2,2.8,3.5,3.0,2.9],"industryInsights":["insight 1","insight 2","recommendation specific to this org's ambition"]}
+Rules: peerScores must have exactly 5 values in domain order above. Base scores on realistic industry knowledge. industryInsights must be specific to this org and strategy, not generic.`,
+    { taskType: 'heavy', temperature: 0.2, timeoutMs: 60000 }
+  );
+  return JSON.parse(extractJSON(raw));
+}
+
+function _applyHeuristicFinancials() {
+  (model.capabilities||[]).forEach(c => {
+    if (c.fteHoursSavedPct == null) c.fteHoursSavedPct = c.strategicImportance === 'high' ? 20 : c.strategicImportance === 'medium' ? 12 : 6;
+    if (c.investmentEstimate == null) c.investmentEstimate = c.maturity <= 2 ? 200000 : c.maturity <= 3 ? 120000 : 60000;
+    if (c.riskExposureEstimate == null) c.riskExposureEstimate = c.strategicImportance === 'high' ? 600000 : c.strategicImportance === 'medium' ? 300000 : 100000;
+    if (c.revenueUpliftEstimate == null) c.revenueUpliftEstimate = c.strategicImportance === 'high' ? 250000 : 80000;
+    if (c.sustainabilityImpactPct == null) c.sustainabilityImpactPct = Math.floor(Math.random() * 10);
+    if (!c.revenueExposure) c.revenueExposure = c.strategicImportance || 'medium';
+    if (!c.regulatoryExposure) c.regulatoryExposure = (c.domain === 'Risk' || c.domain === 'Finance') ? 'high' : 'medium';
+    if (!c.invoiceVolumeImpactPct) c.invoiceVolumeImpactPct = c.strategicImportance === 'high' ? 8 : 3;
+  });
+}
+
+// -- GENERATE ARCHITECTURE ----
+function getArchitectureGenerationProfile() {
+  ensureAIConfigFields();
+  const mode = model.aiConfig?.architectureMode || 'standard';
+
+  if (mode === 'draft') {
+    return {
+      mode,
+      valueStreams: '3-4',
+      capabilities: '10-12',
+      systems: '5-7',
+      aiAgents: '2-3',
+      timeoutMs: 90000,
+      temperature: 0.15
+    };
+  }
+
+  if (mode === 'deep') {
+    return {
+      mode,
+      valueStreams: '5-6',
+      capabilities: '16-20',
+      systems: '8-12',
+      aiAgents: '4-6',
+      timeoutMs: 180000,
+      temperature: 0.2
+    };
+  }
+
+  return {
+    mode: 'standard',
+    valueStreams: '4-6',
+    capabilities: '14-18',
+    systems: '6-10',
+    aiAgents: '3-5',
+    timeoutMs: 150000,
+    temperature: 0.2
+  };
+}
+
+async function generateArchitecture() {
+  return StepEngine.run('step3', window.model);
+}
+async function _v5LegacyArch(_d) { const desc = _d; // V5 legacy � never called
+  if (!desc) { toast('Describe your organisation first', true); return; }
+  const profile = getArchitectureGenerationProfile();
+  const isRefineArch = model.capabilities.length > 0;
+
+  // Context assembly (shared across calls)
+  const _si3 = model.strategicIntent || {};
+  const intentPrefix = _si3.strategic_ambition ? `
+=== STEP 1 � STRATEGIC INTENT ===
+Ambition: "${_si3.strategic_ambition}"
+${_si3.situation_narrative ? 'Situation: ' + _si3.situation_narrative + '\n' : ''}Themes: ${(_si3.strategic_themes||[]).join(' � ')}
+Constraints: ${(_si3.key_constraints||[]).join(' | ')}
+Success metrics: ${(_si3.success_metrics||[]).join(' | ')}
+${(_si3.investigation_scope||[]).length ? 'EA investigation scope: ' + _si3.investigation_scope.join(' | ') + '\n' : ''}${(_si3.key_assumptions_to_validate||[]).length ? 'Key assumptions to validate: ' + _si3.key_assumptions_to_validate.join(' | ') + '\n' : ''}${(_si3.expected_outcomes||[]).length ? 'Expected outcomes: ' + _si3.expected_outcomes.join(' � ') + '\n' : ''}Timeframe: ${_si3.timeframe || 'not specified'}`
+    : '';
+  const bmcPrefix = model.bmc ? `
+=== STEP 2 � BUSINESS MODEL CANVAS (TARGET STATE) ===
+Value proposition: "${model.bmc.value_proposition || ''}"
+Customer segments: ${(model.bmc.customer_segments||[]).join(' � ')}
+Revenue streams: ${(model.bmc.revenue_streams||[]).join(' � ')}
+Channels: ${(model.bmc.channels||[]).join(' � ')}
+Key activities: ${(model.bmc.key_activities||[]).join(' � ')}
+Key resources: ${(model.bmc.key_resources||[]).join(' � ')}
+Key partners: ${(model.bmc.key_partners||[]).slice(0,4).join(' � ')}
+Cost structure: ${(model.bmc.cost_structure||[]).slice(0,3).join(' � ')}${model.bmc_analysis ? '\nModel shift: ' + (model.bmc_analysis.blocks_requiring_transformation||[]).join(', ') + ' require transformation' : ''}`
+    : '';
+  const existingArchCtx = isRefineArch
+    ? `\n\n=== EXISTING ARCHITECTURE (user-reviewed � refine and extend, preserve all confirmed data) ===\nValue Streams: ${JSON.stringify((model.valueStreams||[]).map(v=>v.name))}\nCapabilities: ${JSON.stringify(model.capabilities.map(c=>({name:c.name,domain:c.domain,valueStream:c.valueStream,maturity:c.maturity,strategicImportance:c.strategicImportance})))}\nSystems: ${JSON.stringify((model.systems||[]).map(s=>({name:s.name,supportsCapability:s.supportsCapability,criticality:s.criticality})))}`
+    : '';
+
+  // -- UI: start --
+  spin('s1', true);
+  const btnLabel = document.getElementById('btn-step3-label');
+  if (btnLabel) btnLabel.textContent = isRefineArch ? 'Refining structure...' : 'Generating structure...';
+  _setStep3Status('? Step 1/3 � Building architecture structure...', 'active');
+  _showCFOSkeleton();
+  _showBenchSkeleton();
+
+  try {
+    // -- CALL 1: STRUCTURE ---------------------------------------------
+    const sysArch = (window._stepPrompts && window._stepPrompts.step_3) ||
+      'You are a senior enterprise architect. Return ONLY valid JSON, no markdown.';
+    const raw1 = await callAI(sysArch,
+      `${isRefineArch ? 'Refine and extend' : 'Generate'} enterprise architecture for: "${desc}"${intentPrefix}${bmcPrefix}${existingArchCtx}
+Return JSON:
+{"valueStreams":[{"name":""}],"capabilities":[{"name":"","domain":"Customer|Product|Operations|Risk|Finance|Technology|Support","valueStream":"","maturity":3,"strategicImportance":"low|medium|high","operationalCriticality":3,"dependsOnCapabilities":[""]}],"systems":[{"name":"","supportsCapability":"","criticality":"low|medium|high"}],"dataDomains":[{"name":""}],"aiAgents":[{"name":"","supportsCapability":"","criticality":"low|medium|high"}],"_meta":{"assumptions":["key assumption driving this architecture"],"confidence":0.0,"dataSources":["strategic intent","BMC","company description"],"keyDrivers":["top arch driver 1","top arch driver 2","top arch driver 3"]}}
+Rules: ${profile.valueStreams} value streams, ${profile.capabilities} capabilities (each must have valueStream matching one generated value stream name), ${profile.systems} systems, ${profile.aiAgents} AI agents. dependsOnCapabilities must list exact names of other capabilities in this list.`,
+      { taskType: 'heavy', temperature: profile.temperature, timeoutMs: profile.timeoutMs });
+
+    const struct = JSON.parse(extractJSON(raw1));
+    if (struct._meta) { model.stepMeta = model.stepMeta || {}; model.stepMeta[3] = struct._meta; delete struct._meta; }
+    model = { ...model, ...struct };
+    ensurePhase4Fields();
+    ensureBusinessFields();
+
+    // Render all structural views immediately so user sees results
+    renderLayers(); renderCapMap(); renderHeatmap(); renderMaturityDashboard();
+    populateImpactSelect(); renderExecSummary(); updateDataCollectionTab();
+    renderPhase4ControlsFromModel();
+    updateWorkflowStepStates();
+    showTab('capmap', findTabButton('capmap'));
+
+    const capCount = (model.capabilities||[]).length;
+    _setStep3Status(`Structure ready (${capCount} capabilities) � enriching financials & benchmark...`, 'active');
+    if (btnLabel) btnLabel.textContent = 'Enriching data...';
+    toast(`Architecture structure ready ? (${profile.mode} mode) � enriching financials & benchmark...`);
+
+    // -- CALLS 2 + 3: PARALLEL -----------------------------------------
+    const industry = model.phase4Config?.industry || 'generic';
+    const [financialsResult, benchmarkResult] = await Promise.allSettled([
+      _enrichCapabilityFinancials(desc, _si3, model.capabilities),
+      _generateAIBenchmark(desc, _si3, industry)
+    ]);
+
+    // Apply financial enrichment
+    if (financialsResult.status === 'fulfilled' && Array.isArray(financialsResult.value)) {
+      const finMap = {};
+      financialsResult.value.forEach(f => { if (f.name) finMap[f.name.toLowerCase()] = f; });
+      model.capabilities = model.capabilities.map(c => {
+        const f = finMap[c.name.toLowerCase()];
+        if (!f) return c;
+        return { ...c,
+          fteHoursSavedPct: f.fteHoursSavedPct, invoiceVolumeImpactPct: f.invoiceVolumeImpactPct,
+          investmentEstimate: f.investmentEstimate, riskExposureEstimate: f.riskExposureEstimate,
+          revenueUpliftEstimate: f.revenueUpliftEstimate, sustainabilityImpactPct: f.sustainabilityImpactPct,
+          revenueExposure: f.revenueExposure, regulatoryExposure: f.regulatoryExposure,
+          confidence: f.confidence, assumptions: f.assumptions };
+      });
+    } else {
+      _applyHeuristicFinancials();
+    }
+    computeDerivedFinancials();
+    renderLayers(); // Refresh layer cards with financial badges
+    renderCFO();
+
+    // Apply AI benchmark
+    if (benchmarkResult.status === 'fulfilled' && benchmarkResult.value) {
+      model.aiBenchmark = benchmarkResult.value;
+    }
+    renderBenchmarking();
+
+    // Narrative fires last (uses financials)
+    generateNarrative();
+    updateWorkflowStepStates();
+    updateWorkflowProgress([1, 2, 3]); // Mark Steps 1-3 as completed
+
+    _setStep3Status(`Done � ${capCount} capabilities � financials & benchmark ready`, 'done');
+    if (btnLabel) btnLabel.textContent = isRefineArch ? 'Re-generate Architecture' : 'Generate Architecture';
+    toast('Architecture complete ? (' + profile.mode + ' mode)');
+  } catch (_e) { /* legacy */ }
+} // end _v5LegacyArch
+
+function computeDerivedFinancials() {
+  const fteCost = Number(document.getElementById('assume-fte')?.value || 90000);
+  (model.capabilities||[]).forEach(c => {
+    const invest = Number(c.investmentEstimate);
+
+    // Lever 1: FTE savings
+    c.annualSavingsEstimate = fteCost * (Number(c.fteHoursSavedPct || 0) / 100);
+
+    // Lever 2: Revenue uplift (annual value enabled or protected by maturing this capability)
+    c.annualRevenueUplift = Number(c.revenueUpliftEstimate || 0);
+
+    // Lever 3: Risk avoidance (expected annual loss = exposure � 15% probability of materialisation)
+    if (!isFinite(c.riskExposureEstimate) || c.riskExposureEstimate === null) {
+      const expW = {low:1, medium:2, high:3};
+      const rev = expW[c.revenueExposure||'medium'];
+      const reg = expW[c.regulatoryExposure||'medium'];
+      const oc = Math.max(1, Math.min(5, Number(c.operationalCriticality)||3));
+      c.riskExposureEstimate = Math.round(50000 * (rev + reg) * (oc/3));
+      if (c.sustainabilityImpactPct === undefined) c.sustainabilityImpactPct = Math.floor(Math.random() * 15);
+    }
+    c.annualRiskAvoidance = Number(c.riskExposureEstimate || 0) * 0.15;
+
+    // Total annual value across all three levers
+    c.totalAnnualValue = c.annualSavingsEstimate + c.annualRevenueUplift + c.annualRiskAvoidance;
+
+    c.roiMultiple = (isFinite(invest) && invest > 0 && c.totalAnnualValue > 0) ? (c.totalAnnualValue / invest) : null;
+    c.paybackMonths = (c.totalAnnualValue > 0 && isFinite(invest) && invest > 0) ? (12 * invest / c.totalAnnualValue) : null;
+    c.paybackFlag = (c.paybackMonths !== null && c.paybackMonths > 48) ? 'requires strategic justification' : null;
+  });
+}
+
+// -- CAPABILITY MAP ----
+async function generateCapabilityMap() {
+  if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
+  spin('s2', true);
+  window._capmapState = 'asis';
+  renderCapMap();
+  showTab('capmap', findTabButton('capmap'));
+  toast('Capability map rendered &#x2718;');
+  spin('s2', false);
+}
+
+function _capmapSetState(state) {
+  window._capmapState = state;
+  renderCapMap();
+}
+
+async function generateCapabilityMapToBe() {
+  if (!model.capabilities.length) { toast('Generate AS-IS architecture first (Step 3)', true); return; }
+  spin('s2', true);
+  try {
+    const si = model.strategicIntent || {};
+    const bmc = model.bmc || {};
+    const raw = await callAI(
+      'You are a senior enterprise architect. Return ONLY valid JSON, no markdown.',
+      `Based on the strategic intent and target Business Model Canvas below, generate a TARGET STATE (TO-BE) capability map.
+
+Current AS-IS capabilities:
+${JSON.stringify(model.capabilities.map(c => ({ name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance })))}
+
+Strategic ambition: ${si.strategic_ambition || ''}
+Strategic themes: ${(si.strategic_themes || []).join(' � ')}
+Key constraints: ${(si.key_constraints || []).join(' | ')}
+Target value proposition: ${bmc.value_proposition || ''}
+Target revenue streams: ${(bmc.revenue_streams || []).join(' � ')}
+Target key activities: ${(bmc.key_activities || []).join(' � ')}
+
+For each capability: keep if still relevant, evolve if maturity should increase, add new ones required by the strategy, mark as deprecate if no longer needed.
+Return JSON array:
+[{"name":"","domain":"Customer|Product|Operations|Risk|Finance|Technology|Support","maturity":4,"strategicImportance":"high|medium|low","valueStream":"","changeType":"keep|evolve|new|deprecate","changeRationale":"one sentence justification"}]
+Rules: 12-20 capabilities total. Every new or evolved capability must link to a strategic theme or BMC element. Do not invent capabilities not grounded in the strategy.`,
+      { taskType: 'heavy', temperature: 0.2, _traceLabel: 'Cap Map � TO-BE' }
+    );
+    model.capabilities_tobe = JSON.parse(extractJSON(raw));
+    window._capmapState = 'tobe';
+    renderCapMap();
+    showTab('capmap', findTabButton('capmap'));
+    toast('TO-BE Capability Map generated ?');
+    addAssistantMessage(
+      `**TO-BE Capability Map generated**\n\n` +
+      `${model.capabilities_tobe.length} target capabilities across ${[...new Set(model.capabilities_tobe.map(c=>c.domain))].join(', ')}.\n\n` +
+      `**New:** ${model.capabilities_tobe.filter(c=>c.changeType==='new').map(c=>c.name).join(', ')||'none'}\n` +
+      `**Evolved:** ${model.capabilities_tobe.filter(c=>c.changeType==='evolve').map(c=>c.name).join(', ')||'none'}\n` +
+      `**Deprecate:** ${model.capabilities_tobe.filter(c=>c.changeType==='deprecate').map(c=>c.name).join(', ')||'none'}\n\n` +
+      `_Switch to AS-IS to compare with the current state._`
+    );
+  } catch(e) { toast('Error generating TO-BE capability map: ' + e.message, true); }
+  spin('s2', false);
+}
+
+// -- OPERATING MODEL ----
+async function generateOperatingModel() {
+  return StepEngine.run('step4', window.model);
+}
+
+async function _generateOperatingModelLegacy() {
+  if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
+  spin('s3', true);
+  try {
+    const si = model.strategicIntent || {};
+    const isCostreduction = /cost|efficien|lean|optim|save|reduc/i.test(si.strategic_ambition || '');
+    const strategicDirection = isCostreduction ? 'COST-REDUCTION / EFFICIENCY' : 'VALUE-CREATION / GROWTH';
+
+    const siBlock = si.strategic_ambition ? `
+STRATEGIC INTENT (must drive every section of the operating model):
+- Ambition: "${si.strategic_ambition}"
+- Strategic themes: ${JSON.stringify(si.strategic_themes || [])}
+- Key constraints: ${JSON.stringify(si.key_constraints || [])}
+- Success metrics: ${JSON.stringify(si.success_metrics || [])}
+- Timeframe: ${si.timeframe || 'not specified'}
+- Strategic direction: ${strategicDirection}
+` : '';
+
+    const bmcBlock = model.bmc ? `Business model context (Step 2):
+- Value proposition: "${model.bmc.value_proposition || ''}"
+- Customer segments: ${JSON.stringify(model.bmc.customer_segments || [])}
+- Revenue streams: ${JSON.stringify(model.bmc.revenue_streams || [])}
+` : '';
+
+    const capSample = model.capabilities.slice(0, 10).map(c => ({ name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance }));
+
+    const raw = await callAI(
+      (window._stepPrompts && window._stepPrompts.step_4) || 'Return ONLY valid JSON. No markdown, no comments.',
+      `Generate the TO-BE Operating Model Canvas for this organization. The operating model must be directly shaped by the Strategic Intent � every section must reflect the strategic direction.
+${siBlock}${bmcBlock}
+Capability context (sample): ${JSON.stringify(capSample)}
+
+Rules:
+- If direction is COST-REDUCTION: key activities = process excellence + automation; cost structure = lean, fixed-to-variable shift; revenue streams = efficient delivery of existing products
+- If direction is VALUE-CREATION/GROWTH: key activities = innovation + customer experience + new market entry; key resources = talent + data + platform; channels = digital-first + partnerships
+- Value proposition must directly deliver the stated strategic ambition � not be generic
+- Each array should have 4-6 specific, actionable items (not generic filler)
+- Items must reference the strategic themes explicitly where possible
+
+Return JSON:
+{"valueProposition":"","customerSegments":[""],"keyActivities":[""],"keyResources":[""],"keyPartners":[""],"channels":[""],"costStructure":[""],"revenueStreams":[""]}`,
+      { taskType: 'heavy', temperature: 0.2 });
+    model.operatingModel = JSON.parse(extractJSON(raw));
+    renderOperatingModel();
+    updateWorkflowStepStates();
+    updateWorkflowProgress([1, 2, 3, 4]); // Mark Steps 1-4 as completed
+    showTab('opmodel', null);
+    toast('Operating model generated &#x2718;');
+    const om = model.operatingModel;
+    addAssistantMessage(`**Step 4 � Operating Model generated**\n\nReview the full model in the **Op Model** tab.`);
+    const _panelOM = document.getElementById('ai-chat-panel');
+    if (_panelOM && _panelOM.classList.contains('hidden')) toggleChatPanel();
+  } catch(e) { toast('Error: ' + e.message, true); }
+  spin('s3', false);
+}
+
+// -----------------------------------------------------------------------------
+
+function analyseMaturity() {
+  if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
+  renderMaturityDashboard();
+  toast('Maturity dashboard updated &#x2718;');
+}
+
+async function analyseGaps() {
+  return StepEngine.run('step5', window.model);
+}
+
+function formatGapAnalysisOutput(rawText) {
+  const text = String(rawText || '').trim();
+  if (!text) {
+    return '<div class="text-slate-400 italic text-center py-6 text-[11px]">No gap analysis output available</div>';
+  }
+
+  const structured = parseGapAnalysisJson(text);
+
+  const normalized = text
+    .replace(/\r/g, '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !/^#+\s*/.test(line));
+
+  const lanes = {
+    gap: [],
+    desired: [],
+    current: [],
+    actions: []
+  };
+
+  if (structured) {
+    const toItems = (list) => {
+      if (!Array.isArray(list)) return [];
+      return list.map((item) => {
+        if (typeof item === 'string') return item;
+        if (!item || typeof item !== 'object') return '';
+        const title = String(item.title || item.name || '').trim();
+        const detail = String(item.detail || item.description || '').trim();
+        const owner = String(item.owner || '').trim();
+        const horizon = String(item.timeHorizon || '').trim();
+        const suffix = [owner, horizon].filter(Boolean).join(' &bull; ');
+
+        if (title && detail && suffix) return `${title}: ${detail} (${suffix})`;
+        if (title && detail) return `${title}: ${detail}`;
+        if (title) return title;
+        return detail;
+      }).filter(Boolean);
+    };
+
+    lanes.gap = toItems(structured.gapAnalysis || structured.gaps);
+    lanes.desired = toItems(structured.desiredState);
+    lanes.current = toItems(structured.currentState);
+    lanes.actions = toItems(structured.actionSteps || structured.actions);
+  }
+
+  const parseLeadSentence = (item) => {
+    const clean = String(item || '').replace(/^[-*&bull;\d.)\s]+/, '').trim();
+    if (!clean) return { title: '', body: '' };
+    const parts = clean.split(/[:.-]\s+/);
+    if (parts.length > 1 && parts[0].length <= 72) {
+      return { title: parts[0], body: parts.slice(1).join(' - ') };
+    }
+    const sentenceCut = clean.search(/[.!?]\s+/);
+    if (sentenceCut > 14 && sentenceCut < 90) {
+      return { title: clean.slice(0, sentenceCut + 1).trim(), body: clean.slice(sentenceCut + 1).trim() };
+    }
+    if (clean.length <= 86) return { title: clean, body: '' };
+    return { title: clean.slice(0, 86).trim() + '�', body: clean };
+  };
+
+  const toDesired = (item) => {
+    const lower = item.toLowerCase();
+    if (lower.includes('maturity')) return 'Reach maturity level 4+ with consistent governance and measurable outcomes.';
+    if (lower.includes('integration')) return 'Create unified integration flows with stable APIs and ownership.';
+    if (lower.includes('data')) return 'Establish trusted, shared data models and quality controls across domains.';
+    if (lower.includes('risk') || lower.includes('compliance')) return 'Build proactive controls and evidence-ready compliance operations.';
+    if (lower.includes('automation') || lower.includes('ai')) return 'Scale automation with clear guardrails, monitoring, and business KPIs.';
+    return 'Deliver a standardized capability with clear ownership, controls, and performance targets.';
+  };
+
+  const toCurrent = (item) => {
+    const lower = item.toLowerCase();
+    if (lower.includes('maturity')) return 'Current maturity is inconsistent and below target in critical domains.';
+    if (lower.includes('integration')) return 'Current landscape has fragmented integrations and duplicated manual work.';
+    if (lower.includes('data')) return 'Current data quality, lineage, or ownership is unclear across teams.';
+    if (lower.includes('risk') || lower.includes('compliance')) return 'Current controls are reactive and create elevated delivery or regulatory risk.';
+    if (lower.includes('automation') || lower.includes('ai')) return 'Current automation coverage is partial with weak operating discipline.';
+    return 'Current state shows capability fragmentation and uneven operational execution.';
+  };
+
+  const toAction = (item) => {
+    const lower = item.toLowerCase();
+    if (lower.includes('maturity')) return 'Define a 90-day uplift backlog, assign owners, and review progress monthly.';
+    if (lower.includes('integration')) return 'Prioritize integration debt removal and implement canonical interface contracts.';
+    if (lower.includes('data')) return 'Launch a data quality sprint with stewardship roles and quality scorecards.';
+    if (lower.includes('risk') || lower.includes('compliance')) return 'Implement control checkpoints, audit trails, and quarterly risk reviews.';
+    if (lower.includes('automation') || lower.includes('ai')) return 'Pilot high-value automations first, then standardize monitoring and retraining.';
+    return 'Convert this gap into a phased initiative with KPIs, budget, and accountable sponsor.';
+  };
+
+  if (!lanes.gap.length && !lanes.desired.length && !lanes.current.length && !lanes.actions.length) {
+    let activeLane = 'gap';
+    normalized.forEach((line) => {
+      const raw = String(line || '');
+      const clean = raw.replace(/^[-*&bull;\d.)\s]+/, '').trim();
+      if (!clean) return;
+
+      const lower = clean.toLowerCase();
+      if (/quick\s*win|action|recommendation|next\s*step|\?/.test(lower)) {
+        activeLane = 'actions';
+        return;
+      }
+      if (/current\s*state|as\s*is|today/.test(lower)) {
+        activeLane = 'current';
+        return;
+      }
+      if (/desired\s*state|target\s*state|to\s*be/.test(lower)) {
+        activeLane = 'desired';
+        return;
+      }
+      if (/gap|risk|bottleneck|priority|strategic/.test(lower) && !/^[-*&bull;\d.)\s]/.test(raw)) {
+        activeLane = 'gap';
+        return;
+      }
+
+      lanes[activeLane].push(clean);
+    });
+  }
+
+  if (!lanes.gap.length) {
+    lanes.gap = normalized
+      .map((line) => line.replace(/^[-*&bull;\d.)\s]+/, '').trim())
+      .filter(Boolean)
+      .slice(0, 6);
+  }
+
+  if (!lanes.desired.length) lanes.desired = lanes.gap.map(toDesired);
+  if (!lanes.current.length) lanes.current = lanes.gap.map(toCurrent);
+  if (!lanes.actions.length) lanes.actions = lanes.gap.map(toAction);
+
+  const rowCount = Math.max(lanes.gap.length, lanes.desired.length, lanes.current.length, lanes.actions.length, 3);
+  const items = Array.from({ length: rowCount }).map((_, idx) => ({
+    gap: lanes.gap[idx] || '',
+    desired: lanes.desired[idx] || '',
+    current: lanes.current[idx] || '',
+    actions: lanes.actions[idx] || ''
+  })).filter((row) => row.gap || row.desired || row.current || row.actions);
+
+  const card = (title, toneClass, icon, values, kind) => {
+    const rows = values.map((value, idx) => {
+      const parsed = parseLeadSentence(value || '');
+      if (!parsed.title && !parsed.body) return '';
+      return `<div class="ea-gap-card__row">
+        <div class="ea-gap-card__index">${idx + 1}</div>
+        <div>
+          <div class="ea-gap-card__title">${escapeHtml(parsed.title)}</div>
+          ${parsed.body ? `<div class="ea-gap-card__body">${escapeHtml(parsed.body)}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<section class="ea-gap-card ${toneClass}">
+      <div class="ea-gap-card__head">
+        <i class="${icon}"></i>
+        <span>${title}</span>
+      </div>
+      <div class="ea-gap-card__content">${rows || '<div class="ea-gap-card__empty">No entries generated</div>'}</div>
+      <div class="ea-gap-card__foot">${kind}</div>
+    </section>`;
+  };
+
+  const gapValues = items.map((row) => row.gap).filter(Boolean);
+  const desiredValues = items.map((row) => row.desired).filter(Boolean);
+  const currentValues = items.map((row) => row.current).filter(Boolean);
+  const actionValues = items.map((row) => row.actions).filter(Boolean);
+
+  return `
+    <div class="ea-gap-board">
+      <div class="ea-gap-board__intro">
+        <div>
+          <div class="ea-gap-board__title">${escapeHtml(structured?.title || 'Gap Analysis')}</div>
+          <p class="ea-gap-board__text">${escapeHtml(structured?.executiveSummary || 'Structured view of critical gaps, the target outcome, current-state signals, and prioritized action steps.')}</p>
+        </div>
+      </div>
+      <div class="ea-gap-board__grid">
+        ${card('Gap Analysis', 'ea-gap-card--gap', 'fas fa-triangle-exclamation', gapValues, 'Findings')}
+        ${card('Desired State', 'ea-gap-card--desired', 'fas fa-bullseye', desiredValues, 'Target')}
+        ${card('Current State', 'ea-gap-card--current', 'fas fa-wave-square', currentValues, 'Baseline')}
+        ${card('Action Steps', 'ea-gap-card--actions', 'fas fa-list-check', actionValues, 'Execution')}
+      </div>
+    </div>`;
+}
+
+async function generateTargetArch() {
+  if (!model.capabilities.length) { toast('Generate architecture first', true); return; }
+  spin('s6', true);
+  try {
+    const si = model.strategicIntent || {};
+    const isCostreduction = /cost|efficien|lean|optim|save|reduc/i.test(si.strategic_ambition || '');
+    const strategicDirection = isCostreduction ? 'COST-REDUCTION / EFFICIENCY' : 'VALUE-CREATION / GROWTH';
+
+    const siBlock = si.strategic_ambition ? `
+STRATEGIC INTENT (must drive target maturity and action for each capability):
+- Ambition: "${si.strategic_ambition}"
+- Strategic themes: ${JSON.stringify(si.strategic_themes || [])}
+- Key constraints: ${JSON.stringify(si.key_constraints || [])}
+- Success metrics: ${JSON.stringify(si.success_metrics || [])}
+- Strategic direction: ${strategicDirection}
+
+Prioritization rules based on strategic direction:
+- ${isCostreduction
+    ? 'COST-REDUCTION: Prioritize automation, process standardization, and shared services capabilities. Set high target maturity for operational and finance domains. Constrain investment in customer-facing uplift unless directly tied to efficiency.'
+    : 'VALUE-CREATION: Prioritize customer experience, innovation, data, and partner ecosystem capabilities. Set high target maturity for capabilities linked to strategic themes. Allow high investment in differentiating capabilities.'}
+` : '';
+
+    const raw = await callAI('Return ONLY valid JSON array, no markdown.',
+      `Based on this architecture and strategic intent, define the Target Architecture.
+
+${siBlock}
+Capabilities to analyze: ${JSON.stringify(model.capabilities)}
+
+For each capability, set a target maturity that is justified by the strategic direction � not just "one level up from current". High-strategic-importance capabilities aligned to strategic themes should have the most aggressive targets.
+
+Return JSON array (ALL capabilities):
+[{
+  "name": "",
+  "currentMaturity": 2,
+  "targetMaturity": 4,
+  "domain": "",
+  "strategicImportance": "high|medium|low",
+  "action": "One specific action statement describing what must be done",
+  "enabler": "Platform|AI|Process|Data|People",
+  "strategicThemeLink": "Which strategic theme drives this uplift, or null"
+}]`,
+      { taskType: 'heavy', temperature: 0.2 });
+    model.targetArch = JSON.parse(extractJSON(raw));
+    model.targetArchDone = true;
+    renderTargetArchVisual();
+    updateWorkflowStepStates();
+    showTab('targetarch', findTabButton('targetarch'));
+    toast('Target architecture generated &#x2718;');
+    const taCaps = (model.targetArch||[]).filter(c=>c.strategicImportance==='high').slice(0,5);
+    const taMsg = taCaps.map(c=>`� **${c.name}** M${c.currentMaturity}?M${c.targetMaturity}: ${c.action||''}`).join('\n');
+    addAssistantMessage(`**Step 7a � Target Architecture generated**\n\n${taCaps.length} high-priority capability uplifts. Review in the **Target** tab.`);
+    const _panelTA = document.getElementById('ai-chat-panel');
+    if (_panelTA && _panelTA.classList.contains('hidden')) toggleChatPanel();
+  } catch(e) { toast('Error: ' + e.message, true); }
+  spin('s6', false);
+}
+
+function renderTargetArchVisual() {
+  const data = model.targetArch || [];
+  const target = document.getElementById('targetarch-content');
+  if (!target) return;
+
+  if (!data.length) {
+    target.innerHTML = '<div class="text-slate-400 text-xs text-center py-16">Click "Target Arch" to generate the visual</div>';
+    return;
+  }
+
+  const domainOrder = ['Customer', 'Product', 'Operations', 'Finance', 'Risk', 'Technology', 'Support'];
+  const availableDomains = [...new Set(data.map((item) => item.domain || 'General'))];
+  const sortedDomains = [
+    ...domainOrder.filter((domain) => availableDomains.includes(domain)),
+    ...availableDomains.filter((domain) => !domainOrder.includes(domain))
+  ];
+
+  const normalizeNum = (value, fallback) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  const bucketFor = (item) => {
+    const current = normalizeNum(item.currentMaturity, 2);
+    const targetMat = normalizeNum(item.targetMaturity, Math.min(5, current + 1));
+    const uplift = targetMat - current;
+    if (uplift >= 2 || String(item.strategicImportance || '').toLowerCase() === 'high') {
+      return { className: 'is-priority', label: 'Priority uplift' };
+    }
+    if (uplift <= 0) {
+      return { className: 'is-optimized', label: 'Sustain and monitor' };
+    }
+    return { className: 'is-core', label: 'Core uplift' };
+  };
+
+  const renderColumnCard = (item) => {
+    const current = Math.max(1, Math.min(5, normalizeNum(item.currentMaturity, 2)));
+    const targetMat = Math.max(1, Math.min(5, normalizeNum(item.targetMaturity, current + 1)));
+    const bucket = bucketFor(item);
+    const action = String(item.action || '').trim();
+    const enabler = String(item.enabler || 'General');
+
+    return `<article class="ea-target-card ${bucket.className}" title="${escapeHtml(bucket.label)}">
+      <div class="ea-target-card__top">
+        <div class="ea-target-card__name">${escapeHtml(item.name || 'Unnamed capability')}</div>
+        <span class="ea-target-card__dot" aria-hidden="true"></span>
+      </div>
+      <div class="ea-target-card__meta">M${current} -> M${targetMat} � ${escapeHtml(enabler)}</div>
+      ${action ? `<div class="ea-target-card__action">${escapeHtml(action)}</div>` : ''}
+    </article>`;
+  };
+
+  const domainColumns = sortedDomains.map((domain) => {
+    const entries = data.filter((item) => (item.domain || 'General') === domain);
+    return `<section class="ea-target-column">
+      <header class="ea-target-column__head">${escapeHtml(domain)}</header>
+      <div class="ea-target-column__body">
+        ${entries.length ? entries.map(renderColumnCard).join('') : '<div class="ea-target-column__empty">No capabilities mapped</div>'}
+      </div>
+    </section>`;
+  }).join('');
+
+  const commonKeywords = ['finance', 'account', 'legal', 'hr', 'people', 'it', 'security', 'procure', 'compliance', 'data'];
+  const commonCandidates = data.filter((item) => {
+    const name = String(item.name || '').toLowerCase();
+    const enabler = String(item.enabler || '').toLowerCase();
+    return commonKeywords.some((keyword) => name.includes(keyword) || enabler.includes(keyword));
+  });
+  const fallbackCommon = data
+    .slice()
+    .sort((a, b) => normalizeNum(b.targetMaturity, 3) - normalizeNum(a.targetMaturity, 3))
+    .slice(0, 6);
+  const commonProcesses = (commonCandidates.length ? commonCandidates : fallbackCommon)
+    .slice(0, 6)
+    .map((item) => `<div class="ea-target-common__item">${escapeHtml(item.name || 'Common process')}</div>`)
+    .join('');
+
+  target.innerHTML = `
+    <div class="ea-target-board">
+      <div class="ea-target-board__columns">${domainColumns}</div>
+
+      <div class="ea-target-common">
+        <div class="ea-target-common__title">Common Processes Across Industries</div>
+        <div class="ea-target-common__grid">${commonProcesses}</div>
+      </div>
+
+      <div class="ea-target-legend">
+        <span class="ea-target-legend__item"><span class="ea-target-legend__swatch is-core"></span>Core uplift</span>
+        <span class="ea-target-legend__item"><span class="ea-target-legend__swatch is-priority"></span>Priority uplift</span>
+        <span class="ea-target-legend__item"><span class="ea-target-legend__swatch is-optimized"></span>Sustain / optimized</span>
+      </div>
+    </div>`;
+}
+
+async function generateRoadmap() {
+  return StepEngine.run('step7', window.model);
+}
+async function _v5LegacyRoadmap() { /* V5 � never called */
+  try {
+    const si = model.strategicIntent || {};
+    const isCostreduction = /cost|efficien|lean|optim|save|reduc/i.test(si.strategic_ambition || '');
+    const strategicDirection = isCostreduction ? 'COST-REDUCTION / EFFICIENCY' : 'VALUE-CREATION / GROWTH';
+
+    const siBlock = si.strategic_ambition ? `
+STRATEGIC INTENT (must sequence and prioritize all initiatives):
+- Ambition: "${si.strategic_ambition}"
+- Strategic themes: ${JSON.stringify(si.strategic_themes || [])}
+- Key constraints: ${JSON.stringify(si.key_constraints || [])}
+- Success metrics: ${JSON.stringify(si.success_metrics || [])}
+- Strategic direction: ${strategicDirection}
+
+Phase sequencing rules:
+- Year 1 (Foundation): ${isCostreduction
+    ? 'Quick wins with fastest ROI � process automation, cost takeout, consolidation of redundant systems'
+    : 'Customer-facing and differentiating foundation � core platform, key data assets, priority customer journeys'}
+- Year 2 (Expansion): ${isCostreduction
+    ? 'Scale efficiency gains � standardization, shared services, advanced analytics for cost optimization'
+    : 'Scale and deepen � new market capabilities, partner integrations, AI/data-driven product expansion'}
+- Year 3 (Optimisation): ${isCostreduction
+    ? 'Sustain and govern � continuous improvement, governance, benchmarking'
+    : 'Optimise and innovate � ecosystem leadership, next-generation capabilities, strategic agility'}
+` : '';
+
+    const capContext = model.targetArch && model.targetArch.length
+      ? model.targetArch.map(t => ({ name: t.name, domain: t.domain, currentMaturity: t.currentMaturity, targetMaturity: t.targetMaturity, strategicImportance: t.strategicImportance, strategicThemeLink: t.strategicThemeLink }))
+      : model.capabilities.map(c => ({ name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance }));
+
+    // Pull in value pools and gap analysis top gaps to anchor initiative sequencing
+    const vpBlock = (model.valuePools||[]).length
+      ? `\nVALUE POOLS (Step 6 � initiatives must be sequenced to realise these):\n${model.valuePools.map(p=>`  - ${p.name} (${p.value_driver}, ${p.time_horizon} horizon): ${p.description}`).join('\n')}`
+      : '';
+    const gapBlock = model.gapAnalysisDone
+      ? (()=>{
+          const tg = model.capabilities
+            .filter(c=>c.strategicImportance==='high' && Number(c.maturity)<=3)
+            .sort((a,b)=>Number(a.maturity)-Number(b.maturity))
+            .slice(0,8)
+            .map(c=>`  - ${c.name} (M${c.maturity}, ${c.domain})`);
+          return tg.length ? `\nPRIORITY GAPS (Step 5 � Year 1 initiatives must close these):\n${tg.join('\n')}` : '';
+        })()
+      : '';
+
+    const raw = await callAI(
+      (window._stepPrompts && window._stepPrompts.step_7) || 'Return ONLY valid JSON.',
+      `Create a transformation roadmap grounded in the strategic intent.
+
+${siBlock}${vpBlock}${gapBlock}
+Capability context: ${JSON.stringify(capContext)}
+
+Rules:
+- High-priority initiatives in Year 1 must be directly tied to strategic constraints or quick wins for the stated direction
+- Each initiative must name the capability it impacts
+- Business value ratings must reflect strategic importance � not just "size" of the change
+- Include 12-15 initiatives total, spread across all 3 phases
+- High-strategic-importance capabilities aligned to strategic themes ? high priority
+- depends_on: list initiative names that must complete before this one can start (empty array if none)
+- start_month and duration_months: realistic sequencing within the overall 36-month programme
+
+Return JSON:
+{
+  "initiatives": [{
+    "name": "Initiative name",
+    "impactsCapability": "Capability name",
+    "estimatedBusinessValue": "low|medium|high",
+    "complexity": "low|medium|high",
+    "priority": "high|medium|low",
+    "phase": "Year 1 - Foundation|Year 2 - Expansion|Year 3 - Optimisation",
+    "description": "What specifically will be done and why it matters strategically",
+    "strategicThemeLink": "Which strategic theme this delivers, or null",
+    "depends_on": [],
+    "start_month": 1,
+    "duration_months": 3,
+    "success_criteria": "Measurable outcome that proves this initiative succeeded",
+    "risk": {"description": "Primary delivery risk", "mitigation": "How it is mitigated"}
+  }],
+  "phase_gates": [
+    {"phase": "Year 1 - Foundation", "criteria": ["What must be true to proceed to Year 2"], "decision_maker": "CTO|COO|Board", "fallback_if_gate_fails": ""},
+    {"phase": "Year 2 - Expansion", "criteria": ["What must be true to proceed to Year 3"], "decision_maker": "CTO|COO|Board", "fallback_if_gate_fails": ""},
+    {"phase": "Year 3 - Optimisation", "criteria": ["What must be true to declare the programme complete"], "decision_maker": "CTO|COO|Board", "fallback_if_gate_fails": ""}
+  ]
+}`,
+      { taskType: 'heavy', temperature: 0.2 });
+    const rdParsed = JSON.parse(extractJSON(raw));
+    // Support both flat array (legacy) and new {initiatives, phase_gates} schema
+    model.initiatives = Array.isArray(rdParsed) ? rdParsed : (rdParsed.initiatives || []);
+    model.roadmapPhaseGates = Array.isArray(rdParsed) ? null : (rdParsed.phase_gates || null);
+    renderInitiatives(); renderRoadmapVisual();
+    updateWorkflowProgress([1, 2, 3, 4, 5]); // Mark all workflow steps as completed
+    toast('Roadmap generated &#x2718;');
+    const highPri = (model.initiatives||[]).filter(i=>i.priority==='high').slice(0,5);
+    const rdMsg = highPri.map(i=>`� **${i.name}** (${i.phase}): ${i.description||''}`).join('\n');
+    addAssistantMessage(`**Step 7b � Transformation Roadmap generated**\n\n${highPri.length} high-priority initiatives. Review all in the **Roadmap** tab.`);
+    const _panelRD = document.getElementById('ai-chat-panel');
+    if (_panelRD && _panelRD.classList.contains('hidden')) toggleChatPanel();
+  } catch (_e) { /* legacy */ }
+} // end _v5LegacyRoadmap
+
+function renderRoadmapVisual() {
+  const container = document.getElementById('roadmapvis-content');
+  if (!container) return;
+
+  if (!model.initiatives || !model.initiatives.length) {
+    container.innerHTML = '<div class="text-slate-400 text-xs text-center py-16">Generate Transformation Roadmap to populate the visual timeline</div>';
+    return;
+  }
+
+  const phases = ['Year 1 - Foundation', 'Year 2 - Expansion', 'Year 3 - Optimisation'];
+  const phaseKey = (phase) => phases.includes(phase) ? phase : 'Year 2 - Expansion';
+  const capByName = new Map((model.capabilities || []).map((capability) => [String(capability.name || '').toLowerCase(), capability]));
+  const targetByName = new Map((model.targetArch || []).map((item) => [String(item.name || '').toLowerCase(), item]));
+
+  const bvWeight = { low: 1, medium: 2, high: 3 };
+  const cxWeight = { low: 1, medium: 2, high: 3 };
+  const priorityWeight = { low: 1, medium: 2, high: 3 };
+
+  // -- Phase 1.5: AI Initiative Detection --------------------------------
+  const aiKeywords = /\b(ai|artificial intelligence|ml|machine learning|automation|automate|intelligent|predictive|bot|rpa|robotic process|neural|deep learning|generative)\b/i;
+  const aiTransformationThemes = (model.strategicIntent?.ai_transformation_themes || []).map(t => t.toLowerCase());
+  
+  const isAIInitiative = (initiative) => {
+    const title = String(initiative.name || initiative.title || '').toLowerCase();
+    const description = String(initiative.description || '').toLowerCase();
+    const type = String(initiative.type || '').toLowerCase();
+    
+    // Check 1: Title/description contains AI keywords
+    if (aiKeywords.test(title) || aiKeywords.test(description)) return true;
+    
+    // Check 2: References AI transformation themes from Strategic Intent
+    if (aiTransformationThemes.length > 0) {
+      const hasThemeReference = aiTransformationThemes.some(theme => 
+        title.includes(theme) || description.includes(theme)
+      );
+      if (hasThemeReference) return true;
+    }
+    
+    // Check 3: Technology Change type with AI-related capability
+    if (type.includes('technology') && (aiKeywords.test(title) || aiKeywords.test(description))) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  const normalizeLevel = (value, fallback = 'medium') => {
+    const v = String(value || '').toLowerCase();
+    if (v === 'high' || v === 'medium' || v === 'low') return v;
+    return fallback;
+  };
+
+  const consolidated = new Map();
+  (model.initiatives || []).forEach((initiative) => {
+    const capabilityName = String(initiative.impactsCapability || initiative.name || 'Unmapped Capability').trim();
+    const key = capabilityName.toLowerCase();
+    if (!consolidated.has(key)) {
+      const cap = capByName.get(key);
+      const tgt = targetByName.get(key);
+      const currentMaturity = Number(cap?.maturity || tgt?.currentMaturity || 2);
+      const targetMaturity = Number(tgt?.targetMaturity || Math.min(5, currentMaturity + 1));
+      consolidated.set(key, {
+        capability: capabilityName,
+        domain: cap?.domain || tgt?.domain || 'Other',
+        currentMaturity,
+        targetMaturity,
+        phases: {
+          'Year 1 - Foundation': [],
+          'Year 2 - Expansion': [],
+          'Year 3 - Optimisation': []
+        }
+      });
+    }
+    consolidated.get(key).phases[phaseKey(initiative.phase)].push(initiative);
+  });
+
+  const aggregatePhase = (items) => {
+    if (!items || !items.length) return null;
+    const uniqueNames = [...new Set(items.map((item) => String(item.name || '').trim()).filter(Boolean))];
+    const bv = items.reduce((acc, item) => Math.max(acc, bvWeight[normalizeLevel(item.estimatedBusinessValue, 'medium')] || 2), 1);
+    const cx = items.reduce((acc, item) => Math.max(acc, cxWeight[normalizeLevel(item.complexity, 'medium')] || 2), 1);
+    const priority = items.reduce((acc, item) => Math.max(acc, priorityWeight[normalizeLevel(item.priority, 'medium')] || 2), 1);
+    const weightToLevel = (weight) => weight >= 3 ? 'high' : weight === 2 ? 'medium' : 'low';
+    
+    // -- Phase 1.5: Track AI initiatives in aggregation --
+    const hasAI = items.some(item => isAIInitiative(item));
+
+    return {
+      lead: uniqueNames[0] || 'Initiative',
+      more: Math.max(uniqueNames.length - 1, 0),
+      bv: weightToLevel(bv),
+      cx: weightToLevel(cx),
+      priority: weightToLevel(priority),
+      isAI: hasAI
+    };
+  };
+
+  const rows = Array.from(consolidated.values()).sort((left, right) => {
+    const leftPriority = Math.max(...phases.map((phase) => priorityWeight[aggregatePhase(left.phases[phase])?.priority || 'low']));
+    const rightPriority = Math.max(...phases.map((phase) => priorityWeight[aggregatePhase(right.phases[phase])?.priority || 'low']));
+    if (rightPriority !== leftPriority) return rightPriority - leftPriority;
+    if (left.domain !== right.domain) return String(left.domain).localeCompare(String(right.domain));
+    return String(left.capability).localeCompare(String(right.capability));
+  });
+
+  const maturityBadge = (entry) => {
+    const delta = entry.targetMaturity - entry.currentMaturity;
+    const cls = delta >= 2 ? 'is-high' : delta <= 0 ? 'is-low' : 'is-medium';
+    return `<span class="ea-roadmap-maturity ${cls}">M${entry.currentMaturity} -> M${entry.targetMaturity}</span>`;
+  };
+
+  const phaseCard = (cell) => {
+    if (!cell) return '<div class="ea-roadmap-cell__empty">-</div>';
+    
+    // -- Phase 1.5: Add AI styling and badge --
+    const aiClass = cell.isAI ? ' is-ai' : '';
+    const aiBadge = cell.isAI ? '<span class="ea-roadmap-cell__ai-badge" title="AI/Automation initiative">??</span>' : '';
+    
+    return `<article class="ea-roadmap-cell is-${cell.priority}${aiClass}">
+      ${aiBadge}
+      <div class="ea-roadmap-cell__title">${escapeHtml(cell.lead)}</div>
+      <div class="ea-roadmap-cell__meta">
+        <span>BV: <b>${cell.bv.toUpperCase()}</b></span>
+        <span>Cx: <b>${cell.cx.toUpperCase()}</b></span>
+      </div>
+      <div class="ea-roadmap-cell__bar"><span class="is-${cell.bv}"></span></div>
+      ${cell.more > 0 ? `<div class="ea-roadmap-cell__more">+${cell.more} more initiatives</div>` : ''}
+    </article>`;
+  };
+
+  container.innerHTML = `
+    <div class="ea-roadmap-board">
+      <div class="ea-roadmap-head">
+        <div class="ea-roadmap-head__spacer"></div>
+        ${phases.map((phase, index) => `<div class="ea-roadmap-phase is-p${index + 1}">${phase}</div>`).join('')}
+      </div>
+
+      ${rows.map((entry) => {
+        const c1 = aggregatePhase(entry.phases['Year 1 - Foundation']);
+        const c2 = aggregatePhase(entry.phases['Year 2 - Expansion']);
+        const c3 = aggregatePhase(entry.phases['Year 3 - Optimisation']);
+        return `<div class="ea-roadmap-row">
+          <div class="ea-roadmap-cap">
+            <div class="ea-roadmap-cap__domain">${escapeHtml(entry.domain)}</div>
+            <div class="ea-roadmap-cap__name">${escapeHtml(entry.capability)}</div>
+            ${maturityBadge(entry)}
+          </div>
+          <div class="ea-roadmap-col">${phaseCard(c1)}</div>
+          <div class="ea-roadmap-col">${phaseCard(c2)}</div>
+          <div class="ea-roadmap-col">${phaseCard(c3)}</div>
+        </div>`;
+      }).join('')}
+
+      <div class="ea-roadmap-legend">
+        <span class="ea-roadmap-legend__item"><span class="swatch is-high"></span>Priority High</span>
+        <span class="ea-roadmap-legend__item"><span class="swatch is-medium"></span>Priority Medium</span>
+        <span class="ea-roadmap-legend__item"><span class="swatch is-low"></span>Priority Low</span>
+        <span class="ea-roadmap-legend__item"><span class="ea-roadmap-legend__ai-icon">??</span>AI/Automation</span>
+        <span class="ea-roadmap-legend__item">Single consolidated capability plan across 3 years (Maturity + BV + Cx)</span>
+      </div>
+    </div>`;
+}
+
+// -- LAYER MANAGEMENT ----
+let currentEditLayer = null;
+let currentEditIndex = null;
+
+function addLayerItem(layerType) {
+  currentEditLayer = layerType;
+  currentEditIndex = null;
+  showEditLayerModal(layerType, null);
+}
+
+function editLayerItem(layerType, index) {
+  currentEditLayer = layerType;
+  currentEditIndex = index;
+  const item = model[layerType][index];
+  showEditLayerModal(layerType, item);
+}
+
+function deleteLayerItem(layerType, index) {
+  if (!confirm('Delete this item?')) return;
+  model[layerType].splice(index, 1);
+  renderLayers();
+  renderCapMap();
+  renderHeatmap();
+  renderMaturityDashboard();
+  
+  // Update Data Collection tab if capability was deleted
+  if (layerType === 'capabilities') {
+    updateDataCollectionTab();
+  }
+  
+  autoSaveCurrentModel();
+  toast('Item deleted &#x2718;', false);
+}
+
+function showEditLayerModal(layerType, item) {
+  const modal = document.getElementById('editLayerModal');
+  const form = document.getElementById('editLayerForm');
+  const title = document.getElementById('editLayerTitle');
+  
+  const labels = {
+    valueStreams: 'Value Stream',
+    capabilities: 'Capability',
+    systems: 'System',
+    aiAgents: 'AI Agent'
+  };
+  
+  title.textContent = (item ? 'Edit' : 'Add') + ' ' + labels[layerType];
+  
+  // Generate form fields based on layer type
+  let fields = '';
+  
+  if (layerType === 'valueStreams') {
+    fields = `
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Name *</label>
+        <input type="text" id="edit_name" value="${item?.name || ''}" class="w-full border rounded-lg p-2 text-sm" required>
+      </div>
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Description</label>
+        <textarea id="edit_description" class="w-full border rounded-lg p-2 text-sm h-20">${item?.description || ''}</textarea>
+      </div>
+    `;
+  } else if (layerType === 'capabilities') {
+    const selectedAreas = normalizeBusinessAreas(item?.businessAreas || model.phase4Config?.activeBusinessAreas || ['general']);
+    const areaOptions = PHASE4_BUSINESS_AREAS.map(area => {
+      const checked = selectedAreas.includes(area) ? 'checked' : '';
+      return `<label class="flex items-center gap-1 text-[11px] border rounded px-2 py-1 bg-slate-50">
+        <input type="checkbox" name="edit_businessAreas" value="${area}" ${checked}>
+        <span class="uppercase font-semibold text-slate-600">${area}</span>
+      </label>`;
+    }).join('');
+
+    fields = `
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Name *</label>
+        <input type="text" id="edit_name" value="${item?.name || ''}" class="w-full border rounded-lg p-2 text-sm" required>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Domain</label>
+          <select id="edit_domain" class="w-full border rounded-lg p-2 text-sm">
+            <option value="Customer" ${item?.domain==='Customer'?'selected':''}>Customer</option>
+            <option value="Product" ${item?.domain==='Product'?'selected':''}>Product</option>
+            <option value="Operations" ${item?.domain==='Operations'?'selected':''}>Operations</option>
+            <option value="Risk" ${item?.domain==='Risk'?'selected':''}>Risk</option>
+            <option value="Finance" ${item?.domain==='Finance'?'selected':''}>Finance</option>
+            <option value="Technology" ${item?.domain==='Technology'?'selected':''}>Technology</option>
+            <option value="Support" ${item?.domain==='Support'?'selected':''}>Support</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Maturity (1-5)</label>
+          <input type="number" id="edit_maturity" value="${item?.maturity || 3}" min="1" max="5" class="w-full border rounded-lg p-2 text-sm">
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Strategic Importance</label>
+        <select id="edit_strategicImportance" class="w-full border rounded-lg p-2 text-sm">
+          <option value="high" ${item?.strategicImportance==='high'?'selected':''}>High</option>
+          <option value="medium" ${item?.strategicImportance==='medium'?'selected':''}>Medium</option>
+          <option value="low" ${item?.strategicImportance==='low'?'selected':''}>Low</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Description</label>
+        <textarea id="edit_description" class="w-full border rounded-lg p-2 text-sm h-16">${item?.description || ''}</textarea>
+      </div>
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Business Areas</label>
+        <div class="grid grid-cols-2 gap-1.5">${areaOptions}</div>
+      </div>
+    `;
+  } else if (layerType === 'systems') {
+    const _sysCapOpts = (model.capabilities || []).map(c =>
+      `<option value="${escapeHtml(c.name)}"${item?.supportsCapability===c.name?' selected':''}>${escapeHtml(c.name)}</option>`
+    ).join('');
+    fields = `
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Name *</label>
+        <input type="text" id="edit_name" value="${item?.name || ''}" class="w-full border rounded-lg p-2 text-sm" required>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Status</label>
+          <select id="edit_status" class="w-full border rounded-lg p-2 text-sm">
+            <option value="active" ${item?.status==='active'?'selected':''}>Active</option>
+            <option value="legacy" ${item?.status==='legacy'?'selected':''}>Legacy</option>
+            <option value="planned" ${item?.status==='planned'?'selected':''}>Planned</option>
+            <option value="sunset" ${item?.status==='sunset'?'selected':''}>Sunset</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Category</label>
+          <select id="edit_category" class="w-full border rounded-lg p-2 text-sm">
+            <option value="core" ${item?.category==='core'?'selected':''}>Core</option>
+            <option value="supporting" ${item?.category==='supporting'?'selected':''}>Supporting</option>
+            <option value="infrastructure" ${item?.category==='infrastructure'?'selected':''}>Infrastructure</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Supports Capability <span class="normal-case font-normal text-slate-400">(graph link)</span></label>
+          <select id="edit_supportsCapability" class="w-full border rounded-lg p-2 text-sm">
+            <option value="">� None �</option>
+            ${_sysCapOpts}
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Criticality</label>
+          <select id="edit_criticality" class="w-full border rounded-lg p-2 text-sm">
+            <option value="high" ${item?.criticality==='high'?'selected':''}>High</option>
+            <option value="medium" ${(!item?.criticality||item?.criticality==='medium')?'selected':''}>Medium</option>
+            <option value="low" ${item?.criticality==='low'?'selected':''}>Low</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Description</label>
+        <textarea id="edit_description" class="w-full border rounded-lg p-2 text-sm h-16">${item?.description || ''}</textarea>
+      </div>
+    `;
+  } else if (layerType === 'aiAgents') {
+    const _aiCapOpts = (model.capabilities || []).map(c =>
+      `<option value="${escapeHtml(c.name)}"${item?.supportsCapability===c.name?' selected':''}>${escapeHtml(c.name)}</option>`
+    ).join('');
+    fields = `
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Name *</label>
+        <input type="text" id="edit_name" value="${item?.name || ''}" class="w-full border rounded-lg p-2 text-sm" required>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Supports Capability <span class="normal-case font-normal text-slate-400">(graph link)</span></label>
+          <select id="edit_supportsCapability" class="w-full border rounded-lg p-2 text-sm">
+            <option value="">� None �</option>
+            ${_aiCapOpts}
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Status</label>
+          <select id="edit_status" class="w-full border rounded-lg p-2 text-sm">
+            <option value="active" ${(!item?.status||item?.status==='active')?'selected':''}>Active</option>
+            <option value="planned" ${item?.status==='planned'?'selected':''}>Planned</option>
+            <option value="experimental" ${item?.status==='experimental'?'selected':''}>Experimental</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Purpose</label>
+        <input type="text" id="edit_purpose" value="${item?.purpose || ''}" class="w-full border rounded-lg p-2 text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Agent Capabilities</label>
+        <textarea id="edit_capabilities" class="w-full border rounded-lg p-2 text-sm h-16">${item?.capabilities || ''}</textarea>
+      </div>
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Trigger Conditions</label>
+        <input type="text" id="edit_triggerConditions" value="${item?.triggerConditions || ''}" class="w-full border rounded-lg p-2 text-sm">
+      </div>
+    `;
+  }
+  
+  form.innerHTML = fields;
+  modal.classList.remove('hidden');
+}
+
+function closeEditLayerModal() {
+  document.getElementById('editLayerModal').classList.add('hidden');
+}
+
+function saveLayerItem() {
+  const layerType = currentEditLayer;
+  const index = currentEditIndex;
+  
+  // Create item object based on layer type
+  let item = {};
+  
+  if (layerType === 'valueStreams') {
+    item = {
+      name: document.getElementById('edit_name').value,
+      description: document.getElementById('edit_description').value
+    };
+  } else if (layerType === 'capabilities') {
+    const selectedAreas = Array.from(document.querySelectorAll('input[name="edit_businessAreas"]:checked')).map(el => el.value);
+    item = {
+      id: index !== null ? model[layerType][index].id : 'cap_' + Date.now(),
+      name: document.getElementById('edit_name').value,
+      domain: document.getElementById('edit_domain').value,
+      maturity: parseInt(document.getElementById('edit_maturity').value),
+      strategicImportance: document.getElementById('edit_strategicImportance').value,
+      description: document.getElementById('edit_description').value,
+      businessAreas: normalizeBusinessAreas(selectedAreas.length ? selectedAreas : model.phase4Config?.activeBusinessAreas),
+      operationalCriticality: index !== null ? model[layerType][index].operationalCriticality : 3,
+      annualSavingsEstimate: index !== null ? model[layerType][index].annualSavingsEstimate : null,
+      sustainabilityImpactPct: index !== null ? model[layerType][index].sustainabilityImpactPct : 0,
+      verified: index !== null ? model[layerType][index].verified : false
+    };
+  } else if (layerType === 'systems') {
+    item = {
+      name: document.getElementById('edit_name').value,
+      status: document.getElementById('edit_status').value,
+      category: document.getElementById('edit_category').value,
+      supportsCapability: document.getElementById('edit_supportsCapability').value || null,
+      criticality: document.getElementById('edit_criticality').value,
+      description: document.getElementById('edit_description').value
+    };
+  } else if (layerType === 'aiAgents') {
+    item = {
+      name: document.getElementById('edit_name').value,
+      purpose: document.getElementById('edit_purpose').value,
+      supportsCapability: document.getElementById('edit_supportsCapability').value || null,
+      status: document.getElementById('edit_status').value,
+      capabilities: document.getElementById('edit_capabilities').value,
+      triggerConditions: document.getElementById('edit_triggerConditions').value
+    };
+  }
+  
+  if (!item.name) {
+    toast('Name is required', true);
+    return;
+  }
+  
+  if (index !== null) {
+    // Update existing
+    model[layerType][index] = item;
+  } else {
+    // Add new
+    model[layerType].push(item);
+  }
+  
+  closeEditLayerModal();
+  renderLayers();
+  renderCapMap();
+  renderHeatmap();
+  renderMaturityDashboard();
+  if (typeof renderGraph === 'function') renderGraph();
+  
+  // Update Data Collection tab if capabilities were modified
+  if (layerType === 'capabilities') {
+    updateDataCollectionTab();
+  }
+  
+  autoSaveCurrentModel();
+  toast(`Item ${index !== null ? 'updated' : 'added'} &#x2718;`, false);
+}
+
+// -- EXCEL IMPORT/EXPORT ----
+function showExcelImportExport() {
+  document.getElementById('excelModal').classList.remove('hidden');
+}
+
+function closeExcelModal() {
+  document.getElementById('excelModal').classList.add('hidden');
+}
+
+function exportToExcel() {
+  // Create CSV content for all layers
+  let csv = '';
+  
+  // Value Streams
+  csv += '=== VALUE STREAMS ===\n';
+  csv += 'Name,Description\n';
+  model.valueStreams.forEach(vs => {
+    csv += `"${vs.name || ''}","${(vs.description || '').replace(/"/g, '""')}"\n`;
+  });
+  csv += '\n';
+  
+  // Capabilities
+  csv += '=== CAPABILITIES ===\n';
+  csv += 'Name,Domain,Maturity,Strategic Importance,Business Areas,Description\n';
+  model.capabilities.forEach(cap => {
+    const areas = normalizeBusinessAreas(cap.businessAreas || []).join('|');
+    csv += `"${cap.name || ''}","${cap.domain || ''}","${cap.maturity || 3}","${cap.strategicImportance || 'medium'}","${areas}","${(cap.description || '').replace(/"/g, '""')}"\n`;
+  });
+  csv += '\n';
+  
+  // Systems
+  csv += '=== SYSTEMS ===\n';
+  csv += 'Name,Status,Category,Description\n';
+  model.systems.forEach(sys => {
+    csv += `"${sys.name || ''}","${sys.status || 'active'}","${sys.category || 'core'}","${(sys.description || '').replace(/"/g, '""')}"\n`;
+  });
+  csv += '\n';
+  
+  // AI Agents
+  csv += '=== AI AGENTS ===\n';
+  csv += 'Name,Purpose,Capabilities,Trigger Conditions\n';
+  model.aiAgents.forEach(agent => {
+    csv += `"${agent.name || ''}","${agent.purpose || ''}","${(agent.capabilities || '').replace(/"/g, '""')}","${agent.triggerConditions || ''}"\n`;
+  });
+  
+  // Download file
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `EA_Architecture_${currentModelName.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.csv`;
+  link.click();
+  
+  toast('Excel file exported &#x2718;', false);
+}
+
+function importFromExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const csv = e.target.result;
+      const lines = csv.split('\n');
+      
+      let currentSection = null;
+      let newValueStreams = [];
+      let newCapabilities = [];
+      let newSystems = [];
+      let newAIAgents = [];
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // Detect sections
+        if (line.includes('=== VALUE STREAMS ===')) {
+          currentSection = 'valueStreams';
+          i++; // Skip header
+          continue;
+        } else if (line.includes('=== CAPABILITIES ===')) {
+          currentSection = 'capabilities';
+          i++; // Skip header
+          continue;
+        } else if (line.includes('=== SYSTEMS ===')) {
+          currentSection = 'systems';
+          i++; // Skip header
+          continue;
+        } else if (line.includes('=== AI AGENTS ===')) {
+          currentSection = 'aiAgents';
+          i++; // Skip header
+          continue;
+        }
+        
+        if (!line || line.startsWith('===')) continue;
+        
+        // Parse CSV line (simple parser)
+        const values = line.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g);
+        if (!values) continue;
+        
+        const clean = values.map(v => v.replace(/^"|"$/g, '').replace(/""/g, '"'));
+        
+        if (currentSection === 'valueStreams' && clean.length >= 1) {
+          newValueStreams.push({
+            name: clean[0],
+            description: clean[1] || ''
+          });
+        } else if (currentSection === 'capabilities' && clean.length >= 1) {
+          const parsedAreas = clean[4] ? clean[4].split('|').map(s => s.trim().toLowerCase()).filter(Boolean) : [];
+          newCapabilities.push({
+            id: 'cap_' + Date.now() + '_' + newCapabilities.length,
+            name: clean[0],
+            domain: clean[1] || 'Technology',
+            maturity: parseInt(clean[2]) || 3,
+            strategicImportance: clean[3] || 'medium',
+            businessAreas: normalizeBusinessAreas(parsedAreas),
+            description: clean[5] || clean[4] || '',
+            operationalCriticality: 3,
+            annualSavingsEstimate: null,
+            sustainabilityImpactPct: 0
+          });
+        } else if (currentSection === 'systems' && clean.length >= 1) {
+          newSystems.push({
+            name: clean[0],
+            status: clean[1] || 'active',
+            category: clean[2] || 'core',
+            description: clean[3] || ''
+          });
+        } else if (currentSection === 'aiAgents' && clean.length >= 1) {
+          newAIAgents.push({
+            name: clean[0],
+            purpose: clean[1] || '',
+            capabilities: clean[2] || '',
+            triggerConditions: clean[3] || ''
+          });
+        }
+      }
+      
+      // Confirm before replacing
+      const msg = `Import will ${newValueStreams.length > 0 ? 'replace' : 'keep'} ${model.valueStreams.length} value streams with ${newValueStreams.length} new ones\n` +
+                  `${newCapabilities.length > 0 ? 'replace' : 'keep'} ${model.capabilities.length} capabilities with ${newCapabilities.length} new ones\n` +
+                  `${newSystems.length > 0 ? 'replace' : 'keep'} ${model.systems.length} systems with ${newSystems.length} new ones\n` +
+                  `${newAIAgents.length > 0 ? 'replace' : 'keep'} ${model.aiAgents.length} AI agents with ${newAIAgents.length} new ones\n\nContinue?`;
+      
+      if (!confirm(msg)) return;
+      
+      // Replace data
+      const capabilitiesChanged = newCapabilities.length > 0;
+      if (newValueStreams.length > 0) model.valueStreams = newValueStreams;
+      if (newCapabilities.length > 0) model.capabilities = newCapabilities;
+      if (newSystems.length > 0) model.systems = newSystems;
+      if (newAIAgents.length > 0) model.aiAgents = newAIAgents;
+      
+      // Re-render
+      renderLayers();
+      renderCapMap();
+      renderHeatmap();
+      renderMaturityDashboard();
+      populateImpactSelect();
+      renderExecSummary();
+      generateNarrative();
+      
+      // Update Data Collection tab if capabilities were imported
+      if (capabilitiesChanged) {
+        updateDataCollectionTab();
+      }
+      
+      autoSaveCurrentModel();
+      
+      closeExcelModal();
+      toast('Data imported successfully &#x2718;', false);
+      
+    } catch (error) {
+      console.error('Import error:', error);
+      toast('Error importing file: ' + error.message, true);
+    }
+  };
+  
+  reader.readAsText(file);
+  event.target.value = ''; // Reset input
+}
+
+function renderLayers() {
+  const draw = (id, list, cls, layerType, extra) => {
+    document.getElementById(id).innerHTML = list.length
+      ? list.map((i, idx) => `
+          <div class="${cls} layer-item group relative">
+            <span class="truncate flex-1">${i.name}</span>
+            ${extra?extra(i):''}
+            <div class="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+              <button onclick="editLayerItem('${layerType}', ${idx})" class="text-xs px-1 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600" title="Edit"><i class="fas fa-pen"></i></button>
+              <button onclick="deleteLayerItem('${layerType}', ${idx})" class="text-xs px-1 py-0.5 bg-red-500 text-white rounded hover:bg-red-600" title="Delete">???</button>
+            </div>
+          </div>
+        `).join('')
+      : '<div class="text-slate-300 text-xs">�</div>';
+  };
+  draw('values', model.valueStreams, 'value-card', 'valueStreams');
+  draw('caps', model.capabilities, 'cap-card', 'capabilities', c => {
+    const m = `<span class="text-[9px] font-bold opacity-50 shrink-0">M${c.maturity}</span>`;
+    const oc = `<span class="text-[9px] font-bold opacity-50 shrink-0">OC${(c.operationalCriticality||3)}</span>`;
+    const bv = (c.annualSavingsEstimate!=null) ? `<span class="text-[9px] font-bold text-green-700 shrink-0">+${fmtMoney(c.annualSavingsEstimate)}</span>` : '';
+    const co2 = (c.sustainabilityImpactPct > 0) ? `<span class="text-[9px] font-bold text-teal-600 shrink-0"><i class="fas fa-leaf"></i>${c.sustainabilityImpactPct}%</span>` : '';
+    const areaCount = normalizeBusinessAreas(c.businessAreas || []).length;
+    const area = `<span class="text-[9px] font-bold text-slate-500 shrink-0">A${areaCount}</span>`;
+    return `<span class="flex items-center gap-2">${m}${area}${bv}${co2}</span>`;
+  });
+  draw('systems', model.systems, 'sys-card', 'systems');
+  draw('aiagents', model.aiAgents, 'ai-card', 'aiAgents', agent => {
+    // Robot icon
+    const robotIcon = `<i class="fas fa-robot ai-robot-icon"></i>`;
+    
+    // Agent type badge (default to 'AI' if type not specified)
+    const agentType = (agent.agent_type || 'ai').toLowerCase().replace(/\s+/g, '-');
+    const typeBadge = `<span class="ai-type-badge ${agentType}">${agent.agent_type || 'AI'}</span>`;
+    
+    // TO-BE marker for proposed agents
+    const tobeBadge = agent.is_proposed ? `<span class="to-be-badge">? Proposed</span>` : '';
+    
+    // Capability dependency count
+    const depCount = agent.linked_capabilities?.length || 0;
+    const depBadge = depCount > 0 ? `<span class="ai-dep-count">? ${depCount} cap${depCount !== 1 ? 's' : ''}</span>` : '';
+    
+    // Tooltip with purpose
+    const tooltip = agent.purpose ? `title="${agent.purpose}"` : '';
+    
+    return `<span class="flex items-center gap-1" ${tooltip}>${robotIcon}${typeBadge}${tobeBadge}${depBadge}</span>`;
+  });
+}
+
+function renderCapMap() {
+  ensurePhase4Fields();
+  syncAreaFilterSelectors();
+  const capmapState = window._capmapState || 'asis';
+
+  // Update label and toggle buttons
+  const lbl = document.getElementById('capmap-state-label');
+  if (lbl) lbl.textContent = capmapState === 'tobe'
+    ? 'Target State (TO-BE) � AI-generated target capability map based on strategy'
+    : 'Current State (AS-IS) � capabilities derived from architecture generation';
+  document.getElementById('capmap-btn-asis')?.classList.toggle('active', capmapState === 'asis');
+  document.getElementById('capmap-btn-tobe')?.classList.toggle('active', capmapState === 'tobe');
+
+  const capGrid = document.getElementById('cap-grid');
+  const emptyEl = document.getElementById('capmap-empty');
+  if (!capGrid) return;
+
+  const areaFilter = document.getElementById('capmap-area-filter')?.value || 'all';
+  const noTobeData = capmapState === 'tobe' && !(model.capabilities_tobe || []).length;
+
+  // -- Dynamic mode: build columns from actual AI-generated l1_domains --
+  // Prefer TO-BE capabilityMap when in tobe mode, else AS-IS
+  const capMapData = (capmapState === 'tobe' && model.capabilityMap_tobe?.l1_domains?.length)
+    ? model.capabilityMap_tobe
+    : model.capabilityMap;
+  const l1Domains = capMapData?.l1_domains || [];
+
+  // Also try to get l1_domains from model.capabilities (level=1 items with children)
+  const fallbackDomains = (l1Domains.length === 0 && (model.capabilities || []).some(c => c.level === 1 && (c.children || []).length > 0))
+    ? (model.capabilities || []).filter(c => c.level === 1).map(c => ({
+        id: c.id,
+        name: c.name,
+        strategic_importance: c.strategic_importance || 'SUPPORT',
+        l2_capabilities: c.children || []
+      }))
+    : [];
+
+  const domainsToRender = l1Domains.length > 0 ? l1Domains : fallbackDomains;
+
+  if (domainsToRender.length > 0) {
+    // Build rating lookup from capabilityAssessment
+    const ratings = model.capabilityAssessment?.capability_ratings || [];
+    const ratingMap = Object.fromEntries(ratings.map(r => [r.capability_id, r]));
+
+    let hasAny = false;
+    const cols = domainsToRender.map(domain => {
+      const l2caps = domain.l2_capabilities || [];
+      const importanceBorderClass = domain.strategic_importance === 'CORE'
+        ? 'border-b-2 border-blue-400'
+        : domain.strategic_importance === 'COMMODITY'
+        ? 'border-b-2 border-slate-200'
+        : 'border-b-2 border-slate-300';
+
+      const capsHtml = l2caps.map(cap => {
+        const rating = ratingMap[cap.id] || {};
+        // In TO-BE mode use target maturity for color � shows improvement from current state
+        const mat = (capmapState === 'tobe' && rating.target_maturity)
+          ? rating.target_maturity
+          : (rating.current_maturity || cap.target_maturity || cap.current_maturity || 1);
+        const changeTag = cap.changeType && capmapState === 'tobe'
+          ? `<span class="ml-1 text-[8px] font-bold uppercase opacity-60">${cap.changeType}</span>` : '';
+        // AI-enabled indicator (Phase 1.3)
+        const aiIcon = (cap.ai_enabled || cap.ai_maturity > 1) 
+          ? `<i class="fas fa-robot ai-indicator" title="AI-enabled capability"></i>` : '';
+        // APQC badge (Phase 4.1 - APQC integration)
+        const apqcBadge = cap.apqc_source 
+          ? `<span class="apqc-badge" title="APQC Framework capability${cap.apqc_code ? ': ' + cap.apqc_code : ''}">APQC</span>` : '';
+        const tooltip = `${domain.strategic_importance || 'SUPPORT'} domain${cap.description ? ' � ' + cap.description : ''}`;
+        hasAny = true;
+        return `<div class="m${mat} p-1.5 rounded text-[9px] font-bold shadow-sm mb-1 cursor-pointer hover:opacity-80" title="${tooltip}">${cap.name}${aiIcon}${apqcBadge}${changeTag}</div>`;
+      }).join('');
+
+      return `<div class="min-w-[100px] flex-1">
+        <div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1 pb-1 ${importanceBorderClass}" title="${domain.strategic_importance || 'SUPPORT'}: ${domain.name}">${domain.name}</div>
+        <div id="dom-${domain.id}">${capsHtml || '<div class="text-slate-200 text-[9px]">�</div>'}</div>
+      </div>`;
+    }).join('');
+
+    capGrid.className = 'flex gap-2 overflow-x-auto';
+    capGrid.innerHTML = cols;
+
+    if (emptyEl) {
+      emptyEl.textContent = noTobeData ? 'Click "Generate TO-BE" to create the target capability map from your strategy' : '';
+      emptyEl.style.display = (hasAny && !noTobeData) ? 'none' : 'block';
+      if (!hasAny && !noTobeData) emptyEl.textContent = 'Generate architecture to populate the capability map';
+    }
+    return;
+  }
+
+  // -- Legacy fallback: fixed 7-column layout by c.domain --
+  const fixedDomains = ["Customer","Product","Operations","Risk","Finance","Technology","Support"];
+  const sourceCaps = (capmapState === 'tobe' && (model.capabilities_tobe || []).length)
+    ? model.capabilities_tobe : model.capabilities;
+  const filteredCaps = (sourceCaps || []).filter(c => capabilityHasBusinessArea(c, areaFilter));
+
+  capGrid.className = 'grid grid-cols-7 gap-2';
+  capGrid.innerHTML = fixedDomains.map(d =>
+    `<div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">${d === 'Technology' ? 'Tech' : d}</div><div id="dom-${d}"></div></div>`
+  ).join('');
+
+  let hasAny = false;
+  fixedDomains.forEach(d => {
+    const caps = filteredCaps.filter(c => c.domain === d);
+    if (caps.length) hasAny = true;
+    const domEl = document.getElementById('dom-' + d);
+    if (!domEl) return;
+    domEl.innerHTML = caps.map(c => {
+      const changeTag = c.changeType && capmapState === 'tobe'
+        ? `<span class="ml-1 text-[8px] font-bold uppercase opacity-60">${c.changeType}</span>` : '';
+      // AI-enabled indicator (Phase 1.3)
+      const aiIcon = (c.ai_enabled || c.ai_maturity > 1) 
+        ? `<i class="fas fa-robot ai-indicator" title="AI-enabled capability"></i>` : '';
+      // APQC badge (Phase 4.1 - APQC integration)
+      const apqcBadge = c.apqc_source 
+        ? `<span class="apqc-badge" title="APQC Framework capability${c.apqc_code ? ': ' + c.apqc_code : ''}">APQC</span>` : '';
+      return `<div class="m${c.maturity || 1} p-1.5 rounded text-[9px] font-bold shadow-sm mb-1 cursor-pointer hover:opacity-80" title="${c.strategicImportance || ''}">${c.name}${aiIcon}${apqcBadge}${changeTag}</div>`;
+    }).join('');
+  });
+
+  if (emptyEl) {
+    emptyEl.textContent = noTobeData
+      ? 'Click "Generate TO-BE" to create the target capability map from your strategy'
+      : (hasAny ? '' : (areaFilter === 'all' ? 'Generate architecture to populate the capability map' : `No capabilities tagged for ${areaFilter.toUpperCase()}`));
+    emptyEl.style.display = (hasAny && !noTobeData) ? 'none' : 'block';
+  }
+}
+
+function renderHeatmap() {
+  ensurePhase4Fields();
+  syncAreaFilterSelectors();
+  const areaFilter = document.getElementById('heatmap-area-filter')?.value || 'all';
+  const caps = model.capabilities.filter(c => capabilityHasBusinessArea(c, areaFilter));
+  const grid = document.getElementById('heatmap-grid');
+  const summary = document.getElementById('heatmap-summary');
+  const legend = document.getElementById('heatmap-legend');
+  if (!grid || !summary || typeof EANordicUI === 'undefined') return;
+
+  if (!caps.length) {
+    grid.innerHTML = EANordicUI.emptyState('Generate architecture to populate the heatmap.');
+    summary.innerHTML = EANordicUI.emptyState('Capability insights will appear here once data is available.');
+    return;
+  }
+
+  const HEAT_BG    = ['', '#5E8C6A', '#8FAF8C', '#C8A96B', '#C98C6B', '#B06A6A'];
+  const HEAT_TEXT  = ['', '#ffffff', '#1e293b', '#1e293b', '#1e293b', '#ffffff'];
+  const HEAT_LABEL = ['', 'Stable',  'Controlled', 'Monitor', 'Elevated', 'Critical'];
+  const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  const ranked = caps
+    .slice()
+    .sort((left, right) => getHeatLevel(right) - getHeatLevel(left) || Number(left.maturity || 1) - Number(right.maturity || 1));
+
+  grid.innerHTML = ranked.map((capability) => {
+    const level = getHeatLevel(capability);
+    const capIdx = model.capabilities.indexOf(capability);
+    const cellStyle = [
+      `background-color:${HEAT_BG[level]}`,
+      `color:${HEAT_TEXT[level]}`,
+      'display:flex','flex-direction:column','justify-content:center','align-items:flex-start',
+      'width:100%','min-height:64px','padding:10px 12px','border:none','border-radius:10px',
+      'cursor:pointer','text-align:left','box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)',
+      'transition:transform 140ms ease,box-shadow 140ms ease'
+    ].join(';');
+    const onclick = capIdx >= 0 ? `editLayerItem('capabilities',${capIdx})` : '';
+    return `<button type="button" onclick="${onclick}" title="${esc(capability.name)} � ${esc(capability.domain||'General')} � Maturity ${capability.maturity||1}/5 � click to edit" style="${cellStyle}">
+      <span style="display:block;font-size:12px;font-weight:700;line-height:1.3;color:inherit">${esc(capability.name)}</span>
+      <span style="display:block;font-size:10px;font-weight:500;opacity:.82;line-height:1.3;margin-top:2px;color:inherit">${esc(capability.domain||'General')} &middot; Maturity ${capability.maturity||1}/5</span>
+    </button>`;
+  }).join('');
+
+  if (legend) {
+    legend.innerHTML = [1,2,3,4,5].map(i =>
+      `<span style="display:inline-flex;align-items:center;gap:6px;font-size:10px;color:#5f6b75">
+        <span style="width:12px;height:12px;border-radius:999px;background-color:${HEAT_BG[i]};display:inline-block;flex-shrink:0"></span>
+        <span>${HEAT_LABEL[i]}</span>
+      </span>`
+    ).join('');
+  }
+
+  summary.innerHTML = ranked.slice(0, 6).map((capability) => `
+    <div class="ea-summary-list__item">
+      <div>
+        <strong>${capability.name}</strong>
+        <span>${capability.domain || 'General'} &middot; Maturity ${capability.maturity || 1}/5</span>
+      </div>
+      ${EANordicUI.statusBadge({ level: getStatusLevel(capability), label: `${(capability.strategicImportance || 'medium').toUpperCase()} focus`, icon: 'fas fa-circle' })}
+    </div>`).join('');
+
+  renderNordicDashboard();
+}
+
+function renderGraph() {
+  const graphTarget = document.getElementById('network');
+  if (!graphTarget) return;
+
+  if (!(model.capabilities || []).length && !(model.systems || []).length && !(model.aiAgents || []).length) {
+    graphTarget.innerHTML = '<div class="text-slate-400 text-xs text-center py-20">Generate architecture to populate the dependency graph</div>';
+    return;
+  }
+
+  const aiIcon = getDependencyGraphNodeIcon('ai');
+
+  // Populate value stream filter and derive visible node sets
+  const vsFilter = document.getElementById('graphVsFilter');
+  const allVsNames = [...new Set((model.capabilities || []).map(c => c.valueStream).filter(v => v && v.trim()))];
+  const selectedVs = vsFilter ? vsFilter.value : 'all';
+  if (vsFilter) {
+    vsFilter.innerHTML = '<option value="all">All Value Streams</option>' +
+      allVsNames.map(v => `<option value="${v}"${selectedVs === v ? ' selected' : ''}>${escapeHtml(v)}</option>`).join('');
+  }
+
+  const visibleCaps = selectedVs === 'all' ? (model.capabilities || []) : (model.capabilities || []).filter(c => c.valueStream === selectedVs);
+  if (selectedVs !== 'all' && visibleCaps.length === 0) {
+    graphTarget.innerHTML = '<div class="text-slate-400 text-xs text-center py-20">No capabilities found for this value stream. Regenerate architecture to apply value stream assignments.</div>';
+    return;
+  }
+  const visibleCapNames = new Set(visibleCaps.map(c => c.name));
+  const visibleSystems = selectedVs === 'all' ? (model.systems || []) : (model.systems || []).filter(s => s.supportsCapability && visibleCapNames.has(s.supportsCapability));
+  const visibleAgents = selectedVs === 'all' ? (model.aiAgents || []) : (model.aiAgents || []).filter(a => a.supportsCapability && visibleCapNames.has(a.supportsCapability));
+
+  // Update summary text
+  const summaryEl = document.getElementById('graph-summary-text');
+  if (summaryEl) {
+    summaryEl.textContent = selectedVs === 'all'
+      ? `${(model.capabilities||[]).length} capabilities � ${(model.systems||[]).length} systems � ${(model.aiAgents||[]).length} AI agents`
+      : `${visibleCaps.length} of ${(model.capabilities||[]).length} capabilities � ${visibleSystems.length} systems � ${visibleAgents.length} AI agents � ${selectedVs}`;
+  }
+
+  const nodes = [];
+  const edges = [];
+
+  // Dynamic canvas sizing � give each capability node ~260px horizontal room
+  const capCount = visibleCaps.length || 1;
+  const sysCount = visibleSystems.length || 0;
+  const aiCount = visibleAgents.length || 0;
+  // 520px per capability: 220px max node width + 300px minimum spacing between nodes
+  const canvasMinWidth = Math.max(1400, capCount * 520);
+  const levelCount = (capCount ? 1 : 0) + (sysCount ? 1 : 0) + (aiCount ? 1 : 0);
+  const canvasHeight = Math.max(720, levelCount * 280 + 160);
+  graphTarget.style.width = canvasMinWidth + 'px';
+  graphTarget.style.height = canvasHeight + 'px';
+
+  visibleCaps.forEach((capability) => {
+    const maturity = Math.max(1, Math.min(5, Number(capability.maturity || 3)));
+    const importance = (capability.strategicImportance || 'medium').toLowerCase();
+    const importanceLabel = importance === 'high' ? 'HIGH' : importance === 'low' ? 'LOW' : 'MED';
+
+    nodes.push({
+      id: 'cap_' + capability.name,
+      label: `${capability.name}\nM${maturity} � ${importanceLabel}`,
+      title: _makeTooltipEl(`<b>Capability</b><br>${escapeHtml(capability.name)}<br>Domain: ${escapeHtml(capability.domain || 'General')}<br>Maturity: ${maturity}/5`),
+      level: 1,
+      shape: 'box',
+      margin: { top: 8, right: 12, bottom: 8, left: 12 },
+      widthConstraint: { minimum: 140, maximum: 220 },
+      color: { background: '#e8f7ef', border: '#4a7763', highlight: { background: '#d6f0e1', border: '#2f5e4d' } },
+      borderWidth: 1.5,
+      font: { size: 11, color: '#234035', face: 'Manrope', multi: false, vadjust: -1 },
+      group: 'capability'
+    });
+
+    (capability.dependsOnCapabilities || []).forEach((dependencyName) => {
+      if (!dependencyName) return;
+      if (selectedVs !== 'all' && !visibleCapNames.has(dependencyName)) return;
+      edges.push({
+        from: 'cap_' + dependencyName,
+        to: 'cap_' + capability.name,
+        arrows: 'to',
+        color: { color: '#8ea1b3', opacity: 0.9 },
+        dashes: true,
+        width: 1.2,
+        smooth: { type: 'curvedCW', roundness: 0.12 }
+      });
+    });
+  });
+
+  visibleSystems.forEach(s => {
+    nodes.push({
+      id: 'sys_' + s.name,
+      label: `${s.name}`,
+      title: _makeTooltipEl(`<b>System</b><br>${escapeHtml(s.name)}<br>Status: ${escapeHtml(s.status || 'active')}<br>Category: ${escapeHtml(s.category || 'core')}`),
+      level: 2,
+      shape: 'box',
+      margin: { top: 8, right: 12, bottom: 8, left: 12 },
+      widthConstraint: { minimum: 140, maximum: 220 },
+      color: { background: '#eff3f8', border: '#6a7b8a', highlight: { background: '#e2e9f1', border: '#4e5f6e' } },
+      borderWidth: 1.3,
+      font: { size: 10, color: '#334a5f', face: 'Manrope' },
+      group: 'system'
+    });
+
+    if (s.supportsCapability) {
+      edges.push({
+        from: 'cap_' + s.supportsCapability,
+        to: 'sys_' + s.name,
+        arrows: 'to',
+        color: { color: '#6f8da6' },
+        width: 1.6,
+        smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.22 }
+      });
+    }
+  });
+
+  visibleAgents.forEach(a => {
+    nodes.push({
+      id: 'ai_' + a.name,
+      label: a.name,
+      title: _makeTooltipEl(`<b>AI Agent</b><br>${escapeHtml(a.name)}<br>Purpose: ${escapeHtml(a.purpose || 'Not specified')}`),
+
+      level: 3,
+      shape: 'circularImage',
+      image: aiIcon,
+      size: 24,
+      borderWidth: 0,
+      font: { size: 10, color: '#0b5566', face: 'Manrope', vadjust: 22 },
+      group: 'ai'
+    });
+
+    if (a.supportsCapability) {
+      edges.push({
+        from: 'cap_' + a.supportsCapability,
+        to: 'ai_' + a.name,
+        arrows: 'to',
+        color: { color: '#1ea7c2' },
+        dashes: [8, 6],
+        width: 1.8,
+        smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.24 }
+      });
+    }
+  });
+
+  if (networkInstance) networkInstance.destroy();
+
+  networkInstance = new vis.Network(graphTarget, { nodes, edges }, {
+    autoResize: true,
+    interaction: {
+      hover: true,
+      tooltipDelay: 120,
+      dragNodes: true,
+      dragView: true,
+      zoomView: true,
+      navigationButtons: true,
+      keyboard: true
+    },
+    physics: {
+      enabled: true,
+      hierarchicalRepulsion: {
+        centralGravity: 0,
+        springLength: 180,
+        springConstant: 0.01,
+        nodeDistance: 240,
+        damping: 0.14
+      },
+      solver: 'hierarchicalRepulsion',
+      stabilization: {
+        enabled: true,
+        iterations: 300,
+        updateInterval: 20
+      }
+    },
+    layout: {
+      improvedLayout: true,
+      hierarchical: {
+        enabled: true,
+        direction: 'UD',
+        sortMethod: 'directed',
+        levelSeparation: 220,
+        nodeSpacing: 320,
+        treeSpacing: 280,
+        blockShifting: true,
+        edgeMinimization: true,
+        parentCentralization: true
+      }
+    },
+    nodes: {
+      shadow: { enabled: true, color: 'rgba(31, 42, 51, 0.10)', size: 8, x: 0, y: 3 }
+    },
+    edges: {
+      shadow: false,
+      selectionWidth: 2.5,
+      hoverWidth: 2.2,
+      color: {
+        color: '#6f8da6',
+        highlight: '#3b82f6',
+        hover: '#3b82f6',
+        inherit: false,
+        opacity: 1.0
+      },
+      width: 1.5,
+      arrows: {
+        to: {
+          enabled: true,
+          scaleFactor: 0.8
+        }
+      },
+      smooth: {
+        enabled: true,
+        type: 'cubicBezier',
+        roundness: 0.2
+      },
+      chosen: {
+        edge: true
+      }
+    }
+  });
+
+  // Dim non-neighbor nodes on selection to improve dependency readability.
+  const allNodes = nodes.map((node) => node.id);
+  networkInstance.on('selectNode', (params) => {
+    const selected = params.nodes[0];
+    const connected = new Set(networkInstance.getConnectedNodes(selected));
+    connected.add(selected);
+
+    const update = allNodes.map((id) => {
+      if (connected.has(id)) {
+        return { id, opacity: 1, font: { color: undefined } };
+      }
+      return { id, opacity: 0.24, font: { color: '#97a6b5' } };
+    });
+
+    networkInstance.body.data.nodes.update(update);
+  });
+
+  networkInstance.on('deselectNode', () => {
+    networkInstance.body.data.nodes.update(allNodes.map((id) => ({ id, opacity: 1, font: { color: undefined } })));
+  });
+
+  networkInstance.once('stabilizationIterationsDone', () => {
+    networkInstance.setOptions({ physics: { enabled: false } });
+    // Fit to show all nodes, but clamp zoom so labels stay legible
+    networkInstance.fit({ animation: { duration: 360, easingFunction: 'easeInOutQuad' } });
+    setTimeout(() => {
+      const scale = networkInstance.getScale();
+      if (scale < 0.70) networkInstance.moveTo({ scale: 0.75, animation: { duration: 280, easingFunction: 'easeInOutQuad' } });
+    }, 420);
+  });
+
+  // Right-click context menu on capability nodes
+  networkInstance.on('oncontext', (params) => {
+    params.event.preventDefault();
+    const nodeId = networkInstance.getNodeAt(params.pointer.DOM);
+    if (!nodeId || !String(nodeId).startsWith('cap_')) return;
+
+    const capName = String(nodeId).replace(/^cap_/, '');
+    _graphCtxCapName = capName;
+
+    const menu = document.getElementById('graph-context-menu');
+    const label = document.getElementById('graph-ctx-cap-label');
+    label.textContent = capName;
+
+    // Position the menu at the mouse location (fixed coords)
+    const rect = graphTarget.closest('.ea-graph-canvas-wrap').getBoundingClientRect();
+    const mx = params.event.clientX;
+    const my = params.event.clientY;
+
+    menu.style.left = (mx + 4) + 'px';
+    menu.style.top = (my + 4) + 'px';
+    menu.style.display = 'block';
+  });
+}
+
+// State for context menu
+let _graphCtxCapName = '';
+
+function _hideGraphContextMenu() {
+  const m = document.getElementById('graph-context-menu');
+  if (m) m.style.display = 'none';
+}
+
+function graphCtxAddSystem() {
+  _hideGraphContextMenu();
+  currentEditLayer = 'systems';
+  currentEditIndex = null;
+  showEditLayerModal('systems', null);
+  // Pre-select the capability after the modal renders
+  requestAnimationFrame(() => {
+    const sel = document.getElementById('edit_supportsCapability');
+    if (sel) sel.value = _graphCtxCapName;
+  });
+}
+
+function graphCtxAddAIAgent() {
+  _hideGraphContextMenu();
+  currentEditLayer = 'aiAgents';
+  currentEditIndex = null;
+  showEditLayerModal('aiAgents', null);
+  requestAnimationFrame(() => {
+    const sel = document.getElementById('edit_supportsCapability');
+    if (sel) sel.value = _graphCtxCapName;
+  });
+}
+
+function graphCtxEditCapability() {
+  _hideGraphContextMenu();
+  const idx = (model.capabilities || []).findIndex(c => c.name === _graphCtxCapName);
+  if (idx === -1) return;
+  currentEditLayer = 'capabilities';
+  currentEditIndex = idx;
+  showEditLayerModal('capabilities', model.capabilities[idx]);
+}
+
+// Dismiss context menu on any outside click
+document.addEventListener('click', () => _hideGraphContextMenu());
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') _hideGraphContextMenu(); });
+
+// Creates a real DOM element for vis.js tooltips so HTML renders correctly
+function _makeTooltipEl(html) {
+  const div = document.createElement('div');
+  div.style.cssText = 'padding:7px 10px;font-size:12px;line-height:1.6;max-width:240px;color:#1e293b;font-family:Manrope,sans-serif';
+  div.innerHTML = html;
+  return div;
+}
+
+function getDependencyGraphNodeIcon(type) {
+  if (type === 'ai') {
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='84' height='84' viewBox='0 0 84 84'>
+      <defs>
+        <linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+          <stop offset='0%' stop-color='#8be0e5'/>
+          <stop offset='100%' stop-color='#1ea7c2'/>
+        </linearGradient>
+      </defs>
+      <circle cx='42' cy='42' r='34' fill='url(#g)'/>
+      <rect x='24' y='29' width='36' height='28' rx='9' fill='#ffffff' opacity='0.95'/>
+      <circle cx='36' cy='43' r='3.2' fill='#1a6f86'/>
+      <circle cx='48' cy='43' r='3.2' fill='#1a6f86'/>
+      <rect x='36' y='20' width='12' height='6' rx='3' fill='#ffffff' opacity='0.92'/>
+      <line x1='42' y1='29' x2='42' y2='22' stroke='#ffffff' stroke-width='3' stroke-linecap='round'/>
+    </svg>`;
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+
+  return '';
+}
+
+function fitDependencyGraph() {
+  if (!networkInstance) return;
+  networkInstance.fit({ animation: { duration: 280, easingFunction: 'easeInOutQuad' } });
+}
+
+function stabilizeDependencyGraph() {
+  if (!networkInstance) return;
+  networkInstance.setOptions({ physics: { enabled: true } });
+  networkInstance.stabilize(300);
+}
+
+function _graphZoom(delta) {
+  if (!networkInstance) return;
+  const current = networkInstance.getScale();
+  const next = Math.min(3, Math.max(0.15, current + delta));
+  networkInstance.moveTo({ scale: next, animation: { duration: 200, easingFunction: 'easeInOutQuad' } });
+}
+
+function populateImpactSelect() {
+  const sel = document.getElementById('impactSelect');
+  sel.innerHTML = '<option value="">Select a capability or system to simulate failure...</option>';
+  model.capabilities.forEach(c => sel.innerHTML += `<option value="cap:${c.name}">Capability: ${c.name}</option>`);
+  model.systems.forEach(s => sel.innerHTML += `<option value="sys:${s.name}">System: ${s.name}</option>`);
+}
+
+function renderOperatingModel() {
+  const om = model.operatingModel;
+  if (!om) return;
+  const target = document.getElementById('opmodel-content');
+  if (!target) return;
+
+  // -- Value Proposition banner (from BMC Step 2) -------------------------
+  const bmc = model.bmc || {};
+  const vp  = bmc.value_proposition || bmc.value_propositions?.[0] || '';
+  const segs = Array.isArray(bmc.customer_segments) ? bmc.customer_segments.slice(0,3) : [];
+  const vpBanner = vp
+    ? `<div class="omcell" style="margin-bottom:12px;border-top:3px solid #10b981;background:#f0fdf4">
+        <div class="omcell-title" style="color:#065f46">?? Value Proposition (from Business Model)</div>
+        <div class="omcell-body">
+          <div style="font-size:12px;color:#047857;font-weight:600;margin-bottom:6px">${vp}</div>
+          ${segs.length ? `<div style="font-size:10px;color:#065f46">Segments: ${segs.join(' � ')}</div>` : ''}
+        </div>
+      </div>`
+    : '';
+
+  // -- 6-Block renderer ---------------------------------------------------
+  const has6Blocks = (data) => !!(data && (data.value_delivery || data.capability_model || data.process_model || data.organisation_governance || data.application_data_landscape));
+
+  const matBg  = { High:'#dcfce7', Medium:'#fef9c3', Low:'#fee2e2' };
+  const matTxt = { High:'#166534', Medium:'#854d0e', Low:'#991b1b' };
+  const priTxt = { High:'#dc2626', Medium:'#d97706', Low:'#94a3b8' };
+
+  const renderOmBlocks = (state, mode) => {
+    if (!state || !has6Blocks(state)) return `<div class="text-slate-400 text-xs text-center py-8">${mode} not yet generated</div>`;
+
+    const vd   = state.value_delivery            || {};
+    const caps = Array.isArray(state.capability_model)          ? state.capability_model          : [];
+    const procs= Array.isArray(state.process_model)             ? state.process_model             : [];
+    const og   = state.organisation_governance   || {};
+    const adl  = state.application_data_landscape|| {};
+    const prin = Array.isArray(state.operating_model_principles)? state.operating_model_principles: [];
+    const trPrin= Array.isArray(state.transformation_principles)? state.transformation_principles : [];
+
+    const b1 = `<div class="omcell" style="border-top:3px solid #10b981;margin-bottom:10px">
+      <div class="omcell-title">?? 1. Value Delivery Model</div>
+      <div class="omcell-body" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px">VALUE STREAMS</div>
+          ${(vd.value_streams||[]).map(s=>`<div style="font-size:11px;color:#1e293b;margin-bottom:2px">&bull; ${s}</div>`).join('')||'<span style="color:#94a3b8;font-size:11px">�</span>'}
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px">CUSTOMER JOURNEYS</div>
+          ${(vd.customer_journeys||[]).map(j=>`<div style="font-size:11px;color:#1e293b;margin-bottom:2px">&bull; ${j}</div>`).join('')||'<span style="color:#94a3b8;font-size:11px">�</span>'}
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px">CHANNELS</div>
+          ${(vd.channels||[]).map(c=>`<div style="font-size:11px;color:#1e293b;margin-bottom:2px">&bull; ${c}</div>`).join('')||'<span style="color:#94a3b8;font-size:11px">�</span>'}
+        </div>
+      </div>
+    </div>`;
+
+    const b2 = `<div class="omcell" style="border-top:3px solid #6366f1;margin-bottom:10px">
+      <div class="omcell-title">? 2. Capability Model (L1�L2)</div>
+      <div class="omcell-body">
+        ${caps.length ? `<table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead><tr style="background:#f1f5f9">
+            <th style="text-align:left;padding:4px 8px;color:#475569;font-weight:700;font-size:10px">CAPABILITY</th>
+            <th style="text-align:left;padding:4px 8px;color:#475569;font-weight:700;font-size:10px">GROUP</th>
+            <th style="text-align:center;padding:4px 8px;color:#475569;font-weight:700;font-size:10px">MATURITY</th>
+            <th style="text-align:center;padding:4px 8px;color:#475569;font-weight:700;font-size:10px">PRIORITY</th>
+          </tr></thead>
+          <tbody>${caps.map(c=>`<tr style="border-top:1px solid #f1f5f9">
+            <td style="padding:4px 8px;font-weight:600;color:#1e293b">${c.name||''}</td>
+            <td style="padding:4px 8px;color:#64748b;font-size:10px">${c.group||''}</td>
+            <td style="padding:4px 8px;text-align:center"><span style="background:${matBg[c.maturity]||'#f1f5f9'};color:${matTxt[c.maturity]||'#64748b'};border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700">${c.maturity||'�'}</span></td>
+            <td style="padding:4px 8px;text-align:center;font-size:10px;font-weight:700;color:${priTxt[c.strategic_priority]||'#94a3b8'}">${c.strategic_priority||'�'}</td>
+          </tr>`).join('')}</tbody>
+        </table>` : '<span style="color:#94a3b8;font-size:11px">No capabilities defined</span>'}
+      </div>
+    </div>`;
+
+    const b3 = `<div class="omcell" style="border-top:3px solid #f59e0b;margin-bottom:10px">
+      <div class="omcell-title">?? 3. Process Model</div>
+      <div class="omcell-body">
+        ${procs.length ? procs.map(p=>`<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f8fafc">
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:600;color:#1e293b">${p.name||''} ${p.is_bottleneck?'<span style="background:#fef2f2;color:#ef4444;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700">BOTTLENECK</span>':''}</div>
+            ${p.linked_capability?`<div style="font-size:10px;color:#6366f1;margin-top:1px">? ${p.linked_capability}</div>`:''}
+            ${p.description?`<div style="font-size:10px;color:#64748b;margin-top:2px">${p.description}</div>`:''}
+          </div>
+        </div>`).join('') : '<span style="color:#94a3b8;font-size:11px">No processes defined</span>'}
+      </div>
+    </div>`;
+
+    const b4 = `<div class="omcell" style="border-top:3px solid #8b5cf6">
+      <div class="omcell-title">?? 4. Organisation &amp; Governance</div>
+      <div class="omcell-body">
+        ${og.governance_model?`<div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">MODEL</div><div style="font-size:11px;color:#1e293b;margin-bottom:8px">${og.governance_model}</div>`:''}
+        ${og.decision_making?`<div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">DECISION-MAKING</div><div style="font-size:11px;color:#1e293b;margin-bottom:8px">${og.decision_making}</div>`:''}
+        ${(og.key_roles||[]).length?`<div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">KEY ROLES</div>${(og.key_roles||[]).map(r=>`<div style="font-size:11px;color:#475569;margin-bottom:2px">&bull; ${r}</div>`).join('')}`:''}
+        ${(og.capability_ownership||[]).length?`<div style="font-size:10px;font-weight:700;color:#64748b;margin-top:8px;margin-bottom:3px">OWNERSHIP</div>${(og.capability_ownership||[]).slice(0,5).map(o=>`<div style="font-size:10px;color:#64748b;margin-bottom:1px"><span style="color:#1e293b;font-weight:600">${o.capability}</span> ? ${o.owner}</div>`).join('')}`:''}
+      </div>
+    </div>`;
+
+    const b5 = `<div class="omcell" style="border-top:3px solid #0ea5e9">
+      <div class="omcell-title">?? 5. Application &amp; Data Landscape</div>
+      <div class="omcell-body">
+        ${(adl.core_systems||[]).length?`<div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px">CORE SYSTEMS</div>
+          ${(adl.core_systems||[]).map(s=>{
+            const nm=(typeof s==='string'?s:s.name||'');
+            const cap=(typeof s==='object'&&s.supports_capability)?` <span style="color:#6366f1;font-size:10px">? ${s.supports_capability}</span>`:'';
+            const st=(typeof s==='object'&&s.status)?s.status:'active';
+            const stBadge=st==='gap'?'<span style="background:#fef2f2;color:#ef4444;border-radius:3px;padding:0 4px;font-size:9px;font-weight:700">GAP</span>':st==='redundant'?'<span style="background:#fef9c3;color:#854d0e;border-radius:3px;padding:0 4px;font-size:9px;font-weight:700">REDUNDANT</span>':'';
+            return `<div style="font-size:11px;color:#1e293b;margin-bottom:3px">&bull; <b>${nm}</b>${cap} ${stBadge}</div>`;
+          }).join('')}`:''}
+        ${(adl.gaps_overlaps||[]).length?`<div style="font-size:10px;font-weight:700;color:#64748b;margin-top:8px;margin-bottom:3px">GAPS / OVERLAPS</div>${(adl.gaps_overlaps||[]).map(g=>`<div style="font-size:10px;color:#dc2626;margin-bottom:2px">&bull; ${g}</div>`).join('')}`:''}
+      </div>
+    </div>`;
+
+    const b6 = prin.length ? `<div class="omcell" style="border-top:3px solid #10b981;margin-top:10px">
+      <div class="omcell-title">?? 6. Operating Model Principles</div>
+      <div class="omcell-body" style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        ${prin.map(p=>`<div style="font-size:11px;color:#1e293b;padding:3px 0">&bull; <i>${p}</i></div>`).join('')}
+      </div>
+    </div>` : '';
+
+    const bTP = trPrin.length ? `<div class="omcell" style="margin-top:10px;border-top:3px solid #6366f1;background:#f5f3ff">
+      <div class="omcell-title" style="color:#4f46e5">? Transformation Principles</div>
+      <div class="omcell-body">${trPrin.map(p=>`<div style="font-size:11px;color:#3730a3;margin-bottom:4px">&bull; ${p}</div>`).join('')}</div>
+    </div>` : '';
+
+    return b1 + b2 + `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">${b3}${b4}</div>` + b5 + b6 + bTP;
+  };
+
+  // -- Delta view ---------------------------------------------------------
+  const renderDeltaView = (delta) => {
+    if (!delta || !delta.dimension_gaps) return '<div class="text-slate-400 text-xs text-center py-8">Delta analysis not yet generated</div>';
+    const sevCls = { HIGH:'background:#fef2f2;color:#991b1b;border-color:#fca5a5', MEDIUM:'background:#fef9c3;color:#854d0e;border-color:#fde047', LOW:'background:#f0fdf4;color:#166534;border-color:#86efac' };
+    const ready = delta.change_readiness;
+    const pct = ready ? Math.round(ready.score * 100) : null;
+    const pctColor = pct >= 70 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#ef4444';
+    return `
+      ${ready ? `<div class="omcell" style="border-top:3px solid ${pctColor};margin-bottom:10px">
+        <div class="omcell-title">?? Change Readiness: <span style="color:${pctColor}">${pct}%</span></div>
+        <div class="omcell-body">
+          ${delta.executive_summary ? `<div style="font-size:12px;color:#1e293b;margin-bottom:8px;font-style:italic">${delta.executive_summary}</div>` : ''}
+          ${(ready.risks||[]).length ? `<div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:4px">TOP RISKS</div>${(ready.risks||[]).map(r=>`<div style="font-size:11px;color:#dc2626;margin-bottom:2px">&bull; ${r}</div>`).join('')}` : ''}
+        </div>
+      </div>` : ''}
+      <div class="omcell" style="border-top:3px solid #6366f1;margin-bottom:10px">
+        <div class="omcell-title">? Dimension Gaps</div>
+        <div class="omcell-body">
+          ${(delta.dimension_gaps||[]).map(g=>{
+            const cls = sevCls[g.gap_severity] || sevCls.MEDIUM;
+            return `<div style="border:1px solid;border-radius:6px;padding:8px;margin-bottom:8px;${cls}">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <span style="font-size:11px;font-weight:700">${g.dimension}</span>
+                <span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;${cls}">${g.gap_severity}</span>
+              </div>
+              <div style="font-size:10px;margin-bottom:2px"><b>Current:</b> ${g.current_state||''}</div>
+              <div style="font-size:10px;margin-bottom:2px"><b>Target:</b> ${g.target_state||''}</div>
+              ${g.recommended_pattern?`<div style="font-size:10px;color:#6366f1;margin-top:4px">Pattern: ${g.recommended_pattern}</div>`:''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      ${(delta.dependency_chain||[]).length ? `<div class="omcell" style="border-top:3px solid #f59e0b">
+        <div class="omcell-title">?? Dependency Chain</div>
+        <div class="omcell-body">${(delta.dependency_chain||[]).map((d,i)=>`<div style="font-size:11px;color:#1e293b;margin-bottom:4px"><span style="font-weight:700;color:#d97706">${i+1}.</span> ${d}</div>`).join('')}</div>
+      </div>` : ''}`;
+  };
+
+  // -- Schema detection ---------------------------------------------------
+  const cur = om.current || {};
+  const tgt = om.target  || {};
+  const delta = model.operatingModelDelta || {};
+
+  if (has6Blocks(cur) || has6Blocks(tgt)) {
+    const tab = window._omTab || 'current';
+    target.innerHTML = vpBanner + `
+      <div style="display:flex;gap:6px;margin-bottom:12px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">
+        <button onclick="window._omTab='current'; renderOperatingModel()" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;${tab==='current'?'background:#6366f1;color:white':'background:#f1f5f9;color:#64748b'}">AS-IS Current</button>
+        <button onclick="window._omTab='target'; renderOperatingModel()" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;${tab==='target'?'background:#6366f1;color:white':'background:#f1f5f9;color:#64748b'}">TO-BE Target</button>
+        ${(delta.dimension_gaps||[]).length ? `<button onclick="window._omTab='delta'; renderOperatingModel()" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;${tab==='delta'?'background:#6366f1;color:white':'background:#f1f5f9;color:#64748b'}">Delta</button>` : ''}
+      </div>
+      ${tab==='target' ? renderOmBlocks(tgt,'TO-BE Target') : tab==='delta' ? renderDeltaView(delta) : renderOmBlocks(cur,'AS-IS Current')}`;
+    return;
+  }
+
+  // -- Legacy schema: old 6-dimension (people/organisation/processes/data/applications/technology) --
+  if (tgt && (tgt.people || tgt.organisation || tgt.processes || tgt.applications || tgt.technology || tgt.data)) {
+    const cur2 = om.current || {};
+    const tgt2 = om.target  || {};
+    const dimCard = (label, c, t, fields) => {
+      const curLines = fields.map(f => c[f] ? `${f.replace(/_/g,' ')}: ${Array.isArray(c[f]) ? c[f].slice(0,2).join(', ') : c[f]}` : null).filter(Boolean);
+      const tgtLines = fields.map(f => t[f] ? `${f.replace(/_/g,' ')}: ${Array.isArray(t[f]) ? t[f].slice(0,2).join(', ') : t[f]}` : null).filter(Boolean);
+      return `<div class="omcell" style="border-top:3px solid #6366f1">
+        <div class="omcell-title">${label}</div>
+        <div class="omcell-body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:6px">CURRENT</div>${curLines.map(l=>`<div style="font-size:11px;color:#475569">&bull; ${l}</div>`).join('')||'<span style="color:#94a3b8;font-size:11px">Mapped</span>'}</div>
+          <div><div style="font-size:10px;font-weight:700;color:#6366f1;margin-bottom:6px">TARGET</div>${tgtLines.map(l=>`<div style="font-size:11px;color:#1e40af">&bull; ${l}</div>`).join('')||'<span style="color:#94a3b8;font-size:11px">Designed</span>'}</div>
+        </div>
+      </div>`;
+    };
+    target.innerHTML = vpBanner + `
+      <div style="margin-bottom:8px" class="text-xs font-bold text-slate-600">Operating Model � Current vs Target</div>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        ${dimCard('?? Organisation',  cur2.organisation, tgt2.organisation,  ['structure','governance_model','decision_making'])}
+        ${dimCard('?? People',        cur2.people,       tgt2.people,        ['workforce_model','culture_indicators'])}
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        ${dimCard('?? Processes',     cur2.processes,    tgt2.processes,     ['automation_level','core_processes'])}
+        ${dimCard('?? Data',          cur2.data,         tgt2.data,          ['data_maturity','governance'])}
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        ${dimCard('?? Applications',  cur2.applications, tgt2.applications,  ['integration_model','technical_debt_level'])}
+        ${dimCard('?? Technology',    cur2.technology,   tgt2.technology,    ['infrastructure','cloud_maturity'])}
+      </div>
+      ${(tgt2.transformation_principles||[]).length ? `<div class="omcell" style="margin-top:12px"><div class="omcell-title">?? Transformation Principles</div><div class="omcell-body">${(tgt2.transformation_principles||[]).map(p=>`<div>&bull; ${p}</div>`).join('')}</div></div>` : ''}`;
+    return;
+  }
+
+  target.innerHTML = vpBanner + '<div class="text-slate-400 text-xs text-center py-16">Operating Model not yet generated</div>';
+}
+
+function renderInitiatives() {
+  const countEl = document.getElementById('init-count');
+  const listEl = document.getElementById('initiatives');
+  if (!countEl || !listEl) return;
+
+  if (!model.initiatives || !model.initiatives.length) {
+    listEl.innerHTML = '<div class="text-slate-400 text-xs text-center py-8">Generate Transformation Roadmap to see initiatives</div>';
+    if (countEl) countEl.textContent = '0 initiatives';
+    return;
+  }
+
+  const scored = model.initiatives.map(i => {
+    const bv = {high:3,medium:2,low:1}[i.estimatedBusinessValue]||1;
+    const cx = {low:3,medium:2,high:1}[i.complexity]||1;
+    const pr = {high:3,medium:2,low:1}[i.priority]||1;
+    return {...i, score: bv+cx+pr};
+  }).sort((a,b) => b.score - a.score);
+  countEl.textContent = `${scored.length} initiatives`;
+  listEl.innerHTML = scored.map(i => `
+    <div class="rounded-lg p-2.5 text-xs mb-2 border-l-4 ${i.priority==='high'?'border-red-500 bg-red-50':i.priority==='medium'?'border-yellow-500 bg-yellow-50':'border-green-500 bg-green-50'}">
+      <div class="flex items-start justify-between gap-1 mb-1">
+        <span class="font-bold text-slate-800 leading-tight text-[10px]">${i.name}</span>
+        <span class="px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${i.priority==='high'?'bg-red-100 text-red-700':i.priority==='medium'?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700'}">${i.priority}</span>
+      </div>
+      <div class="text-[9px] text-slate-400 truncate mb-1">${i.impactsCapability||''}</div>
+      <div class="flex gap-2 text-[9px]">
+        <span>BV: <b class="${i.estimatedBusinessValue==='high'?'text-green-600':i.estimatedBusinessValue==='medium'?'text-yellow-600':'text-slate-400'}">${i.estimatedBusinessValue}</b></span>
+        <span>Cx: <b class="${i.complexity==='high'?'text-red-600':i.complexity==='medium'?'text-yellow-600':'text-green-600'}">${i.complexity}</b></span>
+        <span class="ml-auto font-bold text-blue-600">? ${i.score}</span>
+      </div>
+      ${i.phase?`<div class="text-[9px] text-slate-400 mt-1">${i.phase}</div>`:''}
+    </div>`).join('');
+}
+
+
+// -- BUG-4 FIX: Render wrapper functions called by Step onComplete() hooks ---------------
+function renderCapabilitySection()     { if (typeof renderCapMap === 'function') renderCapMap(); if (typeof renderHeatmap === 'function') renderHeatmap(); }
+function renderOperatingModelSection() { renderOperatingModel(); }
+function renderTargetArchSection()     { if (typeof renderTargetArchVisual === 'function') renderTargetArchVisual(); }
+function renderRoadmapSection()        { if (typeof renderRoadmapVisual === 'function') renderRoadmapVisual(); if (typeof renderInitiatives === 'function') renderInitiatives(); }
+// -- END BUG-4 FIX ------------------------------------------------------------------------
+
+function renderExecSummary() {
+  // Phase 5: Render Organization Profile (if exists)
+  renderOrganizationProfile();
+  
+  // Render Strategic Intent section
+  renderStrategicIntentSection();
+  
+  const placeholder = document.getElementById('exec-kpi-placeholder');
+  const grid = document.getElementById('exec-kpi-grid');
+
+  if (!model.capabilities || !model.capabilities.length) {
+    // Step 3 not yet complete � show placeholder, hide KPI cards
+    if (placeholder) placeholder.classList.remove('hidden');
+    if (grid) grid.style.display = 'none';
+    return;
+  }
+
+  // Step 3+ data available � hide placeholder, show KPI grid
+  if (placeholder) placeholder.classList.add('hidden');
+  if (grid) grid.style.display = 'grid';
+
+  // -- KPI 1: Strategic Alignment -------------------------------------------
+  // Rule: % of high-importance capabilities with maturity = 3
+  // Rationale: Only high-importance gaps block strategic execution.
+  const highImp = model.capabilities.filter(c => c.strategicImportance === 'high');
+  const aligned = highImp.filter(c => c.maturity >= 3);
+  const alignPct = highImp.length ? Math.round((aligned.length / highImp.length) * 100) : 0;
+
+  // -- KPI 2: AI Readiness Index --------------------------------------------
+  // Rule: weighted composite �
+  //   50% avg capability maturity (normalised to 0-1 over scale of 5)
+  //   30% share of systems with maturity = 4  (high-quality integration layer)
+  //   20% AI agent coverage (capped at 3 agents = 100% of this component)
+  const avgMat = model.capabilities.reduce((s, c) => s + (c.maturity || 0), 0) / model.capabilities.length;
+  const capScore = avgMat / 5;                                                          // 0�1
+  const sysScore = (model.systems && model.systems.length)
+    ? model.systems.filter(s => (s.maturity || 0) >= 4).length / model.systems.length   // 0�1
+    : 0;
+  const aiScore = Math.min((model.aiAgents || []).length / 3, 1);                       // 0�1, cap at 3 agents
+  const aiReady = Math.round((capScore * 50) + (sysScore * 30) + (aiScore * 20));
+
+  // -- KPI 3: Technical Debt Risk -------------------------------------------
+  // Rule: weighted share of low-maturity (= 2) capabilities.
+  //   High-importance caps with maturity = 2 count double (critical risk).
+  //   Any cap with maturity = 1 adds 1 extra point (severe debt signal).
+  const all = model.capabilities;
+  let debtNumerator = 0;
+  let debtDenominator = 0;
+  all.forEach(c => {
+    const weight = c.strategicImportance === 'high' ? 2 : 1;
+    debtDenominator += weight;
+    if ((c.maturity || 0) <= 2) debtNumerator += weight;
+    if ((c.maturity || 0) === 1) debtNumerator += 1; // severe legacy bonus
+  });
+  const debt = debtDenominator ? Math.min(100, Math.round((debtNumerator / debtDenominator) * 100)) : 0;
+
+  document.getElementById('exec-alignment').textContent = alignPct + '%';
+  document.getElementById('exec-aiready').textContent = aiReady + '%';
+  document.getElementById('exec-techdebt').textContent = debt + '%';
+
+  if (model.narrative) {
+    renderExecNarrativeText(model.narrative);
+  }
+}
+
+function escapeNarrativeHtml(text) {
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function splitNarrativeIntoParagraphs(text) {
+  const cleaned = String(text || '').trim();
+  if (!cleaned) return [];
+
+  // Respect explicit line breaks first.
+  const explicitParagraphs = cleaned.split(/\n\s*\n+/).map((p) => p.trim()).filter(Boolean);
+  if (explicitParagraphs.length > 1) return explicitParagraphs;
+
+  // Fallback: split by sentence boundaries to create readable short paragraphs.
+  const sentenceParts = cleaned
+    .split(/(?<=[.!?])\s+(?=[A-Z���])/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (sentenceParts.length <= 1) return [cleaned];
+  return sentenceParts;
+}
+
+function renderExecNarrativeText(text) {
+  const el = document.getElementById('exec-narrative');
+  const section = document.getElementById('cxo-narrative-section');
+  if (!el) return;
+
+  const paragraphs = splitNarrativeIntoParagraphs(text);
+  if (!paragraphs.length) {
+    // No real content � hide the section entirely
+    if (section) section.classList.add('hidden');
+    el.textContent = '';
+    return;
+  }
+
+  el.innerHTML = paragraphs
+    .map((paragraph) => `<p class="mb-4 last:mb-0">${escapeNarrativeHtml(paragraph)}</p>`)
+    .join('');
+  if (section) section.classList.remove('hidden');
+}
+
+async function generateNarrative() {
+  const summary = {
+    org: document.getElementById('description').value,
+    savings: document.getElementById('kpi-savings').textContent,
+    risk: document.getElementById('kpi-risk').textContent,
+    co2: document.getElementById('kpi-co2').textContent,
+    topGaps: model.capabilities.filter(c => c.strategicImportance==='high' && c.maturity<=2).map(c => c.name)
+  };
+
+  try {
+    const raw = await callAI('You are a strategic advisor to the Board. Provide a 3-sentence executive narrative focusing on business outcomes: cost, risk, and competitive advantage.',
+      `Summarize this transformation: ${JSON.stringify(summary)}`,
+      { taskType: 'lightweight', temperature: 0.2 });
+    model.narrative = raw;
+    renderExecNarrativeText(raw);
+  } catch(e) { console.error(e); }
+}
+
+// -- CFO VIEW helpers ----
+function fmtMoney(v) {
+  const n = Number(v);
+  if (!isFinite(n)) return '�';
+  if (Math.abs(n) >= 1e9) return (n/1e9).toFixed(1)+'B';
+  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(1)+'M';
+  if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(0)+'k';
+  return String(Math.round(n));
+}
+
+
+
+// -- V3: TOOLKIT INTEGRATION ----
+const TOOLKIT_AGENT_CATALOG = {
+  bmc: {
+    id: 'bmc',
+    label: 'AI Business Model Canvas',
+    openPath: 'EA2_Toolkit/AI Business Model Canvas.html',
+    importId: 'bmc',
+    dataKey: 'bmc_latest',
+    purpose: 'Define business model, value proposition, customer segments, and revenue logic.',
+    instructions: [
+      'Complete all nine BMC blocks plus goals, business drivers, and ESG.',
+      'Run AI Analyze for strategic review.',
+      'Export or sync results into the platform before value-chain work.'
+    ],
+    nextStep: 'AI Value Chain Analyzer'
+  },
+  valueChain: {
+    id: 'valueChain',
+    label: 'AI Value Chain Analyzer',
+    openPath: 'EA2_Toolkit/AI Value Chain Analyzer V2.html',
+    importId: 'valueChain',
+    dataKey: 'valuechain_latest',
+    purpose: 'Map where value is created or lost across the operating chain.',
+    instructions: [
+      'Start from BMC outputs and focus on activities and resources.',
+      'Fill primary and support activities.',
+      'Run AI Analyze before importing to the platform.'
+    ],
+    nextStep: 'AI Capability Mapping'
+  },
+  capabilityMap: {
+    id: 'capabilityMap',
+    label: 'AI Capability Mapping',
+    openPath: 'EA2_Toolkit/AI Capability Mapping V2.html',
+    importId: 'capability',
+    dataKey: 'capability_latest',
+    purpose: 'Identify organizational capabilities, gaps, and investment priorities.',
+    instructions: [
+      'Use value-chain insights to define capability domains.',
+      'Assess current versus target maturity.',
+      'Use AI to prioritize critical gaps before syncing.'
+    ],
+    nextStep: 'AI Strategy Workbench'
+  },
+  wardley: {
+    id: 'wardley',
+    label: 'AI Strategy Workbench',
+    openPath: 'EA2_Toolkit/AI Strategy Workbench V2.html',
+    importId: 'strategy',
+    dataKey: 'strategy_latest',
+    purpose: 'Place capabilities and components on an evolution map to guide sourcing and strategic moves.',
+    instructions: [
+      'Import capabilities from Capability Mapping.',
+      'Position components on the evolution axis.',
+      'Define dependencies and use AI for sourcing recommendations.'
+    ],
+    nextStep: 'EA Platform roadmap and target architecture'
+  },
+  maturity: {
+    id: 'maturity',
+    label: 'NextGen EA Maturity Toolbox',
+    openPath: 'EA2_Toolkit/EA20 Maturity Toolbox V2.html',
+    importId: 'maturity',
+    dataKey: 'maturity_latest',
+    purpose: 'Assess digital maturity and create a prioritized roadmap.',
+    instructions: [
+      'Select industry focus and complete weighted maturity questions.',
+      'Review score, radar profile, and maturity level.',
+      'Generate AI analysis and sync outputs into the platform.'
+    ],
+    nextStep: 'EA Platform maturity and roadmap views'
+  }
+};
+
+function resolveToolkitCommandId(text) {
+  const lower = String(text || '').toLowerCase();
+  if (/\bbmc\b|business model canvas/.test(lower)) return 'bmc';
+  if (/value chain/.test(lower)) return 'valueChain';
+  if (/capability map|capability mapping|capmap|capability/.test(lower)) return 'capabilityMap';
+  if (/strategy workbench|wardley|strategy/.test(lower)) return 'wardley';
+  if (/maturity toolbox|maturity/.test(lower)) return 'maturity';
+  return null;
+}
+
+function mapToolkitToImportId(toolkitId) {
+  return TOOLKIT_AGENT_CATALOG[toolkitId]?.importId || toolkitId;
+}
+
+function getToolkitDisplayName(toolkitId) {
+  return TOOLKIT_AGENT_CATALOG[toolkitId]?.label || toolkitId;
+}
+
+function getToolkitAssistantContext() {
+  return Object.values(TOOLKIT_AGENT_CATALOG).map((toolkit) => {
+    const payload = dataManager?.getIntegrationData ? dataManager.getIntegrationData(toolkit.dataKey) : null;
+    return {
+      id: toolkit.id,
+      label: toolkit.label,
+      purpose: toolkit.purpose,
+      instructions: toolkit.instructions,
+      nextStep: toolkit.nextStep,
+      availableData: !!payload,
+      lastUpdated: payload?.lastUpdated || payload?.exportedAt || payload?.generatedAt || null,
+      capabilityCount: Array.isArray(payload?.capabilities) ? payload.capabilities.length : undefined,
+      componentCount: Array.isArray(payload?.components) ? payload.components.length : undefined,
+      activityCount: Array.isArray(payload?.activities) ? payload.activities.length : undefined,
+      score: payload?.totalScore || payload?.score || payload?.maturityScore || null,
+      canOpen: true,
+      canSync: true,
+      canImport: true
+    };
+  });
+}
+
+function launchToolkit(toolkitId) {
+  const file = TOOLKIT_AGENT_CATALOG[toolkitId]?.openPath;
+  if (file) {
+    window.open(file, '_blank');
+    addSyncLog(`Opened ${toolkitId} toolkit in new window`);
+  } else {
+    toast(`Toolkit ${toolkitId} not found`, true);
+  }
+}
+
+function syncToolkit(toolkitId) {
+  const syncMap = {
+    bmc:          { key: 'bmc_latest',        merge: mergeBmcIntoModel },
+    capabilityMap:{ key: 'capability_latest', merge: mergeCapabilityIntoModel },
+    capability:   { key: 'capability_latest', merge: mergeCapabilityIntoModel },
+    valueChain:   { key: 'valuechain_latest', merge: mergeValueChainIntoModel },
+    strategy:     { key: 'strategy_latest',   merge: mergeStrategyIntoModel },
+    maturity:     { key: 'maturity_latest',   merge: mergeMaturityIntoModel },
+    wardley:      { key: 'capability_latest', merge: mergeCapabilityIntoModel }
+  };
+  const entry = syncMap[toolkitId];
+  if (!entry) {
+    addSyncLog('\u274C Unknown toolkit: ' + toolkitId);
+    toast('Unknown toolkit: ' + toolkitId, true);
+    return 0;
+  }
+  try {
+    const stored = localStorage.getItem('ea_integration_' + entry.key);
+    if (!stored) {
+      addSyncLog('\u26A0\uFE0F No data for ' + toolkitId + ' \u2014 export from the toolkit first');
+      toast('No data for ' + toolkitId, true);
+      return 0;
+    }
+    const pkg = JSON.parse(stored);
+    const data = pkg.data || pkg;
+    const count = entry.merge(data);
+    localStorage.setItem('ea_current_model', JSON.stringify({ id: currentModelId, name: currentModelName, data: model }));
+    const badge = document.getElementById('sync-badge-' + toolkitId);
+    if (badge) {
+      badge.className = 'text-[9px] px-2 py-0.5 rounded-full bg-green-500 text-white font-bold';
+      badge.textContent = 'Synced';
+    }
+    addSyncLog('\u2705 Synced ' + count + ' item(s) from ' + toolkitId);
+    return count;
+  } catch (error) {
+    console.error('Sync error:', error);
+    addSyncLog('\u274C Sync failed for ' + toolkitId + ': ' + error.message);
+    toast('Sync failed: ' + error.message, true);
+    return 0;
+  }
+}
+
+function mergeBmcIntoModel(data) {
+  if (data.valueProposition || data.customerSegments || data.keyActivities) {
+    model.operatingModel = Object.assign(model.operatingModel || {}, {
+      valueProposition: data.valueProposition || (model.operatingModel || {}).valueProposition,
+      customerSegments: data.customerSegments || (model.operatingModel || {}).customerSegments,
+      keyActivities: data.keyActivities || (model.operatingModel || {}).keyActivities,
+      keyResources: data.keyResources || (model.operatingModel || {}).keyResources,
+      channels: data.channels || (model.operatingModel || {}).channels,
+      revenueStreams: data.revenueStreams || (model.operatingModel || {}).revenueStreams,
+      costStructure: data.costStructure || (model.operatingModel || {}).costStructure
+    });
+    model.bmc = data;
+  } else {
+    model.bmc = Object.assign(model.bmc || {}, data);
+  }
+  return 1;
+}
+
+function mergeCapabilityIntoModel(data) {
+  const incoming = Array.isArray(data) ? data : (data.capabilities || data.items || []);
+  if (!incoming.length) return 0;
+  const existing = model.capabilities || [];
+  const existingNames = new Set(existing.map(c => (c.id || c.name || '').toLowerCase()));
+  let added = 0;
+  incoming.forEach(function(cap) {
+    if (!existingNames.has((cap.id || cap.name || '').toLowerCase())) {
+      existing.push(cap);
+      added++;
+    }
+  });
+  model.capabilities = existing;
+  return added;
+}
+
+function mergeValueChainIntoModel(data) {
+  const activities = Array.isArray(data) ? data : (data.activities || data.primaryActivities || []);
+  model.operatingModel = model.operatingModel || {};
+  model.operatingModel.valueChainActivities = activities;
+  return activities.length;
+}
+
+function mergeStrategyIntoModel(data) {
+  if (!model.strategicIntent || typeof model.strategicIntent === 'string') {
+    model.strategicIntent = { summary: model.strategicIntent || '' };
+  }
+  Object.assign(model.strategicIntent, {
+    vision: data.vision || model.strategicIntent.vision,
+    mission: data.mission || model.strategicIntent.mission,
+    strategicObjectives: data.strategicObjectives || data.objectives || model.strategicIntent.strategicObjectives
+  });
+  return 1;
+}
+
+function mergeMaturityIntoModel(data) {
+  const scores = data.scores || data.domainScores || (typeof data === 'object' ? data : {});
+  model.maturityScores = Object.assign(model.maturityScores || {}, scores);
+  return Object.keys(scores).length;
+}
+
+function syncAllToolkits() {
+  const toolkits = ['bmc', 'capabilityMap', 'valueChain', 'strategy', 'maturity'];
+  let totalSynced = 0;
+  toolkits.forEach(function(toolkit) {
+    totalSynced += syncToolkit(toolkit);
+  });
+  updateWorkflowStepStates();
+  renderLayers();
+  renderCapMap();
+  renderHeatmap();
+  renderExecSummary();
+  toast('Sync complete: ' + totalSynced + ' item(s) imported', false);
+}
+
+/**
+ * Update integration dashboard with current status
+ */
+function updateIntegrationDashboard() {
+  if (!dataManager) return;
+  
+  const status = dataManager.getIntegrationStatus();
+  
+  // Update BMC status
+  updateIntegrationCard('bmc', status.bmc);
+  
+  // Update Value Chain status
+  updateIntegrationCard('valuechain', status.valueChain);
+  
+  // Update Capability Map status
+  updateIntegrationCard('capability', status.capabilityMap);
+  
+  // Update Strategy Workbench status
+  updateIntegrationCard('strategy', status.strategyWorkbench);
+}
+
+/**
+ * Update individual integration card
+ */
+function updateIntegrationCard(toolkitId, status) {
+  const badge = document.getElementById(`${toolkitId}-status-badge`);
+  const text = document.getElementById(`${toolkitId}-status-text`);
+  const importBtn = document.getElementById(`${toolkitId}-import-btn`);
+  
+  if (!badge || !text || !importBtn) return;
+  
+  if (status.available) {
+    badge.className = 'text-[8px] px-2 py-0.5 rounded-full bg-green-500 text-white font-bold';
+    badge.textContent = '&#x2718; Ready';
+    
+    const lastUpdate = status.lastUpdated ? new Date(status.lastUpdated).toLocaleTimeString() : 'Unknown';
+    text.textContent = `Last updated: ${lastUpdate}`;
+    
+    importBtn.disabled = false;
+    importBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+  } else {
+    badge.className = 'text-[8px] px-2 py-0.5 rounded-full bg-slate-300 text-slate-600 font-bold';
+    badge.textContent = '�';
+    text.textContent = 'No data available';
+    
+    importBtn.disabled = true;
+    importBtn.classList.add('opacity-50', 'cursor-not-allowed');
+  }
+}
+
+/**
+ * Import data from Value Chain Analyzer
+ */
+function importFromValueChain() {
+  if (!integrationEngine || !dataManager) {
+    toast('?? Integration engine not available', true);
+    return;
+  }
+  
+  // Check if Value Chain data is available
+  const vcData = dataManager.getIntegrationData('valuechain_latest');
+  if (!vcData) {
+    toast('?? No Value Chain data available to import. Please export from Value Chain Analyzer first.', true);
+    return;
+  }
+  
+  try {
+    // Transform Value Chain data to EA Platform format
+    const transformed = integrationEngine.transformValueChainToEA(vcData);
+    
+    if (!transformed) {
+      toast('❌ Transformation failed', true);
+      return;
+    }
+    
+    // Merge imported capabilities
+    if (transformed.capabilities && transformed.capabilities.length > 0) {
+      upsertCapabilitiesByName(transformed.capabilities, 'valueChain');
+    }
+    
+    // Merge imported systems
+    if (transformed.systems && transformed.systems.length > 0) {
+      transformed.systems.forEach(sys => {
+        const exists = model.systems.find(s => s.name === sys.name);
+        if (!exists) {
+          model.systems.push(sys);
+        }
+      });
+    }
+    
+    // Merge imported AI agents
+    if (transformed.aiAgents && transformed.aiAgents.length > 0) {
+      transformed.aiAgents.forEach(agent => {
+        const exists = model.aiAgents.find(a => a.name === agent.name);
+        if (!exists) {
+          model.aiAgents.push(agent);
+        }
+      });
+    }
+    
+    // Merge imported initiatives
+    if (transformed.initiatives && transformed.initiatives.length > 0) {
+      transformed.initiatives.forEach(init => {
+        const exists = model.initiatives.find(i => i.name === init.name);
+        if (!exists) {
+          model.initiatives.push(init);
+        }
+      });
+    }
+    
+    // Re-render all views
+    renderLayers();
+    renderCapMap();
+    renderHeatmap();
+    renderPhase4Dashboard();
+    
+    const counts = {
+      capabilities: transformed.capabilities?.length || 0,
+      systems: transformed.systems?.length || 0,
+      aiAgents: transformed.aiAgents?.length || 0,
+      initiatives: transformed.initiatives?.length || 0
+    };
+    
+    toast(`&#x2718; Imported from Value Chain: ${counts.capabilities} capabilities, ${counts.systems} systems, ${counts.aiAgents} AI agents, ${counts.initiatives} initiatives`, false);
+    
+  } catch (error) {
+    console.error('Import error:', error);
+    toast(`❌ Import failed: ${error.message}`, true);
+  }
+}
+
+/**
+ * Export current EA model data for Capability Mapping
+ */
+function exportForCapabilityMap() {
+  if (!integrationEngine || !dataManager) {
+    toast('?? Integration engine not available', true);
+    return;
+  }
+  
+  if (model.capabilities.length === 0) {
+    toast('?? No capabilities to export. Add capabilities first.', true);
+    return;
+  }
+  
+  try {
+    // Prepare data for export
+    const exportData = {
+      capabilities: model.capabilities,
+      systems: model.systems,
+      valueStreams: model.valueStreams,
+      exportedFrom: 'EA_Platform',
+      exportedAt: new Date().toISOString()
+    };
+    
+    // Save for capability map to import
+    dataManager.saveIntegrationData('ea_to_capability', exportData);
+    
+    // Also download as JSON file
+    const json = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `EA_Export_for_Capability_Map_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    toast(`&#x2718; Exported ${model.capabilities.length} capabilities for Capability Map (downloaded + saved to cache)`, false);
+    
+  } catch (error) {
+    console.error('Export error:', error);
+    toast(`❌ Export failed: ${error.message}`, true);
+  }
+}
+
+/**
+ * Import data from specific toolkit
+ */
+function normalizeStrategicImportance(value) {
+  const v = String(value || '').toLowerCase();
+  if (v === 'high' || v === 'strategic') return 'high';
+  if (v === 'medium' || v === 'important') return 'medium';
+  return 'low';
+}
+
+function inferBusinessAreasForCapability(capability, sourceToolkit) {
+  const text = `${capability?.name || ''} ${capability?.description || ''} ${capability?.domain || ''}`.toLowerCase();
+  const areas = new Set(normalizeBusinessAreas(model.phase4Config?.activeBusinessAreas || ['general']));
+
+  const addByWords = (area, words) => {
+    if (words.some(w => text.includes(w))) areas.add(area);
+  };
+
+  addByWords('esg', ['esg', 'sustain', 'energy', 'carbon', 'emission', 'climate']);
+  addByWords('operations', ['operation', 'workflow', 'throughput', 'process', 'fulfillment', 'delivery', 'execution']);
+  addByWords('erp', ['erp', 'sap', 'dynamics 365', 'oracle erp', 'netsuite', 'master data', 'order to cash', 'procure to pay', 'record to report']);
+  addByWords('finance', ['finance', 'financial', 'accounting', 'ledger', 'gl', 'ap', 'ar', 'invoice', 'billing', 'budget', 'forecast', 'treasury', 'cash flow', 'reconciliation']);
+  addByWords('itsm', ['incident', 'service', 'sla', 'ticket', 'problem management', 'support desk', 'cmdb']);
+  addByWords('gdpr', ['gdpr', 'privacy', 'consent', 'personal data', 'retention', 'subject rights']);
+  addByWords('cybersecurity', ['security', 'cyber', 'identity', 'access', 'threat', 'ransomware', 'vulnerability', 'patch']);
+
+  if (sourceToolkit === 'valueChain') addByWords('operations', ['operations', 'process', 'workflow', 'value chain']);
+  if (sourceToolkit === 'strategy') addByWords('cybersecurity', ['resilience', 'zero trust']);
+
+  const defaults = normalizeBusinessAreas(PHASE4_INDUSTRY_PROFILES[model.phase4Config?.industry || 'generic']?.areas || ['general']);
+  if (!areas.size) defaults.forEach(a => areas.add(a));
+
+  return normalizeBusinessAreas(Array.from(areas));
+}
+
+function upsertCapabilitiesByName(incoming, sourceToolkit) {
+  let added = 0;
+  (incoming || []).forEach(item => {
+    const name = (item?.name || '').trim();
+    if (!name) return;
+
+    const inferredAreas = inferBusinessAreasForCapability(item, sourceToolkit);
+    const idx = model.capabilities.findIndex(c => (c.name || '').toLowerCase() === name.toLowerCase());
+
+    if (idx === -1) {
+      model.capabilities.push({
+        ...item,
+        businessAreas: normalizeBusinessAreas(item.businessAreas || inferredAreas)
+      });
+      added++;
+      return;
+    }
+
+    const existing = model.capabilities[idx];
+    model.capabilities[idx] = {
+      ...existing,
+      ...item,
+      strategicImportance: normalizeStrategicImportance(item.strategicImportance || existing.strategicImportance),
+      businessAreas: normalizeBusinessAreas([
+        ...(existing.businessAreas || []),
+        ...(item.businessAreas || []),
+        ...inferredAreas
+      ])
+    };
+  });
+
+  return added;
+}
+
+function mergeByName(target, incoming) {
+  let added = 0;
+  incoming.forEach(item => {
+    const name = (item?.name || '').trim();
+    if (!name) return;
+    const exists = target.some(t => (t.name || '').toLowerCase() === name.toLowerCase());
+    if (!exists) {
+      target.push(item);
+      added++;
+    }
+  });
+  return added;
+}
+
+function importFromToolkit(toolkitId, silent = false) {
+  if (!integrationEngine || !dataManager) {
+    if (!silent) toast('?? Integration engine not available', true);
+    return;
+  }
+
+  const keyMap = {
+    bmc: 'bmc_latest',
+    valueChain: 'valuechain_latest',
+    capability: 'capability_latest',
+    strategy: 'strategy_latest',
+    maturity: 'maturity_latest'
+  };
+
+  const dataKey = keyMap[toolkitId] || `${toolkitId}_latest`;
+  const data = dataManager.getIntegrationData(dataKey);
+
+  if (!data) {
+    if (!silent) toast(`?? No data available from ${toolkitId}`, true);
+    return;
+  }
+
+  const counts = { valueStreams: 0, capabilities: 0, systems: 0, aiAgents: 0, initiatives: 0 };
+
+  if (toolkitId === 'bmc') {
+    const description = document.getElementById('description');
+    const summary = [
+      data.value_proposition && `Value proposition: ${data.value_proposition}`,
+      data.customer_segments && `Customers: ${data.customer_segments}`,
+      data.business_driver && `Driver: ${data.business_driver}`,
+      data.strategic_goal && `Goal: ${data.strategic_goal}`
+    ].filter(Boolean).join('\n');
+
+    if (summary) {
+      description.value = description.value ? `${description.value}\n\n${summary}` : summary;
+    }
+
+    if (data.value_proposition) {
+      counts.valueStreams += mergeByName(model.valueStreams, [{
+        name: 'Business Value Proposition',
+        description: data.value_proposition
+      }]);
+    }
+  }
+
+  if (toolkitId === 'valueChain') {
+    const transformed = integrationEngine.transformValueChainToEA(data);
+    counts.valueStreams += mergeByName(model.valueStreams, transformed.valueStreams || []);
+    counts.capabilities += upsertCapabilitiesByName((transformed.capabilities || []).map(c => ({
+      ...c,
+      strategicImportance: normalizeStrategicImportance(c.strategicImportance)
+    })), 'valueChain');
+    counts.systems += mergeByName(model.systems, transformed.systems || []);
+    counts.aiAgents += mergeByName(model.aiAgents, transformed.aiAgents || []);
+    counts.initiatives += mergeByName(model.initiatives, transformed.initiatives || []);
+  }
+
+  if (toolkitId === 'capability') {
+    const caps = Array.isArray(data.capabilities) ? data.capabilities : [];
+    counts.capabilities += upsertCapabilitiesByName(caps.map(c => ({
+      name: c.name,
+      domain: c.domainLabel || c.domain || 'Operations',
+      maturity: Math.max(1, Math.min(5, Number(c.maturity) || 3)),
+      strategicImportance: normalizeStrategicImportance(c.priority || c.strategicImportance),
+      source: 'capability_map'
+    })), 'capability');
+  }
+
+  if (toolkitId === 'strategy') {
+    const nodes = Array.isArray(data.components) ? data.components : [];
+    counts.initiatives += mergeByName(model.initiatives, nodes.map(n => ({
+      name: `Strategic move: ${n.name}`,
+      impactsCapability: n.name,
+      estimatedBusinessValue: n.x < 40 ? 'high' : n.x < 70 ? 'medium' : 'low',
+      complexity: n.x < 40 ? 'high' : 'medium',
+      priority: n.y < 35 ? 'high' : n.y < 65 ? 'medium' : 'low',
+      phase: n.x < 40 ? 'Year 1 - Foundation' : n.x < 70 ? 'Year 2 - Expansion' : 'Year 3 - Optimisation',
+      description: n.note || 'Imported from Strategy Workbench'
+    })));
+  }
+
+  if (toolkitId === 'maturity') {
+    const description = document.getElementById('description');
+    const maturityLine = data.frameworkName ? `Maturity (${data.frameworkName}): ${data.totalScore}/5` : null;
+    if (maturityLine) {
+      description.value = description.value ? `${description.value}\n${maturityLine}` : maturityLine;
+    }
+  }
+
+  renderLayers();
+  renderCapMap();
+  renderHeatmap();
+  renderPhase4Dashboard();
+  renderMaturityDashboard();
+  populateImpactSelect();
+  renderExecSummary();
+  if (model.initiatives?.length) renderInitiatives();
+  updateIntegrationDashboard();
+
+  const totalAdded = Object.values(counts).reduce((s, n) => s + n, 0);
+  if (!silent) {
+    toast(`&#x2718; Import from ${toolkitId} completed (${totalAdded} new objects)`, false);
+  }
+}
+
+function importAllAvailableToolkits(fromAutoFlow = false) {
+  const order = ['bmc', 'valueChain', 'capability', 'strategy', 'maturity'];
+  let imported = 0;
+
+  order.forEach(toolkitId => {
+    const keyMap = {
+      bmc: 'bmc_latest',
+      valueChain: 'valuechain_latest',
+      capability: 'capability_latest',
+      strategy: 'strategy_latest',
+      maturity: 'maturity_latest'
+    };
+    if (dataManager?.getIntegrationData(keyMap[toolkitId])) {
+      importFromToolkit(toolkitId, true);
+      imported++;
+    }
+  });
+
+  if (fromAutoFlow) {
+    toast(`&#x2718; Autoflow imported data from ${imported} steps`, false);
+  } else {
+    toast(`&#x2718; Imported available data from ${imported} steps`, false);
+  }
+}
+
+/**
+ * View integration log
+ */
+function viewIntegrationLog() {
+  if (!integrationEngine) {
+    toast('?? Integration engine not available', true);
+    return;
+  }
+  
+  const log = integrationEngine.getIntegrationLog(20);
+  
+  if (log.length === 0) {
+    toast('No integration events logged yet', false);
+    return;
+  }
+  
+  let logHTML = '<div class="space-y-2 max-h-96 overflow-y-auto">';
+  
+  log.forEach(entry => {
+    const time = new Date(entry.timestamp).toLocaleString();
+    const statusLabel = entry.status === 'success' ? 'Success' : 'Error';
+    const color = entry.status === 'success' ? 'text-green-700' : 'text-red-700';
+    
+    logHTML += `
+      <div class="text-[11px] p-3 bg-slate-50 rounded border ${color}">
+        <div class="font-bold">[${statusLabel}] ${entry.source} ? ${entry.target}</div>
+        <div class="text-slate-600 text-[10px]">${time}</div>
+        ${entry.metadata && Object.keys(entry.metadata).length > 0 ? 
+          `<div class="text-[10px] mt-1">${JSON.stringify(entry.metadata)}</div>` : ''}
+      </div>
+    `;
+  });
+  
+  logHTML += '</div>';
+  
+  // Show in a simple alert for now (could be a modal in production)
+  const div = document.createElement('div');
+  div.innerHTML = logHTML;
+  
+  // Create modal overlay
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center';
+  modal.innerHTML = `
+    <div class="bg-white rounded-2xl p-6 w-[600px] max-h-[80vh] overflow-auto shadow-2xl">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-lg">Integration Log</h3>
+        <button onclick="this.closest('.fixed').remove()" class="text-slate-500 hover:text-slate-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      ${logHTML}
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Close on overlay click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
+}
+
+/**
+ * Open integration help/guide
+ */
+function openIntegrationHelp() {
+  // Open the implementation plan in a new window
+  window.open('../EA_INTEGRATION_IMPLEMENTATION_PLAN.md', '_blank');
+  toast('Opening Integration Implementation Plan...', false);
+}
+
+/**
+ * Clear integration cache
+ */
+function clearIntegrationCache() {
+  if (!dataManager) {
+    toast('?? DataManager not available', true);
+    return;
+  }
+  
+  if (!confirm('Clear all integration cache? This will not affect your project data, only cached cross-toolkit data.')) {
+    return;
+  }
+  
+  try {
+    dataManager.clearIntegrationData();
+    updateIntegrationDashboard();
+    toast('&#x2718; Integration cache cleared', false);
+  } catch (error) {
+    console.error('Clear cache error:', error);
+    toast(`❌ Failed to clear cache: ${error.message}`, true);
+  }
+}
+
+function showSyncStatus() {
+  if (!syncEngine || !currentModelId) {
+    toast('No active project', true);
+    return;
+  }
+  
+  const status = syncEngine.getSyncStatus(currentModelId);
+  let statusHTML = '<div class="space-y-2">';
+  
+  Object.keys(status).forEach(toolkit => {
+    const s = status[toolkit];
+    const icon = s.hasData ? 'Has Data' : 'No Data';
+    const syncTime = s.lastSynced ? new Date(s.lastSynced).toLocaleString() : 'Never';
+    
+    statusHTML += `
+      <div class="text-[10px] p-2 bg-slate-50 rounded border">
+        ${icon} <strong>${toolkit}</strong>: ${s.hasData ? 'Has Data' : 'No Data'} | 
+        Last Sync: ${syncTime} | 
+        Direction: ${s.direction}
+      </div>
+    `;
+  });
+  
+  statusHTML += '</div>';
+  
+  // Show in modal or alert
+  alert('Sync Status:\n\n' + JSON.stringify(status, null, 2));
+}
+
+function showWorkshopGuide() {
+  const guide = `
+WORKSHOP INTEGRATION GUIDE
+═════════════════════════
+
+1. PREPARE
+   &bull; Open a toolkit (BMC, Capability Map, etc.) in workshop
+   &bull; Facilitate session with stakeholders
+   &bull; Capture results in the toolkit
+
+2. EXPORT
+   &bull; Use toolkit's Export function
+   &bull; Save JSON file with results
+
+3. IMPORT TO EA PLATFORM
+   &bull; Open EA Platform V11
+   &bull; Go to Toolkits tab
+   &bull; Click "Sync" for the toolkit
+   &bull; Or use Import function to load JSON
+
+4. SYNC & ANALYZE
+   &bull; Data automatically merges with existing architecture
+   &bull; Conflicts are flagged for review
+   &bull; Generate insights and roadmap
+
+5. ITERATE
+   &bull; Update toolkit with changes
+   &bull; Re-sync to keep platform current
+  `;
+  
+  alert(guide);
+}
+
+function addSyncLog(message) {
+  const log = document.getElementById('sync-log');
+  if (!log) return;
+  
+  const timestamp = new Date().toLocaleTimeString();
+  const entry = document.createElement('div');
+  entry.className = 'text-[10px] text-slate-600 py-1 border-b border-slate-100';
+  entry.innerHTML = `<span class="text-slate-400">${timestamp}</span> ${message}`;
+  
+  // Remove placeholder if exists
+  const placeholder = log.querySelector('.text-slate-400.italic');
+  if (placeholder) placeholder.remove();
+  
+  log.insertBefore(entry, log.firstChild);
+  
+  // Keep only last 10 entries
+  while (log.children.length > 10) {
+    log.removeChild(log.lastChild);
+  }
+}
+
+// exportModel and importModel functions now handled by client-integration.js
+
+// -- DECISION INTELLIGENCE -----------------------------------------------------
+let _diEngineInit = false, _simEngine = null, _finEngine = null, _optEngine = null;
+let _activeScenarioId = null;
+
+function _initDIEngines() {
+  if (_diEngineInit) return;
+  if (typeof SimulationEngine !== 'undefined' && typeof FinancialEngine !== 'undefined' && typeof OptimizationEngine !== 'undefined') {
+    _simEngine = new SimulationEngine(model);
+    _finEngine = new FinancialEngine();
+    _optEngine = new OptimizationEngine(_finEngine);
+    _diEngineInit = true;
+  }
+}
+function _ensureScenarios() {
+  if (!model.scenarios) model.scenarios = [];
+  if (!model.investments) model.investments = [];
+}
+function _diId() { return 'sc_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); }
+function _diEsc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _diFormatCurrency(n) {
+  const v = Math.abs(+n||0);
+  return (v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v.toLocaleString()) + ' SEK';
+}
+
+// -- SCENARIOS TAB -------------------------------------------------------------
+function renderDecisionScenarios() {
+  _ensureScenarios();
+  const list = document.getElementById('scenario-list');
+  if (!list) return;
+  if (!model.scenarios.length) {
+    list.innerHTML = '<div class="text-slate-400 italic text-center py-8 text-[11px]">No scenarios yet.<br>Click "+ New Scenario" to start.</div>';
+    const det = document.getElementById('scenario-detail');
+    if (det) det.innerHTML = '<div class="text-slate-400 italic text-center py-16 text-[11px]">Select a scenario to view details</div>';
+    return;
+  }
+  list.innerHTML = model.scenarios.map(sc => `
+    <div class="flex items-center justify-between px-2 py-2 rounded-lg cursor-pointer hover:bg-slate-50 border
+         ${_activeScenarioId===sc.id ? 'border-orange-300 bg-orange-50' : 'border-transparent'}"
+         onclick="selectScenario('${sc.id}')">
+      <div>
+        <div class="text-[11px] font-bold text-slate-700">${_diEsc(sc.name)}</div>
+        <div class="text-[10px] text-slate-400">${sc.changes.length} change(s) � ${sc.simResult ? '\u2713 run' : 'pending'}</div>
+      </div>
+      <button onclick="event.stopPropagation();deleteScenario('${sc.id}')" class="text-slate-300 hover:text-red-500 text-base px-1">&times;</button>
+    </div>`).join('');
+  if (_activeScenarioId) {
+    const active = model.scenarios.find(s => s.id === _activeScenarioId);
+    if (active) renderScenarioDetail(active);
+  }
+}
+
+function createScenario() {
+  _ensureScenarios();
+  const name = prompt('Scenario name:', 'Scenario ' + (model.scenarios.length + 1));
+  if (!name) return;
+  const sc = { id: _diId(), name, changes: [], duration: 3, simResult: null, created: new Date().toISOString() };
+  model.scenarios.push(sc);
+  _activeScenarioId = sc.id;
+  autoSaveCurrentModel();
+  renderDecisionScenarios();
+}
+
+function deleteScenario(id) {
+  model.scenarios = (model.scenarios||[]).filter(s => s.id !== id);
+  if (_activeScenarioId === id) _activeScenarioId = null;
+  autoSaveCurrentModel();
+  renderDecisionScenarios();
+}
+
+function selectScenario(id) { _activeScenarioId = id; renderDecisionScenarios(); }
+
+function renderScenarioDetail(sc) {
+  const det = document.getElementById('scenario-detail');
+  if (!det) return;
+  const changesHtml = sc.changes.length
+    ? sc.changes.map((c,i) => `
+        <div class="flex items-start gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+          <div class="flex-1">
+            <span class="text-[11px] font-bold text-slate-700">${c.type}</span>
+            <span class="text-slate-400 ml-2 text-[11px]">${_diEsc(c.target||'')}</span>
+            <div class="text-[10px] text-slate-400 mt-1">
+              Cost: ${_diFormatCurrency(c.costChange||0)} \u00b7 Benefit: ${_diFormatCurrency(c.benefitChange||0)}
+              \u00b7 Risk: ${((c.riskChange||0)*100).toFixed(0)}%
+            </div>
+          </div>
+          <button onclick="removeChangeFromScenario('${sc.id}',${i})" class="text-red-400 hover:text-red-600">&times;</button>
+        </div>`).join('')
+    : '<div class="text-slate-400 italic text-[11px]">No changes. Add one below.</div>';
+  const simHtml = sc.simResult ? `
+    <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl">
+      <div class="text-[10px] font-bold text-green-700 uppercase mb-2">Simulation Result</div>
+      <div class="grid grid-cols-4 gap-3 text-center">
+        <div><div class="text-[10px] text-slate-500">NPV</div><div class="text-sm font-bold text-green-700">${_diFormatCurrency(sc.simResult.npv)}</div></div>
+        <div><div class="text-[10px] text-slate-500">ROI</div><div class="text-sm font-bold text-green-700">${sc.simResult.roi}%</div></div>
+        <div><div class="text-[10px] text-slate-500">IRR</div><div class="text-sm font-bold text-green-700">${sc.simResult.irr!=null ? sc.simResult.irr+'%' : '\u2014'}</div></div>
+        <div><div class="text-[10px] text-slate-500">Payback</div><div class="text-sm font-bold text-green-700">${sc.simResult.payback!=null ? 'Year '+sc.simResult.payback : '> horizon'}</div></div>
+      </div>
+      ${(sc.simResult.impacted||[]).length ? `<div class="mt-2 text-[10px] text-green-700">Downstream: ${sc.simResult.impacted.map(i=>i.capability+'\u2192'+i.affectedSystems.join(', ')).join(' \u00b7 ')}</div>` : ''}
+    </div>` : '';
+  det.innerHTML = `
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <div class="text-sm font-bold text-slate-800">${_diEsc(sc.name)}</div>
+        <div class="text-[10px] text-slate-400">${sc.duration} year(s) \u00b7 ${sc.changes.length} change(s)</div>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="runSimulation('${sc.id}')" class="ea-btn ea-btn--primary"><i class="fas fa-play"></i><span>Run Simulation</span></button>
+        <button onclick="showAddChangeDialog('${sc.id}')" class="ea-btn ea-btn--secondary"><i class="fas fa-plus"></i><span>Add Change</span></button>
+      </div>
+    </div>
+    <div class="mb-4 bg-slate-50 rounded-lg p-3 border border-slate-200">
+      <label class="text-[10px] font-bold text-slate-600 block mb-1">Horizon: <span id="dur-lbl-${sc.id}">${sc.duration}</span> yr</label>
+      <input type="range" min="1" max="10" value="${sc.duration}" class="w-full"
+        oninput="updateScenarioDuration('${sc.id}',this.value);document.getElementById('dur-lbl-${sc.id}').textContent=this.value"/>
+    </div>
+    <div class="text-[10px] font-bold text-slate-500 uppercase mb-2">Changes</div>
+    <div class="space-y-2 mb-4">${changesHtml}</div>
+    ${simHtml}`;
+}
+
+function showAddChangeDialog(scenarioId) {
+  if (document.getElementById('add-change-dialog')) return;
+  const det = document.getElementById('scenario-detail');
+  if (!det) return;
+  const capOpts = (model.capabilities||[]).map(c=>`<option value="${_diEsc(c.name)}">${_diEsc(c.name)}</option>`).join('');
+  det.insertAdjacentHTML('afterbegin', `
+    <div id="add-change-dialog" class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+      <div class="text-[11px] font-bold text-slate-700 mb-3">Add Change</div>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 block mb-1">Type</label>
+          <select id="chg-type" class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5" onchange="diUpdateTargetOptions()">
+            <option value="INVEST_CAPABILITY">Invest in Capability</option>
+            <option value="MIGRATE_APP">Migrate Application</option>
+            <option value="REMOVE_APP">Remove Application</option>
+            <option value="OUTSOURCE">Outsource</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 block mb-1">Target</label>
+          <select id="chg-target" class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5">
+            ${capOpts || '<option value="">\u2014</option>'}
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-3 mb-3">
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 block mb-1">Cost (negative)</label>
+          <input id="chg-cost" type="number" value="-150000" step="10000" class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5"/>
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 block mb-1">Annual Benefit</label>
+          <input id="chg-benefit" type="number" value="300000" step="10000" class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5"/>
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 block mb-1">Risk delta (\u22121..+1)</label>
+          <input id="chg-risk" type="number" value="-0.1" min="-1" max="1" step="0.05" class="w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1.5"/>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="confirmAddChange('${scenarioId}')" class="ea-btn ea-btn--primary"><i class="fas fa-check"></i><span>Add</span></button>
+        <button onclick="document.getElementById('add-change-dialog').remove()" class="ea-btn ea-btn--ghost">Cancel</button>
+      </div>
+    </div>`);
+}
+
+function diUpdateTargetOptions() {
+  const type = document.getElementById('chg-type')?.value;
+  const el = document.getElementById('chg-target');
+  if (!el) return;
+  const isCap = type === 'INVEST_CAPABILITY';
+  const items = isCap ? (model.capabilities||[]) : (model.systems||[]);
+  el.innerHTML = items.map(i=>`<option value="${_diEsc(i.name)}">${_diEsc(i.name)}</option>`).join('') || '<option value="">&mdash;</option>';
+}
+
+function confirmAddChange(scenarioId) {
+  const sc = (model.scenarios||[]).find(s => s.id === scenarioId);
+  if (!sc) return;
+  const type = document.getElementById('chg-type')?.value;
+  const target = document.getElementById('chg-target')?.value;
+  const costChange = parseFloat(document.getElementById('chg-cost')?.value)||0;
+  const benefitChange = parseFloat(document.getElementById('chg-benefit')?.value)||0;
+  const riskChange = parseFloat(document.getElementById('chg-risk')?.value)||0;
+  if (!target) { toast('Select a target', true); return; }
+  sc.changes.push({ type, target, costChange, benefitChange, riskChange });
+  sc.simResult = null;
+  document.getElementById('add-change-dialog')?.remove();
+  autoSaveCurrentModel();
+  renderScenarioDetail(sc);
+}
+
+function removeChangeFromScenario(scenarioId, index) {
+  const sc = (model.scenarios||[]).find(s => s.id === scenarioId);
+  if (!sc) return;
+  sc.changes.splice(index, 1);
+  sc.simResult = null;
+  autoSaveCurrentModel();
+  renderScenarioDetail(sc);
+}
+
+function updateScenarioDuration(scenarioId, value) {
+  const sc = (model.scenarios||[]).find(s => s.id === scenarioId);
+  if (!sc) return;
+  sc.duration = parseInt(value,10)||3;
+  sc.simResult = null;
+  autoSaveCurrentModel();
+}
+
+function runSimulation(scenarioId) {
+  _initDIEngines();
+  if (!_simEngine||!_finEngine) { toast('Engines not loaded', true); return; }
+  const sc = (model.scenarios||[]).find(s => s.id === scenarioId);
+  if (!sc) return;
+  try {
+    _simEngine.model = model;
+    const { impacted } = _simEngine.runScenario(sc);
+    const dr = parseFloat(document.getElementById('financial-discount-rate')?.value)||8;
+    const m = _finEngine.evaluateScenario(sc, dr);
+    sc.simResult = { ...m, impacted, ts: new Date().toISOString() };
+    autoSaveCurrentModel();
+    renderScenarioDetail(sc);
+    renderDecisionScenarios();
+    toast('Simulation complete');
+  } catch(e) { toast('Simulation error: '+e.message, true); }
+}
+
+async function generateAIScenarios() {
+  if (!(model.capabilities||[]).length) { toast('Generate architecture first (Step 3)', true); return; }
+  _ensureScenarios();
+  try {
+    const caps = (model.capabilities||[]).slice(0,12).map(c=>({name:c.name,domain:c.domain,maturity:c.maturity}));
+    const sys = (model.systems||[]).slice(0,8).map(s=>({name:s.name,status:s.status}));
+    const raw = await callAI(
+      'You are an EA decision architect. Return ONLY a valid JSON array of scenario objects � no markdown.',
+      `Capabilities: ${JSON.stringify(caps)}\nSystems: ${JSON.stringify(sys)}\nAmbition: ${model.strategicIntent?.strategic_ambition||'not defined'}\n\nGenerate 3 realistic what-if scenarios. Each with name, duration (years), and changes.\n[\n{"name":"...","duration":3,"changes":[{"type":"INVEST_CAPABILITY","target":"<from list>","costChange":-150000,"benefitChange":300000,"riskChange":-0.1}]}\n]`,
+      { taskType: 'standard', temperature: 0.3 });
+    const arr = JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0]||'[]');
+    let added = 0;
+    for (const sc of arr) {
+      if (sc.name && Array.isArray(sc.changes)) {
+        model.scenarios.push({ id:_diId(), name:sc.name, duration:sc.duration||3, changes:sc.changes, simResult:null, created:new Date().toISOString() });
+        added++;
+      }
+    }
+    autoSaveCurrentModel();
+    renderDecisionScenarios();
+    toast(added+' AI scenario(s) added');
+  } catch(e) { toast('AI scenario generation failed: '+e.message, true); }
+}
+
+// -- FINANCIALS TAB ------------------------------------------------------------
+function renderFinancials() {
+  _initDIEngines();
+  _ensureScenarios();
+  if (!_finEngine) return;
+  const dr = parseFloat(document.getElementById('financial-discount-rate')?.value)||8;
+  const selEl = document.getElementById('financial-scenario-select');
+  const sel = selEl?.value||'';
+  if (selEl) {
+    const cur = selEl.value;
+    selEl.innerHTML = '<option value="">All scenarios</option>' +
+      model.scenarios.map(s=>`<option value="${s.id}"${s.id===cur?' selected':''} >${_diEsc(s.name)}</option>`).join('');
+  }
+  const scenarios = sel ? model.scenarios.filter(s=>s.id===sel) : model.scenarios;
+  const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  if (!scenarios.length) {
+    ['fin-npv','fin-roi','fin-irr','fin-payback'].forEach(id=>set(id,'\u2014'));
+    const tb = document.getElementById('financial-table-body');
+    if (tb) tb.innerHTML = '<div class="p-3 text-[11px] text-slate-400 italic text-center py-6">No scenarios yet.</div>';
+    return;
+  }
+  const allM = scenarios.map(sc=>({ sc, m: _finEngine.evaluateScenario(sc, dr) }));
+  const totalNPV = allM.reduce((s,x)=>s+x.m.npv,0);
+  const avgROI = Math.round(allM.reduce((s,x)=>s+x.m.roi,0)/allM.length);
+  const irrs = allM.filter(x=>x.m.irr!=null).map(x=>x.m.irr);
+  const paybacks = allM.filter(x=>x.m.payback!=null).map(x=>x.m.payback);
+  set('fin-npv', _diFormatCurrency(totalNPV));
+  set('fin-roi', avgROI+'%');
+  set('fin-irr', irrs.length ? (irrs.reduce((a,b)=>a+b)/irrs.length).toFixed(1)+'%' : '\u2014');
+  set('fin-payback', paybacks.length ? 'Year '+Math.min(...paybacks) : '\u2014');
+  const tb = document.getElementById('financial-table-body');
+  if (tb) tb.innerHTML = `
+    <table class="w-full text-[11px]">
+      <thead><tr class="bg-slate-50 text-[10px] text-slate-500 uppercase">
+        <th class="text-left px-3 py-2">Scenario</th>
+        <th class="text-right px-3 py-2">Changes</th>
+        <th class="text-right px-3 py-2">NPV</th>
+        <th class="text-right px-3 py-2">ROI</th>
+        <th class="text-right px-3 py-2">IRR</th>
+        <th class="text-right px-3 py-2">Payback</th>
+      </tr></thead>
+      <tbody>
+        ${allM.map(({sc,m})=>`<tr class="border-t border-slate-100 hover:bg-slate-50">
+          <td class="px-3 py-2 font-semibold text-slate-700">${_diEsc(sc.name)}</td>
+          <td class="px-3 py-2 text-right text-slate-500">${sc.changes.length}</td>
+          <td class="px-3 py-2 text-right font-bold ${m.npv>=0?'text-green-600':'text-red-600'}">${_diFormatCurrency(m.npv)}</td>
+          <td class="px-3 py-2 text-right ${m.roi>=0?'text-green-600':'text-red-600'}">${m.roi}%</td>
+          <td class="px-3 py-2 text-right text-slate-600">${m.irr!=null?m.irr+'%':'\u2014'}</td>
+          <td class="px-3 py-2 text-right text-slate-600">${m.payback!=null?'Yr '+m.payback:'\u2014'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  _renderCashflowChart(allM);
+  _renderCostBenefitChart(allM);
+}
+
+function _renderCashflowChart(allM) {
+  const canvas = document.getElementById('chart-cashflow');
+  if (!canvas||!allM.length) return;
+  if (canvas._chart) { canvas._chart.destroy(); canvas._chart=null; }
+  const maxYrs = Math.max(...allM.map(x=>x.sc.duration||3));
+  const colors = ['#ea580c','#2563eb','#16a34a','#9333ea','#d97706'];
+  canvas._chart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: Array.from({length:maxYrs+1},(_,i)=>i===0?'Y0':'Y'+i),
+      datasets: allM.map(({sc,m},i)=>({
+        label: sc.name, data: m.cashFlows,
+        borderColor: colors[i%colors.length], backgroundColor: colors[i%colors.length]+'22',
+        tension: 0.3, fill: false, pointRadius: 3
+      }))
+    },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:10}}}},
+      scales:{y:{ticks:{font:{size:10},callback:v=>Math.abs(v)>=1e6?(v/1e6).toFixed(1)+'M':Math.abs(v)>=1e3?(v/1e3).toFixed(0)+'K':v}},x:{ticks:{font:{size:10}}}}
+    }
+  });
+}
+
+function _renderCostBenefitChart(allM) {
+  const canvas = document.getElementById('chart-costbenefit');
+  if (!canvas||!allM.length) return;
+  if (canvas._chart) { canvas._chart.destroy(); canvas._chart=null; }
+  canvas._chart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: allM.map(x=>x.sc.name),
+      datasets: [
+        { label:'Cost', data: allM.map(({sc})=>(sc.changes||[]).filter(c=>c.costChange<0).reduce((s,c)=>s+Math.abs(c.costChange),0)), backgroundColor:'#fca5a5' },
+        { label:'Benefit', data: allM.map(({sc})=>(sc.changes||[]).filter(c=>c.benefitChange>0).reduce((s,c)=>s+c.benefitChange,0)), backgroundColor:'#86efac' }
+      ]
+    },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:10}}}},
+      scales:{y:{ticks:{font:{size:10},callback:v=>Math.abs(v)>=1e6?(v/1e6).toFixed(1)+'M':Math.abs(v)>=1e3?(v/1e3).toFixed(0)+'K':v}},x:{ticks:{font:{size:10}}}}
+    }
+  });
+}
+
+// -- OPTIMISATION TAB ----------------------------------------------------------
+function renderOptimisation() {
+  _initDIEngines();
+  const bv = document.getElementById('opt-budget-val');
+  const b = document.getElementById('opt-budget');
+  if (bv && b) bv.textContent = _diFormatCurrency(b.value);
+}
+
+function runPortfolioOptimisation() {
+  _initDIEngines();
+  _ensureScenarios();
+  if (!_optEngine) { toast('Optimisation engine not loaded', true); return; }
+  const scenarios = model.scenarios.filter(s=>s.changes&&s.changes.length>0);
+  if (!scenarios.length) { toast('Create at least one scenario with changes first', true); return; }
+  const budget = parseFloat(document.getElementById('opt-budget')?.value)||2e6;
+  const risk = parseFloat(document.getElementById('opt-risk')?.value)||0.5;
+  const result = _optEngine.optimizePortfolio(scenarios, budget, risk);
+
+  const renderItem = (sc, classes) => {
+    const m = _finEngine ? _finEngine.evaluateScenario(sc) : { npv:0, roi:0 };
+    const cost = (sc.changes||[]).filter(c=>c.costChange<0).reduce((s,c)=>s+Math.abs(c.costChange),0);
+    return `<div class="p-3 rounded-lg border ${classes} mb-2">
+      <div class="font-bold text-[11px] text-slate-700">${_diEsc(sc.name)}</div>
+      <div class="text-[10px] text-slate-500 mt-0.5">Cost: ${_diFormatCurrency(cost)} \u00b7 NPV: ${_diFormatCurrency(m.npv)} \u00b7 ROI: ${m.roi}%</div>
+    </div>`;
+  };
+
+  const selEl = document.getElementById('opt-selected');
+  if (selEl) selEl.innerHTML = result.selected.length
+    ? result.selected.map(s=>renderItem(s,'border-green-200 bg-green-50')).join('')
+    : '<div class="text-slate-400 italic text-[11px] text-center py-4">No initiatives fit in budget</div>';
+
+  const rejEl = document.getElementById('opt-rejected');
+  if (rejEl) rejEl.innerHTML = result.rejected.length
+    ? result.rejected.map(s=>renderItem(s,'border-red-100 bg-red-50')).join('')
+    : '<div class="text-slate-400 italic text-[11px] text-center py-4">All selected</div>';
+
+  const expEl = document.getElementById('opt-explanation');
+  const expTxt = document.getElementById('opt-explanation-text');
+  if (expEl && expTxt) { expTxt.textContent = result.explanation; expEl.classList.remove('hidden'); }
+  toast('Portfolio optimised');
+}

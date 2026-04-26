@@ -27,6 +27,149 @@
  * - Reference specific priorities, challenges, and constraints from the profile
  */
 
+// ═══════════════════════════════════════════════════════════════════════════
+// UNIFIED AI INSTRUCTION (Business-Object Mode)
+// Version: v1-20260425
+// ═══════════════════════════════════════════════════════════════════════════
+
+const BUSINESS_OBJECTIVES_UNIFIED_INSTRUCTION_V1 = `You are a senior enterprise strategy advisor.
+
+Your task is to transform raw discovery input into a structured, validated, and decision-ready set of business objectives.
+
+Perform the following steps in sequence:
+
+1. STRUCTURE BUSINESS CONTEXT
+Extract and organize:
+- Industry and market context
+- Customer segments and value drivers
+- Key products/services
+- Competitive positioning
+- Strategic challenges
+- Constraints (financial, regulatory, technical)
+
+Also identify missing or unclear information.
+
+2. IDENTIFY STRATEGIC THEMES
+Define 4–6 distinct strategic themes that reflect:
+- Growth
+- Efficiency
+- Risk/compliance
+- Sustainability (if relevant)
+
+Provide name, description, and rationale for each.
+
+3. GENERATE BUSINESS OBJECTIVES
+Create a set of objectives aligned to the themes.
+
+For each objective include:
+- Title
+- Description
+- Category (Growth, Efficiency, Risk, Sustainability)
+- KPI (measurable)
+- Target value
+- Time horizon (e.g. 2026)
+
+Rules:
+- Objectives must be specific and measurable
+- Avoid duplication and overlap
+- Focus on outcomes, not activities
+
+4. IMPROVE OBJECTIVE QUALITY
+Review and refine objectives:
+- Remove vague or non-measurable wording
+- Eliminate overlaps
+- Ensure each objective has a clear KPI
+
+Rewrite where needed.
+
+5. DETECT STRATEGIC GAPS
+Identify missing objectives in areas such as:
+- Digital transformation
+- Data and AI enablement
+- Customer experience
+- Operational efficiency
+- Risk/compliance
+
+Propose additional objectives with justification.
+
+6. PRIORITIZE OBJECTIVES
+Classify each objective:
+- High, Medium, Low priority
+
+Based on:
+- Business impact
+- Urgency
+- Strategic importance
+
+Provide reasoning.
+
+7. VALIDATE KPIs
+Ensure all KPIs are:
+- Measurable
+- Outcome-based
+- Realistic and meaningful
+
+Improve where needed.
+
+8. CHECK CONSISTENCY
+Identify:
+- Conflicts between objectives
+- Misalignment or dependencies
+
+Suggest corrections.
+
+9. PRODUCE FINAL OUTPUT
+
+Return ONLY valid JSON with this EXACT structure (no other text):
+
+{
+  "businessContext": {
+    "industry": "string",
+    "market_summary": "string",
+    "customer_segments": ["string"],
+    "value_drivers": ["string"],
+    "products_services": ["string"],
+    "challenges": ["string"],
+    "constraints": ["string"],
+    "missing_information": ["string"]
+  },
+  "strategicThemes": [
+    {
+      "name": "string",
+      "description": "string",
+      "rationale": "string"
+    }
+  ],
+  "businessObjectives": [
+    {
+      "title": "string",
+      "description": "string",
+      "category": "Growth|Efficiency|Risk|Sustainability",
+      "kpi": "string",
+      "target_value": "string",
+      "time_horizon": "string (YYYY or QN YYYY format)",
+      "priority": "High|Medium|Low",
+      "rationale": "string",
+      "linked_themes": ["theme names"]
+    }
+  ],
+  "gapInsights": [
+    {
+      "type": "Missing Objective|Weak KPI|Conflict",
+      "description": "string",
+      "recommendation": "string"
+    }
+  ]
+}
+
+CRITICAL RULES:
+- Output must be valid JSON only
+- Structured and non-redundant
+- Free from assumptions not supported by input
+- Include 4-6 strategic themes
+- Include 3-5 business objectives minimum
+- All objectives must have KPI, target_value, time_horizon`;
+
 // Helper: Build context string from organizationProfile or fallback
 function _buildStep1Context(ctx) {
   const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
@@ -61,6 +204,39 @@ CRITICAL: Use the specific priorities, challenges, and constraints from above. D
   return `Company description: "${ctx.companyDescription || 'Not provided'}"`;
 }
 
+// Helper: Calculate string similarity (for duplicate detection)
+function calculateSimilarity(str1, str2) {
+  const longer = str1.length > str2.length ? str1 : str2;
+  const shorter = str1.length > str2.length ? str2 : str1;
+  
+  if (longer.length === 0) return 1.0;
+  
+  const editDistance = (s1, s2) => {
+    s1 = s1.toLowerCase();
+    s2 = s2.toLowerCase();
+    const costs = [];
+    for (let i = 0; i <= s1.length; i++) {
+      let lastValue = i;
+      for (let j = 0; j <= s2.length; j++) {
+        if (i === 0) {
+          costs[j] = j;
+        } else if (j > 0) {
+          let newValue = costs[j - 1];
+          if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
+            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+          }
+          costs[j - 1] = lastValue;
+          lastValue = newValue;
+        }
+      }
+      if (i > 0) costs[s2.length] = lastValue;
+    }
+    return costs[s2.length];
+  };
+  
+  return (longer.length - editDistance(longer, shorter)) / parseFloat(longer.length);
+}
+
 const Step1 = {
 
   id: 'step1',
@@ -73,16 +249,14 @@ const Step1 = {
     const allTasks = this._allTasks;
     
     if (mode === 'business-object') {
-      // Business Object Mode: Description-driven workflow
-      // 1. User pastes business objectives description
-      // 2. AI analyzes completeness
-      // 3. Conditionally ask only missing questions
-      // 4. Synthesize and validate
+      // Business Object Mode: Unified AI instruction workflow
+      // 1. User pastes business objectives description (with optional file upload)
+      // 2. AI executes unified 8-step instruction to generate structured output
+      // 3. User validates with interactive UI (inline editing, export)
       
       const baseFlow = [
         allTasks.find(t => t.taskId === 'step1_business_objectives_input'),
-        allTasks.find(t => t.taskId === 'step1_analyze_objectives'),
-        allTasks.find(t => t.taskId === 'step1_synthesize'),
+        allTasks.find(t => t.taskId === 'step1_unified_generation'),
         allTasks.find(t => t.taskId === 'step1_validate')
       ].filter(Boolean);
       
@@ -112,7 +286,7 @@ const Step1 = {
         title: 'Business Objectives Input',
         prompt: `**Welcome to Business Objective Mode!**
 
-Paste your business objectives, constraints, and success metrics below. The AI will analyze your input and generate a complete Business Context.
+Paste your business objectives, constraints, and success metrics below. You can also upload a document (PDF, DOCX, or TXT) to extract text automatically.
 
 **Include:**
 - Primary business objectives you want to achieve
@@ -123,25 +297,36 @@ Paste your business objectives, constraints, and success metrics below. The AI w
 **Example:**
 We need to reduce operational costs by 20% while improving customer satisfaction scores from 3.2 to 4.5 within 18 months. Key constraint: Limited to $2M budget and must comply with GDPR. Success metrics: Cost per transaction, NPS score, time-to-market for new products.
 
-**Tip:** The more detail you provide, the fewer clarifying questions the AI will need to ask.`,
-        placeholder: 'Paste your business objectives description here (minimum 100 words recommended)...',
+**File Upload:** Click the upload button above to extract text from PDF, DOCX, or TXT files (max 10MB).
+
+**Tip:** The more detail you provide, the richer the generated Business Context will be.`,
+        placeholder: 'Paste your business objectives description here, or upload a document...',
         minLength: 50,
+        supportsFileUpload: true, // Signal to UI that file upload should be enabled
+        acceptedFileTypes: ['.pdf', '.docx', '.txt'],
+        maxFileSize: 10 * 1024 * 1024, // 10MB
         validate: (text) => {
           if (!text || text.trim().length < 50) {
-            return { valid: false, error: 'Please provide at least 50 characters describing your business objectives.' };
+            return { valid: false, error: 'Please provide at least 50 characters describing your business objectives (or upload a document).' };
           }
           return { valid: true };
         }
       }),
       
-      parseOutput: (text) => ({ businessObjectivesInput: text.trim() }),
-      wrapAnswer: (answer) => ({ businessObjectivesInput: answer })
+      parseOutput: (text) => ({ 
+        businessObjectivesInput: text.trim(),
+        extractedFileText: window._step1FileUploadText || '' // Store file upload text if available
+      }),
+      wrapAnswer: (answer) => ({ 
+        businessObjectivesInput: answer.businessObjectivesInput || answer,
+        extractedFileText: answer.extractedFileText || ''
+      })
     },
 
-    // ── Task 1.0-BO2: Analyze Business Objectives (Business Object Mode only) ─
+    // ── Task 1.0-BO2: Unified Generation (Business Object Mode only) ─
     {
-      taskId: 'step1_analyze_objectives',
-      title: 'Analyzing your business objectives',
+      taskId: 'step1_unified_generation',
+      title: 'Generating structured business objectives',
       type: 'internal',
       taskType: 'general',
       expectsJson: true,
@@ -151,77 +336,201 @@ We need to reduce operational costs by 20% while improving customer satisfaction
         return mode === 'business-object' && ctx.answers?.step1_business_objectives_input;
       },
       
-      systemPromptFallback: `You are an Enterprise Architecture advisor analyzing business objectives input.
-
-Your task: Extract structured data from the user's business objectives description and determine completeness.
-
-Return ONLY valid JSON:
-{
-  "org_name": "extracted or 'Unknown'",
-  "industry": "extracted or 'Unknown'",
-  "primaryObjectives": ["objective 1", "objective 2"],
-  "constraints": [{"type": "Financial|Operational|Organisational|Technical|External", "description": "..."}],
-  "successMetrics": ["metric 1", "metric 2"],
-  "keyChallenges": ["challenge 1"],
-  "strategicVision": {"ambition": "...", "themes": [], "timeframe": "..."},
-  "completeness": {
-    "hasObjectives": true/false,
-    "hasConstraints": true/false,
-    "hasMetrics": true/false,
-    "score": 0-100,
-    "missingFields": ["list of missing critical fields"]
-  }
-}`,
+      systemPromptFallback: BUSINESS_OBJECTIVES_UNIFIED_INSTRUCTION_V1,
       
       userPrompt: (ctx) => {
         const input = ctx.answers?.step1_business_objectives_input?.businessObjectivesInput || '';
-        return `Analyze this business objectives description and extract structured data:
-
----
-${input}
----
-
-Extract:
-1. Organization name (if mentioned)
-2. Industry (if mentioned or inferable)
-3. Primary business objectives (2-5 specific goals)
-4. Constraints with types: Financial, Operational, Organisational, Technical, External
-5. Success metrics/KPIs (measurable outcomes)
-6. Key challenges (pain points driving change)
-7. Strategic vision (ambition, themes, timeframe)
-
-Then assess completeness:
-- hasObjectives: Are there clear, specific objectives?
-- hasConstraints: Are constraints explicitly mentioned?
-- hasMetrics: Are success metrics/KPIs defined?
-- score: Overall completeness (0-100)
-- missingFields: What critical info is missing?
-
-Return ONLY valid JSON with the structure specified in the system prompt.`;
+        const fileText = ctx.answers?.step1_business_objectives_input?.extractedFileText || '';
+        const fullInput = fileText ? `${input}\n\n=== EXTRACTED FROM FILE ===\n${fileText}` : input;
+        
+        return `Transform the following raw discovery input into validated, structured business objectives:\n\n---\n${fullInput}\n---\n\nRemember to return ONLY valid JSON matching the schema specified in the system prompt.`;
       },
       
-      outputSchema: { 
-        org_name: 'string',
-        industry: 'string',
-        primaryObjectives: ['string'],
-        constraints: [{ type: 'string', description: 'string' }],
-        successMetrics: ['string'],
-        completeness: { score: 'number', missingFields: ['string'] }
+      outputSchema: {
+        businessContext: {
+          industry: 'string',
+          market_summary: 'string',
+          customer_segments: ['string'],
+          value_drivers: ['string'],
+          products_services: ['string'],
+          challenges: ['string'],
+          constraints: ['string'],
+          missing_information: ['string']
+        },
+        strategicThemes: [{
+          name: 'string',
+          description: 'string',
+          rationale: 'string'
+        }],
+        businessObjectives: [{
+          title: 'string',
+          description: 'string',
+          category: 'string',
+          kpi: 'string',
+          target_value: 'string',
+          time_horizon: 'string',
+          priority: 'string',
+          rationale: 'string',
+          linked_themes: ['string']
+        }],
+        gapInsights: [{
+          type: 'string',
+          description: 'string',
+          recommendation: 'string'
+        }]
       },
       
       parseOutput: (raw) => {
         try {
           const parsed = JSON.parse(raw);
+          
+          // Validation
+          const validCategories = ['Growth', 'Efficiency', 'Risk', 'Sustainability'];
+          const validPriorities = ['High', 'Medium', 'Low'];
+          const validGapTypes = ['Missing Objective', 'Weak KPI', 'Conflict'];
+          
+          // Validate business context
+          if (!parsed.businessContext || !parsed.businessContext.industry) {
+            console.warn('[Step1] Missing business context industry');
+          }
+          
+          // Validate strategic themes (4-6)
+          if (!parsed.strategicThemes || parsed.strategicThemes.length < 4 || parsed.strategicThemes.length > 6) {
+            console.warn('[Step1] Strategic themes should be 4-6, got:', parsed.strategicThemes?.length);
+          }
+          
+          // Validate and normalize business objectives
+          if (parsed.businessObjectives && Array.isArray(parsed.businessObjectives)) {
+            parsed.businessObjectives = parsed.businessObjectives.map((obj, idx) => {
+              // Normalize category
+              if (obj.category) {
+                const normalizedCategory = obj.category.charAt(0).toUpperCase() + obj.category.slice(1).toLowerCase();
+                if (validCategories.includes(normalizedCategory)) {
+                  obj.category = normalizedCategory;
+                } else {
+                  console.warn(`[Step1] Invalid category "${obj.category}" for objective ${idx}, defaulting to "Efficiency"`);
+                  obj.category = 'Efficiency';
+                }
+              }
+              
+              // Normalize priority
+              if (obj.priority) {
+                const normalizedPriority = obj.priority.charAt(0).toUpperCase() + obj.priority.slice(1).toLowerCase();
+                if (validPriorities.includes(normalizedPriority)) {
+                  obj.priority = normalizedPriority;
+                } else {
+                  console.warn(`[Step1] Invalid priority "${obj.priority}" for objective ${idx}, defaulting to "Medium"`);
+                  obj.priority = 'Medium';
+                }
+              }
+              
+              // Validate time_horizon format
+              if (obj.time_horizon && !/^\d{4}$|^Q[1-4]\s\d{4}$/.test(obj.time_horizon)) {
+                console.warn(`[Step1] Invalid time_horizon format "${obj.time_horizon}" for objective ${idx}`);
+              }
+              
+              // Check required fields
+              if (!obj.title || !obj.kpi || !obj.target_value) {
+                console.warn(`[Step1] Objective ${idx} missing required fields`);
+              }
+              
+              // Generate ID
+              obj.id = `obj-${Date.now()}-${idx}`;
+              obj.isModified = false;
+              obj.generated_at = Date.now();
+              
+              return obj;
+            });
+            
+            // Check for duplicates (>85% similarity)
+            const titles = parsed.businessObjectives.map(o => o.title.toLowerCase());
+            for (let i = 0; i < titles.length; i++) {
+              for (let j = i + 1; j < titles.length; j++) {
+                const similarity = calculateSimilarity(titles[i], titles[j]);
+                if (similarity > 0.85) {
+                  console.warn(`[Step1] Potential duplicate objectives: "${titles[i]}" and "${titles[j]}" (${Math.round(similarity * 100)}% similar)`);
+                }
+              }
+            }
+          }
+          
+          // Validate gap insights
+          if (parsed.gapInsights && Array.isArray(parsed.gapInsights)) {
+            parsed.gapInsights = parsed.gapInsights.map((gap, idx) => {
+              // Normalize type
+              if (gap.type && !validGapTypes.includes(gap.type)) {
+                console.warn(`[Step1] Invalid gap type "${gap.type}" for gap ${idx}`);
+              }
+              
+              gap.id = `gap-${Date.now()}-${idx}`;
+              return gap;
+            });
+          }
+          
+          // Add strategic themes IDs
+          if (parsed.strategicThemes && Array.isArray(parsed.strategicThemes)) {
+            parsed.strategicThemes = parsed.strategicThemes.map((theme, idx) => {
+              theme.id = `theme-${Date.now()}-${idx}`;
+              return theme;
+            });
+          }
+          
           return parsed;
+          
         } catch (e) {
-          console.error('[Step1] Failed to parse objectives analysis:', e);
+          console.error('[Step1] Failed to parse unified generation output:', e);
+          console.error('[Step1] Raw output:', raw);
           return {
-            completeness: { score: 0, hasObjectives: false, hasConstraints: false, hasMetrics: false, missingFields: ['all'] }
+            businessContext: { industry: 'Unknown', challenges: ['Failed to parse'], constraints: [], missing_information: ['All fields'] },
+            strategicThemes: [],
+            businessObjectives: [],
+            gapInsights: [{ type: 'Missing Objective', description: 'AI output parsing failed', recommendation: 'Please try again' }]
           };
         }
       },
       
-      wrapAnswer: (answer) => ({ objectivesAnalysis: answer })
+      wrapAnswer: (answer) => ({ unifiedGeneration: answer }),
+      
+      // Store generated entities in model
+      onComplete: (output, ctx) => {
+        if (!window.model) window.model = {};
+        
+        // Enhanced Business Context
+        window.model.businessContext = {
+          ...output.businessContext,
+          generated_at: Date.now(),
+          instruction_version: 'v1-20260425'
+        };
+        
+        // Strategic Themes
+        window.model.strategicThemes = output.strategicThemes || [];
+        
+        // Business Objectives
+        window.model.businessObjectives = output.businessObjectives || [];
+        
+        // Gap Insights
+        window.model.gapInsights = output.gapInsights || [];
+        
+        // AI Processing Log
+        if (!window.model.aiProcessingLog) window.model.aiProcessingLog = [];
+        window.model.aiProcessingLog.push({
+          id: `log-${Date.now()}`,
+          step: 'step1',
+          instruction_version: 'v1-20260425',
+          input_reference: ctx.answers?.step1_business_objectives_input?.businessObjectivesInput?.substring(0, 500),
+          has_file_upload: !!ctx.answers?.step1_business_objectives_input?.extractedFileText,
+          output_reference: output,
+          timestamp: Date.now()
+        });
+        
+        window.model.businessContextConfirmed = false;
+        
+        console.log('[Step1] Unified generation complete:', {
+          themes: window.model.strategicThemes.length,
+          objectives: window.model.businessObjectives.length,
+          gaps: window.model.gapInsights.length
+        });
+      }
     },
 
     // ── Task 1.0: Context Engine (Step0) ──────────────────────────────────
@@ -251,7 +560,7 @@ Return ONLY valid JSON — no prose, no markdown.`,
 
       userPrompt: (ctx) => {
         // Re-use the Step0 user prompt builder
-        return Step0.tasks[1].userPrompt(ctx);  // Note: Changed to tasks[1] since Step0 now has rich profile as first task
+        return Step0.tasks[0].userPrompt(ctx);
       },
 
       parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step1_0_context'),
@@ -563,35 +872,16 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
       parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step1_q7b_ai_role'),
       wrapAnswer: (answer) => ({ q7b_ai_role: answer })
     },
-    // ── Task 1.8: Synthesise Strategic Intent ─────────────────────────────
+    // ── Task 1.8: Synthesise Business Objectives ─────────────────────────────
     {
       taskId: 'step1_synthesize',
-      title: 'Synthesising Strategic Intent',
+      title: 'Synthesising Business Objectives',
       type: 'internal',
       taskType: 'heavy',
       instructionFile: '1_8_synthesize.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: (ctx) => {
-        const step1sys = window._stepPrompts?.step_1 || '';
-        const basePrompt = step1sys && step1sys.trim().length > 80
-          ? step1sys
-          : `You are a senior strategy advisor with 15+ years of cross-industry experience. Translate the company description and interview answers into a structured Strategic Intent brief for a Senior Enterprise Architect. C-level tone. Do NOT invent specifics not stated — mark unknowns as [to be confirmed].`;
-
-        return basePrompt + `\n\nOutput requirements — Return ONLY valid JSON (no markdown, no explanation):
-{"org_name":"","industry":"","timeframe":"3-5 years","strategic_ambition":"","situation_narrative":"","strategic_themes":["","",""],"ai_transformation_themes":["",""],"investigation_scope":["","","","",""],"key_constraints":["","","","",""],"success_metrics":["","","","","",""],"key_assumptions_to_validate":["","","","","",""],"expected_outcomes":["","",""],"burning_platform":"","assumptions_and_caveats":[""]}
-
-Rules:
-- strategic_ambition: 1 sentence, executive tone, no invented numbers
-- situation_narrative: 2-3 sentences, grounded in what user stated
-- strategic_themes: exactly 3, plain English, max 8 words each
-- ai_transformation_themes: 2-4 AI/automation use cases from Q7b (or empty array [] if "No AI plans")
-- key_constraints: exactly 5, one each for Operational|Financial|Organisational|Technical|External prefixed with label
-- success_metrics: 5-6, use "Reduction in / Improvement in / Increase in" framing
-- key_assumptions_to_validate: 5-8 engagement assumptions (strategic, not data gaps)
-- expected_outcomes: exactly 3
-- assumptions_and_caveats: DATA GAPS ONLY — attributes inferred but not stated by user`;
-      },
+      systemPromptFallback: BUSINESS_OBJECTIVES_UNIFIED_INSTRUCTION_V1,
 
       userPrompt: (ctx) => {
         const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
@@ -618,7 +908,10 @@ Rules:
           const constraints = (profile.constraints || []).map(c => `• ${c.type || 'N/A'}: ${c.description}`).join('\n');
           const offerings = (profile.offerings || []).map(o => `• ${o.name}: ${o.description || 'N/A'}`).join('\n');
           
-          return `**ORGANIZATION PROFILE (${completeness}% complete — PRIMARY CONTEXT):**
+          return `Transform the following raw discovery input into validated, structured business objectives:
+
+---
+**ORGANIZATION PROFILE (${completeness}% complete — PRIMARY CONTEXT):**
 
 Organization: ${profile.organizationName} (${profile.industry})
 Size: ${profile.companySize?.employees || 'N/A'} employees, ${profile.companySize?.sizeCategory || 'N/A'}
@@ -653,150 +946,221 @@ ${offerings || 'None specified'}
 - Growth Rate: ${profile.financial?.growthRate || 'Unknown'}
 - Investment Capacity: ${profile.financial?.investmentCapacity || 'Unknown'}
 
-**Interview answers (refinements/confirmations):**
+**Interview Answers (refinements/confirmations):**
 ${qa || '(no additional answers)'}
+---
 
-**CRITICAL INSTRUCTION:** Use the Strategic Priorities, Challenges, Opportunities, and Constraints from the profile as the PRIMARY source. The interview answers are supplements only. Do NOT mark profile data as [to be confirmed].
+**CRITICAL INSTRUCTION:** Use the Strategic Priorities, Challenges, Opportunities, and Constraints from the profile as the PRIMARY source. The interview answers are supplements only.
 
-Synthesise a complete Strategic Intent document grounded in the Rich Profile data above.
-
-Return JSON with format: {
-  "org_name": "string",
-  "industry": "string",
-  "timeframe": "3-5 years",
-  "strategic_ambition": "string",
-  "situation_narrative": "string",
-  "strategic_themes": ["string", "string", "string"],
-  "ai_transformation_themes": ["string"],
-  "investigation_scope": ["string"],
-  "key_constraints": ["string"],
-  "success_metrics": ["string"],
-  "key_assumptions_to_validate": ["string"],
-  "expected_outcomes": ["string"],
-  "burning_platform": "string",
-  "assumptions_and_caveats": ["string"]
-}`;
+Remember to return ONLY valid JSON matching the schema specified in the system prompt.`;
         }
 
         // Quick Start fallback
-        return `Company description: "${ctx.companyDescription}"
+        return `Transform the following raw discovery input into validated, structured business objectives:
+
+---
+Company description: "${ctx.companyDescription}"
 
 Interview answers:
 ${qa || '(no answers provided)'}
+---
 
-Synthesise a complete Strategic Intent document. Treat the interview answers as ground truth — do not mark them as [to be confirmed].
+Treat the interview answers as ground truth.
 
-Return JSON with format: {
-  "org_name": "string",
-  "industry": "string",
-  "timeframe": "3-5 years",
-  "strategic_ambition": "string",
-  "situation_narrative": "string",
-  "strategic_themes": ["string", "string", "string"],
-  "investigation_scope": ["string"],
-  "key_constraints": ["string"],
-  "success_metrics": ["string"],
-  "key_assumptions_to_validate": ["string"],
-  "expected_outcomes": ["string"],
-  "burning_platform": "string",
-  "assumptions_and_caveats": ["string"]
-}`;
+Remember to return ONLY valid JSON matching the schema specified in the system prompt.`;
       },
 
       outputSchema: {
-        strategic_ambition: 'string',
-        situation_narrative: 'string',
-        strategic_themes: ['string'],
-        key_constraints: ['string'],
-        success_metrics: ['string'],
-        expected_outcomes: ['string']
+        businessContext: {
+          industry: 'string',
+          market_summary: 'string',
+          customer_segments: ['string'],
+          value_drivers: ['string'],
+          products_services: ['string'],
+          challenges: ['string'],
+          constraints: ['string'],
+          missing_information: ['string']
+        },
+        strategicThemes: [{
+          name: 'string',
+          description: 'string',
+          rationale: 'string'
+        }],
+        businessObjectives: [{
+          title: 'string',
+          description: 'string',
+          category: 'string',
+          kpi: 'string',
+          target_value: 'string',
+          time_horizon: 'string',
+          priority: 'string',
+          rationale: 'string',
+          linked_themes: ['string']
+        }],
+        gapInsights: [{
+          type: 'string',
+          description: 'string',
+          recommendation: 'string'
+        }]
       },
 
       parseOutput: (raw) => {
-        const parsed = OutputValidator.parseJSON(raw, 'step1_synthesize');
-        // Strip _meta if present
-        if (parsed._meta) {
-          if (window.model) { window.model.stepMeta = window.model.stepMeta || {}; window.model.stepMeta[1] = parsed._meta; }
-          delete parsed._meta;
-        }
-        
-        // ========== PHASE 6 FIX: Map legacy field names to new businessContext structure ==========
-        // AI outputs key_constraints (legacy format), but businessContext expects constraints
-        if (parsed.key_constraints && !parsed.constraints) {
-          parsed.constraints = parsed.key_constraints.map(constraint => {
-            // Extract type prefix if present (e.g., "Operational: ..." → type: "Operational", description: "...")
-            const match = constraint.match(/^(Operational|Financial|Organisational|Technical|External):\s*(.+)$/i);
-            if (match) {
-              return { type: match[1], description: match[2].trim() };
-            }
-            return { type: 'General', description: constraint };
-          });
-          delete parsed.key_constraints; // Remove legacy field
-        }
-        
-        // Map success_metrics to successMetrics with structured format
-        if (parsed.success_metrics && !parsed.successMetrics) {
-          parsed.successMetrics = parsed.success_metrics.map(metric => ({
-            metric: metric,
-            target: '',
-            timeframe: ''
-          }));
-          delete parsed.success_metrics; // Remove legacy field
-        }
-        
-        // Map key_challenges to keyChallenges with structured format
-        if (parsed.key_challenges && !parsed.keyChallenges) {
-          parsed.keyChallenges = parsed.key_challenges.map((challenge, idx) => ({
-            id: `ch${idx + 1}`,
-            challenge: challenge,
-            impact: 'Medium',
-            category: 'General'
-          }));
-          delete parsed.key_challenges; // Remove legacy field
-        }
-        
-        // Wrap strategic_ambition in strategicVision structure (demoted from primary driver)
-        if (parsed.strategic_ambition && !parsed.strategicVision) {
-          parsed.strategicVision = {
-            ambition: parsed.strategic_ambition,
-            themes: parsed.strategic_themes || [],
-            timeframe: parsed.timeframe || ''
+        try {
+          const parsed = JSON.parse(raw);
+          
+          // Validation
+          const validCategories = ['Growth', 'Efficiency', 'Risk', 'Sustainability'];
+          const validPriorities = ['High', 'Medium', 'Low'];
+          const validGapTypes = ['Missing Objective', 'Weak KPI', 'Conflict'];
+          
+          // Validate business context
+          if (!parsed.businessContext || !parsed.businessContext.industry) {
+            console.warn('[Step1] Missing business context industry');
+          }
+          
+          // Validate strategic themes (4-6)
+          if (!parsed.strategicThemes || parsed.strategicThemes.length < 4 || parsed.strategicThemes.length > 6) {
+            console.warn('[Step1] Strategic themes should be 4-6, got:', parsed.strategicThemes?.length);
+          }
+          
+          // Validate and normalize business objectives
+          if (parsed.businessObjectives && Array.isArray(parsed.businessObjectives)) {
+            parsed.businessObjectives = parsed.businessObjectives.map((obj, idx) => {
+              // Normalize category
+              if (obj.category) {
+                const normalizedCategory = obj.category.charAt(0).toUpperCase() + obj.category.slice(1).toLowerCase();
+                if (validCategories.includes(normalizedCategory)) {
+                  obj.category = normalizedCategory;
+                } else {
+                  console.warn(`[Step1] Invalid category "${obj.category}" for objective ${idx}, defaulting to "Efficiency"`);
+                  obj.category = 'Efficiency';
+                }
+              }
+              
+              // Normalize priority
+              if (obj.priority) {
+                const normalizedPriority = obj.priority.charAt(0).toUpperCase() + obj.priority.slice(1).toLowerCase();
+                if (validPriorities.includes(normalizedPriority)) {
+                  obj.priority = normalizedPriority;
+                } else {
+                  console.warn(`[Step1] Invalid priority "${obj.priority}" for objective ${idx}, defaulting to "Medium"`);
+                  obj.priority = 'Medium';
+                }
+              }
+              
+              // Validate time_horizon format
+              if (obj.time_horizon && !/^\d{4}$|^Q[1-4]\s\d{4}$/.test(obj.time_horizon)) {
+                console.warn(`[Step1] Invalid time_horizon format "${obj.time_horizon}" for objective ${idx}`);
+              }
+              
+              // Check required fields
+              if (!obj.title || !obj.kpi || !obj.target_value) {
+                console.warn(`[Step1] Objective ${idx} missing required fields`);
+              }
+              
+              // Generate ID
+              obj.id = `obj-${Date.now()}-${idx}`;
+              obj.isModified = false;
+              obj.generated_at = Date.now();
+              
+              return obj;
+            });
+          }
+          
+          // Validate gap insights
+          if (parsed.gapInsights && Array.isArray(parsed.gapInsights)) {
+            parsed.gapInsights = parsed.gapInsights.map((gap, idx) => {
+              // Normalize type
+              if (gap.type && !validGapTypes.includes(gap.type)) {
+                console.warn(`[Step1] Invalid gap type "${gap.type}" for gap ${idx}`);
+              }
+              
+              gap.id = `gap-${Date.now()}-${idx}`;
+              return gap;
+            });
+          }
+          
+          // Add strategic themes IDs
+          if (parsed.strategicThemes && Array.isArray(parsed.strategicThemes)) {
+            parsed.strategicThemes = parsed.strategicThemes.map((theme, idx) => {
+              theme.id = `theme-${Date.now()}-${idx}`;
+              return theme;
+            });
+          }
+          
+          // Store references for backward compatibility
+          if (window.model) {
+            window.model.businessContext = parsed.businessContext;
+            window.model.strategicThemes = parsed.strategicThemes;
+            window.model.businessObjectives = parsed.businessObjectives;
+            window.model.gapInsights = parsed.gapInsights;
+          }
+          
+          return parsed;
+          
+        } catch (e) {
+          console.error('[Step1] Failed to parse synthesis output:', e);
+          console.error('[Step1] Raw output:', raw);
+          return {
+            businessContext: { industry: 'Unknown', challenges: ['Failed to parse'], constraints: [], missing_information: ['All fields'] },
+            strategicThemes: [],
+            businessObjectives: [],
+            gapInsights: [{ type: 'Missing Objective', description: 'AI output parsing failed', recommendation: 'Please try again' }]
           };
-          // Keep legacy fields for backward compatibility
-          // delete parsed.strategic_ambition;
-          // delete parsed.strategic_themes;
         }
-        
-        // Initialize enrichment structure
-        if (!parsed.enrichment) {
-          parsed.enrichment = (typeof BusinessContext !== 'undefined' && BusinessContext.initializeEnrichment) 
-            ? BusinessContext.initializeEnrichment()
-            : {
-                bmcInsights: {},
-                capabilityGaps: [],
-                operatingModelRisks: [],
-                criticalGaps: [],
-                valueStreamInsights: [],
-                roadmapConstraints: [],
-                validatedData: {},
-                questionnaireResponses: [],
-                completenessScore: 0
-              };
-        }
-        
-        return parsed;
       }
     },
 
     // ── Task 1.9: Show draft & await confirmation ─────────────────────────
     {
       taskId: 'step1_validate',
-      title: 'Review Strategic Intent',
-      type: 'question',
+      title: 'Review Business Context',
+      type: 'custom-ui', // Changed to custom-ui for rich interactive rendering
       generateQuestion: false,
       allowSkip: false,
+      
+      // Check which mode we're in to determine what to display
+      shouldRun: (ctx) => {
+        const mode = (typeof window !== 'undefined' && window.model) ? window.model.workflowMode : 'standard';
+        if (mode === 'business-object') {
+          return ctx.answers?.step1_unified_generation;
+        }
+        return ctx.answers?.step1_synthesize;
+      },
 
       question: (ctx) => {
+        const mode = (typeof window !== 'undefined' && window.model) ? window.model.workflowMode : 'standard';
+        
+        if (mode === 'business-object') {
+          // Business-object mode: Rich interactive UI (rendered by NexGenEA_V11.html)
+          // This is just a fallback for text-only rendering
+          const objectives = window.model?.businessObjectives || [];
+          const themes = window.model?.strategicThemes || [];
+          const gaps = window.model?.gapInsights || [];
+          const context = window.model?.businessContext || {};
+          
+          return `✅ **Business Context Generated** — AI has generated ${objectives.length} objectives, ${themes.length} strategic themes, and identified ${gaps.length} insights.
+
+**Business Context:**
+Industry: ${context.industry}
+Challenges: ${(context.challenges || []).join(', ')}
+Constraints: ${(context.constraints || []).join(', ')}
+
+**Strategic Themes (${themes.length}):**
+${themes.map(t => `• ${t.name}: ${t.description}`).join('\n')}
+
+**Business Objectives (${objectives.length}):**
+${objectives.map((obj, idx) => `${idx + 1}. ${obj.title} [${obj.category} - ${obj.priority}]\n   KPI: ${obj.kpi} | Target: ${obj.target_value} | Time: ${obj.time_horizon}`).join('\n\n')}
+
+**Gap Insights (${gaps.length}):**
+${gaps.map(g => `• ${g.type}: ${g.description}`).join('\n')}
+
+**Note:** Use the interactive table above to edit objectives, or export to JSON/CSV.
+
+Type "approve" to continue to Step 2.`;
+        }
+        
+        // Standard mode: Use the existing synthesis display
         const si = ctx.answers?.step1_synthesize || {};
         const themes = (si.strategic_themes || []).map(t => `• ${t}`).join('\n');
         const metrics = (si.success_metrics || []).slice(0, 3).map(m => `• ${m}`).join('\n');
@@ -814,17 +1178,21 @@ ${metrics}
 
 **Why this step?** This ensures the AI captured your intent correctly. Once confirmed, this becomes the foundation for all architecture decisions in the following steps.
 
-**Note:** Don't worry if it's not perfect yet — you'll be able to edit and refine the full Strategic Intent in the "Strategic Intent" tab after this step. You can also return to adjust it anytime before proceeding to Step 2.
-
-Does this capture the right direction? Select "Confirm" to proceed, or choose "Needs adjustment" and describe what to change in the chat box.`;
+Does this capture the right direction? Type "confirm" to proceed, or describe adjustments needed.`;
       },
 
-      options: ['Confirm — looks right', 'Needs adjustment — see note below'],
+      options: ['Approve and continue to Step 2', 'Edit objectives first'],
 
       wrapAnswer: (answer) => {
         try {
-          const confirmed = /confirm|looks right|yes|ja|ok|good|correct/i.test(answer);
+          const confirmed = /approve|confirm|looks right|yes|ja|ok|good|correct|continue/i.test(answer);
           console.log('[Step1] Validation answer:', answer, '| Confirmed:', confirmed);
+          
+          // Mark as confirmed in model
+          if (confirmed && window.model) {
+            window.model.businessContextConfirmed = true;
+          }
+          
           return {
             validation: answer,
             confirmed: confirmed
@@ -839,9 +1207,37 @@ Does this capture the right direction? Select "Confirm" to proceed, or choose "N
   ], // end tasks
 
   synthesize: (ctx) => {
-    // Business Object Mode: Use AI-analyzed objectives directly
+    // Business Object Mode: Use unified generation output directly
     const mode = (typeof window !== 'undefined' && window.model) ? window.model.workflowMode : 'standard';
     
+    if (mode === 'business-object' && ctx.answers?.step1_unified_generation) {
+      const unified = ctx.answers.step1_unified_generation.unifiedGeneration;
+      
+      // Transform to Business Context format (maintaining compatibility)
+      return {
+        org_name: unified.businessContext?.industry || 'Unknown',
+        industry: unified.businessContext?.industry || 'Unknown',
+        market_summary: unified.businessContext?.market_summary || '',
+        primaryObjectives: (unified.businessObjectives || []).map(obj => ({ objective: obj.title, description: obj.description })),
+        constraints: (unified.businessContext?.constraints || []).map(c => ({ type: 'General', description: c })),
+        successMetrics: (unified.businessObjectives || []).map(obj => ({ metric: obj.kpi })),
+        keyChallenges: (unified.businessContext?.challenges || []).map(ch => ({ challenge: ch })),
+        strategicVision: {
+          ambition: unified.businessContext?.market_summary || '',
+          themes: (unified.strategicThemes || []).map(t => t.name),
+          timeframe: unified.businessObjectives?.[0]?.time_horizon || '2026'
+        },
+        enrichment: {
+          source: 'business-object-unified-v1',
+          instruction_version: 'v1-20260425',
+          strategicThemes: unified.strategicThemes || [],
+          businessObjectives: unified.businessObjectives || [],
+          gapInsights: unified.gapInsights || []
+        }
+      };
+    }
+    
+    // Legacy mode support (if step1_analyze_objectives still exists in context)
     if (mode === 'business-object' && ctx.answers?.step1_analyze_objectives) {
       const analysis = ctx.answers.step1_analyze_objectives.objectivesAnalysis;
       
@@ -866,22 +1262,34 @@ Does this capture the right direction? Select "Confirm" to proceed, or choose "N
   },
 
   applyOutput: (output, model) => {
-    // NEW: Output to businessContext instead of strategicIntent
-    // Preserve strategicIntent for backward compatibility during migration
+    // Business Objectives structure
+    // Output contains: {businessContext, strategicThemes, businessObjectives, gapInsights}
+    
+    if (output.businessContext && output.businessObjectives) {
+      return {
+        ...model,
+        businessContext: {
+          ...output.businessContext,
+          generated_at: Date.now()
+        },
+        strategicThemes: output.strategicThemes || [],
+        businessObjectives: output.businessObjectives || [],
+        gapInsights: output.gapInsights || [],
+        businessContextConfirmed: true
+      };
+    }
+    
+    // Fallback for partial data
     return {
       ...model,
       businessContext: output,
-      businessContextConfirmed: true,  // NEW: Business Context confirmation
-      // Keep legacy for backward compatibility
-      strategicIntent: output,
-      strategicIntentConfirmed: true
+      businessContextConfirmed: true
     };
   },
 
   onComplete: (model) => {
-    // NEW: Render Business Context section (backward compat: also renders strategicIntent)
+    // Render Business Context section
     if (typeof renderBusinessContextSection === 'function') renderBusinessContextSection();
-    else if (typeof renderStrategicIntentSection === 'function') renderStrategicIntentSection();
     
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
     if (typeof updateWorkflowProgress === 'function') updateWorkflowProgress([1]);
@@ -889,10 +1297,10 @@ Does this capture the right direction? Select "Confirm" to proceed, or choose "N
       showTab('exec', findTabButton('exec'));
     }
     if (typeof StepEngine === 'object') StepEngine.stopSpinner('step1');
-    if (typeof toast === 'function') toast('Business Context confirmed ✓');  // RENAMED
+    if (typeof toast === 'function') toast('Business Context confirmed ✓');
 
     // Post-completion message in chat
-    const bc = model.businessContext || model.strategicIntent || {};  // NEW: Use businessContext
+    const bc = model.businessContext || {};
     if (typeof addAssistantMessage === 'function') {
       const objectives = (bc.primaryObjectives || []).map(o => o.objective).slice(0, 3).join(' · ');
       const vision = (bc.strategicVision && bc.strategicVision.ambition) ? bc.strategicVision.ambition : bc.strategic_ambition || '';
