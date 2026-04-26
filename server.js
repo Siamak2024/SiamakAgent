@@ -128,6 +128,15 @@ app.post('/api/openai/chat', async (req, res) => {
       return res.status(response.status).json(data);
     }
 
+    // Check if response is empty or malformed
+    if (!data || (Array.isArray(data.choices) && data.choices.length === 0)) {
+      console.error('[Server] Empty or malformed response from OpenAI:', data);
+      return res.status(500).json({ 
+        error: 'Empty response from OpenAI', 
+        details: 'The AI model returned an empty response'
+      });
+    }
+
     // Transform Chat Completions response back to Responses API format if needed
     if (isResponsesAPI) {
       const message = data.choices?.[0]?.message;
