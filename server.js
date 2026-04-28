@@ -35,7 +35,7 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 // Redirect /NexGenEA/ to main app
 app.get('/NexGenEA/', (req, res) => {
-  res.redirect('/NexGenEA/NexGen_EA_V4.html');
+  res.redirect('/NexGenEA/NexGenEA_V11.html');
 });
 
 // Redirect /NexGenEA/EA2_Toolkit/ to start page
@@ -68,42 +68,19 @@ app.post('/api/openai/chat', async (req, res) => {
     const fetch = (await import('node-fetch')).default;
 
     // Debug: Log incoming request body
-    console.log('[Server] Incoming request body:', JSON.stringify(req.body, null, 2));
+    console.log('[Server] Incoming request body (Responses API):', JSON.stringify(req.body, null, 2));
 
-    // Detect request format:
-    // Chat Completions uses { messages, model, ... }
-    // Legacy Responses API uses { input, instructions, model, ... }
-    const isResponsesAPI = req.body.input !== undefined && req.body.messages === undefined;
-    
-    let targetUrl = 'https://api.openai.com/v1/chat/completions';
-    let requestBody = { ...req.body };
+    // Use Responses API endpoint (no transformation needed - already in correct format)
+    const targetUrl = 'https://api.openai.com/v1/responses';
+    const requestBody = { ...req.body };
 
-    // Transform Responses API format to Chat Completions format
-    if (isResponsesAPI) {
-      const { input, instructions, reasoning, ...rest } = requestBody;
-      requestBody = {
-        ...rest,
-        messages: [
-          ...(instructions ? [{ role: 'system', content: instructions }] : []),
-          { role: 'user', content: input }
-        ]
-      };
-      
-      // Handle response_format conversion
-      if (requestBody.text?.format) {
-        requestBody.response_format = requestBody.text.format;
-        delete requestBody.text;
-      }
-      
-      // Filter out unsupported parameters for Chat Completions API
-      delete requestBody.reasoning;  // Only supported in o1/o3 models via different endpoint
-      delete requestBody.include;    // Responses API specific
-      delete requestBody.store;       // Responses API specific
-      delete requestBody.previous_response_id;  // Responses API specific
+    // Ensure store is set to true for stateful conversations (default in Responses API)
+    if (requestBody.store === undefined) {
+      requestBody.store = true;
     }
 
     // Debug: Log what we're sending to OpenAI
-    console.log('[Server] Sending to OpenAI:', JSON.stringify(requestBody, null, 2));
+    console.log('[Server] Sending to OpenAI Responses API:', JSON.stringify(requestBody, null, 2));
     console.log('[Server] Target URL:', targetUrl);
 
     // Give the upstream OpenAI call up to 5 minutes before forcing a server-side abort
@@ -128,24 +105,30 @@ app.post('/api/openai/chat', async (req, res) => {
       return res.status(response.status).json(data);
     }
 
-    // Transform Chat Completions response back to Responses API format if needed
-    if (isResponsesAPI) {
-      const message = data.choices?.[0]?.message;
-      const transformedData = {
-        id: data.id,
-        model: data.model,
-        output: [{
-          type: 'message',
-          content: [{
-            type: 'text',
-            text: message?.content || ''
-          }]
-        }],
-        output_text: message?.content || '',
-        usage: data.usage
-      };
-      return res.json(transformedData);
+    // Validate Responses API response structure
+    if (!data || !Array.isArray(data.output)) {
+      console.error('[Server] Invalid response structure from Responses API:', data);
+      return res.status(500).json({ 
+        error: 'Invalid response from OpenAI Responses API', 
+        details: 'Expected output array is missing'
+      });
     }
+
+    // Add output_text helper for easy access to message content
+    if (!data.output_text) {
+      const messageItem = data.output.find(item => item.type === 'message');
+      if (messageItem && messageItem.content) {
+        const textContent = messageItem.content.find(c => c.type === 'output_text' || c.type === 'text');
+        data.output_text = textContent?.text || '';
+      }
+    }
+
+    console.log('[Server] Response from Responses API:', {
+      id: data.id,
+      model: data.model,
+      outputItems: data.output.length,
+      outputText: data.output_text?.substring(0, 100) + '...'
+    });
 
     res.json(data);
   } catch (error) {

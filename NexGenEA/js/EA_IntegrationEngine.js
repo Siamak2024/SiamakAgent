@@ -19,7 +19,7 @@ class EA_IntegrationEngine {
     this.transformRules = this.initializeTransformRules();
     this.validationRules = this.initializeValidationRules();
     this.integrationLog = [];
-    console.log('🔗 EA Integration Engine loaded');
+    // console.log('🔗 EA Integration Engine loaded');
   }
 
   /**
@@ -29,7 +29,7 @@ class EA_IntegrationEngine {
     this.dataManager = dataManager;
     this.fileManager = fileManager;
     this.loadIntegrationLog();
-    console.log('✅ Integration Engine initialized');
+    // console.log('✅ Integration Engine initialized');
   }
 
   // ═══════════════════════════════════════════════════════════════

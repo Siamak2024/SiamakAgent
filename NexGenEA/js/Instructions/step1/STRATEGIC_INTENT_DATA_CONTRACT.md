@@ -12,17 +12,38 @@ Strategic Intent is a **simple flat object** with string and array fields. NO ne
 
 ---
 
-## Primary Schema (model.strategicIntent)
+## Primary Schema (model.businessContext)
 
 ```json
 {
-  "strategic_ambition": "String (2-3 sentences) — Executive summary of strategic direction",
-  "strategic_themes": ["theme 1", "theme 2", "theme 3", "theme 4"],
-  "success_metrics": ["metric 1 with target", "metric 2 with target", "metric 3"],
-  "strategic_constraints": ["constraint 1", "constraint 2"],
+  "strategicVision": {
+    "ambition": "String (2-3 sentences) — Executive summary of strategic direction",
+    "themes": ["theme 1", "theme 2", "theme 3", "theme 4"],
+    "timeframe": "String — Planning horizon (e.g., '3-5 years')"
+  },
+  "successMetrics": [
+    {
+      "metric": "Metric name and description",
+      "target": "Target value or outcome",
+      "timeframe": "When to achieve"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "Operational|Financial|Organisational|Technical|External",
+      "description": "Constraint description"
+    }
+  ],
+  "keyChallenges": [
+    {
+      "id": "String — Unique identifier",
+      "challenge": "Challenge description",
+      "impact": "High|Medium|Low",
+      "category": "Category name"
+    }
+  ],
   "situation_narrative": "Optional: Current state description",
   "burning_platform": "Optional: Urgency driver",
-  "key_constraints": ["Optional: Same as strategic_constraints or more detailed"],
   "investigation_scope": ["Optional: EA focus areas"],
   "key_assumptions_to_validate": ["Optional: Assumptions requiring validation"],
   "expected_outcomes": ["Optional: Expected results"]
@@ -33,46 +54,80 @@ Strategic Intent is a **simple flat object** with string and array fields. NO ne
 
 ## Field Specifications
 
-### strategic_ambition (STRING - REQUIRED)
-- **Type:** String (2-3 sentences)
-- **Format:** Executive-level strategic direction statement
-- **Pattern:** "We aim to become [position] by [timeframe] through [key approaches]. This will enable [outcome] and differentiate us via [differentiator]."
+### strategicVision (OBJECT - REQUIRED)
+- **Type:** Object with ambition, themes, and timeframe
+- **ambition (String):** 2-3 sentences — Executive-level strategic direction statement
+- **Format:** "We aim to become [position] by [timeframe] through [key approaches]. This will enable [outcome] and differentiate us via [differentiator]."
+- **themes (Array):** 3-5 action-oriented themes specific to industry
+- **timeframe (String):** Planning horizon (e.g., "3-5 years", "2024-2027")
 - **Industry-Specific:** Must reflect actual industry challenges and market dynamics
 - **NEVER:** Generic consulting language, vague aspirations without concrete direction
 
-### strategic_themes (ARRAY - REQUIRED)
-- **Type:** Array of strings (3-5 themes)
-- **Format:** Each theme is action-oriented, specific to industry
-- **Examples:**
-  - Real Estate: "PropTech Integration", "ESG Compliance (EU Taxonomy)", "Tenant Experience Digitization"
-  - Finance: "Open Banking API Platform", "AI-Driven Risk Management", "Core Banking Modernization"
-  - Public Sector: "Citizen Portal Unification", "Process Automation (RPA)", "Data Transparency"
-- **NEVER:** Generic themes like "Digital Transformation", "Innovation", "Customer Focus" without specificity
+**Examples:**
+- Real Estate: ["PropTech Integration", "ESG Compliance (EU Taxonomy)", "Tenant Experience Digitization"]
+- Finance: ["Open Banking API Platform", "AI-Driven Risk Management", "Core Banking Modernization"]
+- Public Sector: ["Citizen Portal Unification", "Process Automation (RPA)", "Data Transparency"]
 
-### success_metrics (ARRAY - REQUIRED)
-- **Type:** Array of strings (3-4 metrics with targets)
-- **Format:** "[Metric name]: [Current] → [Target] by [Timeframe]"
+### successMetrics (ARRAY - REQUIRED)
+- **Type:** Array of objects (3-4 metrics with structured targets)
+- **Format:** Each object contains:
+  - `metric`: "[Metric name and description]"
+  - `target`: "[Current] → [Target]"
+  - `timeframe`: "[When to achieve]"
 - **Examples:**
-  - "Cost-to-income ratio: 65% → 48% by 2027"
-  - "Digital adoption rate: 30% → 75% within 18 months"
-  - "Tenant NPS: 42 → 65 by end of 2026"
+  ```json
+  [
+    {
+      "metric": "Cost-to-income ratio improvement",
+      "target": "65% → 48%",
+      "timeframe": "by 2027"
+    },
+    {
+      "metric": "Digital adoption rate across customer base",
+      "target": "30% → 75%",
+      "timeframe": "within 18 months"
+    }
+  ]
+  ```
 - **Must include:** Baseline, target, timeframe (not just "increase X")
 - **NEVER:** Unmeasurable aspirations ("Improve satisfaction")
 
-### strategic_constraints (ARRAY - REQUIRED)
-- **Type:** Array of strings (2-3 constraints)
-- **Format:** Specific operational, regulatory, or resource constraints
+### constraints (ARRAY - REQUIRED)
+- **Type:** Array of objects (5 constraints covering all categories)
+- **Format:** Each object contains:
+  - `type`: "Operational" | "Financial" | "Organisational" | "Technical" | "External"
+  - `description`: Specific constraint description
 - **Examples:**
-  - "No budget for full ERP replacement; must modernize incrementally"
-  - "GDPR compliance mandatory; no non-EU cloud regions"
-  - "Legacy SAP R/3 must remain operational during 24-month migration"
+  ```json
+  [
+    {
+      "type": "Financial",
+      "description": "€12M transformation budget over 3 years; no CapEx for new datacenters"
+    },
+    {
+      "type": "Technical",
+      "description": "Legacy SAP R/3 must remain operational during 24-month migration"
+    },
+    {
+      "type": "External",
+      "description": "GDPR compliance mandatory; no non-EU cloud regions"
+    }
+  ]
+  ```
 - **Industry-Specific:** Real regulations (GDPR, Basel III, EU Taxonomy), real system names
 - **NEVER:** Generic constraints ("Limited budget", "Resistance to change")
+
+### keyChallenges (ARRAY - OPTIONAL)
+- **Type:** Array of objects describing primary business challenges
+- **Format:** Each object contains:
+  - `id`: Unique identifier (e.g., "ch1", "ch2")
+  - `challenge`: Challenge description
+  - `impact`: "High" | "Medium" | "Low"
+  - `category`: Category name (e.g., "Technology", "Process", "People")
 
 ### Optional Fields
 - **situation_narrative:** Current state context (1-2 sentences)
 - **burning_platform:** Why now? What's the urgency?
-- **key_constraints:** More detailed version of strategic_constraints
 - **investigation_scope:** EA focus areas (["Business Architecture", "Data Architecture", "Application Portfolio"])
 - **key_assumptions_to_validate:** Hypotheses requiring proof
 - **expected_outcomes:** Desired end-state results
@@ -130,17 +185,70 @@ Strategic Intent displayed in:
 
 ## ANTI-PATTERNS (NEVER DO THIS)
 
-❌ **WRONG:** `"strategic_ambition": "Become a digital leader"`  
-✅ **RIGHT:** `"strategic_ambition": "Become the leading PropTech-enabled property manager in Nordics by 2027 through AI-driven tenant services and ESG-compliant portfolio optimization, reducing operational costs by 20% while improving tenant NPS from 42 to 65."`
+❌ **WRONG:** `"strategicVision": { "ambition": "Become a digital leader" }`  
+✅ **RIGHT:** 
+```json
+{
+  "strategicVision": {
+    "ambition": "Become the leading PropTech-enabled property manager in Nordics by 2027 through AI-driven tenant services and ESG-compliant portfolio optimization, reducing operational costs by 20% while improving tenant NPS from 42 to 65.",
+    "themes": ["PropTech Integration", "ESG Compliance (EU Taxonomy)", "AI-Driven Operations", "Tenant Experience Platform"],
+    "timeframe": "3-5 years"
+  }
+}
+```
 
-❌ **WRONG:** `"strategic_themes": ["Digital Transformation", "Innovation"]`  
-✅ **RIGHT:** `"strategic_themes": ["Open Banking API Platform (PSD2)", "AI-Driven Credit Risk Engine", "Core Banking Migration to Cloud", "Customer Data Platform (CDP)"]`
+❌ **WRONG:** `"successMetrics": [{"metric": "Increase revenue"}]`  
+✅ **RIGHT:** 
+```json
+{
+  "successMetrics": [
+    {
+      "metric": "Revenue growth (CAGR)",
+      "target": "8% → 15%",
+      "timeframe": "by 2027"
+    },
+    {
+      "metric": "Operational efficiency (back-office cost reduction)",
+      "target": "35% reduction",
+      "timeframe": "by 2026"
+    },
+    {
+      "metric": "Time-to-market for new products",
+      "target": "6 months → 6 weeks",
+      "timeframe": "within 18 months"
+    }
+  ]
+}
+```
 
-❌ **WRONG:** `"success_metrics": ["Increase revenue", "Improve efficiency"]`  
-✅ **RIGHT:** `"success_metrics": ["Revenue growth: 8% → 15% CAGR by 2027", "Operational efficiency: 35% cost reduction in back-office by 2026", "Time-to-market: 6 months → 6 weeks for new products"]`
-
-❌ **WRONG:** `"strategic_constraints": ["Limited budget"]`  
-✅ **RIGHT:** `"strategic_constraints": ["€12M transformation budget over 3 years; no CapEx for new datacenters", "Legacy Momentum IWMS must remain operational during 18-month migration", "No external consultants allowed due to security policy"]`
+❌ **WRONG:** `"constraints": [{"type": "Financial", "description": "Limited budget"}]`  
+✅ **RIGHT:** 
+```json
+{
+  "constraints": [
+    {
+      "type": "Financial",
+      "description": "€12M transformation budget over 3 years; no CapEx for new datacenters"
+    },
+    {
+      "type": "Technical",
+      "description": "Legacy Momentum IWMS must remain operational during 18-month migration"
+    },
+    {
+      "type": "Organisational",
+      "description": "No external consultants allowed due to security policy"
+    },
+    {
+      "type": "Operational",
+      "description": "Maximum 6-month downtime window for core system migration"
+    },
+    {
+      "type": "External",
+      "description": "GDPR compliance mandatory; no non-EU cloud regions"
+    }
+  ]
+}
+```
 
 ---
 

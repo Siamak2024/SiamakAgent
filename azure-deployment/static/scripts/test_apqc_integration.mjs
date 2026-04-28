@@ -426,8 +426,8 @@ async function runTests() {
   page.setDefaultTimeout(TEST_TIMEOUT);
   
   try {
-    log(`[SETUP] Navigating to ${BASE_URL}/NexGenEA/NexGen_EA_V4.html...`, 'cyan');
-    await page.goto(`${BASE_URL}/NexGenEA/NexGen_EA_V4.html`, { 
+    log(`[SETUP] Navigating to ${BASE_URL}/NexGenEA/NexGenEA_V11.html...`, 'cyan');
+    await page.goto(`${BASE_URL}/NexGenEA/NexGenEA_V11.html`, { 
       waitUntil: 'networkidle',
       timeout: TEST_TIMEOUT 
     });

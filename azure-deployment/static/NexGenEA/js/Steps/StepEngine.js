@@ -1,4 +1,4 @@
-/**
+﻿/**
  * StepEngine.js — Main orchestrator for the modular EA workflow.
  *
  * Replaces the individual step trigger functions (clarifyStrategicIntent,
@@ -84,6 +84,26 @@ const StepEngine = (() => {
     }
     // Ensure model is always the global window.model if not provided
     if (!model) model = window.model || {};
+    
+    // ── Auto-create project ID if starting Step 1 without one ────────────
+    if (stepId === 'step1' && typeof window !== 'undefined' && !window.currentProjectId) {
+      const projectId = 'proj_' + Date.now();
+      const projectName = 'New Project ' + new Date().toLocaleString();
+      
+      window.currentProjectId = projectId;
+      window.currentProjectName = projectName;
+      
+      // Register with DataManager if available
+      if (typeof dataManager !== 'undefined' && dataManager && typeof dataManager.createProject === 'function') {
+        const dmProject = dataManager.createProject(projectName, 'Auto-created on Step 1 start');
+        window.currentProjectId = dmProject.id; // Use DataManager's ID
+      }
+      
+      console.log(`[StepEngine] Auto-created project: ${projectName} (ID: ${window.currentProjectId})`);
+      
+      // Update UI
+      if (typeof updateHeaderTitle === 'function') updateHeaderTitle();
+    }
 
     const stepModule = STEP_MODULES[stepId]?.();
     if (!stepModule) {
@@ -258,6 +278,9 @@ const StepEngine = (() => {
     } else if (taskType === 'text-input') {
       // ── Text input task: show textarea, await user input ───────────────
       return await _runTextInputTask(taskDef, ctx);
+    } else if (taskType === 'custom-ui') {
+      // ── Custom UI task: render custom interface ─────────────────────────
+      return await _runCustomUITask(taskDef, ctx);
     } else {
       // ── Internal task: fire AI silently ───────────────────────────────
       return await _runInternalTask(taskDef, ctx, userInput);
@@ -266,6 +289,22 @@ const StepEngine = (() => {
 
   // ── Internal (AI-only) task ───────────────────────────────────────────────
   async function _runInternalTask(taskDef, ctx, userInput) {
+    // Check if this task should skip AI and use custom execute function
+    if (taskDef.skipAI === true || taskDef.execute) {
+      if (!taskDef.execute || typeof taskDef.execute !== 'function') {
+        throw new Error(`Task ${taskDef.taskId} has skipAI=true but no execute function defined`);
+      }
+      
+      // Execute custom function directly without AI call
+      const output = await taskDef.execute(ctx);
+      
+      return { 
+        taskId: taskDef.taskId, 
+        output: output,
+        aiResult: { status: 'skipped', reason: 'skipAI' }
+      };
+    }
+
     // Show thinking indicator in chat
     if (typeof showTypingIndicator === 'function') {
       showTypingIndicator();
@@ -297,11 +336,18 @@ const StepEngine = (() => {
       replyLanguage: ctx.language,
       expectsJson:   taskDef.expectsJson !== false,
       timeoutMs:     taskDef.timeoutMs,
-      temperature:   taskDef.temperature
+      temperature:   taskDef.temperature,
+      tools:         taskDef.tools,  // Pass through tools configuration (e.g., web_search)
+      previousResponseId: _getLastResponseId()  // Chain stateful conversations
     });
 
     if (aiResult.status === 'error') {
       throw new Error(aiResult.error || 'AI call failed');
+    }
+    
+    // Store response ID for stateful chaining
+    if (aiResult.responseId) {
+      _storeResponseId(aiResult.responseId);
     }
 
     // Parse output
@@ -327,15 +373,34 @@ const StepEngine = (() => {
     // Generate the question via AI (if taskDef has AI generation)
     let questionData;
     if (taskDef.generateQuestion) {
+      console.log(`%c[StepEngine] 🤖 Calling AI to GENERATE question...`, 'color: #8b5cf6; font-weight: bold');
       const aiResult = await _runInternalTask({ ...taskDef, type: 'internal' }, ctx, {});
       questionData = aiResult.output;
+      
+      if (questionData) {
+        console.log(`%c[StepEngine] ✅ AI GENERATED question successfully`, 'color: #10b981; font-weight: bold');
+        console.log(`  Question: ${questionData.question?.substring(0, 100)}...`);
+        console.log(`  Options:  ${questionData.options?.length || 0} options`);
+        console.log(`  Guidance: ${questionData.guidance ? 'YES' : 'NO'}`);
+      } else {
+        // null questionData means discovery is complete (Context Engine signaled completion)
+        console.log(`%c[StepEngine] ✅ Discovery complete - skipping question`, 'color: #10b981; font-weight: bold');
+        return { 
+          taskId: taskDef.taskId, 
+          output: { skipped: true, reason: 'discovery_complete' }, 
+          aiResult: null 
+        };
+      }
     } else {
+      console.warn(`%c[StepEngine] ⚠️ Using STATIC/HARDCODED question`, 'color: #f59e0b; font-weight: bold');
       // Static question (pre-defined in the task def)
       questionData = {
         question: typeof taskDef.question === 'function' ? taskDef.question(ctx) : taskDef.question,
         options: typeof taskDef.options === 'function' ? taskDef.options(ctx) : (taskDef.options || []),
         guidance: taskDef.guidance || ''
       };
+      console.log(`  Question: ${questionData.question?.substring(0, 100)}...`);
+      console.log(`  Options:  ${questionData.options?.length || 0} options`);
     }
 
     // ── AUTOPILOT MODE: Auto-answer question tasks with first/recommended option ──
@@ -416,6 +481,34 @@ const StepEngine = (() => {
     return { taskId: taskDef.taskId, output, aiResult: null };
   }
 
+  // ── Custom UI task: show custom interface in chat, await user action ──────
+  async function _runCustomUITask(taskDef, ctx) {
+    // Check if this is Step1 validation (business-object mode)
+    if (taskDef.taskId === 'step1_validate' && ctx.stepId === 'step1' && 
+        window.model?.workflowMode === 'business-object') {
+      
+      // Render Business Objectives validation UI
+      if (typeof window.renderStep1ValidationUI === 'function') {
+        const answer = await window.renderStep1ValidationUI({
+          businessContext: window.model.businessContext,
+          strategicThemes: window.model.strategicThemes,
+          businessObjectives: window.model.businessObjectives,
+          gapInsights: window.model.gapInsights,
+          aiProcessingLog: window.model.aiProcessingLog
+        });
+        
+        const output = taskDef.wrapAnswer
+          ? taskDef.wrapAnswer(answer, ctx)
+          : { validation: answer, confirmed: answer === 'approve' };
+        
+        return { taskId: taskDef.taskId, output, aiResult: null };
+      }
+    }
+    
+    // Fallback: treat as question task for other custom-ui types
+    return await _runQuestionTask(taskDef, ctx);
+  }
+
   // ── Dependency validation ─────────────────────────────────────────────────
   function _validateDependencies(stepId, model, stepModule) {
     for (const depId of (stepModule.dependsOn || [])) {
@@ -436,7 +529,8 @@ const StepEngine = (() => {
   function _checkLegacyFlag(depId, model) {
     switch (depId) {
       case 'step1':  return !!(model.strategicIntentConfirmed ||
-                              model.strategicIntent?.strategic_ambition ||
+                              model.strategicIntent?.strategicVision?.ambition ||
+                              model.strategicIntent?.strategic_ambition || // Backward compat
                               model.strategicIntent?.burning_platform ||
                               // Implicit: if BMC or capabilities exist, step1 was done in a prior flow
                               model.bmc ||
@@ -465,6 +559,16 @@ const StepEngine = (() => {
       progressEl.style.display = 'flex';
     }
     if (typeof spin === 'function') spin(_getSpinnerId(stepId), true);
+  }
+
+  // ── Response ID tracking for stateful conversations ────────────────
+  function _getLastResponseId() {
+    return window._stepEngineResponseId || null;
+  }
+
+  function _storeResponseId(responseId) {
+    window._stepEngineResponseId = responseId;
+    console.log(`[StepEngine] Stored response ID for stateful chaining: ${responseId}`);
   }
 
   function _getSpinnerId(stepId) {

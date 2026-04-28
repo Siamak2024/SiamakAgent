@@ -204,7 +204,7 @@ Return ONLY valid JSON:
         const aiEnabledCaps = (ctx.capabilities || []).filter(c => c.ai_enabled).map(c => c.name).join(', ');
         const gaps = (ctx.priorityGaps || []).slice(0, 5).map(g => g.gap || g.title || g.name).join('; ');
         
-        return `Strategic ambition: "${si.strategic_ambition || ''}"
+        return `Strategic ambition: "${si.strategicVision?.ambition || ''}"
 Outcomes: ${(si.expected_outcomes || []).join('; ')}
 AI transformation role: ${si.ai_transformation_ambition || 'Improve efficiency and decision-making'}
 
@@ -367,9 +367,9 @@ Return ONLY valid JSON:
           .filter(pool => pool.ai_enabled_value)
           .map(p => `${p.id} ${p.name} (${p.time_horizon}) [AI-enabled]`);
         
-        return `Strategic ambition: "${si.strategic_ambition || ''}"
-Timeframe: ${si.timeframe || '3-5 years'}
-Constraints: ${(si.key_constraints || []).join('; ')}
+        return `Strategic ambition: "${si.strategicVision?.ambition || ''}"
+Timeframe: ${si.strategicVision?.timeframe || '3-5 years'}
+Constraints: ${(si.constraints || []).map(c => `${c.type}: ${c.description}`).join('; ')}
 
 Priority gaps to close:
 ${priorityGaps.join('\n')}

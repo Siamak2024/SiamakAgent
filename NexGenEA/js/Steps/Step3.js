@@ -1,370 +1,503 @@
 /**
- * Step3.js — Capability Architecture
+ * Step3.js — Target Architecture Design
  *
- * GOLDEN RULE: Capabilities must link to Primary Objectives to ensure traceability.
+ * GOLDEN RULE: Architecture decisions must align with Business Objectives and capability priorities.
+ *
+ * New 4-step workflow position: Step 3 of 4
+ * - Step 1: Discovery (Business Objectives)
+ * - Step 2: Capability Mapping (APQC-aligned)
+ * - Step 3: Target Architecture ← THIS FILE
+ * - Step 4: Transformation Roadmap
  *
  * Tasks:
- *   3.1 capability_map      — Internal: build L1/L2/L3 capability map
- *   3.2 capability_assess   — Internal: assess maturity & strategic importance
- *   3.3 arch_benchmark      — Internal: benchmark vs. industry peers
+ *   3.1 arch_principles  — Internal: Generate architecture principles
+ *   3.2 target_arch      — Internal: Design target state architecture (4 layers)
+ *   3.3 arch_decisions   — Internal: Document Architecture Decision Records (ADRs)
  *
  * Outputs:
- *   model.capabilities[]   — capability map with maturity ratings (backward compat)
- *   model.archBenchmark    — benchmarking object
- *   model.businessContext.enrichment.capabilityGaps — gaps with linkedObjective field
+ *   model.archPrinciples      — 6-10 guiding principles
+ *   model.targetArchData      — Full 4-layer architecture design
+ *   model.targetArch          — Flattened capability uplift (backward compat)
+ *   model.archDecisions       — ADR list
+ *   model.aiAgents            — AI agent proposals (3-8 agents)
+ *   model.valueStreams        — Derived from capability domains
+ *   model.systems             — Application portfolio (current + target)
+ *   model.capabilityMap_tobe  — TO-BE capability map for visualization
  */
 
 const Step3 = {
 
   id: 'step3',
-  name: 'Capability Architecture',
+  name: 'Target Architecture',
   dependsOn: ['step1', 'step2'],
 
   tasks: [
 
-    // ── Task 3.1: Build capability map ────────────────────────────────────
+    // ── Task 3.1: Architecture Principles ────────────────────────────────
     {
-      taskId: 'step3_capability_map',
-      title: 'Building capability map',
+      taskId: 'step3_arch_principles',
+      title: 'Defining architecture principles',
       type: 'internal',
-      taskType: 'heavy',
-      instructionFile: '3_1_capability_map.instruction.md',
+      taskType: 'analysis',
+      instructionFile: '7_1_arch_principles.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an Enterprise Architecture practitioner. Build a three-level Business Capability Map for this organisation.
-
-Capabilities describe WHAT the business does — not HOW (not systems, org units, or processes).
-Use business verbs: "Manage", "Develop", "Deliver", "Acquire", "Analyse".
+      systemPromptFallback: `You are a Chief Architect. Define 6-10 architecture principles that will govern all design decisions for this organisation's target state transformation.
 
 Return ONLY valid JSON:
 {
-  "l1_domains": [
+  "principles": [
     {
-      "id": "D01",
+      "id": "P01",
       "name": "",
-      "description": "",
-      "strategic_importance": "CORE|SUPPORT|COMMODITY",
-      "l2_capabilities": [
-        {
-          "id": "C01.01",
-          "name": "",
-          "description": "",
-          "l3_capabilities": [{"id":"","name":""}]
-        }
-      ]
+      "statement": "",
+      "rationale": "",
+      "implications": [""],
+      "anti_patterns": [""]
     }
   ],
-  "metadata": {"total_caps":0,"domains_count":0,"methodology":"BIZBOK-aligned"}
+  "governing_pattern": "",
+  "architecture_style": ""
 }
 
-Requirements:
-- 5-8 L1 domains
-- 3-5 L2 capabilities per domain
-- 2-4 L3 capabilities per L2 only for CORE strategic domain
-- DO NOT mirror org chart — capability ≠ org unit`,
+Each principle:
+- name: 3-6 words
+- statement: 1 sentence ("We will... because...")
+- rationale: 1-2 sentences grounded in Strategic Intent
+- implications: 2-3 concrete design decisions this principle demands
+- anti_patterns: 1-2 patterns this principle explicitly prohibits`,
 
       userPrompt: (ctx) => {
-        const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
-        const si = ctx.strategicIntent;
-        const bmc = ctx.bmc;
+        const bc = ctx.businessContext || {};
+        const objectives = (bc.objectives || []).slice(0, 5).map(o => o.objective || o.name).join('; ');
+        const themes = (bc.strategicThemes || []).join(' | ') || 'Digital transformation and operational excellence';
+        const gaps = (ctx.gapInsights || []).slice(0, 5).map(g => g.gap_description).join('; ');
+        const caps = (ctx.capabilities || []).filter(c => c.level === 1).map(c => c.name).join(', ');
+        const industry = bc.industry || ctx.masterData?.industry || 'enterprise';
+        const orgDesc = ctx.companyDescription || ctx.orgDescription || 'organization undergoing digital transformation';
         
-        if (profile) {
-          // Rich Profile: Use structure and offerings
-          const offerings = (profile.offerings || []).map(o => o.name).join(', ');
-          const priorities = (profile.strategicPriorities || []).map(p => p.priority).slice(0, 5).join('; ');
-          const structure = profile.structure?.organizationalStructure || 'Not specified';
-          
-          return `**ORGANIZATION PROFILE - CAPABILITY CONTEXT:**
+        return `Company: ${orgDesc.slice(0, 300)}
+Industry: ${industry}
+Strategic objectives: ${objectives}
+Strategic themes: ${themes}
+Priority gaps: ${gaps || 'Technology modernization, process optimization'}
+Key capability domains: ${caps || 'see capability map'}
 
-Organization: ${profile.organizationName} (${profile.industry})
-Structure: ${structure}
-Offerings: ${offerings || 'Not specified'}
-
-**Strategic Priorities:** ${priorities || 'Not specified'}
-
-**Strategic themes:** ${(si.strategic_themes || []).join(' | ')}
-**Investigation scope:** ${(si.investigation_scope || []).join('; ')}
-
-**BMC key activities:** ${(bmc.key_activities || []).join('; ')}
-**BMC key resources:** ${(bmc.key_resources || []).join('; ')}
-
-**CRITICAL:** Build capability map grounded in the SPECIFIC offerings and priorities from the profile. DO NOT use generic capability frameworks.
-
-Build a full L1/L2/L3 capability map. Identify which L1 domains are CORE to the future model.
-Inspection scope above should appear as capabilities — not just be referenced.`;
-        }
-        
-        // Quick Start fallback
-        return `Company: "${ctx.companyDescription}"
-
-Strategic themes: ${(si.strategic_themes || []).join(' | ')}
-Investigation scope: ${(si.investigation_scope || []).join('; ')}
-
-BMC key activities: ${(bmc.key_activities || []).join('; ')}
-BMC key resources: ${(bmc.key_resources || []).join('; ')}
-
-Build a full L1/L2/L3 capability map. Identify which L1 domains are CORE to the future model.
-Inspection scope above should appear as capabilities — not just be referenced.`;
+Generate 6-10 architecture principles that support this organization's specific transformation. 
+Include at least one AI/Automation principle (mandatory).
+Align principles to close identified gaps and support strategic themes.`;
       },
 
       outputSchema: {
-        l1_domains: ['object']
+        principles: ['object?'],
+        governing_pattern: 'string?',
+        architecture_style: 'string?'
       },
 
       parseOutput: (raw) => {
-        const parsed = OutputValidator.parseJSON(raw, 'step3_capability_map');
-        if (!parsed) return parsed;
-        // Defensive normalization: AI may use alternate field names for the domains array
-        if (!parsed.l1_domains || parsed.l1_domains.length === 0) {
-          const alt = parsed.domains || parsed.capability_domains || parsed.capabilityDomains
-            || parsed.businessDomains || parsed.business_domains;
-          if (Array.isArray(alt) && alt.length > 0) {
-            parsed.l1_domains = alt;
-          }
+        const parsed = OutputValidator.parseJSON(raw, 'step3_arch_principles');
+        if (!parsed.principles || parsed.principles.length === 0) {
+          console.warn('[Step3] AI did not generate architecture principles. Using fallback defaults.');
+          parsed.principles = [
+            {
+              id: 'P01',
+              name: 'Cloud-First Infrastructure',
+              statement: 'We will deploy all new systems to cloud infrastructure because it provides scalability, resilience, and faster time-to-market.',
+              rationale: 'Legacy on-premise infrastructure limits innovation speed and increases operational costs.',
+              implications: ['All new applications are cloud-native', 'Migrate legacy systems to cloud-managed services', 'No new on-premise hardware purchases'],
+              anti_patterns: ['On-premise first procurement', 'Lift-and-shift without re-architecture']
+            },
+            {
+              id: 'P02',
+              name: 'API-First Integration',
+              statement: 'We will integrate all systems via APIs and event-driven architectures because point-to-point integrations create fragility and hinder agility.',
+              rationale: 'Modern integration enables rapid business change and ecosystem partnerships.',
+              implications: ['All integrations use REST/GraphQL APIs or event bus', 'No direct database connections between systems', 'API catalog and governance in place'],
+              anti_patterns: ['Point-to-point custom integrations', 'Batch file transfers for real-time data']
+            },
+            {
+              id: 'P03',
+              name: 'Data-Driven Decision Making',
+              statement: 'We will centralize data in a unified platform and ensure single source of truth because fragmented data prevents informed decisions.',
+              rationale: 'Strategic intent emphasizes data quality and analytics capabilities.',
+              implications: ['Master Data Management for core entities', 'Self-service analytics platforms', 'Data quality monitoring and alerting'],
+              anti_patterns: ['Departmental data silos', 'Manual data reconciliation']
+            },
+            {
+              id: 'P04',
+              name: 'AI-Augmented Operations',
+              statement: 'We will deploy AI to automate routine tasks and augment human decision-making because intelligent automation frees people for strategic work.',
+              rationale: 'Competitive pressure requires faster, smarter operations at lower cost.',
+              implications: ['AI-powered process automation for high-volume tasks', 'Predictive analytics for proactive issue resolution', 'Human-in-loop for high-stakes decisions'],
+              anti_patterns: ['Full automation without human oversight', 'AI for the sake of AI without ROI']
+            }
+          ];
         }
         return parsed;
       }
     },
 
-    // ── Task 3.2: Maturity Assessment ─────────────────────────────────────
+    // ── Task 3.2: Target Architecture Design ─────────────────────────────
     {
-      taskId: 'step3_capability_assess',
-      title: 'Assessing capability maturity',
+      taskId: 'step3_target_arch',
+      title: 'Designing target architecture',
       type: 'internal',
-      taskType: 'analysis',
-      instructionFile: '3_2_capability_assess.instruction.md',
+      taskType: 'heavy',
+      instructionFile: '7_2_target_arch.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are a Capability Maturity Analyst. For each L1 domain and its key L2 capabilities, rate current maturity and target maturity using a 1-5 Gartner-aligned scale:
-1=Initial, 2=Developing, 3=Defined, 4=Managed, 5=Optimising
+      systemPromptFallback: `You are a Senior Enterprise Architect. Design the target state architecture across all layers: Business, Data, Application, Technology.
+
+CRITICAL: Generate 3-8 AI agents that automate or augment capabilities. Each agent must have: name, agent_type (NLP/RPA/Predictive Analytics/Computer Vision/Conversational AI), purpose, linked_capabilities array, maturity_level (Pilot/Production/Optimized), and is_proposed: true.
 
 Return ONLY valid JSON:
 {
-  "capability_ratings": [
+  "business_architecture": {
+    "operating_model_archetype": "",
+    "capability_domains": [{"domain":"","target_state":"","key_changes":""}],
+    "process_redesign_priorities": [""]
+  },
+  "data_architecture": {
+    "data_mesh_approach": true,
+    "canonical_data_domains": [""],
+    "data_platform": "",
+    "master_data_strategy": "",
+    "analytics_maturity_target": ""
+  },
+  "application_architecture": {
+    "target_landscape": "",
+    "decommission_list": [""],
+    "new_capabilities_needed": [""],
+    "integration_pattern": "",
+    "api_strategy": ""
+  },
+  "technology_architecture": {
+    "cloud_strategy": "",
+    "infrastructure_pattern": "",
+    "security_architecture": "",
+    "devsecops_maturity": "",
+    "key_platforms": [""]
+  },
+  "ai_agents": [
     {
-      "capability_id": "",
-      "capability_name": "",
-      "current_maturity": 1,
-      "target_maturity": 3,
-      "gap": 2,
-      "strategic_importance": "CORE|SUPPORT|COMMODITY",
-      "investment_priority": "HIGH|MEDIUM|LOW",
-      "key_gaps": [""],
-      "quick_wins": [""]
+      "name": "Document Processing RPA",
+      "agent_type": "RPA",
+      "purpose": "Automate document extraction and data entry",
+      "linked_capabilities": ["Process Documents"],
+      "maturity_level": "Pilot",
+      "is_proposed": true
     }
   ],
-  "overall_maturity": 1.0,
-  "maturity_distribution": {"initial":0,"developing":0,"defined":0,"managed":0,"optimising":0}
+  "architecture_decisions": [
+    {"adr_id":"ADR01","title":"","decision":"","rationale":"","consequences":[""],"status":"Proposed"}
+  ],
+  "metadata": {"at_a_glance":"","architecture_style":""}
 }`,
 
       userPrompt: (ctx) => {
-        const domains = (ctx.answers?.step3_capability_map?.l1_domains || []);
-        const si = ctx.strategicIntent;
-        const bmc = ctx.bmc;
-        
-        // ── Phase 2.2: Include AI transformation context ──
-        const aiThemes = (si.ai_transformation_themes || []);
-        const aiActivities = (bmc.ai_transformation?.ai_enabled_activities || []);
-        const aiResources = (bmc.ai_transformation?.ai_enabled_resources || []);
-        
-        const aiContext = (aiThemes.length > 0 || aiActivities.length > 0)
-          ? `\n\nAI Transformation Context:\n` +
-            (aiThemes.length > 0 ? `- Strategic themes: ${aiThemes.join('; ')}\n` : '') +
-            (aiActivities.length > 0 ? `- BMC AI activities: ${aiActivities.join(', ')}\n` : '') +
-            (aiResources.length > 0 ? `- BMC AI resources: ${aiResources.join(', ')}\n` : '') +
-            `Mark capabilities as ai_enabled: true if they align with these AI transformation plans.`
-          : '';
-        
-        const capList = domains.map(d =>
-          `${d.id} ${d.name} (${d.strategic_importance}): ${(d.l2_capabilities || []).map(c => c.name).join(', ')}`
-        ).join('\n');
-        
-        return `Company: "${ctx.companyDescription.slice(0, 300)}"
-Scale/current systems: ${si.key_constraints?.find(c => /technical/i.test(c)) || 'not stated'}
-Pain points: ${si.burning_platform || ''}${aiContext}
+        const bc = ctx.businessContext || {};
+        const objectives = (bc.objectives || []).slice(0, 5).map(o => o.objective || o.name).join('; ');
+        const gaps = (ctx.gapInsights || []).slice(0, 8).map(g => `${g.gap_id}: ${g.gap_description}`).join('\n');
+        const principles = (ctx.answers?.step3_arch_principles?.principles || []).map(p => p.statement).join('\n');
+        const capabilities = (ctx.capabilities || []).filter(c => c.level === 1).map(c => c.name).slice(0, 8).join(', ');
+        const aiEnabledCaps = (ctx.capabilities || []).filter(c => c.ai_enabled).map(c => c.name).join(', ');
+        const whiteSpots = (ctx.whiteSpots || []).slice(0, 5).map(w => w.capability_name).join(', ');
+        const industry = bc.industry || 'General Enterprise';
 
-Capabilities to rate:
-${capList}
+        return `Strategic objectives: ${objectives || 'see business context'}
 
-Base current maturity on what the company description tells us. Target maturity based on the Strategic Intent ambition.
-Use null for current maturity if no evidence — do not guess.`;
+Architecture principles:
+${principles || 'see principles output'}
+
+Priority gaps to address:
+${gaps || 'Technology modernization, process optimization'}
+
+Capability domains: ${capabilities}
+AI-enabled capabilities: ${aiEnabledCaps || 'Identify from capabilities and gaps'}
+White-spot capabilities: ${whiteSpots || 'None identified'}
+
+Industry: ${industry}
+
+Design the complete 4-layer target architecture (Business, Data, Application, Technology). 
+
+CRITICAL - AI AGENTS (MANDATORY):
+Generate 3-8 AI agents that address priority gaps and automate/augment capabilities. Focus on:
+- Document processing and data entry automation (RPA)
+- Customer service and inquiries (Conversational AI, NLP)  
+- Predictive analytics for operations (Predictive Analytics)
+- Data quality and anomaly detection (ML/AI)
+- Process optimization (Decision Support)
+Each agent MUST link to specific capabilities by name.
+
+Include 3-5 draft ADRs for the hardest decisions. metadata.at_a_glance: 25 words max.`;
       },
 
       outputSchema: {
-        capability_ratings: ['object'],
-        overall_maturity: 'number'
+        business_architecture: 'object',
+        data_architecture: 'object',
+        application_architecture: 'object',
+        technology_architecture: 'object'
       },
 
-      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step3_capability_assess')
+      parseOutput: (raw) => {
+        const obj = OutputValidator.parseJSON(raw, 'step3_target_arch');
+        if (!obj) return obj;
+        // Promote ADRs if nested
+        if (!obj.architecture_decisions && obj.business_architecture?.adrs) {
+          obj.architecture_decisions = obj.business_architecture.adrs;
+        }
+        return obj;
+      }
     },
 
-    // ── Task 3.3: Industry Benchmark ──────────────────────────────────────
+    // ── Task 3.3: Architecture Decision Records ───────────────────────────
     {
-      taskId: 'step3_arch_benchmark',
-      title: 'Benchmarking vs. industry',
+      taskId: 'step3_arch_decisions',
+      title: 'Documenting architecture decisions',
       type: 'internal',
       taskType: 'analysis',
-      instructionFile: '3_3_arch_benchmark.instruction.md',
+      instructionFile: '7_3_arch_decisions.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an EA Benchmarking expert. Compare this organisation's capabilities and architectural posture against industry peers (using general sector knowledge — no made-up statistics).
+      systemPromptFallback: `You are a Chief Architect documenting key Architecture Decision Records (ADRs). Consolidate and expand the architectural decisions identified in the target architecture design.
 
 Return ONLY valid JSON:
 {
-  "peer_group": "",
-  "benchmark_dimensions": [
+  "adrs": [
     {
-      "dimension": "",
-      "industry_average": "Developing|Defined|Managed",
-      "our_position": "Below par|At par|Above par",
-      "gap_commentary": "",
-      "priority": "HIGH|MEDIUM|LOW"
+      "adr_id": "ADR01",
+      "title": "",
+      "context": "",
+      "decision": "",
+      "rationale": "",
+      "alternatives_considered": [""],
+      "consequences": {"positive":[""],"negative":[""],"risks":[""]},
+      "review_date": "",
+      "status": "Proposed|Accepted|Deprecated",
+      "owner": ""
     }
-  ],
-  "distinctive_strengths": [""],
-  "capability_gaps_vs_peers": [""],
-  "architectural_debt_estimate": "LOW|MEDIUM|HIGH|CRITICAL",
-  "time_to_par": "",
-  "executive_benchmark_summary": ""
-}`,
+  ]
+}
+
+Generate 5-8 ADRs covering the most consequential architectural choices.`,
 
       userPrompt: (ctx) => {
-        const si = ctx.strategicIntent;
-        const assess = ctx.answers?.step3_capability_assess || {};
-        return `Industry: ${si.industry || ctx.masterData.industry || 'Enterprise/General'}
-Company: "${ctx.companyDescription.slice(0, 300)}"
-Overall capability maturity: ${assess.overall_maturity || 'not assessed'}
-Distribution: ${JSON.stringify(assess.maturity_distribution || {})}
-Strategic ambition: "${si.strategic_ambition || ''}"
+        const targetArch = ctx.answers?.step3_target_arch || {};
+        const draftADRs = targetArch.architecture_decisions || [];
+        const bc = ctx.businessContext || {};
+        const timeframe = bc.timeframe || '3-5 years';
+        
+        return `Strategic timeframe: ${timeframe}
+Draft ADRs from architecture design: ${JSON.stringify(draftADRs, null, 2)}
 
-Benchmark the org against peer group. Focus on 4-6 most critical dimensions.
-executive_benchmark_summary: 2-3 sentences for the Board.`;
+Expand these into full ADRs. Add additional ones for any significant architectural choices not yet captured.
+Ensure coverage: data platform choice, integration pattern, cloud landing zone, security model, application portfolio disposition.`;
       },
 
       outputSchema: {
-        benchmark_dimensions: ['object'],
-        executive_benchmark_summary: 'string'
+        adrs: ['object']
       },
 
-      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step3_arch_benchmark')
+      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step3_arch_decisions')
     }
 
   ],
 
+  // ── Synthesize: Transform AI output to model structure ───────────────────
   synthesize: (ctx) => {
-    // Flatten capabilities to legacy array format (backward compat with existing renderers)
-    const domains = ctx.answers?.step3_capability_map?.l1_domains || [];
-    const ratings = ctx.answers?.step3_capability_assess?.capability_ratings || [];
-    const ratingMap = Object.fromEntries(ratings.map(r => [r.capability_id, r]));
+    const archPrinciples = ctx.answers?.step3_arch_principles?.principles || [];
+    const targetArch = ctx.answers?.step3_target_arch || {};
+    const archDecisions = ctx.answers?.step3_arch_decisions?.adrs || [];
+    const model = ctx.model || window.model || {};
 
-    const capabilities = [];
-    domains.forEach((domain) => {
-      const domainRating = ratingMap[domain.id] || {};
-      const domMaturity = domainRating.current_maturity || 1;
-      capabilities.push({
-        id: domain.id,
-        name: domain.name,
-        description: domain.description,
-        level: 1,
-        domain: domain.name,                                          // for renderLayers / valueStreams derivation
-        maturity: domMaturity,                                         // for renderLayers maturity badge
-        strategic_importance: domain.strategic_importance,
-        strategicImportance: (domain.strategic_importance || 'SUPPORT').toLowerCase(),
-        current_maturity: domainRating.current_maturity || null,
-        target_maturity: domainRating.target_maturity || null,
-        gap: domainRating.gap || null,
-        investment_priority: domainRating.investment_priority || null,
-        quick_wins: domainRating.quick_wins || [],
-        ai_enabled: domainRating.ai_enabled || false,                  // Phase 2.2: AI capability flag
-        children: (domain.l2_capabilities || []).map(cap => {
-          const capRating = ratingMap[cap.id] || {};
+    // Build legacy flat targetArch array for renderTargetArchVisual (backward compat)
+    const caps = model.capabilities || [];
+    let legacyTargetArch = [];
+
+    if (caps.length > 0) {
+      const domainKeywords = {
+        Customer:   /customer|tenant|client|renter|occupant|lease/i,
+        Finance:    /financ|cost|revenue|budget|account|billing|payment/i,
+        Technology: /tech|system|digital|data|platform|software|api|cloud|it\b/i,
+        Risk:       /risk|compliance|security|govern|audit|legal|regulation/i,
+        Operations: /operat|process|maintenance|facilit|propert|asset|manage/i,
+        Support:    /hr|human.*resource|people|train|support|service.*desk/i
+      };
+      const inferDomain = (cap) => {
+        const text = (cap.name + ' ' + (cap.description || '')).toLowerCase();
+        for (const [domain, re] of Object.entries(domainKeywords)) {
+          if (re.test(text)) return domain;
+        }
+        return 'Operations';
+      };
+
+      const l1Caps = caps.filter(c => c.level === 1 || !c.level);
+      const capList = l1Caps.length > 0 ? l1Caps : caps;
+
+      legacyTargetArch = capList.map(cap => ({
+        name:                 cap.name,
+        domain:               cap.domain || inferDomain(cap),
+        currentMaturity:      cap.current_maturity || cap.maturity || 2,
+        targetMaturity:       cap.target_maturity
+                               || Math.min(5, (cap.current_maturity || cap.maturity || 2) + 1),
+        strategicImportance:  (cap.strategic_importance || 'SUPPORT')
+                               .toLowerCase()
+                               .replace('core', 'high')
+                               .replace('support', 'medium')
+                               .replace('commodity', 'low'),
+        action:               (cap.quick_wins || []).slice(0, 1).join('') || '',
+        enabler:              targetArch.technology_architecture?.infrastructure || ''
+      }));
+    }
+
+    // Build TO-BE capability map
+    const baseDomains = model.capabilityMap?.l1_domains || [];
+    let capabilityMap_tobe = null;
+    if (baseDomains.length > 0) {
+      const ratings = model.capabilityAssessment?.capability_ratings || [];
+      const ratingById = Object.fromEntries(ratings.map(r => [r.capability_id, r]));
+      const archCapDomains = targetArch.business_architecture?.capability_domains || [];
+      const archByName = Object.fromEntries(
+        archCapDomains.map(d => [(d.domain || '').toLowerCase(), d])
+      );
+      capabilityMap_tobe = {
+        l1_domains: baseDomains.map(domain => {
+          const archDom = archByName[domain.name?.toLowerCase()] || {};
           return {
-            id: cap.id,
-            name: cap.name,
-            description: cap.description,
-            level: 2,
-            domain: domain.name,                                       // which L1 domain this belongs to
-            maturity: capRating.current_maturity || 1,                 // maturity for colour class
-            strategicImportance: (domain.strategic_importance || 'SUPPORT').toLowerCase(),
-            current_maturity: capRating.current_maturity || null,
-            target_maturity: capRating.target_maturity || null,
-            gap: capRating.gap || null,
-            ai_enabled: capRating.ai_enabled || false                  // Phase 2.2: AI capability flag
+            ...domain,
+            description: archDom.target_state || domain.description || '',
+            l2_capabilities: (domain.l2_capabilities || []).map(cap => {
+              const r = ratingById[cap.id] || {};
+              const cur = r.current_maturity || cap.current_maturity || 1;
+              const tgt = r.target_maturity  || cap.target_maturity  || Math.min(5, cur + 1);
+              const gap = tgt - cur;
+              const changeType = gap >= 2 ? 'TRANSFORM'
+                               : gap === 1 ? 'IMPROVE'
+                               : gap === 0 ? 'SUSTAIN'
+                               : 'CONSOLIDATE';
+              return { ...cap, changeType, target_maturity: tgt, current_maturity: cur };
+            })
           };
         })
-      });
-    });
+      };
+    }
 
     return {
-      capabilities,
-      archBenchmark: ctx.answers?.step3_arch_benchmark || {},
-      capabilityMap: ctx.answers?.step3_capability_map || {},
-      capabilityAssessment: ctx.answers?.step3_capability_assess || {}
+      archPrinciples,
+      targetArchData: targetArch,
+      targetArch: legacyTargetArch,
+      archDecisions,
+      capabilityMap_tobe
     };
   },
 
+  // ── Apply Output: Merge into model ────────────────────────────────────────
   applyOutput: (output, model) => {
-    // Capture capability gaps into enrichment
-    if (model.businessContext && model.businessContext.enrichment) {
-      // Extract gaps from capability assessment
-      const gaps = [];
-      if (output.capabilityMap?.l1_domains) {
-        output.capabilityMap.l1_domains.forEach(domain => {
-          if (domain.l2_capabilities) {
-            domain.l2_capabilities.forEach(cap => {
-              const assessment = output.capabilityAssessment?.capabilities?.find(c => c.id === cap.id);
-              if (assessment && assessment.current_maturity < assessment.target_maturity) {
-                gaps.push({
-                  capability: cap.name,
-                  currentLevel: assessment.current_maturity,
-                  targetLevel: assessment.target_maturity,
-                  priority: assessment.priority || 'Medium',
-                  linkedObjective: null  // Will be enhanced by AI or user
-                });
-              }
-            });
-          }
-        });
-      }
-      model.businessContext.enrichment.capabilityGaps = gaps;
-    }
-
-    // Seed valueStreams from L1 domain names so Architecture Layers tab is
-    // populated immediately after Step 3 (Step 7 will overwrite with richer data).
+    // Derive valueStreams from capability domains
     const existingVS = (model.valueStreams || []).length > 0;
     const derivedVS = existingVS
       ? model.valueStreams
-      : (output.capabilityMap?.l1_domains || []).map(d => ({ name: d.name, description: '' }));
+      : (model.capabilityMap?.l1_domains || []).map(d => ({ 
+          name: d.name, 
+          description: d.description || '' 
+        }));
+
+    // Derive systems from current + target application architecture
+    const existingSys = (model.systems || []).length > 0;
+    const newPlatforms = (output.targetArchData?.technology_architecture?.key_platforms || []);
+    const newCaps = (output.targetArchData?.application_architecture?.new_capabilities_needed || []);
+    const decommission = new Set((output.targetArchData?.application_architecture?.decommission_list || []).map(s => s.toLowerCase()));
+    const allSystems = [...new Set([...newPlatforms, ...newCaps])].filter(Boolean);
+    const derivedSys = existingSys
+      ? model.systems
+      : allSystems.map(name => ({
+          name,
+          status: decommission.has(name.toLowerCase()) ? 'decommission' : 'active',
+          category: newPlatforms.includes(name) ? 'target' : 'core',
+          description: ''
+        }));
+
+    // Derive AI agents
+    const existingAgents = (model.aiAgents || []).length > 0;
+    const explicit = output.targetArchData?.ai_agents 
+                  || output.targetArchData?.technology_architecture?.ai_agents 
+                  || [];
+    const derivedAgents = existingAgents
+      ? model.aiAgents
+      : explicit.map(a => {
+          const baseAgent = typeof a === 'string' ? { name: a, purpose: '', capabilities: '' } : a;
+          
+          if (!baseAgent.agent_type) {
+            const text = (baseAgent.name + ' ' + baseAgent.purpose).toLowerCase();
+            if (text.includes('nlp') || text.includes('natural language')) baseAgent.agent_type = 'NLP';
+            else if (text.includes('vision') || text.includes('image')) baseAgent.agent_type = 'Computer Vision';
+            else if (text.includes('rpa') || text.includes('robot')) baseAgent.agent_type = 'RPA';
+            else if (text.includes('predict') || text.includes('forecast')) baseAgent.agent_type = 'Predictive';
+            else if (text.includes('chat') || text.includes('conversational')) baseAgent.agent_type = 'Conversational';
+            else baseAgent.agent_type = 'AI';
+          }
+          
+          if (baseAgent.is_proposed === undefined) baseAgent.is_proposed = true;
+          if (!baseAgent.maturity_level) baseAgent.maturity_level = baseAgent.is_proposed ? 1 : 3;
+          if (!baseAgent.linked_capabilities) {
+            const caps = model.capabilities || [];
+            const linked = caps
+              .filter(cap => (baseAgent.purpose + ' ' + baseAgent.capabilities).toLowerCase().includes(cap.name.toLowerCase()))
+              .map(cap => cap.id)
+              .slice(0, 5);
+            baseAgent.linked_capabilities = linked;
+          }
+          
+          return baseAgent;
+        });
+
     return {
       ...model,
-      capabilities: output.capabilities,
-      archBenchmark: output.archBenchmark,
-      capabilityMap: output.capabilityMap,
-      capabilityAssessment: output.capabilityAssessment,
-      valueStreams: derivedVS
+      archPrinciples: output.archPrinciples,
+      targetArchData: output.targetArchData,
+      targetArch: output.targetArch,
+      archDecisions: output.archDecisions,
+      capabilityMap_tobe: output.capabilityMap_tobe,
+      valueStreams: derivedVS,
+      systems: derivedSys,
+      aiAgents: derivedAgents,
+      targetArchDone: true
     };
   },
 
+  // ── On Complete: UI updates and next step prompt ──────────────────────────
   onComplete: (model) => {
-    if (typeof renderCapabilitySection === 'function') renderCapabilitySection();
-    if (typeof renderBenchmarkSection === 'function') renderBenchmarkSection();
+    if (typeof renderTargetArchSection === 'function') renderTargetArchSection();
+    if (typeof renderLayersSection === 'function') renderLayersSection();
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
     if (typeof updateWorkflowProgress === 'function') updateWorkflowProgress([1, 2, 3]);
     if (typeof StepEngine === 'object') StepEngine.stopSpinner('step3');
-    if (typeof toast === 'function') toast('Capability Architecture complete ✓');
+    if (typeof toast === 'function') toast('Target Architecture complete ✓');
 
-    const overall = model.capabilityAssessment?.overall_maturity;
+    const principles = (model.archPrinciples || []).length;
+    const adrs = (model.archDecisions || []).length;
+    const aiAgents = (model.aiAgents || []).length;
+    const archStyle = model.targetArchData?.metadata?.architecture_style || 'designed';
+
     if (typeof addAssistantMessage === 'function') {
       addAssistantMessage(
-        `**Step 3 — Capability Architecture complete**\n\n` +
-        `${model.capabilities?.length || 0} capabilities mapped across ${model.capabilityMap?.l1_domains?.length || 0} domains.\n` +
-        `Overall maturity: **${overall ? overall.toFixed(1) + '/5' : 'assessed'}**\n\n` +
-        `**Next:** Ready to design Operating Model? Click below or use the **Continue** button in the sidebar.\n\n` +
+        `**Step 3 — Target Architecture complete** ✅\n\n` +
+        `🏗️ **Summary:**\n` +
+        `- Architecture style: **${archStyle}**\n` +
+        `- ${principles} guiding principles\n` +
+        `- ${adrs} Architecture Decision Records (ADRs)\n` +
+        `- ${aiAgents} AI agents proposed\n` +
+        `- 4-layer design: Business, Data, Application, Technology\n\n` +
+        `**Next:** Ready to build Transformation Roadmap? Click below or use the **Continue** button.\n\n` +
         `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step4', window.model); } else { console.error('StepEngine not available'); }">\n` +
         `  <i class="fas fa-arrow-right"></i>\n` +
-        `  Start Step 4: Operating Model\n` +
+        `  Start Step 4: Transformation Roadmap\n` +
         `</button>`
       );
+    }
+
+    if (typeof autoSaveCurrentModel === 'function') {
+      autoSaveCurrentModel();
     }
   }
 };

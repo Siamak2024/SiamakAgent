@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const BASE_URL     = 'http://localhost:3000';
-const PAGE_URL     = `${BASE_URL}/NexGenEA/NexGen_EA_V4.html`;
+const PAGE_URL     = `${BASE_URL}/NexGenEA/NexGenEA_V11.html`;
 const PROJECT_NAME = 'E2E StepByStep — ' + new Date().toISOString().slice(0, 16).replace('T', ' ');
 const COMPANY      = 'A Swedish mid-size manufacturing company producing industrial components. Facing global supply chain disruptions, rising energy costs, and pressure to adopt Industry 4.0. Key challenges include siloed production data, manual quality control, and limited real-time visibility into factory floor operations. Goal: digitise manufacturing operations and enable predictive maintenance.';
 const STEP_TIMEOUT = 4 * 60 * 1000; // 4 min per step (AI can be slow)

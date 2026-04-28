@@ -18,22 +18,18 @@
  * Generate a complete demo heatmap for a customer
  * @param {Object} customer - Customer entity
  * @param {string} scenario - Scenario type: 'mature', 'emerging', 'mixed', 'greenfield'
- * @param {Object} manager - Optional manager (standalone or engagement)
  * @returns {Object} Complete WhiteSpot heatmap with assessments
  */
-async function generateDemoHeatmap(customer, scenario = 'mixed', manager = null) {
+async function generateDemoHeatmap(customer, scenario = 'mixed') {
     if (!window.vivictaServiceLoader || !window.apqcWhiteSpotIntegration) {
         throw new Error('Service loaders not initialized. Please ensure service loader and APQC integration modules are loaded.');
     }
-    
-    // Determine which manager to use
-    const dataManager = manager || (typeof window.whitespotStandaloneManager !== 'undefined' ? window.whitespotStandaloneManager : window.engagementManager);
     
     const hlServices = window.vivictaServiceLoader.getHLServices();
     const timestamp = new Date().toISOString();
     
     // Generate heatmap ID
-    const existingHeatmaps = dataManager.getHeatmaps ? dataManager.getHeatmaps() : (dataManager.getEntities('whiteSpotHeatmaps') || []);
+    const existingHeatmaps = engagementManager.getEntities('whiteSpotHeatmaps') || [];
     const nextId = existingHeatmaps.length + 1;
     const heatmapId = `WSH-${String(nextId).padStart(3, '0')}`;
     
@@ -681,9 +677,8 @@ async function generateWhiteSpotDemoData() {
         for (let i = 0; i < demoCustomers.length; i++) {
             const customer = demoCustomers[i];
             
-            // Get existing customers using appropriate method
-            const existingCustomers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
-            const existingCustomer = existingCustomers.find(c => c.id === customer.id);
+            // Add customer if it doesn't exist
+            const existingCustomer = manager.getCustomers().find(c => c.id === customer.id);
             if (!existingCustomer) {
                 if (isStandalone) {
                     manager.addCustomer(customer);
@@ -693,13 +688,12 @@ async function generateWhiteSpotDemoData() {
                 customersAdded++;
             }
             
-            // Get existing heatmaps using appropriate method
-            const existingHeatmaps = manager.getHeatmaps ? manager.getHeatmaps() : (manager.getEntities('whiteSpotHeatmaps') || []);
-            const existingHeatmap = existingHeatmaps.find(h => h.customerId === customer.id);
+            // Generate heatmap if it doesn't exist
+            const existingHeatmap = manager.getHeatmaps().find(h => h.customerId === customer.id);
             if (!existingHeatmap) {
                 const customerObj = existingCustomer || customer;
                 const scenario = scenarios[i % scenarios.length];
-                const heatmap = await generateDemoHeatmap(customerObj, scenario, manager);
+                const heatmap = await generateDemoHeatmap(customerObj, scenario);
                 
                 if (isStandalone) {
                     manager.addHeatmap(heatmap);
@@ -724,12 +718,4 @@ async function generateWhiteSpotDemoData() {
         console.error('Failed to generate demo data:', error);
         showNotification(`Demo generation failed: ${error.message}`, 'error');
     }
-}
-
-/**
- * Wrapper function for loading demo data - works in both standalone and integrated modes
- * Can be called from UI buttons in either context
- */
-async function loadWhiteSpotDemoData() {
-    await generateWhiteSpotDemoData();
 }

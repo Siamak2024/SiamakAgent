@@ -80,8 +80,8 @@ Generate 8-15 gaps covering People, Process, Data, Application, Technology, Gove
             `Mark gaps as ai_enabled_gap: true if the capability is AI-enabled or closing the gap involves AI/ML/automation implementation.`
           : '';
 
-        return `Strategic ambition: "${si.strategic_ambition || ''}"
-Success metrics: ${(si.success_metrics || []).join('; ')}
+        return `Strategic ambition: "${si.strategicVision?.ambition || ''}"
+Success metrics: ${(si.successMetrics || []).map(m => `${m.metric}: ${m.target} ${m.timeframe}`).join('; ')}
 
 Top capability gaps (by maturity gap):
 ${caps.join('\n') || 'see capability assessment'}

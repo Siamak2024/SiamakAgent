@@ -39,7 +39,7 @@ const EA_Config = {
     platform: {
       id: 'platform',
       name: 'EA Platform',
-      file: 'NexGenEA/NexGen_EA_V4.html',
+      file: 'NexGenEA/NexGenEA_V11.html',
       color: '#1e3a8a',
       icon: '🏛️'
     },

@@ -16,13 +16,20 @@ You are a senior strategy and enterprise architecture advisor with 20+ years of 
 - `org_name`: extract from description or use "the organisation"
 - `industry`: be specific — not "retail" but "B2C fashion retail" or "wholesale distribution"
 - `timeframe`: default "3-5 years" unless constrained — but state it explicitly
-- `strategic_ambition`: one sentence. Executive tone. No invented numbers. No jargon. The essence of what success looks like.
+- `strategicVision`: Object with ambition, themes, and timeframe:
+  - `ambition`: one sentence. Executive tone. No invented numbers. No jargon. The essence of what success looks like.
+  - `themes`: EXACTLY 3. Plain English, max 8 words each. These are the architectural thread that every step must trace back to.
+  - `timeframe`: Planning horizon (e.g., "3-5 years").
 - `situation_narrative`: 2-3 sentences. Ground truth of where they are TODAY and why that is not sustainable.
-- `strategic_themes`: EXACTLY 3. Plain English, max 8 words each. These are the architectural thread that every step must trace back to.
 - `ai_transformation_themes`: 2-4 items. Specific AI/automation use cases from Q7b. Plain English business outcomes, not technical jargon. Format: "AI-driven [outcome]" or "Automate [process]". If Q7b answer was "No AI plans", use empty array [].
 - `investigation_scope`: 4-6 items. What IS in scope for this engagement (from Q6).
-- `key_constraints`: EXACTLY 5 items. ONE constraint per category, prefixed: "Operational: | Financial: | Organisational: | Technical: | External:"
-- `success_metrics`: 5-6 items. "Reduction in / Improvement in / Increase in" framing. Specific areas, no invented percentages.
+- `constraints`: EXACTLY 5 items. Array of objects, ONE constraint per category. Each object has:
+  - `type`: "Operational" | "Financial" | "Organisational" | "Technical" | "External"
+  - `description`: Specific constraint description
+- `successMetrics`: 5-6 items. Array of objects, each with:
+  - `metric`: Metric name and description
+  - `target`: Baseline → Target ("Reduction in / Improvement in / Increase in" framing)
+  - `timeframe`: When to achieve (specific dates/periods)
 - `key_assumptions_to_validate`: 5-8 engagement assumptions — strategic (from Q7 + implied). NOT data gaps.
 - `expected_outcomes`: EXACTLY 3 items. Each one is a concrete business outcome if the engagement succeeds.
 - `burning_platform`: 1 sentence. The urgent case for acting NOW versus waiting 12 months.
@@ -46,20 +53,63 @@ Return ONLY valid JSON. No markdown, no prose, no code blocks.
 {
   "org_name": "",
   "industry": "",
-  "timeframe": "3-5 years",
-  "strategic_ambition": "",
+  "strategicVision": {
+    "ambition": "",
+    "themes": ["", "", ""],
+    "timeframe": "3-5 years"
+  },
   "situation_narrative": "",
-  "strategic_themes": ["", "", ""],
   "ai_transformation_themes": ["", "", ""],
   "investigation_scope": ["", "", "", ""],
-  "strategic_constraints": [
-    "Operational: ",
-    "Financial: ",
-    "Organisational: ",
-    "Technical: ",
-    "External: "
+  "constraints": [
+    {
+      "type": "Operational",
+      "description": ""
+    },
+    {
+      "type": "Financial",
+      "description": ""
+    },
+    {
+      "type": "Organisational",
+      "description": ""
+    },
+    {
+      "type": "Technical",
+      "description": ""
+    },
+    {
+      "type": "External",
+      "description": ""
+    }
   ],
-  "success_metrics": ["", "", "", "", ""],
+  "successMetrics": [
+    {
+      "metric": "",
+      "target": "",
+      "timeframe": ""
+    },
+    {
+      "metric": "",
+      "target": "",
+      "timeframe": ""
+    },
+    {
+      "metric": "",
+      "target": "",
+      "timeframe": ""
+    },
+    {
+      "metric": "",
+      "target": "",
+      "timeframe": ""
+    },
+    {
+      "metric": "",
+      "target": "",
+      "timeframe": ""
+    }
+  ],
   "key_assumptions_to_validate": ["", "", "", "", ""],
   "expected_outcomes": ["", "", ""],
   "burning_platform": "",

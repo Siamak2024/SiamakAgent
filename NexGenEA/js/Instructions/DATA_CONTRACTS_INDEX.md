@@ -111,13 +111,13 @@ ALL steps require industry-specific, realistic content:
 ### Key Data Type Rules
 
 **STRING fields:**
-- Strategic Intent: `strategic_ambition` (2-3 sentences)
+- Strategic Intent: `strategicVision.ambition` (2-3 sentences)
 - BMC: `value_proposition` (2-4 sentences) — NOT an array!
 - Operating Model: All dimension descriptions
 - Value Pools: `estimatedValue`, `timeToValue`, `confidence`
 
 **ARRAY fields:**
-- Strategic Intent: `strategic_themes`, `success_metrics`, `strategic_constraints`
+- Strategic Intent: `strategicVision.themes`, `successMetrics[]`, `constraints[]`, `keyChallenges[]`
 - BMC: All 8 other fields (customer_segments, channels, etc.)
 - Capabilities: `model.capabilities` is the root array
 - Gap Analysis: `gaps` array
@@ -125,7 +125,7 @@ ALL steps require industry-specific, realistic content:
 - Roadmap: `initiatives` array
 
 **OBJECT fields:**
-- Strategic Intent: Root is object
+- Strategic Intent: Root is object with nested `strategicVision`, `successMetrics[]`, `constraints[]`
 - BMC: Root is object
 - Operating Model: Root is object with sub-objects (governance, organization, etc.)
 - Capability: Each item in array is object

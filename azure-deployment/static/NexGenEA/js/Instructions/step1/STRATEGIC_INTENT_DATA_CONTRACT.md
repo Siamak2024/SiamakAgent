@@ -12,17 +12,38 @@ Strategic Intent is a **simple flat object** with string and array fields. NO ne
 
 ---
 
-## Primary Schema (model.strategicIntent)
+## Primary Schema (model.businessContext)
 
 ```json
 {
-  "strategic_ambition": "String (2-3 sentences) — Executive summary of strategic direction",
-  "strategic_themes": ["theme 1", "theme 2", "theme 3", "theme 4"],
-  "success_metrics": ["metric 1 with target", "metric 2 with target", "metric 3"],
-  "strategic_constraints": ["constraint 1", "constraint 2"],
+  "strategicVision": {
+    "ambition": "String (2-3 sentences) — Executive summary of strategic direction",
+    "themes": ["theme 1", "theme 2", "theme 3", "theme 4"],
+    "timeframe": "String — Planning horizon (e.g., '3-5 years')"
+  },
+  "successMetrics": [
+    {
+      "metric": "Metric name and description",
+      "target": "Target value or outcome",
+      "timeframe": "When to achieve"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "Operational|Financial|Organisational|Technical|External",
+      "description": "Constraint description"
+    }
+  ],
+  "keyChallenges": [
+    {
+      "id": "String — Unique identifier",
+      "challenge": "Challenge description",
+      "impact": "High|Medium|Low",
+      "category": "Category name"
+    }
+  ],
   "situation_narrative": "Optional: Current state description",
   "burning_platform": "Optional: Urgency driver",
-  "key_constraints": ["Optional: Same as strategic_constraints or more detailed"],
   "investigation_scope": ["Optional: EA focus areas"],
   "key_assumptions_to_validate": ["Optional: Assumptions requiring validation"],
   "expected_outcomes": ["Optional: Expected results"]

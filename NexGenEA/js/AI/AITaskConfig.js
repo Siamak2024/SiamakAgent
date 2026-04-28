@@ -1,6 +1,6 @@
 /**
  * AITaskConfig.js — Model configuration for all AI task types.
- * Primary model: gpt-4o via OpenAI Chat Completions API.
+ * Primary model: gpt-5.4 via OpenAI Responses API.
  *
  * To change a model or temperature, edit this file only.
  * All step modules reference task types by name (e.g. "heavy"),
@@ -13,7 +13,7 @@ const AITaskConfig = (() => {
 
     // ── Discovery: deep reasoning, complex EA discussion ──────────────────
     discovery: {
-      model: 'gpt-4o',
+      model: 'gpt-5.4',
       temperature: 0.7,
       timeoutMs: 180000,
       description: 'Deep reasoning for context-aware EA result discussion'
@@ -21,7 +21,7 @@ const AITaskConfig = (() => {
 
     // ── Action: exact JSON generation, structured model updates ──────────
     action: {
-      model: 'gpt-4o',
+      model: 'gpt-5.4',
       temperature: 0.2,
       timeoutMs: 120000,
       description: 'Precise JSON generation for EA model updates'
@@ -29,7 +29,7 @@ const AITaskConfig = (() => {
 
     // ── Heavy: large architecture generation (Steps 3, 4, 7) ─────────────
     heavy: {
-      model: 'gpt-4o',
+      model: 'gpt-5.4',
       temperature: 0.3,
       timeoutMs: 240000,
       description: 'Complex EA architecture generation with deep analysis'
@@ -37,7 +37,7 @@ const AITaskConfig = (() => {
 
     // ── Analysis: gap analysis, maturity, benchmarking ───────────────────
     analysis: {
-      model: 'gpt-4o',
+      model: 'gpt-5.4',
       temperature: 0.4,
       timeoutMs: 180000,
       description: 'Strategic analysis and insight generation'
@@ -45,7 +45,7 @@ const AITaskConfig = (() => {
 
     // ── General: standard chat, Q&A, question generation ─────────────────
     general: {
-      model: 'gpt-4o',
+      model: 'gpt-5.4',
       temperature: 0.6,
       timeoutMs: 120000,
       description: 'General EA advisory and conversational questions'
@@ -53,7 +53,7 @@ const AITaskConfig = (() => {
 
     // ── Lightweight: simple lookups, translations, context analysis ───────
     lightweight: {
-      model: 'gpt-4o',
+      model: 'gpt-5.4',
       temperature: 0.3,
       timeoutMs: 60000,
       description: 'Quick, simple tasks and classifications'

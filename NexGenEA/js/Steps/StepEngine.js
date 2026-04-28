@@ -1,4 +1,4 @@
-/**
+﻿/**
  * StepEngine.js — Main orchestrator for the modular EA workflow.
  *
  * Replaces the individual step trigger functions (clarifyStrategicIntent,
@@ -26,10 +26,10 @@ const StepEngine = (() => {
     step1:  () => typeof Step1  !== 'undefined' ? Step1  : null,
     step2:  () => typeof Step2  !== 'undefined' ? Step2  : null,
     step3:  () => typeof Step3  !== 'undefined' ? Step3  : null,
-    step4:  () => typeof Step4  !== 'undefined' ? Step4  : null,
-    step5:  () => typeof Step5  !== 'undefined' ? Step5  : null,
-    step6:  () => typeof Step6  !== 'undefined' ? Step6  : null,
-    step7:  () => typeof Step7  !== 'undefined' ? Step7  : null,  // ← FIX: was missing, caused "Step module step7 is not loaded"
+    step4:  () => typeof Step4  !== 'undefined' ? Step4  : null, // V10: Benchmark Analysis
+    step5:  () => typeof Step5  !== 'undefined' ? Step5  : null, // V10: Data Collection/Survey
+    step6:  () => typeof Step6  !== 'undefined' ? Step6  : null, // V10: Layers & Gap Analysis
+    step7:  () => typeof Step7  !== 'undefined' ? Step7  : null,
     step7a: () => typeof Step7  !== 'undefined' ? Step7.targetArch : null,
     step7b: () => typeof Step7  !== 'undefined' ? Step7.roadmap    : null
   };
@@ -52,7 +52,7 @@ const StepEngine = (() => {
         }
       }
     });
-    console.log('[StepEngine] Registered steps:', stepModules.map(m => m.id).join(', '));
+    // console.log('[StepEngine] Registered steps:', stepModules.map(m => m.id).join(', '));
   }
 
   // ── Active run tracker (for UI state) ────────────────────────────────────
@@ -84,6 +84,31 @@ const StepEngine = (() => {
     }
     // Ensure model is always the global window.model if not provided
     if (!model) model = window.model || {};
+    
+    // ── Auto-create project ID if starting Step 1 without one ────────────
+    if (stepId === 'step1' && typeof window !== 'undefined' && !window.currentProjectId) {
+      // Use better date format: proj_YYYYMMDD_HHMMSS
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+      const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+      const projectId = `proj_${dateStr}_${timeStr}`;
+      const projectName = `Project ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+      
+      window.currentProjectId = projectId;
+      window.currentProjectName = projectName;
+      
+      // Register with DataManager if available
+      if (typeof dataManager !== 'undefined' && dataManager && typeof dataManager.createProject === 'function') {
+        const dmProject = dataManager.createProject(projectName, 'Auto-created on Step 1 start');
+        window.currentProjectId = dmProject.id; // Use DataManager's ID
+        console.log(`[StepEngine] Auto-created project via DataManager: ${projectName} (ID: ${dmProject.id})`);
+      } else {
+        console.log(`[StepEngine] Auto-created project: ${projectName} (ID: ${projectId})`);
+      }
+      
+      // Update UI
+      if (typeof updateHeaderTitle === 'function') updateHeaderTitle();
+    }
 
     const stepModule = STEP_MODULES[stepId]?.();
     if (!stepModule) {
@@ -168,9 +193,12 @@ const StepEngine = (() => {
         // Mark step as errored but don't throw — caller can decide
         workingModel.steps[stepId].status = 'error';
         workingModel.steps[stepId].error  = err.message;
-        if (typeof autoSaveCurrentModel === 'function') {
-          // Write partial model to global
-          Object.assign(window.model || {}, workingModel);
+        // Write partial model to global
+        Object.assign(window.model || {}, workingModel);
+        // Use new Project-based save (fallback to legacy if not available)
+        if (typeof saveProjectToDB === 'function') {
+          saveProjectToDB(false, true);
+        } else if (typeof autoSaveCurrentModel === 'function') {
           autoSaveCurrentModel();
         }
         throw err;
@@ -184,8 +212,12 @@ const StepEngine = (() => {
       workingModel.steps[stepId].answers[taskDef.taskId] = taskResult.output;
 
       // Auto-save after each task (CRITICAL for user progress preservation)
-      if (typeof autoSaveCurrentModel === 'function') {
-        Object.assign(window.model || {}, workingModel);
+      Object.assign(window.model || {}, workingModel);
+      // Use new Project-based save (fallback to legacy if not available)
+      if (typeof saveProjectToDB === 'function') {
+        saveProjectToDB(false, true);
+        console.log(`[StepEngine] Project auto-saved after task ${taskDef.taskId}`);
+      } else if (typeof autoSaveCurrentModel === 'function') {
         autoSaveCurrentModel();
         console.log(`[StepEngine] Auto-saved after task ${taskDef.taskId}`);
       }
@@ -231,7 +263,12 @@ const StepEngine = (() => {
     if (typeof window !== 'undefined' && typeof window.model !== 'undefined') {
       Object.assign(window.model, newModel);
     }
-    if (typeof autoSaveCurrentModel === 'function')  autoSaveCurrentModel();
+    // Use new Project-based save (fallback to legacy if not available)
+    if (typeof saveProjectToDB === 'function') {
+      saveProjectToDB(false, true);
+    } else if (typeof autoSaveCurrentModel === 'function') {
+      autoSaveCurrentModel();
+    }
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
     if (typeof _updateContinueBtn === 'function') _updateContinueBtn(); // Update Continue button to show next step
     if (stepModule.onComplete) stepModule.onComplete(newModel);
@@ -258,6 +295,9 @@ const StepEngine = (() => {
     } else if (taskType === 'text-input') {
       // ── Text input task: show textarea, await user input ───────────────
       return await _runTextInputTask(taskDef, ctx);
+    } else if (taskType === 'custom-ui') {
+      // ── Custom UI task: render custom interface ─────────────────────────
+      return await _runCustomUITask(taskDef, ctx);
     } else {
       // ── Internal task: fire AI silently ───────────────────────────────
       return await _runInternalTask(taskDef, ctx, userInput);
@@ -266,21 +306,57 @@ const StepEngine = (() => {
 
   // ── Internal (AI-only) task ───────────────────────────────────────────────
   async function _runInternalTask(taskDef, ctx, userInput) {
+    // Check if this task should skip AI and use custom execute function
+    if (taskDef.skipAI === true || taskDef.execute) {
+      if (!taskDef.execute || typeof taskDef.execute !== 'function') {
+        throw new Error(`Task ${taskDef.taskId} has skipAI=true but no execute function defined`);
+      }
+      
+      // Execute custom function directly without AI call
+      const output = await taskDef.execute(ctx);
+      
+      return { 
+        taskId: taskDef.taskId, 
+        output: output,
+        aiResult: { status: 'skipped', reason: 'skipAI' }
+      };
+    }
+
     // Show thinking indicator in chat
     if (typeof showTypingIndicator === 'function') {
       showTypingIndicator();
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    console.log(`%c[StepEngine] 🧩 LOADING SYSTEM PROMPT`, 'color: #a855f7; font-weight: bold');
+    console.log(`  Task:             ${taskDef.taskId}`);
+    console.log(`  Has instruction:  ${!!taskDef.instructionFile}`);
+    console.log(`  Instruction file: ${taskDef.instructionFile || 'N/A'}`);
+    console.log(`  Has fallback:     ${!!taskDef.systemPromptFallback}`);
+    // ═══════════════════════════════════════════════════════════════════
+
     // Load system prompt
     let systemPrompt;
+    let promptSource = 'unknown';
     if (taskDef.instructionFile && typeof PromptBuilder !== 'undefined') {
       systemPrompt = await PromptBuilder.load(
         ctx.stepId, taskDef.instructionFile, taskDef.systemPromptFallback || ''
       );
+      // Check if PromptBuilder returned the fallback or loaded from file
+      if (systemPrompt === taskDef.systemPromptFallback || 
+          (typeof taskDef.systemPromptFallback === 'function' && systemPrompt === taskDef.systemPromptFallback(ctx))) {
+        promptSource = 'fallback-prompt';
+        console.warn(`%c[StepEngine] ⚠️ Using FALLBACK prompt (instruction file not found)`, 'color: #f59e0b; font-weight: bold');
+      } else {
+        promptSource = 'instruction-file';
+        console.log(`%c[StepEngine] ✅ Loaded from instruction file`, 'color: #10b981');
+      }
     } else {
       systemPrompt = typeof taskDef.systemPromptFallback === 'function'
         ? taskDef.systemPromptFallback(ctx)
         : (taskDef.systemPromptFallback || '');
+      promptSource = 'fallback-prompt';
+      console.warn(`%c[StepEngine] ⚠️ Using FALLBACK prompt (no instruction file specified)`, 'color: #f59e0b; font-weight: bold');
     }
 
     // Build user prompt
@@ -297,11 +373,18 @@ const StepEngine = (() => {
       replyLanguage: ctx.language,
       expectsJson:   taskDef.expectsJson !== false,
       timeoutMs:     taskDef.timeoutMs,
-      temperature:   taskDef.temperature
+      temperature:   taskDef.temperature,
+      tools:         taskDef.tools,  // Pass through tools configuration (e.g., web_search)
+      previousResponseId: _getLastResponseId()  // Chain stateful conversations
     });
 
     if (aiResult.status === 'error') {
       throw new Error(aiResult.error || 'AI call failed');
+    }
+    
+    // Store response ID for stateful chaining
+    if (aiResult.responseId) {
+      _storeResponseId(aiResult.responseId);
     }
 
     // Parse output
@@ -324,18 +407,45 @@ const StepEngine = (() => {
 
   // ── Question task: render card in chat, await user answer ─────────────────
   async function _runQuestionTask(taskDef, ctx) {
+    // ═══════════════════════════════════════════════════════════════════════════
+    console.log(`%c[StepEngine] 💬 QUESTION TASK`, 'color: #3b82f6; font-weight: bold');
+    console.log(`  Task:              ${taskDef.taskId}`);
+    console.log(`  Title:             ${taskDef.title}`);
+    console.log(`  Generate Question: ${taskDef.generateQuestion ? 'YES (AI will generate)' : 'NO (static question)'}`);
+    console.log(`  Allow Multiple:    ${taskDef.allowMultiple || false}`);
+    // ═══════════════════════════════════════════════════════════════════════════
+
     // Generate the question via AI (if taskDef has AI generation)
     let questionData;
     if (taskDef.generateQuestion) {
+      console.log(`%c[StepEngine] 🤖 Calling AI to GENERATE question...`, 'color: #8b5cf6; font-weight: bold');
       const aiResult = await _runInternalTask({ ...taskDef, type: 'internal' }, ctx, {});
       questionData = aiResult.output;
+      
+      if (questionData) {
+        console.log(`%c[StepEngine] ✅ AI GENERATED question successfully`, 'color: #10b981; font-weight: bold');
+        console.log(`  Question: ${questionData.question?.substring(0, 100)}...`);
+        console.log(`  Options:  ${questionData.options?.length || 0} options`);
+        console.log(`  Guidance: ${questionData.guidance ? 'YES' : 'NO'}`);
+      } else {
+        // null questionData means discovery is complete (Context Engine signaled completion)
+        console.log(`%c[StepEngine] ✅ Discovery complete - skipping question`, 'color: #10b981; font-weight: bold');
+        return { 
+          taskId: taskDef.taskId, 
+          output: { skipped: true, reason: 'discovery_complete' }, 
+          aiResult: null 
+        };
+      }
     } else {
+      console.warn(`%c[StepEngine] ⚠️ Using STATIC/HARDCODED question`, 'color: #f59e0b; font-weight: bold');
       // Static question (pre-defined in the task def)
       questionData = {
         question: typeof taskDef.question === 'function' ? taskDef.question(ctx) : taskDef.question,
         options: typeof taskDef.options === 'function' ? taskDef.options(ctx) : (taskDef.options || []),
         guidance: taskDef.guidance || ''
       };
+      console.log(`  Question: ${questionData.question?.substring(0, 100)}...`);
+      console.log(`  Options:  ${questionData.options?.length || 0} options`);
     }
 
     // ── AUTOPILOT MODE: Auto-answer question tasks with first/recommended option ──
@@ -416,13 +526,70 @@ const StepEngine = (() => {
     return { taskId: taskDef.taskId, output, aiResult: null };
   }
 
+  // ── Custom UI task: show custom interface in chat, await user action ──────
+  async function _runCustomUITask(taskDef, ctx) {
+    // Check if this is Step1 validation (business-object mode)
+    if (taskDef.taskId === 'step1_validate' && ctx.stepId === 'step1' && 
+        window.model?.workflowMode === 'business-object') {
+      
+      // Render Business Objectives validation UI
+      if (typeof window.renderStep1ValidationUI === 'function') {
+        const answer = await window.renderStep1ValidationUI({
+          businessContext: window.model.businessContext,
+          strategicThemes: window.model.strategicThemes,
+          businessObjectives: window.model.businessObjectives,
+          gapInsights: window.model.gapInsights,
+          aiProcessingLog: window.model.aiProcessingLog
+        });
+        
+        const output = taskDef.wrapAnswer
+          ? taskDef.wrapAnswer(answer, ctx)
+          : { validation: answer, confirmed: answer === 'approve' };
+        
+        return { taskId: taskDef.taskId, output, aiResult: null };
+      }
+    }
+    
+    // Generic custom-ui handler: if task has an execute function, call it
+    if (typeof taskDef.execute === 'function') {
+      console.log(`[StepEngine] Executing custom-ui task: ${taskDef.taskId}`);
+      const result = await taskDef.execute(ctx);
+      
+      const output = taskDef.parseOutput
+        ? taskDef.parseOutput(result)
+        : result;
+      
+      return { taskId: taskDef.taskId, output, aiResult: null };
+    }
+    
+    // Fallback: treat as question task for other custom-ui types
+    return await _runQuestionTask(taskDef, ctx);
+  }
+
   // ── Dependency validation ─────────────────────────────────────────────────
   function _validateDependencies(stepId, model, stepModule) {
     for (const depId of (stepModule.dependsOn || [])) {
       const dep = model.steps?.[depId];
-      if (!dep || dep.status !== 'completed') {
+      const isCompleted = dep && dep.status === 'completed';
+      
+      console.log(`[StepEngine] Dependency check: ${stepId} depends on ${depId}`, {
+        exists: !!dep,
+        status: dep?.status,
+        isCompleted,
+        modelSteps: model.steps,
+        legacyFlags: {
+          strategicIntentConfirmed: model.strategicIntentConfirmed,
+          businessContextConfirmed: model.businessContextConfirmed,
+          hasStrategicIntent: !!model.strategicIntent,
+          hasBusinessContext: !!model.businessContext
+        }
+      });
+      
+      if (!isCompleted) {
         // Check legacy flags too (for backward compat during migration)
         const legacyOk = _checkLegacyFlag(depId, model);
+        console.log(`[StepEngine] Legacy flag check for ${depId}:`, legacyOk);
+        
         if (!legacyOk) {
           throw new Error(
             `[StepEngine] ${stepId} requires "${depId}" to be completed first.`
@@ -436,8 +603,10 @@ const StepEngine = (() => {
   function _checkLegacyFlag(depId, model) {
     switch (depId) {
       case 'step1':  return !!(model.strategicIntentConfirmed ||
+                              model.businessContextConfirmed ||
                               model.strategicIntent?.strategic_ambition ||
                               model.strategicIntent?.burning_platform ||
+                              model.businessContext?.objectives ||
                               // Implicit: if BMC or capabilities exist, step1 was done in a prior flow
                               model.bmc ||
                               model.capabilities?.length);
@@ -465,6 +634,16 @@ const StepEngine = (() => {
       progressEl.style.display = 'flex';
     }
     if (typeof spin === 'function') spin(_getSpinnerId(stepId), true);
+  }
+
+  // ── Response ID tracking for stateful conversations ──────────────────────
+  function _getLastResponseId() {
+    return window._stepEngineResponseId || null;
+  }
+
+  function _storeResponseId(responseId) {
+    window._stepEngineResponseId = responseId;
+    console.log(`[StepEngine] Stored response ID for stateful chaining: ${responseId}`);
   }
 
   function _getSpinnerId(stepId) {
@@ -696,6 +875,7 @@ const QuestionCard = (() => {
 
       // Store global handlers (support multi-select)
       window[`_qcData_${cardId}`] = { 
+        options: opts.options || [],  // Store original options array for correct text retrieval
         selectedOptions: [],
         allowMultiple: opts.allowMultiple || false,
         resolve 
@@ -853,9 +1033,13 @@ function _qcSelectOption(cardId, oi, btn) {
   const data = window[`_qcData_${cardId}`];
   if (!data) return;
   
-  // Extract option text without the number prefix (e.g., "1. Text" -> "Text")
-  const fullText = btn.textContent.trim();
-  const optText = fullText.replace(/^\d+\.\s*/, ''); // Remove "1. " prefix
+  // Get the original option text from the stored options array using the index
+  // This avoids issues with HTML tags and number prefixes in button text
+  const optText = data.options[oi];
+  if (!optText) {
+    console.error('[QuestionCard] Option index out of bounds:', oi);
+    return;
+  }
   const isSelected = data.selectedOptions.includes(optText);
   
   if (data.allowMultiple) {

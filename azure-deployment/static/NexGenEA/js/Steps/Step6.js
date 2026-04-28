@@ -140,8 +140,8 @@ Return ONLY valid JSON:
         const pools = ctx.answers?.step6_value_pools?.value_pools || [];
         const si = ctx.strategicIntent;
         const poolSummary = pools.map(p => `${p.id} "${p.name}" (${p.value_potential}): ${p.description || ''}`).join('\n');
-        return `Strategic ambition: "${si.strategic_ambition || ''}"
-Constraints: ${(si.key_constraints || []).join('; ')}
+        return `Strategic ambition: "${si.strategicVision?.ambition || ''}"
+Constraints: ${(si.constraints || []).map(c => `${c.type}: ${c.description}`).join('; ')}
 
 Value pools:
 ${poolSummary}

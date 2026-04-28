@@ -1,316 +1,609 @@
 /**
- * Step2.js — Business Model Canvas (current + future state)
+ * Step2.js — APQC-Integrated Capability Mapping & Gap Analysis
  *
- * GOLDEN RULE: Business Objectives—not Strategic Intent—drive the EA process.
- * BMC MUST align to businessContext.primaryObjectives to ensure actionable architecture.
+ * GOLDEN RULE: All capabilities must trace to Business Objectives for strategic alignment.
+ *
+ * New 4-step workflow position: Step 2 of 4
+ * - Step 1: Discovery (Business Objectives)
+ * - Step 2: Capability Mapping (APQC-aligned) ← THIS FILE
+ * - Step 3: Target Architecture
+ * - Step 4: Transformation Roadmap
  *
  * Tasks:
- *   2.1 bmc_current   — Internal: generate CURRENT state BMC
- *   2.2 bmc_future    — Internal: generate FUTURE state BMC aligned to Business Objectives
- *   2.3 bmc_analysis  — Internal: produce delta/analysis (gaps + opportunities)
+ *   2.0 load_apqc          — Internal: Load APQC PCF v8.0 framework from cache/file
+ *   2.1 capability_mapping — Internal: Build APQC-aligned capability map with gaps
+ *   2.2 validate           — Custom UI: User validation/editing of capability map
  *
  * Outputs:
- *   model.bmc            — future-state BMC (9 building blocks)
- *   model.bmcCurrent     — current-state BMC
- *   model.bmcAnalysis    — delta analysis object
- *   model.businessContext.enrichment.bmcInsights — captured insights for enrichment
+ *   model.apqcFramework        — APQC PCF v8.0 framework (full hierarchy)
+ *   model.apqcSummary          — APQC integration metadata
+ *   model.capabilities[]       — Flattened capability array (backward compat)
+ *   model.capabilityMap        — L1/L2/L3 hierarchy with APQC alignment
+ *   model.gapInsights          — Gap analysis with objective linkage
+ *   model.whiteSpots[]         — Detected white-spot capabilities
+ *   model.capabilityValidated  — Boolean flag for validation completion
  */
 
 const Step2 = {
 
   id: 'step2',
-  name: 'Business Model Canvas',
+  name: 'APQC Capability Mapping',
   dependsOn: ['step1'],
 
   tasks: [
 
-    // ── Task 2.1: Current-state BMC ───────────────────────────────────────
+    // ── Task 2.0: Load APQC Framework ─────────────────────────────────────
     {
-      taskId: 'step2_bmc_current',
-      title: 'Mapping current business model',
+      taskId: 'step2_load_apqc',
+      title: 'Loading APQC framework',
       type: 'internal',
-      taskType: 'analysis',
-      instructionFile: '2_1_bmc_current.instruction.md',
-      expectsJson: true,
+      taskType: 'light',
+      expectsJson: false,
+      skipAI: true, // No AI call needed - just data loading
 
-      systemPromptFallback: `You are an expert Business Model designer. Analyse the company description and Business Context (Primary Objectives) to map the CURRENT state Business Model Canvas.
-
-This is a diagnostic map — reflect the AS-IS state of the organisation. Identify where the current model is under stress or misaligned with Primary Objectives.
-
-CRITICAL: Return ONLY valid JSON. ALL fields MUST be ARRAYS.
-
-Example output:
-{
-  "value_propositions": ["We help SMB retailers achieve X", "We enable enterprises to do Y"],
-  "customer_segments": ["SMB companies in retail", "Enterprise manufacturing firms"],
-  "customer_relationships": ["Self-service portal", "Dedicated account managers"],
-  "channels": ["Direct sales", "Partner network", "Online marketplace"],
-  "key_activities": ["Platform development", "Customer support", "Partner enablement"],
-  "key_resources": ["Engineering team", "Cloud infrastructure", "Brand reputation"],
-  "key_partners": ["Technology vendors", "System integrators", "Cloud providers"],
-  "cost_structure": ["Staff salaries", "Cloud hosting costs", "Marketing spend"],
-  "revenue_streams": ["SaaS subscription ($99/user/month)", "Professional services (hourly)", "Partner commissions"]
-}
-
-RULES:
-- ALL 9 fields are ARRAYS with 2-5 string items each ← MUST be arrays like ["item1", "item2"]
-- Mark uncertain items with ⚠️ prefix
-- Ground each item in company description - no generic filler`,
-
-      userPrompt: (ctx) => {
-        const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
-        const si = ctx.strategicIntent;
-        
-        if (profile) {
-          // Rich Profile mode: Use detailed offerings, business model, markets
-          const offerings = (profile.offerings || []).map(o => `• ${o.name}: ${o.description || 'N/A'} (${o.targetCustomers || 'N/A'})`).join('\n');
-          const markets = (profile.markets?.regions || []).join(', ');
-          const customers = (profile.markets?.customerTypes || []).join(', ');
-          
-          return `**ORGANIZATION PROFILE - BMC CONTEXT:**
-
-Organization: ${profile.organizationName} (${profile.industry})
-Business Model: ${profile.businessModel || 'Not specified'}
-
-**Products/Services:**
-${offerings || 'None specified'}
-
-**Market Position:**
-- Regions: ${markets || 'Not specified'}
-- Customer Types: ${customers || 'Not specified'}
-- Market Share: ${profile.markets?.marketShare || 'Not specified'}
-
-**Competitors:** ${(profile.markets?.competitors || []).join(', ') || 'None specified'}
-**Differentiators:** ${(profile.markets?.differentiators || []).join(', ') || 'None specified'}
-
-**Strategic Intent (from Step 1):**
-- Ambition: ${si.strategic_ambition || ''}
-- Burning platform: ${si.burning_platform || ''}
-
-**CRITICAL:** Map the CURRENT state BMC grounded in the SPECIFIC offerings, markets, and business model from the profile above. Do NOT use generic consulting language.
-
-Return JSON output.`;
+      // Conditional execution - skip in autopilot mode if already loaded
+      shouldRun: (ctx) => {
+        if (ctx.workflowMode === 'autopilot' && window.EA_DataManager) {
+          const cached = window.EA_DataManager.getAPQCFramework();
+          if (cached && cached.categories && cached.categories.length > 0) {
+            ctx.answers = ctx.answers || {};
+            ctx.answers.step2_load_apqc = { 
+              status: 'cached', 
+              framework: cached,
+              message: 'APQC framework loaded from cache'
+            };
+            return false; // Skip this task
+          }
         }
-        
-        // Quick Start fallback
-        return `Company: "${ctx.companyDescription}"
-
-Strategic Intent (from Step 1):
-- Ambition: ${si.strategic_ambition || ''}
-- Industry: ${si.industry || ctx.masterData.industry || ''}
-- Burning platform: ${si.burning_platform || ''}
-- Constraints: ${(si.key_constraints || []).join('; ')}
-
-Map the CURRENT state BMC. Ground each block in the company description. Mark gaps with ⚠️.
-
-Return JSON output.`;
+        return true;
       },
 
-      outputSchema: {
-        value_propositions: ['string'],
-        customer_segments: ['string'],
-        customer_relationships: ['string'],
-        channels: ['string'],
-        key_activities: ['string'],
-        key_resources: ['string'],
-        key_partners: ['string'],
-        cost_structure: ['string'],
-        revenue_streams: ['string']
+      execute: async (ctx) => {
+        // Use dataManager instance to load APQC framework
+        if (!window.dataManager || typeof window.dataManager.loadAPQCFramework !== 'function') {
+          throw new Error('dataManager not available - cannot load APQC framework');
+        }
+
+        try {
+          if (typeof addAssistantMessage === 'function') {
+            addAssistantMessage('⏳ Loading APQC Process Classification Framework v8.0...');
+          }
+
+          const framework = await window.dataManager.loadAPQCFramework();
+          
+          if (!framework || !framework.categories || framework.categories.length === 0) {
+            throw new Error('APQC framework loaded but contains no categories');
+          }
+
+          // Load metadata mapping (business types, strategic intents)
+          const metadata = await window.dataManager.loadAPQCMetadata().catch(() => ({}));
+
+          if (typeof addAssistantMessage === 'function') {
+            addAssistantMessage(
+              `✅ APQC framework loaded: ${framework.categories.length} L1 categories, ` +
+              `${framework.total_processes || 'multiple'} processes`
+            );
+          }
+
+          return {
+            status: 'loaded',
+            framework,
+            metadata,
+            message: `APQC PCF v8.0 loaded successfully`
+          };
+
+        } catch (error) {
+          console.error('Step2 APQC load error:', error);
+          if (typeof addAssistantMessage === 'function') {
+            addAssistantMessage(`⚠️ APQC framework load failed: ${error.message}. Continuing with standard capability mapping.`);
+          }
+          // Don't fail - allow fallback to standard capability mapping
+          return {
+            status: 'fallback',
+            framework: null,
+            metadata: {},
+            message: `Fallback to standard capability mapping`,
+            error: error.message
+          };
+        }
       },
 
-      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step2_bmc_current')
+      parseOutput: (raw) => raw // Direct pass-through
     },
 
-    // ── Task 2.2: Future-state BMC ────────────────────────────────────────
+    // ── Task 2.1: APQC-Integrated Capability Mapping ──────────────────────
     {
-      taskId: 'step2_bmc_future',
-      title: 'Designing future business model',
+      taskId: 'step2_capability_mapping',
+      title: 'Building APQC-aligned capability map',
       type: 'internal',
       taskType: 'heavy',
-      instructionFile: '2_2_bmc_future.instruction.md',
+      instructionFile: '2_1_capability_mapping_apqc.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an expert Business Model designer. Based on the Business Context (Primary Objectives) and current-state BMC, design the FUTURE state Business Model Canvas — where the organisation needs to be to achieve their Primary Objectives.
+      systemPromptFallback: `You are an Enterprise Architecture expert with deep APQC Process Classification Framework knowledge.
 
-This is a TARGET model — show the bold shifts needed to achieve Primary Objectives, not incremental tweaks.
+Build a comprehensive capability model:
+1. Select 5-8 relevant APQC L1 categories based on business type and objectives
+2. Map 3-5 L2 processes per L1 category
+3. For CORE domains, include 2-4 L3 activities per L2
+4. Link every capability to Business Objectives (objective_mappings[])
+5. Assess current vs target maturity (1-5 scale)
+6. Identify gaps, white spots, IT enablement needs
 
-CRITICAL: Return ONLY valid JSON. ALL fields MUST be ARRAYS.
-
-Example output:
+Return ONLY valid JSON with structure:
 {
-  "value_propositions": ["We will deliver X value through Y innovation", "We enable Z transformation"],
-  "customer_segments": ["Expanded SMB segment", "New enterprise vertical", "International markets"],
-  "customer_relationships": ["AI-powered self-service", "Community-driven support", "Premium concierge tier"],
-  "channels": ["Digital-first omnichannel", "API ecosystem", "Strategic partnerships"],
-  "key_activities": ["Platform R&D", "Data analytics", "Ecosystem development"],
-  "key_resources": ["AI/ML capabilities", "Customer data platform", "Partner network"],
-  "key_partners": ["Cloud hyperscalers", "System integrators", "Tech vendors"],
-  "cost_structure": ["Engineering R&D", "Cloud infrastructure", "Go-to-market"],
-  "revenue_streams": ["Tiered SaaS ($49-$199/user/month)", "Usage-based billing", "Premium add-ons"],
-  "transformation_moves": [
-    {"from": "Single-tier fixed pricing", "to": "Tiered usage-based model", "rationale": "Better align value capture with usage"}
-  ]
-}
-
-RULES:
-- ALL 9 building blocks are ARRAYS with 2-5 items ← MUST be arrays like ["item1", "item2"]
-- transformation_moves: ARRAY of objects explaining major shifts
-- Show bold changes from current to future state`,
-
-      userPrompt: (ctx) => {
-        const si = ctx.strategicIntent;
-        const current = ctx.answers?.step2_bmc_current || {};
-        
-        // ── Phase 2.1: Include AI transformation themes from Strategic Intent ──
-        const aiThemes = (si.ai_transformation_themes || []);
-        const aiContext = aiThemes.length > 0
-          ? `\n\nAI Transformation Themes (from Strategic Intent):\n${aiThemes.map((t, i) => `${i+1}. ${t}`).join('\n')}\n\nIncorporate these AI ambitions into the future BMC where relevant (key activities, resources, relationships, revenue).`
-          : '';
-        
-        return `Company: "${ctx.companyDescription}"
-
-Strategic Intent:
-- Ambition: ${si.strategic_ambition || ''}
-- Themes: ${(si.strategic_themes || []).join(' | ')}
-- Expected outcomes: ${(si.expected_outcomes || []).join('; ')}
-- Success metrics: ${(si.success_metrics || []).slice(0, 4).join('; ')}${aiContext}
-
-Current BMC summary:
-- Value propositions: ${(current.value_propositions || []).join('; ')}
-- Customer segments: ${(current.customer_segments || []).join(', ')}
-- Revenue streams: ${(current.revenue_streams || []).join('; ')}
-
-Design the FUTURE state BMC. Show bold shifts — not just refining the current model. Include transformation_moves to explain each major change.
-
-Return JSON output.`;
-      },
-
-      outputSchema: {
-        value_propositions: ['string'],
-        customer_segments: ['string'],
-        customer_relationships: ['string'],
-        channels: ['string'],
-        key_activities: ['string'],
-        key_resources: ['string'],
-        key_partners: ['string'],
-        cost_structure: ['string'],
-        revenue_streams: ['string'],
-        ai_transformation: 'object?'  // Phase 2.1: Optional AI-enabled BMC elements (only if Strategic Intent has AI plans)
-      },
-
-      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step2_bmc_future')
-    },
-
-    // ── Task 2.3: BMC Delta Analysis ──────────────────────────────────────
+  "apqc_summary": {
+    "framework_version": "APQC PCF v8.0",
+    "selected_l1_categories": [],
+    "total_apqc_capabilities": 0,
+    "total_custom_capabilities": 0,
+    "business_type": "",
+    "strategic_focus": []
+  },
+  "capability_hierarchy": [
     {
-      taskId: 'step2_bmc_analysis',
-      title: 'Analysing business model delta',
-      type: 'internal',
-      taskType: 'analysis',
-      instructionFile: '2_3_bmc_analysis.instruction.md',
-      expectsJson: true,
-
-      systemPromptFallback: `You are a senior strategic analyst. Compare the current and future Business Model Canvas to produce a structured delta analysis.
-Return ONLY valid JSON:
-{
-  "critical_gaps": [{"block":"","gap":"","impact":"HIGH|MEDIUM|LOW"}],
-  "strategic_opportunities": [{"opportunity":"","value_driver":"","feasibility":"HIGH|MEDIUM|LOW"}],
-  "capability_implications": [""],
-  "architectural_implications": [""],
-  "transformation_risk": "HIGH|MEDIUM|LOW",
-  "transformation_risk_rationale": "",
-  "executive_summary": ""
+      "id": "1.0",
+      "apqc_id": "1.0",
+      "name": "",
+      "description": "",
+      "level": 1,
+      "apqc_source": true,
+      "objective_mappings": ["OBJ-01"],
+      "classification": "Core|Differentiating|Supporting|Commodity",
+      "scores": {"importance":5,"maturity":2,"performance":2,"cost":3},
+      "current_maturity": 2,
+      "target_maturity": 4,
+      "gap": 2,
+      "strategic_importance": "CORE",
+      "investment_priority": "HIGH",
+      "it_enablement": {"applications":[],"data_services":[],"integrations":[],"security":[]},
+      "benchmark_maturity": 3.5,
+      "white_spot_flags": [],
+      "ai_enabled": false,
+      "children": []
+    }
+  ],
+  "gap_insights": [
+    {
+      "gap_id": "G01",
+      "capability_id": "1.0",
+      "capability_name": "",
+      "objective_id": "OBJ-01",
+      "objective_name": "",
+      "gap_description": "",
+      "business_impact": "",
+      "recommendation": "",
+      "priority": "HIGH|MEDIUM|LOW",
+      "timeframe": "Quick-win|Short-term|Medium-term|Long-term",
+      "estimated_effort": "",
+      "expected_benefit": ""
+    }
+  ],
+  "white_spots": [],
+  "metadata": {"total_capabilities":0}
 }`,
 
       userPrompt: (ctx) => {
-        const current = ctx.answers?.step2_bmc_current || {};
-        const future = ctx.answers?.step2_bmc_future || {};
-        const si = ctx.strategicIntent;
-        return `Strategic ambition: "${si.strategic_ambition || ''}"
+        // Extract business context from Step 1
+        const bc = ctx.businessContext || {};
+        const objectives = bc.objectives || [];
+        const themes = bc.strategicThemes || [];
+        const gapInsights = bc.gapInsights || [];
+        
+        // APQC framework from Task 2.0
+        const apqcData = ctx.answers?.step2_load_apqc || {};
+        const apqcFramework = apqcData.framework || null;
+        const apqcMetadata = apqcData.metadata || {};
 
-Current BMC:
-${JSON.stringify({ vp: current.value_propositions, segments: current.customer_segments, revenue: current.revenue_streams, activities: current.key_activities }, null, 2)}
+        // Organization profile
+        const orgDesc = ctx.companyDescription || ctx.orgDescription || '';
+        const industry = bc.industry || ctx.masterData?.industry || 'General Enterprise';
+        const businessType = bc.businessType || apqcMetadata.business_type || 'Services';
 
-Future BMC:
-${JSON.stringify({ vp: future.value_propositions, segments: future.customer_segments, revenue: future.revenue_streams, moves: future.transformation_moves }, null, 2)}
+        // Build APQC context string
+        let apqcContext = '';
+        if (apqcFramework && apqcFramework.categories) {
+          const l1Summary = apqcFramework.categories.slice(0, 12).map(cat => 
+            `${cat.id} ${cat.name}${cat.description ? ': ' + cat.description.slice(0, 100) : ''}`
+          ).join('\n');
+          apqcContext = `\n\n**APQC Framework (L1 Categories):**\n${l1Summary}\n\nSelect 5-8 most relevant L1 categories for this organization.`;
+        } else {
+          apqcContext = `\n\n**APQC Framework**: Not loaded - use standard APQC knowledge to build capability map.`;
+        }
 
-Produce the delta analysis. executive_summary: 2-3 sentences for the Board.
+        // Build objectives summary
+        const objSummary = objectives.slice(0, 8).map((obj, idx) => 
+          `${obj.id || `OBJ-${String(idx+1).padStart(2,'0')}`}: ${obj.objective || obj.name || obj.description || ''}`
+        ).join('\n');
 
-Return JSON output.`;
+        // Strategic themes
+        const themesList = (Array.isArray(themes) ? themes : [themes])
+          .filter(t => t && typeof t === 'string')
+          .join(', ');
+
+        // Gap insights from Step 1
+        const gapsList = gapInsights.slice(0, 5).map(g => 
+          `- ${g.category || 'General'}: ${g.description || g.gap || ''}`
+        ).join('\n');
+
+        return `**Organization Profile:**
+Company: "${orgDesc.slice(0, 400)}"
+Industry: ${industry}
+Business Type: ${businessType}
+
+**Business Objectives (from Step 1):**
+${objSummary || 'No objectives defined - use company description to infer'}
+
+**Strategic Themes:**
+${themesList || 'Growth, Innovation, Efficiency'}
+
+**Known Gaps/Pain Points:**
+${gapsList || 'Identify from company description'}
+${apqcContext}
+
+**Instructions:**
+Follow the 8-step process in the instruction file:
+1. Analyze business objectives
+2. Select 5-8 relevant APQC L1 categories
+3. Map APQC L2/L3 capabilities to objectives
+4. Add custom capabilities only if truly unique
+5. Assess maturity & gaps (1-5 scale)
+6. Detect white spots (missing/under-invested/emerging)
+7. Map IT enablement (applications, data, integrations, security)
+8. Generate 5-10 gap insights with objective linkage
+
+Return complete JSON with all fields populated.`;
       },
 
       outputSchema: {
-        critical_gaps: ['object'],
-        strategic_opportunities: ['object'],
-        executive_summary: 'string'
+        apqc_summary: 'object',
+        capability_hierarchy: ['object'],
+        gap_insights: ['object'],
+        metadata: 'object'
       },
 
-      parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step2_bmc_analysis')
+      parseOutput: (raw) => {
+        const parsed = OutputValidator.parseJSON(raw, 'step2_capability_mapping');
+        if (!parsed) return parsed;
+
+        // Normalize field names (AI may use alternate names)
+        if (!parsed.capability_hierarchy && parsed.capabilities) {
+          parsed.capability_hierarchy = parsed.capabilities;
+        }
+        if (!parsed.capability_hierarchy && parsed.capabilityMap) {
+          parsed.capability_hierarchy = parsed.capabilityMap;
+        }
+
+        // Ensure metadata exists
+        if (!parsed.metadata) {
+          parsed.metadata = {
+            total_capabilities: (parsed.capability_hierarchy || []).length,
+            total_l1: (parsed.capability_hierarchy || []).filter(c => c.level === 1).length
+          };
+        }
+
+        // Ensure gap_insights exists
+        if (!parsed.gap_insights) {
+          parsed.gap_insights = [];
+        }
+
+        // Ensure white_spots exists
+        if (!parsed.white_spots) {
+          parsed.white_spots = [];
+        }
+
+        return parsed;
+      }
+    },
+
+    // ── Task 2.2: Validation UI ───────────────────────────────────────────
+    {
+      taskId: 'step2_validate',
+      title: 'Review capability map',
+      type: 'custom-ui',
+      expectsJson: false,
+
+      // Conditional execution based on workflow mode
+      shouldRun: (ctx) => {
+        // Always show validation in standard mode
+        if (!ctx.workflowMode || ctx.workflowMode === 'standard') return true;
+        
+        // Show validation in business-object mode
+        if (ctx.workflowMode === 'business-object') return true;
+        
+        // Skip validation in autopilot mode
+        if (ctx.workflowMode === 'autopilot') {
+          // Auto-confirm in autopilot
+          if (typeof addAssistantMessage === 'function') {
+            addAssistantMessage('✅ Capability map auto-validated (Autopilot mode)');
+          }
+          return false;
+        }
+
+        return true;
+      },
+
+      execute: async (ctx) => {
+        // Show validation message in chat with approval button
+        const capMapping = ctx.answers?.step2_capability_mapping || {};
+        const totalCaps = capMapping.capability_hierarchy?.length || 0;
+        const gapsCount = capMapping.gap_insights?.length || 0;
+        const whiteSpotsCount = capMapping.white_spots?.length || 0;
+        
+        if (typeof addAssistantMessage === 'function') {
+          addAssistantMessage(
+            `**✅ Capability Map Generated!**\n\n` +
+            `📊 **Summary:**\n` +
+            `- ${totalCaps} L1 capabilities identified (APQC-aligned)\n` +
+            `- ${gapsCount} gap insights detected\n` +
+            `- ${whiteSpotsCount} white-spot capabilities identified\n\n` +
+            `**Next:** Review the capability map and approve to continue.\n\n` +
+            `<button class="mode-action-btn mode-action-btn--action" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 24px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onclick="if (window._step2ValidationResolver) { window.model.capabilityValidated = true; window._step2ValidationResolver({ validated: true, approved: true }); window._step2ValidationResolver = null; if (typeof toast === 'function') toast('✅ Capability map approved!'); if (typeof autoSaveCurrentModel === 'function') autoSaveCurrentModel(); }">\n` +
+            `  <i class="fas fa-check-circle"></i> Approve Capability Map & Continue\n` +
+            `</button>\n\n` +
+            `<button class="mode-action-btn" style="background: #f3f4f6; color: #374151; padding: 10px 20px; border-radius: 8px; border: 1px solid #d1d5db; font-weight: 500; cursor: pointer; margin-left: 8px;" onclick="if (typeof showTab === 'function') showTab('capmap', document.querySelector('[data-tab=capmap]'));">\n` +
+            `  <i class="fas fa-eye"></i> Preview in Cap Map Tab\n` +
+            `</button>`
+          );
+        }
+        
+        // Wait for user approval with 30-second timeout as safety net
+        return new Promise((resolve) => {
+          window._step2ValidationResolver = resolve;
+          
+          // Auto-approve after 30 seconds if no user action (prevents stuck workflow)
+          setTimeout(() => {
+            if (window._step2ValidationResolver) {
+              console.warn('[Step2] Auto-approving after 30s timeout');
+              window.model.capabilityValidated = true;
+              resolve({ validated: true, approved: true, autoApproved: true });
+              window._step2ValidationResolver = null;
+              if (typeof addAssistantMessage === 'function') {
+                addAssistantMessage('⏱️ Capability map auto-approved (timeout). Data saved.');
+              }
+            }
+          }, 30000);
+        });
+      },
+
+      parseOutput: (raw) => raw // Pass through validation result
     }
 
   ],
 
+  // ── Synthesize: Transform AI output to model structure ───────────────────
   synthesize: (ctx) => {
-    // Bridge: normalize value_propositions (plural array) → value_proposition (singular string)
-    // renderBMCPanel reads b.value_proposition (singular), so we must always set it.
-    const normalizeBmc = (bmc) => {
-      if (!bmc) return {};
-      const r = { ...bmc };
-      if (!r.value_proposition && r.value_propositions) {
-        r.value_proposition = Array.isArray(r.value_propositions)
-          ? r.value_propositions.join('\n\n')
-          : String(r.value_propositions);
+    const apqcLoad = ctx.answers?.step2_load_apqc || {};
+    const capMapping = ctx.answers?.step2_capability_mapping || {};
+    const validation = ctx.answers?.step2_validate || {};
+
+    // Build flattened capabilities array for backward compatibility
+    const capabilities = [];
+    const hierarchy = capMapping.capability_hierarchy || [];
+    
+    hierarchy.forEach((l1) => {
+      // Add L1 capability
+      const l1Cap = {
+        id: l1.id,
+        name: l1.name,
+        description: l1.description || '',
+        level: 1,
+        domain: l1.name,
+        maturity: l1.current_maturity || l1.scores?.maturity || 1,
+        current_maturity: l1.current_maturity || null,
+        target_maturity: l1.target_maturity || null,
+        gap: l1.gap || null,
+        strategic_importance: l1.strategic_importance || 'SUPPORT',
+        strategicImportance: (l1.strategic_importance || 'SUPPORT').toLowerCase(),
+        investment_priority: l1.investment_priority || null,
+        classification: l1.classification || 'Supporting',
+        apqc_source: l1.apqc_source !== false,
+        apqc_id: l1.apqc_id || null,
+        apqc_reference: l1.apqc_reference || null,
+        apqc_code: l1.apqc_code || l1.apqc_id || null,
+        custom_name: l1.custom_name || null,
+        objective_mappings: l1.objective_mappings || [],
+        scores: l1.scores || {},
+        it_enablement: l1.it_enablement || {},
+        benchmark_maturity: l1.benchmark_maturity || null,
+        benchmark_deviation: l1.benchmark_deviation || null,
+        white_spot_flags: l1.white_spot_flags || [],
+        ai_enabled: l1.ai_enabled || false,
+        ai_maturity: l1.ai_maturity || 1,
+        children: []
+      };
+      capabilities.push(l1Cap);
+
+      // Add L2 capabilities
+      (l1.children || []).forEach((l2) => {
+        const l2Cap = {
+          id: l2.id,
+          name: l2.name,
+          description: l2.description || '',
+          level: 2,
+          domain: l1.name,
+          maturity: l2.current_maturity || l2.scores?.maturity || 1,
+          current_maturity: l2.current_maturity || null,
+          target_maturity: l2.target_maturity || null,
+          gap: l2.gap || null,
+          strategic_importance: l2.strategic_importance || l1.strategic_importance || 'SUPPORT',
+          strategicImportance: (l2.strategic_importance || l1.strategic_importance || 'SUPPORT').toLowerCase(),
+          investment_priority: l2.investment_priority || null,
+          classification: l2.classification || l1.classification || 'Supporting',
+          apqc_source: l2.apqc_source !== false,
+          apqc_id: l2.apqc_id || null,
+          apqc_reference: l2.apqc_reference || null,
+          objective_mappings: l2.objective_mappings || [],
+          it_enablement: l2.it_enablement || {},
+          white_spot_flags: l2.white_spot_flags || [],
+          ai_enabled: l2.ai_enabled || false,
+          children: []
+        };
+        capabilities.push(l2Cap);
+        l1Cap.children.push(l2Cap);
+
+        // Add L3 capabilities
+        (l2.children || []).forEach((l3) => {
+          const l3Cap = {
+            id: l3.id,
+            name: l3.name,
+            description: l3.description || '',
+            level: 3,
+            domain: l1.name,
+            maturity: l3.current_maturity || l3.scores?.maturity || 1,
+            current_maturity: l3.current_maturity || null,
+            target_maturity: l3.target_maturity || null,
+            gap: l3.gap || null,
+            strategic_importance: l3.strategic_importance || l2.strategic_importance || l1.strategic_importance || 'SUPPORT',
+            strategicImportance: (l3.strategic_importance || l2.strategic_importance || l1.strategic_importance || 'SUPPORT').toLowerCase(),
+            apqc_source: l3.apqc_source !== false,
+            apqc_id: l3.apqc_id || null,
+            objective_mappings: l3.objective_mappings || [],
+            it_enablement: l3.it_enablement || {},
+            white_spot_flags: l3.white_spot_flags || [],
+            ai_enabled: l3.ai_enabled || false
+          };
+          capabilities.push(l3Cap);
+          l2Cap.children.push(l3Cap);
+        });
+      });
+    });
+
+    // Transform hierarchy: rename 'children' to 'l2_capabilities' for UI compatibility
+    const transformedHierarchy = hierarchy.map(l1 => {
+      const l1Copy = { ...l1 };
+      if (l1.children) {
+        l1Copy.l2_capabilities = l1.children.map(l2 => {
+          const l2Copy = { ...l2 };
+          if (l2.children) {
+            l2Copy.l3_capabilities = l2.children;
+            delete l2Copy.children;
+          }
+          return l2Copy;
+        });
+        delete l1Copy.children;
       }
-      return r;
-    };
+      return l1Copy;
+    });
+
     return {
-      bmc: normalizeBmc(ctx.answers?.step2_bmc_future),
-      bmcCurrent: normalizeBmc(ctx.answers?.step2_bmc_current),
-      bmcAnalysis: ctx.answers?.step2_bmc_analysis || {}
+      apqcFramework: apqcLoad.framework || null,
+      apqcSummary: capMapping.apqc_summary || {},
+      capabilities,
+      capabilityMap: {
+        l1_domains: transformedHierarchy,
+        metadata: capMapping.metadata || {}
+      },
+      gapInsights: capMapping.gap_insights || [],
+      whiteSpots: capMapping.white_spots || [],
+      capabilityValidated: validation.validated || false,
+      // Backward compatibility aliases
+      capabilityAssessment: {
+        capability_ratings: capabilities.filter(c => c.level <= 2).map(c => ({
+          capability_id: c.id,
+          capability_name: c.name,
+          current_maturity: c.current_maturity,
+          target_maturity: c.target_maturity,
+          gap: c.gap,
+          strategic_importance: c.strategic_importance,
+          investment_priority: c.investment_priority,
+          ai_enabled: c.ai_enabled
+        })),
+        overall_maturity: capabilities.length > 0
+          ? capabilities.filter(c => c.current_maturity).reduce((sum, c) => sum + c.current_maturity, 0) / 
+            capabilities.filter(c => c.current_maturity).length
+          : null,
+        maturity_distribution: {
+          initial: capabilities.filter(c => c.current_maturity === 1).length,
+          developing: capabilities.filter(c => c.current_maturity === 2).length,
+          defined: capabilities.filter(c => c.current_maturity === 3).length,
+          managed: capabilities.filter(c => c.current_maturity === 4).length,
+          optimising: capabilities.filter(c => c.current_maturity === 5).length
+        }
+      }
     };
   },
 
+  // ── Apply Output: Merge into model ────────────────────────────────────────
   applyOutput: (output, model) => {
-    // Capture BMC insights into enrichment
+    // Enrich businessContext with capability gaps
     if (model.businessContext && model.businessContext.enrichment) {
-      model.businessContext.enrichment.bmcInsights = {
-        customerSegments: output.bmc?.customer_segments || [],
-        valuePropositions: output.bmc?.value_propositions || [],
-        keyInsights: output.bmcAnalysis?.summary || 'BMC analysis completed',
-        transformationMoves: output.bmc?.transformation_moves || []
-      };
+      model.businessContext.enrichment.capabilityGaps = (output.gapInsights || []).map(g => ({
+        capability: g.capability_name,
+        objective_id: g.objective_id,
+        linkedObjective: g.objective_id,
+        currentLevel: null, // Extract from capability if needed
+        targetLevel: null,
+        priority: g.priority,
+        description: g.gap_description,
+        recommendation: g.recommendation,
+        timeframe: g.timeframe
+      }));
     }
+
+    // Seed valueStreams from L1 domains (for Architecture Layers tab)
+    const existingVS = (model.valueStreams || []).length > 0;
+    const derivedVS = existingVS
+      ? model.valueStreams
+      : (output.capabilityMap?.l1_domains || []).map(d => ({ 
+          name: d.name, 
+          description: d.description || '' 
+        }));
 
     return {
       ...model,
-      bmc: output.bmc,
-      // Set BOTH spellings so renderBMCPanel (bmc_current underscore) and legacy code both work
-      bmc_current: output.bmcCurrent,
-      bmcCurrent: output.bmcCurrent,
-      bmcAnalysis: output.bmcAnalysis,
-      bmc_analysis: output.bmcAnalysis
+      apqcFramework: output.apqcFramework,
+      apqcSummary: output.apqcSummary,
+      capabilities: output.capabilities,
+      capabilityMap: output.capabilityMap,
+      capabilityAssessment: output.capabilityAssessment,
+      gapInsights: output.gapInsights,
+      whiteSpots: output.whiteSpots,
+      capabilityValidated: output.capabilityValidated,
+      valueStreams: derivedVS
     };
   },
 
+  // ── On Complete: UI updates and next step prompt ──────────────────────────
   onComplete: (model) => {
-    if (typeof renderBMCSection === 'function') renderBMCSection();
+    // Update UI sections
+    if (typeof renderCapabilitySection === 'function') renderCapabilitySection();
+    if (typeof renderHeatmapSection === 'function') renderHeatmapSection();
+    if (typeof renderGapSection === 'function') renderGapSection();
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
     if (typeof updateWorkflowProgress === 'function') updateWorkflowProgress([1, 2]);
     if (typeof StepEngine === 'object') StepEngine.stopSpinner('step2');
-    if (typeof toast === 'function') toast('Business Model Canvas complete ✓');
+    if (typeof toast === 'function') toast('Capability Mapping complete ✓');
 
-    const bmc = model.bmc || {};
+    // AI Assistant message
+    const totalCaps = model.capabilities?.length || 0;
+    const totalGaps = model.gapInsights?.length || 0;
+    const totalWhiteSpots = model.whiteSpots?.length || 0;
+    const avgMaturity = model.capabilityAssessment?.overall_maturity || 0;
+
     if (typeof addAssistantMessage === 'function') {
       addAssistantMessage(
-        `**Step 2 — Business Model Canvas complete**\n\n` +
-        `**Future model:** ${bmc.metadata?.at_a_glance || (bmc.value_propositions || []).slice(0, 2).join(', ')}\n\n` +
-        `Review current vs. future BMC in the **BMC** tab.\n\n` +
-        `**Next:** Ready to map Capability Architecture? Click below or use the **Continue** button in the sidebar.\n\n` +
+        `**Step 2 — APQC Capability Mapping complete** ✅\n\n` +
+        `📊 **Summary:**\n` +
+        `- ${totalCaps} capabilities mapped (APQC-aligned)\n` +
+        `- ${model.capabilityMap?.l1_domains?.length || 0} L1 domains\n` +
+        `- Overall maturity: **${avgMaturity ? avgMaturity.toFixed(1) + '/5' : 'assessed'}**\n` +
+        `- ${totalGaps} gap insights identified\n` +
+        `- ${totalWhiteSpots} white-spot capabilities detected\n\n` +
+        `**Next:** Ready to design Target Architecture? Click below or use the **Continue** button.\n\n` +
         `<button class="mode-action-btn mode-action-btn--action" onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step3', window.model); } else { console.error('StepEngine not available'); }">\n` +
         `  <i class="fas fa-arrow-right"></i>\n` +
-        `  Start Step 3: Capability Map\n` +
+        `  Start Step 3: Target Architecture\n` +
         `</button>`
       );
     }
+
+    // Auto-save
+    if (typeof autoSaveCurrentModel === 'function') {
+      autoSaveCurrentModel();
+    }
   }
 };
+
+// Export to window
+window.Step2 = Step2;

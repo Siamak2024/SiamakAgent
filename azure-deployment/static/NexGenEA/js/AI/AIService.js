@@ -68,7 +68,9 @@ const AIService = (() => {
       timeout: timeoutMs,
       reasoning,
       ...(temperature !== undefined && { temperature }),
-      ...(opts.expectsJson && { response_format: { type: 'json_object' } })
+      ...(opts.expectsJson && { response_format: { type: 'json_object' } }),
+      ...(opts.tools && { tools: opts.tools }),  // Pass through tools (e.g., web_search)
+      ...(opts.previousResponseId && { previous_response_id: opts.previousResponseId })  // Chain stateful responses
     };
 
     const startTime = Date.now();
@@ -86,22 +88,10 @@ const AIService = (() => {
       if (!silent) {
         console.warn(`[AIService] Proxy failed for ${opts.taskId}:`, proxyErr.message);
       }
-      // ── Direct API fallback ────────────────────────────────────────────
-      const apiKey = _getStoredApiKey();
-      if (!apiKey) {
-        if (typeof showSettingsModal === 'function') showSettingsModal();
-        const err = 'No API key. Please add your OpenAI API key in Settings.';
-        _log(opts.taskId, opts.taskType, null, null, 'error', err, 0);
-        return { taskId: opts.taskId, rawOutput: '', model: modelName, elapsed: 0, thinking: null, timestamp: new Date(), status: 'error', error: err };
-      }
-      try {
-        response = await _callDirectAPI(input, createOpts, apiKey, timeoutMs);
-        usedFallback = true;
-      } catch (directErr) {
-        const err = directErr.message || proxyErr.message || 'API error';
-        _log(opts.taskId, opts.taskType, null, null, 'error', err, Date.now() - startTime);
-        return { taskId: opts.taskId, rawOutput: '', model: modelName, elapsed: Date.now() - startTime, thinking: null, timestamp: new Date(), status: 'error', error: err };
-      }
+      // ── No fallback - API key must come from server ────────────────────
+      const err = 'Backend API not available. Please ensure Azure Function is running or deploy to production.';
+      _log(opts.taskId, opts.taskType, null, null, 'error', err, 0);
+      return { taskId: opts.taskId, rawOutput: '', model: modelName, elapsed: 0, thinking: null, timestamp: new Date(), status: 'error', error: err };
     }
 
     const rawOutput = response?.output_text || '';
@@ -147,34 +137,33 @@ const AIService = (() => {
       elapsed,
       thinking,
       timestamp: new Date(),
-      status: 'success'
+      status: 'success',
+      responseId: response?.id  // Store response ID for stateful conversations
     };
   }
 
-  // ── Direct OpenAI Chat Completions API call ──────────────────────────────
+  // ── Direct OpenAI Responses API call ──────────────────────────────────────
   async function _callDirectAPI(input, createOpts, apiKey, timeoutMs) {
-    const { instructions, model, temperature, response_format, reasoning, timeout, ...otherOpts } = createOpts;
+    const { instructions, model, temperature, response_format, reasoning, timeout, tools, previous_response_id, ...otherOpts } = createOpts;
     
-    // Build messages array for Chat Completions API
-    const messages = [
-      ...(instructions ? [{ role: 'system', content: instructions }] : []),
-      { role: 'user', content: input }
-    ];
-
-    // Only include parameters supported by Chat Completions API
-    // Note: timeout and reasoning are NOT valid API parameters
+    // Build request body for Responses API
     const requestBody = {
       model,
-      messages,
+      input,
+      ...(instructions && { instructions }),
       ...(temperature !== undefined && { temperature }),
-      ...(response_format && { response_format })
-      // otherOpts intentionally excluded to avoid unsupported params
+      ...(reasoning && { reasoning }),
+      ...(response_format && { text: { format: response_format } }),
+      ...(tools && { tools }),  // Include tools (e.g., web_search)
+      ...(previous_response_id && { previous_response_id }),  // Chain stateful conversations
+      store: true  // Enable stateful conversations
+      // timeout is handled by AbortController, not API parameter
     };
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      const res = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -187,12 +176,20 @@ const AIService = (() => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Direct API error');
       
-      // Transform Chat Completions response to match expected format
-      const message = data.choices?.[0]?.message;
+      // Add output_text helper if not present
+      if (!data.output_text && Array.isArray(data.output)) {
+        const messageItem = data.output.find(item => item.type === 'message');
+        if (messageItem && messageItem.content) {
+          const textContent = messageItem.content.find(c => c.type === 'output_text' || c.type === 'text');
+          data.output_text = textContent?.text || '';
+        }
+      }
+      
       return {
         id: data.id,
         model: data.model,
-        output_text: message?.content || '',
+        output: data.output,
+        output_text: data.output_text || '',
         usage: data.usage
       };
     } catch (err) {

@@ -321,6 +321,74 @@ class EA_DataManager {
   }
   
   /**
+   * Migrate legacy ea_saved_models to DataManager projects
+   */
+  migrateLegacyModels() {
+    try {
+      const legacyModels = localStorage.getItem('ea_saved_models');
+      if (!legacyModels) return 0;
+      
+      const models = JSON.parse(legacyModels);
+      if (!Array.isArray(models) || models.length === 0) return 0;
+      
+      const projects = this.getStorageItem(this.config.storage.projects) || {};
+      let migratedCount = 0;
+      
+      for (const legacyModel of models) {
+        // Skip if already migrated (same ID exists)
+        if (projects[legacyModel.id]) continue;
+        
+        // Extract model data
+        const modelData = legacyModel.data?.model || legacyModel.data || {};
+        const chatHistory = legacyModel.data?.chatHistory || [];
+        
+        // Create project from legacy model
+        const project = {
+          id: legacyModel.id,
+          name: legacyModel.name || 'Migrated Project',
+          description: 'Migrated from legacy model storage',
+          created: legacyModel.created || new Date().toISOString(),
+          lastModified: legacyModel.updated || new Date().toISOString(),
+          metadata: {
+            completionStatus: {
+              platform: modelData.capabilities?.length > 0 ? 100 : 0,
+              bmc: 0,
+              capabilityMap: 0,
+              wardley: 0,
+              valueChain: 0,
+              maturity: 0
+            },
+            workshopCount: 0,
+            participants: [],
+            chatHistory: chatHistory
+          },
+          data: {
+            platform: modelData,
+            bmc: null,
+            capabilityMap: null,
+            wardley: null,
+            valueChain: null,
+            maturity: null
+          }
+        };
+        
+        projects[project.id] = project;
+        migratedCount++;
+      }
+      
+      if (migratedCount > 0) {
+        this.setStorageItem(this.config.storage.projects, projects);
+        console.log(`✅ Migrated ${migratedCount} legacy models to DataManager projects`);
+      }
+      
+      return migratedCount;
+    } catch (error) {
+      console.error('Error migrating legacy models:', error);
+      return 0;
+    }
+  }
+  
+  /**
    * Delete project
    */
   deleteProject(projectId) {
@@ -773,7 +841,7 @@ class EA_DataManager {
    */
   async loadAPQCFramework() {
     try {
-      const response = await fetch('/APAQ_Data/apqc_pcf_master.json');
+      const response = await fetch('../APAQ_Data/apqc_pcf_master.json');
       if (!response.ok) {
         throw new Error(`Failed to load APQC framework: ${response.statusText}`);
       }
@@ -796,7 +864,7 @@ class EA_DataManager {
    */
   async loadAPQCMetadata() {
     try {
-      const response = await fetch('APAQ_Data/apqc_metadata_mapping.json');
+      const response = await fetch('../APAQ_Data/apqc_metadata_mapping.json');
       if (!response.ok) {
         throw new Error(`Failed to load APQC metadata: ${response.statusText}`);
       }
@@ -818,7 +886,7 @@ class EA_DataManager {
    */
   async loadAPQCEnrichment() {
     try {
-      const response = await fetch('APAQ_Data/apqc_capability_enrichment.json');
+      const response = await fetch('../APAQ_Data/apqc_capability_enrichment.json');
       if (!response.ok) {
         // Enrichment file may not exist yet if Excel hasn't been converted
         console.warn('⚠️ APQC enrichment file not found (run converter first)');

@@ -184,11 +184,28 @@ const StepContext = (() => {
     const si = ctx.strategicIntent;
     if (si) {
       lines.push(`\n=== STEP 1 — STRATEGIC INTENT ===`);
-      if (si.strategic_ambition) lines.push(`Ambition: "${si.strategic_ambition}"`);
+      
+      // Strategic Vision
+      if (si.strategicVision) {
+        if (si.strategicVision.ambition) lines.push(`Ambition: "${si.strategicVision.ambition}"`);
+        if ((si.strategicVision.themes || []).length) lines.push(`Themes: ${si.strategicVision.themes.join(' · ')}`);
+        if (si.strategicVision.timeframe) lines.push(`Timeframe: ${si.strategicVision.timeframe}`);
+      }
+      
       if (si.situation_narrative) lines.push(`Situation: ${si.situation_narrative}`);
-      if ((si.strategic_themes || []).length) lines.push(`Themes: ${si.strategic_themes.join(' · ')}`);
-      if ((si.key_constraints || []).length) lines.push(`Constraints: ${si.key_constraints.join(' | ')}`);
-      if ((si.success_metrics || []).length) lines.push(`Success metrics: ${si.success_metrics.join(' | ')}`);
+      
+      // Constraints (array of objects)
+      if ((si.constraints || []).length) {
+        const constraintStrs = si.constraints.map(c => `${c.type}: ${c.description}`);
+        lines.push(`Constraints: ${constraintStrs.join(' | ')}`);
+      }
+      
+      // Success Metrics (array of objects)
+      if ((si.successMetrics || []).length) {
+        const metricStrs = si.successMetrics.map(m => `${m.metric} (${m.target} ${m.timeframe})`);
+        lines.push(`Success metrics: ${metricStrs.join(' | ')}`);
+      }
+      
       if ((si.investigation_scope || []).length) lines.push(`EA scope: ${si.investigation_scope.join(' | ')}`);
       if ((si.expected_outcomes || []).length) lines.push(`Outcomes: ${si.expected_outcomes.join(' · ')}`);
     }

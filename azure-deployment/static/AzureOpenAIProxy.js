@@ -51,7 +51,7 @@ class AzureOpenAIProxy {
    */
   static async create(input, options = {}) {
     const {
-      model = 'gpt-5',  // Updated to GPT-5 (latest model)
+      model = 'gpt-4o',  // GPT-4o (current latest model)
       instructions,
       tools,
       tool_choice,
@@ -91,6 +91,14 @@ class AzureOpenAIProxy {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+    // Debug logging
+    console.log('[AzureOpenAIProxy] Sending request:', { 
+      endpoint: this.getApiEndpoint(), 
+      model: body.model,
+      hasInstructions: !!body.instructions,
+      hasInput: !!body.input
+    });
+
     try {
       const res = await fetch(this.getApiEndpoint(), {
         method: 'POST',
@@ -114,8 +122,15 @@ class AzureOpenAIProxy {
       // Get response text first to check if it's empty
       const responseText = await res.text();
       
+      console.log('[AzureOpenAIProxy] Response received:', {
+        status: res.status,
+        statusText: res.statusText,
+        textLength: responseText?.length || 0,
+        preview: responseText?.substring(0, 200)
+      });
+      
       if (!responseText || responseText.trim() === '') {
-        console.error('Empty response from API');
+        console.error('[AzureOpenAIProxy] Empty response from API');
         throw new Error('Empty response from Azure OpenAI API');
       }
 

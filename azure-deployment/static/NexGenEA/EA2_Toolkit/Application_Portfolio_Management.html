@@ -12,9 +12,6 @@
     <script src="../../js/EA_Config.js"></script>
     <script src="../../js/EA_DataManager.js"></script>
     <script src="../../js/Advicy_AI.js"></script>
-    <script src="../../js/EA_StorageManager.js"></script>
-    <script src="../../js/EA_ScoringEngine.js"></script>
-    <script src="../../js/EA_DecisionEngine.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
     <style>
         /* === EA PLATFORM LAYOUT === */
@@ -377,50 +374,6 @@
         <button class="tab-btn" onclick="switchTab('ownership',this)"><i class="fas fa-users"></i> Ownership</button>
         <button class="tab-btn" onclick="switchTab('fitmatrix',this)"><i class="fas fa-chart-scatter"></i> Fit Matrix</button>
         <button class="tab-btn" onclick="switchTab('rationalization',this)"><i class="fas fa-chart-pie"></i> Rationalization</button>
-        <button class="tab-btn" onclick="switchTab('decisions',this)"><i class="fas fa-lightbulb"></i> Decisions</button>
-    </div>
-</div>
-
-<!-- E2E WORKFLOW PROGRESS -->
-<div id="workflowProgress" style="background:linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);padding:16px 24px;border-bottom:1px solid #cbd5e1;display:none">
-    <div style="max-width:1400px;margin:0 auto">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.5px">E2E Portfolio Workflow</div>
-            <button onclick="document.getElementById('workflowProgress').style.display='none'" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:18px">&times;</button>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
-            <!-- Step 1: Import -->
-            <div id="workflow-step-1" class="workflow-step" style="background:white;padding:12px;border-radius:8px;border:2px solid #cbd5e1;position:relative">
-                <div style="position:absolute;top:8px;right:8px;font-size:18px" id="workflow-icon-1">⚪</div>
-                <div style="font-size:11px;font-weight:700;color:#0f172a;margin-bottom:4px">1. Import Applications</div>
-                <div style="font-size:10px;color:#64748b">Upload inventory from template</div>
-                <button onclick="switchTab('inventory',document.querySelectorAll('.tab-btn')[2])" style="margin-top:8px;padding:4px 8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;font-size:10px;cursor:pointer;font-weight:600;color:#475569">Go to Inventory →</button>
-            </div>
-            
-            <!-- Step 2: Map Capabilities -->
-            <div id="workflow-step-2" class="workflow-step" style="background:white;padding:12px;border-radius:8px;border:2px solid #cbd5e1;position:relative">
-                <div style="position:absolute;top:8px;right:8px;font-size:18px" id="workflow-icon-2">⚪</div>
-                <div style="font-size:11px;font-weight:700;color:#0f172a;margin-bottom:4px">2. Map Capabilities</div>
-                <div style="font-size:10px;color:#64748b">AI-powered APQC mapping</div>
-                <button onclick="switchTab('capability',document.querySelectorAll('.tab-btn')[0])" style="margin-top:8px;padding:4px 8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;font-size:10px;cursor:pointer;font-weight:600;color:#475569">Go to Capabilities →</button>
-            </div>
-            
-            <!-- Step 3: Rationalize -->
-            <div id="workflow-step-3" class="workflow-step" style="background:white;padding:12px;border-radius:8px;border:2px solid #cbd5e1;position:relative">
-                <div style="position:absolute;top:8px;right:8px;font-size:18px" id="workflow-icon-3">⚪</div>
-                <div style="font-size:11px;font-weight:700;color:#0f172a;margin-bottom:4px">3. Analyze Portfolio</div>
-                <div style="font-size:10px;color:#64748b">Review rationalization data</div>
-                <button onclick="switchTab('rationalization',document.querySelectorAll('.tab-btn')[6])" style="margin-top:8px;padding:4px 8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;font-size:10px;cursor:pointer;font-weight:600;color:#475569">Go to Rationalization →</button>
-            </div>
-            
-            <!-- Step 4: Generate Decisions -->
-            <div id="workflow-step-4" class="workflow-step" style="background:white;padding:12px;border-radius:8px;border:2px solid #cbd5e1;position:relative">
-                <div style="position:absolute;top:8px;right:8px;font-size:18px" id="workflow-icon-4">⚪</div>
-                <div style="font-size:11px;font-weight:700;color:#0f172a;margin-bottom:4px">4. Decision Engine</div>
-                <div style="font-size:10px;color:#64748b">Generate AI recommendations</div>
-                <button onclick="switchTab('decisions',document.querySelectorAll('.tab-btn')[7])" style="margin-top:8px;padding:4px 8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;font-size:10px;cursor:pointer;font-weight:600;color:#475569">Go to Decisions →</button>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -454,17 +407,12 @@
     <!-- Toolbar -->
     <div class="filter-bar" style="justify-content:space-between">
         <div style="display:flex;gap:10px;align-items:center">
-            <button class="btn btn-primary" onclick="document.getElementById('importCapFile').click()"><i class="fas fa-upload"></i> Import/Update APQC</button>
+            <button class="btn btn-primary" onclick="document.getElementById('importCapFile').click()"><i class="fas fa-upload"></i> Import APQC</button>
             <input type="file" id="importCapFile" accept=".json,.xlsx,.xls" class="hidden" onchange="importCapabilities(event)">
             <select id="templateSelect" onchange="loadCapabilityTemplate(this.value)" style="padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:12px">
                 <option value="">Load APQC Template...</option>
             </select>
             <button class="btn btn-success" onclick="triggerAIMapping()" title="Use AI to automatically map applications to capabilities"><i class="fas fa-robot"></i> AI Map Apps</button>
-            
-            <!-- APQC Auto-Loaded Indicator -->
-            <div id="apqcLoadedBadge" style="display:none;padding:6px 12px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);border-radius:8px;font-size:11px;font-weight:700;color:white;letter-spacing:0.3px;box-shadow:0 2px 4px rgba(16,185,129,0.2)">
-                <i class="fas fa-check-circle"></i> APQC PCF v8.0 Loaded
-            </div>
         </div>
         <div style="display:flex;gap:8px">
             <button class="btn btn-ghost" onclick="toggleCapabilityView('tree')" id="btnTreeView"><i class="fas fa-sitemap"></i> Tree View</button>
@@ -516,8 +464,6 @@
             <input type="checkbox" id="filterToBeOnly" onchange="renderAIAgents()" style="cursor:pointer">
             <span>Show TO-BE Only</span>
         </label>
-        <div style="flex:1"></div>
-        <button class="btn btn-success" onclick="openAIAnalysisModal()" title="Generate AI agent recommendations based on industry, capabilities, and latest trends"><i class="fas fa-wand-magic-sparkles"></i> AI Analysis</button>
         <button class="btn btn-primary" onclick="openAIAgentModal()"><i class="fas fa-plus"></i> Add AI Agent</button>
     </div>
 
@@ -651,87 +597,6 @@
                     </tr>
                 </thead>
                 <tbody id="ratTable"></tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- ==================== DECISIONS ==================== -->
-<div id="view-decisions" class="section-view">
-    <!-- KPI Strip -->
-    <div class="kpi-strip">
-        <div class="kpi-card" style="background:linear-gradient(135deg, #16a34a 0%, #84cc16 100%)">
-            <div class="kpi-value" id="decInvestCount">0</div>
-            <div class="kpi-label">Invest</div>
-        </div>
-        <div class="kpi-card" style="background:linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)">
-            <div class="kpi-value" id="decTolerateCount">0</div>
-            <div class="kpi-label">Tolerate</div>
-        </div>
-        <div class="kpi-card" style="background:linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)">
-            <div class="kpi-value" id="decMigrateCount">0</div>
-            <div class="kpi-label">Migrate</div>
-        </div>
-        <div class="kpi-card" style="background:linear-gradient(135deg, #dc2626 0%, #f87171 100%)">
-            <div class="kpi-value" id="decEliminateCount">0</div>
-            <div class="kpi-label">Eliminate</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-value" id="decAvgConfidence">0%</div>
-            <div class="kpi-label">Avg Confidence</div>
-        </div>
-    </div>
-
-    <!-- Action Bar -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
-        <div style="display:flex;gap:8px;align-items:center">
-            <button class="btn btn-primary" onclick="runPortfolioAnalysis()" title="Generate AI-powered decisions for all applications">
-                <i class="fas fa-play"></i> Run Analysis
-            </button>
-            <button class="btn btn-ghost" onclick="refreshDecisions()" title="Reload decisions">
-                <i class="fas fa-sync"></i> Refresh
-            </button>
-            <button class="btn btn-ghost" onclick="exportDecisionsData()" title="Export decisions to JSON">
-                <i class="fas fa-download"></i> Export
-            </button>
-        </div>
-        <div style="display:flex;gap:8px">
-            <select id="filterDecisionStatus" onchange="renderDecisions()">
-                <option value="">All Statuses</option>
-                <option value="Invest">Invest</option>
-                <option value="Tolerate">Tolerate</option>
-                <option value="Migrate">Migrate</option>
-                <option value="Eliminate">Eliminate</option>
-            </select>
-            <select id="filterApprovalStatus" onchange="renderDecisions()">
-                <option value="">All Approvals</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-            </select>
-        </div>
-    </div>
-
-    <!-- Decisions Table -->
-    <div class="card" style="padding:0;overflow:hidden">
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Application</th>
-                        <th>Decision</th>
-                        <th>Confidence</th>
-                        <th>Total Score</th>
-                        <th title="Business Fit Score">B.Fit</th>
-                        <th title="Technical Health Score">T.Health</th>
-                        <th title="Cost Efficiency Score">Cost Eff.</th>
-                        <th title="Risk Score">Risk</th>
-                        <th>Rationale</th>
-                        <th>Approval</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="decisionsBody"></tbody>
             </table>
         </div>
     </div>
@@ -1013,71 +878,6 @@
     </div>
 </div>
 
-<!-- ==================== AI AGENT ANALYSIS MODAL ==================== -->
-<div id="aiAnalysisModal" class="modal-overlay hidden">
-    <div class="modal-box" style="max-width:1200px;max-height:90vh;display:flex;flex-direction:column">
-        <div class="modal-header">
-            <div>
-                <div class="modal-title"><i class="fas fa-wand-magic-sparkles"></i> AI Agent Analysis & Recommendations</div>
-                <div style="font-size:11px;color:#64748b;margin-top:4px;">AI-generated agent recommendations based on your industry, capabilities, and latest trends</div>
-            </div>
-            <button class="modal-close" onclick="closeAIAnalysisModal()"><i class="fas fa-xmark"></i></button>
-        </div>
-        
-        <div class="modal-body" style="flex:1;overflow-y:auto">
-            <!-- Analysis Context -->
-            <div style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);padding:16px;border-radius:12px;margin-bottom:20px;border:1px solid #bae6fd">
-                <div style="font-size:12px;font-weight:700;color:#0c4a6e;margin-bottom:12px"><i class="fas fa-chart-line"></i> Analysis Context</div>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:11px">
-                    <div>
-                        <div style="color:#64748b;margin-bottom:4px">Industry</div>
-                        <div id="analysisIndustry" style="font-weight:700;color:#0f172a">Property Management</div>
-                    </div>
-                    <div>
-                        <div style="color:#64748b;margin-bottom:4px">Capabilities Analyzed</div>
-                        <div id="analysisCapCount" style="font-weight:700;color:#0f172a">0</div>
-                    </div>
-                    <div>
-                        <div style="color:#64748b;margin-bottom:4px">Applications</div>
-                        <div id="analysisAppCount" style="font-weight:700;color:#0f172a">0</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Loading State -->
-            <div id="aiAnalysisLoading" style="display:none;text-align:center;padding:40px;color:#64748b">
-                <i class="fas fa-spinner fa-spin" style="font-size:32px;margin-bottom:16px;color:#3b82f6"></i>
-                <div style="font-size:14px;font-weight:600;margin-bottom:8px">Analyzing Portfolio with AI...</div>
-                <div style="font-size:11px">This may take 10-20 seconds</div>
-            </div>
-            
-            <!-- Recommendations Grid -->
-            <div id="aiAnalysisResults" style="display:none">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-                    <div style="font-size:13px;font-weight:700;color:#0f172a">Recommended AI Agents (<span id="recommendationCount">0</span>)</div>
-                    <div style="display:flex;gap:8px">
-                        <button class="btn btn-ghost" onclick="selectAllRecommendations(true)" style="font-size:11px"><i class="fas fa-check-square"></i> Select All</button>
-                        <button class="btn btn-ghost" onclick="selectAllRecommendations(false)" style="font-size:11px"><i class="fas fa-square"></i> Deselect All</button>
-                    </div>
-                </div>
-                
-                <div id="recommendationsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:16px;max-height:500px;overflow-y:auto;padding:4px">
-                    <!-- Populated by AI -->
-                </div>
-            </div>
-        </div>
-        
-        <div class="modal-footer" style="border-top:1px solid #e2e8f0;background:#f8fafc">
-            <div style="display:flex;align-items:center;gap:12px;flex:1">
-                <button class="btn btn-ghost" onclick="closeAIAnalysisModal()">Cancel</button>
-                <div style="flex:1"></div>
-                <button class="btn btn-primary" onclick="runAIAnalysis()" id="btnRunAnalysis"><i class="fas fa-play"></i> Generate Recommendations</button>
-                <button class="btn btn-success" onclick="importSelectedRecommendations()" id="btnImportRecommendations" style="display:none"><i class="fas fa-download"></i> Import Selected</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- ==================== AI MAPPING VALIDATION MODAL ==================== -->
 <div id="aiMappingModal" class="modal-overlay hidden">
     <div class="modal-box" style="max-width:900px;">
@@ -1144,20 +944,6 @@ function loadData() {
 function saveData(data) {
     data.lastUpdated = new Date().toISOString();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    
-    // Auto-sync to integration storage for EA Engagement Toolkit
-    try {
-        if (typeof EA_DataManager !== 'undefined') {
-            const dataManager = new EA_DataManager();
-            dataManager.saveIntegrationData('apm_latest', {
-                applications: data.applications || [],
-                capabilities: data.capabilities || []
-            });
-        }
-    } catch (error) {
-        // Silent fail - integration sync is optional
-        console.debug('Integration sync skipped:', error.message);
-    }
 }
 
 function getApps() { return loadData().applications || []; }
@@ -1251,7 +1037,6 @@ function switchTab(name, btn) {
     if (name === 'ownership')     { renderOwnership(); }
     if (name === 'fitmatrix')     { renderFitMatrix(); }
     if (name === 'rationalization') { renderRationalization(); }
-    if (name === 'decisions')     { renderDecisions(); }
 }
 
 // ---------------------------------------------
@@ -1274,13 +1059,6 @@ function renderCapabilityLayer() {
     document.getElementById('capHighAI').textContent = highAI;
     document.getElementById('capUnmapped').textContent = unmapped;
     document.getElementById('capUnmapped').style.color = unmapped > totalCaps * 0.2 ? '#dc2626' : '#16a34a';
-    
-    // Show APQC badge if capabilities have apqc_source flag
-    const hasAPQC = capabilities.some(c => c.apqc_source);
-    const badge = document.getElementById('apqcLoadedBadge');
-    if (badge && hasAPQC && totalCaps > 0) {
-        badge.style.display = 'block';
-    }
     
     // Render appropriate view
     if (capabilityViewMode === 'tree') {
@@ -1342,7 +1120,7 @@ function renderCapabilityTree() {
             </div>
         `;
     });
-    document.getElementById('capabilityTree').innerHTML = treeHTML || '<div style="color:#94a3b8;font-size:12px;padding:20px;text-align:center"><i class="fas fa-sync fa-spin" style="font-size:24px;margin-bottom:10px"></i><br>Loading APQC PCF Framework v8.0...</div>';
+    document.getElementById('capabilityTree').innerHTML = treeHTML || '<div style="color:#94a3b8;font-size:12px;padding:20px">No capabilities. Import APQC or load a template.</div>';
 }
 
 function selectCapability(capId) {
@@ -1464,76 +1242,6 @@ function renderKPIs() {
             <div class="kpi-value" style="color:${k.color};font-size:${String(k.value).length>8?'20px':'32px'}">${k.value}</div>
             <div class="kpi-label">${k.label}</div>
         </div>`).join('');
-    
-    // Update workflow progress
-    updateWorkflowProgress();
-}
-
-// ═══════════════════════════════════════════════════════════════
-// WORKFLOW PROGRESS TRACKING
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * Update E2E workflow progress indicator
- */
-function updateWorkflowProgress() {
-    const apps = getApps();
-    const capabilities = getCapabilities();
-    const decisionsExist = _decisionsCache && _decisionsCache.length > 0;
-    
-    // Step 1: Import Applications (complete if apps exist)
-    const step1Complete = apps.length > 0;
-    updateWorkflowStep(1, step1Complete, `${apps.length} apps`);
-    
-    // Step 2: Map Capabilities (complete if apps linked to capabilities)
-    const appsWithCapabilities = apps.filter(a => a.businessCapabilities && a.businessCapabilities.length > 0);
-    const step2Complete = appsWithCapabilities.length > 0;
-    const capabilityProgress = apps.length > 0 ? Math.round((appsWithCapabilities.length / apps.length) * 100) : 0;
-    updateWorkflowStep(2, step2Complete, `${capabilityProgress}% mapped`);
-    
-    // Step 3: Rationalize (complete if rationalization actions assigned)
-    const appsWithActions = apps.filter(a => a.rationalizationAction && a.rationalizationAction !== '');
-    const step3Complete = appsWithActions.length > 0;
-    const rationalizationProgress = apps.length > 0 ? Math.round((appsWithActions.length / apps.length) * 100) : 0;
-    updateWorkflowStep(3, step3Complete, `${rationalizationProgress}% analyzed`);
-    
-    // Step 4: Generate Decisions (complete if decisions generated)
-    const step4Complete = decisionsExist;
-    updateWorkflowStep(4, step4Complete, decisionsExist ? `${_decisionsCache.length} decisions` : 'Pending');
-    
-    // Show workflow progress if any step is in progress
-    const showProgress = step1Complete || step2Complete || step3Complete || step4Complete;
-    if (showProgress) {
-        document.getElementById('workflowProgress').style.display = 'block';
-    }
-}
-
-/**
- * Update individual workflow step status
- */
-function updateWorkflowStep(stepNum, isComplete, statusText) {
-    const stepElement = document.getElementById(`workflow-step-${stepNum}`);
-    const iconElement = document.getElementById(`workflow-icon-${stepNum}`);
-    
-    if (!stepElement || !iconElement) return;
-    
-    if (isComplete) {
-        stepElement.style.borderColor = '#16a34a';
-        stepElement.style.background = 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)';
-        iconElement.textContent = '✅';
-        iconElement.style.color = '#16a34a';
-    } else {
-        stepElement.style.borderColor = '#cbd5e1';
-        stepElement.style.background = 'white';
-        iconElement.textContent = '⚪';
-        iconElement.style.color = '#94a3b8';
-    }
-    
-    // Update status text if available
-    const statusDiv = stepElement.querySelector('div:nth-child(3)');
-    if (statusDiv && statusText) {
-        statusDiv.textContent = statusText;
-    }
 }
 
 // ---------------------------------------------
@@ -1957,9 +1665,6 @@ function renderRationalization() {
             </tr>`;
         }).join('');
     }
-    
-    // Update workflow progress
-    updateWorkflowProgress();
 }
 
 // ---------------------------------------------
@@ -2108,20 +1813,6 @@ function confirmDelete(id) {
 // ---------------------------------------------
 function exportData() {
     const data = loadData();
-    
-    // Save to integration storage for EA Engagement Toolkit
-    try {
-        const dataManager = new EA_DataManager();
-        dataManager.saveIntegrationData('apm_latest', {
-            applications: data.applications || [],
-            capabilities: data.capabilities || []
-        });
-        console.log('✓ APM data saved to integration storage for EA Engagement Toolkit');
-    } catch (error) {
-        console.warn('Could not save to integration storage:', error);
-    }
-    
-    // Download JSON file
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -2129,7 +1820,7 @@ function exportData() {
     a.download = 'apm_portfolio_' + new Date().toISOString().slice(0,10) + '.json';
     a.click();
     URL.revokeObjectURL(url);
-    showToast('Portfolio exported to file and integration storage.', 'ok');
+    showToast('Portfolio exported.', 'ok');
 }
 
 // Excel column ? app field mapping (must match exportExcelTemplate headers)
@@ -2272,9 +1963,6 @@ function importData(evt) {
                 renderKPIs();
                 renderInventory();
                 showToast(`Imported ${imported.length} applications from Excel.`, 'ok');
-                
-                // Auto-trigger AI capability mapping after import
-                setTimeout(() => autoMapImportedApplications(imported), 1000);
             } catch(err) {
                 showToast('Excel import failed: ' + err.message, 'err');
             }
@@ -2291,9 +1979,6 @@ function importData(evt) {
                 renderKPIs();
                 renderInventory();
                 showToast(`Imported ${data.applications.length} applications.`, 'ok');
-                
-                // Auto-trigger AI capability mapping after import
-                setTimeout(() => autoMapImportedApplications(data.applications), 1000);
             } catch(err) {
                 showToast('Import failed: invalid JSON format.', 'err');
             }
@@ -2589,59 +2274,6 @@ function importCapabilityData(newCaps) {
     renderCapabilityLayer();
 }
 
-/**
- * Auto-load APQC PCF Framework on first page load
- */
-async function autoLoadAPQCFramework() {
-    const capabilities = getCapabilities();
-    
-    // Only auto-load if no capabilities exist yet
-    if (capabilities.length > 0) {
-        console.log('✅ Capabilities already loaded:', capabilities.length);
-        return;
-    }
-    
-    try {
-        console.log('🔄 Auto-loading APQC PCF Framework v8.0...');
-        
-        // Fetch APQC PCF JSON from APAQ_Data folder
-        const response = await fetch('/APAQ_Data/apqc_pcf_master.json');
-        
-        if (!response.ok) {
-            console.warn('⚠️ Could not auto-load APQC framework:', response.statusText);
-            return;
-        }
-        
-        const apqcData = await response.json();
-        
-        // Parse using existing parser
-        const parsedCapabilities = parseAPQCJson(apqcData);
-        
-        if (parsedCapabilities && parsedCapabilities.length > 0) {
-            // Import capabilities
-            importCapabilityData(parsedCapabilities);
-            
-            // Show success message
-            showToast(`✅ Auto-loaded APQC PCF v${apqcData.framework_version}: ${parsedCapabilities.length} capabilities`, 'ok');
-            
-            // Show APQC loaded badge
-            const badge = document.getElementById('apqcLoadedBadge');
-            if (badge) badge.style.display = 'block';
-            
-            console.log('✅ APQC Framework auto-loaded:', parsedCapabilities.length, 'capabilities');
-            
-            // Update workflow progress
-            setTimeout(() => updateWorkflowProgress(), 500);
-        } else {
-            console.warn('⚠️ No capabilities parsed from APQC framework');
-        }
-        
-    } catch (error) {
-        console.error('❌ Failed to auto-load APQC framework:', error);
-        // Silent fail - user can still manually import
-    }
-}
-
 function loadCapabilityTemplate(templateName) {
     if (!templateName) return;
     
@@ -2885,10 +2517,17 @@ async function triggerAIMapping() {
         return;
     }
     
-    showToast('🤖 AI is analyzing applications and mapping to capabilities...', 'ok');
+    const apiKey = getAPIKey();
+    if (!apiKey) {
+        showToast('OpenAI API key required for AI mapping. Add it in EA Config.', 'warn');
+        openAIMappingValidation(generateFallbackMappings(apps, capabilities));
+        return;
+    }
+    
+    showToast('?? AI is analyzing applications and mapping to capabilities...', 'ok');
     
     try {
-        const mappings = await generateAIMappings(apps, capabilities);
+        const mappings = await generateAIMappings(apps, capabilities, apiKey);
         aiMappingSuggestions = mappings;
         openAIMappingValidation(mappings);
     } catch (error) {
@@ -2898,9 +2537,11 @@ async function triggerAIMapping() {
     }
 }
 
-// Generate AI mappings using server-side proxy
-async function generateAIMappings(apps, capabilities) {
-    const prompt = `Analyze these applications and map each to the most relevant capabilities.
+// Generate AI mappings using GPT
+async function generateAIMappings(apps, capabilities, apiKey) {
+    const prompt = `You are an expert in Application Portfolio Management and capability mapping.
+
+Analyze these applications and map each to the most relevant capabilities from the provided capability framework.
 
 **Applications:**
 ${apps.map(a => `- ${a.name}: ${a.description || 'No description'} | Department: ${a.department || 'Unknown'} | Technology: ${a.technology || 'Unknown'}`).join('\n')}
@@ -2909,9 +2550,13 @@ ${apps.map(a => `- ${a.name}: ${a.description || 'No description'} | Department:
 ${capabilities.map(c => `- ${c.name} (${c.domain}): ${c.description || 'No description'}`).join('\n')}
 
 **Task:**
-For each application, identify 1-3 capabilities it supports. Consider application purpose, department, technology, and capability definitions.
+For each application, identify 1-3 capabilities it supports. Consider:
+1. Application purpose and department
+2. Technology alignment
+3. Business capability definitions
 
-**Return ONLY valid JSON, no markdown:**
+**Output Format (JSON only, no explanation):**
+\`\`\`json
 {
   "mappings": [
     {
@@ -2927,30 +2572,28 @@ For each application, identify 1-3 capabilities it supports. Consider applicatio
       ]
     }
   ]
-}`;
+}
+\`\`\``;
 
-    // Call AI via server-side proxy (no client-side API key needed)
-    const response = await AzureOpenAIProxy.create(prompt, {
-        model: 'gpt-4o',
-        instructions: 'You are an expert in Application Portfolio Management and capability mapping. Return ONLY valid JSON without markdown code blocks.',
-        temperature: 0.3,
-        timeout: 90000
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.3
+        })
     });
     
-    const content = response.output_text || '';
+    if (!response.ok) throw new Error('API request failed');
     
-    // Parse response
-    let jsonText = content.trim();
-    
-    // Remove markdown code blocks if present
-    if (jsonText.startsWith('```')) {
-        const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
-        if (jsonMatch) {
-            jsonText = jsonMatch[1].trim();
-        }
-    }
-    
-    const parsed = JSON.parse(jsonText);
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+    const jsonMatch = content.match(/\`\`\`json\s*([\s\S]*?)\`\`\`/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[1] : content);
     
     return parsed.mappings || [];
 }
@@ -3115,189 +2758,7 @@ function applyAIMappings() {
     
     closeAIMappingModal();
     renderCapabilityLayer();
-    renderInventory(); // Refresh inventory to show capability links
-    showToast(`✅ Applied ${appliedCount} capability mappings`, 'ok');
-    
-    // Sync to rationalization and decisions
-    syncCapabilitiesToRationalization();
-}
-
-/**
- * Auto-map imported applications to capabilities
- */
-async function autoMapImportedApplications(importedApps) {
-    const capabilities = getCapabilities();
-    
-    // If no capabilities exist, auto-generate from applications
-    if (capabilities.length === 0) {
-        showToast('📋 No capability template loaded. Generating capabilities from applications...', 'info');
-        await autoGenerateCapabilitiesFromApps(importedApps);
-    }
-    
-    // Check if imported apps already have businessCapabilities populated
-    const appsWithCapabilities = importedApps.filter(app => app.businessCapabilities && app.businessCapabilities.length > 0);
-    
-    if (appsWithCapabilities.length > 0) {
-        // Apps already have capabilities - just link them
-        showToast(`🔗 Linking ${appsWithCapabilities.length} applications to existing capabilities...`, 'info');
-        await linkExistingCapabilities(appsWithCapabilities);
-    } else {
-        // Trigger AI mapping for apps without capabilities
-        showToast('🤖 Starting AI capability mapping...', 'info');
-        setTimeout(() => triggerAIMapping(), 500);
-    }
-}
-
-/**
- * Auto-generate capabilities from application data
- */
-async function autoGenerateCapabilitiesFromApps(apps) {
-    const departments = [...new Set(apps.map(a => a.department).filter(Boolean))];
-    const data = loadData();
-    
-    // Create L1 capabilities from departments
-    departments.forEach(dept => {
-        const capId = generateCapId();
-        data.capabilities.push({
-            id: capId,
-            name: dept,
-            level: 'L1',
-            parentId: null,
-            domain: dept,
-            industryTag: 'Property',
-            strategicImportance: 'high',
-            maturity: 3,
-            aiPotential: 'Medium',
-            linkedApplications: [],
-            description: `${dept} operations and processes`
-        });
-    });
-    
-    // Create L2 capabilities from application types
-    const appTypes = new Map();
-    apps.forEach(app => {
-        const dept = app.department || 'General';
-        if (!appTypes.has(dept)) appTypes.set(dept, []);
-        
-        // Extract capability from app name/description
-        const capability = extractCapabilityName(app.name, app.description);
-        if (capability && !appTypes.get(dept).includes(capability)) {
-            appTypes.get(dept).push(capability);
-        }
-    });
-    
-    appTypes.forEach((capNames, dept) => {
-        const parentCap = data.capabilities.find(c => c.name === dept && c.level === 'L1');
-        if (!parentCap) return;
-        
-        capNames.forEach(capName => {
-            const capId = generateCapId();
-            data.capabilities.push({
-                id: capId,
-                name: capName,
-                level: 'L2',
-                parentId: parentCap.id,
-                domain: dept,
-                industryTag: 'Property',
-                strategicImportance: 'medium',
-                maturity: 3,
-                aiPotential: 'Medium',
-                linkedApplications: [],
-                description: `${capName} capability within ${dept}`
-            });
-        });
-    });
-    
-    saveData(data);
-    renderCapabilityLayer();
-    showToast(`✅ Generated ${data.capabilities.length} capabilities from ${apps.length} applications`, 'ok');
-}
-
-/**
- * Extract capability name from application name/description
- */
-function extractCapabilityName(name, description) {
-    // Remove common suffixes/prefixes
-    let capability = name
-        .replace(/\b(System|Portal|Platform|Suite|Tool|App|Application|Software)\b/gi, '')
-        .trim();
-    
-    // If too short, try description
-    if (capability.length < 3 && description) {
-        const words = description.split(' ').slice(0, 3).join(' ');
-        capability = words.replace(/\b(for|the|and|or|with|to)\b/gi, '').trim();
-    }
-    
-    return capability.length > 2 ? capability : null;
-}
-
-/**
- * Link apps that already have businessCapabilities defined
- */
-async function linkExistingCapabilities(apps) {
-    const data = loadData();
-    let linkedCount = 0;
-    
-    apps.forEach(app => {
-        if (!app.businessCapabilities || app.businessCapabilities.length === 0) return;
-        
-        app.businessCapabilities.forEach(capName => {
-            // Find or create capability
-            let cap = data.capabilities.find(c => c.name === capName);
-            
-            if (!cap) {
-                // Create new capability if it doesn't exist
-                const capId = generateCapId();
-                cap = {
-                    id: capId,
-                    name: capName,
-                    level: 'L2',
-                    parentId: null,
-                    domain: app.department || 'General',
-                    industryTag: 'Property',
-                    strategicImportance: 'medium',
-                    maturity: 3,
-                    aiPotential: 'Medium',
-                    linkedApplications: [],
-                    description: `${capName} capability`
-                };
-                data.capabilities.push(cap);
-            }
-            
-            // Link application to capability
-            if (!cap.linkedApplications) cap.linkedApplications = [];
-            if (!cap.linkedApplications.includes(app.id)) {
-                cap.linkedApplications.push(app.id);
-                linkedCount++;
-            }
-        });
-    });
-    
-    saveData(data);
-    renderCapabilityLayer();
-    renderInventory();
-    showToast(`✅ Linked ${linkedCount} application-capability relationships`, 'ok');
-    
-    // Sync to rationalization
-    syncCapabilitiesToRationalization();
-}
-
-/**
- * Sync capabilities and rationalization data to other tabs
- */
-function syncCapabilitiesToRationalization() {
-    // Trigger rationalization recalculation based on updated capability links
-    renderRationalization();
-    
-    // If decisions exist, suggest regeneration
-    if (_decisionsCache && _decisionsCache.length > 0) {
-        const shouldRegenerate = confirm(
-            'Capability mappings have been updated. Would you like to regenerate decisions based on the new data?'
-        );
-        if (shouldRegenerate) {
-            runPortfolioAnalysis();
-        }
-    }
+    showToast(`? Applied ${appliedCount} capability mappings`, 'ok');
 }
 
 function getAPIKey() {
@@ -3444,402 +2905,6 @@ function deleteAIAgent(id) {
     window.deleteAIAgent(id);
     renderAIAgents();
     showToast('AI Agent deleted', 'ok');
-}
-
-// ---------------------------------------------
-//  AI AGENT ANALYSIS & RECOMMENDATIONS
-// ---------------------------------------------
-
-let _aiRecommendations = [];
-
-/**
- * Open AI Analysis Modal
- */
-function openAIAnalysisModal() {
-    const apps = getApps();
-    const capabilities = getCapabilities();
-    
-    // Detect industry from applications or use default
-    const industries = [...new Set(apps.map(a => a.department).filter(Boolean))];
-    const industry = industries.length > 0 ? industries.join(', ') : 'Property Management';
-    
-    // Update context
-    document.getElementById('analysisIndustry').textContent = industry;
-    document.getElementById('analysisCapCount').textContent = capabilities.length;
-    document.getElementById('analysisAppCount').textContent = apps.length;
-    
-    // Reset state
-    _aiRecommendations = [];
-    document.getElementById('aiAnalysisLoading').style.display = 'none';
-    document.getElementById('aiAnalysisResults').style.display = 'none';
-    document.getElementById('btnRunAnalysis').style.display = 'inline-flex';
-    document.getElementById('btnImportRecommendations').style.display = 'none';
-    
-    document.getElementById('aiAnalysisModal').classList.remove('hidden');
-}
-
-/**
- * Close AI Analysis Modal
- */
-function closeAIAnalysisModal() {
-    document.getElementById('aiAnalysisModal').classList.add('hidden');
-}
-
-/**
- * Run AI Analysis to generate agent recommendations
- */
-async function runAIAnalysis() {
-    const apps = getApps();
-    const capabilities = getCapabilities();
-    
-    if (capabilities.length === 0) {
-        showToast('⚠️ Please load APQC capabilities first', 'err');
-        return;
-    }
-    
-    // Show loading state
-    document.getElementById('aiAnalysisLoading').style.display = 'block';
-    document.getElementById('aiAnalysisResults').style.display = 'none';
-    document.getElementById('btnRunAnalysis').disabled = true;
-    
-    try {
-        // Prepare context for AI
-        const industries = [...new Set(apps.map(a => a.department).filter(Boolean))];
-        const industry = industries.length > 0 ? industries.join(', ') : 'Property Management';
-        
-        // Get top capabilities
-        const topCapabilities = capabilities
-            .slice(0, 15)
-            .map(c => `${c.level} - ${c.name}`)
-            .join(', ');
-        
-        // Get strategic themes from APQC capabilities
-        const strategicThemes = [...new Set(
-            capabilities
-                .filter(c => c.strategic_themes)
-                .flatMap(c => c.strategic_themes || [])
-        )].join(', ');
-        
-        // Build AI prompt
-        const prompt = `Analyze this portfolio and recommend 6-10 AI agents that would provide the most value.
-
-**Portfolio Context:**
-- Industry: ${industry}
-- Total Applications: ${apps.length}
-- Capabilities: ${capabilities.length}
-- Key Capabilities: ${topCapabilities}
-- Strategic Themes: ${strategicThemes || 'growth, efficiency, innovation, customer'}
-
-**Requirements:**
-1. Focus on industry-specific needs
-2. Identify capability gaps and opportunities
-3. Leverage latest 2026 AI technologies
-4. Balance quick wins with strategic transformations
-
-**For each AI agent, provide:**
-- name: Clear, descriptive name (e.g., "Tenant Service Chatbot")
-- type: One of [NLP, RPA, Predictive Analytics, Computer Vision, Conversational AI, Automation]
-- description: 1-2 sentence description of purpose and value
-- maturity: Recommended maturity level 1-5 (1=Pilot, 5=Optimized)
-- priority: One of [High, Medium, Low]
-- estimatedImpact: Brief impact statement
-- linkedCapabilities: Array of 2-4 capability names that would benefit
-
-**Return ONLY a valid JSON array, no markdown, no explanation:**
-[
-  {
-    "name": "Lease Document Analyzer",
-    "type": "NLP",
-    "description": "AI-powered extraction and analysis of lease agreements to automate data entry and identify key clauses.",
-    "maturity": 2,
-    "priority": "High",
-    "estimatedImpact": "Reduce lease processing time by 70%",
-    "linkedCapabilities": ["Develop and Manage Products and Services", "Manage Customer Service"]
-  }
-]`;
-
-        // Call AI via server-side proxy (secure - no client-side API key needed)
-        const response = await AzureOpenAIProxy.create(prompt, {
-            model: 'gpt-4o',
-            instructions: 'You are an expert Enterprise Architecture consultant specializing in AI transformation and digital innovation. Return ONLY valid JSON arrays without markdown code blocks.',
-            temperature: 0.7,
-            timeout: 60000
-        });
-        
-        const aiResponse = response.output_text || '';
-        
-        // Parse AI response
-        let recommendations = [];
-        try {
-            // Extract JSON from response (handle markdown or direct JSON)
-            const trimmed = aiResponse.trim();
-            let jsonText = trimmed;
-            
-            // Remove markdown code blocks if present
-            if (trimmed.startsWith('```')) {
-                const jsonMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-                if (jsonMatch) {
-                    jsonText = jsonMatch[1].trim();
-                }
-            }
-            
-            // Find JSON array
-            const arrayMatch = jsonText.match(/\[[\s\S]*\]/);
-            if (arrayMatch) {
-                recommendations = JSON.parse(arrayMatch[0]);
-            } else {
-                throw new Error('No JSON array found in response');
-            }
-            
-            // Validate recommendations
-            if (!Array.isArray(recommendations) || recommendations.length === 0) {
-                throw new Error('Invalid recommendations format');
-            }
-            
-        } catch (parseError) {
-            console.error('Failed to parse AI response:', parseError);
-            console.error('AI Response:', aiResponse);
-            showToast('❌ Failed to parse AI recommendations. Please try again.', 'err');
-            document.getElementById('aiAnalysisLoading').style.display = 'none';
-            document.getElementById('btnRunAnalysis').disabled = false;
-            return;
-        }
-        
-        // Store recommendations
-        _aiRecommendations = recommendations.map((rec, idx) => ({
-            ...rec,
-            id: `ai_rec_${Date.now()}_${idx}`,
-            selected: true,
-            toBe: true // All AI recommendations are TO-BE by default
-        }));
-        
-        // Render recommendations
-        renderAIRecommendations();
-        
-        // Update UI
-        document.getElementById('aiAnalysisLoading').style.display = 'none';
-        document.getElementById('aiAnalysisResults').style.display = 'block';
-        document.getElementById('btnRunAnalysis').style.display = 'none';
-        document.getElementById('btnImportRecommendations').style.display = 'inline-flex';
-        document.getElementById('recommendationCount').textContent = _aiRecommendations.length;
-        
-        showToast(`✅ Generated ${_aiRecommendations.length} AI agent recommendations`, 'ok');
-        
-    } catch (error) {
-        console.error('AI Analysis error:', error);
-        showToast('❌ Failed to generate recommendations: ' + error.message, 'err');
-        document.getElementById('aiAnalysisLoading').style.display = 'none';
-        document.getElementById('btnRunAnalysis').disabled = false;
-    }
-}
-
-/**
- * Render AI recommendations in editable grid
- */
-function renderAIRecommendations() {
-    const grid = document.getElementById('recommendationsGrid');
-    const capabilities = getCapabilities();
-    
-    const priorityColors = {
-        'High': '#dc2626',
-        'Medium': '#f59e0b',
-        'Low': '#64748b'
-    };
-    
-    const typeColors = {
-        'NLP': '#3b82f6',
-        'RPA': '#8b5cf6',
-        'Predictive Analytics': '#10b981',
-        'Computer Vision': '#f59e0b',
-        'Conversational AI': '#06b6d4',
-        'Automation': '#6366f1'
-    };
-    
-    grid.innerHTML = _aiRecommendations.map((rec, idx) => {
-        const priorityColor = priorityColors[rec.priority] || '#64748b';
-        const typeColor = typeColors[rec.type] || '#3b82f6';
-        
-        return `
-            <div class="owner-card" style="border:2px solid ${rec.selected ? '#16a34a' : '#e2e8f0'};position:relative">
-                <!-- Selection Checkbox -->
-                <div style="position:absolute;top:12px;right:12px">
-                    <input type="checkbox" ${rec.selected ? 'checked' : ''} onchange="toggleRecommendationSelection(${idx})" 
-                           style="width:18px;height:18px;cursor:pointer" title="Select for import">
-                </div>
-                
-                <!-- Header -->
-                <div style="margin-bottom:12px;padding-right:30px">
-                    <input type="text" value="${esc(rec.name)}" onchange="updateRecommendation(${idx}, 'name', this.value)" 
-                           style="font-weight:800;font-size:13px;border:1px solid transparent;padding:4px;border-radius:4px;width:100%;background:transparent"
-                           onfocus="this.style.borderColor='#3b82f6';this.style.background='white'"
-                           onblur="this.style.borderColor='transparent';this.style.background='transparent'">
-                </div>
-                
-                <!-- Type & Priority Badges -->
-                <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-                    <select onchange="updateRecommendation(${idx}, 'type', this.value)" 
-                            style="padding:4px 8px;border:none;border-radius:6px;font-size:10px;font-weight:700;color:white;background:${typeColor};cursor:pointer">
-                        <option value="NLP" ${rec.type === 'NLP' ? 'selected' : ''}>NLP</option>
-                        <option value="RPA" ${rec.type === 'RPA' ? 'selected' : ''}>RPA</option>
-                        <option value="Predictive Analytics" ${rec.type === 'Predictive Analytics' ? 'selected' : ''}>Predictive Analytics</option>
-                        <option value="Computer Vision" ${rec.type === 'Computer Vision' ? 'selected' : ''}>Computer Vision</option>
-                        <option value="Conversational AI" ${rec.type === 'Conversational AI' ? 'selected' : ''}>Conversational AI</option>
-                        <option value="Automation" ${rec.type === 'Automation' ? 'selected' : ''}>Automation</option>
-                    </select>
-                    
-                    <select onchange="updateRecommendation(${idx}, 'priority', this.value)"
-                            style="padding:4px 8px;border:none;border-radius:6px;font-size:10px;font-weight:700;color:white;background:${priorityColor};cursor:pointer">
-                        <option value="High" ${rec.priority === 'High' ? 'selected' : ''}>High Priority</option>
-                        <option value="Medium" ${rec.priority === 'Medium' ? 'selected' : ''}>Medium Priority</option>
-                        <option value="Low" ${rec.priority === 'Low' ? 'selected' : ''}>Low Priority</option>
-                    </select>
-                    
-                    <span class="badge" style="background:#dcfce7;color:#16a34a;font-size:10px">Maturity ${rec.maturity}/5</span>
-                </div>
-                
-                <!-- Description -->
-                <textarea onchange="updateRecommendation(${idx}, 'description', this.value)" 
-                          style="font-size:11px;color:#64748b;width:100%;border:1px solid #e2e8f0;border-radius:6px;padding:8px;margin-bottom:10px;min-height:60px;resize:vertical"
-                          placeholder="Description...">${esc(rec.description || '')}</textarea>
-                
-                <!-- Impact -->
-                <div style="background:#f0fdf4;border-left:3px solid #16a34a;padding:8px;border-radius:4px;margin-bottom:10px">
-                    <div style="font-size:10px;color:#15803d;font-weight:700;margin-bottom:4px">💡 Estimated Impact</div>
-                    <input type="text" value="${esc(rec.estimatedImpact || '')}" onchange="updateRecommendation(${idx}, 'estimatedImpact', this.value)"
-                           style="font-size:11px;color:#166534;border:none;background:transparent;width:100%;font-weight:600"
-                           placeholder="e.g., Reduce processing time by 50%">
-                </div>
-                
-                <!-- Linked Capabilities -->
-                <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">🔗 Linked Capabilities:</div>
-                <div style="font-size:10px;color:#475569;margin-bottom:8px;display:flex;flex-wrap:wrap;gap:4px">
-                    ${(rec.linkedCapabilities || []).map(capName => 
-                        `<span class="badge" style="background:#f1f5f9;color:#475569">${esc(capName)}</span>`
-                    ).join('')}
-                </div>
-                
-                <!-- Actions -->
-                <div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #f1f5f9">
-                    <button class="icon-btn" onclick="editRecommendationCapabilities(${idx})" title="Edit linked capabilities">
-                        <i class="fas fa-link"></i>
-                    </button>
-                    <button class="icon-btn del" onclick="removeRecommendation(${idx})" title="Remove">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-/**
- * Toggle recommendation selection
- */
-function toggleRecommendationSelection(idx) {
-    _aiRecommendations[idx].selected = !_aiRecommendations[idx].selected;
-    renderAIRecommendations();
-}
-
-/**
- * Select/deselect all recommendations
- */
-function selectAllRecommendations(selected) {
-    _aiRecommendations.forEach(rec => rec.selected = selected);
-    renderAIRecommendations();
-}
-
-/**
- * Update recommendation field
- */
-function updateRecommendation(idx, field, value) {
-    _aiRecommendations[idx][field] = value;
-    if (field === 'type' || field === 'priority') {
-        renderAIRecommendations(); // Re-render to update colors
-    }
-}
-
-/**
- * Remove recommendation from list
- */
-function removeRecommendation(idx) {
-    if (confirm('Remove this recommendation?')) {
-        _aiRecommendations.splice(idx, 1);
-        renderAIRecommendations();
-        document.getElementById('recommendationCount').textContent = _aiRecommendations.length;
-    }
-}
-
-/**
- * Edit linked capabilities for a recommendation
- */
-function editRecommendationCapabilities(idx) {
-    const rec = _aiRecommendations[idx];
-    const capabilities = getCapabilities();
-    
-    const capNames = capabilities.map(c => c.name);
-    const currentCaps = rec.linkedCapabilities || [];
-    
-    const selectedCaps = prompt(
-        `Enter capability names (comma-separated):\n\nAvailable: ${capNames.slice(0, 10).join(', ')}...\n\nCurrent: ${currentCaps.join(', ')}`,
-        currentCaps.join(', ')
-    );
-    
-    if (selectedCaps !== null) {
-        rec.linkedCapabilities = selectedCaps.split(',').map(s => s.trim()).filter(Boolean);
-        renderAIRecommendations();
-    }
-}
-
-/**
- * Import selected recommendations as AI agents
- */
-async function importSelectedRecommendations() {
-    const selected = _aiRecommendations.filter(rec => rec.selected);
-    
-    if (selected.length === 0) {
-        showToast('⚠️ Please select at least one recommendation', 'err');
-        return;
-    }
-    
-    const confirm = window.confirm(`Import ${selected.length} AI agent recommendation(s) as TO-BE agents?`);
-    if (!confirm) return;
-    
-    const capabilities = getCapabilities();
-    let imported = 0;
-    
-    selected.forEach(rec => {
-        // Map capability names to IDs
-        const linkedCapIds = (rec.linkedCapabilities || [])
-            .map(capName => {
-                const cap = capabilities.find(c => c.name === capName || c.name.includes(capName));
-                return cap ? cap.id : null;
-            })
-            .filter(Boolean);
-        
-        // Create AI agent
-        const agent = {
-            id: generateAgentId(),
-            name: rec.name,
-            type: rec.type,
-            description: rec.description || '',
-            maturity: rec.maturity || 3,
-            toBe: true, // All recommendations are TO-BE
-            linkedCapabilities: linkedCapIds,
-            linkedApplications: [],
-            aiGenerated: true,
-            priority: rec.priority,
-            estimatedImpact: rec.estimatedImpact
-        };
-        
-        upsertAIAgent(agent);
-        imported++;
-    });
-    
-    // Close modal and refresh
-    closeAIAnalysisModal();
-    renderAIAgents();
-    
-    showToast(`✅ Imported ${imported} AI agent recommendation(s)`, 'ok');
 }
 
 // ---------------------------------------------
@@ -4019,228 +3084,9 @@ function applySidebarWidth(w) {
     style.textContent = `body.chat-sidebar-open #main-content{margin-right:${w}px!important;}`;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// DECISION ENGINE
-// ═══════════════════════════════════════════════════════════════
-
-let _decisionsCache = null;
-let _scoresCache = null;
-
-/**
- * Initialize Decision Engine
- */
-async function initDecisionEngine() {
-    try {
-        const dataManager = window.EA_DataManager_Instance || new EA_DataManager();
-        await dataManager.initDecisionEngine();
-        console.log('✅ Decision Engine ready');
-        return true;
-    } catch (error) {
-        console.error('❌ Decision Engine initialization failed:', error);
-        showToast('Decision Engine initialization failed', 'error');
-        return false;
-    }
-}
-
-/**
- * Run portfolio analysis
- */
-async function runPortfolioAnalysis() {
-    const apps = getApps();
-    if (!apps.length) {
-        showToast('No applications to analyze', 'warning');
-        return;
-    }
-
-    showToast('Analyzing portfolio... This may take a moment.', 'info');
-    
-    try {
-        // Initialize if needed
-        await initDecisionEngine();
-        
-        const dataManager = window.EA_DataManager_Instance || new EA_DataManager();
-        const result = await dataManager.analyzePortfolio(apps);
-        
-        if (result.success) {
-            _decisionsCache = result.decisions;
-            _scoresCache = result.summary;
-            
-            renderDecisions();
-            showToast(`Analysis complete! Generated ${result.decisions.length} decisions.`, 'ok');
-        } else {
-            showToast('Analysis failed: ' + result.error, 'error');
-        }
-    } catch (error) {
-        console.error('❌ Portfolio analysis failed:', error);
-        showToast('Analysis failed: ' + error.message, 'error');
-    }
-}
-
-/**
- * Refresh decisions from storage
- */
-async function refreshDecisions() {
-    try {
-        await initDecisionEngine();
-        const storage = window.EA_StorageManager_Instance;
-        
-        _decisionsCache = await storage.getAll('decisions');
-        _scoresCache = await storage.getAll('scores');
-        
-        renderDecisions();
-        showToast('Decisions refreshed', 'ok');
-    } catch (error) {
-        console.error('❌ Refresh failed:', error);
-        showToast('Refresh failed', 'error');
-    }
-}
-
-/**
- * Render decisions table
- */
-async function renderDecisions() {
-    if (!_decisionsCache) {
-        await refreshDecisions();
-        if (!_decisionsCache) {
-            document.getElementById('decisionsBody').innerHTML = 
-                '<tr><td colspan="11" style="text-align:center;padding:40px;color:#94a3b8"><i class="fas fa-info-circle"></i> No decisions generated yet. Click "Run Analysis" to start.</td></tr>';
-            return;
-        }
-    }
-
-    const statusFilter = document.getElementById('filterDecisionStatus')?.value || '';
-    const approvalFilter = document.getElementById('filterApprovalStatus')?.value || '';
-
-    let filtered = _decisionsCache;
-    if (statusFilter) filtered = filtered.filter(d => d.status === statusFilter);
-    if (approvalFilter) filtered = filtered.filter(d => d.approvalStatus === approvalFilter);
-
-    // Update KPIs
-    const summary = {
-        Invest: _decisionsCache.filter(d => d.status === 'Invest').length,
-        Tolerate: _decisionsCache.filter(d => d.status === 'Tolerate').length,
-        Migrate: _decisionsCache.filter(d => d.status === 'Migrate').length,
-        Eliminate: _decisionsCache.filter(d => d.status === 'Eliminate').length,
-        avgConfidence: Math.round((_decisionsCache.reduce((sum, d) => sum + d.confidence, 0) / _decisionsCache.length) * 100)
-    };
-
-    document.getElementById('decInvestCount').textContent = summary.Invest;
-    document.getElementById('decTolerateCount').textContent = summary.Tolerate;
-    document.getElementById('decMigrateCount').textContent = summary.Migrate;
-    document.getElementById('decEliminateCount').textContent = summary.Eliminate;
-    document.getElementById('decAvgConfidence').textContent = summary.avgConfidence + '%';
-
-    // Render table
-    const apps = getApps();
-    const tbody = document.getElementById('decisionsBody');
-    
-    tbody.innerHTML = filtered.map(decision => {
-        const app = apps.find(a => a.id === decision.appId);
-        if (!app) return '';
-
-        const score = _scoresCache?.find(s => s.appId === decision.appId) || {};
-        const confidencePct = Math.round(decision.confidence * 100);
-        const confidenceColor = decision.confidence >= 0.8 ? '#16a34a' : decision.confidence >= 0.6 ? '#3b82f6' : '#fbbf24';
-
-        const statusColors = {
-            'Invest': '#16a34a',
-            'Tolerate': '#fbbf24',
-            'Migrate': '#3b82f6',
-            'Eliminate': '#dc2626'
-        };
-
-        const approvalColors = {
-            'pending': '#6c757d',
-            'approved': '#16a34a',
-            'rejected': '#dc2626'
-        };
-
-        return `<tr>
-            <td><strong>${app.name}</strong></td>
-            <td><span class="badge" style="background:${statusColors[decision.status]};color:white">${decision.status}</span></td>
-            <td><span style="color:${confidenceColor};font-weight:700">${confidencePct}%</span></td>
-            <td><strong>${score.total || '–'}</strong></td>
-            <td>${score.businessFit || '–'}</td>
-            <td>${score.technicalHealth || '–'}</td>
-            <td>${score.costEfficiency || '–'}</td>
-            <td>${score.risk || '–'}</td>
-            <td style="max-width:300px"><small>${decision.rationale}</small></td>
-            <td><span class="badge" style="background:${approvalColors[decision.approvalStatus]};color:white">${decision.approvalStatus}</span></td>
-            <td>
-                <div class="action-row">
-                    ${decision.approvalStatus === 'pending' ? `
-                        <button class="icon-btn" onclick="approveDecision('${decision.id}')" title="Approve">
-                            <i class="fas fa-check"></i>
-                        </button>
-                        <button class="icon-btn del" onclick="rejectDecision('${decision.id}')" title="Reject">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    ` : '–'}
-                </div>
-            </td>
-        </tr>`;
-    }).join('');
-    
-    // Update workflow progress
-    updateWorkflowProgress();
-}
-
-/**
- * Approve decision
- */
-async function approveDecision(decisionId) {
-    const dataManager = window.EA_DataManager_Instance || new EA_DataManager();
-    const success = await dataManager.updateDecisionStatus(decisionId, 'approve', 'Current User');
-    
-    if (success) {
-        await refreshDecisions();
-        showToast('Decision approved', 'ok');
-    } else {
-        showToast('Failed to approve decision', 'error');
-    }
-}
-
-/**
- * Reject decision
- */
-async function rejectDecision(decisionId) {
-    const reason = prompt('Rejection reason (optional):');
-    const dataManager = window.EA_DataManager_Instance || new EA_DataManager();
-    const success = await dataManager.updateDecisionStatus(decisionId, 'reject', 'Current User', reason);
-    
-    if (success) {
-        await refreshDecisions();
-        showToast('Decision rejected', 'ok');
-    } else {
-        showToast('Failed to reject decision', 'error');
-    }
-}
-
-/**
- * Export decisions
- */
-async function exportDecisionsData() {
-    const dataManager = window.EA_DataManager_Instance || new EA_DataManager();
-    const json = await dataManager.exportDecisions();
-    
-    if (json) {
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'portfolio_decisions_' + new Date().toISOString().slice(0,10) + '.json';
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast('Decisions exported', 'ok');
-    }
-}
-
 // Initialize on load
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     initChatSidebarResize();
-    
-    // Auto-load APQC framework if no capabilities exist
-    await autoLoadAPQCFramework();
 });
 
 // Keyboard shortcut: Ctrl+K toggles chat

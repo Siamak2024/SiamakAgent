@@ -681,6 +681,10 @@ function renderServiceCard(service, heatmap, l1Group) {
     const hasGaps = assessment && (assessment.gaps?.length > 0 || assessment.identifiedGaps?.length > 0);
     const hasOpportunities = heatmap.opportunities?.some(opp => opp.l2ServiceId === service.id);
     
+    // Check for APQC mappings
+    const apqcMappingsCount = assessment?.mappedCapabilities?.length || 0;
+    const hasAPQCMappings = apqcMappingsCount > 0;
+    
     // Get color based on assessment state
     const stateColors = {
         'FULL': { bg: '#10b981', text: '#ffffff', icon: 'check-circle', label: 'FULL' },
@@ -731,7 +735,7 @@ function renderServiceCard(service, heatmap, l1Group) {
             </div>
             
             <!-- State Badge & Score -->
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
                 <div style="
                     font-size: 10px;
                     font-weight: 700;
@@ -744,17 +748,54 @@ function renderServiceCard(service, heatmap, l1Group) {
                     <i class="fas fa-${colorScheme.icon}" style="margin-right: 4px;"></i>
                     ${colorScheme.label}
                 </div>
-                ${score > 0 ? `
-                    <div style="
-                        font-size: 12px;
-                        font-weight: 700;
-                        background: rgba(255,255,255,0.3);
-                        padding: 2px 6px;
-                        border-radius: 4px;
-                    ">
-                        ${score}%
-                    </div>
-                ` : ''}
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    ${hasAPQCMappings ? `
+                        <div style="
+                            font-size: 10px;
+                            font-weight: 700;
+                            background: rgba(255,255,255,0.95);
+                            color: #059669;
+                            padding: 3px 6px;
+                            border-radius: 4px;
+                            display: flex;
+                            align-items: center;
+                            gap: 3px;
+                        " title="${apqcMappingsCount} APQC mapping(s)">
+                            <i class="fas fa-layer-group" style="font-size: 9px;"></i>
+                            ${apqcMappingsCount}
+                        </div>
+                    ` : ''}
+                    ${score > 0 ? `
+                        <div style="
+                            font-size: 12px;
+                            font-weight: 700;
+                            background: rgba(255,255,255,0.3);
+                            padding: 2px 6px;
+                            border-radius: 4px;
+                        ">
+                            ${score}%
+                        </div>
+                    ` : ''}
+                    <!-- Edit Assessment Icon -->
+                    <button
+                        onclick="event.stopPropagation(); openServiceDrilldown('${heatmap.id}', '${service.id}');"
+                        style="
+                            background: rgba(255,255,255,0.25);
+                            border: 1px solid rgba(255,255,255,0.4);
+                            border-radius: 4px;
+                            padding: 4px 6px;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                            color: ${colorScheme.text};
+                            font-size: 11px;
+                        "
+                        onmouseover="this.style.background='rgba(255,255,255,0.4)'; this.style.borderColor='rgba(255,255,255,0.6)';"
+                        onmouseout="this.style.background='rgba(255,255,255,0.25)'; this.style.borderColor='rgba(255,255,255,0.4)';"
+                        title="Edit Assessment"
+                    >
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
             </div>
             
             <!-- Grid Icon (top-right corner) -->

@@ -68,36 +68,65 @@ const AIService = (() => {
       timeout: timeoutMs,
       reasoning,
       ...(temperature !== undefined && { temperature }),
-      ...(opts.expectsJson && { response_format: { type: 'json_object' } })
+      ...(opts.expectsJson && { response_format: { type: 'json_object' } }),
+      ...(opts.tools && { tools: opts.tools }),  // Pass through tools (e.g., web_search)
+      ...(opts.previousResponseId && { previous_response_id: opts.previousResponseId })  // Chain stateful responses
     };
 
     const startTime = Date.now();
     let response;
     let usedFallback = false;
+    let apiSource = 'unknown';
+
+    // ═══════════════════════════════════════════════════════════════════
+    console.log(`%c[AIService] 🚀 STARTING AI CALL`, 'color: #6366f1; font-weight: bold');
+    console.log(`  Task:        ${opts.taskId}`);
+    console.log(`  Type:        ${opts.taskType}`);
+    console.log(`  Model:       ${modelName}`);
+    console.log(`  Temperature: ${temperature !== undefined ? temperature : 'N/A (reasoning model)'}`);
+    console.log(`  Timeout:     ${timeoutMs}ms`);
+    console.log(`  Expects JSON: ${opts.expectsJson || false}`);
+    // ═══════════════════════════════════════════════════════════════════
 
     // ── Try proxy first ───────────────────────────────────────────────────
     try {
       if (typeof AzureOpenAIProxy === 'undefined') {
         throw new Error('Proxy not available (running locally)');
       }
+      console.log(`%c[AIService] 📡 Attempting Azure proxy call...`, 'color: #8b5cf6');
       response = await AzureOpenAIProxy.create(input, createOpts);
+      apiSource = 'azure-proxy';
+      console.log(`%c[AIService] ✅ Azure proxy SUCCESS`, 'color: #10b981; font-weight: bold');
     } catch (proxyErr) {
       const silent = /proxy not available|AzureOpenAIProxy is not defined/i.test(proxyErr.message);
       if (!silent) {
-        console.warn(`[AIService] Proxy failed for ${opts.taskId}:`, proxyErr.message);
+        console.error(`%c[AIService] ❌ Proxy FAILED for ${opts.taskId}`, 'color: #ef4444; font-weight: bold');
+        console.error(`  Error: ${proxyErr.message}`);
+      } else {
+        console.warn(`%c[AIService] ⚠️ Proxy not available, trying direct API...`, 'color: #f59e0b');
       }
       // ── Direct API fallback ────────────────────────────────────────────
       const apiKey = _getStoredApiKey();
       if (!apiKey) {
+        console.error(`%c[AIService] 🔑 NO API KEY CONFIGURED`, 'color: #dc2626; font-weight: bold; font-size: 14px');
+        console.error(`  Task ${opts.taskId} CANNOT be completed without API access`);
+        console.error(`  ⚠️ FALLBACK TO HARDCODED PROMPTS WILL BE USED IF AVAILABLE`);
         if (typeof showSettingsModal === 'function') showSettingsModal();
         const err = 'No API key. Please add your OpenAI API key in Settings.';
         _log(opts.taskId, opts.taskType, null, null, 'error', err, 0);
         return { taskId: opts.taskId, rawOutput: '', model: modelName, elapsed: 0, thinking: null, timestamp: new Date(), status: 'error', error: err };
       }
       try {
+        console.log(`%c[AIService] 🔑 Attempting direct OpenAI API call...`, 'color: #3b82f6');
         response = await _callDirectAPI(input, createOpts, apiKey, timeoutMs);
         usedFallback = true;
+        apiSource = 'direct-api';
+        console.log(`%c[AIService] ✅ Direct API SUCCESS`, 'color: #10b981; font-weight: bold');
       } catch (directErr) {
+        console.error(`%c[AIService] ❌ BOTH PROXY AND DIRECT API FAILED`, 'color: #dc2626; font-weight: bold; font-size: 14px');
+        console.error(`  Proxy error: ${proxyErr.message}`);
+        console.error(`  Direct API error: ${directErr.message}`);
+        console.error(`  ⚠️ FALLBACK TO HARDCODED PROMPTS WILL BE USED IF AVAILABLE`);
         const err = directErr.message || proxyErr.message || 'API error';
         _log(opts.taskId, opts.taskType, null, null, 'error', err, Date.now() - startTime);
         return { taskId: opts.taskId, rawOutput: '', model: modelName, elapsed: Date.now() - startTime, thinking: null, timestamp: new Date(), status: 'error', error: err };
@@ -106,6 +135,15 @@ const AIService = (() => {
 
     const rawOutput = response?.output_text || '';
     const elapsed   = Date.now() - startTime;
+
+    // ═══════════════════════════════════════════════════════════════════
+    console.log(`%c[AIService] ✅ AI CALL COMPLETE`, 'color: #10b981; font-weight: bold');
+    console.log(`  Task:          ${opts.taskId}`);
+    console.log(`  API Source:    ${apiSource.toUpperCase()}`);
+    console.log(`  Elapsed:       ${elapsed}ms`);
+    console.log(`  Output length: ${rawOutput.length} chars`);
+    console.log(`  Preview:       ${rawOutput.substring(0, 100)}...`);
+    // ═══════════════════════════════════════════════════════════════════
 
     // ── Extract reasoning / thinking summary──────────────────────────────
     let thinking = null;
@@ -147,34 +185,33 @@ const AIService = (() => {
       elapsed,
       thinking,
       timestamp: new Date(),
-      status: 'success'
+      status: 'success',
+      responseId: response?.id  // Store response ID for stateful conversations
     };
   }
 
-  // ── Direct OpenAI Chat Completions API call ──────────────────────────────
+  // ── Direct OpenAI Responses API call ──────────────────────────────────────
   async function _callDirectAPI(input, createOpts, apiKey, timeoutMs) {
-    const { instructions, model, temperature, response_format, reasoning, timeout, ...otherOpts } = createOpts;
+    const { instructions, model, temperature, response_format, reasoning, timeout, tools, previous_response_id, ...otherOpts } = createOpts;
     
-    // Build messages array for Chat Completions API
-    const messages = [
-      ...(instructions ? [{ role: 'system', content: instructions }] : []),
-      { role: 'user', content: input }
-    ];
-
-    // Only include parameters supported by Chat Completions API
-    // Note: timeout and reasoning are NOT valid API parameters
+    // Build request body for Responses API
     const requestBody = {
       model,
-      messages,
+      input,
+      ...(instructions && { instructions }),
       ...(temperature !== undefined && { temperature }),
-      ...(response_format && { response_format })
-      // otherOpts intentionally excluded to avoid unsupported params
+      ...(reasoning && { reasoning }),
+      ...(response_format && { text: { format: response_format } }),
+      ...(tools && { tools }),  // Include tools (e.g., web_search)
+      ...(previous_response_id && { previous_response_id }),  // Chain stateful conversations
+      store: true  // Enable stateful conversations
+      // timeout is handled by AbortController, not API parameter
     };
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      const res = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -187,12 +224,20 @@ const AIService = (() => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Direct API error');
       
-      // Transform Chat Completions response to match expected format
-      const message = data.choices?.[0]?.message;
+      // Add output_text helper if not present
+      if (!data.output_text && Array.isArray(data.output)) {
+        const messageItem = data.output.find(item => item.type === 'message');
+        if (messageItem && messageItem.content) {
+          const textContent = messageItem.content.find(c => c.type === 'output_text' || c.type === 'text');
+          data.output_text = textContent?.text || '';
+        }
+      }
+      
       return {
         id: data.id,
         model: data.model,
-        output_text: message?.content || '',
+        output: data.output,
+        output_text: data.output_text || '',
         usage: data.usage
       };
     } catch (err) {
