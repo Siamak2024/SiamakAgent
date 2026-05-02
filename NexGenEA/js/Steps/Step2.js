@@ -568,8 +568,12 @@ Return complete JSON with all fields populated.`;
   onComplete: (model) => {
     // Update UI sections
     if (typeof renderCapabilitySection === 'function') renderCapabilitySection();
-    if (typeof renderHeatmapSection === 'function') renderHeatmapSection();
-    if (typeof renderGapSection === 'function') renderGapSection();
+    // renderHeatmapSection() and renderGapSection() removed - functions don't exist
+    // Will be replaced by renderCapMapWorkspace() in Phase 2, Step 9
+    
+    // Phase 1 Step 2: Render APQC Tree after Step 2 completes
+    if (typeof renderAPQCTree === 'function') renderAPQCTree();
+    
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
     if (typeof updateWorkflowProgress === 'function') updateWorkflowProgress([1, 2]);
     if (typeof StepEngine === 'object') StepEngine.stopSpinner('step2');
