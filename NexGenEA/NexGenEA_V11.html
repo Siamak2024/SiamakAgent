@@ -112,10 +112,6 @@
 <script src="js/Steps/Step2.js"></script>
 <script src="js/Steps/Step3.js"></script>
 <script src="js/Steps/Step4.js"></script>
-<!-- -- Step 2 UI Components (TODO: Implement) ------------------ -->
-<!-- <script src="js/Components/Step2_ActionBar.js"></script> -->
-<!-- <script src="js/Components/Step2_ObjectiveMatrix.js"></script> -->
-<!-- <script src="js/Components/Step2_PrioritizationTable.js"></script> -->
 <!-- -- Parallel Analytics Workflows ---------------------------- -->
 <script src="js/Analytics/AnalyticsContextBuilder.js"></script>
 <script src="js/Analytics/TabContext.js"></script>
@@ -730,7 +726,7 @@
           <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('capmap',this)" title="Capability Map"><span class="flex flex-col items-center leading-tight"><i class="fas fa-diagram-project"></i><span class="text-[9px]">Cap Map</span></span></button>
           <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('exec',this)" id="btn-objectives" title="Business Objectives & Summary"><span class="flex flex-col items-center leading-tight"><i class="fas fa-table-cells"></i><span class="text-[9px]">Objectives</span></span></button>
           <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('graph',this)" title="Dependency Graph"><span class="flex flex-col items-center leading-tight"><i class="fas fa-share-nodes"></i><span class="text-[9px]">Graph</span></span></button>
-          <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" onclick="showTab('step2-prioritization-table',this)" id="btn-step2-prioritization-table" title="Prioritization Table"><span class="flex flex-col items-center leading-tight"><i class="fas fa-list-ol"></i><span class="text-[9px]">Priority</span></span></button>
+          <!-- Priority tab button removed - Will be rebuilt as Tab 6 inside Cap Map (Phase 2, Step 3) -->
         </div>
         <div class="ea-tab-group__label">Architecture</div>
       </div>
@@ -1208,16 +1204,7 @@
           </div>
 
           <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)] gap-6">
-            <div class="ea-section-card">
-              <div class="ea-section-heading">
-                <div>
-                  <h2>Heatmap overview</h2>
-                  <p>Rounded cells only, with tooltips for detailed values.</p>
-                </div>
-                <div class="ea-heat-legend" id="nordic-heatmap-legend"></div>
-              </div>
-              <div id="nordic-heatmap" class="ea-heatmap-grid ea-heatmap-grid--wide"></div>
-            </div>
+            <!-- Nordic heatmap removed - Migrating to Cap Map Tab 3 (Phase 2, Step 3) -->
 
             <div class="ea-section-card">
               <div class="ea-section-heading">
@@ -1240,9 +1227,8 @@
             <div class="overflow-x-auto" id="nordic-focus-table"></div>
           </div>
         </div>
-        </div>
-        </div>
       </div>
+      <!-- END tab-home -->
 
       <!-- EXECUTIVE SUMMARY (Phase 2) -->
 	  <!-- Insert new tab content here -->
@@ -1484,94 +1470,334 @@
         </div>
       </div>
 
-      <div id="tab-capmap" class="hidden">
-        <!-- Step 2 Actions Bar -->
-        <div id="step2-actions-bar"></div>
+      <!-- CAP MAP TAB (3-PANEL LAYOUT) -->
+      <div id="tab-capmap" class="hidden capmap-container">
         
-        <!-- APQC Framework Banner -->
-        <div id="apqc-banner-capmap" class="mb-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg hidden">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <i class="fas fa-award text-blue-600"></i>
-              <div>
-                <div class="text-xs font-bold text-blue-900">Powered by APQC PCF Framework</div>
-                <div class="text-[10px] text-blue-700" id="apqc-status-capmap">Capabilities enriched with industry best practices</div>
+        <!-- TOP BAR (Sticky) -->
+        <div class="capmap-top-bar">
+          <!-- Step 2 Actions Bar (Dynamic content from Step2.js) -->
+          <div id="step2-actions-bar" class="capmap-top-bar__dynamic"></div>
+          
+          <!-- Primary Actions -->
+          <div class="capmap-top-bar__actions">
+            <button onclick="StepEngine.run('step2', window.model)" class="capmap-btn capmap-btn--primary" title="Run full Step 2 AI analysis">
+              <i class="fas fa-brain"></i>
+              <span>Generate Step 2 Analysis</span>
+            </button>
+            <button onclick="validateStep2()" class="capmap-btn capmap-btn--secondary" id="step2-validate-btn">
+              <i class="fas fa-check-circle"></i>
+              <span>Validate</span>
+              <span class="capmap-badge" id="step2-validation-badge" style="display:none;">0</span>
+            </button>
+            <button onclick="approveAndContinueToStep3()" class="capmap-btn capmap-btn--success" id="step2-approve-btn" style="display:none;">
+              <i class="fas fa-check-double"></i>
+              <span>Approve & Continue</span>
+            </button>
+          </div>
+          
+          <!-- Mode Toggles -->
+          <div class="capmap-top-bar__toggles">
+            <div class="capmap-toggle-group">
+              <button id="capmap-btn-asis" onclick="_capmapSetState('asis')" class="capmap-toggle-btn active">AS-IS</button>
+              <button id="capmap-btn-tobe" onclick="_capmapSetState('tobe')" class="capmap-toggle-btn">TO-BE</button>
+            </div>
+            <label class="capmap-checkbox">
+              <input type="checkbox" id="benchmark-overlay-toggle" onchange="toggleBenchmarkOverlay()">
+              <span>Benchmark Overlay</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- 3-PANEL LAYOUT -->
+        <div class="capmap-3panel" id="capmap-3panel">
+          
+          <!-- Expand Button - Left Panel (shows when collapsed) -->
+          <button id="capmap-expand-left" class="capmap-expand-btn capmap-expand-btn--left" onclick="toggleCapMapPanel('left')" style="display: none;" title="Expand APQC Tree (Ctrl+L)">
+            <i class="fas fa-angles-right"></i>
+            <span>APQC</span>
+          </button>
+          
+          <!-- LEFT PANEL: APQC Tree -->
+          <aside class="capmap-left-panel" id="capmap-left-panel">
+            <div class="capmap-panel-header">
+              <div class="capmap-panel-title">
+                <i class="fas fa-sitemap"></i>
+                <span>APQC Tree</span>
+              </div>
+              <button onclick="toggleCapMapPanel('left')" class="capmap-panel-collapse" title="Collapse panel">
+                <i class="fas fa-angles-left"></i>
+              </button>
+            </div>
+            
+            <!-- APQC Framework Banner -->
+            <div class="capmap-apqc-banner">
+              <div class="capmap-apqc-banner__icon">
+                <i class="fas fa-layer-group"></i>
+              </div>
+              <div class="capmap-apqc-banner__content">
+                <div class="capmap-apqc-banner__title">APQC PCF v8.0</div>
+                <div class="capmap-apqc-banner__subtitle" id="apqc-status-tree">12 L1 Categories, 62 L2 Processes</div>
+              </div>
+              <button onclick="showAPQCSettings()" class="capmap-apqc-banner__config">
+                <i class="fas fa-cog"></i>
+              </button>
+            </div>
+            
+            <!-- Tree Filters -->
+            <div class="capmap-tree-filters">
+              <input type="text" id="apqc-tree-search" placeholder="Search capabilities..." class="capmap-search-input">
+              <select id="apqc-tree-domain-filter" class="capmap-filter-select" onchange="filterAPQCTree()">
+                <option value="all">All Domains</option>
+                <option value="Customer">Customer</option>
+                <option value="Product">Product</option>
+                <option value="Operations">Operations</option>
+                <option value="Risk">Risk</option>
+                <option value="Finance">Finance</option>
+                <option value="Technology">Technology</option>
+                <option value="Support">Support</option>
+              </select>
+              <select id="apqc-tree-importance-filter" class="capmap-filter-select" onchange="filterAPQCTree()">
+                <option value="all">All Importance</option>
+                <option value="CORE">Core</option>
+                <option value="DIFFERENTIATING">Differentiating</option>
+                <option value="SUPPORTING">Supporting</option>
+                <option value="COMMODITY">Commodity</option>
+              </select>
+            </div>
+            
+            <!-- APQC Tree Container -->
+            <div class="capmap-tree-container" id="apqc-tree-container">
+              <div class="capmap-tree-empty">No capabilities yet. Run Step 2 Analysis.</div>
+            </div>
+          </aside>
+          
+          <!-- Resize Handle - Left/Center -->
+          <div class="capmap-resize-handle capmap-resize-handle--left" id="resize-handle-left" title="Drag to resize"></div>
+          
+          <!-- CENTER PANEL: Workspace Tabs -->
+          <main class="capmap-workspace" id="capmap-workspace">
+            <div class="capmap-workspace-tabs">
+              <button class="capmap-workspace-tab active" data-tab="capability-map" onclick="switchCapMapTab('capability-map')">
+                <i class="fas fa-diagram-project"></i>
+                <span>Capability Map</span>
+              </button>
+              <button class="capmap-workspace-tab" data-tab="objective-matrix" onclick="switchCapMapTab('objective-matrix')">
+                <i class="fas fa-table"></i>
+                <span>Objective Matrix</span>
+              </button>
+              <button class="capmap-workspace-tab" data-tab="heatmaps" onclick="switchCapMapTab('heatmaps')">
+                <i class="fas fa-fire"></i>
+                <span>Heatmaps</span>
+              </button>
+              <button class="capmap-workspace-tab" data-tab="it-enablement" onclick="switchCapMapTab('it-enablement')">
+                <i class="fas fa-server"></i>
+                <span>IT Enablement</span>
+              </button>
+              <button class="capmap-workspace-tab" data-tab="gap-analysis" onclick="switchCapMapTab('gap-analysis')">
+                <i class="fas fa-triangle-exclamation"></i>
+                <span>Gap Analysis</span>
+              </button>
+              <button class="capmap-workspace-tab" data-tab="prioritization" onclick="switchCapMapTab('prioritization')">
+                <i class="fas fa-list-ol"></i>
+                <span>Prioritization</span>
+              </button>
+            </div>
+            
+            <div class="capmap-workspace-content">
+              <!-- Tab 1: Capability Map (Original grid view) -->
+              <div id="capmap-tab-capability-map" class="capmap-workspace-pane active">
+                <div class="capmap-workspace-header">
+                  <div>
+                    <div class="capmap-workspace-title">Capability Map</div>
+                    <div class="capmap-workspace-subtitle" id="capmap-state-label">Current State (AS-IS)</div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div id="capmap-filter-indicator" style="display: none; font-size: 10px; padding: 4px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; border: 1px solid #bfdbfe;">
+                      <i class="fas fa-filter" style="margin-right: 4px;"></i>
+                      <span id="capmap-filter-text">Filtered</span>
+                      <button onclick="clearAPQCFilter()" style="margin-left: 6px; background: none; border: none; color: #1e40af; cursor: pointer; padding: 0; font-size: 10px;" title="Clear filter">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
+                    <select id="capmap-area-filter" class="capmap-filter-select" onchange="renderCapMap()">
+                      <option value="all">All Areas</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="grid grid-cols-7 gap-2" id="cap-grid">
+                  <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Customer</div><div id="dom-Customer"></div></div>
+                  <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Product</div><div id="dom-Product"></div></div>
+                  <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Operations</div><div id="dom-Operations"></div></div>
+                  <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Risk</div><div id="dom-Risk"></div></div>
+                  <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Finance</div><div id="dom-Finance"></div></div>
+                  <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Tech</div><div id="dom-Technology"></div></div>
+                  <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Support</div><div id="dom-Support"></div></div>
+                </div>
+                <div id="capmap-empty" class="capmap-empty-state">
+                  <i class="fas fa-diagram-project"></i>
+                  <div>No capabilities yet</div>
+                  <div class="capmap-empty-hint">Click "Generate Step 2 Analysis" to create your capability model</div>
+                </div>
+              </div>
+              
+              <!-- Tab 2: Objective Matrix -->
+              <div id="capmap-tab-objective-matrix" class="capmap-workspace-pane">
+                <div class="capmap-workspace-header">
+                  <div>
+                    <div class="capmap-workspace-title">Objective Mapping Matrix</div>
+                    <div class="capmap-workspace-subtitle">Map capabilities to business objectives (H/M/L strength)</div>
+                  </div>
+                  <div class="capmap-workspace-actions">
+                    <button onclick="autoMapObjectives()" class="capmap-btn capmap-btn--secondary-sm">
+                      <i class="fas fa-wand-magic-sparkles"></i> Auto-Map
+                    </button>
+                    <button onclick="exportObjectiveMatrix()" class="capmap-btn capmap-btn--secondary-sm">
+                      <i class="fas fa-download"></i> Export CSV
+                    </button>
+                  </div>
+                </div>
+                <div id="objective-matrix-container" class="capmap-matrix-container">
+                  <div class="capmap-empty-state">
+                    <i class="fas fa-table"></i>
+                    <div>Objective matrix will appear here</div>
+                    <div class="capmap-empty-hint">Complete Step 1 and Step 2 to enable objective mapping</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Tab 3: Heatmaps -->
+              <div id="capmap-tab-heatmaps" class="capmap-workspace-pane">
+                <div class="capmap-workspace-header">
+                  <div>
+                    <div class="capmap-workspace-title">Capability Heatmaps</div>
+                    <div class="capmap-workspace-subtitle">Multi-dimensional heat analysis</div>
+                  </div>
+                  <select id="heatmap-axis-selector" class="capmap-filter-select" onchange="renderHeatmapTab()">
+                    <option value="importance-maturity">Importance vs Maturity</option>
+                    <option value="cost-value">Cost vs Value</option>
+                    <option value="performance-importance">Performance vs Importance</option>
+                  </select>
+                </div>
+                <div id="heatmap-container" class="capmap-heatmap-container">
+                  <div class="capmap-empty-state">
+                    <i class="fas fa-fire"></i>
+                    <div>Heatmap will appear here</div>
+                    <div class="capmap-empty-hint">Complete Step 2 to generate heatmap visualization</div>
+                  </div>
+                </div>
+                <div id="heatmap-legend-container" class="capmap-heatmap-legend"></div>
+              </div>
+              
+              <!-- Tab 4: IT Enablement -->
+              <div id="capmap-tab-it-enablement" class="capmap-workspace-pane">
+                <div class="capmap-workspace-header">
+                  <div>
+                    <div class="capmap-workspace-title">IT Service Mapping</div>
+                    <div class="capmap-workspace-subtitle">Link capabilities to IT systems and services</div>
+                  </div>
+                  <button onclick="autoMapITServices()" class="capmap-btn capmap-btn--secondary-sm">
+                    <i class="fas fa-wand-magic-sparkles"></i> Auto-Map IT Services
+                  </button>
+                </div>
+                <div id="it-enablement-container" class="capmap-matrix-container">
+                  <div class="capmap-empty-state">
+                    <i class="fas fa-server"></i>
+                    <div>IT enablement matrix will appear here</div>
+                    <div class="capmap-empty-hint">Complete Step 2 to map IT services to capabilities</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Tab 5: Gap Analysis -->
+              <div id="capmap-tab-gap-analysis" class="capmap-workspace-pane">
+                <div class="capmap-workspace-header">
+                  <div>
+                    <div class="capmap-workspace-title">Gap Analysis & White Spots</div>
+                    <div class="capmap-workspace-subtitle">Identify capability gaps and missing areas</div>
+                  </div>
+                  <button onclick="addManualGap()" class="capmap-btn capmap-btn--secondary-sm">
+                    <i class="fas fa-plus"></i> Add Manual Gap
+                  </button>
+                </div>
+                <div id="gap-analysis-container" class="capmap-gap-container">
+                  <div class="capmap-empty-state">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    <div>Gap analysis will appear here</div>
+                    <div class="capmap-empty-hint">Complete Step 2 to identify capability gaps</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Tab 6: Prioritization -->
+              <div id="capmap-tab-prioritization" class="capmap-workspace-pane">
+                <div class="capmap-workspace-header">
+                  <div>
+                    <div class="capmap-workspace-title">Capability Prioritization</div>
+                    <div class="capmap-workspace-subtitle">Decision-grade ranking by importance, gap, and cost</div>
+                  </div>
+                  <div class="capmap-workspace-actions">
+                    <button onclick="groupCapabilities('invest')" class="capmap-btn capmap-btn--secondary-sm">Group: Invest</button>
+                    <button onclick="groupCapabilities('optimize')" class="capmap-btn capmap-btn--secondary-sm">Group: Optimize</button>
+                    <button onclick="groupCapabilities('maintain')" class="capmap-btn capmap-btn--secondary-sm">Group: Maintain</button>
+                  </div>
+                </div>
+                <div id="prioritization-container" class="capmap-table-container">
+                  <div class="capmap-empty-state">
+                    <i class="fas fa-list-ol"></i>
+                    <div>Prioritization table will appear here</div>
+                    <div class="capmap-empty-hint">Complete Step 2 to generate priority rankings</div>
+                  </div>
+                </div>
               </div>
             </div>
-            <button onclick="showAPQCSettings()" class="text-[10px] text-blue-600 hover:text-blue-800 font-semibold px-2 py-1 bg-white rounded border border-blue-200">
-              <i class="fas fa-cog"></i> Configure
-            </button>
-          </div>
-        </div>
-        
-        <div class="flex items-center justify-between mb-3 gap-3">
-          <div>
-            <div class="text-sm font-bold text-slate-700">Capability Map</div>
-            <div class="text-[11px] text-slate-500" id="capmap-state-label">Current State (AS-IS) – capabilities derived from architecture generation</div>
-          </div>
-          <div class="flex items-center gap-2 flex-shrink-0">
-            <div class="bmc-state-toggle flex gap-1">
-              <button id="capmap-btn-asis" onclick="_capmapSetState('asis')" class="active">AS-IS</button>
-              <button id="capmap-btn-tobe" onclick="_capmapSetState('tobe')">TO-BE</button>
+          </main>
+          
+          <!-- Resize Handle - Center/Right -->
+          <div class="capmap-resize-handle capmap-resize-handle--right" id="resize-handle-right" title="Drag to resize"></div>
+          
+          <!-- RIGHT PANEL: Inspector -->
+          <aside class="capmap-right-panel" id="capmap-right-panel">
+            <div class="capmap-panel-header">
+              <div class="capmap-panel-title">
+                <i class="fas fa-info-circle"></i>
+                <span>Inspector</span>
+              </div>
+              <button onclick="toggleCapMapPanel('right')" class="capmap-panel-collapse" title="Collapse panel">
+                <i class="fas fa-angles-right"></i>
+              </button>
             </div>
-            <select id="capmap-area-filter" class="text-[10px] border rounded px-2 py-1" onchange="renderCapMap()">
-              <option value="all">All Areas</option>
-            </select>
-            <button onclick="runTabAIAnalysis('capmap')" id="ai-analysis-btn-capmap" class="ea-btn ea-btn--ai" title="Get AI expert analysis of your Capability Map">
-              <i class="fas fa-brain"></i><span>AI Analysis</span>
-            </button>
-            <button onclick="generateCapabilityMapToBe()" class="ea-btn ea-btn--primary" title="Generate TO-BE Capability Map from strategy">
-              <i class="fas fa-wand-magic-sparkles"></i><span>Generate TO-BE</span>
-            </button>
-          </div>
+            
+            <div class="capmap-inspector-container" id="capmap-inspector">
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 24px; text-align: center;">
+                <i class="fas fa-mouse-pointer" style="font-size: 48px; color: #cbd5e1; margin-bottom: 16px;"></i>
+                <div style="font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px;">No Selection</div>
+                <div style="font-size: 10px; color: #94a3b8; line-height: 1.5;">Click on a capability in the APQC Tree to view details and edit properties</div>
+              </div>
+            </div>
+              <div class="capmap-empty-state capmap-empty-state--vertical">
+                <i class="fas fa-hand-pointer"></i>
+                <div>Select a capability</div>
+                <div class="capmap-empty-hint">Click any capability in the tree or workspace to view details</div>
+              </div>
+            </div>
+          </aside>
+          
+          <!-- Expand Button - Right Panel (shows when collapsed) -->
+          <button id="capmap-expand-right" class="capmap-expand-btn capmap-expand-btn--right" onclick="toggleCapMapPanel('right')" style="display: none;" title="Expand Inspector (Ctrl+R)">
+            <i class="fas fa-angles-left"></i>
+            <span>Inspector</span>
+          </button>
+          
         </div>
-        <div class="grid grid-cols-7 gap-2" id="cap-grid">
-          <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Customer</div><div id="dom-Customer"></div></div>
-          <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Product</div><div id="dom-Product"></div></div>
-          <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Operations</div><div id="dom-Operations"></div></div>
-          <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Risk</div><div id="dom-Risk"></div></div>
-          <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Finance</div><div id="dom-Finance"></div></div>
-          <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Tech</div><div id="dom-Technology"></div></div>
-          <div><div class="text-[9px] font-bold text-center uppercase text-slate-400 mb-1">Support</div><div id="dom-Support"></div></div>
-        </div>
-        <div id="capmap-empty" class="text-slate-400 text-xs text-center py-20">Generate architecture to populate the capability map</div>
         
-        <!-- AI Analysis Result Container -->
-        <div id="ai-analysis-result-capmap" class="mt-4"></div>
+        <!-- APQC Banner (Legacy - hidden, kept for old code compatibility) -->
+        <div id="apqc-banner-capmap" style="display:none;"></div>
+        
+        <!-- AI Analysis Result Container (Legacy - kept for compatibility) -->
+        <div id="ai-analysis-result-capmap" style="display:none;"></div>
       </div>
 
-      <!-- TAB 2: OBJECTIVE MAPPING MATRIX -->
-      <div id="tab-step2-objective-matrix" class="hidden">
-        <div class="flex items-center justify-between mb-3">
-          <div>
-            <div class="text-sm font-bold text-slate-700">Objective Mapping Matrix</div>
-            <div class="text-[11px] text-slate-500">Map capabilities to business objectives with High/Medium/Low strength</div>
-          </div>
-          <div class="flex items-center gap-2">
-            <button onclick="Step2ObjectiveMatrix.autoMap()" class="ea-btn ea-btn--secondary" title="Auto-map based on keyword similarity">
-              <i class="fas fa-wand-magic-sparkles"></i><span>Auto-Map</span>
-            </button>
-            <button onclick="Step2ObjectiveMatrix.clearAllMappings()" class="ea-btn ea-btn--secondary" title="Clear all mappings">
-              <i class="fas fa-eraser"></i><span>Clear All</span>
-            </button>
-            <button onclick="Step2ObjectiveMatrix.exportMatrix()" class="ea-btn ea-btn--primary" title="Export to CSV">
-              <i class="fas fa-download"></i><span>Export</span>
-            </button>
-          </div>
-        </div>
-        <div id="step2-objective-matrix-grid"></div>
-      </div>
-
-      <!-- TAB 6: PRIORITIZATION TABLE -->
-      <div id="tab-step2-prioritization-table" class="hidden">
-        <div class="flex items-center justify-between mb-3">
-          <div>
-            <div class="text-sm font-bold text-slate-700">Capability Prioritization</div>
-            <div class="text-[11px] text-slate-500">Decision-grade capability prioritization based on importance, gap, and cost</div>
-          </div>
-        </div>
-        <div id="step2-prioritization-table-grid"></div>
-      </div>
+      <!-- TAB 2 & TAB 6: Removed - Will be rebuilt in 3-panel layout (Phase 1) -->
 
       <!-- DEPENDENCY GRAPH -->
       <div id="tab-graph" class="hidden">
@@ -1658,7 +1884,7 @@
       ------------------------------------------------------------------------ -->
 
       <!-- ANALYTICS: DECISION INTELLIGENCE -->
-      <div id="tab-analytics-di">
+      <div id="tab-analytics-di" class="hidden">
         <div class="flex items-center justify-between mb-4">
           <div>
             <div class="text-sm font-bold text-slate-800">Decision Intelligence Analytics</div>
@@ -1695,7 +1921,7 @@
       </div>
 
       <!-- ANALYTICS: FINANCIAL -->
-      <div id="tab-analytics-financial">
+      <div id="tab-analytics-financial" class="hidden">
         <div class="flex items-center justify-between mb-4">
           <div>
             <div class="text-sm font-bold text-slate-800">Financial Analytics</div>
@@ -1748,7 +1974,7 @@
       </div>
 
       <!-- ANALYTICS: SCENARIOS -->
-      <div id="tab-analytics-scenarios">
+      <div id="tab-analytics-scenarios" class="hidden">
         <div class="flex items-center justify-between mb-4">
           <div>
             <div class="text-sm font-bold text-slate-800">Scenario Analytics</div>
@@ -1809,7 +2035,7 @@
       </div>
 
       <!-- ANALYTICS: OPTIMIZE -->
-      <div id="tab-analytics-optimize">
+      <div id="tab-analytics-optimize" class="hidden">
         <div class="flex items-center justify-between mb-4">
           <div>
             <div class="text-sm font-bold text-slate-800">Optimize Analytics</div>
@@ -3026,6 +3252,16 @@ window.addEventListener('DOMContentLoaded', () => {
     OPENAI_KEY = localStorage.getItem('ea_api_key') || '';
   }
   loadLastModel();
+  
+  // FIX: Ensure tab-exec is not nested inside tab-home (DOM structure bug)
+  const tabExec = document.getElementById('tab-exec');
+  const tabHome = document.getElementById('tab-home');
+  const contentPanel = document.querySelector('.ea-content-panel');
+  if (tabExec && tabHome && contentPanel && tabHome.contains(tabExec)) {
+    console.warn('[DOM Fix] tab-exec was nested inside tab-home, moving to correct position');
+    contentPanel.insertBefore(tabExec, tabHome.nextSibling);
+  }
+  
   setupDescriptionField();
   
   // Initialize tab lock states after model loads
@@ -3251,7 +3487,7 @@ function loadLastModel() {
         renderLayers();
         renderCapMap();
         renderHeatmap();
-        renderMaturityDashboard();
+        if (typeof renderMaturityDashboard === 'function') renderMaturityDashboard();
         populateImpactSelect();
         renderExecSummary();
         generateNarrative();
@@ -5434,7 +5670,11 @@ window.showTab = function showTab(name, btn) {
   if (name === 'bmc') console.log('BMC tab selected - no legacy canvas rendering'); // removed obsolete renderBMCCanvas
   if (name === 'phase4') setTimeout(renderPhase4Dashboard, 50);
   if (name === 'layers') setTimeout(renderLayers, 50);
-  if (name === 'capmap') setTimeout(renderCapMap, 50);
+  if (name === 'capmap') {
+    setTimeout(renderCapMap, 50);
+    setTimeout(renderAPQCTree, 60); // Phase 1 Step 2: Render APQC tree
+    setTimeout(restoreCapMapPanelStates, 70); // Phase 1: Restore 3-panel layout states
+  }
   if (name === 'heatmap') setTimeout(renderHeatmap, 50);
   if (name === 'graph') setTimeout(renderGraph, 80);
   if (name === 'cfo') setTimeout(renderCFO, 50);
@@ -6898,19 +7138,19 @@ function renderNordicDashboard() {
   const metricTarget = document.getElementById('nordic-dashboard-metrics');
   const chartCanvas = document.getElementById('nordic-dashboard-chart');
   const signalsTarget = document.getElementById('nordic-priority-signals');
-  const heatmapTarget = document.getElementById('nordic-heatmap');
+  // heatmapTarget removed - heatmap migrated to Cap Map Tab 3
   const postureTarget = document.getElementById('nordic-posture');
   const tableTarget = document.getElementById('nordic-focus-table');
-  const legendTarget = document.getElementById('nordic-heatmap-legend');
+  // legendTarget removed - heatmap migrated to Cap Map Tab 3
   const summaryTarget = document.getElementById('dashboard-action-summary');
   const homeSummaryTarget = document.getElementById('home-dynamic-summary');
 
-  if (!metricTarget || !chartCanvas || !signalsTarget || !heatmapTarget || !postureTarget || !tableTarget || !legendTarget) return;
+  if (!metricTarget || !chartCanvas || !signalsTarget || !postureTarget || !tableTarget) return;
 
   if (!capabilities.length) {
     metricTarget.innerHTML = EANordicUI.emptyState('No capabilities match the current filter.');
     signalsTarget.innerHTML = EANordicUI.emptyState('Adjust the filters to inspect another subset.');
-    heatmapTarget.innerHTML = EANordicUI.emptyState('Heatmap cells will appear here once capabilities are available.');
+    // heatmapTarget removed - heatmap migrated to Cap Map Tab 3
     postureTarget.innerHTML = EANordicUI.emptyState('No posture insights available for the current selection.');
     tableTarget.innerHTML = EANordicUI.emptyState('No capabilities to list.');
     if (nordicDashboardChart) {
@@ -7021,20 +7261,23 @@ function renderNordicDashboard() {
       ${EANordicUI.statusBadge({ level: getStatusLevel(capability), label: `${(capability.strategicImportance || 'medium').toUpperCase()} focus`, icon: 'fas fa-circle' })}
     </div>`).join('');
 
-  heatmapTarget.innerHTML = focusList.concat(capabilities.filter((capability) => !focusList.includes(capability))).slice(0, 24).map((capability) => EANordicUI.heatCell({
-    level: getHeatLevel(capability),
-    title: `${capability.name} � ${capability.domain || 'General'} � Maturity ${capability.maturity || 1}/5 � ${(capability.strategicImportance || 'medium').toUpperCase()} importance`
-  })).join('');
+  // heatmapTarget removed - heatmap migrated to Cap Map Tab 3
+  // heatmapTarget.innerHTML = focusList.concat(capabilities.filter((capability) => !focusList.includes(capability))).slice(0, 24).map((capability) => EANordicUI.heatCell({
+  //   level: getHeatLevel(capability),
+  //   title: `${capability.name} � ${capability.domain || 'General'} � Maturity ${capability.maturity || 1}/5 � ${(capability.strategicImportance || 'medium').toUpperCase()} importance`
+  // })).join('');  
 
-  legendTarget.innerHTML = [
-    EANordicUI.legendItem('ea-heat-1', 'Heat 1'),
-    EANordicUI.legendItem('ea-heat-2', 'Heat 2'),
-    EANordicUI.legendItem('ea-heat-3', 'Heat 3'),
-    EANordicUI.legendItem('ea-heat-4', 'Heat 4'),
-    EANordicUI.legendItem('ea-heat-5', 'Heat 5')
-  ].join('');
+  // legendTarget removed - heatmap migrated to Cap Map Tab 3
+  // legendTarget.innerHTML = [
+  //   EANordicUI.legendItem('ea-heat-1', 'Heat 1'),
+  //   EANordicUI.legendItem('ea-heat-2', 'Heat 2'),
+  //   EANordicUI.legendItem('ea-heat-3', 'Heat 3'),
+  //   EANordicUI.legendItem('ea-heat-4', 'Heat 4'),
+  //   EANordicUI.legendItem('ea-heat-5', 'Heat 5')
+  // ].join('');
 
-  postureTarget.innerHTML = [
+  const postureTargetAlt = document.getElementById('posture-target');
+  if (postureTargetAlt) postureTargetAlt.innerHTML = [
     {
       title: 'Active gaps',
       detail: `${activeGaps} capabilities sit in the top two heat levels and should enter the next steering review.`,
@@ -15020,16 +15263,6 @@ window.renderStep2ValidationUI = function(ctx) {
     const totalGaps = gapInsights.length || 0;
     const totalWhiteSpots = whiteSpots.length || 0;
     
-    // Switch to capmap tab
-    if (typeof showTab === 'function') {
-      showTab('capmap');
-    }
-    
-    // Add notification in chat
-    if (typeof addAssistantMessage === 'function') {
-      addAssistantMessage('✅ Capability map generated! Switched to **Cap Map** tab for review.');
-    }
-    
     // Generate HTML with error handling
     let html = '';
     try {
@@ -15173,6 +15406,10 @@ window.renderStep2ValidationUI = function(ctx) {
         
         <!-- Action Buttons -->
         <div class="mt-5 flex gap-2 justify-end border-t pt-4">
+          <button onclick="showTab('capmap', findTabButton('capmap'))" 
+                  class="text-[11px] px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-900 rounded-lg transition border border-blue-300 font-semibold">
+            <i class="fas fa-eye"></i> Preview in Cap Map Tab
+          </button>
           <button onclick="regenerateCapabilityMap()" 
                   class="text-[11px] px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-lg transition border font-semibold">
             <i class="fas fa-redo"></i> Regenerate
@@ -15196,33 +15433,26 @@ window.renderStep2ValidationUI = function(ctx) {
       </div>`;
     }
     
-    // Insert into capmap tab instead of chat
-    console.log('[renderStep2ValidationUI] Attempting DOM insertion...');
-    const capmapTab = document.getElementById('tab-capmap');
-    console.log('[renderStep2ValidationUI] capmapTab:', capmapTab);
+    // Insert into chat interface like Step 1 does
+    console.log('[renderStep2ValidationUI] Inserting into chat-messages...');
+    const chatMessages = document.getElementById('chat-messages');
     
-    if (capmapTab) {
-      // Find step2-actions-bar or insert before APQC banner
-      const actionsBar = document.getElementById('step2-actions-bar');
-      console.log('[renderStep2ValidationUI] actionsBar:', actionsBar);
+    if (chatMessages) {
+      const container = document.createElement('div');
+      container.className = 'message assistant';
+      container.innerHTML = html;
+      chatMessages.appendChild(container);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      console.log('[renderStep2ValidationUI] Successfully inserted into chat');
       
-      if (actionsBar) {
-        actionsBar.innerHTML = html;
-        console.log('[renderStep2ValidationUI] Inserted into actionsBar');
-      } else {
-        const apqcBanner = document.getElementById('apqc-banner-capmap');
-        console.log('[renderStep2ValidationUI] apqcBanner:', apqcBanner);
-        
-        if (apqcBanner) {
-          apqcBanner.insertAdjacentHTML('beforebegin', html);
-          console.log('[renderStep2ValidationUI] Inserted before apqcBanner');
-        } else {
-          capmapTab.insertAdjacentHTML('afterbegin', html);
-          console.log('[renderStep2ValidationUI] Inserted at beginning of capmapTab');
-        }
+      // Ensure chat panel is open to show the validation UI
+      const panel = document.getElementById('ai-chat-panel');
+      if (panel && panel.classList.contains('hidden') && typeof toggleChatPanel === 'function') {
+        toggleChatPanel();
+        console.log('[renderStep2ValidationUI] Opened chat panel to display validation UI');
       }
     } else {
-      console.warn('[renderStep2ValidationUI] capmapTab not found!');
+      console.warn('[renderStep2ValidationUI] chat-messages not found!');
     }
   });
 };
@@ -15343,6 +15573,23 @@ function renderBusinessContextSection() {
   const strategicThemes = window.model?.strategicThemes || model?.strategicThemes || [];
   const businessObjectives = window.model?.businessObjectives || model?.businessObjectives || [];
   const gapInsights = window.model?.gapInsights || model?.gapInsights || [];
+  
+  // FIX: Map businessContext.objectives to businessObjectives if missing
+  if (businessContext?.objectives && businessContext.objectives.length > 0 && businessObjectives.length === 0) {
+    const mappedObjectives = businessContext.objectives.map(obj => ({
+      title: obj.title || obj.objective || 'Untitled',
+      description: obj.description || '',
+      priority: obj.priority || 'Medium',
+      category: obj.category || 'General',
+      kpi: obj.kpi || '',
+      target_value: obj.target_value || '',
+      time_horizon: obj.time_horizon || '',
+      rationale: obj.rationale || '',
+      linked_themes: obj.linked_themes || []
+    }));
+    if (window.model) window.model.businessObjectives = mappedObjectives;
+    businessObjectives.push(...mappedObjectives);
+  }
   
   // DEBUG: Log what we're working with
   console.log('[renderBusinessContextSection] Data check:', {
@@ -16084,7 +16331,9 @@ function updateTabLockStates() {
       let lockReason = 'Content not yet generated';
       if (['exec', 'bmc'].includes(tabName)) {
         lockReason = 'Complete Step 1 & 2 to unlock';
-      } else if (['layers', 'capmap', 'heatmap', 'graph', 'maturity', 'phase4', 'bench', 'survey', 'cfo', 'impact'].includes(tabName)) {
+      } else if (['capmap'].includes(tabName)) {
+        lockReason = 'Complete Step 2 (Capability Mapping) to unlock';
+      } else if (['layers', 'heatmap', 'graph', 'maturity', 'phase4', 'bench', 'survey', 'cfo', 'impact'].includes(tabName)) {
         lockReason = 'Generate architecture (Step 3) to unlock';
       } else if (tabName === 'opmodel') {
         lockReason = 'Complete Operating Model (Step 4) to unlock';
@@ -16427,50 +16676,10 @@ async function generateCapabilityMap() {
 function _capmapSetState(state) {
   window._capmapState = state;
   renderCapMap();
+  renderAPQCTree(); // Phase 1 Step 2: Refresh APQC tree when state changes
 }
 
-async function generateCapabilityMapToBe() {
-  if (!model.capabilities.length) { toast('Generate AS-IS architecture first (Step 3)', true); return; }
-  spin('s2', true);
-  try {
-    const si = model.strategicIntent || {};
-    const bmc = model.bmc || {};
-    const raw = await callAI(
-      'You are a senior enterprise architect. Return ONLY valid JSON, no markdown.',
-      `Based on the strategic intent and target Business Model Canvas below, generate a TARGET STATE (TO-BE) capability map.
-
-Current AS-IS capabilities:
-${JSON.stringify(model.capabilities.map(c => ({ name: c.name, domain: c.domain, maturity: c.maturity, strategicImportance: c.strategicImportance })))}
-
-Strategic ambition: ${si.strategic_ambition || ''}
-Strategic themes: ${(si.strategic_themes || []).join(' � ')}
-Key constraints: ${(si.key_constraints || []).join(' | ')}
-Target value proposition: ${bmc.value_proposition || ''}
-Target revenue streams: ${(bmc.revenue_streams || []).join(' � ')}
-Target key activities: ${(bmc.key_activities || []).join(' � ')}
-
-For each capability: keep if still relevant, evolve if maturity should increase, add new ones required by the strategy, mark as deprecate if no longer needed.
-Return JSON array:
-[{"name":"","domain":"Customer|Product|Operations|Risk|Finance|Technology|Support","maturity":4,"strategicImportance":"high|medium|low","valueStream":"","changeType":"keep|evolve|new|deprecate","changeRationale":"one sentence justification"}]
-Rules: 12-20 capabilities total. Every new or evolved capability must link to a strategic theme or BMC element. Do not invent capabilities not grounded in the strategy.`,
-      { taskType: 'heavy', temperature: 0.2, _traceLabel: 'Cap Map � TO-BE' }
-    );
-    model.capabilities_tobe = JSON.parse(extractJSON(raw));
-    window._capmapState = 'tobe';
-    renderCapMap();
-    showTab('capmap', findTabButton('capmap'));
-    toast('TO-BE Capability Map generated ?');
-    addAssistantMessage(
-      `**TO-BE Capability Map generated**\n\n` +
-      `${model.capabilities_tobe.length} target capabilities across ${[...new Set(model.capabilities_tobe.map(c=>c.domain))].join(', ')}.\n\n` +
-      `**New:** ${model.capabilities_tobe.filter(c=>c.changeType==='new').map(c=>c.name).join(', ')||'none'}\n` +
-      `**Evolved:** ${model.capabilities_tobe.filter(c=>c.changeType==='evolve').map(c=>c.name).join(', ')||'none'}\n` +
-      `**Deprecate:** ${model.capabilities_tobe.filter(c=>c.changeType==='deprecate').map(c=>c.name).join(', ')||'none'}\n\n` +
-      `_Switch to AS-IS to compare with the current state._`
-    );
-  } catch(e) { toast('Error generating TO-BE capability map: ' + e.message, true); }
-  spin('s2', false);
-}
+// Legacy generateCapabilityMapToBe() function removed - TO-BE generation now handled by Step 2 workflow
 
 // -- OPERATING MODEL ----
 async function generateOperatingModel() {
@@ -17158,6 +17367,11 @@ function addLayerItem(layerType) {
 }
 
 function editLayerItem(layerType, index) {
+  // Block capability editing via modal - use Inspector Panel instead (Phase 2, Step 4)
+  if (layerType === 'capabilities') {
+    toast('Use the Inspector Panel in Cap Map tab to edit capabilities', false);
+    return;
+  }
   currentEditLayer = layerType;
   currentEditIndex = index;
   const item = model[layerType][index];
@@ -17182,6 +17396,12 @@ function deleteLayerItem(layerType, index) {
 }
 
 function showEditLayerModal(layerType, item) {
+  // Block capability editing via modal - use Inspector Panel instead (Phase 2, Step 4)
+  if (layerType === 'capabilities') {
+    toast('Use the Inspector Panel in Cap Map tab to edit capabilities', false);
+    return;
+  }
+  
   const modal = document.getElementById('editLayerModal');
   const form = document.getElementById('editLayerForm');
   const title = document.getElementById('editLayerTitle');
@@ -17663,6 +17883,1872 @@ function renderLayers() {
   });
 }
 
+// ============================================================================
+// CAP MAP 3-PANEL LAYOUT CONTROLS - Phase 1 Step 1
+// ============================================================================
+
+/**
+ * Toggle left or right panel collapse state
+ * @param {string} side - 'left' or 'right'
+ */
+function toggleCapMapPanel(side) {
+  const panel = document.getElementById(`capmap-${side}-panel`);
+  const container = document.getElementById('capmap-3panel');
+  const expandBtn = document.getElementById(`capmap-expand-${side}`);
+  const isCollapsed = panel.classList.contains('collapsed');
+  
+  if (isCollapsed) {
+    // Expand
+    panel.classList.remove('collapsed');
+    container.classList.remove(`${side}-collapsed`);
+    if (expandBtn) expandBtn.style.display = 'none';
+    
+    // Update collapse button icon
+    const btn = panel.querySelector('.capmap-panel-collapse i');
+    if (side === 'left') {
+      btn.className = 'fas fa-angles-left';
+    } else {
+      btn.className = 'fas fa-angles-right';
+    }
+    
+    // Save state
+    localStorage.setItem(`capmap-${side}-panel-collapsed`, 'false');
+  } else {
+    // Collapse
+    panel.classList.add('collapsed');
+    container.classList.add(`${side}-collapsed`);
+    if (expandBtn) expandBtn.style.display = 'flex';
+    
+    // Update collapse button icon
+    const btn = panel.querySelector('.capmap-panel-collapse i');
+    if (side === 'left') {
+      btn.className = 'fas fa-angles-right';
+    } else {
+      btn.className = 'fas fa-angles-left';
+    }
+    
+    // Save state
+    localStorage.setItem(`capmap-${side}-panel-collapsed`, 'true');
+  }
+  
+  // Check if both are collapsed
+  const leftCollapsed = document.getElementById('capmap-left-panel').classList.contains('collapsed');
+  const rightCollapsed = document.getElementById('capmap-right-panel').classList.contains('collapsed');
+  
+  if (leftCollapsed && rightCollapsed) {
+    container.classList.add('both-collapsed');
+  } else {
+    container.classList.remove('both-collapsed');
+  }
+}
+
+/**
+ * Switch workspace tabs
+ * @param {string} tabName - Tab identifier (capability-map, objective-matrix, heatmaps, etc.)
+ */
+function switchCapMapTab(tabName) {
+  // Update tab buttons
+  document.querySelectorAll('.capmap-workspace-tab').forEach(btn => {
+    if (btn.dataset.tab === tabName) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+  
+  // Update panes
+  document.querySelectorAll('.capmap-workspace-pane').forEach(pane => {
+    pane.classList.remove('active');
+  });
+  
+  const activePane = document.getElementById(`capmap-tab-${tabName}`);
+  if (activePane) {
+    activePane.classList.add('active');
+    
+    // Trigger render for specific tabs
+    if (tabName === 'capability-map') {
+      renderCapMap();
+    } else if (tabName === 'heatmaps') {
+      renderHeatmapTab();
+    } else if (tabName === 'gap-analysis') {
+      renderGapAnalysisTab();
+    } else if (tabName === 'prioritization') {
+      renderPrioritizationTab();
+    } else if (tabName === 'objective-matrix') {
+      renderObjectiveMatrixTab();
+    } else if (tabName === 'it-enablement') {
+      renderITEnablementTab();
+    }
+  }
+  
+  // Save active tab
+  localStorage.setItem('capmap-active-tab', tabName);
+}
+
+/**
+ * Restore Cap Map panel states from localStorage
+ */
+function restoreCapMapPanelStates() {
+  // Restore panel collapse states
+  const leftCollapsed = localStorage.getItem('capmap-left-panel-collapsed') === 'true';
+  const rightCollapsed = localStorage.getItem('capmap-right-panel-collapsed') === 'true';
+  
+  if (leftCollapsed) {
+    toggleCapMapPanel('left');
+  }
+  if (rightCollapsed) {
+    toggleCapMapPanel('right');
+  }
+  
+  // Restore active tab
+  const activeTab = localStorage.getItem('capmap-active-tab');
+  if (activeTab) {
+    switchCapMapTab(activeTab);
+  }
+}
+
+/**
+ * Tab rendering functions (Phase 2 implementation)
+ */
+
+// ============================================================================
+// TAB 5: GAP ANALYSIS
+// ============================================================================
+function renderGapAnalysisTab() {
+  const container = document.getElementById('gap-analysis-container');
+  if (!container) return;
+  
+  const gapInsights = window.model?.gapInsights || [];
+  const whiteSpots = window.model?.whiteSpots || [];
+  const totalGaps = gapInsights.length + whiteSpots.length;
+  
+  if (totalGaps === 0) {
+    container.innerHTML = `
+      <div class="capmap-empty-state">
+        <i class="fas fa-triangle-exclamation"></i>
+        <div>No gaps identified yet</div>
+        <div class="capmap-empty-hint">Run Step 2 Analysis to identify capability gaps and white spots</div>
+      </div>
+    `;
+    return;
+  }
+  
+  // Build gap cards
+  let html = '<div style="display: flex; flex-direction: column; gap: 16px;">';
+  
+  // Gap Insights Section
+  if (gapInsights.length > 0) {
+    html += `
+      <div>
+        <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i>
+          Gap Insights <span style="font-size: 11px; color: #64748b; font-weight: 500;">(${gapInsights.length})</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+    `;
+    
+    gapInsights.forEach((gap, idx) => {
+      const priorityColors = {
+        'HIGH': { bg: '#fef2f2', border: '#fecaca', text: '#dc2626' },
+        'MEDIUM': { bg: '#fef3c7', border: '#fde68a', text: '#d97706' },
+        'LOW': { bg: '#f0fdf4', border: '#bbf7d0', text: '#16a34a' }
+      };
+      const priority = (gap.priority || 'MEDIUM').toUpperCase();
+      const colors = priorityColors[priority] || priorityColors.MEDIUM;
+      
+      html += `
+        <div style="background: white; border: 1px solid #e2e8f0; border-left: 4px solid ${colors.border}; border-radius: 8px; padding: 16px;">
+          <div style="display: flex; align-items: start; justify-content: space-between; margin-bottom: 8px;">
+            <div style="flex: 1;">
+              <div style="font-size: 12px; font-weight: 600; color: #0f172a; margin-bottom: 4px;">
+                ${gap.gap_title || gap.capability_name || 'Gap #' + (idx + 1)}
+              </div>
+              <div style="font-size: 11px; color: #64748b;">
+                ${gap.description || gap.gap_description || 'No description provided'}
+              </div>
+            </div>
+            <div style="padding: 4px 10px; background: ${colors.bg}; color: ${colors.text}; font-size: 10px; font-weight: 700; border-radius: 4px; border: 1px solid ${colors.border};">
+              ${priority}
+            </div>
+          </div>
+          ${gap.recommendation ? `
+            <div style="margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #3b82f6;">
+              <div style="font-size: 10px; font-weight: 700; color: #3b82f6; text-transform: uppercase; margin-bottom: 4px;">Recommendation</div>
+              <div style="font-size: 11px; color: #475569;">${gap.recommendation}</div>
+            </div>
+          ` : ''}
+          ${gap.affected_objectives && gap.affected_objectives.length > 0 ? `
+            <div style="margin-top: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <div style="font-size: 10px; font-weight: 600; color: #64748b;">Affects:</div>
+              ${gap.affected_objectives.map(obj => `<span style="font-size: 10px; padding: 3px 8px; background: #eff6ff; color: #1e40af; border-radius: 3px; border: 1px solid #dbeafe;">${obj}</span>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    });
+    
+    html += '</div></div>';
+  }
+  
+  // White Spots Section
+  if (whiteSpots.length > 0) {
+    html += `
+      <div>
+        <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <i class="fas fa-map" style="color: #8b5cf6;"></i>
+          White Spots <span style="font-size: 11px; color: #64748b; font-weight: 500;">(${whiteSpots.length})</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+    `;
+    
+    whiteSpots.forEach((spot, idx) => {
+      html += `
+        <div style="background: white; border: 1px solid #e2e8f0; border-left: 4px solid #c4b5fd; border-radius: 8px; padding: 16px;">
+          <div style="font-size: 12px; font-weight: 600; color: #0f172a; margin-bottom: 4px;">
+            ${spot.capability_name || 'White Spot #' + (idx + 1)}
+          </div>
+          <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">
+            ${spot.reason || 'Missing capability identified'}
+          </div>
+          ${spot.recommendation ? `
+            <div style="padding: 12px; background: #faf5ff; border-radius: 6px; border-left: 3px solid #8b5cf6;">
+              <div style="font-size: 10px; font-weight: 700; color: #8b5cf6; text-transform: uppercase; margin-bottom: 4px;">Recommendation</div>
+              <div style="font-size: 11px; color: #475569;">${spot.recommendation}</div>
+            </div>
+          ` : ''}
+          ${spot.required_for && spot.required_for.length > 0 ? `
+            <div style="margin-top: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <div style="font-size: 10px; font-weight: 600; color: #64748b;">Required for:</div>
+              ${spot.required_for.map(obj => `<span style="font-size: 10px; padding: 3px 8px; background: #faf5ff; color: #7c3aed; border-radius: 3px; border: 1px solid #e9d5ff;">${obj}</span>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    });
+    
+    html += '</div></div>';
+  }
+  
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ============================================================================
+// TAB 6: PRIORITIZATION
+// ============================================================================
+function renderPrioritizationTab() {
+  const container = document.getElementById('prioritization-container');
+  if (!container) return;
+  
+  const capabilities = window.model?.capabilities || [];
+  
+  if (capabilities.length === 0) {
+    container.innerHTML = `
+      <div class="capmap-empty-state">
+        <i class="fas fa-list-ol"></i>
+        <div>No capabilities to prioritize</div>
+        <div class="capmap-empty-hint">Complete Step 2 to generate capability assessments</div>
+      </div>
+    `;
+    return;
+  }
+  
+  // Helper: Convert importance string to number
+  const importanceToNumber = (imp) => {
+    if (typeof imp === 'number') return imp;
+    const map = { 'CORE': 5, 'DIFFERENTIATING': 4, 'SUPPORTING': 3, 'COMMODITY': 2 };
+    return map[imp] || 2.5;
+  };
+  
+  // Calculate priority scores
+  const scored = capabilities.map(cap => {
+    let importance = cap.importance_score || cap.importance || 0;
+    if (typeof importance === 'string') importance = importanceToNumber(importance);
+    
+    const maturity = Number(cap.maturity_current || cap.maturity || 0);
+    const gap = Math.abs((cap.maturity_target || cap.maturity_desired || 5) - maturity);
+    const cost = Number(cap.cost_estimate || 0);
+    const performance = Number(cap.performance_score || cap.performance || 0);
+    
+    // Priority formula: (Importance * Gap) - (Maturity * 0.3) + (Performance * 0.2)
+    const priorityScore = (importance * gap * 2) - (maturity * 0.3) + (performance * 0.2) - (cost * 0.1);
+    
+    return {
+      ...cap,
+      _importance: importance,
+      _maturity: maturity,
+      _gap: gap,
+      _cost: cost,
+      _performance: performance,
+      _priorityScore: priorityScore
+    };
+  });
+  
+  // Sort by priority score descending
+  scored.sort((a, b) => b._priorityScore - a._priorityScore);
+  
+  let html = `
+    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+        <thead>
+          <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+            <th style="text-align: left; padding: 12px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">#</th>
+            <th style="text-align: left; padding: 12px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Capability</th>
+            <th style="text-align: center; padding: 12px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Importance</th>
+            <th style="text-align: center; padding: 12px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Gap</th>
+            <th style="text-align: center; padding: 12px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Maturity</th>
+            <th style="text-align: center; padding: 12px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Performance</th>
+            <th style="text-align: center; padding: 12px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Priority</th>
+            <th style="text-align: center; padding: 12px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+  
+  scored.forEach((cap, idx) => {
+    const importanceColor = cap._importance >= 4 ? '#dc2626' : cap._importance >= 3 ? '#f59e0b' : '#64748b';
+    const gapColor = cap._gap >= 3 ? '#dc2626' : cap._gap >= 2 ? '#f59e0b' : '#10b981';
+    const maturityColor = cap._maturity >= 4 ? '#10b981' : cap._maturity >= 3 ? '#f59e0b' : '#dc2626';
+    const performanceColor = cap._performance >= 4 ? '#10b981' : cap._performance >= 3 ? '#f59e0b' : '#dc2626';
+    
+    // Determine action based on scores
+    let action = 'MAINTAIN';
+    let actionColor = '#10b981';
+    if (cap._importance >= 4 && cap._gap >= 2) {
+      action = 'INVEST';
+      actionColor = '#dc2626';
+    } else if (cap._gap >= 2 || cap._performance < 3) {
+      action = 'OPTIMIZE';
+      actionColor = '#f59e0b';
+    }
+    
+    html += `
+      <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+        <td style="padding: 12px; color: #94a3b8; font-weight: 600;">${idx + 1}</td>
+        <td style="padding: 12px;">
+          <div style="font-weight: 600; color: #0f172a;">${cap.name || cap.capability_name || 'Unnamed'}</div>
+          <div style="font-size: 10px; color: #64748b; margin-top: 2px;">${cap.domain || ''}</div>
+        </td>
+        <td style="padding: 12px; text-align: center;">
+          <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; background: ${importanceColor}15; color: ${importanceColor}; font-weight: 700;">${cap._importance.toFixed(1)}</span>
+        </td>
+        <td style="padding: 12px; text-align: center;">
+          <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; background: ${gapColor}15; color: ${gapColor}; font-weight: 700;">${cap._gap.toFixed(1)}</span>
+        </td>
+        <td style="padding: 12px; text-align: center;">
+          <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; background: ${maturityColor}15; color: ${maturityColor}; font-weight: 700;">${cap._maturity.toFixed(1)}</span>
+        </td>
+        <td style="padding: 12px; text-align: center;">
+          <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; background: ${performanceColor}15; color: ${performanceColor}; font-weight: 700;">${cap._performance.toFixed(1)}</span>
+        </td>
+        <td style="padding: 12px; text-align: center; font-weight: 700; color: #0f172a;">${cap._priorityScore.toFixed(1)}</td>
+        <td style="padding: 12px; text-align: center;">
+          <span style="font-size: 10px; font-weight: 700; padding: 4px 10px; background: ${actionColor}15; color: ${actionColor}; border-radius: 4px; border: 1px solid ${actionColor}30;">${action}</span>
+        </td>
+      </tr>
+    `;
+  });
+  
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+  
+  container.innerHTML = html;
+}
+
+// ============================================================================
+// TAB 3: HEATMAPS
+// ============================================================================
+function renderHeatmapTab() {
+  const container = document.getElementById('heatmap-container');
+  const legendContainer = document.getElementById('heatmap-legend-container');
+  if (!container) return;
+  
+  const capabilities = window.model?.capabilities || [];
+  
+  if (capabilities.length === 0) {
+    container.innerHTML = `
+      <div class="capmap-empty-state">
+        <i class="fas fa-fire"></i>
+        <div>No data for heatmap</div>
+        <div class="capmap-empty-hint">Complete Step 2 to generate capability assessments</div>
+      </div>
+    `;
+    return;
+  }
+  
+  const selector = document.getElementById('heatmap-axis-selector');
+  const axis = selector ? selector.value : 'importance-maturity';
+  
+  let xLabel, yLabel, xKey, yKey;
+  
+  switch(axis) {
+    case 'importance-maturity':
+      xLabel = 'Maturity';
+      yLabel = 'Importance';
+      xKey = 'maturity_current';
+      yKey = 'importance_score';
+      break;
+    case 'cost-value':
+      xLabel = 'Value';
+      yLabel = 'Cost';
+      xKey = 'value_score';
+      yKey = 'cost_estimate';
+      break;
+    case 'performance-importance':
+      xLabel = 'Importance';
+      yLabel = 'Performance';
+      xKey = 'importance_score';
+      yKey = 'performance_score';
+      break;
+    default:
+      xLabel = 'Maturity';
+      yLabel = 'Importance';
+      xKey = 'maturity_current';
+      yKey = 'importance_score';
+  }
+  
+  // Create SVG heatmap
+  const width = 600;
+  const height = 500;
+  const padding = 60;
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+  
+  let svg = `
+    <svg width="${width}" height="${height}" style="background: white; border-radius: 8px; border: 1px solid #e2e8f0;">
+      <!-- Grid lines -->
+      <line x1="${padding}" y1="${padding + plotHeight/2}" x2="${padding + plotWidth}" y2="${padding + plotHeight/2}" stroke="#e2e8f0" stroke-width="2" stroke-dasharray="5,5" />
+      <line x1="${padding + plotWidth/2}" y1="${padding}" x2="${padding + plotWidth/2}" y2="${padding + plotHeight}" stroke="#e2e8f0" stroke-width="2" stroke-dasharray="5,5" />
+      
+      <!-- Axes -->
+      <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${padding + plotHeight}" stroke="#475569" stroke-width="2" />
+      <line x1="${padding}" y1="${padding + plotHeight}" x2="${padding + plotWidth}" y2="${padding + plotHeight}" stroke="#475569" stroke-width="2" />
+      
+      <!-- Axis labels -->
+      <text x="${padding + plotWidth/2}" y="${height - 20}" text-anchor="middle" font-size="12" font-weight="600" fill="#475569">${xLabel}</text>
+      <text x="20" y="${padding + plotHeight/2}" text-anchor="middle" font-size="12" font-weight="600" fill="#475569" transform="rotate(-90, 20, ${padding + plotHeight/2})">${yLabel}</text>
+      
+      <!-- Quadrant labels -->
+      <text x="${padding + plotWidth * 0.25}" y="${padding + plotHeight * 0.25}" text-anchor="middle" font-size="11" font-weight="600" fill="#94a3b8" opacity="0.5">High ${yLabel}<tspan x="${padding + plotWidth * 0.25}" dy="14">Low ${xLabel}</tspan></text>
+      <text x="${padding + plotWidth * 0.75}" y="${padding + plotHeight * 0.25}" text-anchor="middle" font-size="11" font-weight="600" fill="#10b981" opacity="0.5">High ${yLabel}<tspan x="${padding + plotWidth * 0.75}" dy="14">High ${xLabel}</tspan></text>
+      <text x="${padding + plotWidth * 0.25}" y="${padding + plotHeight * 0.75}" text-anchor="middle" font-size="11" font-weight="600" fill="#64748b" opacity="0.5">Low ${yLabel}<tspan x="${padding + plotWidth * 0.25}" dy="14">Low ${xLabel}</tspan></text>
+      <text x="${padding + plotWidth * 0.75}" y="${padding + plotHeight * 0.75}" text-anchor="middle" font-size="11" font-weight="600" fill="#f59e0b" opacity="0.5">Low ${yLabel}<tspan x="${padding + plotWidth * 0.75}" dy="14">High ${xLabel}</tspan></text>
+  `;
+  
+  // Helper: Convert importance string to number
+  const importanceToNumber = (imp) => {
+    if (typeof imp === 'number') return imp;
+    const map = { 'CORE': 5, 'DIFFERENTIATING': 4, 'SUPPORTING': 3, 'COMMODITY': 2 };
+    return map[imp] || 2.5;
+  };
+  
+  // Helper: Get numeric value from capability
+  const getNumericValue = (cap, key, defaultVal = 2.5) => {
+    let val = cap[key];
+    if (val === undefined || val === null) return defaultVal;
+    if (typeof val === 'string') {
+      // Convert importance strings
+      if (key.includes('importance')) return importanceToNumber(val);
+      // Try parsing other strings
+      val = parseFloat(val);
+      if (isNaN(val)) return defaultVal;
+    }
+    return Number(val) || defaultVal;
+  };
+  
+  // Plot capabilities
+  capabilities.forEach(cap => {
+    let xVal = getNumericValue(cap, xKey, 2.5);
+    let yVal = getNumericValue(cap, yKey, 2.5);
+    
+    // Normalize to 0-5 scale
+    if (xKey === 'cost_estimate' && xVal > 5) xVal = xVal / 20; // Normalize cost
+    if (xKey === 'value_score' && !xVal) xVal = 2.5;
+    
+    const x = padding + (xVal / 5) * plotWidth;
+    const y = padding + plotHeight - (yVal / 5) * plotHeight;
+    
+    // Color based on quadrant
+    let color = '#64748b';
+    if (xVal > 2.5 && yVal > 2.5) color = '#10b981'; // High-High: Green
+    else if (xVal <= 2.5 && yVal > 2.5) color = '#dc2626'; // Low-High: Red (priority)
+    else if (xVal > 2.5 && yVal <= 2.5) color = '#f59e0b'; // High-Low: Orange
+    
+    const name = (cap.name || cap.capability_name || '').substring(0, 20);
+    
+    svg += `
+      <g>
+        <circle cx="${x}" cy="${y}" r="6" fill="${color}" opacity="0.8" stroke="white" stroke-width="2" />
+        <title>${name}\n${xLabel}: ${xVal.toFixed(1)}\n${yLabel}: ${yVal.toFixed(1)}</title>
+      </g>
+    `;
+  });
+  
+  svg += '</svg>';
+  
+  container.innerHTML = svg;
+  
+  // Legend
+  if (legendContainer) {
+    legendContainer.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <div style="width: 12px; height: 12px; background: #10b981; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+          <span style="font-size: 11px; color: #475569; font-weight: 500;">High-High (Maintain)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <div style="width: 12px; height: 12px; background: #dc2626; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+          <span style="font-size: 11px; color: #475569; font-weight: 500;">Low-High (Invest)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <div style="width: 12px; height: 12px; background: #f59e0b; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+          <span style="font-size: 11px; color: #475569; font-weight: 500;">High-Low (Optimize)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <div style="width: 12px; height: 12px; background: #64748b; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+          <span style="font-size: 11px; color: #475569; font-weight: 500;">Low-Low (Review)</span>
+        </div>
+      </div>
+    `;
+  }
+}
+
+// ============================================================================
+// TAB 2: OBJECTIVE MATRIX
+// ============================================================================
+function renderObjectiveMatrixTab() {
+  const container = document.getElementById('objective-matrix-container');
+  if (!container) return;
+  
+  const capabilities = window.model?.capabilities || [];
+  const objectives = window.model?.businessContext?.objectives || [];
+  
+  if (capabilities.length === 0 || objectives.length === 0) {
+    container.innerHTML = `
+      <div class="capmap-empty-state">
+        <i class="fas fa-table"></i>
+        <div>Objective matrix not available</div>
+        <div class="capmap-empty-hint">Complete Step 1 (Business Objectives) and Step 2 (Capabilities) to enable mapping</div>
+      </div>
+    `;
+    return;
+  }
+  
+  // Build matrix table
+  let html = `
+    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: auto;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+        <thead>
+          <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+            <th style="position: sticky; left: 0; background: #f8fafc; text-align: left; padding: 12px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px; min-width: 200px; z-index: 10;">Capability</th>
+  `;
+  
+  objectives.forEach((obj, idx) => {
+    const objName = obj.name || obj.objective || `Objective ${idx + 1}`;
+    html += `<th style="text-align: center; padding: 12px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px; min-width: 100px; writing-mode: vertical-rl; transform: rotate(180deg);" title="${objName}">${objName.substring(0, 30)}</th>`;
+  });
+  
+  html += `
+          </tr>
+        </thead>
+        <tbody>
+  `;
+  
+  capabilities.forEach((cap, capIdx) => {
+    html += `
+      <tr style="border-bottom: 1px solid #f1f5f9;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+        <td style="position: sticky; left: 0; background: white; padding: 12px; font-weight: 600; color: #0f172a; border-right: 1px solid #e2e8f0;">${cap.name || cap.capability_name || 'Unnamed'}</td>
+    `;
+    
+    objectives.forEach((obj, objIdx) => {
+      // Check if capability has mapping to this objective
+      const mapping = cap.objectiveMappings?.find(m => m.objective_id === obj.id || m.objective_name === obj.name);
+      const strength = mapping?.strength || detectObjectiveMapping(cap, obj);
+      
+      let bgColor = '#f8fafc';
+      let textColor = '#94a3b8';
+      let label = '-';
+      
+      if (strength === 'HIGH' || strength === 'H') {
+        bgColor = '#dcfce7';
+        textColor = '#16a34a';
+        label = 'H';
+      } else if (strength === 'MEDIUM' || strength === 'M') {
+        bgColor = '#fef3c7';
+        textColor = '#d97706';
+        label = 'M';
+      } else if (strength === 'LOW' || strength === 'L') {
+        bgColor = '#fee2e2';
+        textColor = '#dc2626';
+        label = 'L';
+      }
+      
+      html += `
+        <td style="text-align: center; padding: 8px;">
+          <div style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: ${bgColor}; color: ${textColor}; font-weight: 700; border-radius: 6px; cursor: pointer;" onclick="toggleObjectiveMapping('${cap.id || capIdx}', '${obj.id || objIdx}')" title="Click to toggle">${label}</div>
+        </td>
+      `;
+    });
+    
+    html += '</tr>';
+  });
+  
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+  
+  container.innerHTML = html;
+}
+
+/**
+ * Auto-detect objective mapping strength based on capability and objective content
+ */
+function detectObjectiveMapping(capability, objective) {
+  // Simple keyword matching for demo
+  const capText = ((capability.name || '') + ' ' + (capability.description || '')).toLowerCase();
+  const objText = ((objective.name || '') + ' ' + (objective.description || '')).toLowerCase();
+  
+  // Check if they share significant keywords
+  const capWords = capText.split(/\s+/).filter(w => w.length > 4);
+  const objWords = objText.split(/\s+/).filter(w => w.length > 4);
+  
+  const matches = capWords.filter(w => objWords.includes(w));
+  
+  if (matches.length >= 3) return 'HIGH';
+  if (matches.length >= 1) return 'MEDIUM';
+  return null;
+}
+
+function renderITEnablementTab() {
+  console.log('[Phase 2] renderITEnablementTab() - Not yet implemented');
+  // Will render IT service mapping in Phase 2 Step 6
+}
+
+// ============================================================================
+// APQC TREE COMPONENT - Phase 1 Step 2
+// ============================================================================
+
+/**
+ * Render APQC Tree in left panel
+ * Uses data from Step 1 (businessContext) and Step 2 (capabilityMap)
+ * to show industry-relevant capabilities with APQC enforcement
+ */
+function renderAPQCTree() {
+  const container = document.getElementById('apqc-tree-container');
+  if (!container) return;
+  
+  // Check if Step 2 has run
+  if (!window.model || !window.model.capabilityMap) {
+    container.innerHTML = `
+      <div class="capmap-tree-empty">
+        <i class="fas fa-info-circle" style="font-size: 32px; margin-bottom: 12px; opacity: 0.3;"></i>
+        <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px;">No capabilities yet</div>
+        <div style="font-size: 10px; color: #94a3b8;">Run Step 2 Analysis to generate APQC-aligned capability model</div>
+      </div>
+    `;
+    return;
+  }
+  
+  const capmapState = window._capmapState || 'asis';
+  const capMapData = (capmapState === 'tobe' && model.capabilityMap_tobe?.l1_domains?.length)
+    ? model.capabilityMap_tobe
+    : model.capabilityMap;
+  
+  const l1Domains = capMapData?.l1_domains || [];
+  
+  if (l1Domains.length === 0) {
+    container.innerHTML = `
+      <div class="capmap-tree-empty">
+        <i class="fas fa-sitemap" style="font-size: 32px; margin-bottom: 12px; opacity: 0.3;"></i>
+        <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px;">No capability hierarchy</div>
+        <div style="font-size: 10px; color: #94a3b8;">Generate capabilities first</div>
+      </div>
+    `;
+    return;
+  }
+  
+  // Get filters
+  const searchQuery = document.getElementById('apqc-tree-search')?.value.toLowerCase() || '';
+  const domainFilter = document.getElementById('apqc-tree-domain-filter')?.value || 'all';
+  const importanceFilter = document.getElementById('apqc-tree-importance-filter')?.value || 'all';
+  
+  // Get business context for relevance highlighting
+  const businessContext = window.model.businessContext || {};
+  const industry = businessContext.enrichment?.industry || '';
+  const objectives = businessContext.objectives || [];
+  
+  // Build tree HTML
+  let html = '<div class="apqc-tree">';
+  
+  l1Domains.forEach(l1 => {
+    // Apply domain filter
+    if (domainFilter !== 'all' && l1.domain !== domainFilter) return;
+    
+    // Apply importance filter
+    if (importanceFilter !== 'all' && l1.strategic_importance !== importanceFilter) return;
+    
+    // Apply search filter
+    const l1MatchesSearch = !searchQuery || 
+      l1.name.toLowerCase().includes(searchQuery) ||
+      (l1.description || '').toLowerCase().includes(searchQuery);
+    
+    const l2Capabilities = l1.l2_capabilities || [];
+    const l2MatchCount = l2Capabilities.filter(l2 => 
+      !searchQuery || 
+      l2.name.toLowerCase().includes(searchQuery) ||
+      (l2.description || '').toLowerCase().includes(searchQuery) ||
+      (l2.l3_capabilities || []).some(l3 => 
+        l3.name.toLowerCase().includes(searchQuery) ||
+        (l3.description || '').toLowerCase().includes(searchQuery)
+      )
+    ).length;
+    
+    // Skip if no matches
+    if (!l1MatchesSearch && l2MatchCount === 0) return;
+    
+    // L1 Domain
+    const l1ImportanceClass = getImportanceClass(l1.strategic_importance);
+    const l1ApqcBadge = l1.apqc_source !== false ? '<i class="fas fa-lock" style="font-size: 8px; color: #3b82f6; margin-left: 4px;" title="APQC Standard"></i>' : '';
+    const l1Icon = getDomainIcon(l1.domain);
+    const l1Count = l2Capabilities.length;
+    const l1IsExpanded = isTreeNodeExpanded(l1.id);
+    
+    html += `
+      <div class="apqc-tree-l1" data-l1-id="${l1.id}">
+        <div class="apqc-tree-node apqc-tree-node--l1 ${l1ImportanceClass}" onclick="toggleTreeNode('${l1.id}', 'l1')">
+          <span class="apqc-tree-expand">
+            <i class="fas fa-chevron-${l1IsExpanded ? 'down' : 'right'}"></i>
+          </span>
+          <span class="apqc-tree-icon">${l1Icon}</span>
+          <span class="apqc-tree-label">
+            ${l1.name}${l1ApqcBadge}
+            <span class="apqc-tree-count">(${l1Count})</span>
+          </span>
+          <span class="apqc-tree-actions">
+            <i class="fas fa-ellipsis-v" onclick="showTreeContextMenu(event, '${l1.id}', 'l1')" title="Actions"></i>
+          </span>
+        </div>
+        <div class="apqc-tree-children ${l1IsExpanded ? '' : 'hidden'}" data-parent="${l1.id}">
+    `;
+    
+    // L2 Capabilities
+    l2Capabilities.forEach(l2 => {
+      const l2MatchesSearch = !searchQuery || 
+        l2.name.toLowerCase().includes(searchQuery) ||
+        (l2.description || '').toLowerCase().includes(searchQuery);
+      
+      const l3Capabilities = l2.l3_capabilities || [];
+      const l3MatchCount = l3Capabilities.filter(l3 => 
+        !searchQuery || 
+        l3.name.toLowerCase().includes(searchQuery) ||
+        (l3.description || '').toLowerCase().includes(searchQuery)
+      ).length;
+      
+      // Skip if no matches
+      if (!l2MatchesSearch && l3MatchCount === 0) return;
+      
+      const l2ImportanceClass = getImportanceClass(l2.strategic_importance);
+      const l2ApqcBadge = l2.apqc_source !== false ? '<i class="fas fa-lock" style="font-size: 7px; color: #3b82f6; margin-left: 3px;" title="APQC Standard"></i>' : '';
+      const l2Count = l3Capabilities.length;
+      const l2IsExpanded = isTreeNodeExpanded(l2.id);
+      const l2MaturityBadge = l2.maturity ? `<span class="apqc-maturity-badge" style="background: ${getMaturityColor(l2.maturity)};">${l2.maturity}</span>` : '';
+      
+      // Check if capability is linked to objectives (for highlighting)
+      const isLinkedToObjective = (l2.objective_mappings || []).length > 0;
+      const objectiveHighlight = isLinkedToObjective ? 'apqc-tree-node--objective-linked' : '';
+      
+      html += `
+        <div class="apqc-tree-l2" data-l2-id="${l2.id}">
+          <div class="apqc-tree-node apqc-tree-node--l2 ${l2ImportanceClass} ${objectiveHighlight}" onclick="selectCapability('${l2.id}', 'l2'); event.stopPropagation();">
+            <span class="apqc-tree-expand" onclick="toggleTreeNode('${l2.id}', 'l2'); event.stopPropagation();">
+              <i class="fas fa-chevron-${l2IsExpanded ? 'down' : 'right'}"></i>
+            </span>
+            <span class="apqc-tree-label">
+              ${l2.name}${l2ApqcBadge}
+              ${l2MaturityBadge}
+              <span class="apqc-tree-count">(${l2Count})</span>
+            </span>
+            <span class="apqc-tree-actions">
+              <i class="fas fa-ellipsis-v" onclick="showTreeContextMenu(event, '${l2.id}', 'l2')" title="Actions"></i>
+            </span>
+          </div>
+          <div class="apqc-tree-children ${l2IsExpanded ? '' : 'hidden'}" data-parent="${l2.id}">
+      `;
+      
+      // L3 Capabilities
+      l3Capabilities.forEach(l3 => {
+        const l3MatchesSearch = !searchQuery || 
+          l3.name.toLowerCase().includes(searchQuery) ||
+          (l3.description || '').toLowerCase().includes(searchQuery);
+        
+        // Skip if no match
+        if (!l3MatchesSearch) return;
+        
+        const l3ImportanceClass = getImportanceClass(l3.strategic_importance);
+        const l3ApqcBadge = l3.apqc_source !== false ? '<i class="fas fa-lock" style="font-size: 7px; color: #3b82f6; margin-left: 3px;" title="APQC Standard"></i>' : '<span style="font-size: 7px; color: #10b981; margin-left: 3px;" title="Custom">★</span>';
+        const l3MaturityBadge = l3.maturity ? `<span class="apqc-maturity-badge" style="background: ${getMaturityColor(l3.maturity)};">${l3.maturity}</span>` : '';
+        
+        // Check for gaps and white spots
+        const hasGap = (l3.gap || 0) > 2;
+        const isWhiteSpot = (l3.white_spot_flags || []).length > 0;
+        const gapIndicator = hasGap ? '<i class="fas fa-triangle-exclamation" style="font-size: 8px; color: #ef4444; margin-left: 3px;" title="Gap detected"></i>' : '';
+        const whiteSpotIndicator = isWhiteSpot ? '<i class="fas fa-star" style="font-size: 8px; color: #f59e0b; margin-left: 3px;" title="White spot"></i>' : '';
+        
+        // Check if capability is linked to objectives
+        const l3IsLinkedToObjective = (l3.objective_mappings || []).length > 0;
+        const l3ObjectiveHighlight = l3IsLinkedToObjective ? 'apqc-tree-node--objective-linked' : '';
+        
+        html += `
+          <div class="apqc-tree-l3" data-l3-id="${l3.id}">
+            <div class="apqc-tree-node apqc-tree-node--l3 ${l3ImportanceClass} ${l3ObjectiveHighlight}" onclick="selectCapability('${l3.id}', 'l3'); event.stopPropagation();">
+              <span class="apqc-tree-label">
+                ${l3.name}${l3ApqcBadge}${gapIndicator}${whiteSpotIndicator}
+                ${l3MaturityBadge}
+              </span>
+              <span class="apqc-tree-actions">
+                <i class="fas fa-ellipsis-v" onclick="showTreeContextMenu(event, '${l3.id}', 'l3')" title="Actions"></i>
+              </span>
+            </div>
+          </div>
+        `;
+      });
+      
+      html += `
+          </div>
+        </div>
+      `;
+    });
+    
+    html += `
+        </div>
+      </div>
+    `;
+  });
+  
+  html += '</div>';
+  
+  container.innerHTML = html;
+  
+  // Update APQC status banner
+  updateAPQCStatus(l1Domains.length, objectives.length, industry);
+}
+
+/**
+ * Helper: Get importance class for styling
+ */
+function getImportanceClass(importance) {
+  const imp = (importance || 'SUPPORT').toUpperCase();
+  if (imp === 'CORE' || imp === 'DIFFERENTIATING') return 'apqc-importance-high';
+  if (imp === 'SUPPORTING') return 'apqc-importance-medium';
+  return 'apqc-importance-low';
+}
+
+/**
+ * Helper: Get domain icon
+ */
+function getDomainIcon(domain) {
+  const icons = {
+    'Customer': '<i class="fas fa-users"></i>',
+    'Product': '<i class="fas fa-box"></i>',
+    'Operations': '<i class="fas fa-cogs"></i>',
+    'Risk': '<i class="fas fa-shield-alt"></i>',
+    'Finance': '<i class="fas fa-coins"></i>',
+    'Technology': '<i class="fas fa-laptop-code"></i>',
+    'Support': '<i class="fas fa-headset"></i>'
+  };
+  return icons[domain] || '<i class="fas fa-folder"></i>';
+}
+
+/**
+ * Helper: Get maturity color
+ */
+function getMaturityColor(maturity) {
+  if (maturity >= 4) return '#10b981'; // green
+  if (maturity >= 3) return '#3b82f6'; // blue
+  if (maturity >= 2) return '#f59e0b'; // orange
+  return '#ef4444'; // red
+}
+
+/**
+ * Check if tree node is expanded (localStorage)
+ */
+function isTreeNodeExpanded(nodeId) {
+  const key = `apqc-tree-node-${nodeId}`;
+  return localStorage.getItem(key) !== 'collapsed';
+}
+
+/**
+ * Toggle tree node expand/collapse
+ */
+function toggleTreeNode(nodeId, level) {
+  const key = `apqc-tree-node-${nodeId}`;
+  const childrenEl = document.querySelector(`[data-parent="${nodeId}"]`);
+  const expandIcon = event.currentTarget.querySelector('.apqc-tree-expand i');
+  
+  if (!childrenEl || !expandIcon) return;
+  
+  const isCollapsed = childrenEl.classList.contains('hidden');
+  
+  if (isCollapsed) {
+    // Expand
+    childrenEl.classList.remove('hidden');
+    expandIcon.className = 'fas fa-chevron-down';
+    localStorage.setItem(key, 'expanded');
+  } else {
+    // Collapse
+    childrenEl.classList.add('hidden');
+    expandIcon.className = 'fas fa-chevron-right';
+    localStorage.setItem(key, 'collapsed');
+  }
+}
+
+/**
+ * Select capability and show in Inspector Panel
+ */
+function selectCapability(capabilityId, level) {
+  console.log(`[APQC Tree] Selected capability: ${capabilityId} (${level})`);
+  
+  // Find capability in model
+  let capability = null;
+  let parentInfo = {l1: null, l2: null};
+  
+  if (level === 'l1') {
+    capability = (window.model?.capabilityMap?.l1_domains || []).find(c => c.id === capabilityId);
+    parentInfo.l1 = capability;
+  } else if (level === 'l2') {
+    for (const l1 of (window.model?.capabilityMap?.l1_domains || [])) {
+      capability = (l1.l2_capabilities || []).find(c => c.id === capabilityId);
+      if (capability) {
+        parentInfo.l1 = l1;
+        parentInfo.l2 = capability;
+        break;
+      }
+    }
+  } else if (level === 'l3') {
+    for (const l1 of (window.model?.capabilityMap?.l1_domains || [])) {
+      for (const l2 of (l1.l2_capabilities || [])) {
+        capability = (l2.l3_capabilities || []).find(c => c.id === capabilityId);
+        if (capability) {
+          parentInfo.l1 = l1;
+          parentInfo.l2 = l2;
+          break;
+        }
+      }
+      if (capability) break;
+    }
+  }
+  
+  if (capability) {
+    renderInspectorPanel(capability, level, parentInfo);
+    
+    // Highlight selected node
+    document.querySelectorAll('.apqc-tree-node').forEach(node => {
+      node.classList.remove('apqc-tree-node--selected');
+    });
+    const nodeEl = document.querySelector(`[data-${level}-id="${capabilityId}"] > .apqc-tree-node`);
+    if (nodeEl) {
+      nodeEl.classList.add('apqc-tree-node--selected');
+    }
+    
+    // Store selected capability for filtering
+    window._selectedCapability = {id: capabilityId, level: level, data: capability};
+    
+    // Filter workspace tabs based on selection
+    filterWorkspaceBySelection(capabilityId, level);
+  }
+}
+
+/**
+ * Render capability details in Inspector Panel (Phase 3)
+ */
+function renderInspectorPanel(capability, level, parentInfo = {}) {
+  const container = document.getElementById('capmap-inspector');
+  if (!container) return;
+  
+  // Get linked objectives
+  const objectives = window.model?.businessContext?.objectives || [];
+  const linkedObjectives = (capability.objective_mappings || []).map(om => {
+    const obj = objectives.find(o => o.id === om.objective_id);
+    return obj ? {...obj, strength: om.strength} : null;
+  }).filter(Boolean);
+  
+  // Get gaps for this capability
+  const gaps = (window.model?.gapInsights || []).filter(g => 
+    g.capability_id === capability.id || g.capability_name === capability.name
+  );
+  
+  // Importance score (convert string to number if needed)
+  const importanceScore = typeof capability.strategic_importance === 'string' 
+    ? {'CORE': 5, 'DIFFERENTIATING': 4, 'SUPPORTING': 3, 'COMMODITY': 2}[capability.strategic_importance] || 2.5
+    : (capability.importance_score || capability.strategic_importance || 2.5);
+  
+  const maturityCurrent = capability.maturity_current || capability.maturity || 0;
+  const maturityTarget = capability.maturity_target || capability.maturity_desired || 5;
+  const gapSize = maturityTarget - maturityCurrent;
+  
+  container.innerHTML = `
+    <div style="display: flex; flex-direction: column; height: 100%; overflow-y: auto;">
+      <!-- Header -->
+      <div style="padding: 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;">
+        <div style="font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Level ${level.toUpperCase()} ${capability.apqc_source !== false ? '• APQC Standard' : '• Custom'}</div>
+        <div style="font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.3; margin-bottom: 8px;">${capability.name}</div>
+        ${parentInfo.l1 ? `<div style="font-size: 10px; color: #64748b;"><i class="fas fa-sitemap" style="margin-right: 4px;"></i>${parentInfo.l1.name}${parentInfo.l2 && level === 'l3' ? ' → ' + parentInfo.l2.name : ''}</div>` : ''}
+      </div>
+      
+      <!-- Content -->
+      <div style="padding: 16px; flex: 1;">
+        <!-- Description -->
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.3px;">Description</div>
+          <div style="font-size: 11px; color: #64748b; line-height: 1.6;">${capability.description || 'No description provided'}</div>
+        </div>
+        
+        <!-- Key Metrics -->
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.3px;">Key Metrics</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px;">
+              <div style="font-size: 9px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Importance</div>
+              <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${importanceScore.toFixed(1)}</div>
+              <div style="font-size: 9px; color: #64748b; margin-top: 2px;">${capability.strategic_importance || 'N/A'}</div>
+            </div>
+            <div style="padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px;">
+              <div style="font-size: 9px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Maturity Gap</div>
+              <div style="font-size: 16px; font-weight: 700; color: ${gapSize >= 2 ? '#ef4444' : gapSize >= 1 ? '#f59e0b' : '#10b981'};">${gapSize.toFixed(1)}</div>
+              <div style="font-size: 9px; color: #64748b; margin-top: 2px;">${maturityCurrent} → ${maturityTarget}</div>
+            </div>
+            <div style="padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px;">
+              <div style="font-size: 9px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Performance</div>
+              <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${(capability.performance_score || capability.performance || 0).toFixed(0)}%</div>
+            </div>
+            <div style="padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px;">
+              <div style="font-size: 9px; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Domain</div>
+              <div style="font-size: 11px; font-weight: 600; color: #0f172a; margin-top: 4px;">${capability.domain || 'N/A'}</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Linked Objectives -->
+        ${linkedObjectives.length > 0 ? `
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.3px;">Linked Objectives (${linkedObjectives.length})</div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              ${linkedObjectives.map(obj => `
+                <div style="padding: 10px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                    <div style="font-size: 11px; font-weight: 600; color: #1e40af;">${obj.title}</div>
+                    <span style="font-size: 9px; padding: 2px 6px; background: ${obj.strength === 'HIGH' ? '#10b981' : obj.strength === 'MEDIUM' ? '#f59e0b' : '#64748b'}; color: white; border-radius: 3px; font-weight: 600;">${obj.strength || 'M'}</span>
+                  </div>
+                  <div style="font-size: 9px; color: #475569;">Priority: ${obj.priority || 'N/A'}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        <!-- Gaps & Issues -->
+        ${gaps.length > 0 ? `
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.3px;">Gaps & Issues (${gaps.length})</div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              ${gaps.map(gap => `
+                <div style="padding: 10px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                    <div style="font-size: 10px; font-weight: 600; color: #991b1b;">${gap.gap_type || 'GAP'}</div>
+                    <span style="font-size: 9px; padding: 2px 6px; background: ${gap.priority === 'HIGH' ? '#dc2626' : gap.priority === 'MEDIUM' ? '#f59e0b' : '#64748b'}; color: white; border-radius: 3px; font-weight: 600;">${gap.priority || 'M'}</span>
+                  </div>
+                  <div style="font-size: 10px; color: #7f1d1d; margin-bottom: 6px;">${gap.description || gap.recommendation || 'No details'}</div>
+                  ${gap.estimated_effort ? `<div style="font-size: 9px; color: #991b1b;">Effort: ${gap.estimated_effort} | Cost: ${gap.estimated_cost || 'TBD'}</div>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        <!-- Actions -->
+        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+          <button onclick="editCapability('${capability.id}', '${level}')" style="width: 100%; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+            <i class="fas fa-edit"></i>
+            <span>Edit Capability</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Filter workspace tabs based on APQC selection
+ */
+function filterWorkspaceBySelection(capabilityId, level) {
+  // Store filter in global state
+  window._apqcFilter = {id: capabilityId, level: level};
+  
+  // Show filter indicator
+  const indicator = document.getElementById('capmap-filter-indicator');
+  const filterText = document.getElementById('capmap-filter-text');
+  
+  if (indicator && filterText) {
+    // Get capability name
+    const capName = window._selectedCapability?.data?.name || 'Selected';
+    filterText.textContent = `Filtered: ${capName}`;
+    indicator.style.display = 'flex';
+    indicator.style.alignItems = 'center';
+    indicator.style.gap = '4px';
+  }
+  
+  // Re-render active workspace tab with filter applied
+  const activeTab = localStorage.getItem('capmap-active-tab') || 'capability-map';
+  if (activeTab === 'capability-map') {
+    renderCapMap();
+  } else if (activeTab === 'heatmaps') {
+    renderHeatmapTab();
+  } else if (activeTab === 'objective-matrix') {
+    renderObjectiveMatrixTab();
+  } else if (activeTab === 'gap-analysis') {
+    renderGapAnalysisTab();
+  } else if (activeTab === 'prioritization') {
+    renderPrioritizationTab();
+  }
+}
+
+/**
+ * Clear APQC filter and show all capabilities
+ */
+function clearAPQCFilter() {
+  window._apqcFilter = null;
+  window._selectedCapability = null;
+  
+  // Hide filter indicator
+  const indicator = document.getElementById('capmap-filter-indicator');
+  if (indicator) {
+    indicator.style.display = 'none';
+  }
+  
+  // Remove selection highlight
+  document.querySelectorAll('.apqc-tree-node').forEach(node => {
+    node.classList.remove('apqc-tree-node--selected');
+  });
+  
+  // Re-render active tab
+  const activeTab = localStorage.getItem('capmap-active-tab') || 'capability-map';
+  switchCapMapTab(activeTab);
+  
+  // Clear inspector
+  const inspector = document.getElementById('capmap-inspector');
+  if (inspector) {
+    inspector.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 24px; text-align: center;">
+        <i class="fas fa-mouse-pointer" style="font-size: 48px; color: #cbd5e1; margin-bottom: 16px;"></i>
+        <div style="font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px;">No Selection</div>
+        <div style="font-size: 10px; color: #94a3b8; line-height: 1.5;">Click on a capability in the APQC Tree to view details and edit properties</div>
+      </div>
+    `;
+  }
+}
+
+/**
+ * Edit capability (Phase 4) - Full modal dialog
+ */
+function editCapability(capabilityId, level) {
+  // Find capability in model
+  let capability = null;
+  let parentInfo = {l1: null, l2: null};
+  
+  if (level === 'l1') {
+    capability = (window.model?.capabilityMap?.l1_domains || []).find(c => c.id === capabilityId);
+    parentInfo.l1 = capability;
+  } else if (level === 'l2') {
+    for (const l1 of (window.model?.capabilityMap?.l1_domains || [])) {
+      capability = (l1.l2_capabilities || []).find(c => c.id === capabilityId);
+      if (capability) {
+        parentInfo.l1 = l1;
+        parentInfo.l2 = capability;
+        break;
+      }
+    }
+  } else if (level === 'l3') {
+    for (const l1 of (window.model?.capabilityMap?.l1_domains || [])) {
+      for (const l2 of (l1.l2_capabilities || [])) {
+        capability = (l2.l3_capabilities || []).find(c => c.id === capabilityId);
+        if (capability) {
+          parentInfo.l1 = l1;
+          parentInfo.l2 = l2;
+          break;
+        }
+      }
+      if (capability) break;
+    }
+  }
+  
+  if (!capability) {
+    console.error('[Edit Capability] Capability not found:', capabilityId);
+    return;
+  }
+  
+  // Also find in flat capabilities array
+  const flatCapability = (window.model?.capabilities || []).find(c => c.id === capabilityId || c.name === capability.name);
+  
+  // Get objectives for dropdown
+  const objectives = window.model?.businessContext?.objectives || [];
+  
+  // Build modal HTML
+  const modalHtml = `
+    <div id="edit-capability-modal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s;" onclick="if(event.target.id === 'edit-capability-modal') closeEditModal()">
+      <div style="background: white; border-radius: 12px; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); animation: slideUp 0.3s;" onclick="event.stopPropagation()">
+        <!-- Header -->
+        <div style="padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: between; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);">
+          <div style="flex: 1;">
+            <div style="font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Edit Capability</div>
+            <div style="font-size: 11px; color: #64748b;">${capability.name} (Level ${level.toUpperCase()})</div>
+          </div>
+          <button onclick="closeEditModal()" style="width: 32px; height: 32px; border-radius: 6px; border: none; background: #f1f5f9; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <!-- Form -->
+        <form id="edit-capability-form" onsubmit="saveCapabilityChanges(event, '${capabilityId}', '${level}')" style="padding: 24px;">
+          <!-- Basic Info -->
+          <div style="margin-bottom: 24px;">
+            <div style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;">Basic Information</div>
+            
+            <div style="margin-bottom: 16px;">
+              <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Name *</label>
+              <input type="text" name="name" value="${capability.name || ''}" required style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; color: #0f172a; font-family: inherit;" />
+            </div>
+            
+            <div style="margin-bottom: 16px;">
+              <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Description</label>
+              <textarea name="description" rows="3" style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #0f172a; font-family: inherit; resize: vertical;">${capability.description || ''}</textarea>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Domain</label>
+                <select name="domain" style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #0f172a; font-family: inherit;">
+                  <option value="Customer" ${capability.domain === 'Customer' ? 'selected' : ''}>Customer</option>
+                  <option value="Product" ${capability.domain === 'Product' ? 'selected' : ''}>Product</option>
+                  <option value="Operations" ${capability.domain === 'Operations' ? 'selected' : ''}>Operations</option>
+                  <option value="Risk" ${capability.domain === 'Risk' ? 'selected' : ''}>Risk</option>
+                  <option value="Finance" ${capability.domain === 'Finance' ? 'selected' : ''}>Finance</option>
+                  <option value="Technology" ${capability.domain === 'Technology' ? 'selected' : ''}>Technology</option>
+                  <option value="Support" ${capability.domain === 'Support' ? 'selected' : ''}>Support</option>
+                </select>
+              </div>
+              <div>
+                <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Importance</label>
+                <select name="importance" style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #0f172a; font-family: inherit;">
+                  <option value="CORE" ${capability.strategic_importance === 'CORE' ? 'selected' : ''}>CORE (5.0)</option>
+                  <option value="DIFFERENTIATING" ${capability.strategic_importance === 'DIFFERENTIATING' ? 'selected' : ''}>DIFFERENTIATING (4.0)</option>
+                  <option value="SUPPORTING" ${capability.strategic_importance === 'SUPPORTING' ? 'selected' : ''}>SUPPORTING (3.0)</option>
+                  <option value="COMMODITY" ${capability.strategic_importance === 'COMMODITY' ? 'selected' : ''}>COMMODITY (2.0)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Maturity & Performance -->
+          <div style="margin-bottom: 24px;">
+            <div style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;">Maturity & Performance</div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+              <div>
+                <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Current Maturity (1-5)</label>
+                <input type="number" name="maturity_current" min="1" max="5" step="0.5" value="${capability.maturity_current || capability.maturity || 1}" style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #0f172a; font-family: inherit;" />
+              </div>
+              <div>
+                <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Target Maturity (1-5)</label>
+                <input type="number" name="maturity_target" min="1" max="5" step="0.5" value="${capability.maturity_target || capability.maturity_desired || 5}" style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #0f172a; font-family: inherit;" />
+              </div>
+            </div>
+            
+            <div>
+              <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Performance Score (%)</label>
+              <input type="number" name="performance_score" min="0" max="100" step="5" value="${capability.performance_score || capability.performance || 50}" style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #0f172a; font-family: inherit;" />
+            </div>
+          </div>
+          
+          <!-- Actions -->
+          <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+            <button type="button" onclick="closeEditModal()" style="padding: 10px 20px; border: 1px solid #e2e8f0; background: white; color: #475569; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+              Cancel
+            </button>
+            <button type="submit" style="padding: 10px 20px; border: none; background: #3b82f6; color: white; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+              <i class="fas fa-save"></i>
+              <span>Save Changes</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  
+  // Add animations
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Insert modal
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+/**
+ * Close edit capability modal
+ */
+function closeEditModal() {
+  const modal = document.getElementById('edit-capability-modal');
+  if (modal) {
+    modal.style.animation = 'fadeOut 0.2s';
+    setTimeout(() => modal.remove(), 200);
+  }
+}
+
+/**
+ * Save capability changes from edit form
+ */
+function saveCapabilityChanges(event, capabilityId, level) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const formData = new FormData(form);
+  
+  // Extract form values
+  const updates = {
+    name: formData.get('name'),
+    description: formData.get('description'),
+    domain: formData.get('domain'),
+    strategic_importance: formData.get('importance'),
+    maturity_current: parseFloat(formData.get('maturity_current')),
+    maturity_target: parseFloat(formData.get('maturity_target')),
+    performance_score: parseFloat(formData.get('performance_score'))
+  };
+  
+  // Update capability in capabilityMap
+  let updated = false;
+  
+  if (level === 'l1') {
+    const l1 = (window.model?.capabilityMap?.l1_domains || []).find(c => c.id === capabilityId);
+    if (l1) {
+      Object.assign(l1, updates);
+      l1.maturity = updates.maturity_current; // Sync
+      updated = true;
+    }
+  } else if (level === 'l2') {
+    for (const l1 of (window.model?.capabilityMap?.l1_domains || [])) {
+      const l2 = (l1.l2_capabilities || []).find(c => c.id === capabilityId);
+      if (l2) {
+        Object.assign(l2, updates);
+        l2.maturity = updates.maturity_current; // Sync
+        l2.maturity_desired = updates.maturity_target; // Sync
+        updated = true;
+        break;
+      }
+    }
+  } else if (level === 'l3') {
+    for (const l1 of (window.model?.capabilityMap?.l1_domains || [])) {
+      for (const l2 of (l1.l2_capabilities || [])) {
+        const l3 = (l2.l3_capabilities || []).find(c => c.id === capabilityId);
+        if (l3) {
+          Object.assign(l3, updates);
+          l3.maturity = updates.maturity_current;
+          l3.maturity_desired = updates.maturity_target;
+          updated = true;
+          break;
+        }
+      }
+      if (updated) break;
+    }
+  }
+  
+  // Also update in flat capabilities array if exists
+  const flatCap = (window.model?.capabilities || []).find(c => c.id === capabilityId || c.name === updates.name);
+  if (flatCap) {
+    Object.assign(flatCap, updates);
+    flatCap.importance = updates.strategic_importance; // Sync
+    flatCap.maturity = updates.maturity_current;
+  }
+  
+  if (updated) {
+    console.log('[Edit Capability] Updated:', capabilityId, updates);
+    
+    // Close modal
+    closeEditModal();
+    
+    // Refresh all views
+    renderAPQCTree();
+    renderInspectorPanel(Object.assign({id: capabilityId}, updates), level, {});
+    
+    // Refresh active workspace tab
+    const activeTab = localStorage.getItem('capmap-active-tab') || 'capability-map';
+    switchCapMapTab(activeTab);
+    
+    // Show success message
+    showToast('Capability updated successfully!', 'success');
+  } else {
+    console.error('[Edit Capability] Failed to update capability:', capabilityId);
+    showToast('Failed to update capability', 'error');
+  }
+}
+
+/**
+ * Show toast notification
+ */
+function showToast(message, type = 'info') {
+  const colors = {
+    success: {bg: '#10b981', icon: 'check-circle'},
+    error: {bg: '#ef4444', icon: 'exclamation-circle'},
+    info: {bg: '#3b82f6', icon: 'info-circle'}
+  };
+  
+  const color = colors[type] || colors.info;
+  
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: ${color.bg};
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    z-index: 10001;
+    animation: slideInRight 0.3s, fadeOut 0.3s 2.7s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  `;
+  toast.innerHTML = `<i class=\"fas fa-${color.icon}\"></i><span>${message}</span>`;
+  
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+/**
+ * Show tree context menu (Phase 4)
+ */
+function showTreeContextMenu(event, nodeId, level) {
+  event.stopPropagation();
+  console.log('[Phase 3] showTreeContextMenu() - Not yet implemented', nodeId, level);
+  // Will add: Edit, Hide, Add to Report, View Dependencies
+}
+
+/**
+ * Update APQC status banner
+ */
+function updateAPQCStatus(domainCount, objectiveCount, industry) {
+  const statusEl = document.getElementById('apqc-status-tree');
+  if (statusEl) {
+    let text = `${domainCount} L1 Domains`;
+    if (objectiveCount > 0) {
+      text += ` | ${objectiveCount} Business Objectives`;
+    }
+    if (industry) {
+      text += ` | ${industry}`;
+    }
+    statusEl.textContent = text;
+  }
+}
+
+/**
+ * Filter APQC Tree based on search and filters
+ */
+function filterAPQCTree() {
+  renderAPQCTree();
+}
+
+// Add search input listener
+document.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById('apqc-tree-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', debounce(() => {
+      filterAPQCTree();
+    }, 300));
+  }
+  
+  // Add keyboard shortcuts for Cap Map (Phase 4)
+  document.addEventListener('keydown', (e) => {
+    // Only activate when Cap Map tab is visible
+    const capMapTab = document.getElementById('tab-capmap');
+    if (!capMapTab || capMapTab.classList.contains('hidden')) return;
+    
+    // Ignore if user is typing in an input field
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+    
+    // Esc - Clear selection and filter
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      clearAPQCFilter();
+    }
+    
+    // Ctrl/Cmd + E - Edit selected capability
+    if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+      e.preventDefault();
+      if (window._selectedCapability) {
+        editCapability(window._selectedCapability.id, window._selectedCapability.level);
+      }
+    }
+    
+    // Ctrl/Cmd + L - Toggle left panel
+    if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+      e.preventDefault();
+      toggleCapMapPanel('left');
+    }
+    
+    // Ctrl/Cmd + R - Toggle right panel
+    if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+      e.preventDefault();
+      toggleCapMapPanel('right');
+    }
+    
+    // Number keys 1-6 - Switch workspace tabs
+    if (e.key >= '1' && e.key <= '6' && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      const tabs = ['capability-map', 'objective-matrix', 'heatmaps', 'it-enablement', 'gap-analysis', 'prioritization'];
+      const tabIndex = parseInt(e.key) - 1;
+      if (tabs[tabIndex]) {
+        e.preventDefault();
+        switchCapMapTab(tabs[tabIndex]);
+      }
+    }
+  });
+  
+  // Add panel resize functionality (Phase 4+)
+  initCapMapPanelResize();
+  
+  // Restore panel widths from localStorage
+  const savedLeftWidth = localStorage.getItem('capmap-left-width');
+  const savedRightWidth = localStorage.getItem('capmap-right-width');
+  const container = document.getElementById('capmap-3panel');
+  
+  if (savedLeftWidth && container) {
+    container.style.setProperty('--capmap-left-width', savedLeftWidth);
+  }
+  if (savedRightWidth && container) {
+    container.style.setProperty('--capmap-right-width', savedRightWidth);
+  }
+});
+
+/**
+ * Initialize panel resize functionality (Phase 4+)
+ */
+function initCapMapPanelResize() {
+  const container = document.getElementById('capmap-3panel');
+  const leftHandle = document.getElementById('resize-handle-left');
+  const rightHandle = document.getElementById('resize-handle-right');
+  const leftPanel = document.getElementById('capmap-left-panel');
+  const rightPanel = document.getElementById('capmap-right-panel');
+  
+  if (!container || !leftHandle || !rightHandle) return;
+  
+  let isResizing = false;
+  let currentHandle = null;
+  let startX = 0;
+  let startWidth = 0;
+  
+  // Left handle resize
+  leftHandle.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    currentHandle = 'left';
+    startX = e.clientX;
+    startWidth = leftPanel.offsetWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  });
+  
+  // Right handle resize
+  rightHandle.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    currentHandle = 'right';
+    startX = e.clientX;
+    startWidth = rightPanel.offsetWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  });
+  
+  // Mouse move - resize
+  document.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+    
+    if (currentHandle === 'left') {
+      const delta = e.clientX - startX;
+      const newWidth = Math.max(200, Math.min(600, startWidth + delta));
+      container.style.setProperty('--capmap-left-width', `${newWidth}px`);
+    } else if (currentHandle === 'right') {
+      const delta = startX - e.clientX;
+      const newWidth = Math.max(250, Math.min(700, startWidth + delta));
+      container.style.setProperty('--capmap-right-width', `${newWidth}px`);
+    }
+  });
+  
+  // Mouse up - stop resizing
+  document.addEventListener('mouseup', () => {
+    if (isResizing) {
+      isResizing = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      
+      // Save widths to localStorage
+      if (currentHandle === 'left') {
+        const width = container.style.getPropertyValue('--capmap-left-width');
+        localStorage.setItem('capmap-left-width', width);
+      } else if (currentHandle === 'right') {
+        const width = container.style.getPropertyValue('--capmap-right-width');
+        localStorage.setItem('capmap-right-width', width);
+      }
+      
+      currentHandle = null;
+    }
+  });
+}
+
+/**
+ * Debounce helper
+ */
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// ============================================================================
+
+/**
+ * Validation and approval functions (stubs for Phase 3)
+ */
+function validateStep2() {
+  console.log('[Phase 3] validateStep2() - Not yet implemented');
+  // Will implement validation workflow in Phase 3
+}
+
+function approveAndContinueToStep3() {
+  console.log('[Phase 3] approveAndContinueToStep3() - Not yet implemented');
+  // Will implement approval and step transition in Phase 3
+}
+
+function toggleBenchmarkOverlay() {
+  const checked = document.getElementById('benchmark-overlay-toggle').checked;
+  console.log('[Phase 2] toggleBenchmarkOverlay() - Not yet implemented. Checked:', checked);
+  // Will implement benchmark overlay in Phase 2 Step 10
+}
+
+function filterAPQCTree() {
+  console.log('[Phase 1 Step 2] filterAPQCTree() - Not yet implemented');
+  // Will implement tree filtering in Phase 1 Step 2
+}
+
+/**
+ * Toggle objective mapping strength in the matrix
+ */
+function toggleObjectiveMapping(capId, objId) {
+  const capabilities = window.model?.capabilities || [];
+  const objectives = window.model?.businessContext?.objectives || [];
+  
+  const cap = capabilities.find(c => c.id === capId) || capabilities[parseInt(capId)];
+  const obj = objectives.find(o => o.id === objId) || objectives[parseInt(objId)];
+  
+  if (!cap || !obj) return;
+  
+  // Initialize objectiveMappings if not exists
+  if (!cap.objectiveMappings) cap.objectiveMappings = [];
+  
+  // Find existing mapping
+  const existingIdx = cap.objectiveMappings.findIndex(m => 
+    m.objective_id === obj.id || m.objective_name === obj.name
+  );
+  
+  if (existingIdx >= 0) {
+    const current = cap.objectiveMappings[existingIdx].strength;
+    // Cycle: HIGH -> MEDIUM -> LOW -> (remove)
+    if (current === 'HIGH' || current === 'H') {
+      cap.objectiveMappings[existingIdx].strength = 'MEDIUM';
+    } else if (current === 'MEDIUM' || current === 'M') {
+      cap.objectiveMappings[existingIdx].strength = 'LOW';
+    } else {
+      cap.objectiveMappings.splice(existingIdx, 1);
+    }
+  } else {
+    // Add new mapping starting with HIGH
+    cap.objectiveMappings.push({
+      objective_id: obj.id,
+      objective_name: obj.name || obj.objective,
+      strength: 'HIGH'
+    });
+  }
+  
+  // Re-render
+  renderObjectiveMatrixTab();
+  toast('✓ Mapping updated', false);
+}
+
+/**
+ * Auto-map objectives using AI or heuristics
+ */
+function autoMapObjectives() {
+  const capabilities = window.model?.capabilities || [];
+  const objectives = window.model?.businessContext?.objectives || [];
+  
+  if (capabilities.length === 0 || objectives.length === 0) {
+    toast('⚠️ Need both capabilities and objectives to auto-map', true);
+    return;
+  }
+  
+  let mappingCount = 0;
+  
+  capabilities.forEach(cap => {
+    if (!cap.objectiveMappings) cap.objectiveMappings = [];
+    
+    objectives.forEach(obj => {
+      // Skip if already mapped
+      const exists = cap.objectiveMappings.find(m => 
+        m.objective_id === obj.id || m.objective_name === obj.name
+      );
+      if (exists) return;
+      
+      // Detect mapping
+      const strength = detectObjectiveMapping(cap, obj);
+      if (strength) {
+        cap.objectiveMappings.push({
+          objective_id: obj.id,
+          objective_name: obj.name || obj.objective,
+          strength: strength
+        });
+        mappingCount++;
+      }
+    });
+  });
+  
+  renderObjectiveMatrixTab();
+  toast(`✓ Auto-mapped ${mappingCount} capability-objective relationships`, false);
+}
+
+/**
+ * Export objective matrix to CSV
+ */
+function exportObjectiveMatrix() {
+  const capabilities = window.model?.capabilities || [];
+  const objectives = window.model?.businessContext?.objectives || [];
+  
+  if (capabilities.length === 0 || objectives.length === 0) {
+    toast('⚠️ No data to export', true);
+    return;
+  }
+  
+  // Build CSV
+  let csv = 'Capability,' + objectives.map(o => o.name || o.objective).join(',') + '\\n';
+  
+  capabilities.forEach(cap => {
+    let row = [cap.name || cap.capability_name];
+    
+    objectives.forEach(obj => {
+      const mapping = cap.objectiveMappings?.find(m => 
+        m.objective_id === obj.id || m.objective_name === obj.name
+      );
+      row.push(mapping ? mapping.strength : '-');
+    });
+    
+    csv += row.join(',') + '\\n';
+  });
+  
+  // Download
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `objective-matrix-${Date.now()}.csv`;
+  a.click();
+  
+  toast('✓ Objective matrix exported', false);
+}
+
+function autoMapITServices() {
+  toast('🚧 IT Enablement tab will be implemented in next phase', false);
+}
+
+/**
+ * Add manual gap entry
+ */
+function addManualGap() {
+  const gapTitle = prompt('Enter gap title:');
+  if (!gapTitle) return;
+  
+  const gapDescription = prompt('Enter gap description:');
+  if (!gapDescription) return;
+  
+  const priority = prompt('Enter priority (HIGH/MEDIUM/LOW):', 'MEDIUM')?.toUpperCase() || 'MEDIUM';
+  
+  if (!window.model.gapInsights) window.model.gapInsights = [];
+  
+  window.model.gapInsights.push({
+    gap_id: 'manual-' + Date.now(),
+    gap_title: gapTitle,
+    gap_description: gapDescription,
+    priority: priority,
+    recommendation: '',
+    affected_objectives: []
+  });
+  
+  renderGapAnalysisTab();
+  toast('✓ Manual gap added', false);
+}
+
+/**
+ * Group capabilities by action strategy
+ */
+function groupCapabilities(action) {
+  const capabilities = window.model?.capabilities || [];
+  
+  capabilities.forEach(cap => {
+    const importance = cap.importance_score || cap.importance || 0;
+    const gap = Math.abs((cap.maturity_target || 5) - (cap.maturity_current || cap.maturity || 0));
+    const performance = cap.performance_score || cap.performance || 0;
+    
+    let shouldGroup = false;
+    
+    if (action === 'invest' && importance >= 4 && gap >= 2) {
+      shouldGroup = true;
+    } else if (action === 'optimize' && (gap >= 2 || performance < 3)) {
+      shouldGroup = true;
+    } else if (action === 'maintain' && importance >= 3 && gap < 2 && performance >= 3) {
+      shouldGroup = true;
+    }
+    
+    if (shouldGroup) {
+      cap._grouped = action;
+    } else {
+      delete cap._grouped;
+    }
+  });
+  
+  renderPrioritizationTab();
+  const grouped = capabilities.filter(c => c._grouped === action).length;
+  toast(`✓ Grouped ${grouped} capabilities for ${action.toUpperCase()}`, false);
+}
+
+// ============================================================================
+
 function renderCapMap() {
   ensurePhase4Fields();
   syncAreaFilterSelectors();
@@ -17826,8 +19912,9 @@ function renderHeatmap() {
       'cursor:pointer','text-align:left','box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)',
       'transition:transform 140ms ease,box-shadow 140ms ease'
     ].join(';');
-    const onclick = capIdx >= 0 ? `editLayerItem('capabilities',${capIdx})` : '';
-    return `<button type="button" onclick="${onclick}" title="${esc(capability.name)} � ${esc(capability.domain||'General')} � Maturity ${capability.maturity||1}/5 � click to edit" style="${cellStyle}">
+    // Removed onclick - Will be replaced by Inspector Panel navigation (Phase 2, Step 4)
+    const onclick = '';
+    return `<button type="button" onclick="${onclick}" title="${esc(capability.name)} � ${esc(capability.domain||'General')} � Maturity ${capability.maturity||1}/5" style="${cellStyle}">
       <span style="display:block;font-size:12px;font-weight:700;line-height:1.3;color:inherit">${esc(capability.name)}</span>
       <span style="display:block;font-size:10px;font-weight:500;opacity:.82;line-height:1.3;margin-top:2px;color:inherit">${esc(capability.domain||'General')} &middot; Maturity ${capability.maturity||1}/5</span>
     </button>`;
@@ -18159,9 +20246,8 @@ function graphCtxEditCapability() {
   _hideGraphContextMenu();
   const idx = (model.capabilities || []).findIndex(c => c.name === _graphCtxCapName);
   if (idx === -1) return;
-  currentEditLayer = 'capabilities';
-  currentEditIndex = idx;
-  showEditLayerModal('capabilities', model.capabilities[idx]);
+  // Removed modal editing - Will be replaced by Inspector Panel (Phase 2, Step 4)
+  toast('Inspector Panel integration coming in Phase 2', false);
 }
 
 // Dismiss context menu on any outside click
@@ -18218,9 +20304,10 @@ function _graphZoom(delta) {
 
 function populateImpactSelect() {
   const sel = document.getElementById('impactSelect');
+  if (!sel) return; // Element may not exist in current view
   sel.innerHTML = '<option value="">Select a capability or system to simulate failure...</option>';
-  model.capabilities.forEach(c => sel.innerHTML += `<option value="cap:${c.name}">Capability: ${c.name}</option>`);
-  model.systems.forEach(s => sel.innerHTML += `<option value="sys:${s.name}">System: ${s.name}</option>`);
+  if (model.capabilities) model.capabilities.forEach(c => sel.innerHTML += `<option value="cap:${c.name}">Capability: ${c.name}</option>`);
+  if (model.systems) model.systems.forEach(s => sel.innerHTML += `<option value="sys:${s.name}">System: ${s.name}</option>`);
 }
 
 function renderOperatingModel() {
@@ -18597,12 +20684,17 @@ function renderExecNarrativeText(text) {
 }
 
 async function generateNarrative() {
+  const descEl = document.getElementById('description');
+  const savingsEl = document.getElementById('kpi-savings');
+  const riskEl = document.getElementById('kpi-risk');
+  const co2El = document.getElementById('kpi-co2');
+  
   const summary = {
-    org: document.getElementById('description').value,
-    savings: document.getElementById('kpi-savings').textContent,
-    risk: document.getElementById('kpi-risk').textContent,
-    co2: document.getElementById('kpi-co2').textContent,
-    topGaps: model.capabilities.filter(c => c.strategicImportance==='high' && c.maturity<=2).map(c => c.name)
+    org: descEl ? descEl.value : '',
+    savings: savingsEl ? savingsEl.textContent : '0',
+    risk: riskEl ? riskEl.textContent : '0',
+    co2: co2El ? co2El.textContent : '0',
+    topGaps: (model.capabilities || []).filter(c => c.strategicImportance==='high' && c.maturity<=2).map(c => c.name)
   };
 
   try {
@@ -20190,6 +22282,950 @@ function runPortfolioOptimisation() {
 
   .apqc-badge:hover {
     opacity: 1;
+  }
+
+  /* ================================================================
+     CAP MAP 3-PANEL LAYOUT - Phase 1 Step 1
+     ================================================================ */
+  
+  /* Container */
+  .capmap-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 140px);
+    background: #f8fafc;
+  }
+  
+  /* Ensure capmap-container respects hidden class */
+  .capmap-container.hidden,
+  #tab-capmap.hidden {
+    display: none !important;
+  }
+
+  /* Top Bar (Sticky) */
+  .capmap-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-shrink: 0;
+    gap: 16px;
+  }
+
+  .capmap-top-bar__dynamic {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .capmap-top-bar__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .capmap-top-bar__toggles {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  /* Toggle Group */
+  .capmap-toggle-group {
+    display: flex;
+    background: #f1f5f9;
+    border-radius: 6px;
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .capmap-toggle-btn {
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .capmap-toggle-btn.active {
+    background: white;
+    color: #0f172a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Checkbox */
+  .capmap-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #475569;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .capmap-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+
+  /* Buttons */
+  .capmap-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .capmap-btn--primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-color: #1e40af;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  }
+
+  .capmap-btn--primary:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+    transform: translateY(-1px);
+  }
+
+  .capmap-btn--secondary {
+    background: white;
+    color: #475569;
+    border-color: #cbd5e1;
+  }
+
+  .capmap-btn--secondary:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+  }
+
+  .capmap-btn--secondary-sm {
+    padding: 6px 12px;
+    font-size: 11px;
+    background: white;
+    color: #475569;
+    border-color: #cbd5e1;
+  }
+
+  .capmap-btn--secondary-sm:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+  }
+
+  .capmap-btn--success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border-color: #047857;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+  }
+
+  .capmap-btn--success:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.35);
+    transform: translateY(-1px);
+  }
+
+  .capmap-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 9px;
+    margin-left: 4px;
+  }
+
+  /* 3-Panel Grid */
+  .capmap-3panel {
+    display: grid;
+    grid-template-columns: var(--capmap-left-width, 280px) auto 1fr auto var(--capmap-right-width, 320px);
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+    position: relative;
+  }
+
+  .capmap-3panel.left-collapsed {
+    grid-template-columns: 0 auto 1fr auto var(--capmap-right-width, 320px);
+  }
+
+  .capmap-3panel.right-collapsed {
+    grid-template-columns: var(--capmap-left-width, 280px) auto 1fr auto 0;
+  }
+
+  .capmap-3panel.both-collapsed {
+    grid-template-columns: 0 auto 1fr auto 0;
+  }
+
+  /* Panels */
+  .capmap-left-panel,
+  .capmap-right-panel {
+    display: flex;
+    flex-direction: column;
+    background: var(--ea-surface, white);
+    border-right: 1px solid var(--ea-border, #D6DEE5);
+    overflow: hidden;
+    transition: none;
+  }
+
+  .capmap-right-panel {
+    border-right: none;
+    border-left: 1px solid var(--ea-border, #D6DEE5);
+  }
+
+  .capmap-left-panel.collapsed,
+  .capmap-right-panel.collapsed {
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+  
+  /* Resize Handles (Phase 4+) */
+  .capmap-resize-handle {
+    width: 4px;
+    background: transparent;
+    cursor: col-resize;
+    position: relative;
+    z-index: 10;
+    transition: background 0.2s;
+  }
+  
+  .capmap-resize-handle:hover {
+    background: var(--ea-accent, #4A7763);
+  }
+  
+  .capmap-resize-handle:active {
+    background: var(--ea-accent, #4A7763);
+  }
+  
+  .capmap-resize-handle--left {
+    grid-column: 2;
+  }
+  
+  .capmap-resize-handle--right {
+    grid-column: 4;
+  }
+  
+  /* Expand Buttons (Phase 4+) */
+  .capmap-expand-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: var(--ea-accent, #4A7763);
+    color: white;
+    border: 1px solid var(--ea-accent, #4A7763);
+    border-radius: 0 8px 8px 0;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 700;
+    z-index: 20;
+    transition: all 0.2s;
+    box-shadow: var(--ea-shadow-soft, 0 4px 12px rgba(0,0,0,0.1));
+  }
+  
+  .capmap-expand-btn:hover {
+    width: 36px;
+    background: var(--ea-primary, #2C3E50);
+    border-color: var(--ea-primary, #2C3E50);
+    box-shadow: var(--ea-shadow-card, 0 8px 16px rgba(0,0,0,0.15));
+  }
+  
+  .capmap-expand-btn--left {
+    left: 0;
+  }
+  
+  .capmap-expand-btn--right {
+    right: 0;
+    border-radius: 8px 0 0 8px;
+  }
+  
+  .capmap-expand-btn i {
+    font-size: 12px;
+  }
+  
+  .capmap-expand-btn span {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+
+  /* Panel Header */
+  .capmap-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--ea-border, #D6DEE5);
+    background: var(--ea-hover, #F4F7FA);
+    flex-shrink: 0;
+  }
+
+  .capmap-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ea-text-primary, #1F2A33);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .capmap-panel-title i {
+    font-size: 14px;
+    color: var(--ea-accent, #4A7763);
+  }
+
+  .capmap-panel-collapse {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--ea-text-secondary, #5F6B75);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+
+  .capmap-panel-collapse:hover {
+    background: var(--ea-border, #D6DEE5);
+    color: var(--ea-text-primary, #1F2A33);
+  }
+
+  /* APQC Tree Node Selection */
+  .apqc-tree-node--selected {
+    background: var(--ea-info, #A9C9D6) !important;
+    border-color: var(--ea-accent, #4A7763) !important;
+  }
+  
+  .apqc-tree-node--selected .apqc-tree-label {
+    color: var(--ea-primary, #2C3E50) !important;
+    font-weight: 600;
+  }
+
+  /* Inspector Container */
+  .capmap-inspector-container {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--ea-background, #EAEFF3);
+  }
+
+  /* APQC Banner */
+  .capmap-apqc-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: linear-gradient(135deg, var(--ea-info, #A9C9D6) 0%, var(--ea-hover, #F4F7FA) 100%);
+    border-bottom: 1px solid var(--ea-border, #D6DEE5);
+  }
+  
+  /* Toast & Modal Animations (Phase 4) */
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .capmap-apqc-banner__icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--ea-accent, #4A7763) 0%, var(--ea-primary, #2C3E50) 100%);
+    color: white;
+    border-radius: 8px;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .capmap-apqc-banner__content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .capmap-apqc-banner__title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ea-primary, #2C3E50);
+  }
+
+  .capmap-apqc-banner__subtitle {
+    font-size: 10px;
+    color: var(--ea-secondary, #677480);
+    margin-top: 2px;
+  }
+
+  .capmap-apqc-banner__config {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ea-surface, white);
+    border: 1px solid var(--ea-border, #D6DEE5);
+    border-radius: 6px;
+    color: var(--ea-accent, #4A7763);
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .capmap-apqc-banner__config:hover {
+    background: var(--ea-hover, #F4F7FA);
+    border-color: var(--ea-accent, #4A7763);
+  }
+
+  /* Tree Filters */
+  .capmap-tree-filters {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .capmap-search-input {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 11px;
+    border: 1px solid var(--ea-border, #D6DEE5);
+    border-radius: 6px;
+    outline: none;
+    transition: all 0.2s;
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
+  }
+
+  .capmap-search-input:focus {
+    border-color: var(--ea-accent, #4A7763);
+    box-shadow: 0 0 0 3px rgba(74, 119, 99, 0.1);
+  }
+
+  .capmap-filter-select {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 10px;
+    border: 1px solid var(--ea-border, #D6DEE5);
+    border-radius: 6px;
+    background: var(--ea-surface, white);
+    cursor: pointer;
+    outline: none;
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
+  }
+
+  /* Tree Container */
+  .capmap-tree-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+  }
+
+  .capmap-tree-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 11px;
+  }
+
+  /* Workspace */
+  .capmap-workspace {
+    display: flex;
+    flex-direction: column;
+    background: var(--ea-background, #EAEFF3);
+    overflow: hidden;
+  }
+
+  .capmap-workspace-tabs {
+    display: flex;
+    background: var(--ea-surface, white);
+    border-bottom: 2px solid var(--ea-border, #D6DEE5);
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+
+  .capmap-workspace-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ea-text-secondary, #5F6B75);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    position: relative;
+    margin-bottom: -2px;
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
+  }
+
+  .capmap-workspace-tab:hover {
+    color: var(--ea-text-primary, #1F2A33);
+    background: var(--ea-hover, #F4F7FA);
+  }
+
+  .capmap-workspace-tab.active {
+    color: var(--ea-accent, #4A7763);
+    border-bottom-color: var(--ea-accent, #4A7763);
+    background: var(--ea-surface, white);
+  }
+
+  .capmap-workspace-tab i {
+    font-size: 12px;
+  }
+
+  /* Workspace Content */
+  .capmap-workspace-content {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .capmap-workspace-pane {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .capmap-workspace-pane.active {
+    display: flex;
+  }
+
+  .capmap-workspace-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--ea-surface, white);
+    border-bottom: 1px solid var(--ea-border, #D6DEE5);
+    flex-shrink: 0;
+  }
+
+  .capmap-workspace-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ea-text-primary, #1F2A33);
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
+  }
+
+  .capmap-workspace-subtitle {
+    font-size: 11px;
+    color: var(--ea-text-secondary, #5F6B75);
+    margin-top: 2px;
+  }
+
+  .capmap-workspace-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Inspector Container */
+  .capmap-inspector-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  /* Empty States */
+  .capmap-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+    color: #94a3b8;
+  }
+
+  .capmap-empty-state i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
+
+  .capmap-empty-state > div:first-of-type {
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 8px;
+  }
+
+  .capmap-empty-hint {
+    font-size: 11px;
+    color: #94a3b8;
+  }
+
+  .capmap-empty-state--vertical {
+    padding: 80px 20px;
+  }
+
+  /* Containers for different tab types */
+  .capmap-matrix-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .capmap-heatmap-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .capmap-heatmap-legend {
+    padding: 16px 20px;
+    background: white;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .capmap-gap-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .capmap-table-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  /* Scrollbar Styling */
+  .capmap-tree-container::-webkit-scrollbar,
+  .capmap-inspector-container::-webkit-scrollbar,
+  .capmap-matrix-container::-webkit-scrollbar,
+  .capmap-gap-container::-webkit-scrollbar,
+  .capmap-table-container::-webkit-scrollbar,
+  .capmap-heatmap-container::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .capmap-tree-container::-webkit-scrollbar-track,
+  .capmap-inspector-container::-webkit-scrollbar-track,
+  .capmap-matrix-container::-webkit-scrollbar-track,
+  .capmap-gap-container::-webkit-scrollbar-track,
+  .capmap-table-container::-webkit-scrollbar-track,
+  .capmap-heatmap-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+
+  .capmap-tree-container::-webkit-scrollbar-thumb,
+  .capmap-inspector-container::-webkit-scrollbar-thumb,
+  .capmap-matrix-container::-webkit-scrollbar-thumb,
+  .capmap-gap-container::-webkit-scrollbar-thumb,
+  .capmap-table-container::-webkit-scrollbar-thumb,
+  .capmap-heatmap-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+
+  .capmap-tree-container::-webkit-scrollbar-thumb:hover,
+  .capmap-inspector-container::-webkit-scrollbar-thumb:hover,
+  .capmap-matrix-container::-webkit-scrollbar-thumb:hover,
+  .capmap-gap-container::-webkit-scrollbar-thumb:hover,
+  .capmap-table-container::-webkit-scrollbar-thumb:hover,
+  .capmap-heatmap-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  /* ================================================================
+     APQC TREE STYLES - Phase 1 Step 2
+     ================================================================ */
+
+  .apqc-tree {
+    padding: 0;
+  }
+
+  /* Tree Node Base */
+  .apqc-tree-node {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s;
+    position: relative;
+    user-select: none;
+  }
+
+  .apqc-tree-node:hover {
+    background: #f1f5f9;
+  }
+
+  .apqc-tree-node--selected {
+    background: #dbeafe !important;
+    border-left: 3px solid #3b82f6;
+    padding-left: 7px;
+  }
+
+  /* L1 Domain Nodes */
+  .apqc-tree-node--l1 {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ea-text-primary, #1F2A33);
+    margin-bottom: 4px;
+    background: var(--ea-hover, #F4F7FA);
+    border: 1px solid var(--ea-border, #D6DEE5);
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
+  }
+
+  .apqc-tree-node--l1:hover {
+    background: var(--ea-info, #A9C9D6);
+    border-color: var(--ea-accent, #4A7763);
+  }
+
+  /* L2 Capability Nodes */
+  .apqc-tree-node--l2 {
+    font-size: 10px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-left: 16px;
+    margin-bottom: 2px;
+  }
+
+  /* L3 Capability Nodes */
+  .apqc-tree-node--l3 {
+    font-size: 10px;
+    font-weight: 500;
+    color: #475569;
+    margin-left: 32px;
+    padding: 6px 8px;
+  }
+
+  /* Expand/Collapse Icon */
+  .apqc-tree-expand {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    flex-shrink: 0;
+  }
+
+  .apqc-tree-expand i {
+    font-size: 10px;
+  }
+
+  .apqc-tree-node--l3 .apqc-tree-expand {
+    visibility: hidden;
+  }
+
+  /* Domain Icon */
+  .apqc-tree-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-radius: 4px;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+
+  /* Label */
+  .apqc-tree-label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Count Badge */
+  .apqc-tree-count {
+    font-size: 9px;
+    font-weight: 600;
+    color: #94a3b8;
+    margin-left: 4px;
+  }
+
+  /* Actions */
+  .apqc-tree-actions {
+    opacity: 0;
+    transition: opacity 0.15s;
+    color: #94a3b8;
+    font-size: 10px;
+    padding: 0 4px;
+  }
+
+  .apqc-tree-node:hover .apqc-tree-actions {
+    opacity: 1;
+  }
+
+  .apqc-tree-actions:hover {
+    color: #0f172a;
+  }
+
+  /* Children Container */
+  .apqc-tree-children {
+    overflow: hidden;
+    transition: max-height 0.2s ease;
+  }
+
+  .apqc-tree-children.hidden {
+    display: none;
+  }
+
+  /* Importance Classes */
+  .apqc-importance-high {
+    border-left: 2px solid #10b981;
+  }
+
+  .apqc-importance-high.apqc-tree-node--l1 {
+    border-left: 3px solid #10b981;
+  }
+
+  .apqc-importance-medium {
+    border-left: 2px solid #3b82f6;
+  }
+
+  .apqc-importance-medium.apqc-tree-node--l1 {
+    border-left: 3px solid #3b82f6;
+  }
+
+  .apqc-importance-low {
+    border-left: 2px solid #94a3b8;
+  }
+
+  .apqc-importance-low.apqc-tree-node--l1 {
+    border-left: 3px solid #94a3b8;
+  }
+
+  /* Objective-Linked Highlight */
+  .apqc-tree-node--objective-linked {
+    background: #fef3c7;
+  }
+
+  .apqc-tree-node--objective-linked:hover {
+    background: #fde68a;
+  }
+
+  .apqc-tree-node--objective-linked.apqc-tree-node--selected {
+    background: #fde047 !important;
+  }
+
+  /* Maturity Badge */
+  .apqc-maturity-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 3px;
+    margin-left: 4px;
+  }
+
+  /* Tree Spacing */
+  .apqc-tree-l1 {
+    margin-bottom: 8px;
+  }
+
+  .apqc-tree-l2 {
+    margin-bottom: 2px;
+  }
+
+  .apqc-tree-l3 {
+    margin-bottom: 1px;
+  }
+
+  /* Empty State in Tree */
+  .apqc-tree-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: #94a3b8;
+  }
+
+  /* Animation for tree expand */
+  @keyframes treeExpand {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .apqc-tree-children:not(.hidden) {
+    animation: treeExpand 0.2s ease;
   }
 </style>
 
