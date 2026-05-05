@@ -37,17 +37,22 @@ const StepContext = (() => {
 
       case 'step3': return {
         ...base,
-        strategicIntent: model.strategicIntent || null,
-        bmc: model.bmc || null,
-        bmcCurrent: model.bmcCurrent || null,
-        bmcAnalysis: model.bmcAnalysis || null,
+        businessContext: model.businessContext || null,
+        gapInsights: model.gapInsights || [],
+        whiteSpots: model.whiteSpots || [],
+        capabilities: model.capabilities || [],
+        capabilityMap: model.capabilityMap || null,
+        topRecommendations: model.topRecommendations || [],
         stepMeta: _pickStepMeta(model, [1, 2])
       };
 
       case 'step4': return {
         ...base,
-        strategicIntent: model.strategicIntent || null,
-        bmc: model.bmc || null,
+        businessContext: model.businessContext || null,
+        gapInsights: model.gapInsights || [],
+        whiteSpots: model.whiteSpots || [],
+        targetArchData: model.targetArchData || null,
+        aiAgents: model.aiAgents || [],
         capabilities: model.capabilities || [],
         industry: model.phase4Config?.industry || model.masterData?.industry || 'generic',
         stepMeta: _pickStepMeta(model, [1, 2, 3])

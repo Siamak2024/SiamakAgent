@@ -39,7 +39,7 @@ const Step3 = {
       title: 'Defining architecture principles',
       type: 'internal',
       taskType: 'analysis',
-      instructionFile: '7_1_arch_principles.instruction.md',
+      instructionFile: '../step7/7_1_arch_principles.instruction.md',
       expectsJson: true,
 
       systemPromptFallback: `You are a Chief Architect. Define 6-10 architecture principles that will govern all design decisions for this organisation's target state transformation.
@@ -143,7 +143,7 @@ Align principles to close identified gaps and support strategic themes.`;
       title: 'Designing target architecture',
       type: 'internal',
       taskType: 'heavy',
-      instructionFile: '7_2_target_arch.instruction.md',
+      instructionFile: '../step7/7_2_target_arch.instruction.md',
       expectsJson: true,
 
       systemPromptFallback: `You are a Senior Enterprise Architect. Design the target state architecture across all layers: Business, Data, Application, Technology.
@@ -202,12 +202,18 @@ Return ONLY valid JSON:
         const capabilities = (ctx.capabilities || []).filter(c => c.level === 1).map(c => c.name).slice(0, 8).join(', ');
         const aiEnabledCaps = (ctx.capabilities || []).filter(c => c.ai_enabled).map(c => c.name).join(', ');
         const whiteSpots = (ctx.whiteSpots || []).slice(0, 5).map(w => w.capability_name).join(', ');
+        const recommendations = (ctx.topRecommendations || [])
+          .map(r => `- ${r.title}: ${r.description}`)
+          .join('\n');
         const industry = bc.industry || 'General Enterprise';
 
         return `Strategic objectives: ${objectives || 'see business context'}
 
 Architecture principles:
 ${principles || 'see principles output'}
+
+Top Strategic Recommendations (from Capability Overview):
+${recommendations || 'See gap analysis'}
 
 Priority gaps to address:
 ${gaps || 'Technology modernization, process optimization'}
@@ -218,7 +224,7 @@ White-spot capabilities: ${whiteSpots || 'None identified'}
 
 Industry: ${industry}
 
-Design the complete 4-layer target architecture (Business, Data, Application, Technology). 
+Design the complete 4-layer target architecture (Business, Data, Application, Technology) that explicitly addresses the Top Strategic Recommendations above.
 
 CRITICAL - AI AGENTS (MANDATORY):
 Generate 3-8 AI agents that address priority gaps and automate/augment capabilities. Focus on:
@@ -256,7 +262,7 @@ Include 3-5 draft ADRs for the hardest decisions. metadata.at_a_glance: 25 words
       title: 'Documenting architecture decisions',
       type: 'internal',
       taskType: 'analysis',
-      instructionFile: '7_3_arch_decisions.instruction.md',
+      instructionFile: '../step7/7_3_arch_decisions.instruction.md',
       expectsJson: true,
 
       systemPromptFallback: `You are a Chief Architect documenting key Architecture Decision Records (ADRs). Consolidate and expand the architectural decisions identified in the target architecture design.

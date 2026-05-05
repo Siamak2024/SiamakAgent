@@ -41,23 +41,6 @@ const Step2 = {
       expectsJson: false,
       skipAI: true, // No AI call needed - just data loading
 
-      // Conditional execution - skip in autopilot mode if already loaded
-      shouldRun: (ctx) => {
-        if (ctx.workflowMode === 'autopilot' && window.EA_DataManager) {
-          const cached = window.EA_DataManager.getAPQCFramework();
-          if (cached && cached.categories && cached.categories.length > 0) {
-            ctx.answers = ctx.answers || {};
-            ctx.answers.step2_load_apqc = { 
-              status: 'cached', 
-              framework: cached,
-              message: 'APQC framework loaded from cache'
-            };
-            return false; // Skip this task
-          }
-        }
-        return true;
-      },
-
       execute: async (ctx) => {
         // Use dataManager instance to load APQC framework
         if (!window.dataManager || typeof window.dataManager.loadAPQCFramework !== 'function') {
@@ -305,21 +288,13 @@ Return complete JSON with all fields populated.`;
 
       // Conditional execution based on workflow mode
       shouldRun: (ctx) => {
-        // Always show validation in standard mode
+        // Always show validation in standard mode (default)
         if (!ctx.workflowMode || ctx.workflowMode === 'standard') return true;
         
         // Show validation in business-object mode
         if (ctx.workflowMode === 'business-object') return true;
         
-        // Skip validation in autopilot mode
-        if (ctx.workflowMode === 'autopilot') {
-          // Auto-confirm in autopilot
-          if (typeof addAssistantMessage === 'function') {
-            addAssistantMessage('✅ Capability map auto-validated (Autopilot mode)');
-          }
-          return false;
-        }
-
+        // For any other mode, show validation (defensive default)
         return true;
       },
 
@@ -550,6 +525,15 @@ Return complete JSON with all fields populated.`;
           description: d.description || '' 
         }));
 
+    // Generate top recommendations for architecture planning
+    let topRecommendations = [];
+    if (typeof generateTopRecommendations === 'function') {
+      topRecommendations = generateTopRecommendations(
+        output.capabilities || [],
+        model.businessContext?.objectives || []
+      );
+    }
+
     return {
       ...model,
       apqcFramework: output.apqcFramework,
@@ -560,19 +544,36 @@ Return complete JSON with all fields populated.`;
       gapInsights: output.gapInsights,
       whiteSpots: output.whiteSpots,
       capabilityValidated: output.capabilityValidated,
-      valueStreams: derivedVS
+      valueStreams: derivedVS,
+      topRecommendations: topRecommendations
     };
   },
 
   // ── On Complete: UI updates and next step prompt ──────────────────────────
   onComplete: (model) => {
+    // Debug logging
+    console.log('[Step2] onComplete called');
+    console.log('[Step2] model.capabilityMap:', model.capabilityMap);
+    console.log('[Step2] model.capabilityMap.l1_domains:', model.capabilityMap?.l1_domains);
+    console.log('[Step2] model.capabilities length:', model.capabilities?.length);
+    
     // Update UI sections
-    if (typeof renderCapabilitySection === 'function') renderCapabilitySection();
+    if (typeof renderCapabilitySection === 'function') {
+      console.log('[Step2] Calling renderCapabilitySection()');
+      renderCapabilitySection();
+    } else {
+      console.warn('[Step2] renderCapabilitySection function not found');
+    }
     // renderHeatmapSection() and renderGapSection() removed - functions don't exist
     // Will be replaced by renderCapMapWorkspace() in Phase 2, Step 9
     
     // Phase 1 Step 2: Render APQC Tree after Step 2 completes
-    if (typeof renderAPQCTree === 'function') renderAPQCTree();
+    if (typeof renderAPQCTree === 'function') {
+      console.log('[Step2] Calling renderAPQCTree()');
+      renderAPQCTree();
+    } else {
+      console.warn('[Step2] renderAPQCTree function not found');
+    }
     
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
     if (typeof updateWorkflowProgress === 'function') updateWorkflowProgress([1, 2]);
