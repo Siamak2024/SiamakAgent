@@ -156,7 +156,7 @@ embed the change as a \`\`\`json block for automatic application.`;
       'design, dependencies, and business case framing.',
 
     'target':
-      'The user is in the Target Architecture view. Help define to-be capability targets, uplift ' +
+      'The user is in the Target Architecture theme section. Help define to-be capability targets, uplift ' +
       'paths, and strategic architecture decisions.',
 
     'home':

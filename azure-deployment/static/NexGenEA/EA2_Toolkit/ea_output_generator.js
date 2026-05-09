@@ -275,7 +275,7 @@ class EA_OutputGenerator {
         const decisions = this.data.decisions || [];
         const constraints = this.data.constraints || [];
         const assumptions = this.data.assumptions || [];
-        const architectureViews = this.data.architectureViews || [];
+        const architectureThemes = this.data.architectureThemes || [];
 
         // Calculate metrics
         const sunsetCount = applications.filter(a => a.sunsetCandidate).length;
@@ -322,7 +322,7 @@ class EA_OutputGenerator {
             decisions,
             constraints,
             assumptions,
-            architectureViews,
+            architectureThemes,
 
             // Calculated metrics
             sunsetCount,

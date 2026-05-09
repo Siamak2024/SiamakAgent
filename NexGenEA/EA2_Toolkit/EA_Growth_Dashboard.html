@@ -742,7 +742,7 @@
 
         function initializeResizablePanel() {
             const panel = document.getElementById('ai-chat-panel');
-            const resizeHandle = document.getElementById('resize-handle');
+            const resizeHandle = document.getElementById('chat-resize-handle');
             let isResizing = false;
             let startX = 0;
             let startWidth = 0;
@@ -1204,23 +1204,41 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
         }
 
         function openEngagementPlaybook() {
-            // Check if we have accounts to select from
-            const accounts = accountManager.listAccounts();
+            console.log('🎯 openEngagementPlaybook called');
             
-            if (accounts.length === 0) {
-                // No accounts - just open playbook
-                window.location.href = 'EA_Engagement_Playbook.html';
+            // Check if accountManager is initialized
+            if (!accountManager) {
+                console.error('❌ AccountManager not initialized yet');
+                alert('System is still initializing. Please wait a moment and try again.');
                 return;
             }
             
-            if (accounts.length === 1) {
-                // Only one account - auto-select it
-                window.location.href = `EA_Engagement_Playbook.html?accountId=${accounts[0].id}`;
-                return;
+            try {
+                // Check if we have accounts to select from
+                const accounts = accountManager.listAccounts();
+                console.log('📊 Found accounts:', accounts.length);
+                
+                if (accounts.length === 0) {
+                    // No accounts - just open playbook
+                    console.log('➡️ No accounts, navigating to playbook directly');
+                    window.location.href = 'EA_Engagement_Playbook.html';
+                    return;
+                }
+                
+                if (accounts.length === 1) {
+                    // Only one account - auto-select it
+                    console.log('➡️ One account, auto-selecting:', accounts[0].name);
+                    window.location.href = `EA_Engagement_Playbook.html?accountId=${accounts[0].id}`;
+                    return;
+                }
+                
+                // Multiple accounts - show selector
+                console.log('📋 Multiple accounts, showing selector');
+                showAccountSelectorForEngagement(accounts);
+            } catch (error) {
+                console.error('❌ Error in openEngagementPlaybook:', error);
+                alert('An error occurred. Please try again.');
             }
-            
-            // Multiple accounts - show selector
-            showAccountSelectorForEngagement(accounts);
         }
 
         function showAccountSelectorForEngagement(accounts) {

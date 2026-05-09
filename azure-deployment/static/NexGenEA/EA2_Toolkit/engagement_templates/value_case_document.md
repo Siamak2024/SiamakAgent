@@ -118,9 +118,9 @@
 {{/each}}
 
 ### Architecture Transformation
-{{#if architectureViews.length}}
+{{#if architectureThemes.length}}
 The solution includes transformation across:
-{{#each architectureViews}}
+{{#each architectureThemes}}
 - **{{this.viewType}}**: {{this.description}}
 {{/each}}
 {{/if}}

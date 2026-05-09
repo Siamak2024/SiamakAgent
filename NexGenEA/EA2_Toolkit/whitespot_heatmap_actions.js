@@ -1494,12 +1494,164 @@ async function generateDemoHeatmapForCustomer(customerId) {
 function showNotification(message, type = 'info') {
     if (typeof showToast === 'function') {
         const title = type === 'success' ? 'Success' :
-                     type === 'error' ? 'Error' :
-                     type === 'warning' ? 'Warning' : 'Info';
+                      type === 'error' ? 'Error' :
+                      type === 'warning' ? 'Warning' : 'Info';
         showToast(title, message, type);
     } else {
         console.log(`[${type.toUpperCase()}] ${message}`);
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// QUICK CUSTOMER MODAL
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Show quick customer creation modal
+ * Lightweight modal for adding a customer directly from WhiteSpot heatmap view
+ */
+function showQuickCustomerModal() {
+    const manager = window.engagementManager;
+    if (!manager) {
+        showNotification('Engagement manager not available', 'error');
+        return;
+    }
+    
+    // Create modal HTML
+    const modalHTML = `
+        <div id="quickCustomerModal" class="modal-overlay" style="display: flex; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000;">
+            <div class="modal-box" style="background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0; font-size: 20px; color: #111827;">
+                        <i class="fas fa-building"></i> Quick Add Customer
+                    </h3>
+                    <button onclick="closeQuickCustomerModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="modal-body">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: #374151;">Customer Name *</label>
+                        <input type="text" id="quick-customer-name" placeholder="e.g., Acme Corporation" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: #374151;">Industry</label>
+                        <select id="quick-customer-industry" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                            <option value="Financial Services">Financial Services</option>
+                            <option value="Healthcare">Healthcare</option>
+                            <option value="Manufacturing">Manufacturing</option>
+                            <option value="Retail">Retail</option>
+                            <option value="Technology">Technology</option>
+                            <option value="Insurance">Insurance</option>
+                            <option value="Government">Government</option>
+                            <option value="Energy">Energy</option>
+                            <option value="Telecommunications">Telecommunications</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: #374151;">Segment</label>
+                        <select id="quick-customer-segment" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                            <option value="Enterprise">Enterprise</option>
+                            <option value="Mid-Market">Mid-Market</option>
+                            <option value="SMB">SMB</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: #374151;">Region</label>
+                        <select id="quick-customer-region" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                            <option value="EMEA">EMEA</option>
+                            <option value="North America">North America</option>
+                            <option value="APAC">APAC</option>
+                            <option value="Latin America">Latin America</option>
+                        </select>
+                    </div>
+                    
+                    <div style="padding: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; margin-bottom: 20px;">
+                        <p style="margin: 0; font-size: 13px; color: #166534;">
+                            <i class="fas fa-info-circle"></i> A WhiteSpot heatmap will be automatically created for this customer with all available services.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button onclick="closeQuickCustomerModal()" class="btn btn-ghost" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer;">
+                        Cancel
+                    </button>
+                    <button onclick="submitQuickCustomer()" class="btn btn-primary" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                        <i class="fas fa-check"></i> Create Customer & Heatmap
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Focus on name input
+    setTimeout(() => {
+        document.getElementById('quick-customer-name').focus();
+    }, 100);
+}
+
+/**
+ * Close quick customer modal
+ */
+function closeQuickCustomerModal() {
+    const modal = document.getElementById('quickCustomerModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+/**
+ * Submit quick customer form
+ */
+async function submitQuickCustomer() {
+    const name = document.getElementById('quick-customer-name').value.trim();
+    const industry = document.getElementById('quick-customer-industry').value;
+    const segment = document.getElementById('quick-customer-segment').value;
+    const region = document.getElementById('quick-customer-region').value;
+    
+    if (!name) {
+        showNotification('Please enter a customer name', 'warning');
+        return;
+    }
+    
+    const manager = window.engagementManager;
+    const existingCustomers = manager.getEntities('customers') || [];
+    
+    // Generate customer ID
+    const nextId = `CUST-${String(existingCustomers.length + 1).padStart(3, '0')}`;
+    
+    const newCustomer = {
+        id: nextId,
+        name: name,
+        industry: industry,
+        segment: segment,
+        region: region,
+        description: `${segment} customer in ${industry} sector (${region})`,
+        createdAt: new Date().toISOString()
+    };
+    
+    // Add customer to engagement
+    manager.addEntity('customers', newCustomer);
+    
+    // Close modal
+    closeQuickCustomerModal();
+    
+    // Show notification
+    showNotification(`Customer "${name}" added successfully! Creating heatmap...`, 'success');
+    
+    // Refresh the WhiteSpot view (which will auto-create heatmap)
+    setTimeout(async () => {
+        await renderWhiteSpotHeatmap();
+    }, 300);
 }
 
 /**

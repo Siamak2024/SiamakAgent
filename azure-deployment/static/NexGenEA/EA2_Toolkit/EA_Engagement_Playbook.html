@@ -32,6 +32,19 @@
     <script src="ea_engagement_phase3_additions.js"></script>
     <script src="ea_stakeholder_enhanced.js"></script>
     <script src="ea_output_generator.js"></script>
+    <!-- WhiteSpot Heatmap Module -->
+    <script src="vivicta_service_loader.js"></script>
+    <script src="apqc_whitespot_integration.js"></script>
+    <script src="whitespot_heatmap_renderer.js"></script>
+    <script src="whitespot_heatmap_actions.js"></script>
+    <script src="whitespot_heatmap_enhancements.js"></script>
+    <script src="whitespot_demo_data_generator.js"></script>
+    <script src="whitespot_help_system.js"></script>
+    <script src="whitespot_service_promoter.js"></script>
+    <script src="whitespot_service_selector.js"></script>
+    <script src="whitespot_catalog_selection.js"></script>
+    <!-- V2.0 E2E Integration Modules -->
+    <script src="target_services_bridge.js?v=2.8"></script>
     <style>
         /* === EA PLATFORM LAYOUT === */
         #app-container { display: flex; flex-direction: column; min-height: 100vh; background: #f8f9fa; }
@@ -566,6 +579,138 @@
         #send-chat:hover { background: #059669; }
         .spinner { animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* === WHITESPOT HEATMAP STYLES === */
+        .heatmap-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        
+        .heatmap-table th {
+            text-align: left;
+            padding: 10px 12px;
+            background: #f9fafb;
+            color: #374151;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .heatmap-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 13px;
+            color: #111827;
+        }
+        
+        .heatmap-row-hover:hover {
+            background: #f9fafb;
+        }
+        
+        .accordion-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .accordion-header {
+            padding: 14px 16px;
+            background: #f9fafb;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        
+        .accordion-header:hover {
+            background: #f3f4f6;
+        }
+        
+        .accordion-icon {
+            font-size: 12px;
+            color: #6b7280;
+            transition: transform 0.2s;
+        }
+        
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out;
+            padding: 0 16px;
+            background: white;
+        }
+        
+        .accordion-content.active {
+            padding: 0 16px 16px 16px;
+        }
+        
+        .modal-tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 20px;
+        }
+        
+        .modal-tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            color: #6b7280;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+        
+        .modal-tab:hover {
+            color: #065f46;
+            background: #f9fafb;
+        }
+        
+        .modal-tab.active {
+            color: #10b981;
+            border-bottom-color: #10b981;
+        }
+        
+        .modal-tab-content {
+            display: none;
+        }
+        
+        .modal-tab-content.active {
+            display: block;
+        }
+        
+        .modal-box.large {
+            max-width: 900px;
+        }
+        
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .badge-primary {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -597,6 +742,9 @@
                 </button>
                 <button class="ea-header-icon" onclick="loadExampleEngagement()" title="Load Example Engagement" style="background: rgba(255,255,255,0.15);">
                     <i class="fas fa-flask"></i>
+                </button>
+                <button class="ea-header-icon" onclick="clearExampleEngagement()" title="Clear Example Data" style="background: rgba(255,215,0,0.15);">
+                    <i class="fas fa-broom"></i>
                 </button>
                 <button class="ea-header-icon" onclick="importAPMData()" title="Import from APM Toolkit">
                     <i class="fas fa-download"></i>
@@ -654,8 +802,8 @@
             <button class="tab-btn" onclick="switchTab('portfolio', this)">
                 <i class="fas fa-cubes"></i> AS-IS Portfolio
             </button>
-            <button class="tab-btn" onclick="switchTab('whitespace', this)">
-                <i class="fas fa-chart-line"></i> White-Spot Analysis
+            <button class="tab-btn" data-tab="whitespace" onclick="switchTab('whitespace', this)">
+                <i class="fas fa-th"></i> WhiteSpot Heatmap
             </button>
             <button class="tab-btn" onclick="switchTab('target', this)">
                 <i class="fas fa-bullseye"></i> Target EA
@@ -920,57 +1068,14 @@
                 </div>
             </div>
             
-            <!-- CANVAS 4: WHITE-SPOT ANALYSIS -->
+            <!-- CANVAS 4: WHITESPOT HEATMAP -->
             <div id="view-whitespace" class="section-view">
-                <div class="section-header">
-                    <div class="section-title">
-                        <i class="fas fa-chart-line" style="color: #10b981;"></i>
-                        White-Spot & Opportunity Analysis
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn btn-ghost" onclick="openAPQCBrowser()" title="Browse APQC Framework">
-                            <i class="fas fa-book"></i> APQC Framework
-                        </button>
-                        <button class="btn btn-primary" onclick="openCapabilityModal()">
-                            <i class="fas fa-plus"></i> Add Capability
-                        </button>
-                    </div>
-                </div>
-                
-                <div id="whitespace-container">
+                <div id="whitespot-heatmap-container">
+                    <!-- WhiteSpot Heatmap content rendered by whitespot_heatmap_renderer.js -->
                     <div class="empty-state">
-                        <div class="empty-state-icon"><i class="fas fa-chart-line"></i></div>
-                        <div class="empty-state-title">No capability gaps defined yet</div>
-                        <div class="empty-state-text">Identify capability gaps, white-spots, and opportunities for improvement</div>
-                        <button class="btn btn-primary" onclick="openCapabilityModal()" style="margin-top: 16px;">
-                            <i class="fas fa-plus"></i> Add First Capability Gap
-                        </button>
-                        <button class="btn btn-secondary" onclick="openAPQCBrowser()" style="margin-top: 12px; margin-left: 8px;">
-                            <i class="fas fa-book"></i> Browse APQC Framework
-                        </button>
-                        <p style="color: #6b7280; font-size: 12px; margin-top: 12px;">or <button onclick="loadExampleEngagement()" style="background: none; border: none; color: #10b981; text-decoration: underline; cursor: pointer; font-size: 12px;">load example analysis</button></p>
-                    </div>
-                </div>
-                
-                <!-- RISK REGISTER -->
-                <div class="section-header" style="margin-top: 40px;">
-                    <div class="section-title">
-                        <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
-                        Risk Register
-                    </div>
-                    <button class="btn btn-primary" onclick="openRiskModal()">
-                        <i class="fas fa-plus"></i> Add Risk
-                    </button>
-                </div>
-                
-                <div id="risk-container">
-                    <div class="empty-state">
-                        <div class="empty-state-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                        <div class="empty-state-title">No risks identified yet</div>
-                        <div class="empty-state-text">Track technical, business, and organizational risks with mitigation plans</div>
-                        <button class="btn btn-primary" onclick="openRiskModal()" style="margin-top: 16px;">
-                            <i class="fas fa-plus"></i> Add First Risk
-                        </button>
+                        <div class="empty-state-icon"><i class="fas fa-th"></i></div>
+                        <div class="empty-state-title">Loading WhiteSpot Heatmap...</div>
+                        <div class="empty-state-text">Initializing service delivery assessment module</div>
                     </div>
                 </div>
             </div>
@@ -982,9 +1087,19 @@
                         <i class="fas fa-bullseye" style="color: #10b981;"></i>
                         Target EA Vision
                     </div>
-                    <button class="btn btn-primary" onclick="openArchitectureModal()">
-                        <i class="fas fa-plus"></i> Add Architecture View
-                    </button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-secondary" onclick="openServiceCategoryManager()" title="Manage Service Categories">
+                            <i class="fas fa-layer-group"></i> Categories
+                        </button>
+                        <button class="btn btn-primary" onclick="openArchitectureModal()">
+                            <i class="fas fa-plus"></i> Add Architecture Theme
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- TARGET SERVICES SECTION (V2.0 E2E Integration) -->
+                <div id="target-services-section" style="margin-bottom: 32px;">
+                    <!-- Will be populated by renderTargetServices() -->
                 </div>
                 
                 <div id="target-container">
@@ -993,7 +1108,7 @@
                         <div class="empty-state-title">No target architecture defined yet</div>
                         <div class="empty-state-text">Define your future state: architecture principles, patterns, and reference designs</div>
                         <button class="btn btn-primary" onclick="openArchitectureModal()" style="margin-top: 16px;">
-                            <i class="fas fa-plus"></i> Add Architecture View
+                            <i class="fas fa-plus"></i> Add Architecture Theme
                         </button>
                         <p style="color: #6b7280; font-size: 12px; margin-top: 12px;">or <button onclick="loadExampleEngagement()" style="background: none; border: none; color: #10b981; text-decoration: underline; cursor: pointer; font-size: 12px;">load example architecture</button></p>
                     </div>
@@ -1422,7 +1537,7 @@
     <div id="architectureModal" class="modal-overlay hidden" onclick="if(event.target===this) closeArchitectureModal()">
         <div class="modal-box">
             <div class="modal-header">
-                <div class="modal-title" id="architecture-modal-title">Add Architecture View</div>
+                <div class="modal-title" id="architecture-modal-title">Add Architecture Theme</div>
                 <button class="modal-close" onclick="closeArchitectureModal()"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
@@ -1466,6 +1581,22 @@
                 <div class="form-group">
                     <label class="form-label">Description</label>
                     <textarea id="architecture-description" class="form-textarea" placeholder="Describe the architecture vision..."></textarea>
+                </div>
+                
+                <!-- V2.0 E2E Integration: Service Linking -->
+                <div class="form-group" id="architecture-service-linking-section" style="display: none;">
+                    <label class="form-label">
+                        <i class="fas fa-link" style="color: #10b981;"></i> 
+                        Linked Services
+                        <span style="font-weight: normal; color: #6b7280; font-size: 13px;">(from WhiteSpot Heatmap)</span>
+                    </label>
+                    <div id="architecture-service-checkboxes" style="max-height: 200px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; background: #f9fafb;">
+                        <!-- Will be populated by openArchitectureModal() -->
+                    </div>
+                    <p style="color: #6b7280; font-size: 12px; margin-top: 8px;">
+                        <i class="fas fa-info-circle"></i> 
+                        Select which services from the WhiteSpot Heatmap are enabled/implemented by this architecture theme.
+                    </p>
                 </div>
             </div>
             <div class="modal-footer">
@@ -2221,6 +2352,7 @@
             
             // Initialize engagement manager
             engagementManager = new EA_EngagementManager();
+            window.engagementManager = engagementManager; // Expose to window for WhiteSpot module
             console.log('✓ EA_EngagementManager initialized');
             
             // Initialize workflow engine
@@ -2284,6 +2416,7 @@
                         const model = engagementManager.loadEngagement(existingEngagement.id);
                         if (model) {
                             currentEngagement = model;
+                            window.currentEngagement = model; // Expose to modules
                             updateEngagementSelector();
                             loadEngagementData();
                             console.log(`✓ Loaded existing engagement for account ${accountId}`);
@@ -2551,6 +2684,7 @@
             const model = engagementManager.loadEngagement(latest.id);
             if (model) {
                 currentEngagement = model;
+                window.currentEngagement = model; // Expose to modules
                 loadEngagementData();
                 updateEngagementSelector();
                 console.log('Auto-loaded engagement:', latest.name);
@@ -2605,6 +2739,7 @@
                     successCriteria: criteria
                 });
                 currentEngagement = engagementManager.getCurrentEngagement();
+                window.currentEngagement = currentEngagement; // Expose to modules
             }
             
             updateKPIs();
@@ -2633,9 +2768,10 @@
             const template = engagementManager.getSegmentTemplate('seg-' + segmentId.toLowerCase());
             if (!template) return;
             
-            if (confirm(`Apply ${segmentId} segment template? This will add default capabilities, themes, and architecture views.`)) {
+            if (confirm(`Apply ${segmentId} segment template? This will add default capabilities, themes, and architecture themes.`)) {
                 engagementManager.applySegmentTemplate(template.id);
                 currentEngagement = engagementManager.getCurrentEngagement();
+                window.currentEngagement = currentEngagement; // Expose to modules
                 updateKPIs();
                 showToast('Template Applied', `${segmentId} segment template loaded successfully`, 'success');
             }
@@ -2667,6 +2803,7 @@
             
             // Clear current engagement reference
             currentEngagement = null;
+            window.currentEngagement = null; // Clear window reference
             
             // Small delay to ensure localStorage is clear
             setTimeout(() => {
@@ -2694,6 +2831,7 @@
             });
             
             currentEngagement = engagementManager.getCurrentEngagement();
+            window.currentEngagement = currentEngagement; // Expose to modules
             
             // Add stakeholders
             const stakeholders = [
@@ -3053,7 +3191,7 @@
             capabilities.forEach(cap => engagementManager.addEntity('capabilities', cap));
             
             // Add Target EA views
-            const architectureViews = [
+            const architectureThemes = [
                 {
                     name: 'Cloud-First Architecture',
                     type: 'principle',
@@ -3084,7 +3222,7 @@
                 }
             ];
             
-            architectureViews.forEach(view => engagementManager.addEntity('architectureViews', view));
+            architectureThemes.forEach(view => engagementManager.addEntity('architectureThemes', view));
             
             // Add initiatives (Roadmap)
             const initiatives = [
@@ -3764,6 +3902,7 @@
             
             // Refresh current engagement reference after adding all entities - force reload from storage
             currentEngagement = engagementManager.getCurrentEngagement();
+            window.currentEngagement = currentEngagement; // Expose to modules
             
             // Verify initiatives have required fields
             console.log('Loaded initiatives:', currentEngagement.initiatives.length);
@@ -3798,6 +3937,85 @@
         }
         
         // ═══════════════════════════════════════════════════════════════════
+        // CLEAR EXAMPLE ENGAGEMENT DATA
+        // ═══════════════════════════════════════════════════════════════════
+        
+        function clearExampleEngagement() {
+            const exampleId = 'EXM-INS-2026Q2-DEMO';
+            
+            // Check if example engagement exists
+            const allEngagements = JSON.parse(localStorage.getItem('ea_engagements_index') || '[]');
+            const exampleExists = allEngagements.some(e => e.id === exampleId);
+            
+            if (!exampleExists) {
+                showToast('No Example Data', 'No example engagement found to clear', 'info');
+                return;
+            }
+            
+            // Confirm with user
+            if (!confirm('This will permanently delete all "Nordic Insurance - EA Transformation Program" example data. Continue?')) {
+                return;
+            }
+            
+            try {
+                // Remove from localStorage
+                localStorage.removeItem('ea_engagement_model_' + exampleId);
+                
+                // If this is the current engagement, clear the current reference
+                const currentEngagementId = localStorage.getItem('ea_engagement_current');
+                if (currentEngagementId === exampleId) {
+                    localStorage.removeItem('ea_engagement_current');
+                    currentEngagement = null;
+                    window.currentEngagement = null; // Clear window reference
+                }
+                
+                // Delete via engagement manager
+                if (engagementManager) {
+                    engagementManager.deleteEngagement(exampleId);
+                    console.log('✓ Deleted example engagement via manager');
+                }
+                
+                // Update the engagements index
+                const updatedIndex = allEngagements.filter(e => e.id !== exampleId);
+                localStorage.setItem('ea_engagements_index', JSON.stringify(updatedIndex));
+                
+                // Clear UI if this was the current engagement
+                if (currentEngagementId === exampleId) {
+                    // Reset UI
+                    document.getElementById('current-engagement-name').innerHTML = '<span>No engagement</span><i class="fas fa-chevron-down" style="font-size: 10px;"></i>';
+                    
+                    // Clear all canvases
+                    document.querySelectorAll('.section-view').forEach(section => {
+                        // Find all dynamic content areas and clear them
+                        section.querySelectorAll('[id*="list"], [id*="grid"], [id*="container"]').forEach(el => {
+                            if (el.innerHTML && !el.classList.contains('static')) {
+                                el.innerHTML = '';
+                            }
+                        });
+                    });
+                    
+                    // Reset KPIs
+                    document.getElementById('kpi-applications').textContent = '0';
+                    document.getElementById('kpi-stakeholders').textContent = '0';
+                    document.getElementById('kpi-initiatives').textContent = '0';
+                    document.getElementById('kpi-risks').textContent = '0';
+                    
+                    // Switch to engagement tab
+                    switchTab('engagement', document.querySelector('.tab-btn'));
+                }
+                
+                showToast('Example Cleared', 'All example engagement data has been deleted', 'success');
+                
+                // Log the action
+                console.log('✓ Example engagement cleared successfully');
+                
+            } catch (error) {
+                console.error('Error clearing example engagement:', error);
+                showToast('Clear Failed', 'An error occurred while clearing example data. See console for details.', 'error');
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════
         // UTILITY FUNCTIONS
         // ═══════════════════════════════════════════════════════════════════
         
@@ -3810,6 +4028,7 @@
             const count = engagementManager.importFromAPMToolkit();
             if (count > 0) {
                 currentEngagement = engagementManager.getCurrentEngagement();
+                window.currentEngagement = currentEngagement; // Expose to modules
                 updateKPIs();
                 renderApplications();
                 showToast('Import Successful', `Imported ${count} applications from APM Toolkit`, 'success');
@@ -3830,6 +4049,7 @@
                         const sampleCount = engagementManager.importFromAPMToolkit();
                         if (sampleCount > 0) {
                             currentEngagement = engagementManager.getCurrentEngagement();
+                            window.currentEngagement = currentEngagement; // Expose to modules
                             updateKPIs();
                             renderApplications();
                             showToast('Sample Data Imported', `Imported ${sampleCount} sample applications`, 'success');
@@ -4162,7 +4382,7 @@
             const initiatives = (engagementManager.getEntities('initiatives') || []).length;
             const decisions = (engagementManager.getEntities('decisions') || []).length;
             const capabilities = (engagementManager.getEntities('capabilities') || []).length;
-            const architectureViews = (engagementManager.getEntities('architectureViews') || []).length;
+            const architectureThemes = (engagementManager.getEntities('architectureThemes') || []).length;
             
             document.getElementById('kpi-applications').textContent = applications;
             document.getElementById('kpi-stakeholders').textContent = stakeholders;
@@ -4175,7 +4395,7 @@
                 stakeholders: 15,
                 applications: 20,
                 capabilities: 15,
-                architectureViews: 15,
+                architectureThemes: 15,
                 initiatives: 20,
                 decisions: 5
             };
@@ -4185,7 +4405,7 @@
             if (stakeholders >= 3) completeness += weights.stakeholders;
             if (applications >= 5) completeness += weights.applications;
             if (capabilities >= 4) completeness += weights.capabilities;
-            if (architectureViews >= 2) completeness += weights.architectureViews;
+            if (architectureThemes >= 2) completeness += weights.architectureThemes;
             if (initiatives >= 3) completeness += weights.initiatives;
             if (decisions >= 1) completeness += weights.decisions;
             

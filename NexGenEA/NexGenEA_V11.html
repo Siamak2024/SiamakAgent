@@ -93,6 +93,7 @@
 <script src="../js/EA_SyncEngine.js"></script>
 <script src="../js/EA_FileManager.js"></script>
 <script src="../js/EA_NordicUI.js"></script>
+<script src="../js/EA_Navigation.js"></script>
 <script src="../AzureOpenAIProxy.js"></script>
 <script src="../js/Advicy_AI.js"></script>
 <script src="../js/EA_OrganizationProfileProcessor.js"></script>
@@ -107,10 +108,12 @@
 <script src="js/AI/OutputValidator.js"></script>
 <script src="js/Steps/StepContext.js"></script>
 <script src="js/Steps/StepEngine.js"></script>
+<script src="js/Steps/WorkflowDebug.js"></script> <!-- Workflow diagnostic tool -->
 <script src="js/Steps/Step0.js"></script>
 <script src="js/Steps/Step1.js"></script>
 <script src="js/Steps/Step2.js"></script>
 <script src="js/Steps/Step3.js"></script>
+<script src="js/Steps/Step3_DEBUG.js"></script>
 <script src="js/Steps/Step4.js"></script>
 <!-- -- Parallel Analytics Workflows ---------------------------- -->
 <script src="js/Analytics/AnalyticsContextBuilder.js"></script>
@@ -559,58 +562,62 @@
 <!-- MAIN GRID -->
 <div class="ea-shell-grid">
 
-  <!-- LEFT PANEL -->
+  <!-- LEFT PANEL (Navigation Sidebar) -->
   <div class="ea-sidebar-panel flex flex-col gap-4">
-    <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
+    <!-- Navigation sidebar will be rendered here by renderNavigationSidebar() -->
+    
+    <!-- Hidden fields and buttons for compatibility -->
+    <div class="hidden">
+      <textarea id="description"></textarea>
+      <span id="s0"  class="spinner"></span>
+      <span id="s1"  class="spinner"></span>
+      <span id="s2b" class="spinner"></span>
+      <span id="s3"  class="spinner"></span>
+      <span id="s5"  class="spinner"></span>
+      <span id="s6"  class="spinner"></span>
+      <span id="s6v" class="spinner"></span>
+      <span id="s7"  class="spinner"></span>
+      <button id="btn-step2"></button>
+      <button id="btn-step3" onclick="generateArchitecture()"></button>
+      <button id="btn-step4"></button>
+      <button id="btn-step5" onclick="analyseGaps()"></button>
+      <button id="btn-step6" onclick="generateValuePools()"></button>
+      <button id="btn-step7a" onclick="generateTargetArch()"></button>
+      <button id="btn-step7b" onclick="generateRoadmap()"></button>
+      <span id="btn-step3-label"></span>
+      <div id="step3-status"></div>
+      <button id="btn-step1-confirm" onclick="confirmBusinessContext()"></button>
+    </div>
+  </div>
 
-      <!-- hidden field — populated via chat when user describes their org -->
-      <textarea id="description" class="hidden"></textarea>
-      <!-- hidden spinner spans kept for spin() compatibility -->
-      <span id="s0"  class="spinner hidden"></span>
-      <span id="s1"  class="spinner hidden"></span>
-      <span id="s2b" class="spinner hidden"></span>
-      <span id="s3"  class="spinner hidden"></span>
-      <span id="s5"  class="spinner hidden"></span>
-      <span id="s6"  class="spinner hidden"></span>
-      <span id="s6v" class="spinner hidden"></span>
-      <span id="s7"  class="spinner hidden"></span>
-      <!-- hidden btn aliases kept for code that reads them by ID -->
-      <button id="btn-step2"  class="hidden"></button>
-      <button id="btn-step3"  class="hidden" onclick="generateArchitecture()"></button>
-      <button id="btn-step4"  class="hidden"></button>
-      <button id="btn-step5"  class="hidden" onclick="analyseGaps()"></button>
-      <button id="btn-step6"  class="hidden" onclick="generateValuePools()"></button>
-      <button id="btn-step7a" class="hidden" onclick="generateTargetArch()"></button>
-      <button id="btn-step7b" class="hidden" onclick="generateRoadmap()"></button>
-      <span   id="btn-step3-label" class="hidden"></span>
-      <div    id="step3-status" class="hidden"></div>
-      <button id="btn-step1-confirm" class="hidden" onclick="confirmBusinessContext()"></button>
-
-      <!-- Header -->
-      <div class="mb-3">
-        <div class="text-xs font-bold uppercase text-slate-400 tracking-wide">Workflow Progress (4 Steps)</div>
-      </div>
-
-      <!-- Single action button — always runs the next pending step -->
-      <button type="button" id="btn-continue-workflow" onclick="_runNextStep()"
-        class="ea-btn ea-btn--primary w-full justify-center mb-3"
-        title="Open AI chat and run the next workflow step">
-        <span class="flex items-center gap-1.5">
+  <!-- CENTER PANEL -->
+  <div class="flex flex-col gap-3">
+    
+    <!-- WORKFLOW PROGRESS BAR (Horizontal) -->
+    <div class="ea-workflow-bar">
+      <div class="ea-workflow-bar__header">
+        <div class="ea-workflow-bar__title">
+          <i class="fas fa-list-check"></i>
+          <span>Workflow Progress</span>
+        </div>
+        <button type="button" id="btn-continue-workflow" onclick="_runNextStep()"
+          class="ea-btn ea-btn--primary"
+          style="min-height: 32px; font-size: 12px; padding: 0 16px;"
+          title="Open AI chat and run the next workflow step">
           <i class="fas fa-play" id="continue-btn-icon"></i>
-          <span class="text-[10px]" id="continue-btn-label">Start Workflow</span>
-        </span>
-      </button>
-
+          <span id="continue-btn-label">Start Workflow</span>
+        </button>
+      </div>
+      
+      <div class="ea-workflow-bar__steps">
       <!-- Step progress list — NEW 4-STEP WORKFLOW -->
-      <div class="flex flex-col gap-0.5">
+      <div class="ea-workflow-step-list">
 
         <div class="workflow-step-section workflow-step-badge--active" id="step-1">
           <div class="flex items-center gap-2">
             <span class="workflow-step-badge workflow-step-badge--active" id="badge-1">1</span>
             <span class="text-[10px] font-semibold text-slate-700">Business Objectives</span>
             <span id="step1-done" class="hidden ml-auto flex items-center gap-1">
-              <button type="button" onclick="enterDiscoveryModeForStep(1,'Business Objectives')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200"><i class="fas fa-comments"></i> Discuss</button>
-              <button type="button" onclick="resetStep('step1')" class="text-[9px] text-orange-600 hover:text-orange-800 font-semibold px-1.5 py-0.5 bg-orange-50 hover:bg-orange-100 rounded border border-orange-200" title="Restart Step 1"><i class="fas fa-rotate-left"></i> Restart</button>
               <i class="fas fa-check-circle text-xs text-green-600"></i>
             </span>
           </div>
@@ -622,8 +629,6 @@
             <span class="workflow-step-badge" id="badge-2">2</span>
             <span class="text-[10px] font-semibold text-slate-600">Capability Mapping</span>
             <span id="step2-done" class="hidden ml-auto flex items-center gap-1">
-              <button type="button" onclick="enterDiscoveryModeForStep(2,'Capability Mapping')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200"><i class="fas fa-comments"></i> Discuss</button>
-              <button type="button" onclick="resetStep('step2')" class="text-[9px] text-orange-600 hover:text-orange-800 font-semibold px-1.5 py-0.5 bg-orange-50 hover:bg-orange-100 rounded border border-orange-200" title="Restart Step 2"><i class="fas fa-rotate-left"></i> Restart</button>
               <i class="fas fa-check-circle text-xs text-green-600"></i>
             </span>
           </div>
@@ -635,8 +640,6 @@
             <span class="workflow-step-badge" id="badge-3">3</span>
             <span class="text-[10px] font-semibold text-slate-600">Target Architecture</span>
             <span id="step3-done" class="hidden ml-auto flex items-center gap-1">
-              <button type="button" onclick="enterDiscoveryModeForStep(3,'Target Architecture')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200"><i class="fas fa-comments"></i> Discuss</button>
-              <button type="button" onclick="resetStep('step3')" class="text-[9px] text-orange-600 hover:text-orange-800 font-semibold px-1.5 py-0.5 bg-orange-50 hover:bg-orange-100 rounded border border-orange-200" title="Restart Step 3"><i class="fas fa-rotate-left"></i> Restart</button>
               <i class="fas fa-check-circle text-xs text-green-600"></i>
             </span>
           </div>
@@ -648,8 +651,6 @@
             <span class="workflow-step-badge" id="badge-4">4</span>
             <span class="text-[10px] font-semibold text-slate-600">Transformation Roadmap</span>
             <span id="step4-done" class="hidden ml-auto flex items-center gap-1">
-              <button type="button" onclick="enterDiscoveryModeForStep(4,'Transformation Roadmap')" class="text-[9px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200"><i class="fas fa-comments"></i> Discuss</button>
-              <button type="button" onclick="resetStep('step4')" class="text-[9px] text-orange-600 hover:text-orange-800 font-semibold px-1.5 py-0.5 bg-orange-50 hover:bg-orange-100 rounded border border-orange-200" title="Restart Step 4"><i class="fas fa-rotate-left"></i> Restart</button>
               <i class="fas fa-check-circle text-xs text-green-600"></i>
             </span>
           </div>
@@ -690,13 +691,11 @@
         </div>
 
       </div><!-- end step list -->
-    </div>
-  </div>
-
-  <!-- CENTER PANEL -->
-  <div class="flex flex-col gap-3">
-    <!-- TABS -->
-    <div class="ea-tab-strip">
+      </div><!-- end ea-workflow-bar__steps -->
+    </div><!-- end ea-workflow-bar -->
+    
+    <!-- TABS REMOVED - Navigation is now in sidebar -->
+    <div class="ea-tab-strip hidden">
       <div class="ea-tab-group">
         <div class="ea-tab-group__buttons">
           <button class="tab-btn text-[11px] font-bold px-3 py-1.5 rounded-lg" data-tab="home" onclick="showTab('home',this)" title="Enterprise Dashboard — management overview after Step 3"><span class="flex flex-col items-center leading-tight"><i class="fas fa-table-cells-large"></i><span class="text-[9px]">Dashboard</span></span></button>
@@ -1507,10 +1506,6 @@
                 <i class="fas fa-diagram-project"></i>
                 <span>Capability Map</span>
               </button>
-              <button class="capmap-workspace-tab" data-tab="apqc-reference" onclick="switchCapMapTab('apqc-reference')">
-                <i class="fas fa-sitemap"></i>
-                <span>APQC Reference</span>
-              </button>
               <button class="capmap-workspace-tab" data-tab="heatmaps" onclick="switchCapMapTab('heatmaps')">
                 <i class="fas fa-fire"></i>
                 <span>Strategic Heatmap</span>
@@ -1518,10 +1513,6 @@
               <button class="capmap-workspace-tab" data-tab="prioritization" onclick="switchCapMapTab('prioritization')">
                 <i class="fas fa-list-ol"></i>
                 <span>Priority Table</span>
-              </button>
-              <button class="capmap-workspace-tab" data-tab="it-enablement" onclick="switchCapMapTab('it-enablement')">
-                <i class="fas fa-server"></i>
-                <span>IT Enablement</span>
               </button>
               <button class="capmap-workspace-tab" data-tab="gap-analysis" onclick="switchCapMapTab('gap-analysis')">
                 <i class="fas fa-triangle-exclamation"></i>
@@ -1572,6 +1563,9 @@
                     <div class="capmap-workspace-subtitle" id="capmap-state-label">Current State (AS-IS)</div>
                   </div>
                   <div style="display: flex; align-items: center; gap: 8px;">
+                    <button onclick="openAddCapabilityDialog()" class="capmap-btn capmap-btn--primary-sm" title="Add new capability">
+                      <i class="fas fa-plus"></i> Add Capability
+                    </button>
                     <button onclick="toggleAllAccordions()" class="capmap-btn capmap-btn--secondary-sm" id="expand-all-btn" title="Expand/Collapse all domains">
                       <i class="fas fa-compress-alt"></i> <span id="expand-all-text">Expand All</span>
                     </button>
@@ -1616,60 +1610,6 @@
                 </div>
               </div>
               
-              <!-- Tab 1.5: APQC Reference (formerly left sidebar) -->
-              <div id="capmap-tab-apqc-reference" class="capmap-workspace-pane">
-                <div class="capmap-workspace-header">
-                  <div>
-                    <div class="capmap-workspace-title">APQC PCF v8.0 Reference Model</div>
-                    <div class="capmap-workspace-subtitle">Business capability reference framework for benchmarking</div>
-                  </div>
-                  <div class="capmap-workspace-actions">
-                    <button onclick="toggleAllAPQCAccordions()" class="capmap-btn capmap-btn--secondary-sm" id="expand-all-apqc-btn">
-                      <i class="fas fa-compress-alt"></i> <span id="expand-all-apqc-text">Expand All</span>
-                    </button>
-                  </div>
-                </div>
-                
-                <!-- APQC Framework Banner -->
-                <div class="apqc-reference-banner">
-                  <div class="apqc-reference-banner__icon">
-                    <i class="fas fa-layer-group"></i>
-                  </div>
-                  <div class="apqc-reference-banner__content">
-                    <div class="apqc-reference-banner__title">APQC Process Classification Framework</div>
-                    <div class="apqc-reference-banner__subtitle" id="apqc-status-ref">12 L1 Categories, 62 L2 Processes, 1000+ L3 Activities</div>
-                  </div>
-                </div>
-                
-                <!-- APQC Filter Chips -->
-                <div class="capmap-filter-chips" id="apqc-filter-chips">
-                  <button class="capmap-chip active" data-filter="all" onclick="applyAPQCFilter('all')">
-                    <i class="fas fa-circle" style="font-size: 8px; margin-right: 4px;"></i> All
-                  </button>
-                  <button class="capmap-chip" data-filter="core" onclick="applyAPQCFilter('core')">
-                    <i class="fas fa-circle" style="font-size: 8px; margin-right: 4px; color: #006B3F;"></i> Core
-                  </button>
-                  <button class="capmap-chip" data-filter="support" onclick="applyAPQCFilter('support')">
-                    <i class="fas fa-circle" style="font-size: 8px; margin-right: 4px; color: #6E6E6E;"></i> Support
-                  </button>
-                  <button class="capmap-chip" data-filter="financial" onclick="applyAPQCFilter('financial')">
-                    Finance & Risk
-                  </button>
-                  <button class="capmap-chip" data-filter="operations" onclick="applyAPQCFilter('operations')">
-                    Operations
-                  </button>
-                </div>
-                
-                <!-- APQC Accordion Container -->
-                <div class="capmap-accordion-container" id="apqc-accordion-container">
-                  <div id="apqc-empty" class="capmap-empty-state">
-                    <i class="fas fa-sitemap"></i>
-                    <div>No APQC framework loaded</div>
-                    <div class="capmap-empty-hint">Run Step 2 Analysis to load the APQC PCF v8.0 framework</div>
-                  </div>
-                </div>
-              </div>
-              
               <!-- Tab 3: Heatmaps -->
               <div id="capmap-tab-heatmaps" class="capmap-workspace-pane">
                 <div class="capmap-workspace-header">
@@ -1691,26 +1631,6 @@
                   </div>
                 </div>
                 <div id="heatmap-legend-container" class="capmap-heatmap-legend"></div>
-              </div>
-              
-              <!-- Tab 4: IT Enablement -->
-              <div id="capmap-tab-it-enablement" class="capmap-workspace-pane">
-                <div class="capmap-workspace-header">
-                  <div>
-                    <div class="capmap-workspace-title">IT Service Mapping</div>
-                    <div class="capmap-workspace-subtitle">Link capabilities to IT systems and services</div>
-                  </div>
-                  <button onclick="autoMapITServices()" class="capmap-btn capmap-btn--secondary-sm">
-                    <i class="fas fa-wand-magic-sparkles"></i> Auto-Map IT Services
-                  </button>
-                </div>
-                <div id="it-enablement-container" class="capmap-matrix-container">
-                  <div class="capmap-empty-state">
-                    <i class="fas fa-server"></i>
-                    <div>IT enablement matrix will appear here</div>
-                    <div class="capmap-empty-hint">Complete Step 2 to map IT services to capabilities</div>
-                  </div>
-                </div>
               </div>
               
               <!-- Tab 5: Gap Analysis -->
@@ -1777,6 +1697,125 @@
               <button class="capmap-btn capmap-btn--secondary" onclick="closeCapabilityModal()">Close</button>
               <button class="capmap-btn capmap-btn--primary" onclick="saveCapabilityChanges()" id="modal-save-btn">
                 <i class="fas fa-save"></i> Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Add Capability Modal -->
+        <div id="add-capability-modal" class="capability-modal" style="display: none;" onclick="closeAddCapabilityDialog()">
+          <div class="capability-modal-content" onclick="event.stopPropagation();" style="max-width: 900px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;">
+            <div class="capability-modal-header">
+              <div>
+                <div class="capability-modal-title">Add Capability</div>
+                <div class="capability-modal-subtitle">Choose from APQC framework or create custom capability</div>
+              </div>
+              <button class="capability-modal-close" onclick="closeAddCapabilityDialog()" title="Close (ESC)">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <!-- Tabs -->
+            <div style="display: flex; border-bottom: 1px solid #E2E8F0; padding: 0 24px; gap: 16px;">
+              <button class="add-cap-tab active" data-tab="apqc" onclick="switchAddCapTab('apqc')">
+                <i class="fas fa-book-open"></i> From APQC Framework
+              </button>
+              <button class="add-cap-tab" data-tab="custom" onclick="switchAddCapTab('custom')">
+                <i class="fas fa-pencil-alt"></i> Custom Capability
+              </button>
+            </div>
+            
+            <div class="capability-modal-body" style="flex: 1; overflow-y: auto;">
+              <!-- APQC Framework Tab -->
+              <div id="add-cap-apqc-pane" class="add-cap-pane">
+                <div style="margin-bottom: 16px;">
+                  <input type="text" id="apqc-search" placeholder="Search APQC capabilities..." 
+                    onkeyup="filterAPQCBrowser(this.value)" 
+                    style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E0; border-radius: 6px; font-size: 14px;">
+                </div>
+                <div id="apqc-browser-container" style="min-height: 400px;">
+                  <!-- APQC browser will be rendered here -->
+                </div>
+              </div>
+              
+              <!-- Custom Capability Tab -->
+              <div id="add-cap-custom-pane" class="add-cap-pane" style="display: none;">
+                <form id="custom-capability-form" onsubmit="return false;">
+                  <div class="modal-field">
+                    <label class="modal-field-label" style="color: #1A202C; font-weight: 600; margin-bottom: 8px; display: block;">
+                      Capability Name <span style="color: #D72638;">*</span>
+                    </label>
+                    <input type="text" id="custom-cap-name" required 
+                      placeholder="e.g., Customer Onboarding Process" 
+                      style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E0; border-radius: 6px; font-size: 14px;">
+                  </div>
+                  
+                  <div class="modal-field" style="margin-top: 16px;">
+                    <label class="modal-field-label" style="color: #1A202C; font-weight: 600; margin-bottom: 8px; display: block;">
+                      Domain (L1 Category) <span style="color: #D72638;">*</span>
+                    </label>
+                    <select id="custom-cap-domain" required 
+                      style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E0; border-radius: 6px; font-size: 14px;">
+                      <option value="">Select domain...</option>
+                    </select>
+                  </div>
+                  
+                  <div class="modal-field" style="margin-top: 16px;">
+                    <label class="modal-field-label" style="color: #1A202C; font-weight: 600; margin-bottom: 8px; display: block;">
+                      Description
+                    </label>
+                    <textarea id="custom-cap-description" rows="3" 
+                      placeholder="Describe this capability..." 
+                      style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E0; border-radius: 6px; font-size: 14px; resize: vertical;"></textarea>
+                  </div>
+                  
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+                    <div class="modal-field">
+                      <label class="modal-field-label" style="color: #1A202C; font-weight: 600; margin-bottom: 8px; display: block;">
+                        Current Maturity
+                      </label>
+                      <div class="maturity-selector" id="custom-current-maturity" data-value="1">
+                        <div class="maturity-dot" data-level="1" onclick="selectCustomMaturity('current', 1)"></div>
+                        <div class="maturity-dot" data-level="2" onclick="selectCustomMaturity('current', 2)"></div>
+                        <div class="maturity-dot" data-level="3" onclick="selectCustomMaturity('current', 3)"></div>
+                        <div class="maturity-dot" data-level="4" onclick="selectCustomMaturity('current', 4)"></div>
+                        <div class="maturity-dot" data-level="5" onclick="selectCustomMaturity('current', 5)"></div>
+                      </div>
+                    </div>
+                    
+                    <div class="modal-field">
+                      <label class="modal-field-label" style="color: #1A202C; font-weight: 600; margin-bottom: 8px; display: block;">
+                        Target Maturity
+                      </label>
+                      <div class="maturity-selector" id="custom-target-maturity" data-value="3">
+                        <div class="maturity-dot" data-level="1" onclick="selectCustomMaturity('target', 1)"></div>
+                        <div class="maturity-dot" data-level="2" onclick="selectCustomMaturity('target', 2)"></div>
+                        <div class="maturity-dot filled" data-level="3" onclick="selectCustomMaturity('target', 3)"></div>
+                        <div class="maturity-dot" data-level="4" onclick="selectCustomMaturity('target', 4)"></div>
+                        <div class="maturity-dot" data-level="5" onclick="selectCustomMaturity('target', 5)"></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="modal-field" style="margin-top: 16px;">
+                    <label class="modal-field-label" style="color: #1A202C; font-weight: 600; margin-bottom: 8px; display: block;">
+                      Strategic Importance
+                    </label>
+                    <select id="custom-cap-importance" 
+                      style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E0; border-radius: 6px; font-size: 14px;">
+                      <option value="SUPPORT">Support</option>
+                      <option value="CORE">Core</option>
+                      <option value="COMMODITY">Commodity</option>
+                    </select>
+                  </div>
+                </form>
+              </div>
+            </div>
+            
+            <div class="capability-modal-footer">
+              <button class="capmap-btn capmap-btn--secondary" onclick="closeAddCapabilityDialog()">Cancel</button>
+              <button class="capmap-btn capmap-btn--primary" onclick="createCustomCapability()" id="create-custom-cap-btn">
+                <i class="fas fa-plus"></i> Create Capability
               </button>
             </div>
           </div>
@@ -3152,6 +3191,91 @@ function onHeaderLanguageChange(nextLanguage) {
   location.reload();
 }
 
+/**
+ * Render Navigation Sidebar
+ * Replaces the old tab-based navigation with hierarchical sidebar navigation
+ */
+function renderNavigationSidebar() {
+  if (typeof EANavigation === 'undefined' || typeof NAVIGATION_CONFIG === 'undefined') {
+    console.warn('EANavigation not loaded, skipping sidebar render');
+    return;
+  }
+
+  const sidebarPanel = document.querySelector('.ea-sidebar-panel');
+  if (!sidebarPanel) {
+    console.warn('Sidebar panel not found');
+    return;
+  }
+
+  // Build navigation HTML
+  const config = NAVIGATION_CONFIG;
+  const state = EANavigation.getState();
+  
+  let sectionsHtml = '';
+  for (const [domainKey, domain] of Object.entries(config)) {
+    const isExpanded = state.expandedSections.includes(domain.id);
+    
+    // Check if any item in this domain is active
+    const items = domain.items.map(item => {
+      const isActive = item.view === state.activeView;
+      const isLocked = EANavigation.isViewLocked(item);
+      return {
+        ...item,
+        isActive,
+        isLocked
+      };
+    });
+    
+    sectionsHtml += EANordicUI.navigationSection({
+      id: domain.id,
+      label: domain.label,
+      icon: domain.icon,
+      collapsible: domain.collapsible,
+      expanded: isExpanded,
+      items: items
+    });
+  }
+
+  // Build complete sidebar HTML
+  const sidebarHtml = `
+    <div id="ea-nav-sidebar">
+      <div class="ea-nav-content">
+        ${sectionsHtml}
+      </div>
+      <div class="ea-nav-footer">
+        <button class="ea-nav-collapse-btn" onclick="EANavigation.toggleCollapse()">
+          <i class="fas fa-angles-left"></i>
+          <span class="ea-nav-collapse-btn__label">Collapse</span>
+        </button>
+      </div>
+      <div class="ea-nav-resize-handle"></div>
+    </div>
+  `;
+
+  // Replace sidebar content
+  sidebarPanel.innerHTML = sidebarHtml;
+
+  // Initialize navigation state
+  EANavigation.initializeResize();
+  EANavigation.updateCollapseState();
+  EANavigation.updateSidebarWidth();
+  EANavigation.updateSectionStates();
+  EANavigation.updateActiveStates();
+  EANavigation.updateLockStates();
+
+  console.log('✅ Navigation sidebar rendered');
+}
+
+/**
+ * Update navigation lock states based on workflow progress
+ * Replaces the old updateTabLockStates function
+ */
+function updateNavigationLockStates() {
+  if (typeof EANavigation !== 'undefined') {
+    EANavigation.updateLockStates();
+  }
+}
+
 // Initialize DataManager, SyncEngine, and FileManager on page load
 window.addEventListener('DOMContentLoaded', () => {
   // console.log('?? NextGen EA V5 initializing...');
@@ -3211,9 +3335,18 @@ window.addEventListener('DOMContentLoaded', () => {
   
   setupDescriptionField();
   
-  // Initialize tab lock states after model loads
+  // Render navigation sidebar (replaces old tab navigation)
   setTimeout(() => {
-    updateTabLockStates();
+    renderNavigationSidebar();
+  }, 50);
+  
+  // Initialize navigation lock states after model loads
+  setTimeout(() => {
+    updateNavigationLockStates();
+    // Legacy support: also update tab lock states if tabs still exist
+    if (typeof updateTabLockStates === 'function') {
+      updateTabLockStates();
+    }
   }, 100);
   
   // -- CLEAR CHAT HISTORY COMPLETELY (localStorage + DOM + store) ------------
@@ -3228,10 +3361,14 @@ window.addEventListener('DOMContentLoaded', () => {
   // console.log('? Chat history cleared completely (localStorage + DOM + store)');
   
   // -- Check for partially completed step and offer recovery --
-  if (window.model && window.model.steps) {
+  // IMPORTANT: Only check if no project was auto-loaded (to avoid false positives)
+  if (window.model && window.model.steps && !localStorage.getItem('ea_last_project_id')) {
     const inProgressSteps = Object.keys(window.model.steps).filter(stepId => {
       const step = window.model.steps[stepId];
-      return step.status === 'in-progress' && (step.completedTasks || []).length > 0;
+      // More robust check: status='in-progress' AND has incomplete tasks AND not already completed
+      const hasIncompleteTasks = step.status === 'in-progress' && (step.completedTasks || []).length > 0;
+      const notCompleted = step.status !== 'completed';
+      return hasIncompleteTasks && notCompleted;
     });
     
     if (inProgressSteps.length > 0) {
@@ -3256,7 +3393,11 @@ window.addEventListener('DOMContentLoaded', () => {
           if (typeof saveProjectToDB === 'function') saveProjectToDB(false, true);
         }
       }, 1000);
+    } else {
+      console.log('[loadLastModel] ✅ No incomplete workflows detected');
     }
+  } else if (localStorage.getItem('ea_last_project_id')) {
+    console.log('[loadLastModel] ✅ Project auto-loaded, skipping incomplete workflow check');
   }
   
   ensurePhase4Fields();
@@ -3401,35 +3542,70 @@ async function optimizeDescriptionPrompt() {
 }
 
 function loadLastModel() {
-
-// V3: Continue loading from last model for backward compatibility
+  console.log('[loadLastModel] Attempting to restore last project...');
+  
+  // PRIORITY 1: Try to load last project from DataManager (V11 persistent storage)
+  if (dataManager) {
+    const lastProjectIdKey = 'ea_last_project_id';
+    const lastProjectId = localStorage.getItem(lastProjectIdKey);
+    
+    if (lastProjectId) {
+      console.log('[loadLastModel] Found last project ID:', lastProjectId);
+      const project = dataManager.getProject(lastProjectId);
+      
+      if (project && project.data?.platform?.model) {
+        console.log('[loadLastModel] Loading from DataManager:', project.name);
+        
+        // Extract and restore model
+        model = { ...project.data.platform.model };
+        window.model = model;
+        
+        currentProjectId = lastProjectId;
+        currentProjectName = project.name;
+        
+        // Sync legacy localStorage for backward compatibility
+        localStorage.setItem('ea_current_model', JSON.stringify({
+          id: currentProjectId,
+          name: currentProjectName,
+          data: model
+        }));
+        
+        ensurePhase4Fields();
+        console.log('[loadLastModel] ✅ Restored from DataManager with steps:', Object.keys(model.steps || {}).join(', '));
+        updateHeaderTitle();
+        renderLayers();
+        return true;
+      } else {
+        console.warn('[loadLastModel] Last project not found in DataManager, clearing reference');
+        localStorage.removeItem(lastProjectIdKey);
+      }
+    }
+  }
+  
+  // PRIORITY 2: Fallback to legacy localStorage (V10 and earlier)
   const lastModel = localStorage.getItem('ea_current_model');
   if (lastModel) {
     try {
       if (!lastModel.trim().startsWith('{')) {
-        // Recover from accidental non-JSON content in model key (e.g. API key string)
         localStorage.removeItem('ea_current_model');
-        console.warn('Invalid ea_current_model payload removed from localStorage');
-        return;
+        console.warn('[loadLastModel] Invalid ea_current_model removed');
+        return false;
       }
+      
       const parsed = JSON.parse(lastModel);
-      // FIXED: Load model even without capabilities (enables Step 1 resume)
       if (parsed.data) {
         model = parsed.data;
         
-        // Ensure steps object exists for step tracking
         if (!model.steps) {
           model.steps = {};
         }
         
-        // CRITICAL: Sync window.model with local model (StepEngine uses window.model)
         window.model = model;
-        
         ensurePhase4Fields();
         currentProjectId = parsed.id;
         currentProjectName = parsed.name;
         
-        console.log('[loadLastModel] Restored model with steps:', Object.keys(model.steps).join(', '));
+        console.log('[loadLastModel] ⚠️ Restored from LEGACY localStorage (consider migrating to DataManager)');
         updateHeaderTitle();
         renderLayers();
         renderCapMap();
@@ -3972,10 +4148,15 @@ function saveModelToDB(promptForName = true, autoSave = false) {
  * @returns {boolean} Success status
  */
 function saveProjectToDB(promptForName = true, autoSave = false) {
+  // Validate content exists (use window.model explicitly for clarity)
+  const currentModel = window.model || model;
+  
   console.log('[saveProjectToDB] Starting project save...', { 
     currentProjectId, 
     autoSave, 
-    hasDataManager: !!dataManager 
+    hasDataManager: !!dataManager,
+    modelCapabilities: currentModel.capabilities?.length || 0,
+    modelSteps: Object.keys(currentModel.steps || {}).join(', ')
   });
 
   // Validate DataManager is available
@@ -3984,9 +4165,6 @@ function saveProjectToDB(promptForName = true, autoSave = false) {
     if (!autoSave) toast('Unable to save: DataManager not initialized', true);
     return false;
   }
-
-  // Validate content exists (use window.model explicitly for clarity)
-  const currentModel = window.model || model;
   const hasContent = (currentModel.capabilities && currentModel.capabilities.length > 0) || 
                      (currentModel.steps && Object.keys(currentModel.steps).length > 0) ||
                      (currentModel.businessContext) ||
@@ -4117,6 +4295,16 @@ function saveProjectToDB(promptForName = true, autoSave = false) {
 
     // Update header title
     updateHeaderTitle();
+    
+    // Store last project ID for automatic restore on page refresh
+    localStorage.setItem('ea_last_project_id', currentProjectId);
+    
+    // Sync legacy localStorage for backward compatibility
+    localStorage.setItem('ea_current_model', JSON.stringify({
+      id: currentProjectId,
+      name: currentProjectName,
+      data: currentModel
+    }));
 
     // Show success message (only for manual saves)
     if (!autoSave) {
@@ -5619,6 +5807,14 @@ window.showTab = function showTab(name, btn) {
   targetTab.classList.remove('hidden');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (resolvedBtn0) resolvedBtn0.classList.add('active');
+  
+  // Update navigation sidebar active state
+  if (typeof EANavigation !== 'undefined') {
+    EANavigation.state.activeView = name;
+    EANavigation.updateActiveStates();
+    EANavigation.saveState();
+  }
+  
   const _cp = document.querySelector('.ea-content-panel');
   if (_cp) _cp.scrollTop = 0;
   document.querySelectorAll('.ea-header-icon--home').forEach((iconBtn) => {
@@ -6993,28 +7189,35 @@ function loadRecentProjects() {
   const projectsList = document.getElementById('recent-projects-list');
   if (!projectsList) return;
 
-  const allProjects = JSON.parse(localStorage.getItem('ea_all_models') || '{}');
-  const projectKeys = Object.keys(allProjects).sort((a, b) => {
-    const timeA = allProjects[a].lastModified || 0;
-    const timeB = allProjects[b].lastModified || 0;
-    return timeB - timeA;
-  }).slice(0, 5);
+  // Use DataManager if available, fallback to legacy localStorage
+  let projects = [];
+  if (dataManager) {
+    projects = dataManager.getAllProjects().slice(0, 5);
+  } else {
+    // Fallback to legacy storage
+    const allProjects = JSON.parse(localStorage.getItem('ea_all_models') || '{}');
+    projects = Object.keys(allProjects)
+      .map(key => ({ id: key, name: key, ...allProjects[key] }))
+      .sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0))
+      .slice(0, 5);
+  }
 
-  if (projectKeys.length === 0) {
+  if (projects.length === 0) {
     projectsList.innerHTML = '<div class="text-sm text-slate-400 italic text-center py-6">No recent projects yet.</div>';
     return;
   }
 
-  projectsList.innerHTML = projectKeys.map(key => {
-    const project = allProjects[key];
+  projectsList.innerHTML = projects.map(project => {
     const lastModified = project.lastModified ? new Date(project.lastModified).toLocaleDateString() : 'Unknown';
-    const capCount = project.capabilities ? project.capabilities.length : 0;
+    const capCount = project.data?.platform?.model?.capabilities?.length || project.capabilities?.length || 0;
+    const projectId = project.id;
+    const projectName = project.name || projectId;
     
     return `
-      <div class="project-card" onclick="loadProjectByName('${key}')">
+      <div class="project-card" onclick="loadProjectById('${projectId}')">
         <div class="flex items-center justify-between">
           <div class="flex-1">
-            <div class="font-bold text-sm text-slate-800">${key}</div>
+            <div class="font-bold text-sm text-slate-800">${projectName}</div>
             <div class="text-xs text-slate-500 mt-1">${capCount} capabilities · Last modified: ${lastModified}</div>
           </div>
           <i class="fas fa-chevron-right text-slate-400"></i>
@@ -7024,7 +7227,68 @@ function loadRecentProjects() {
   }).join('');
 }
 
+function loadProjectById(projectId) {
+  console.log('[loadProjectById] Loading project:', projectId);
+  
+  if (!dataManager) {
+    console.error('[loadProjectById] DataManager not available');
+    // Fallback to legacy method
+    return loadProjectByName(projectId);
+  }
+  
+  const project = dataManager.getProject(projectId);
+  if (!project) {
+    console.error('[loadProjectById] Project not found:', projectId);
+    toast('Project not found', true);
+    return;
+  }
+  
+  // Extract model from project data structure
+  const savedModel = project.data?.platform?.model || project.model;
+  if (!savedModel) {
+    console.error('[loadProjectById] No model data in project');
+    toast('Invalid project data', true);
+    return;
+  }
+  
+  // Update global model
+  window.model = { ...savedModel };
+  
+  // Set current project context
+  currentProjectId = projectId;
+  currentProjectName = project.name;
+  
+  // Store last opened project ID for automatic restore on page refresh
+  localStorage.setItem('ea_last_project_id', projectId);
+  
+  // Sync legacy localStorage for backward compatibility
+  localStorage.setItem('ea_current_model', JSON.stringify({
+    id: currentProjectId,
+    name: currentProjectName,
+    data: window.model
+  }));
+  
+  // Update UI
+  toast(`Loaded project: ${project.name}`);
+  showProjectDashboard();
+  showTab('home');
+  
+  // Update workflow and navigation states after loading project
+  console.log('[loadProjectById] Model loaded, updating UI states');
+  console.log('[loadProjectById] Model.steps:', window.model.steps);
+  console.log('[loadProjectById] Model.capabilityValidated:', window.model.capabilityValidated);
+  console.log('[loadProjectById] Model.capabilities:', window.model.capabilities?.length);
+  
+  if (typeof updateWorkflowStepStates === 'function') {
+    updateWorkflowStepStates();
+  }
+  
+  // Clear any incomplete workflow prompts since we just loaded a valid project
+  console.log('[loadProjectById] ✅ Project loaded successfully, state synchronized');
+}
+
 function loadProjectByName(projectName) {
+  console.log('[loadProjectByName] LEGACY: Loading project by name:', projectName);
   const allProjects = JSON.parse(localStorage.getItem('ea_all_models') || '{}');
   if (allProjects[projectName]) {
     model = allProjects[projectName];
@@ -7033,6 +7297,9 @@ function loadProjectByName(projectName) {
     toast(`Loaded project: ${projectName}`);
     showProjectDashboard();
     showTab('home');
+    
+    // Update workflow and navigation states after loading project
+    if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
   }
 }
 
@@ -7326,12 +7593,21 @@ function spin(id, on) { document.getElementById(id)?.classList.toggle('hidden', 
 
 
 
-// -- PHASE 5: BOARD REPORT GENERATION ----
+// -- PHASE 5: BOARD REPORT GENERATION (V11 4-Step Workflow) ----
 function openReportModal() {
-  if (!model.capabilities.length) {
-    alert("Please generate an architecture first.");
+  // V11 Validation: Require Step 2 (Capability Mapping) completion minimum
+  if (!model.capabilityMap && !model.capabilities.length) {
+    alert("Please complete at least Step 2 (Capability Mapping) before generating the board report.");
     return;
   }
+
+  // Check for Step 1 (Business Context) - warn but allow
+  if (!model.businessContext && !model.businessObjectives.length) {
+    if (!confirm("Business objectives not defined. Continue anyway? (Report quality will be limited)")) {
+      return;
+    }
+  }
+
   document.getElementById('report-modal').classList.remove('hidden');
   document.getElementById('report-loading').classList.remove('hidden');
   document.getElementById('report-content').classList.add('hidden');
@@ -7350,87 +7626,453 @@ async function generateFullReport() {
   const progress = document.getElementById('report-progress');
   const contentDiv = document.getElementById('report-content');
 
-  // Collect CxO summaries from diagnostic progress
-  const cxoSummaries = model.diagnosticProgress?.cxoSummaries || {};
-  const scenarioAnalysis = model.diagnosticProgress?.scenarioAnalysis?.content || null;
-  const industryProfile = model.diagnosticProgress?.industryProfile || 'generic';
-  const focusArea = model.diagnosticProgress?.focusArea || 'general';
+  // ═══════════════════════════════════════════════════════════════════════
+  // V11 DATA COLLECTION: Extract from 4-Step Workflow Model
+  // ═══════════════════════════════════════════════════════════════════════
 
-  const dataPack = {
-    org: document.getElementById('description').value,
-    industryProfile,
-    focusArea,
-    kpis: {
-      savings: document.getElementById('kpi-savings').textContent,
-      risk: document.getElementById('kpi-risk').textContent,
-      co2: document.getElementById('kpi-co2').textContent,
-      alignment: document.getElementById('exec-alignment').textContent,
-      aiReady: document.getElementById('exec-aiready').textContent,
-      techDebt: document.getElementById('exec-techdebt').textContent
-    },
-    topGaps: model.capabilities.filter(c => c.strategicImportance==='high' && c.maturity<=2).map(c => c.name),
-    topSavings: model.capabilities.sort((a,b) => (b.annualSavingsEstimate||0) - (a.annualSavingsEstimate||0)).slice(0,3).map(c => ({name:c.name, val:fmtMoney(c.annualSavingsEstimate)})),
-    roadmap: model.initiatives.slice(0,5).map(i => `${i.name} (${i.phase})`),
-    cxoSummaries: Object.entries(cxoSummaries).map(([key, value]) => ({
-      step: value.step,
-      title: value.title,
-      summary: value.summary
-    })),
-    scenarioAnalysis
+  // STEP 1: Business Context & Objectives
+  const businessContext = model.businessContext || {};
+  const businessObjectives = businessContext.objectives || model.businessObjectives || [];
+  const constraints = businessContext.constraints || [];
+  const challenges = businessContext.challenges || [];
+  const strategicThemes = model.strategicThemes || [];
+  const industry = businessContext.industry || model.phase4Config?.industry || 'generic';
+  const organizationProfile = model.organizationProfile || {};
+
+  // STEP 2: APQC Capability Mapping & Gap Analysis
+  const capabilityMap = model.capabilityMap || {};
+  const capabilities = model.capabilities || [];
+  const gapInsights = model.gapInsights || [];
+  const whiteSpots = model.whiteSpots || [];
+  const apqcSummary = model.apqcSummary || {};
+  
+  // Calculate capability metrics
+  const avgMaturity = capabilities.length > 0 
+    ? (capabilities.reduce((sum, c) => sum + (c.maturity || 0), 0) / capabilities.length).toFixed(1)
+    : 'N/A';
+  
+  const criticalGaps = gapInsights
+    .filter(g => g.priority === 'critical' || g.strategicImportance === 'high')
+    .slice(0, 10);
+  
+  const topGapsByObjective = businessObjectives.map(obj => {
+    const linkedGaps = gapInsights.filter(g => 
+      g.linkedObjectives?.includes(obj.id) || 
+      g.affectedObjectives?.includes(obj.id)
+    );
+    return {
+      objective: obj.title || obj.name,
+      gapCount: linkedGaps.length,
+      topGaps: linkedGaps.slice(0, 3).map(g => g.capability || g.name)
+    };
+  }).filter(item => item.gapCount > 0);
+
+  // Build APQC L1-L2 heatmap data
+  const apqcHeatmap = [];
+  if (capabilityMap.categories) {
+    capabilityMap.categories.forEach(l1 => {
+      const l1Summary = {
+        category: l1.name,
+        categoryId: l1.id,
+        avgMaturity: 0,
+        capabilities: []
+      };
+      
+      if (l1.processGroups) {
+        l1.processGroups.forEach(l2 => {
+          const matchingCaps = capabilities.filter(c => 
+            c.apqcL2 === l2.id || c.categoryL2 === l2.name
+          );
+          
+          if (matchingCaps.length > 0) {
+            const l2Maturity = (matchingCaps.reduce((sum, c) => sum + (c.maturity || 0), 0) / matchingCaps.length).toFixed(1);
+            l1Summary.capabilities.push({
+              name: l2.name,
+              maturity: l2Maturity,
+              count: matchingCaps.length,
+              gaps: matchingCaps.filter(c => (c.maturity || 0) <= 2).length
+            });
+          }
+        });
+      }
+      
+      if (l1Summary.capabilities.length > 0) {
+        l1Summary.avgMaturity = (
+          l1Summary.capabilities.reduce((sum, c) => sum + parseFloat(c.maturity), 0) / 
+          l1Summary.capabilities.length
+        ).toFixed(1);
+        apqcHeatmap.push(l1Summary);
+      }
+    });
+  }
+
+  // STEP 3: Target Architecture
+  const targetArchData = model.targetArchData || {};
+  const archPrinciples = model.archPrinciples || [];
+  const archDecisions = model.archDecisions || [];
+  const aiAgents = model.aiAgents || [];
+  const systems = model.systems || [];
+
+  // STEP 4: Transformation Roadmap
+  const roadmap = model.roadmap || {};
+  const initiatives = model.initiatives || [];
+  const roadmapWaves = roadmap.waves || [];
+
+  // Legacy KPI extraction (for backward compatibility)
+  const kpis = {
+    savings: document.getElementById('kpi-savings')?.textContent || 'N/A',
+    risk: document.getElementById('kpi-risk')?.textContent || 'N/A',
+    co2: document.getElementById('kpi-co2')?.textContent || 'N/A',
+    alignment: document.getElementById('exec-alignment')?.textContent || 'N/A',
+    aiReady: document.getElementById('exec-aiready')?.textContent || 'N/A',
+    techDebt: document.getElementById('exec-techdebt')?.textContent || 'N/A'
   };
 
+  // ESG & Compliance Risks
+  const esgRisks = [];
+  gapInsights.forEach(gap => {
+    if (gap.complianceRisk || gap.esgImpact || gap.regulatoryImpact) {
+      esgRisks.push({
+        capability: gap.capability || gap.name,
+        risk: gap.complianceRisk || gap.esgImpact || gap.regulatoryImpact,
+        severity: gap.riskLevel || gap.priority
+      });
+    }
+  });
+  constraints.forEach(constraint => {
+    if (constraint.type === 'regulatory' || constraint.type === 'compliance' || constraint.category === 'esg') {
+      esgRisks.push({
+        capability: 'Organization-wide',
+        risk: constraint.description || constraint.name,
+        severity: constraint.impact || 'medium'
+      });
+    }
+  });
+
+  // Build comprehensive data pack
+  const dataPack = {
+    // Project metadata
+    projectName: model.projectName || 'Unnamed Project',
+    organization: model.description || organizationProfile.name || 'Organization',
+    industry: industry,
+    generatedDate: new Date().toISOString(),
+    
+    // Step 1: Business Context
+    step1: {
+      businessObjectives: businessObjectives.slice(0, 8),
+      constraints: constraints,
+      challenges: challenges,
+      strategicThemes: strategicThemes,
+      organizationProfile: {
+        size: organizationProfile.size || 'Not specified',
+        locations: organizationProfile.locations || [],
+        revenue: organizationProfile.revenue || 'Not specified',
+        employees: organizationProfile.employees || 'Not specified'
+      }
+    },
+    
+    // Step 2: Capability Mapping
+    step2: {
+      apqcSummary: apqcSummary,
+      capabilityCount: capabilities.length,
+      avgMaturity: avgMaturity,
+      apqcHeatmap: apqcHeatmap.slice(0, 8), // Top 8 L1 categories
+      criticalGaps: criticalGaps,
+      gapsByObjective: topGapsByObjective,
+      whiteSpots: whiteSpots.slice(0, 5),
+      totalGaps: gapInsights.length
+    },
+    
+    // Step 3: Target Architecture
+    step3: {
+      archPrinciples: archPrinciples.slice(0, 10),
+      keyDecisions: archDecisions.slice(0, 8),
+      aiAgents: aiAgents.slice(0, 10),
+      systemsCount: systems.length,
+      architectureStyle: targetArchData.architecture_style || 'Not defined'
+    },
+    
+    // Step 4: Transformation Roadmap
+    step4: {
+      waves: roadmapWaves,
+      initiativesCount: initiatives.length,
+      quickWins: initiatives.filter(i => i.effort === 'S' || i.horizon === 'Foundation').slice(0, 5),
+      totalDuration: roadmap.totalDuration || 'Not specified'
+    },
+    
+    // Cross-cutting concerns
+    esgRisks: esgRisks.slice(0, 10),
+    kpis: kpis,
+    
+    // Metadata flags
+    completionStatus: {
+      step1: businessObjectives.length > 0,
+      step2: capabilities.length > 0,
+      step3: archPrinciples.length > 0,
+      step4: initiatives.length > 0
+    }
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // AI PROMPT: Senior Enterprise Architect + AI Strategy Expert
+  // ═══════════════════════════════════════════════════════════════════════
+
   try {
-    progress.textContent = "Writing executive board report with diagnostic insights...";
+    progress.textContent = "Generating C-level Strategic Business Capability Report...";
+    
+    const systemPrompt = `Act as a Senior Enterprise Architect and AI Strategy Expert. Your goal is to generate a complete, C-suite-ready Strategic Business Capability Map (Levels 1-2) with Gap Analysis and Strategic Heatmap for the provided company and industry.
+
+**YOUR EXPERTISE:**
+- Enterprise Architecture (TOGAF, Zachman, APQC PCF)
+- Strategic Business Planning & Transformation
+- AI/ML Strategy & Automation Opportunities
+- ESG and Compliance Risk Management
+- Investment Portfolio Optimization
+- C-level Communication & Board Presentations
+
+**CONTEXT:**
+- Industry: ${industry}
+- Organization: ${dataPack.organization}
+- APQC Framework: ${apqcSummary.version || 'v8.0'} (${capabilities.length} capabilities mapped)
+- Project: ${dataPack.projectName}
+
+**OUTPUT REQUIREMENTS:**
+Generate a complete HTML board report in ENGLISH with the following mandatory structure:
+
+## MANDATORY STRUCTURE
+
+### 1. EXECUTIVE SUMMARY (C-Level, 250-300 words)
+Must include these 8 sections:
+
+**a) Business Objectives**
+- List top 3-5 strategic objectives with success metrics
+- Link to business outcomes (revenue, cost, risk, customer)
+
+**b) Key Constraints**
+- Budget, timeline, technical, regulatory, organizational constraints
+- Impact assessment and mitigation strategies
+
+**c) Strategic Themes**
+- 3-5 cross-cutting themes (e.g., Digital Transformation, Customer-Centricity, Sustainability, Innovation)
+- How themes align with objectives
+
+**d) Branch-specific Differences** (if multi-location)
+- Geographic or divisional capability maturity variations
+- Localization requirements or regional priorities
+- If single location, state "N/A - Centralized operations"
+
+**e) Top Capability Gaps**
+- Ranked list of 5-8 critical gaps
+- Link each gap to affected business objectives
+- Quantify business impact where possible
+
+**f) AI Opportunities**
+- 3-5 high-value AI/automation opportunities
+- Link to capability gaps and business objectives
+- Expected ROI or efficiency gains
+
+**g) ESG and Compliance Risks**
+- Environmental, social, governance risks
+- Regulatory compliance gaps (GDPR, SOX, industry-specific)
+- Risk severity and mitigation timeline
+
+**h) Top 5 Recommendations**
+- Board-level strategic decisions required
+- Each recommendation: What, Why, When, Resource Requirements
+- Expected business outcomes
+
+### 2. APQC CAPABILITY HEATMAP (L1-L2)
+- Present APQC Level 1 categories with Level 2 breakdown
+- Show maturity scores (1-5 scale) with color coding
+- Highlight critical gaps and white spots
+- Link to business objectives
+
+### 3. OBJECTIVE TRACEABILITY MATRIX
+- Table showing Business Objective → Capability Gaps → Initiatives → Expected Outcomes
+- Ensure every objective has at least one initiative
+
+### 4. TARGET ARCHITECTURE PRINCIPLES
+- List 6-10 guiding principles
+- Rationale and business implications for each
+
+### 5. TRANSFORMATION ROADMAP (3 Horizons)
+- Wave 1: Foundation (0-6 months) - Quick wins
+- Wave 2: Build (6-18 months) - Core capabilities
+- Wave 3: Scale (18-36 months) - Advanced capabilities
+- Show dependencies and sequencing logic
+
+### 6. FINANCIAL SUMMARY (CFO View)
+- Investment required by wave
+- Expected savings and ROI timeline
+- Break-even point and payback period
+
+**FORMATTING RULES (Professional C-Level Styles):**
+
+Use these CSS classes for professional executive presentation:
+
+**Typography:**
+- Main title: <h1 class="report-h1">Strategic Architecture Analysis & Transformation Plan</h1>
+- Section headers: <h2 class="report-h2">EXECUTIVE SUMMARY</h2>
+- Subsections: <h3 class="report-h3">Business Objectives</h3>
+- Small headers: <h4 class="report-h4">Key Insights</h4>
+- Paragraphs: <p class="report-p">Body text here...</p>
+
+**KPI Cards (for metrics dashboard):**
+<div class="report-kpi-grid">
+  <div class="report-kpi-card">
+    <div class="report-kpi-label">Average Maturity</div>
+    <div class="report-kpi-value">3.2<span class="report-kpi-unit">/5</span></div>
+    <div class="report-kpi-delta positive">↑ 15% vs baseline</div>
+  </div>
+</div>
+
+**Executive Tables:**
+<table class="report-table">
+  <thead>
+    <tr><th>Objective</th><th>Gaps</th><th>Priority</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Objective name</td><td>5 gaps</td><td>High</td></tr>
+  </tbody>
+</table>
+
+**Infoboxes (4 variants):**
+<div class="report-infobox report-infobox-insight">
+  <div class="report-infobox-title">
+    <span class="report-infobox-icon">💡</span>
+    Key Insight
+  </div>
+  <p>Insight content here...</p>
+</div>
+
+Variants: report-infobox-insight (blue), report-infobox-warning (yellow), report-infobox-success (green), report-infobox-critical (red)
+
+**Gap Badges:**
+<span class="report-gap-badge report-gap-critical">Critical Gap</span>
+<span class="report-gap-badge report-gap-high">High Priority</span>
+<span class="report-gap-badge report-gap-medium">Medium</span>
+
+**Objective Links:**
+<span class="report-objective-link">Linked to: Revenue Growth</span>
+
+**Recommendations (Top 5):**
+<div class="report-recommendation">
+  <div class="report-recommendation-header">
+    <div class="report-recommendation-number">1</div>
+    <div class="report-recommendation-title">Recommendation Title</div>
+  </div>
+  <div class="report-recommendation-body">
+    <p>Detailed recommendation description...</p>
+  </div>
+  <div class="report-recommendation-meta">
+    <div class="report-recommendation-meta-item">
+      <div class="report-recommendation-meta-label">Timeline</div>
+      <div class="report-recommendation-meta-value">Q1-Q2 2026</div>
+    </div>
+    <div class="report-recommendation-meta-item">
+      <div class="report-recommendation-meta-label">Resources</div>
+      <div class="report-recommendation-meta-value">€500K + 5 FTE</div>
+    </div>
+  </div>
+</div>
+
+**APQC Categories (L1-L2 Hierarchy):**
+<div class="report-apqc-category">
+  <div class="report-apqc-category-header">
+    <span>1.0 Develop Vision and Strategy</span>
+    <span class="report-apqc-category-maturity">Avg: 2.8/5</span>
+  </div>
+  <div class="report-apqc-subcategories">
+    <div class="report-apqc-subcategory maturity-2">
+      <span>1.1 Define Business Concept</span>
+      <span style="font-weight:700;">2.0/5</span>
+    </div>
+  </div>
+</div>
+
+**Roadmap Waves:**
+<div class="report-roadmap-wave wave-foundation">
+  <div class="report-roadmap-wave-header">
+    <div class="report-roadmap-wave-title">Wave 1: Foundation</div>
+    <div class="report-roadmap-wave-duration">0-6 months</div>
+  </div>
+  <ul class="report-list">
+    <li>Initiative 1</li>
+    <li>Initiative 2</li>
+  </ul>
+</div>
+
+Use wave-foundation, wave-build, wave-scale classes.
+
+**Heatmap Cells (for maturity matrices):**
+<div class="report-heatmap" style="grid-template-columns: repeat(3, 1fr);">
+  <div class="report-heatmap-cell heatmap-critical">
+    <div class="report-heatmap-label">Capability A</div>
+    <div class="report-heatmap-value">1.5</div>
+  </div>
+  <div class="report-heatmap-cell heatmap-high">
+    <div class="report-heatmap-label">Capability B</div>
+    <div class="report-heatmap-value">4.2</div>
+  </div>
+</div>
+
+Maturity classes: heatmap-critical (1-2), heatmap-low (2-3), heatmap-medium (3), heatmap-high (3-4), heatmap-optimal (4-5)
+
+**Lists:**
+<ul class="report-list report-list-numbered">
+  <li>First item with automatic numbering</li>
+  <li>Second item</li>
+</ul>
+
+**TONE:**
+- Direct, data-driven, commercially focused
+- Board-level language (avoid technical jargon unless industry-specific)
+- Emphasis on business outcomes and ROI
+- Specific numbers, timelines, and accountability
+
+**CRITICAL:**
+- ONLY output valid HTML (no markdown, no code blocks, no explanations)
+- Start directly with <h1 class="report-h1">Strategic Architecture Analysis & Transformation Plan</h1>
+- Ensure all 8 executive summary sections are present and substantive
+- Link everything back to business objectives (traceability is key)`;
+
+    const userPrompt = `Generate the complete C-suite board report based on this V11 4-step EA workflow data:
+
+${JSON.stringify(dataPack, null, 2)}
+
+**IMPORTANT INSTRUCTIONS:**
+1. Extract business objectives from step1.businessObjectives - these are PRIMARY drivers
+2. Build APQC L1-L2 heatmap from step2.apqcHeatmap data with maturity color coding
+3. Link ALL gaps in step2.criticalGaps to specific business objectives (use step2.gapsByObjective for linkage)
+4. Present AI opportunities from step3.aiAgents with business value justification
+5. Show 3-wave transformation plan from step4.waves with dependencies
+6. Ensure ESG/compliance section uses esgRisks array
+7. Make Top 5 Recommendations actionable with specific timelines and owners
+8. If any step is incomplete (check completionStatus), gracefully handle missing data with "In Progress" sections
+
+Generate the complete HTML report now:`;
+
     const reportBody = await callAI(
-      `You are a strategic Board Advisor writing for C-level executives.
-       Generate a complete board report in ENGLISH based on the provided data.
-       Use professional business language. Focus on Business Outcomes: Cost, Risk, Competitiveness, Sustainability.
-
-       **CONTEXT:**
-       - Industry: ${industryProfile}
-       - Focus Area: ${focusArea}
-
-       **STRUCTURE:**
-       1. **Title:** Strategic Architecture Analysis & Transformation Plan
-       2. **Organization & Background** (Short paragraph)
-       3. **Executive Summary** (Board-level, 150-200 words): Strategic intent, expected outcomes, business impact
-       4. **Diagnostic Insights** (Aggregate CxO summaries from 7-step diagnostic):
-          - Present summaries as progressive story: Context ? Current State ? Problems ? Maturity ? Outcomes ? Strategic Intent ? Target Architecture
-          - Use headers for each diagnostic step
-       5. **Scenario Analysis:**
-          - Present 3 scenarios (Best/Likely/Worst Case) with probabilities, timelines, impacts, actions
-          - Format as table or structured sections
-       6. **Capability Mapping & Heat Analysis:**
-          - Top gaps, strategic importance, maturity levels
-          - Savings potential per capability area
-       7. **Dependency & Risk:**
-          - Technical debt, operational risk, integration complexity
-       8. **CFO View:**
-          - Financial summary: ROI, Cost Savings, CO2 reduction
-          - Investment requirements vs. savings timeline
-       9. **Operating Model & Roadmap:**
-          - Transformation phases, quick wins, Year 1 initiatives
-       10. **Strategic Recommendations:**
-           - What the board should decide (3-5 specific recommendations)
-           - Resource requirements and governance
-
-       **FORMATTING:**
-       - Use HTML5 semantic tags: <h1 class="report-h1">, <h2 class="report-h2">, <h3 class="report-h3">
-       - Paragraphs: <p class="report-p">
-       - Key insights: <div class="report-card">
-       - Tables: <table class="report-table">
-       - Lists: <ul class="report-list">
-
-       **TONE:** Direct, data-driven, commercially focused. No jargon unless industry-specific.`,
-      `**DATA PACK:**\n${JSON.stringify(dataPack, null, 2)}`,
-      { taskType: 'heavy', temperature: 0.25, _traceLabel: 'Board Report Generation' }
+      systemPrompt,
+      userPrompt,
+      { taskType: 'heavy', temperature: 0.25, _traceLabel: 'V11 Board Report Generation' }
     );
 
     contentDiv.innerHTML = reportBody;
     document.getElementById('report-loading').classList.add('hidden');
     contentDiv.classList.remove('hidden');
+    
+    console.log('✅ V11 Board Report generated successfully');
+    
   } catch (e) {
-    contentDiv.innerHTML = `<p class="text-red-600">An error occurred during generation: ${e.message}</p>`;
+    console.error('Board report generation error:', e);
+    contentDiv.innerHTML = `
+      <div style="background:#fee2e2;border:1px solid #fecaca;border-radius:8px;padding:20px;margin:20px;color:#991b1b;">
+        <h3 style="margin:0 0 12px 0;font-size:18px;font-weight:bold;">Report Generation Failed</h3>
+        <p style="margin:0 0 8px 0;"><strong>Error:</strong> ${e.message}</p>
+        <p style="margin:0;font-size:13px;">Please check your API configuration and ensure at least Step 2 (Capability Mapping) is complete.</p>
+      </div>
+    `;
     document.getElementById('report-loading').classList.add('hidden');
     contentDiv.classList.remove('hidden');
   }
@@ -12535,16 +13177,115 @@ function _runNextStep() {
   }
 }
 
+// -- MIGRATE LEGACY WORKFLOW FLAGS ---------------------------------------------
+/**
+ * Auto-migrate legacy project flags to formal V11 workflow status tracking.
+ * This runs once per project load and converts old boolean flags to the new
+ * steps.stepX.status = 'completed' system.
+ * 
+ * Migration rules:
+ * - businessContextConfirmed + businessContext → steps.step1.status = 'completed'
+ * - capabilityValidated + capabilities[] → steps.step2.status = 'completed'
+ * - targetArchDone + targetArch → steps.step3.status = 'completed'
+ * - roadmapConfirmed + roadmap → steps.step4.status = 'completed'
+ * 
+ * Only migrates if:
+ * 1. Legacy flag is true AND data exists
+ * 2. Formal status is NOT already set to 'completed'
+ */
+function _migrateLegacyWorkflowFlags() {
+  if (!window.model) return;
+  
+  // Check if migration is needed (has legacy flags but no formal status)
+  const hasLegacyFlags = window.model.businessContextConfirmed || 
+                         window.model.capabilityValidated || 
+                         window.model.targetArchDone || 
+                         window.model.roadmapConfirmed;
+  
+  if (!hasLegacyFlags) return; // No legacy flags, skip migration
+  
+  // Initialize steps object if missing
+  if (!window.model.steps) {
+    window.model.steps = {};
+  }
+  
+  let migrated = false;
+  
+  // Migrate Step 1
+  if (window.model.businessContextConfirmed && 
+      window.model.businessContext && 
+      window.model.steps.step1?.status !== 'completed') {
+    
+    if (!window.model.steps.step1) window.model.steps.step1 = {};
+    window.model.steps.step1.status = 'completed';
+    window.model.steps.step1.completedAt = window.model.steps.step1.completedAt || new Date().toISOString();
+    window.model.steps.step1.migrated = true; // Mark as migrated from legacy
+    migrated = true;
+    console.log('[Migration] ✓ Step 1 migrated from businessContextConfirmed flag');
+  }
+  
+  // Migrate Step 2
+  if (window.model.capabilityValidated && 
+      window.model.capabilities?.length > 0 && 
+      window.model.steps.step2?.status !== 'completed') {
+    
+    if (!window.model.steps.step2) window.model.steps.step2 = {};
+    window.model.steps.step2.status = 'completed';
+    window.model.steps.step2.completedAt = window.model.steps.step2.completedAt || new Date().toISOString();
+    window.model.steps.step2.migrated = true;
+    migrated = true;
+    console.log('[Migration] ✓ Step 2 migrated from capabilityValidated flag');
+  }
+  
+  // Migrate Step 3
+  if (window.model.targetArchDone && 
+      window.model.targetArch && 
+      window.model.steps.step3?.status !== 'completed') {
+    
+    if (!window.model.steps.step3) window.model.steps.step3 = {};
+    window.model.steps.step3.status = 'completed';
+    window.model.steps.step3.completedAt = window.model.steps.step3.completedAt || new Date().toISOString();
+    window.model.steps.step3.migrated = true;
+    migrated = true;
+    console.log('[Migration] ✓ Step 3 migrated from targetArchDone flag');
+  }
+  
+  // Migrate Step 4
+  if ((window.model.roadmapConfirmed || window.model.operatingModelDelta) && 
+      window.model.roadmap && 
+      window.model.steps.step4?.status !== 'completed') {
+    
+    if (!window.model.steps.step4) window.model.steps.step4 = {};
+    window.model.steps.step4.status = 'completed';
+    window.model.steps.step4.completedAt = window.model.steps.step4.completedAt || new Date().toISOString();
+    window.model.steps.step4.migrated = true;
+    migrated = true;
+    console.log('[Migration] ✓ Step 4 migrated from roadmapConfirmed/operatingModelDelta flag');
+  }
+  
+  // Auto-save migrated project
+  if (migrated) {
+    console.log('[Migration] ✅ Legacy flags migrated to formal V11 status tracking');
+    if (typeof autoSaveCurrentModel === 'function') {
+      autoSaveCurrentModel();
+    }
+  }
+}
+
 function _isStepDone(stepId) {
-  if (window.model?.steps?.[stepId]?.status === 'completed') return true;
   const m = window.model || {};
-  // NEW: 4-step workflow completion checks (no legacy fallbacks that cause false positives)
-  return !!({ 
-    step1: m.businessContextConfirmed && m.businessContext,
-    step2: m.capabilityValidated && m.capabilities?.length > 0,
-    step3: m.targetArchDone && m.targetArch,
-    step4: m.operatingModelDelta && m.roadmap
-  }[stepId]);
+  const steps = m.steps || {};
+  
+  // STRICT: Require formal completion status AND actual data
+  // Legacy flags are migrated automatically by _migrateLegacyWorkflowFlags()
+  const completionChecks = { 
+    step1: (steps.step1?.status === 'completed' && m.businessContext),
+    step2: (steps.step2?.status === 'completed' && m.capabilities?.length > 0),
+    step3: (steps.step3?.status === 'completed' && m.targetArch),
+    step4: (steps.step4?.status === 'completed' && m.roadmap)
+  };
+  
+  return !!completionChecks[stepId];
 }
 
 function _updateContinueBtn() {
@@ -15491,6 +16232,7 @@ function approveAndContinueToStep3() {
     window._step2ValidationResolver = null;
     toast('Capability map approved');
     if (typeof autoSaveCurrentModel === 'function') autoSaveCurrentModel();
+    if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
   }
 }
 
@@ -16133,12 +16875,55 @@ function exportBusinessObjectives(format) {
 function updateWorkflowStepStates() {
   // Check step completion using new 4-step workflow tracking (strict checks, no false positives)
   const steps = model.steps || {};
+  
+  // MIGRATION: Auto-upgrade legacy projects to formal status tracking
+  // This runs once per project load and converts old flags to new status system
+  _migrateLegacyWorkflowFlags();
+  
+  // DEBUG: Log all step completion states
+  console.group('[updateWorkflowStepStates] 🔍 Checking step completion');
+  console.log('Step 1:', {
+    formalStatus: steps.step1?.status,
+    businessContextConfirmed: model.businessContextConfirmed,
+    hasBusinessContext: !!model.businessContext
+  });
+  console.log('Step 2:', {
+    formalStatus: steps.step2?.status,
+    capabilityValidated: model.capabilityValidated,
+    capabilitiesCount: model.capabilities?.length || 0
+  });
+  console.log('Step 3:', {
+    formalStatus: steps.step3?.status,
+    targetArchDone: model.targetArchDone,
+    hasTargetArch: !!model.targetArch,
+    targetArchType: typeof model.targetArch,
+    targetArchValue: model.targetArch ? JSON.stringify(model.targetArch).substring(0, 100) : null
+  });
+  console.log('Step 4:', {
+    formalStatus: steps.step4?.status,
+    hasOperatingModelDelta: !!model.operatingModelDelta,
+    hasRoadmap: !!model.roadmap,
+    roadmapType: typeof model.roadmap,
+    roadmapValue: model.roadmap ? JSON.stringify(model.roadmap).substring(0, 100) : null
+  });
+  
+  // STRICT MODE: Only use formal status + data presence (no legacy flags)
+  // Legacy flags are now migrated automatically, so we can rely solely on formal status
   const done = [
-    !!(steps.step1?.status === 'completed' || (model.businessContextConfirmed && model.businessContext)),
-    !!(steps.step2?.status === 'completed' || (model.capabilityValidated && model.capabilities?.length > 0)),
-    !!(steps.step3?.status === 'completed' || (model.targetArchDone && model.targetArch)),
-    !!(steps.step4?.status === 'completed' || (model.operatingModelDelta && model.roadmap))
+    !!(steps.step1?.status === 'completed' && model.businessContext),
+    !!(steps.step2?.status === 'completed' && model.capabilities?.length > 0),
+    !!(steps.step3?.status === 'completed' && model.targetArch),
+    !!(steps.step4?.status === 'completed' && model.roadmap)
   ];
+  
+  console.log('Completion results:', done);
+  console.log('Step badges should show:', {
+    step1: done[0] ? 'GREEN (done)' : 'gray',
+    step2: done[1] ? 'GREEN (done)' : 'gray',
+    step3: done[2] ? 'GREEN (done)' : 'gray',
+    step4: done[3] ? 'GREEN (done)' : 'gray'
+  });
+  console.groupEnd();
   
   // Map steps to their viewable tabs (4-step workflow)
   const stepTabs = [
@@ -16158,51 +16943,47 @@ function updateWorkflowStepStates() {
     const isDone = done[i - 1];
     const isUnlocked = i === 1 || (i === 2 ? (!!model.businessContext && !!model.businessContextConfirmed) : done[i - 2]);
     
+    console.log(`[updateWorkflowStepStates] Step ${i}:`, {
+      isDone,
+      isUnlocked,
+      currentBadgeClass: badge?.className,
+      currentSectionClass: stepEl?.className
+    });
+    
     if (badge) {
-      badge.className = 'workflow-step-badge' + (isDone ? ' workflow-step-badge--done' : isUnlocked ? ' workflow-step-badge--active' : '');
-      if (isDone) badge.innerHTML = '<i class="fas fa-check text-[8px]"></i>';
-      else badge.textContent = String(i);
+      // Clear all classes and rebuild
+      badge.className = 'workflow-step-badge';
+      
+      if (isDone) {
+        badge.classList.add('workflow-step-badge--done');
+        badge.innerHTML = '<i class="fas fa-check text-[8px]"></i>';
+      } else if (isUnlocked) {
+        badge.classList.add('workflow-step-badge--active');
+        badge.textContent = String(i);
+      } else {
+        badge.textContent = String(i);
+      }
     }
+    
+    // Update section classes
     if (isUnlocked) stepEl.classList.remove('workflow-step-locked');
     else stepEl.classList.add('workflow-step-locked');
-    if (doneIcon) doneIcon.classList.toggle('hidden', !isDone);
-    stepEl.classList.toggle('step-complete', isDone);
     
-    // Show available tabs for completed steps
-    if (isDone && stepTabs[i - 1] && stepTabs[i - 1].length > 0) {
-      const tabs = stepTabs[i - 1];
-      const tabLabels = {
-        'bmc': 'BMC',
-        'layers': 'Layers',
-        'capmap': 'Cap Map',
-        'heatmap': 'Heatmap',
-        'opmodel': 'Op Model',
-        'gap': 'Gap',
-        'maturity': 'Maturity',
-        'valuepools': 'Value Pools',
-        'targetarch': 'Target',
-        'roadmapvis': 'Roadmap'
-      };
-      
-      // Create or update tab buttons section
-      let tabsContainer = stepEl.querySelector('.step-tabs-container');
-      if (!tabsContainer) {
-        tabsContainer = document.createElement('div');
-        tabsContainer.className = 'step-tabs-container';
-        tabsContainer.style.cssText = 'margin-top: 6px; display: flex; flex-wrap: wrap; gap: 3px;';
-        stepEl.appendChild(tabsContainer);
-      }
-      
-      tabsContainer.innerHTML = tabs.map(tab => `
-        <button 
-          onclick="showTab('${tab}', findTabButton('${tab}'))" 
-          class="text-[8px] px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold transition-colors"
-          title="Open ${tabLabels[tab]} tab"
-        >
-          <i class="fas fa-eye mr-0.5"></i> ${tabLabels[tab]}
-        </button>
-      `).join('');
+    if (isDone) {
+      stepEl.classList.add('step-complete');
+    } else {
+      stepEl.classList.remove('step-complete');
     }
+    
+    // Show/hide done icon (checkmark on the right)
+    if (doneIcon) doneIcon.classList.toggle('hidden', !isDone);
+    
+    console.log(`[updateWorkflowStepStates] Step ${i} updated:`, {
+      newBadgeClass: badge?.className,
+      newBadgeHTML: badge?.innerHTML,
+      newSectionClass: stepEl?.className,
+      doneIconVisible: !doneIcon?.classList.contains('hidden')
+    });
     
     if (isDone) renderStepRationale(i);
   }
@@ -16211,6 +16992,16 @@ function updateWorkflowStepStates() {
   
   // Update tab lock states based on content availability
   updateTabLockStates();
+  
+  // Update navigation sidebar lock states (sync with workflow progress)
+  console.log('[updateWorkflowStepStates] Updating navigation lock states...');
+  console.log('[updateWorkflowStepStates] Current model state:', {
+    step2Status: model.steps?.step2?.status,
+    capabilityValidated: model.capabilityValidated,
+    capabilitiesCount: model.capabilities?.length || 0,
+    hasCapabilityMap: !!model.capabilityMap
+  });
+  updateNavigationLockStates();
 }
 
 // -- UPDATE TAB LOCK STATES ----------------------------------------------------
@@ -16955,14 +17746,32 @@ Return JSON array (ALL capabilities):
 }
 
 function renderTargetArchVisual() {
+  console.group('[renderTargetArchVisual] 🎨 Rendering Target Architecture');
+  console.log('model.targetArch:', model.targetArch);
+  console.log('model.targetArch type:', typeof model.targetArch);
+  console.log('model.targetArch isArray:', Array.isArray(model.targetArch));
+  console.log('model.targetArch length:', model.targetArch?.length);
+  console.log('model.targetArchDone:', model.targetArchDone);
+  console.log('model.targetArchData:', model.targetArchData ? 'exists' : 'missing');
+  
   const data = model.targetArch || [];
   const target = document.getElementById('targetarch-content');
-  if (!target) return;
-
-  if (!data.length) {
-    target.innerHTML = '<div class="text-slate-400 text-xs text-center py-16">Click "Target Arch" to generate the visual</div>';
+  
+  if (!target) {
+    console.error('❌ Container #targetarch-content not found in DOM!');
+    console.groupEnd();
     return;
   }
+
+  if (!data.length) {
+    console.warn('⚠️ No targetArch data found (data.length = 0)');
+    target.innerHTML = '<div class="text-slate-400 text-xs text-center py-16">Click "Target Arch" to generate the visual</div>';
+    console.groupEnd();
+    return;
+  }
+  
+  console.log('✅ Rendering', data.length, 'target architecture items');
+  console.groupEnd();
 
   const domainOrder = ['Customer', 'Product', 'Operations', 'Finance', 'Risk', 'Technology', 'Support'];
   const availableDomains = [...new Set(data.map((item) => item.domain || 'General'))];
@@ -17152,13 +17961,35 @@ Return JSON:
 } // end _v5LegacyRoadmap
 
 function renderRoadmapVisual() {
+  console.group('[renderRoadmapVisual] 🗺️ Rendering Roadmap');
+  console.log('model.roadmap:', model.roadmap);
+  console.log('model.roadmap type:', typeof model.roadmap);
+  console.log('model.roadmap.waves:', model.roadmap?.waves);
+  console.log('model.initiatives:', model.initiatives);
+  console.log('model.initiatives length:', model.initiatives?.length || 0);
+  console.log('model.operatingModelDelta:', model.operatingModelDelta);
+  
   const container = document.getElementById('roadmapvis-content');
-  if (!container) return;
-
-  if (!model.initiatives || !model.initiatives.length) {
-    container.innerHTML = '<div class="text-slate-400 text-xs text-center py-16">Generate Transformation Roadmap to populate the visual timeline</div>';
+  
+  if (!container) {
+    console.error('❌ Container #roadmapvis-content not found in DOM!');
+    console.groupEnd();
     return;
   }
+
+  if (!model.initiatives || !model.initiatives.length) {
+    console.warn('⚠️ No initiatives found (needed for roadmap visual)');
+    console.log('Checking roadmap.waves for alternative data...');
+    if (model.roadmap?.waves) {
+      console.log('Found roadmap.waves:', model.roadmap.waves.length, 'waves');
+    }
+    container.innerHTML = '<div class="text-slate-400 text-xs text-center py-16">Generate Transformation Roadmap to populate the visual timeline</div>';
+    console.groupEnd();
+    return;
+  }
+  
+  console.log('✅ Rendering', model.initiatives.length, 'initiatives');
+  console.groupEnd();
 
   const phases = ['Year 1 - Foundation', 'Year 2 - Expansion', 'Year 3 - Optimisation'];
   const phaseKey = (phase) => phases.includes(phase) ? phase : 'Year 2 - Expansion';
@@ -17998,7 +18829,7 @@ function toggleCapMapPanel(side) {
 
 /**
  * Switch workspace tabs
- * @param {string} tabName - Tab identifier (overview, capability-map, apqc-reference, heatmaps, etc.)
+ * @param {string} tabName - Tab identifier (overview, capability-map, heatmaps, gap-analysis, prioritization)
  */
 function switchCapMapTab(tabName) {
   // Update tab buttons
@@ -18024,16 +18855,12 @@ function switchCapMapTab(tabName) {
       renderOverview();
     } else if (tabName === 'capability-map') {
       renderCapMap();
-    } else if (tabName === 'apqc-reference') {
-      renderAPQCReference();
     } else if (tabName === 'heatmaps') {
       renderHeatmapTab();
     } else if (tabName === 'gap-analysis') {
       renderGapAnalysisTab();
     } else if (tabName === 'prioritization') {
       renderPrioritizationTab();
-    } else if (tabName === 'it-enablement') {
-      renderITEnablementTab();
     }
   }
   
@@ -18517,87 +19344,6 @@ function renderHeatmapTab() {
       </div>
     `;
   }
-}
-
-// ============================================================================
-// IT ENABLEMENT TAB
-// ============================================================================
-
-function renderITEnablementTab() {
-  console.log('[renderITEnablementTab] Starting render');
-  const container = document.getElementById('it-enablement-container');
-  if (!container) {
-    console.error('[renderITEnablementTab] Container not found');
-    return;
-  }
-  
-  const capabilities = window.model?.capabilities || [];
-  console.log('[renderITEnablementTab] capabilities.length:', capabilities.length);
-  
-  if (capabilities.length === 0) {
-    container.innerHTML = `
-      <div class="capmap-empty-state">
-        <i class="fas fa-microchip"></i>
-        <div>IT enablement matrix will appear here</div>
-        <div class="capmap-empty-hint">Complete Step 2 (Capability Mapping) to see IT enablement details</div>
-      </div>
-    `;
-    return;
-  }
-  
-  // Check if capabilities have IT enablement data
-  const capsWithIT = capabilities.filter(c => c.it_enablement || c.applications?.length > 0);
-  console.log('[renderITEnablementTab] Capabilities with IT data:', capsWithIT.length);
-  
-  if (capsWithIT.length === 0) {
-    container.innerHTML = `
-      <div class="capmap-empty-state">
-        <i class="fas fa-microchip"></i>
-        <div>No IT enablement data available</div>
-        <div class="capmap-empty-hint">Capabilities need IT enablement mappings (applications, data services, integrations)</div>
-      </div>
-    `;
-    return;
-  }
-  
-  // Render IT enablement matrix
-  let html = `
-    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: auto; max-height: 600px;">
-      <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-        <thead>
-          <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; position: sticky; top: 0;">
-            <th style="text-align: left; padding: 12px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px; min-width: 200px;">Capability</th>
-            <th style="text-align: left; padding: 12px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Applications</th>
-            <th style="text-align: left; padding: 12px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Data Services</th>
-            <th style="text-align: left; padding: 12px; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px;">Integrations</th>
-          </tr>
-        </thead>
-        <tbody>
-  `;
-  
-  capsWithIT.forEach(cap => {
-    const itData = cap.it_enablement || {};
-    const apps = itData.applications || cap.applications || [];
-    const data = itData.data_services || cap.data_services || [];
-    const integrations = itData.integrations || cap.integrations || [];
-    
-    html += `
-      <tr style="border-bottom: 1px solid #f1f5f9;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-        <td style="padding: 12px; font-weight: 600; color: #0f172a;">${cap.name || 'Unnamed'}</td>
-        <td style="padding: 12px; color: #475569;"><div style="display: flex; flex-wrap: wrap; gap: 4px;">${apps.map(a => `<span style="background: #dbeafe; padding: 2px 8px; border-radius: 4px; font-size: 10px;">${a}</span>`).join('')}</div></td>
-        <td style="padding: 12px; color: #475569;"><div style="display: flex; flex-wrap: wrap; gap: 4px;">${data.map(d => `<span style="background: #dcfce7; padding: 2px 8px; border-radius: 4px; font-size: 10px;">${d}</span>`).join('')}</div></td>
-        <td style="padding: 12px; color: #475569;"><div style="display: flex; flex-wrap: wrap; gap: 4px;">${integrations.map(i => `<span style="background: #fef3c7; padding: 2px 8px; border-radius: 4px; font-size: 10px;">${i}</span>`).join('')}</div></td>
-      </tr>
-    `;
-  });
-  
-  html += `
-        </tbody>
-      </table>
-    </div>
-  `;
-  
-  container.innerHTML = html;
 }
 
 // ============================================================================
@@ -19460,7 +20206,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Number keys 1-6 - Switch workspace tabs
     if (e.key >= '1' && e.key <= '6' && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-      const tabs = ['overview', 'capability-map', 'apqc-reference', 'heatmaps', 'prioritization', 'it-enablement'];
+      const tabs = ['overview', 'capability-map', 'heatmaps', 'prioritization', 'gap-analysis'];
       const tabIndex = parseInt(e.key) - 1;
       if (tabs[tabIndex]) {
         e.preventDefault();
@@ -19674,11 +20420,6 @@ function toggleBenchmarkOverlay() {
 function filterAPQCTree() {
   console.log('[filterAPQCTree] Not yet implemented');
   // Will implement tree filtering in Phase 1 Step 2
-}
-
-/**
-function autoMapITServices() {
-  toast('🚧 IT Enablement tab will be implemented in next phase', false);
 }
 
 /**
@@ -20008,230 +20749,10 @@ function selectCapability(capabilityId) {
 }
 
 // ================================================================
-// APQC REFERENCE TAB RENDERING
+// REMOVED: APQC REFERENCE TAB (formerly here)
 // ================================================================
 
-function renderAPQCReference() {
-  console.log('[renderAPQCReference] Starting APQC reference render');
-  
-  const model = window.model || {};
-  const container = document.getElementById('apqc-accordion-container');
-  const emptyEl = document.getElementById('apqc-empty');
-  
-  if (!container) {
-    console.error('[renderAPQCReference] apqc-accordion-container not found');
-    return;
-  }
-  
-  // Try to get APQC data from either apqcFramework or capabilityMap
-  let l1Domains = [];
-  
-  // Option 1: Use capabilityMap (business capabilities with APQC alignment)
-  if (model.capabilityMap && model.capabilityMap.l1_domains) {
-    l1Domains = model.capabilityMap.l1_domains;
-    console.log('[renderAPQCReference] Using capabilityMap.l1_domains:', l1Domains.length);
-  }
-  // Option 2: Transform apqcFramework.categories to l1_domains format
-  else if (model.apqcFramework && model.apqcFramework.categories) {
-    console.log('[renderAPQCReference] Transforming apqcFramework.categories:', model.apqcFramework.categories.length);
-    l1Domains = model.apqcFramework.categories.map((cat, idx) => ({
-      id: cat.id || `L1-${String(idx + 1).padStart(2, '0')}`,
-      name: cat.name,
-      description: cat.description,
-      strategic_importance: cat.strategic_importance || 'CORE',
-      l2_capabilities: (cat.processes || []).map((proc, pIdx) => ({
-        id: proc.id || `${cat.id}-${String(pIdx + 1).padStart(2, '0')}`,
-        name: proc.name,
-        description: proc.description,
-        category: proc.category || cat.name,
-        strategic_importance: proc.strategic_importance || cat.strategic_importance
-      }))
-    }));
-  }
-  // Option 3: Try loading from dataManager
-  else {
-    console.log('[renderAPQCReference] No APQC data in model, attempting to load...');
-    
-    if (typeof window.dataManager !== 'undefined' && window.dataManager.loadAPQCFramework) {
-      window.dataManager.loadAPQCFramework()
-        .then(framework => {
-          if (framework && framework.categories) {
-            console.log('[renderAPQCReference] APQC framework loaded from dataManager');
-            window.model.apqcFramework = framework;
-            renderAPQCReference(); // Re-render with loaded data
-          } else {
-            console.warn('[renderAPQCReference] APQC framework load returned empty data');
-          }
-        })
-        .catch(err => {
-          console.error('[renderAPQCReference] Failed to load APQC framework:', err);
-        });
-    }
-    
-    // Show empty state for now
-    if (emptyEl) emptyEl.style.display = 'block';
-    container.innerHTML = '';
-    return;
-  }
-  
-  if (l1Domains.length === 0) {
-    if (emptyEl) emptyEl.style.display = 'block';
-    container.innerHTML = '';
-    return;
-  }
-  
-  // Update banner status
-  const statusEl = document.getElementById('apqc-status-ref');
-  if (statusEl) {
-    const l2Count = l1Domains.reduce((sum, d) => sum + (d.l2_capabilities || []).length, 0);
-    statusEl.textContent = `${l1Domains.length} L1 Categories, ${l2Count} L2 Processes, 1000+ L3 Activities`;
-  }
-  
-  // Get active filter
-  const activeFilter = window._apqcFilter || 'all';
-  
-  // Build accordion HTML
-  let accordionHTML = '';
-  let hasAnyVisible = false;
-  
-  l1Domains.forEach((domain, domainIndex) => {
-    const l2caps = domain.l2_capabilities || [];
-    if (l2caps.length === 0) return;
-    
-    // Filter by active filter
-    const filteredCaps = l2caps.filter(cap => matchesAPQCFilter(cap, domain, activeFilter));
-    if (filteredCaps.length === 0) return;
-    
-    hasAnyVisible = true;
-    
-    // Generate L1 badge
-    const domainBadgeText = `${domain.id || `L1-${String(domainIndex + 1).padStart(2, '0')}`}`;
-    
-    accordionHTML += `
-      <div class="capmap-accordion-domain" data-domain="${domain.id || domain.name}">
-        <div class="capmap-accordion-header" onclick="toggleAPQCAccordion('${domain.id || domain.name}')">
-          <div class="capmap-domain-badge">${domainBadgeText}</div>
-          <div class="capmap-domain-title">${domain.name}</div>
-          <div class="capmap-domain-count">${filteredCaps.length} processes</div>
-          <div class="capmap-accordion-icon">
-            <i class="fas fa-chevron-right"></i>
-          </div>
-        </div>
-        <div class="capmap-accordion-content" data-content="${domain.id || domain.name}">
-          <div class="capmap-capabilities-list">
-            ${filteredCaps.map((cap, capIndex) => {
-              // L2 badge
-              const levelBadge = cap.id || `L2-${String(capIndex + 1).padStart(2, '0')}`;
-              
-              // Tags based on APQC classification
-              let tags = '';
-              if (cap.strategic_importance === 'CORE') {
-                tags += `<span class="capmap-branch-tag" style="background: rgba(0, 107, 63, 0.1); color: #006B3F;">Core</span>`;
-              }
-              if (cap.category) {
-                tags += `<span class="capmap-branch-tag">${cap.category}</span>`;
-              }
-              
-              return `
-                <div class="capmap-capability-row" data-capability-id="${cap.id}" onclick="openCapabilityModal('${cap.id}', 'apqc')">
-                  <div class="capmap-level-badge">${levelBadge}</div>
-                  <div class="capmap-capability-name">${cap.name}</div>
-                  <div class="capmap-branch-tags">
-                    ${tags}
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        </div>
-      </div>
-    `;
-  });
-  
-  container.innerHTML = accordionHTML;
-  
-  if (emptyEl) {
-    emptyEl.style.display = hasAnyVisible ? 'none' : 'block';
-  }
-}
-
-function toggleAPQCAccordion(domainId) {
-  const header = document.querySelector(`.capmap-accordion-header[onclick*="${domainId}"]`);
-  const content = document.querySelector(`.capmap-accordion-content[data-content="${domainId}"]`);
-  
-  if (!header || !content) return;
-  
-  const isExpanded = content.classList.contains('expanded');
-  
-  if (isExpanded) {
-    content.classList.remove('expanded');
-    header.classList.add('collapsed');
-  } else {
-    content.classList.add('expanded');
-    header.classList.remove('collapsed');
-  }
-}
-
-function toggleAllAPQCAccordions() {
-  const contents = document.querySelectorAll('#apqc-accordion-container .capmap-accordion-content');
-  const headers = document.querySelectorAll('#apqc-accordion-container .capmap-accordion-header');
-  const expandBtn = document.getElementById('expand-all-apqc-text');
-  
-  if (contents.length === 0) return;
-  
-  const allExpanded = Array.from(contents).every(c => c.classList.contains('expanded'));
-  
-  if (allExpanded) {
-    contents.forEach(c => c.classList.remove('expanded'));
-    headers.forEach(h => h.classList.add('collapsed'));
-    if (expandBtn) expandBtn.textContent = 'Expand All';
-  } else {
-    contents.forEach(c => c.classList.add('expanded'));
-    headers.forEach(h => h.classList.remove('collapsed'));
-    if (expandBtn) expandBtn.textContent = 'Collapse All';
-  }
-}
-
-function applyAPQCFilter(filterType) {
-  window._apqcFilter = filterType;
-  
-  // Update active chip
-  const chips = document.querySelectorAll('#apqc-filter-chips .capmap-chip');
-  chips.forEach(chip => {
-    if (chip.getAttribute('data-filter') === filterType) {
-      chip.classList.add('active');
-    } else {
-      chip.classList.remove('active');
-    }
-  });
-  
-  renderAPQCReference();
-}
-
-function matchesAPQCFilter(capability, domain, filterType) {
-  if (filterType === 'all') return true;
-  
-  switch (filterType) {
-    case 'core':
-      return capability.strategic_importance === 'CORE' || domain.strategic_importance === 'CORE';
-    case 'support':
-      return capability.strategic_importance === 'SUPPORT' || domain.strategic_importance === 'SUPPORT';
-    case 'financial':
-      const financialKeywords = ['finance', 'accounting', 'risk', 'compliance', 'audit'];
-      return financialKeywords.some(kw => 
-        (capability.name || '').toLowerCase().includes(kw) ||
-        (domain.name || '').toLowerCase().includes(kw)
-      );
-    case 'operations':
-      const opsKeywords = ['operations', 'service', 'delivery', 'production', 'supply'];
-      return opsKeywords.some(kw => 
-        (capability.name || '').toLowerCase().includes(kw) ||
-        (domain.name || '').toLowerCase().includes(kw)
-      );
-    default:
-      return true;
-  }
-}
+// Placeholder for removed renderAPQCReference function
 
 // ================================================================
 // CAPABILITY DETAIL MODAL (Replaces Inspector Panel)
@@ -20275,10 +20796,23 @@ function openCapabilityModal(capabilityId, source = 'capability-map') {
   
   if (!modal || !titleEl || !bodyEl) return;
   
-  titleEl.textContent = capability.name;
-  subtitleEl.textContent = source === 'apqc' 
+  const isReadOnly = source === 'apqc';
+  const isAPQCSourced = capability.apqc_source === true;
+  
+  // Update title (editable for business capabilities)
+  if (isReadOnly) {
+    titleEl.textContent = capability.name;
+  } else {
+    titleEl.innerHTML = `
+      <input type="text" id="modal-name-input" value="${capability.name}" 
+        style="width: 100%; border: none; background: transparent; font-size: inherit; font-weight: inherit; color: inherit; padding: 0;"
+        ${isAPQCSourced ? 'disabled title="APQC-sourced capabilities cannot change name"' : ''}>
+    `;
+  }
+  
+  subtitleEl.innerHTML = isReadOnly 
     ? `APQC Reference · ${capability._domain || 'Process'}` 
-    : `Business Capability · Level ${capability.level || 2}`;
+    : `Business Capability · Level ${capability.level || 2} ${isAPQCSourced ? '<span style="margin-left: 8px; padding: 2px 6px; background: #E0F2E9; color: #006B3F; border-radius: 4px; font-size: 10px; font-weight: 600;">FROM APQC</span>' : '<span style="margin-left: 8px; padding: 2px 6px; background: #E0E7FF; color: #4338CA; border-radius: 4px; font-size: 10px; font-weight: 600;">CUSTOM</span>'}`;
   
   // Build modal content
   let contentHTML = '';
@@ -20287,21 +20821,38 @@ function openCapabilityModal(capabilityId, source = 'capability-map') {
   contentHTML += `
     <div class="modal-section">
       <div class="modal-section-title"><i class="fas fa-info-circle"></i> Basic Information</div>
-      ${source === 'apqc' ? `
+      ${isAPQCSourced && capability.apqc_id ? `
         <div class="modal-field">
-          <div class="modal-field-label">APQC ID</div>
-          <div class="modal-field-value">${capability.id || 'N/A'}</div>
+          <div class="modal-field-label">APQC Reference</div>
+          <div class="modal-field-value"><span class="modal-tag">APQC ${capability.apqc_id}</span></div>
         </div>
       ` : ''}
       <div class="modal-field">
         <div class="modal-field-label">Description</div>
-        ${source === 'apqc' ? `
+        ${isReadOnly ? `
           <div class="modal-field-value">${capability.description || 'No description available'}</div>
         ` : `
-          <textarea class="modal-field-textarea" id="modal-description">${capability.description || ''}</textarea>
+          <textarea class="modal-field-textarea" id="modal-description" rows="4">${capability.description || ''}</textarea>
         `}
       </div>
-      ${capability.strategic_importance ? `
+      ${!isReadOnly ? `
+        <div class="modal-field">
+          <div class="modal-field-label">Strategic Importance</div>
+          <select id="modal-strategic-importance" style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E0; border-radius: 6px; font-size: 14px;">
+            <option value="SUPPORT" ${capability.strategic_importance === 'SUPPORT' ? 'selected' : ''}>Support</option>
+            <option value="CORE" ${capability.strategic_importance === 'CORE' ? 'selected' : ''}>Core</option>
+            <option value="COMMODITY" ${capability.strategic_importance === 'COMMODITY' ? 'selected' : ''}>Commodity</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <div class="modal-field-label">Investment Priority</div>
+          <select id="modal-investment-priority" style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E0; border-radius: 6px; font-size: 14px;">
+            <option value="HIGH" ${capability.investment_priority === 'HIGH' ? 'selected' : ''}>High</option>
+            <option value="MEDIUM" ${capability.investment_priority === 'MEDIUM' ? 'selected' : ''}>Medium</option>
+            <option value="LOW" ${capability.investment_priority === 'LOW' ? 'selected' : ''}>Low</option>
+          </select>
+        </div>
+      ` : capability.strategic_importance ? `
         <div class="modal-field">
           <div class="modal-field-label">Strategic Importance</div>
           <div class="modal-field-value">
@@ -20313,7 +20864,7 @@ function openCapabilityModal(capabilityId, source = 'capability-map') {
   `;
   
   // Maturity Section (for business capabilities only)
-  if (source !== 'apqc') {
+  if (!isReadOnly) {
     const currentMaturity = capability.current_maturity || capability.maturity || 1;
     const targetMaturity = capability.target_maturity || 4;
     
@@ -20322,40 +20873,34 @@ function openCapabilityModal(capabilityId, source = 'capability-map') {
         <div class="modal-section-title"><i class="fas fa-chart-line"></i> Maturity Assessment</div>
         <div class="modal-field">
           <div class="modal-field-label">Current Maturity</div>
-          <div class="modal-maturity-indicator">
-            <div class="modal-maturity-dots">
-              ${[1, 2, 3, 4, 5].map(i => `
-                <div class="modal-maturity-dot ${i <= currentMaturity ? 'filled' : ''}"></div>
-              `).join('')}
-            </div>
-            <span class="modal-maturity-label">${currentMaturity}/5</span>
+          <div class="maturity-selector" id="modal-current-maturity" data-value="${currentMaturity}">
+            ${[1, 2, 3, 4, 5].map(i => `
+              <div class="maturity-dot ${i <= currentMaturity ? 'filled' : ''}" data-level="${i}" onclick="selectModalMaturity('current', ${i})"></div>
+            `).join('')}
+            <span style="margin-left: 12px; font-size: 14px; color: #1E293B; font-weight: 600;">${currentMaturity}/5</span>
           </div>
         </div>
         <div class="modal-field">
           <div class="modal-field-label">Target Maturity</div>
-          <div class="modal-maturity-indicator">
-            <div class="modal-maturity-dots">
-              ${[1, 2, 3, 4, 5].map(i => `
-                <div class="modal-maturity-dot ${i <= targetMaturity ? 'filled' : ''}"></div>
-              `).join('')}
-            </div>
-            <span class="modal-maturity-label">${targetMaturity}/5</span>
+          <div class="maturity-selector" id="modal-target-maturity" data-value="${targetMaturity}">
+            ${[1, 2, 3, 4, 5].map(i => `
+              <div class="maturity-dot ${i <= targetMaturity ? 'filled' : ''}" data-level="${i}" onclick="selectModalMaturity('target', ${i})"></div>
+            `).join('')}
+            <span style="margin-left: 12px; font-size: 14px; color: #1E293B; font-weight: 600;">${targetMaturity}/5</span>
           </div>
         </div>
-        ${currentMaturity < targetMaturity ? `
-          <div class="modal-field">
-            <div class="modal-field-label">Gap</div>
-            <div class="modal-field-value" style="color: var(--ea-danger, #D72638); font-weight: 600;">
-              ${targetMaturity - currentMaturity} levels (${currentMaturity} → ${targetMaturity})
-            </div>
+        <div class="modal-field">
+          <div class="modal-field-label">Maturity Gap</div>
+          <div id="modal-gap-display" style="color: var(--ea-danger, #D72638); font-weight: 600; font-size: 14px;">
+            ${Math.max(0, targetMaturity - currentMaturity)} levels (${currentMaturity} → ${targetMaturity})
           </div>
-        ` : ''}
+        </div>
       </div>
     `;
   }
   
   // Linked Objectives Section
-  if (source !== 'apqc' && capability.objectiveMappings && capability.objectiveMappings.length > 0) {
+  if (!isReadOnly && capability.objectiveMappings && capability.objectiveMappings.length > 0) {
     contentHTML += `
       <div class="modal-section">
         <div class="modal-section-title"><i class="fas fa-bullseye"></i> Linked Business Objectives</div>
@@ -20389,10 +20934,25 @@ function openCapabilityModal(capabilityId, source = 'capability-map') {
   
   bodyEl.innerHTML = contentHTML;
   
-  // Show/hide Save button (APQC is read-only)
-  const saveBtn = document.getElementById('modal-save-btn');
-  if (saveBtn) {
-    saveBtn.style.display = source === 'apqc' ? 'none' : 'inline-flex';
+  // Update footer buttons
+  const footer = modal.querySelector('.capability-modal-footer');
+  if (footer && !isReadOnly) {
+    footer.innerHTML = `
+      <button class="capmap-btn capmap-btn--danger" onclick="deleteCapability('${capability.id}')" 
+        ${isAPQCSourced ? 'title="Cannot delete APQC-sourced capability"' : ''} 
+        ${isAPQCSourced ? 'disabled style="opacity: 0.5;"' : ''}>
+        <i class="fas fa-trash-alt"></i> Delete
+      </button>
+      <div style="flex: 1;"></div>
+      <button class="capmap-btn capmap-btn--secondary" onclick="closeCapabilityModal()">Cancel</button>
+      <button class="capmap-btn capmap-btn--primary" onclick="saveCapabilityChanges()">
+        <i class="fas fa-save"></i> Save Changes
+      </button>
+    `;
+  } else if (footer && isReadOnly) {
+    footer.innerHTML = `
+      <button class="capmap-btn capmap-btn--secondary" onclick="closeCapabilityModal()">Close</button>
+    `;
   }
   
   modal.style.display = 'flex';
@@ -20421,12 +20981,642 @@ function closeCapabilityModal(event) {
 // Add ESC key handler for modal
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape' || e.keyCode === 27) {
-    const modal = document.getElementById('capability-modal');
-    if (modal && modal.style.display === 'flex') {
+    const capModal = document.getElementById('capability-modal');
+    if (capModal && capModal.style.display === 'flex') {
       closeCapabilityModal();
+    }
+    const addModal = document.getElementById('add-capability-modal');
+    if (addModal && addModal.style.display === 'flex') {
+      closeAddCapabilityDialog();
     }
   }
 });
+
+// ================================================================
+// ADD CAPABILITY FEATURE
+// ================================================================
+
+let _apqcFrameworkCache = null;
+
+/**
+ * Open Add Capability Dialog
+ */
+async function openAddCapabilityDialog() {
+  console.log('[openAddCapabilityDialog] Opening dialog...');
+  
+  const modal = document.getElementById('add-capability-modal');
+  if (!modal) return;
+  
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  
+  // Load APQC framework if not cached
+  if (!_apqcFrameworkCache) {
+    try {
+      _apqcFrameworkCache = await window.dataManager.getAPQCFramework();
+      console.log('[openAddCapabilityDialog] Loaded APQC framework:', _apqcFrameworkCache);
+    } catch (err) {
+      console.error('[openAddCapabilityDialog] Failed to load APQC framework:', err);
+      _apqcFrameworkCache = { categories: [] };
+    }
+  }
+  
+  // Populate domain dropdown for custom capability
+  populateDomainDropdown();
+  
+  // Render APQC browser
+  renderAPQCBrowser();
+  
+  // Default to APQC tab
+  switchAddCapTab('apqc');
+}
+
+/**
+ * Close Add Capability Dialog
+ */
+function closeAddCapabilityDialog() {
+  const modal = document.getElementById('add-capability-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+  document.body.style.overflow = '';
+  
+  // Reset form
+  const form = document.getElementById('custom-capability-form');
+  if (form) form.reset();
+  
+  // Reset maturity selectors
+  selectCustomMaturity('current', 1);
+  selectCustomMaturity('target', 3);
+}
+
+/**
+ * Switch between APQC and Custom tabs
+ */
+function switchAddCapTab(tabName) {
+  // Update tab buttons
+  document.querySelectorAll('.add-cap-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+  
+  // Update panes
+  const apqcPane = document.getElementById('add-cap-apqc-pane');
+  const customPane = document.getElementById('add-cap-custom-pane');
+  const createBtn = document.getElementById('create-custom-cap-btn');
+  
+  if (tabName === 'apqc') {
+    apqcPane.style.display = 'block';
+    customPane.style.display = 'none';
+    createBtn.style.display = 'none';
+  } else {
+    apqcPane.style.display = 'none';
+    customPane.style.display = 'block';
+    createBtn.style.display = 'flex';
+  }
+}
+
+/**
+ * Populate domain dropdown from existing L1 domains
+ */
+function populateDomainDropdown() {
+  const select = document.getElementById('custom-cap-domain');
+  if (!select) return;
+  
+  // Clear existing options except first
+  select.innerHTML = '<option value="">Select domain...</option>';
+  
+  const model = window.model || {};
+  const capabilityMap = model.capabilityMap || {};
+  const l1Domains = capabilityMap.l1_domains || [];
+  
+  // Add existing L1 domains
+  l1Domains.forEach(domain => {
+    const option = document.createElement('option');
+    option.value = domain.id || domain.name;
+    option.textContent = domain.name;
+    select.appendChild(option);
+  });
+  
+  // Add APQC domains if not already in model
+  if (_apqcFrameworkCache && _apqcFrameworkCache.categories) {
+    _apqcFrameworkCache.categories.forEach(cat => {
+      const exists = l1Domains.some(d => d.name === cat.name);
+      if (!exists) {
+        const option = document.createElement('option');
+        option.value = cat.id || cat.code;
+        option.textContent = cat.name;
+        option.style.color = '#64748B';
+        select.appendChild(option);
+      }
+    });
+  }
+}
+
+/**
+ * Normalize industry name to match APQC format
+ */
+function normalizeIndustryName(industry) {
+  if (!industry) return null;
+  
+  const industryLower = industry.toLowerCase().trim();
+  
+  // Industry mapping
+  const mapping = {
+    'banking': 'financial-services',
+    'bank': 'financial-services',
+    'financial services': 'financial-services',
+    'finance': 'financial-services',
+    'insurance': 'insurance',
+    'manufacturing': 'manufacturing',
+    'retail': 'retail',
+    'healthcare': 'healthcare',
+    'health': 'healthcare',
+    'technology': 'technology',
+    'tech': 'technology',
+    'services': 'services',
+    'service': 'services'
+  };
+  
+  return mapping[industryLower] || industryLower.replace(/\s+/g, '-');
+}
+
+/**
+ * Check if capability is relevant for the given industry
+ */
+function isCapabilityRelevantForIndustry(capability, userIndustry) {
+  if (!userIndustry || !capability.industries) return true; // Show all if no filter
+  
+  const capIndustries = capability.industries || [];
+  
+  // Always show capabilities marked as "all"
+  if (capIndustries.includes('all')) return true;
+  
+  // Show if capability matches user's industry
+  const normalizedIndustry = normalizeIndustryName(userIndustry);
+  return capIndustries.includes(normalizedIndustry);
+}
+
+/**
+ * Render APQC Browser (13 L1 domains with L2 capabilities)
+ */
+function renderAPQCBrowser() {
+  const container = document.getElementById('apqc-browser-container');
+  if (!container) return;
+  
+  if (!_apqcFrameworkCache || !_apqcFrameworkCache.categories || _apqcFrameworkCache.categories.length === 0) {
+    container.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748B;">APQC framework not available</div>';
+    return;
+  }
+  
+  // Get user's industry from Step 1
+  const model = window.model || {};
+  const userIndustry = model.businessContext?.industry;
+  const normalizedIndustry = normalizeIndustryName(userIndustry);
+  
+  // Display industry filter info
+  let industryInfoHTML = '';
+  if (userIndustry && normalizedIndustry) {
+    industryInfoHTML = `
+      <div style="background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+        <i class="fas fa-filter" style="color: #4F46E5;"></i>
+        <div style="flex: 1;">
+          <div style="font-size: 12px; font-weight: 600; color: #4F46E5; margin-bottom: 2px;">Industry Filter Active</div>
+          <div style="font-size: 11px; color: #6366F1;">Showing capabilities relevant to: <strong>${userIndustry}</strong></div>
+        </div>
+        <button onclick="clearIndustryFilter()" style="background: white; border: 1px solid #C7D2FE; color: #4F46E5; padding: 4px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600;">Show All</button>
+      </div>
+    `;
+  }
+  
+  let html = industryInfoHTML;
+  let visibleDomainsCount = 0;
+  
+  _apqcFrameworkCache.categories.forEach((domain, idx) => {
+    const domainId = domain.id || domain.code || `L1-${idx+1}`;
+    const l2Caps = domain.children || [];
+    
+    // Filter capabilities by industry
+    const relevantCaps = l2Caps.filter(cap => isCapabilityRelevantForIndustry(cap, userIndustry));
+    
+    // Skip domain if no relevant capabilities
+    if (relevantCaps.length === 0) return;
+    
+    visibleDomainsCount++;
+    
+    html += `
+      <div class="apqc-browser-domain" data-domain-id="${domainId}">
+        <div class="apqc-browser-header" onclick="toggleAPQCBrowserDomain('${domainId}')">
+          <div class="apqc-browser-header-left">
+            <div class="apqc-browser-badge">${domain.code || domainId}</div>
+            <div class="apqc-browser-title">${domain.name}</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="apqc-browser-count">${relevantCaps.length} capabilities</div>
+            <i class="fas fa-chevron-right" style="color: #94A3B8; transition: transform 0.3s;"></i>
+          </div>
+        </div>
+        <div class="apqc-browser-content" id="apqc-domain-${domainId}">
+    `;
+    
+    relevantCaps.forEach(cap => {
+      const capId = cap.id || cap.code;
+      
+      // Format industries with highlighting for user's industry
+      let industryTags = '';
+      if (cap.industries && cap.industries.length > 0) {
+        const industryLabels = cap.industries.map(ind => {
+          if (ind === 'all') return { label: 'All Industries', highlight: false };
+          const label = ind.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+          const highlight = ind === normalizedIndustry;
+          return { label, highlight };
+        });
+        industryTags = `<div class="apqc-browser-industries">${industryLabels.map(({ label, highlight }) => 
+          `<span class="apqc-industry-tag ${highlight ? 'apqc-industry-tag--highlight' : ''}">${label}</span>`
+        ).join('')}</div>`;
+      }
+      
+      html += `
+        <div class="apqc-browser-capability" data-cap-id="${capId}">
+          <div class="apqc-browser-cap-left">
+            <div class="apqc-browser-cap-code">APQC ${capId}</div>
+            <div class="apqc-browser-cap-name">${cap.name}</div>
+            ${cap.description ? `<div class="apqc-browser-cap-desc">${cap.description}</div>` : ''}
+            ${industryTags}
+          </div>
+          <button class="capmap-btn capmap-btn--primary-sm" onclick='addCapabilityFromAPQC(${JSON.stringify(cap).replace(/'/g, "&apos;")}, ${JSON.stringify(domain).replace(/'/g, "&apos;")})'>
+            <i class="fas fa-plus"></i> Add
+          </button>
+        </div>
+      `;
+    });
+    
+    html += `
+        </div>
+      </div>
+    `;
+  });
+  
+  // Show message if no capabilities match the filter
+  if (visibleDomainsCount === 0 && userIndustry) {
+    html += `
+      <div style="text-align: center; padding: 60px 20px; color: #64748B;">
+        <i class="fas fa-filter-circle-xmark" style="font-size: 48px; color: #CBD5E1; margin-bottom: 16px;"></i>
+        <div style="font-size: 16px; font-weight: 600; color: #475569; margin-bottom: 8px;">No capabilities found for ${userIndustry}</div>
+        <div style="font-size: 13px; color: #64748B; margin-bottom: 16px;">Try removing the industry filter to see all available capabilities</div>
+        <button onclick="clearIndustryFilter()" class="capmap-btn capmap-btn--secondary-sm">Show All Capabilities</button>
+      </div>
+    `;
+  }
+  
+  container.innerHTML = html;
+}
+
+/**
+ * Clear industry filter and show all capabilities
+ */
+function clearIndustryFilter() {
+  // Temporarily clear industry from model for this view
+  const model = window.model || {};
+  if (model.businessContext) {
+    const savedIndustry = model.businessContext.industry;
+    model.businessContext._savedIndustry = savedIndustry;
+    model.businessContext.industry = null;
+  }
+  
+  // Re-render APQC browser
+  renderAPQCBrowser();
+  
+  // Restore industry
+  if (model.businessContext && model.businessContext._savedIndustry) {
+    model.businessContext.industry = model.businessContext._savedIndustry;
+    delete model.businessContext._savedIndustry;
+  }
+}
+
+/**
+ * Toggle APQC domain accordion
+ */
+function toggleAPQCBrowserDomain(domainId) {
+  const content = document.getElementById(`apqc-domain-${domainId}`);
+  const header = content?.previousElementSibling;
+  const icon = header?.querySelector('i.fa-chevron-right');
+  
+  if (!content) return;
+  
+  const isExpanded = content.classList.contains('expanded');
+  
+  if (isExpanded) {
+    content.classList.remove('expanded');
+    if (icon) icon.style.transform = 'rotate(0deg)';
+  } else {
+    content.classList.add('expanded');
+    if (icon) icon.style.transform = 'rotate(90deg)';
+  }
+}
+
+/**
+ * Filter APQC browser by search term
+ */
+function filterAPQCBrowser(searchTerm) {
+  const term = searchTerm.toLowerCase().trim();
+  const domains = document.querySelectorAll('.apqc-browser-domain');
+  
+  domains.forEach(domain => {
+    const capabilities = domain.querySelectorAll('.apqc-browser-capability');
+    let hasVisibleCap = false;
+    
+    capabilities.forEach(cap => {
+      const name = cap.querySelector('.apqc-browser-cap-name')?.textContent.toLowerCase() || '';
+      const desc = cap.querySelector('.apqc-browser-cap-desc')?.textContent.toLowerCase() || '';
+      const code = cap.querySelector('.apqc-browser-cap-code')?.textContent.toLowerCase() || '';
+      const industries = cap.querySelector('.apqc-browser-industries')?.textContent.toLowerCase() || '';
+      
+      const matches = !term || name.includes(term) || desc.includes(term) || code.includes(term) || industries.includes(term);
+      cap.style.display = matches ? 'flex' : 'none';
+      
+      if (matches) hasVisibleCap = true;
+    });
+    
+    // Hide domain if no capabilities match
+    domain.style.display = hasVisibleCap ? 'block' : 'none';
+    
+    // Auto-expand domains with matches
+    if (hasVisibleCap && term) {
+      const content = domain.querySelector('.apqc-browser-content');
+      const icon = domain.querySelector('i.fa-chevron-right');
+      if (content) content.classList.add('expanded');
+      if (icon) icon.style.transform = 'rotate(90deg)';
+    }
+  });
+}
+
+/**
+ * Add capability from APQC framework
+ */
+function addCapabilityFromAPQC(apqcCap, apqcDomain) {
+  console.log('[addCapabilityFromAPQC] Adding APQC capability:', apqcCap);
+  
+  const model = window.model || {};
+  
+  // Generate unique ID
+  const newCapId = `cap_${Date.now()}`;
+  
+  // Create capability object
+  const newCapability = {
+    id: newCapId,
+    name: apqcCap.name,
+    description: apqcCap.description || '',
+    level: 2,
+    domain: apqcDomain.name,
+    parent_id: apqcDomain.id || apqcDomain.code,
+    
+    // APQC reference
+    apqc_source: true,
+    apqc_id: apqcCap.id || apqcCap.code,
+    apqc_reference: `APQC ${apqcCap.id || apqcCap.code}`,
+    
+    // Default maturity
+    current_maturity: 1,
+    maturity: 1,
+    target_maturity: 3,
+    gap: 2,
+    
+    // Default classification
+    strategic_importance: 'SUPPORT',
+    strategicImportance: 'support',
+    investment_priority: 'MEDIUM',
+    classification: 'Supporting',
+    
+    // Initialize arrays
+    objective_mappings: [],
+    objectiveMappings: [],
+    children: [],
+    
+    // Additional fields from APQC
+    industries: apqcCap.industries || ['all'],
+    strategic_themes: apqcCap.strategic_themes || [],
+    capability_category: apqcCap.capability_category || 'process'
+  };
+  
+  // Add to flat capabilities array
+  if (!model.capabilities) model.capabilities = [];
+  model.capabilities.push(newCapability);
+  
+  // Add to hierarchical capability map
+  if (!model.capabilityMap) model.capabilityMap = { l1_domains: [] };
+  addCapabilityToHierarchy(newCapability);
+  
+  // Close add modal
+  closeAddCapabilityDialog();
+  
+  // Re-render Capability Map
+  renderCapMap();
+  
+  // Open edit modal to configure maturity/importance
+  setTimeout(() => {
+    openCapabilityModal(newCapId, 'capability-map');
+  }, 100);
+  
+  console.log('[addCapabilityFromAPQC] Capability added:', newCapId);
+}
+
+/**
+ * Select custom maturity level (for custom capability form)
+ */
+function selectCustomMaturity(type, level) {
+  const selectorId = type === 'current' ? 'custom-current-maturity' : 'custom-target-maturity';
+  const selector = document.getElementById(selectorId);
+  if (!selector) return;
+  
+  // Update data attribute
+  selector.dataset.value = level;
+  
+  // Update dots
+  const dots = selector.querySelectorAll('.maturity-dot');
+  dots.forEach((dot, idx) => {
+    if (idx < level) {
+      dot.classList.add('filled');
+    } else {
+      dot.classList.remove('filled');
+    }
+  });
+}
+
+/**
+ * Create custom capability
+ */
+function createCustomCapability() {
+  console.log('[createCustomCapability] Creating custom capability...');
+  
+  // Get form values
+  const name = document.getElementById('custom-cap-name')?.value.trim();
+  const domainValue = document.getElementById('custom-cap-domain')?.value;
+  const description = document.getElementById('custom-cap-description')?.value.trim();
+  const currentMaturity = parseInt(document.getElementById('custom-current-maturity')?.dataset.value || '1');
+  const targetMaturity = parseInt(document.getElementById('custom-target-maturity')?.dataset.value || '3');
+  const importance = document.getElementById('custom-cap-importance')?.value || 'SUPPORT';
+  
+  // Validation
+  if (!name) {
+    alert('Please enter a capability name');
+    return;
+  }
+  if (!domainValue) {
+    alert('Please select a domain');
+    return;
+  }
+  if (targetMaturity < currentMaturity) {
+    alert('Target maturity cannot be less than current maturity');
+    return;
+  }
+  
+  const model = window.model || {};
+  
+  // Find domain name
+  let domainName = domainValue;
+  const capMap = model.capabilityMap || { l1_domains: [] };
+  const domain = capMap.l1_domains.find(d => (d.id || d.name) === domainValue);
+  if (domain) {
+    domainName = domain.name;
+  } else if (_apqcFrameworkCache) {
+    const apqcDomain = _apqcFrameworkCache.categories?.find(c => (c.id || c.code) === domainValue);
+    if (apqcDomain) domainName = apqcDomain.name;
+  }
+  
+  // Generate unique ID
+  const newCapId = `cap_custom_${Date.now()}`;
+  
+  // Create capability object
+  const newCapability = {
+    id: newCapId,
+    name: name,
+    description: description,
+    level: 2,
+    domain: domainName,
+    parent_id: domainValue,
+    
+    // Custom capability
+    apqc_source: false,
+    
+    // Maturity
+    current_maturity: currentMaturity,
+    maturity: currentMaturity,
+    target_maturity: targetMaturity,
+    gap: targetMaturity - currentMaturity,
+    
+    // Classification
+    strategic_importance: importance,
+    strategicImportance: importance.toLowerCase(),
+    investment_priority: 'MEDIUM',
+    classification: importance === 'CORE' ? 'Core' : importance === 'COMMODITY' ? 'Commodity' : 'Supporting',
+    
+    // Initialize arrays
+    objective_mappings: [],
+    objectiveMappings: [],
+    children: []
+  };
+  
+  // Add to flat capabilities array
+  if (!model.capabilities) model.capabilities = [];
+  model.capabilities.push(newCapability);
+  
+  // Add to hierarchical capability map
+  addCapabilityToHierarchy(newCapability);
+  
+  // Close add modal
+  closeAddCapabilityDialog();
+  
+  // Re-render Capability Map
+  renderCapMap();
+  
+  // Highlight new capability (optional - could scroll to it)
+  console.log('[createCustomCapability] Capability created:', newCapId);
+  
+  // Show success notification
+  setTimeout(() => {
+    alert(`Capability "${name}" added successfully!`);
+  }, 100);
+}
+
+/**
+ * Add capability to hierarchical capability map
+ */
+function addCapabilityToHierarchy(capability) {
+  const model = window.model || {};
+  if (!model.capabilityMap) model.capabilityMap = { l1_domains: [] };
+  
+  const capMap = model.capabilityMap;
+  const domainName = capability.domain;
+  const parentId = capability.parent_id;
+  
+  // Find or create L1 domain
+  let l1Domain = capMap.l1_domains.find(d => d.name === domainName || d.id === parentId);
+  
+  if (!l1Domain) {
+    // Create new L1 domain if it doesn't exist
+    const domainCode = parentId || `L1-${capMap.l1_domains.length + 1}`;
+    l1Domain = {
+      id: domainCode,
+      name: domainName,
+      level: 1,
+      description: '',
+      l2_capabilities: []
+    };
+    capMap.l1_domains.push(l1Domain);
+    console.log('[addCapabilityToHierarchy] Created new L1 domain:', domainName);
+  }
+  
+  // Add capability to L2 array
+  if (!l1Domain.l2_capabilities) l1Domain.l2_capabilities = [];
+  
+  // Check for duplicates
+  const exists = l1Domain.l2_capabilities.some(c => c.id === capability.id);
+  if (!exists) {
+    l1Domain.l2_capabilities.push({
+      ...capability,
+      children: capability.children || []
+    });
+    console.log('[addCapabilityToHierarchy] Added capability to L1 domain:', capability.name);
+  }
+}
+
+/**
+ * Select maturity level in edit modal
+ */
+function selectModalMaturity(type, level) {
+  const selectorId = type === 'current' ? 'modal-current-maturity' : 'modal-target-maturity';
+  const selector = document.getElementById(selectorId);
+  if (!selector) return;
+  
+  // Update data attribute
+  selector.dataset.value = level;
+  
+  // Update dots
+  const dots = selector.querySelectorAll('.maturity-dot');
+  dots.forEach((dot, idx) => {
+    if (idx < level) {
+      dot.classList.add('filled');
+    } else {
+      dot.classList.remove('filled');
+    }
+  });
+  
+  // Update label
+  const label = selector.querySelector('span');
+  if (label) label.textContent = `${level}/5`;
+  
+  // Update gap display
+  const currentSelector = document.getElementById('modal-current-maturity');
+  const targetSelector = document.getElementById('modal-target-maturity');
+  const gapDisplay = document.getElementById('modal-gap-display');
+  
+  if (currentSelector && targetSelector && gapDisplay) {
+    const current = parseInt(currentSelector.dataset.value);
+    const target = parseInt(targetSelector.dataset.value);
+    const gap = Math.max(0, target - current);
+    gapDisplay.textContent = `${gap} levels (${current} → ${target})`;
+  }
+}
 
 function saveCapabilityChanges() {
   console.log('[saveCapabilityChanges] Saving changes...');
@@ -20441,29 +21631,160 @@ function saveCapabilityChanges() {
   }
   
   // Get updated values from modal fields
+  const nameField = document.getElementById('modal-name-input');
   const descriptionField = document.getElementById('modal-description');
+  const currentMaturitySelector = document.getElementById('modal-current-maturity');
+  const targetMaturitySelector = document.getElementById('modal-target-maturity');
+  const importanceField = document.getElementById('modal-strategic-importance');
+  const priorityField = document.getElementById('modal-investment-priority');
+  
+  // Validation
+  const newName = nameField?.value.trim() || capability.name;
+  if (!newName) {
+    alert('Capability name cannot be empty');
+    return;
+  }
+  
+  const currentMaturity = currentMaturitySelector ? parseInt(currentMaturitySelector.dataset.value) : capability.current_maturity || 1;
+  const targetMaturity = targetMaturitySelector ? parseInt(targetMaturitySelector.dataset.value) : capability.target_maturity || 3;
+  
+  if (targetMaturity < currentMaturity) {
+    alert('Target maturity cannot be less than current maturity');
+    return;
+  }
+  
+  // Update capability object
+  if (nameField && !capability.apqc_source) {
+    capability.name = newName;
+  }
+  
   if (descriptionField) {
     capability.description = descriptionField.value;
   }
   
-  // Find and update the capability in the model
+  if (currentMaturitySelector) {
+    capability.current_maturity = currentMaturity;
+    capability.maturity = currentMaturity;
+  }
+  
+  if (targetMaturitySelector) {
+    capability.target_maturity = targetMaturity;
+    capability.gap = targetMaturity - currentMaturity;
+  }
+  
+  if (importanceField) {
+    const importance = importanceField.value;
+    capability.strategic_importance = importance;
+    capability.strategicImportance = importance.toLowerCase();
+    capability.classification = importance === 'CORE' ? 'Core' : importance === 'COMMODITY' ? 'Commodity' : 'Supporting';
+  }
+  
+  if (priorityField) {
+    capability.investment_priority = priorityField.value;
+  }
+  
+  // Find and update the capability in the flat array
   const model = window.model || {};
   const capIndex = (model.capabilities || []).findIndex(c => c.id === capability.id);
   if (capIndex >= 0) {
     model.capabilities[capIndex] = capability;
-    console.log('[saveCapabilityChanges] Updated capability:', capability);
-    
-    // Re-render the active tab
-    const activeTab = document.querySelector('.capmap-workspace-tab.active')?.dataset.tab;
-    if (activeTab === 'capability-map') {
-      renderCapMap();
-    }
+    console.log('[saveCapabilityChanges] Updated capability in flat array:', capability);
+  }
+  
+  // Update in hierarchical capability map
+  updateCapabilityInHierarchy(capability);
+  
+  // Re-render the active tab
+  const activeTab = document.querySelector('.capmap-workspace-tab.active')?.dataset.tab;
+  if (activeTab === 'capability-map') {
+    renderCapMap();
   }
   
   closeCapabilityModal();
   
   // Show success message
   alert('Capability updated successfully!');
+}
+
+/**
+ * Update capability in hierarchical capability map
+ */
+function updateCapabilityInHierarchy(capability) {
+  const model = window.model || {};
+  if (!model.capabilityMap || !model.capabilityMap.l1_domains) return;
+  
+  const domainName = capability.domain;
+  const parentId = capability.parent_id;
+  
+  // Find L1 domain
+  let l1Domain = model.capabilityMap.l1_domains.find(d => d.name === domainName || d.id === parentId);
+  
+  if (!l1Domain) {
+    console.warn('[updateCapabilityInHierarchy] L1 domain not found for capability:', capability.name);
+    return;
+  }
+  
+  // Find and update capability in L2 array
+  if (!l1Domain.l2_capabilities) l1Domain.l2_capabilities = [];
+  const capIndex = l1Domain.l2_capabilities.findIndex(c => c.id === capability.id);
+  
+  if (capIndex >= 0) {
+    l1Domain.l2_capabilities[capIndex] = { ...capability };
+    console.log('[updateCapabilityInHierarchy] Updated capability in hierarchy:', capability.name);
+  } else {
+    console.warn('[updateCapabilityInHierarchy] Capability not found in hierarchy, adding it:', capability.name);
+    l1Domain.l2_capabilities.push({ ...capability });
+  }
+}
+
+/**
+ * Delete capability
+ */
+function deleteCapability(capabilityId) {
+  console.log('[deleteCapability] Deleting capability:', capabilityId);
+  
+  const capability = window._currentCapability;
+  
+  // Prevent deletion of APQC-sourced capabilities (optional protection)
+  if (capability && capability.apqc_source === true) {
+    alert('APQC-sourced capabilities cannot be deleted. You can only edit their maturity and importance.');
+    return;
+  }
+  
+  // Confirmation
+  const confirmMsg = `Are you sure you want to delete "${capability?.name || 'this capability'}"?\n\nThis action cannot be undone.`;
+  if (!confirm(confirmMsg)) {
+    return;
+  }
+  
+  const model = window.model || {};
+  
+  // Remove from flat capabilities array
+  if (model.capabilities) {
+    model.capabilities = model.capabilities.filter(c => c.id !== capabilityId);
+    console.log('[deleteCapability] Removed from capabilities array');
+  }
+  
+  // Remove from hierarchical capability map
+  if (model.capabilityMap && model.capabilityMap.l1_domains) {
+    model.capabilityMap.l1_domains.forEach(domain => {
+      if (domain.l2_capabilities) {
+        domain.l2_capabilities = domain.l2_capabilities.filter(c => c.id !== capabilityId);
+      }
+    });
+    console.log('[deleteCapability] Removed from capability map');
+  }
+  
+  // Close modal
+  closeCapabilityModal();
+  
+  // Re-render Capability Map
+  renderCapMap();
+  
+  // Show success message
+  setTimeout(() => {
+    alert('Capability deleted successfully!');
+  }, 100);
 }
 
 // ================================================================
@@ -22828,7 +24149,7 @@ function runPortfolioOptimisation() {
     <div class="bg-slate-900 p-6 text-white flex justify-between items-center">
       <div>
         <h3 class="text-lg font-bold">Strategic Board Report (Board Pack)</h3>
-        <p class="text-slate-400 text-[10px] uppercase tracking-widest mt-1">AI-generated analysis &bull; Business Outcomes &bull; ROI</p>
+        <p class="text-slate-400 text-[10px] uppercase tracking-widest mt-1">V11 4-Step EA Workflow &bull; APQC L1-L2 Capability Map &bull; AI Strategy &bull; Executive Summary</p>
       </div>
       <div class="flex gap-3">
         <button onclick="printReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
@@ -22843,7 +24164,7 @@ function runPortfolioOptimisation() {
       <div id="report-loading" class="flex flex-col items-center justify-center py-20">
         <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
         <p class="text-sm font-bold text-slate-500">AI is compiling the board report...</p>
-        <p id="report-progress" class="text-[10px] text-slate-400 mt-2 uppercase tracking-widest">Analyzing financial data</p>
+        <p id="report-progress" class="text-[10px] text-slate-400 mt-2 uppercase tracking-widest">Analyzing APQC capability map & business objectives</p>
       </div>
       <div id="report-content" class="hidden prose prose-slate max-w-none">
         <!-- AI Content injected here -->
@@ -22905,17 +24226,622 @@ function runPortfolioOptimisation() {
     opacity: 0.4;
     cursor: not-allowed;
   }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     STRATEGIC BOARD REPORT - C-LEVEL PRESENTATION STYLES
+     Professional UX/UI for Executive Presentations & Board Packs
+  ═══════════════════════════════════════════════════════════════════════ */
+
+  /* -- TYPOGRAPHY HIERARCHY (C-Level) ----------------------------------- */
+  .report-h1 { 
+    font-size: 32px; 
+    font-weight: 700; 
+    color: #0f172a; 
+    margin: 0 0 24px 0; 
+    padding-bottom: 16px;
+    border-bottom: 4px solid #2563eb; 
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  
+  .report-h2 { 
+    font-size: 24px; 
+    font-weight: 600; 
+    color: #1e293b; 
+    margin: 48px 0 20px 0; 
+    padding-top: 32px;
+    border-top: 2px solid #e2e8f0;
+    text-transform: uppercase; 
+    letter-spacing: 0.05em; 
+  }
+  
+  .report-h3 { 
+    font-size: 18px; 
+    font-weight: 600; 
+    color: #334155; 
+    margin: 32px 0 12px 0; 
+  }
+  
+  .report-h4 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #475569;
+    margin: 20px 0 8px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 13px;
+  }
+  
+  .report-p { 
+    margin: 0 0 16px 0; 
+    font-size: 15px; 
+    color: #475569; 
+    line-height: 1.7;
+  }
+
+  /* -- KPI CARDS (Executive Metrics) ------------------------------------ */
+  .report-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin: 24px 0;
+  }
+
+  .report-kpi-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .report-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  }
+
+  .report-kpi-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    margin-bottom: 8px;
+  }
+
+  .report-kpi-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .report-kpi-unit {
+    font-size: 18px;
+    font-weight: 500;
+    color: #475569;
+    margin-left: 4px;
+  }
+
+  .report-kpi-delta {
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 8px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    display: inline-block;
+  }
+
+  .report-kpi-delta.positive {
+    background: #d1fae5;
+    color: #065f46;
+  }
+
+  .report-kpi-delta.negative {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .report-kpi-delta.neutral {
+    background: #e2e8f0;
+    color: #475569;
+  }
+
+  /* -- EXECUTIVE TABLES ------------------------------------------------- */
+  .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 24px 0;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .report-table thead {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: white;
+  }
+
+  .report-table thead th {
+    padding: 16px 12px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 3px solid #3b82f6;
+  }
+
+  .report-table tbody tr {
+    border-bottom: 1px solid #e2e8f0;
+    transition: background-color 0.2s ease;
+  }
+
+  .report-table tbody tr:nth-child(even) {
+    background: #f8fafc;
+  }
+
+  .report-table tbody tr:hover {
+    background: #f1f5f9;
+  }
+
+  .report-table tbody td {
+    padding: 14px 12px;
+    color: #334155;
+    vertical-align: top;
+  }
+
+  .report-table tbody td:first-child {
+    font-weight: 600;
+    color: #1e293b;
+  }
+
+  .report-table-compact tbody td {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  /* -- HEATMAP / MATRIX STYLES ------------------------------------------ */
+  .report-heatmap {
+    display: grid;
+    gap: 2px;
+    margin: 24px 0;
+    background: #e2e8f0;
+    padding: 2px;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .report-heatmap-cell {
+    padding: 16px 12px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 4px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .report-heatmap-cell:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+  }
+
+  .report-heatmap-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+    opacity: 0.8;
+  }
+
+  .report-heatmap-value {
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  /* Maturity Color Scale (1-5) */
+  .heatmap-critical { background: #fee2e2; color: #991b1b; border: 2px solid #dc2626; }
+  .heatmap-low { background: #fed7aa; color: #9a3412; border: 2px solid #f97316; }
+  .heatmap-medium { background: #fef3c7; color: #854d0e; border: 2px solid #eab308; }
+  .heatmap-high { background: #bbf7d0; color: #14532d; border: 2px solid #22c55e; }
+  .heatmap-optimal { background: #d1fae5; color: #064e3b; border: 2px solid #10b981; }
+
+  /* -- INFOBOXES & CALLOUTS --------------------------------------------- */
+  .report-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 24px;
+    margin: 24px 0;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  }
+
+  .report-infobox {
+    padding: 20px 24px;
+    border-radius: 10px;
+    margin: 20px 0;
+    border-left: 5px solid;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .report-infobox-title {
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .report-infobox-icon {
+    font-size: 20px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Infobox Variants */
+  .report-infobox-insight {
+    background: #eff6ff;
+    border-left-color: #3b82f6;
+  }
+  .report-infobox-insight .report-infobox-icon {
+    background: #3b82f6;
+    color: white;
+  }
+
+  .report-infobox-warning {
+    background: #fef3c7;
+    border-left-color: #f59e0b;
+  }
+  .report-infobox-warning .report-infobox-icon {
+    background: #f59e0b;
+    color: white;
+  }
+
+  .report-infobox-success {
+    background: #d1fae5;
+    border-left-color: #10b981;
+  }
+  .report-infobox-success .report-infobox-icon {
+    background: #10b981;
+    color: white;
+  }
+
+  .report-infobox-critical {
+    background: #fee2e2;
+    border-left-color: #ef4444;
+  }
+  .report-infobox-critical .report-infobox-icon {
+    background: #ef4444;
+    color: white;
+  }
+
+  /* -- LISTS (Enhanced) ------------------------------------------------- */
+  .report-list {
+    margin: 16px 0;
+    padding-left: 0;
+    list-style: none;
+  }
+
+  .report-list li {
+    padding: 12px 16px;
+    margin: 8px 0;
+    background: #f8fafc;
+    border-left: 4px solid #3b82f6;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #334155;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .report-list li:hover {
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+  }
+
+  .report-list-numbered {
+    counter-reset: item;
+  }
+
+  .report-list-numbered li::before {
+    content: counter(item) ". ";
+    counter-increment: item;
+    font-weight: 700;
+    color: #3b82f6;
+    margin-right: 8px;
+  }
+
+  /* -- RECOMMENDATIONS BOX ---------------------------------------------- */
+  .report-recommendation {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 2px solid #3b82f6;
+    border-radius: 12px;
+    padding: 24px;
+    margin: 24px 0;
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.15);
+  }
+
+  .report-recommendation-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .report-recommendation-number {
+    background: #3b82f6;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 18px;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  }
+
+  .report-recommendation-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  .report-recommendation-body {
+    color: #475569;
+    line-height: 1.7;
+    font-size: 14px;
+  }
+
+  .report-recommendation-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #bfdbfe;
+  }
+
+  .report-recommendation-meta-item {
+    font-size: 12px;
+  }
+
+  .report-recommendation-meta-label {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    margin-bottom: 4px;
+  }
+
+  .report-recommendation-meta-value {
+    font-weight: 600;
+    color: #1e293b;
+    font-size: 13px;
+  }
+
+  /* -- CAPABILITY GAP BADGE --------------------------------------------- */
+  .report-gap-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 4px;
+  }
+
+  .report-gap-critical { background: #fee2e2; color: #991b1b; }
+  .report-gap-high { background: #fed7aa; color: #9a3412; }
+  .report-gap-medium { background: #fef3c7; color: #854d0e; }
+  .report-gap-low { background: #dbeafe; color: #1e40af; }
+
+  /* -- OBJECTIVE LINKAGE INDICATOR -------------------------------------- */
+  .report-objective-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #1e40af;
+    margin: 4px;
+  }
+
+  .report-objective-link::before {
+    content: "🎯";
+    font-size: 14px;
+  }
+
+  /* -- APQC L1/L2 CATEGORY STYLING -------------------------------------- */
+  .report-apqc-category {
+    margin: 32px 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  }
+
+  .report-apqc-category-header {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: white;
+    padding: 16px 20px;
+    font-weight: 700;
+    font-size: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .report-apqc-category-maturity {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .report-apqc-subcategories {
+    padding: 16px;
+    background: #ffffff;
+  }
+
+  .report-apqc-subcategory {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    margin: 8px 0;
+    background: #f8fafc;
+    border-left: 4px solid;
+    border-radius: 6px;
+    font-size: 13px;
+    transition: all 0.2s ease;
+  }
+
+  .report-apqc-subcategory:hover {
+    background: #f1f5f9;
+    transform: translateX(4px);
+  }
+
+  .report-apqc-subcategory.maturity-1,
+  .report-apqc-subcategory.maturity-2 { border-left-color: #dc2626; }
+  .report-apqc-subcategory.maturity-3 { border-left-color: #f59e0b; }
+  .report-apqc-subcategory.maturity-4,
+  .report-apqc-subcategory.maturity-5 { border-left-color: #10b981; }
+  
+  /* -- ROADMAP WAVE TIMELINE -------------------------------------------- */
+  .report-roadmap-wave {
+    margin: 24px 0;
+    padding: 20px;
+    border: 2px solid;
+    border-radius: 12px;
+    position: relative;
+  }
+
+  .report-roadmap-wave::before {
+    content: "";
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 60%;
+    border-radius: 4px;
+  }
+
+  .report-roadmap-wave.wave-foundation {
+    background: #ecfdf5;
+    border-color: #10b981;
+  }
+  .report-roadmap-wave.wave-foundation::before {
+    background: #10b981;
+  }
+
+  .report-roadmap-wave.wave-build {
+    background: #eff6ff;
+    border-color: #3b82f6;
+  }
+  .report-roadmap-wave.wave-build::before {
+    background: #3b82f6;
+  }
+
+  .report-roadmap-wave.wave-scale {
+    background: #fef3c7;
+    border-color: #f59e0b;
+  }
+  .report-roadmap-wave.wave-scale::before {
+    background: #f59e0b;
+  }
+
+  .report-roadmap-wave-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .report-roadmap-wave-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  .report-roadmap-wave-duration {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+  }
+
+  /* -- PRINT OPTIMIZATIONS ---------------------------------------------- */
   @media print {
     body * { visibility: hidden; }
     #report-container, #report-container * { visibility: visible; }
     #report-container { position: absolute; left: 0; top: 0; width: 100%; padding: 0; }
     #report-modal { background: white; position: static; display: block; }
+    .report-no-print { display: none !important; }
+    
+    .report-h1 { 
+      page-break-after: avoid; 
+      margin-top: 0;
+    }
+    .report-h2 { 
+      page-break-after: avoid; 
+      page-break-before: always; 
+      margin-top: 0;
+      padding-top: 0;
+    }
+    .report-h2:first-of-type {
+      page-break-before: auto;
+    }
+    .report-table, 
+    .report-kpi-grid, 
+    .report-recommendation,
+    .report-infobox {
+      page-break-inside: avoid;
+    }
+    .report-kpi-card:hover,
+    .report-table tbody tr:hover,
+    .report-heatmap-cell:hover,
+    .report-list li:hover {
+      transform: none;
+      box-shadow: none;
+    }
+    @page {
+      margin: 2cm;
+      size: A4;
+    }
   }
-  .report-h1 { font-size: var(--ea-kpi); font-weight: var(--ea-fw-bold); color: #0f172a; margin-bottom: 1rem; border-bottom: 4px solid #2563eb; padding-bottom: 1rem; }
-  .report-h2 { font-size: var(--ea-h1); font-weight: var(--ea-fw-semibold); color: #1e293b; margin-top: 2.5rem; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
-  .report-h3 { font-size: var(--ea-h3); font-weight: var(--ea-fw-semibold); color: #334155; margin-top: 1.5rem; margin-bottom: 0.5rem; }
-  .report-p { margin-bottom: 1rem; font-size: var(--ea-body); color: #334155; }
-  .report-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 1.5rem; border-radius: 1rem; margin: 1.5rem 0; }
+  
+  /* -- SCREEN-ONLY ENHANCEMENTS ----------------------------------------- */
+  @media screen {
+    #report-content {
+      animation: fadeIn 0.5s ease-in-out;
+    }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
   
   /* -- ASSISTANT MODE INDICATOR ------------------------------------------ */
   #assistant-mode-badge {
@@ -23346,6 +25272,46 @@ function runPortfolioOptimisation() {
   .capmap-btn--success:hover {
     background: linear-gradient(135deg, #059669 0%, #047857 100%);
     box-shadow: 0 4px 10px rgba(16, 185, 129, 0.35);
+    transform: translateY(-1px);
+  }
+
+  .capmap-btn--danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    border-color: #b91c1c;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+  }
+
+  .capmap-btn--danger:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.35);
+    transform: translateY(-1px);
+  }
+
+  .capmap-btn--danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #9ca3af;
+    border-color: #6b7280;
+  }
+
+  .capmap-btn--danger:disabled:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .capmap-btn--primary-sm {
+    padding: 6px 12px;
+    font-size: 11px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-color: #1e40af;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  }
+
+  .capmap-btn--primary-sm:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
     transform: translateY(-1px);
   }
 
@@ -24721,6 +26687,224 @@ function runPortfolioOptimisation() {
     margin-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+  }
+
+  /* Add Capability Modal Styles */
+  .add-cap-tab {
+    background: transparent;
+    border: none;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #64748B;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .add-cap-tab:hover {
+    color: #1E293B;
+  }
+
+  .add-cap-tab.active {
+    color: var(--ea-green-base, #006B3F);
+    border-bottom-color: var(--ea-green-base, #006B3F);
+  }
+
+  .add-cap-pane {
+    padding: 24px;
+  }
+
+  /* APQC Browser Styles */
+  .apqc-browser-domain {
+    margin-bottom: 12px;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .apqc-browser-header {
+    background: #F8FAFC;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .apqc-browser-header:hover {
+    background: #F1F5F9;
+  }
+
+  .apqc-browser-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+  }
+
+  .apqc-browser-badge {
+    background: var(--ea-green-base, #006B3F);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 4px;
+    min-width: 45px;
+    text-align: center;
+  }
+
+  .apqc-browser-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1E293B;
+  }
+
+  .apqc-browser-count {
+    font-size: 12px;
+    color: #64748B;
+    margin-right: 12px;
+  }
+
+  .apqc-browser-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+
+  .apqc-browser-content.expanded {
+    max-height: 2000px;
+    border-top: 1px solid #E2E8F0;
+  }
+
+  .apqc-browser-capability {
+    padding: 12px 16px;
+    border-bottom: 1px solid #F1F5F9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    transition: background 0.2s ease;
+  }
+
+  .apqc-browser-capability:last-child {
+    border-bottom: none;
+  }
+
+  .apqc-browser-capability:hover {
+    background: #F8FAFC;
+  }
+
+  .apqc-browser-cap-left {
+    flex: 1;
+  }
+
+  .apqc-browser-cap-code {
+    font-size: 11px;
+    color: #64748B;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .apqc-browser-cap-name {
+    font-size: 13px;
+    color: #1E293B;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .apqc-browser-cap-desc {
+    font-size: 12px;
+    color: #64748B;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+
+  .apqc-browser-industries {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .apqc-industry-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    background: #EEF2FF;
+    color: #4F46E5;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .apqc-industry-tag:first-child {
+    background: #DBEAFE;
+    color: #1E40AF;
+  }
+
+  .apqc-industry-tag--highlight {
+    background: #D1FAE5 !important;
+    color: #065F46 !important;
+    border: 1px solid #10B981;
+    font-weight: 700;
+    animation: pulse-highlight 2s ease-in-out;
+  }
+
+  @keyframes pulse-highlight {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0);
+    }
+  }
+
+  /* Maturity Selector (Interactive) */
+  .maturity-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0;
+  }
+
+  .maturity-selector .maturity-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid #CBD5E0;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .maturity-selector .maturity-dot:hover {
+    border-color: var(--ea-green-base, #006B3F);
+    transform: scale(1.1);
+  }
+
+  .maturity-selector .maturity-dot.filled {
+    background: var(--ea-green-base, #006B3F);
+    border-color: var(--ea-green-base, #006B3F);
+  }
+
+  .maturity-selector .maturity-dot.filled::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
   }
 
   .modal-field-value {

@@ -74,9 +74,12 @@ class EA_EngagementManager {
       assumptions: [],
       initiatives: [],
       roadmapItems: [],
-      architectureViews: [],
+      architectureThemes: [],
+      serviceCategories: [],  // V2.0: Service categorization
       artifacts: [],
-      whiteSpotHeatmaps: []
+      whiteSpotHeatmaps: [],
+      selectedServices: [],  // V2.0: Service IDs from WhiteSpot
+      selectedServicesData: []  // V2.0: Full service objects
     };
 
     // Save to localStorage
@@ -183,6 +186,36 @@ class EA_EngagementManager {
     }
     
     return this.currentEngagementId;
+  }
+
+  /**
+   * Save the current engagement model (convenience method)
+   * Updates the model in localStorage using the current engagement ID
+   * @returns {boolean} - Success status
+   */
+  saveCurrentEngagement() {
+    if (!this.currentEngagementId) {
+      console.error('❌ No current engagement ID set');
+      return false;
+    }
+    
+    // Get the current model from window.currentEngagement if available
+    const model = window.currentEngagement || this.loadEngagement(this.currentEngagementId);
+    
+    if (!model) {
+      console.error('❌ No current engagement model found');
+      return false;
+    }
+    
+    this.saveEngagement(this.currentEngagementId, model);
+    console.log('✅ Current engagement saved successfully');
+    
+    // Update window.currentEngagement to ensure UI has latest data
+    if (window.currentEngagement) {
+      window.currentEngagement = model;
+    }
+    
+    return true;
   }
 
   /**
@@ -974,7 +1007,8 @@ class EA_EngagementManager {
       assumptions: 'ASM',
       initiatives: 'INIT',
       roadmapItems: 'RM',
-      architectureViews: 'ARCH',
+      architectureThemes: 'ARCH',
+      serviceCategories: 'CAT',  // V2.0
       artifacts: 'ART',
       stories: 'STORY'
     };

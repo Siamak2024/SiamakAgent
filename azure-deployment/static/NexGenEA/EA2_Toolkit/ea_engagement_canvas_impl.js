@@ -525,19 +525,22 @@ function renderWhitespace() {
 function openArchitectureModal(id = null) {
     document.getElementById('architecture-edit-id').value = id || '';
     
+    let linkedServices = [];
+    
     if (id) {
         const arch = engagementManager.getEntity('architectureViews', id);
         if (arch) {
-            document.getElementById('architecture-modal-title').textContent = 'Edit Architecture View';
+            document.getElementById('architecture-modal-title').textContent = 'Edit Architecture Theme';
             document.getElementById('architecture-name').value = arch.name || '';
             document.getElementById('architecture-type').value = arch.type || 'target';
             document.getElementById('architecture-diagram-type').value = arch.diagramType || 'application-landscape';
             document.getElementById('architecture-principles').value = (arch.principles || []).join('\n');
             document.getElementById('architecture-patterns').value = (arch.patterns || []).join('\n');
             document.getElementById('architecture-description').value = arch.description || '';
+            linkedServices = arch.linkedServices || [];
         }
     } else {
-        document.getElementById('architecture-modal-title').textContent = 'Add Architecture View';
+        document.getElementById('architecture-modal-title').textContent = 'Add Architecture Theme';
         document.getElementById('architecture-name').value = '';
         document.getElementById('architecture-type').value = 'target';
         document.getElementById('architecture-diagram-type').value = 'application-landscape';
@@ -546,11 +549,112 @@ function openArchitectureModal(id = null) {
         document.getElementById('architecture-description').value = '';
     }
     
+    // V2.0 E2E Integration: Populate service checkboxes
+    const selectedServices = (window.currentEngagement && window.currentEngagement.selectedServices) || [];
+    const selectedServicesData = (window.currentEngagement && window.currentEngagement.selectedServicesData) || [];
+    
+    const serviceLinkingSection = document.getElementById('architecture-service-linking-section');
+    const checkboxContainer = document.getElementById('architecture-service-checkboxes');
+    
+    if (selectedServices.length > 0) {
+        // Show service linking section
+        serviceLinkingSection.style.display = 'block';
+        
+        // Build checkbox list grouped by L1
+        const servicesByL1 = {};
+        selectedServicesData.forEach(service => {
+            const l1 = service.l1Category || service.l1ParentName || 'Other';
+            if (!servicesByL1[l1]) servicesByL1[l1] = [];
+            servicesByL1[l1].push(service);
+        });
+        
+        let checkboxHTML = '';
+        Object.keys(servicesByL1).sort().forEach(l1 => {
+            checkboxHTML += `
+                <div style="margin-bottom: 16px;">
+                    <div style="font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 13px;">
+                        <i class="fas fa-folder" style="color: #10b981;"></i> ${l1}
+                    </div>
+            `;
+            
+            servicesByL1[l1].forEach(service => {
+                const isChecked = linkedServices.includes(service.id) ? 'checked' : '';
+                checkboxHTML += `
+                    <div style="margin-left: 20px; margin-bottom: 6px;">
+                        <label style="display: flex; align-items: center; cursor: pointer; font-size: 13px;">
+                            <input type="checkbox" 
+                                   value="${service.id}" 
+                                   class="arch-service-checkbox" 
+                                   ${isChecked}
+                                   style="margin-right: 8px;">
+                            <span style="color: #1f2937;">${service.name}</span>
+                            <span style="color: #9ca3af; font-size: 12px; margin-left: 8px;">(${service.category || 'Service'})</span>
+                        </label>
+                    </div>
+                `;
+            });
+            
+            checkboxHTML += '</div>';
+        });
+        
+        checkboxContainer.innerHTML = checkboxHTML;
+    } else {
+        // Hide service linking section if no services selected
+        serviceLinkingSection.style.display = 'none';
+        checkboxContainer.innerHTML = '<p style="color: #9ca3af; font-size: 13px; text-align: center; padding: 16px;">No services selected in WhiteSpot Heatmap yet.</p>';
+    }
+    
     document.getElementById('architectureModal').classList.remove('hidden');
 }
 
 function closeArchitectureModal() {
     document.getElementById('architectureModal').classList.add('hidden');
+}
+
+function deleteArchitecture(id) {
+    const arch = engagementManager.getEntity('architectureThemes', id);
+    if (!arch) return;
+    
+    // Check if architecture has linked services
+    const linkedServicesCount = (arch.linkedServices || []).length;
+    
+    // Build confirmation message
+    let confirmMsg = `Are you sure you want to delete "${arch.name}"?`;
+    
+    if (linkedServicesCount > 0) {
+        confirmMsg += `\n\n⚠️ Warning: This architecture is currently linked to ${linkedServicesCount} service${linkedServicesCount !== 1 ? 's' : ''}. These links will be removed.`;
+    }
+    
+    confirmMsg += '\n\nThis action cannot be undone.';
+    
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    // Delete the architecture
+    engagementManager.deleteEntity('architectureThemes', id);
+    
+    // Update engagement references
+    currentEngagement = engagementManager.getCurrentEngagement();
+    window.currentEngagement = currentEngagement;
+    
+    // V2.0: Update serviceToArchitectureMap to remove deleted architecture references
+    if (typeof updateServiceToArchitectureMap === 'function') {
+        updateServiceToArchitectureMap();
+    }
+    
+    // Refresh views
+    renderTarget();
+    
+    // Refresh Target Services view if services were linked
+    if (linkedServicesCount > 0 && typeof renderTargetServices === 'function') {
+        renderTargetServices();
+    }
+    
+    updateKPIs();
+    
+    console.log(`✅ Architecture deleted: ${arch.name} (ID: ${id})`);
+    showToast('Architecture Theme Deleted', `"${arch.name}" has been removed`, 'success');
 }
 
 function saveArchitecture() {
@@ -567,28 +671,47 @@ function saveArchitecture() {
         return;
     }
     
+    // V2.0 E2E Integration: Capture linkedServices from checkboxes
+    const serviceCheckboxes = document.querySelectorAll('.arch-service-checkbox:checked');
+    const linkedServices = Array.from(serviceCheckboxes).map(cb => cb.value);
+    
     const architecture = {
         name, type, diagramType, principles, patterns, description,
         linkedCapabilities: [],
-        linkedApplications: []
+        linkedApplications: [],
+        linkedServices: linkedServices  // V2.0: Service linking
     };
     
     if (id) {
-        engagementManager.updateEntity('architectureViews', id, architecture);
+        engagementManager.updateEntity('architectureThemes', id, architecture);
     } else {
-        engagementManager.addEntity('architectureViews', architecture);
+        engagementManager.addEntity('architectureThemes', architecture);
     }
     
     currentEngagement = engagementManager.getCurrentEngagement();
+    window.currentEngagement = currentEngagement; // Expose to modules
+    
+    // V2.0: Update serviceToArchitectureMap
+    if (typeof updateServiceToArchitectureMap === 'function') {
+        updateServiceToArchitectureMap();
+    }
+    
     closeArchitectureModal();
     renderTarget();
     updateKPIs();
     
-    showToast('Architecture Saved', id ? `Updated ${name}` : `Added ${name}`, 'success');
+    const serviceCount = linkedServices.length;
+    const serviceMsg = serviceCount > 0 ? ` (${serviceCount} service${serviceCount !== 1 ? 's' : ''} linked)` : '';
+    showToast('Architecture Theme Saved', id ? `Updated ${name}${serviceMsg}` : `Added ${name}${serviceMsg}`, 'success');
 }
 
 function renderTarget() {
-    const architectures = engagementManager.getEntities('architectureViews') || [];
+    // V2.0: Render selected services section first
+    if (typeof renderTargetServices === 'function') {
+        renderTargetServices();
+    }
+    
+    const architectures = engagementManager.getEntities('architectureThemes') || [];
     const container = document.getElementById('target-container');
     
     if (architectures.length === 0) {
@@ -612,12 +735,31 @@ function renderTarget() {
                         ${arch.diagramType ? `<span class="badge badge-draft">${arch.diagramType.replace('-', ' ')}</span>` : ''}
                     </div>
                 </div>
-                <button class="btn btn-ghost" onclick="openArchitectureModal('${arch.id}')">
-                    <i class="fas fa-edit"></i>
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-ghost" onclick="openArchitectureModal('${arch.id}')" title="Edit Architecture">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-ghost" onclick="deleteArchitecture('${arch.id}')" style="color: #ef4444;" title="Delete Architecture">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
             
             ${arch.description ? `<p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">${arch.description}</p>` : ''}
+            
+            ${arch.linkedServices && arch.linkedServices.length > 0 ? `
+                <div style="margin-bottom: 16px;">
+                    <h4 style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">
+                        <i class="fas fa-cubes" style="color: #10b981; margin-right: 6px;"></i>Linked Services (${arch.linkedServices.length})
+                    </h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                        ${arch.linkedServices.map(svcId => {
+                            const svc = (window.currentEngagement?.selectedServicesData || []).find(s => s.id === svcId);
+                            return svc ? `<span class="badge badge-active" style="font-size: 11px;">${svc.name}</span>` : '';
+                        }).join('')}
+                    </div>
+                </div>
+            ` : ''}
             
             ${arch.principles && arch.principles.length > 0 ? `
                 <div style="margin-bottom: 16px;">

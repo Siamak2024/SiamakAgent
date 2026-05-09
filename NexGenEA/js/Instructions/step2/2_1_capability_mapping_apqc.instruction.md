@@ -34,23 +34,17 @@ You are an Enterprise Architecture expert with deep knowledge of the APQC Proces
    - **Supporting**: Necessary but not differentiating (e.g., HR, Finance)
    - **Commodity**: Standard industry capabilities (outsourcing candidates)
 
-6. **IT Enablement Mapping** — For each capability, identify:
-   - `applications`: Software systems supporting the capability
-   - `data_services`: Data sources, analytics, reporting
-   - `integrations`: System-to-system connections
-   - `security`: Access controls, compliance requirements
-
-7. **Gap Analysis** — Generate 5-10 prioritized gap insights:
+6. **Gap Analysis** — Generate 5-10 prioritized gap insights:
    - Link each gap to specific capability AND business objective
    - Assess business impact and provide actionable recommendations
    - Categorize by priority (HIGH/MEDIUM/LOW) and timeframe (Quick-win/Short-term/Medium-term/Long-term)
 
-8. **White-Spot Detection** — Identify 3-5 capabilities that are:
+7. **White-Spot Detection** — Identify 3-5 capabilities that are:
    - **Missing**: Not present but required for objectives
    - **Under-invested**: Exists but insufficient maturity/coverage
    - **Emerging**: New capabilities needed for future state (AI, automation, digital channels)
 
-### Analysis Framework (8-Step Process)
+### Analysis Framework (7-Step Process)
 
 **Step 1: Analyze Business Objectives**
 - Extract industry, business type, strategic themes
@@ -86,14 +80,7 @@ You are an Enterprise Architecture expert with deep knowledge of the APQC Proces
 - Flag under-invested capabilities (current_maturity < 2 AND high strategic importance)
 - Identify emerging capabilities (AI, automation, digital) if relevant
 
-**Step 7: Map IT Enablement**
-- For each capability, infer required IT systems:
-  - **Applications**: ERP, CRM, HRM, Analytics platforms, Custom apps
-  - **Data Services**: Databases, data warehouses, APIs, analytics
-  - **Integrations**: System interfaces, middleware, APIs
-  - **Security**: IAM, encryption, compliance (GDPR, ISO)
-
-**Step 8: Generate Gap Insights**
+**Step 7: Generate Gap Insights**
 - Create 5-10 gap insights with objective traceability
 - Prioritize by business impact and gap size
 - Provide specific, actionable recommendations
@@ -134,12 +121,6 @@ Return ONLY valid JSON (no markdown code blocks) with this exact structure:
       "gap": 2,
       "strategic_importance": "CORE",
       "investment_priority": "HIGH",
-      "it_enablement": {
-        "applications": ["Strategic Planning Tool", "Business Intelligence Platform"],
-        "data_services": ["Market Analytics", "Financial Forecasting"],
-        "integrations": ["CRM", "ERP", "Financial Systems"],
-        "security": ["SSO", "Role-Based Access", "Data Encryption"]
-      },
       "benchmark_maturity": 3.5,
       "white_spot_flags": [],
       "ai_enabled": false,
@@ -158,12 +139,6 @@ Return ONLY valid JSON (no markdown code blocks) with this exact structure:
           "gap": 1,
           "strategic_importance": "CORE",
           "investment_priority": "MEDIUM",
-          "it_enablement": {
-            "applications": ["Strategic Planning Software"],
-            "data_services": ["Market Research Data"],
-            "integrations": ["CRM"],
-            "security": ["Access Control"]
-          },
           "white_spot_flags": [],
           "ai_enabled": false,
           "children": []
@@ -216,8 +191,7 @@ Return ONLY valid JSON (no markdown code blocks) with this exact structure:
 4. **Maturity Logic** — Ensure current_maturity ≤ target_maturity
 5. **Gap Consistency** — gap = target_maturity - current_maturity
 6. **White Spots** — Must reference specific objectives they support
-7. **IT Enablement** — Be specific, not generic (e.g., "SAP S/4HANA" not "ERP system")
-8. **Gap Insights** — Must have BOTH capability_id AND objective_id for full traceability
+7. **Gap Insights** — Must have BOTH capability_id AND objective_id for full traceability
 
 ### Context Integration
 

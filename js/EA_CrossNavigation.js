@@ -320,7 +320,7 @@ class EA_CrossNavigation {
       'constraint': 'Constraint',
       'assumption': 'Assumption',
       'roadmapItem': 'Roadmap Item',
-      'architectureView': 'Architecture View',
+      'architectureTheme': 'Architecture Theme',
       'artifact': 'Artifact'
     };
     return mapping[entityType] || entityType;
@@ -342,7 +342,7 @@ class EA_CrossNavigation {
       'constraint': '🚧',
       'assumption': '💭',
       'roadmapItem': '🗓️',
-      'architectureView': '🏛️',
+      'architectureTheme': '🏛️',
       'artifact': '📄'
     };
     return mapping[entityType] || '📌';

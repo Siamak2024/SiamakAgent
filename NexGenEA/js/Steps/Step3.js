@@ -473,6 +473,13 @@ Ensure coverage: data platform choice, integration pattern, cloud landing zone, 
 
   // ── On Complete: UI updates and next step prompt ──────────────────────────
   onComplete: (model) => {
+    // SAFETY CHECK: Ensure targetArchDone flag is set (should already be set by applyOutput)
+    if (model.targetArch && !model.targetArchDone) {
+      model.targetArchDone = true;
+      window.model.targetArchDone = true;
+      console.log('[Step3] ✅ Set targetArchDone flag for navigation unlock');
+    }
+    
     if (typeof renderTargetArchSection === 'function') renderTargetArchSection();
     if (typeof renderLayersSection === 'function') renderLayersSection();
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();

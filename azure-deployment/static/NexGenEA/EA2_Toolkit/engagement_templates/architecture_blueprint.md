@@ -59,7 +59,7 @@
 {{/if}}
 {{/each}}
 
-### AS-IS Architecture Views
+### AS-IS Architecture Themes
 
 {{#each architectureViews}}
 {{#if (eq this.type "as-is")}}
@@ -102,7 +102,7 @@
 {{/if}}
 {{/each}}
 
-### Target Architecture Views
+### Target Architecture Themes
 
 {{#each architectureViews}}
 {{#if (eq this.type "target")}}

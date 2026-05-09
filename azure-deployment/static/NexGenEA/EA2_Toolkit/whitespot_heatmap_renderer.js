@@ -270,15 +270,20 @@ function renderEmptyCustomerState() {
 
 /**
  * Render Service Delivery Model as reference catalog (no customer required)
- * Shows all 44 HL services from Vivicta model as a base reference
+ * Shows all HL services from Vivicta model + promoted L3 services as a base reference
  */
 function renderServiceCatalogView() {
-    // Get all HL services from Vivicta model
-    const hlServices = window.vivictaServiceLoader.getHLServices();
+    // Get all HL services from Vivicta model + promoted services
+    const hlServices = typeof getAllServicesWithPromoted === 'function' 
+        ? getAllServicesWithPromoted() 
+        : window.vivictaServiceLoader.getHLServices();
     
     if (!hlServices || hlServices.length === 0) {
         return renderErrorState('Service Model not loaded. Please refresh the page.');
     }
+    
+    const stats = window.vivictaServiceLoader.getStatistics();
+    const promotedCount = (window.promotedServices?.services?.length || 0);
     
     // Group services by L1 service area, then by sub-domain
     const servicesByArea = {};
@@ -299,15 +304,32 @@ function renderServiceCatalogView() {
     let html = `
         <div style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
+                <div style="flex: 1;">
                     <h3 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 8px;">
                         <i class="fas fa-th" style="color: #10b981; margin-right: 8px;"></i>
                         Service Delivery Model - Reference Catalog
                     </h3>
                     <p style="font-size: 14px; color: #6b7280; margin: 0;">
                         ${hlServices.length} high-level services across ${Object.keys(servicesByArea).length} service areas
+                        ${promotedCount > 0 ? `<span style="margin-left: 12px; color: #10b981; font-weight: 600;"><i class="fas fa-star"></i> ${promotedCount} promoted from detailed catalog</span>` : ''}
                         <span style="margin-left: 16px;">📋 Internal service catalog - add customers to create WhiteSpot assessments</span>
                     </p>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <div style="text-align: right; margin-right: 12px; padding-right: 12px; border-right: 2px solid #e5e7eb;">
+                        <div style="font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px;">Available</div>
+                        <div style="font-size: 24px; font-weight: 700; color: #10b981; line-height: 1;">${stats.totalL3Components}</div>
+                        <div style="font-size: 11px; color: #6b7280;">Detailed Services</div>
+                    </div>
+                    <button onclick="selectAllCatalogServices()" class="btn btn-secondary" style="white-space: nowrap; padding: 12px 20px; font-size: 14px; font-weight: 600;">
+                        <i class="fas fa-check-double"></i> Select All
+                    </button>
+                    <button onclick="openServiceBrowser()" class="btn btn-primary" style="white-space: nowrap; padding: 12px 20px; font-size: 14px; font-weight: 600;">
+                        <i class="fas fa-search-plus"></i> Browse Detailed Services
+                    </button>
+                    <button onclick="openServiceSelector()" class="btn btn-success" style="white-space: nowrap; padding: 12px 20px; font-size: 14px; font-weight: 600; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none;">
+                        <i class="fas fa-link"></i> Link to Engagement
+                    </button>
                 </div>
             </div>
         </div>
@@ -339,16 +361,41 @@ function renderServiceCatalogView() {
             `;
             
             services.forEach(service => {
+                const isPromoted = service.isPromoted || false;
+                const isSelected = window.catalogSelectedServices && window.catalogSelectedServices.includes(service.id);
                 html += `
-                    <div class="service-card-reference" style="background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; padding: 16px; transition: all 0.2s;">
-                        <div style="font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 8px;">
+                    <div class="service-card-reference" 
+                         data-service-id="${service.id}" 
+                         onclick="toggleCatalogServiceSelection('${service.id}')"
+                         style="background: ${isSelected ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' : (isPromoted ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : '#f9fafb')}; 
+                                border: 2px solid ${isSelected ? '#10b981' : (isPromoted ? '#10b981' : '#e5e7eb')}; 
+                                border-radius: 8px; 
+                                padding: 16px; 
+                                transition: all 0.2s; 
+                                position: relative; 
+                                cursor: pointer;
+                                box-shadow: ${isSelected ? '0 4px 12px rgba(16, 185, 129, 0.3)' : '0 1px 3px rgba(0,0,0,0.1)'};
+                         "
+                         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
+                         onmouseout="this.style.transform=''; this.style.boxShadow='${isSelected ? '0 4px 12px rgba(16, 185, 129, 0.3)' : '0 1px 3px rgba(0,0,0,0.1)'}';">
+                        
+                        <!-- Selection checkbox -->
+                        <div style="position: absolute; top: 8px; left: 8px; width: 24px; height: 24px; border-radius: 4px; background: ${isSelected ? '#10b981' : 'white'}; border: 2px solid ${isSelected ? '#10b981' : '#d1d5db'}; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                            ${isSelected ? '<i class="fas fa-check" style="color: white; font-size: 12px;"></i>' : ''}
+                        </div>
+                        
+                        ${isPromoted ? '<div style="position: absolute; top: 8px; right: 8px; background: #fbbf24; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px;"><i class="fas fa-star"></i></div>' : ''}
+                        
+                        <div style="font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 8px; padding-right: ${isPromoted ? '32px' : '0'}; padding-left: 32px;">
                             ${service.name}
                         </div>
-                        <div style="font-size: 12px; color: #6b7280;">
+                        <div style="font-size: 12px; color: #6b7280; padding-left: 32px;">
                             Service ID: ${service.id}
                         </div>
-                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af;">
-                            <i class="fas fa-info-circle"></i> Reference service - assign to customers for assessment
+                        ${isPromoted ? '<div style="font-size: 11px; color: #f59e0b; font-weight: 600; margin-top: 8px; padding-left: 32px;"><i class="fas fa-arrow-up"></i> Promoted from detailed catalog</div>' : ''}
+                        ${isSelected ? '<div style="font-size: 11px; color: #10b981; font-weight: 600; margin-top: 8px; padding-left: 32px;"><i class="fas fa-check-circle"></i> Selected for engagement</div>' : ''}
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid ${isSelected ? '#10b981' : (isPromoted ? '#f59e0b' : '#e5e7eb')}; font-size: 11px; color: #9ca3af; padding-left: 32px;">
+                            <i class="fas fa-info-circle"></i> ${isSelected ? 'Click to deselect' : 'Click to select for engagement'}
                         </div>
                     </div>
                 `;
@@ -681,6 +728,10 @@ function renderServiceCard(service, heatmap, l1Group) {
     const hasGaps = assessment && (assessment.gaps?.length > 0 || assessment.identifiedGaps?.length > 0);
     const hasOpportunities = heatmap.opportunities?.some(opp => opp.l2ServiceId === service.id);
     
+    // Check for APQC mappings
+    const apqcMappingsCount = assessment?.mappedCapabilities?.length || 0;
+    const hasAPQCMappings = apqcMappingsCount > 0;
+    
     // Get color based on assessment state
     const stateColors = {
         'FULL': { bg: '#10b981', text: '#ffffff', icon: 'check-circle', label: 'FULL' },
@@ -731,7 +782,7 @@ function renderServiceCard(service, heatmap, l1Group) {
             </div>
             
             <!-- State Badge & Score -->
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
                 <div style="
                     font-size: 10px;
                     font-weight: 700;
@@ -744,17 +795,54 @@ function renderServiceCard(service, heatmap, l1Group) {
                     <i class="fas fa-${colorScheme.icon}" style="margin-right: 4px;"></i>
                     ${colorScheme.label}
                 </div>
-                ${score > 0 ? `
-                    <div style="
-                        font-size: 12px;
-                        font-weight: 700;
-                        background: rgba(255,255,255,0.3);
-                        padding: 2px 6px;
-                        border-radius: 4px;
-                    ">
-                        ${score}%
-                    </div>
-                ` : ''}
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    ${hasAPQCMappings ? `
+                        <div style="
+                            font-size: 10px;
+                            font-weight: 700;
+                            background: rgba(255,255,255,0.95);
+                            color: #059669;
+                            padding: 3px 6px;
+                            border-radius: 4px;
+                            display: flex;
+                            align-items: center;
+                            gap: 3px;
+                        " title="${apqcMappingsCount} APQC mapping(s)">
+                            <i class="fas fa-layer-group" style="font-size: 9px;"></i>
+                            ${apqcMappingsCount}
+                        </div>
+                    ` : ''}
+                    ${score > 0 ? `
+                        <div style="
+                            font-size: 12px;
+                            font-weight: 700;
+                            background: rgba(255,255,255,0.3);
+                            padding: 2px 6px;
+                            border-radius: 4px;
+                        ">
+                            ${score}%
+                        </div>
+                    ` : ''}
+                    <!-- Edit Assessment Icon -->
+                    <button
+                        onclick="event.stopPropagation(); openServiceDrilldown('${heatmap.id}', '${service.id}');"
+                        style="
+                            background: rgba(255,255,255,0.25);
+                            border: 1px solid rgba(255,255,255,0.4);
+                            border-radius: 4px;
+                            padding: 4px 6px;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                            color: ${colorScheme.text};
+                            font-size: 11px;
+                        "
+                        onmouseover="this.style.background='rgba(255,255,255,0.4)'; this.style.borderColor='rgba(255,255,255,0.6)';"
+                        onmouseout="this.style.background='rgba(255,255,255,0.25)'; this.style.borderColor='rgba(255,255,255,0.4)';"
+                        title="Edit Assessment"
+                    >
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
             </div>
             
             <!-- Grid Icon (top-right corner) -->

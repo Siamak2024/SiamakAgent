@@ -112,7 +112,7 @@
 
 ### Target Architecture Principles
 
-{{#each architectureViews}}
+{{#each architectureThemes}}
 #### {{this.name}}
 - **Type:** {{this.viewType}}
 - **Description:** {{this.description}}

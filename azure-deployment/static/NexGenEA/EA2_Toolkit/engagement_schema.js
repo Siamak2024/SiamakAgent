@@ -1,9 +1,10 @@
 /**
  * EA Engagement Playbook — Canonical Data Model Schema
- * Defines 14 core entities for structured engagement management
+ * Defines core entities for structured engagement management
  * 
- * @version 1.0
- * @date 2026-04-17
+ * @version 2.0 - WhiteSpot → Target EA → Roadmap E2E Integration
+ * @date 2026-05-09
+ * @changes Added service linking across architecture, initiatives, and roadmap
  */
 
 // ═══════════════════════════════════════════════════════════════════
@@ -310,6 +311,7 @@ const AssumptionSchema = {
 /**
  * Initiative Entity
  * Investment options and transformation initiatives
+ * V2.0: Extended with service, capability, and application linkage for E2E traceability
  */
 const InitiativeSchema = {
   id: { type: 'string', required: true, pattern: /^INIT-\d{3}$/ },
@@ -328,7 +330,12 @@ const InitiativeSchema = {
   estimatedValue: { type: 'number' },
   owner: { type: 'string' },
   approvedBy: { type: 'string' },
-  approvalDate: { type: 'string', format: 'date' }
+  approvalDate: { type: 'string', format: 'date' },
+  // V2.0 E2E Integration Fields
+  linkedServices: { type: 'array', items: 'string', default: [], description: 'Array of L2 service IDs (from Vivicta DCS) that this initiative delivers or impacts' },
+  linkedCapabilities: { type: 'array', items: 'string', default: [], description: 'Array of capability IDs that this initiative addresses or improves' },
+  impactedApplications: { type: 'array', items: 'string', default: [], description: 'Array of application IDs that this initiative modifies, replaces, or decommissions' },
+  serviceCategoryTheme: { type: 'string', required: false, description: 'AI-suggested categorization theme (e.g., App Modernization, AI Governance, Cloud Migration)' }
 };
 
 /**
@@ -349,10 +356,11 @@ const RoadmapItemSchema = {
 };
 
 /**
- * ArchitectureView Entity
- * AS-IS and Target architecture views
+ * ArchitectureTheme Entity
+ * AS-IS and Target architecture themes
+ * V2.0: Extended with service linkage from WhiteSpot Heatmap
  */
-const ArchitectureViewSchema = {
+const ArchitectureThemeSchema = {
   id: { type: 'string', required: true, pattern: /^ARCH-\d{3}$/ },
   name: { type: 'string', required: true },
   type: { type: 'string', required: true, enum: ['as-is', 'target', 'transition'] },
@@ -363,6 +371,9 @@ const ArchitectureViewSchema = {
   diagramType: { type: 'string', enum: ['capability-map', 'application-landscape', 'data-flow', 'integration', 'reference-architecture'] },
   linkedCapabilities: { type: 'array', items: 'string' },
   linkedApplications: { type: 'array', items: 'string' },
+  // V2.0 E2E Integration Field
+  linkedServices: { type: 'array', items: 'string', default: [], description: 'Array of L2 service IDs (from Vivicta DCS) that support this architecture theme' },
+  serviceCategoryTheme: { type: 'string', required: false, description: 'AI-suggested categorization theme for grouped services' },
   metadata: {
     type: 'object',
     properties: {
@@ -387,6 +398,32 @@ const ArtifactSchema = {
   generatedAt: { type: 'string', format: 'datetime' },
   version: { type: 'string' },
   status: { type: 'string', enum: ['draft', 'review', 'approved', 'published'], default: 'draft' }
+};
+
+/**
+ * ServiceCategory Entity
+ * V2.0: AI-suggested categorization themes for service delivery planning
+ * Groups services into strategic themes for Target EA and Roadmap planning
+ */
+const ServiceCategorySchema = {
+  id: { type: 'string', required: true, pattern: /^CAT-\d{3}$/ },
+  name: { type: 'string', required: true, description: 'Category name (e.g., App Modernization, AI Governance)' },
+  description: { type: 'string', required: false },
+  theme: { type: 'string', required: true, enum: ['app-modernization', 'ai-automation', 'cloud-migration', 'data-platform', 'integration', 'cybersecurity', 'custom'], default: 'custom' },
+  linkedServices: { type: 'array', items: 'string', default: [], description: 'Array of L2 service IDs in this category' },
+  linkedArchitectures: { type: 'array', items: 'string', default: [], description: 'Array of Architecture Theme IDs using this category' },
+  linkedInitiatives: { type: 'array', items: 'string', default: [], description: 'Array of Initiative IDs mapped to this category' },
+  color: { type: 'string', required: false, description: 'Hex color for visual representation' },
+  icon: { type: 'string', required: false, description: 'Font Awesome icon class' },
+  aiSuggested: { type: 'boolean', default: false, description: 'True if created by AI categorization engine' },
+  aiReasoning: { type: 'string', required: false, description: 'AI explanation for why services were grouped into this category' },
+  metadata: {
+    type: 'object',
+    properties: {
+      createdAt: { type: 'string', format: 'datetime' },
+      createdBy: { type: 'string', enum: ['ai', 'manual'], default: 'manual' }
+    }
+  }
 };
 
 /**
@@ -908,6 +945,35 @@ const DefaultSegmentTemplates = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════
+// V2.0 ENGAGEMENT MODEL EXTENSIONS (Runtime Fields)
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * The following fields are added to the Engagement object at runtime to support
+ * WhiteSpot → Target EA → Roadmap E2E integration:
+ * 
+ * - selectedServices: string[] - Array of L2 service IDs selected from WhiteSpot Heatmap
+ * - selectedServicesData: object[] - Full service objects with metadata (id, name, category, l1ParentId)
+ * - serviceCategories: ServiceCategory[] - Array of ServiceCategory entities
+ * - serviceToArchitectureMap: { [serviceId: string]: string[] } - Maps service IDs to architecture theme IDs
+ * - serviceToInitiativeMap: { [serviceId: string]: string[] } - Maps service IDs to initiative IDs
+ * - architectureToCategoryMap: { [archId: string]: string } - Maps architecture theme IDs to category IDs
+ * - validationWarnings: object[] - Non-blocking validation warnings for service coverage gaps
+ * 
+ * Example:
+ * {
+ *   engagement: { ...EngagementSchema },
+ *   selectedServices: ['L2-001', 'L2-015', 'L2-042'],
+ *   selectedServicesData: [{ id: 'L2-001', name: 'Enterprise Architecture Advisory', ... }],
+ *   serviceCategories: [{ id: 'CAT-001', name: 'App Modernization', linkedServices: [...] }],
+ *   serviceToArchitectureMap: { 'L2-001': ['ARCH-001', 'ARCH-003'] },
+ *   serviceToInitiativeMap: { 'L2-001': ['INIT-001'], 'L2-015': ['INIT-002', 'INIT-003'] },
+ *   architectureToCategoryMap: { 'ARCH-001': 'CAT-001', 'ARCH-002': 'CAT-002' },
+ *   validationWarnings: [{ type: 'service-gap', message: '3 services not in roadmap', ... }]
+ * }
+ */
+
+// ═══════════════════════════════════════════════════════════════════
 // EXPORT
 // ═══════════════════════════════════════════════════════════════════
 
@@ -927,7 +993,8 @@ if (typeof window !== 'undefined') {
     Assumption: AssumptionSchema,
     Initiative: InitiativeSchema,
     RoadmapItem: RoadmapItemSchema,
-    ArchitectureView: ArchitectureViewSchema,
+    ArchitectureTheme: ArchitectureThemeSchema,
+    ServiceCategory: ServiceCategorySchema, // V2.0
     Artifact: ArtifactSchema,
     WorkflowState: WorkflowStateSchema,
     Account: AccountSchema,
@@ -956,7 +1023,8 @@ if (typeof module !== 'undefined' && module.exports) {
     AssumptionSchema,
     InitiativeSchema,
     RoadmapItemSchema,
-    ArchitectureViewSchema,
+    ArchitectureThemeSchema,
+    ServiceCategorySchema, // V2.0
     ArtifactSchema,
     WorkflowStateSchema,
     AccountSchema,

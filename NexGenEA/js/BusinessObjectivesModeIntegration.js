@@ -111,7 +111,7 @@ async function startStep3BusinessObjectives() {
   
   addAssistantMessage(`🏗️ **Starting: Capability Architecture**
 
-Building architecture view with objective traceability...`, { mode: 'business-objectives' });
+Building architecture theme with objective traceability...`, { mode: 'business-objectives' });
   
   showTypingIndicator();
   

@@ -237,6 +237,12 @@ const StepEngine = (() => {
     let finalOutput;
     try {
       finalOutput = stepModule.synthesize(ctx);
+      console.log(`[StepEngine] Synthesized output for ${stepId}:`, {
+        hasCapabilities: !!finalOutput.capabilities,
+        capabilitiesCount: finalOutput.capabilities?.length || 0,
+        hasGapInsights: !!finalOutput.gapInsights,
+        outputKeys: Object.keys(finalOutput || {}).join(', ')
+      });
     } catch (err) {
       _chatError(`Synthesis failed: ${err.message}`);
       throw err;
@@ -244,6 +250,12 @@ const StepEngine = (() => {
 
     // ── 7. Apply output to model (immutable update) ───────────────────────
     let newModel = stepModule.applyOutput(finalOutput, workingModel);
+    console.log(`[StepEngine] Model after applyOutput for ${stepId}:`, {
+      hasCapabilities: !!newModel.capabilities,
+      capabilitiesCount: newModel.capabilities?.length || 0,
+      hasGapInsights: !!newModel.gapInsights,
+      gapInsightsCount: newModel.gapInsights?.length || 0
+    });
 
     // Mark step as completed
     newModel = {
@@ -261,10 +273,31 @@ const StepEngine = (() => {
 
     // ── 8. Update global model, persist, render ───────────────────────────
     if (typeof window !== 'undefined' && typeof window.model !== 'undefined') {
-      Object.assign(window.model, newModel);
+      // CRITICAL FIX: Use proper merge instead of Object.assign to preserve arrays
+      // Object.assign does shallow merge which can lose array references
+      window.model = {
+        ...window.model,
+        ...newModel,
+        // Explicitly preserve critical arrays from newModel
+        capabilities: newModel.capabilities || window.model.capabilities || [],
+        gapInsights: newModel.gapInsights || window.model.gapInsights || [],
+        whiteSpots: newModel.whiteSpots || window.model.whiteSpots || [],
+        steps: {
+          ...window.model.steps,
+          ...newModel.steps
+        }
+      };
+      console.log(`[StepEngine] ✅ Model updated after ${stepId}:`, {
+        hasCapabilities: !!window.model.capabilities,
+        capabilitiesCount: window.model.capabilities?.length || 0,
+        hasGapInsights: !!window.model.gapInsights,
+        gapInsightsCount: window.model.gapInsights?.length || 0,
+        stepStatus: window.model.steps?.[stepId]?.status
+      });
     }
     // Use new Project-based save (fallback to legacy if not available)
     if (typeof saveProjectToDB === 'function') {
+      console.log(`[StepEngine] Calling saveProjectToDB after ${stepId}...`);
       saveProjectToDB(false, true);
     } else if (typeof autoSaveCurrentModel === 'function') {
       autoSaveCurrentModel();

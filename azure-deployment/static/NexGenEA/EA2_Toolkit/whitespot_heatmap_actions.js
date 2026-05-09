@@ -393,7 +393,7 @@ function openServiceDrilldown(heatmapId, l2ServiceId) {
                         Map this service to APQC capabilities with intelligent type recommendations (Primary, Secondary, Enabler, Industry-specific).
                     </p>
                     <div style="display: flex; gap: 12px;">
-                        <button class="btn btn-primary btn-sm" onclick="openAPQCMappingModalSafe('${heatmapId}', '${l2ServiceId}', '${heatmap.customerId}')" style="flex: 1;">
+                        <button class="btn btn-primary btn-sm" onclick="openAPQCMappingModal({id: '${l2ServiceId}', name: '${l2Service.name}', description: '${l2Service.description || ''}', mappedCapabilities: ${JSON.stringify(assessment.mappedCapabilities || [])}}, '${heatmap.customerId}')" style="flex: 1;">
                             <i class="fas fa-edit"></i> Edit APQC Mappings
                         </button>
                         <button class="btn btn-secondary btn-sm" onclick="generateAPQCMappings('${heatmapId}', '${l2ServiceId}')">
@@ -504,58 +504,6 @@ function switchDrilldownTab(tabName) {
 // APQC MAPPING FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════
 
-/**
- * Safe wrapper to open APQC mapping modal without inline JSON issues
- * @param {string} heatmapId - Heatmap ID
- * @param {string} l2ServiceId - L2 Service ID
- * @param {string} customerId - Customer ID
- */
-function openAPQCMappingModalSafe(heatmapId, l2ServiceId, customerId) {
-    // Get heatmap from engagement manager
-    if (!window.engagementManager) {
-        showNotification('Engagement manager not initialized', 'error');
-        return;
-    }
-
-    const engagement = window.engagementManager.getCurrentEngagement();
-    if (!engagement || !engagement.heatmaps) {
-        showNotification('No engagement data found', 'error');
-        return;
-    }
-
-    const heatmap = engagement.heatmaps.find(h => h.id === heatmapId);
-    if (!heatmap) {
-        showNotification('Heatmap not found', 'error');
-        return;
-    }
-
-    // Find the L2 service
-    const l2Service = heatmap.services?.find(s => s.serviceId === l2ServiceId);
-    if (!l2Service) {
-        showNotification('Service not found', 'error');
-        return;
-    }
-
-    // Get assessment data (contains mappedCapabilities)
-    const assessment = heatmap.hlAssessments?.find(a => a.l2ServiceId === l2ServiceId);
-
-    // Build service object for modal
-    const serviceObj = {
-        id: l2ServiceId,
-        name: l2Service.name || '',
-        description: l2Service.description || '',
-        mappedCapabilities: assessment?.mappedCapabilities || []
-    };
-
-    // Call the original modal function with safe data
-    if (typeof openAPQCMappingModal === 'function') {
-        openAPQCMappingModal(serviceObj, customerId);
-    } else {
-        showNotification('APQC mapping modal not available', 'error');
-        console.error('openAPQCMappingModal function not found');
-    }
-}
-
 function renderAPQCMappingsForService(heatmap, l2ServiceId) {
     const assessment = heatmap.hlAssessments.find(a => a.l2ServiceId === l2ServiceId);
     const mappedCapabilities = assessment?.mappedCapabilities || [];
@@ -635,20 +583,6 @@ async function generateAPQCMappings(heatmapId, l2ServiceId) {
     
     if (!heatmap || !l2Service || !assessment) {
         showNotification('Service not found', 'error');
-        console.error('[APQC] Missing data:', { heatmap: !!heatmap, l2Service: !!l2Service, assessment: !!assessment });
-        return;
-    }
-    
-    // Check if APQC integration is available and loaded
-    if (!window.apqcWhiteSpotIntegration) {
-        showNotification('APQC integration not available', 'error');
-        console.error('[APQC] window.apqcWhiteSpotIntegration is not defined');
-        return;
-    }
-    
-    if (!window.apqcWhiteSpotIntegration.isReady()) {
-        showNotification('APQC framework not loaded. Please wait and try again.', 'warning');
-        console.warn('[APQC] APQC framework not loaded yet');
         return;
     }
     
@@ -656,33 +590,22 @@ async function generateAPQCMappings(heatmapId, l2ServiceId) {
     showNotification('Generating AI-powered APQC mappings...', 'info');
     
     try {
-        // Get L3 components for this service (optional - fallback to service-level matching)
+        // Get L3 components for this service
         const l3Components = window.vivictaServiceLoader.getDLComponentsForService(l2ServiceId);
-        
-        console.log('[APQC] Service:', l2Service.name);
-        console.log('[APQC] L3 Components:', l3Components?.length || 0);
-        
-        if (!l3Components || l3Components.length === 0) {
-            console.log('[APQC] No L3 components - using service-level semantic matching');
-        }
         
         // Generate mapping suggestions using semantic matching
         const suggestions = await window.apqcWhiteSpotIntegration.generateMappingSuggestions(
             l2Service,
             l3Components,
             {
-                minConfidence: 0.25,  // Lowered from 0.5 to be more inclusive
+                minConfidence: 0.5,
                 maxSuggestions: 10,
                 preferredLevels: [3, 4]
             }
         );
         
-        console.log('[APQC] Generated suggestions:', suggestions.length);
-        console.log('[APQC] Suggestions:', suggestions);
-        
         if (suggestions.length === 0) {
-            showNotification(`No APQC mappings found with sufficient confidence for "${l2Service.name}". Try using the manual "Edit APQC Mappings" button instead.`, 'warning');
-            console.warn('[APQC] No suggestions found. This may indicate the APQC framework is not loaded or lacks relevant processes.');
+            showNotification('No APQC mappings found with sufficient confidence', 'warning');
             return;
         }
         
@@ -709,8 +632,6 @@ async function generateAPQCMappings(heatmapId, l2ServiceId) {
                                         type="checkbox" 
                                         id="apqc-suggestion-${idx}"
                                         data-apqc-id="${suggestion.apqcId}"
-                                        data-apqc-name="${encodeURIComponent(suggestion.apqcName)}"
-                                        data-apqc-level="${suggestion.apqcLevel}"
                                         data-rationale="${encodeURIComponent(suggestion.rationale)}"
                                         ${suggestion.confidence >= 0.7 ? 'checked' : ''}
                                         style="margin-top: 4px;"
@@ -718,17 +639,17 @@ async function generateAPQCMappings(heatmapId, l2ServiceId) {
                                     <div style="flex: 1;">
                                         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
                                             <label for="apqc-suggestion-${idx}" style="font-weight: 600; font-size: 13px; color: #111827; cursor: pointer;">
-                                                ${suggestion.apqcName}
+                                                ${suggestion.apqcProcess.name}
                                             </label>
                                             <div style="display: flex; gap: 6px; align-items: center;">
-                                                <span class="badge badge-primary">${suggestion.apqcLevel}</span>
+                                                <span class="badge badge-primary">L${suggestion.apqcProcess.level}</span>
                                                 <span style="font-size: 11px; font-weight: 600; color: ${confidenceColor};">
                                                     ${confidenceLabel} (${Math.round(suggestion.confidence * 100)}%)
                                                 </span>
                                             </div>
                                         </div>
                                         <p style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
-                                            <strong>ID:</strong> ${suggestion.apqcId}
+                                            <strong>ID:</strong> ${suggestion.apqcProcess.id}
                                         </p>
                                         <p style="font-size: 12px; color: #374151; font-style: italic;">
                                             "${suggestion.rationale}"
@@ -768,9 +689,8 @@ function removeAPQCMapping(heatmapId, l2ServiceId, apqcId) {
     const heatmap = engagementManager.getEntity('whiteSpotHeatmaps', heatmapId);
     const assessment = heatmap.hlAssessments.find(a => a.l2ServiceId === l2ServiceId);
     
-    if (assessment && assessment.mappedCapabilities) {
-        // Remove the mapping object from mappedCapabilities array
-        assessment.mappedCapabilities = assessment.mappedCapabilities.filter(m => m.apqcId !== apqcId);
+    if (assessment && assessment.apqcMappedCapabilities) {
+        assessment.apqcMappedCapabilities = assessment.apqcMappedCapabilities.filter(id => id !== apqcId);
         heatmap.metadata.updatedAt = new Date().toISOString();
         engagementManager.updateEntity('whiteSpotHeatmaps', heatmap.id, heatmap);
         
@@ -1290,15 +1210,7 @@ function applyAPQCMappings(heatmapId, l2ServiceId) {
     const heatmap = engagementManager.getEntity('whiteSpotHeatmaps', heatmapId);
     const assessment = heatmap.hlAssessments.find(a => a.l2ServiceId === l2ServiceId);
     
-    if (!assessment) {
-        showNotification('Assessment not found', 'error');
-        return;
-    }
-    
-    // Initialize mappedCapabilities array if it doesn't exist
-    if (!assessment.mappedCapabilities) {
-        assessment.mappedCapabilities = [];
-    }
+    if (!assessment) return;
     
     // Get all checked checkboxes
     const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="apqc-suggestion-"]:checked');
@@ -1309,44 +1221,43 @@ function applyAPQCMappings(heatmapId, l2ServiceId) {
     }
     
     // Extract APQC IDs and create mappings
-    let addedCount = 0;
+    const newMappings = [];
     checkboxes.forEach(cb => {
         const apqcId = cb.getAttribute('data-apqc-id');
-        const apqcName = decodeURIComponent(cb.getAttribute('data-apqc-name') || apqcId);
-        const apqcLevel = cb.getAttribute('data-apqc-level') || 'L3';
-        const rationale = decodeURIComponent(cb.getAttribute('data-rationale') || 'AI-suggested mapping');
+        const rationale = decodeURIComponent(cb.getAttribute('data-rationale'));
         
-        // Check if mapping already exists
-        const existingMapping = assessment.mappedCapabilities.find(m => m.apqcId === apqcId);
+        // Add to assessment's mapped capabilities if not already there
+        if (!assessment.apqcMappedCapabilities.includes(apqcId)) {
+            assessment.apqcMappedCapabilities.push(apqcId);
+        }
         
+        // Add to heatmap's apqcMappings array with full details
+        const existingMapping = heatmap.apqcMappings.find(m => m.apqcId === apqcId && m.mapsToL2?.includes(l2ServiceId));
         if (!existingMapping) {
-            // Add to assessment's mapped capabilities with correct structure
-            assessment.mappedCapabilities.push({
+            newMappings.push({
                 apqcId: apqcId,
-                name: apqcName,  // Use 'name' not 'apqcName' for rendering
-                apqcLevel: apqcLevel,
-                type: 'Primary',  // Default type, can be changed via Edit APQC Mappings
+                apqcLevel: parseInt(apqcId.split('.').length),
+                apqcName: window.apqcWhiteSpotIntegration.getProcessById(apqcId)?.name || apqcId,
+                mapsToL2: [l2ServiceId],
+                mapsToL3: [],
                 rationale: rationale,
-                customCapability: false,
-                confidenceScore: 0.7,  // Default confidence for AI suggestions
-                industry: 'cross-industry',  // Default to cross-industry
-                addedDate: new Date().toISOString()
+                isCustom: false,
+                confidence: parseFloat(cb.getAttribute('data-confidence')) || 0.7
             });
-            addedCount++;
         }
     });
     
-    // Update heatmap
+    heatmap.apqcMappings.push(...newMappings);
     heatmap.metadata.updatedAt = new Date().toISOString();
     engagementManager.updateEntity('whiteSpotHeatmaps', heatmap.id, heatmap);
     
     closeModal();
-    showNotification(`${addedCount} APQC mapping(s) applied successfully`, 'success');
+    showNotification(`${checkboxes.length} APQC mapping(s) applied successfully`, 'success');
     
-    // Refresh the drill-down modal to show updated mappings
+    // Refresh the drill-down modal if it's open
     setTimeout(() => {
         openServiceDrilldown(heatmapId, l2ServiceId);
-    }, 200);
+    }, 100);
 }
 
 /**
@@ -1583,12 +1494,164 @@ async function generateDemoHeatmapForCustomer(customerId) {
 function showNotification(message, type = 'info') {
     if (typeof showToast === 'function') {
         const title = type === 'success' ? 'Success' :
-                     type === 'error' ? 'Error' :
-                     type === 'warning' ? 'Warning' : 'Info';
+                      type === 'error' ? 'Error' :
+                      type === 'warning' ? 'Warning' : 'Info';
         showToast(title, message, type);
     } else {
         console.log(`[${type.toUpperCase()}] ${message}`);
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// QUICK CUSTOMER MODAL
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Show quick customer creation modal
+ * Lightweight modal for adding a customer directly from WhiteSpot heatmap view
+ */
+function showQuickCustomerModal() {
+    const manager = window.engagementManager;
+    if (!manager) {
+        showNotification('Engagement manager not available', 'error');
+        return;
+    }
+    
+    // Create modal HTML
+    const modalHTML = `
+        <div id="quickCustomerModal" class="modal-overlay" style="display: flex; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000;">
+            <div class="modal-box" style="background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0; font-size: 20px; color: #111827;">
+                        <i class="fas fa-building"></i> Quick Add Customer
+                    </h3>
+                    <button onclick="closeQuickCustomerModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="modal-body">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: #374151;">Customer Name *</label>
+                        <input type="text" id="quick-customer-name" placeholder="e.g., Acme Corporation" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: #374151;">Industry</label>
+                        <select id="quick-customer-industry" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                            <option value="Financial Services">Financial Services</option>
+                            <option value="Healthcare">Healthcare</option>
+                            <option value="Manufacturing">Manufacturing</option>
+                            <option value="Retail">Retail</option>
+                            <option value="Technology">Technology</option>
+                            <option value="Insurance">Insurance</option>
+                            <option value="Government">Government</option>
+                            <option value="Energy">Energy</option>
+                            <option value="Telecommunications">Telecommunications</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: #374151;">Segment</label>
+                        <select id="quick-customer-segment" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                            <option value="Enterprise">Enterprise</option>
+                            <option value="Mid-Market">Mid-Market</option>
+                            <option value="SMB">SMB</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 6px; color: #374151;">Region</label>
+                        <select id="quick-customer-region" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                            <option value="EMEA">EMEA</option>
+                            <option value="North America">North America</option>
+                            <option value="APAC">APAC</option>
+                            <option value="Latin America">Latin America</option>
+                        </select>
+                    </div>
+                    
+                    <div style="padding: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; margin-bottom: 20px;">
+                        <p style="margin: 0; font-size: 13px; color: #166534;">
+                            <i class="fas fa-info-circle"></i> A WhiteSpot heatmap will be automatically created for this customer with all available services.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button onclick="closeQuickCustomerModal()" class="btn btn-ghost" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer;">
+                        Cancel
+                    </button>
+                    <button onclick="submitQuickCustomer()" class="btn btn-primary" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                        <i class="fas fa-check"></i> Create Customer & Heatmap
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Focus on name input
+    setTimeout(() => {
+        document.getElementById('quick-customer-name').focus();
+    }, 100);
+}
+
+/**
+ * Close quick customer modal
+ */
+function closeQuickCustomerModal() {
+    const modal = document.getElementById('quickCustomerModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+/**
+ * Submit quick customer form
+ */
+async function submitQuickCustomer() {
+    const name = document.getElementById('quick-customer-name').value.trim();
+    const industry = document.getElementById('quick-customer-industry').value;
+    const segment = document.getElementById('quick-customer-segment').value;
+    const region = document.getElementById('quick-customer-region').value;
+    
+    if (!name) {
+        showNotification('Please enter a customer name', 'warning');
+        return;
+    }
+    
+    const manager = window.engagementManager;
+    const existingCustomers = manager.getEntities('customers') || [];
+    
+    // Generate customer ID
+    const nextId = `CUST-${String(existingCustomers.length + 1).padStart(3, '0')}`;
+    
+    const newCustomer = {
+        id: nextId,
+        name: name,
+        industry: industry,
+        segment: segment,
+        region: region,
+        description: `${segment} customer in ${industry} sector (${region})`,
+        createdAt: new Date().toISOString()
+    };
+    
+    // Add customer to engagement
+    manager.addEntity('customers', newCustomer);
+    
+    // Close modal
+    closeQuickCustomerModal();
+    
+    // Show notification
+    showNotification(`Customer "${name}" added successfully! Creating heatmap...`, 'success');
+    
+    // Refresh the WhiteSpot view (which will auto-create heatmap)
+    setTimeout(async () => {
+        await renderWhiteSpotHeatmap();
+    }, 300);
 }
 
 /**

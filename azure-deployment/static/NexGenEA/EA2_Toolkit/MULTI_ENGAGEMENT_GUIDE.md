@@ -57,7 +57,7 @@ Each engagement stores:
 - Assumptions
 - Initiatives
 - Roadmap Items
-- Architecture Views
+- Architecture Themes
 - Artifacts
 
 ## Usage Workflows
@@ -112,7 +112,7 @@ Completeness is calculated automatically based on:
 - **Applications (15%)**: At least 5 applications with lifecycle status
 - **Capabilities (15%)**: At least 8 capabilities with maturity scores
 - **Initiatives (15%)**: At least 3 initiatives with business outcomes
-- **Architecture (10%)**: At least 1 architecture view with principles
+- **Architecture (10%)**: At least 1 architecture theme with principles
 - **Artifacts (10%)**: At least 2 artifacts generated
 
 ### Traffic Light Thresholds
