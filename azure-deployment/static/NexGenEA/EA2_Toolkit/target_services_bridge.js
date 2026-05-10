@@ -564,7 +564,7 @@ async function openAISuggestCategories() {
         
         // Call Azure OpenAI
         const response = await AzureOpenAIProxy.create(finalPrompt, {
-            model: 'gpt-4o',
+            model: 'gpt-5.4',
             instructions: 'You are an expert Enterprise Architect. Analyze services and return ONLY valid JSON array as specified in the prompt. No additional text.',
             temperature: 0.4,
             timeout: 120000,

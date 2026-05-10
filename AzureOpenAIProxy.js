@@ -51,7 +51,7 @@ class AzureOpenAIProxy {
    */
   static async create(input, options = {}) {
     const {
-      model = 'gpt-4o',  // GPT-4o (current latest model)
+      model = 'gpt-5.4',  // GPT-5.4 via OpenAI Responses API
       instructions,
       tools,
       tool_choice,

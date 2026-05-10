@@ -39,7 +39,7 @@ module.exports = async function (context, req) {
       // Responses API fields
       input,
       instructions,
-      model = 'gpt-4o',  // GPT-4o (current latest model)
+      model = 'gpt-5.4',  // GPT-5.4 via OpenAI Responses API
       tools,
       tool_choice,
       parallel_tool_calls,

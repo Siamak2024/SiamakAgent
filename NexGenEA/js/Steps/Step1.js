@@ -568,6 +568,15 @@ Does this capture your strategic direction? Type "confirm" to proceed, or descri
     // Update UI
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
     if (typeof updateWorkflowProgress === 'function') updateWorkflowProgress([1]);
+    
+    // V11.4: Update navigation and tab lock states
+    if (typeof updateNavigationLockStates === 'function') {
+      updateNavigationLockStates();
+    } else if (typeof EANavigation !== 'undefined' && typeof EANavigation.updateLockStates === 'function') {
+      EANavigation.updateLockStates();
+    }
+    if (typeof updateTabLockStates === 'function') updateTabLockStates();
+    
     if (typeof showTab === 'function' && typeof findTabButton === 'function') {
       showTab('exec', findTabButton('exec'));
     }

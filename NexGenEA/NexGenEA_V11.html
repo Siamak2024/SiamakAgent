@@ -1830,14 +1830,101 @@
 
       <!-- TAB 2 & TAB 6: Removed - Will be rebuilt in 3-panel layout (Phase 1) -->
 
-      <!-- TARGET ARCHITECTURE VISUAL -->
+      <!-- TARGET ARCHITECTURE VISUAL - V11.3 ENHANCED WITH 3-TAB NAVIGATION -->
       <div id="tab-targetarch" class="hidden">
-        <div class="flex items-center justify-between mb-4">
-          <div class="text-xs font-bold text-slate-600">Target Architecture · Capability Uplift Plan</div>
-          <span class="text-[10px] text-slate-400">Current ? Target maturity per capability</span>
+        <!-- Sub-navigation for Target Architecture views -->
+        <div class="ea-subtab-nav mb-4">
+          <button 
+            id="subtab-btn-capability-uplift" 
+            class="ea-subtab-btn is-active" 
+            onclick="showTargetArchSubTab('capability-uplift')"
+            title="View capability maturity progression">
+            <i class="fas fa-arrow-trend-up mr-2"></i>
+            <span>Capability Uplift</span>
+          </button>
+          <button 
+            id="subtab-btn-white-spots" 
+            class="ea-subtab-btn" 
+            onclick="showTargetArchSubTab('white-spots')"
+            title="View strategic opportunity analysis">
+            <i class="fas fa-lightbulb mr-2"></i>
+            <span>White Spots</span>
+          </button>
+          <button 
+            id="subtab-btn-future-state-ea" 
+            class="ea-subtab-btn" 
+            onclick="showTargetArchSubTab('future-state-ea')"
+            title="View 4-domain enterprise architecture">
+            <i class="fas fa-layer-group mr-2"></i>
+            <span>Future State EA</span>
+          </button>
         </div>
-        <div id="targetarch-content">
-          <div class="text-slate-400 text-xs text-center py-16">Click "Target Arch" to generate the visual</div>
+
+        <!-- SUB-TAB 1: Capability Uplift (Legacy view - Backward Compatible) -->
+        <div id="subtab-capability-uplift" class="ea-subtab-content">
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-xs font-bold text-slate-600">Target Architecture &middot; Capability Uplift Plan</div>
+            <div class="flex items-center gap-2">
+              <button 
+                onclick="openCapabilityUpliftEditor()"
+                class="px-3 py-1 text-[10px] font-medium text-white bg-blue-600 hover:bg-blue-700 rounded flex items-center gap-1.5"
+                title="Add new capability uplift"
+              >
+                <i class="fas fa-plus text-[9px]"></i>
+                Add Capability
+              </button>
+              <span class="text-[10px] text-slate-400">Current → Target maturity per capability</span>
+            </div>
+          </div>
+          <div id="targetarch-content">
+            <div class="text-slate-400 text-xs text-center py-16">Click "Target Arch" to generate the visual</div>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 2: White Spots Analysis (NEW in V11.3) -->
+        <div id="subtab-white-spots" class="ea-subtab-content hidden">
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-xs font-bold text-slate-600">White Spot Analysis</div>
+            <button 
+              onclick="openWhiteSpotEditor()"
+              style="background: linear-gradient(135deg, var(--ea-primary) 0%, var(--ea-accent) 100%); color: #ffffff;"
+              class="px-3 py-1 text-[10px] font-medium rounded flex items-center gap-1.5 hover:shadow-md transition-all"
+              title="Add new white spot theme"
+            >
+              <i class="fas fa-plus text-[9px]"></i>
+              Add White Spot
+            </button>
+          </div>
+          <div id="whitespots-content">
+            <div class="text-slate-400 text-xs text-center py-16">
+              <i class="fas fa-lightbulb text-4xl mb-4 opacity-20"></i>
+              <div>White Spot Analysis will appear after Step 3 completion</div>
+              <div class="text-[10px] mt-2">Strategic opportunities with explicit business objective traceability</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 3: Future-State Enterprise Architecture (NEW in V11.3) -->
+        <div id="subtab-future-state-ea" class="ea-subtab-content hidden">
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-xs font-bold text-slate-600">Future-State Enterprise Architecture</div>
+            <button 
+              onclick="openFutureStateEAEditor()"
+              style="background: linear-gradient(135deg, var(--ea-primary) 0%, var(--ea-accent) 100%); color: #ffffff;"
+              class="px-3 py-1 text-[10px] font-medium rounded flex items-center gap-1.5 hover:shadow-md transition-all"
+              title="Add new EA domain"
+            >
+              <i class="fas fa-plus text-[9px]"></i>
+              Add Domain
+            </button>
+          </div>
+          <div id="futurestateea-content">
+            <div class="text-slate-400 text-xs text-center py-16">
+              <i class="fas fa-layer-group text-4xl mb-4 opacity-20"></i>
+              <div>Future-State Enterprise Architecture will appear after Step 3 completion</div>
+              <div class="text-[10px] mt-2">4-domain architecture with business objective traceability</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -3874,7 +3961,8 @@ function createNewProject() {
   window.hasUnsavedChanges = false;
   
   // Update UI
-  document.getElementById('description').value = projectDescription;
+  const descEl = document.getElementById('description');
+  if (descEl) descEl.value = projectDescription;
   ensurePhase4Fields();
   renderPhase4ControlsFromModel();
   renderLayers();
@@ -5861,8 +5949,56 @@ window.showTab = function showTab(name, btn) {
   // -- END BUG-9 FIX ------------------------------------------
 }
 
-// Example: Call highlightTab('exec', true) when Step 1 is completed
-// You should call highlightTab('capmap', true) when capability map is generated, etc.
+// ═════════════════════════════════════════════════════════════════════════════
+// ✨ V11.3: Target Architecture Sub-Tab Navigation
+// ═════════════════════════════════════════════════════════════════════════════
+window.showTargetArchSubTab = function showTargetArchSubTab(subtabName) {
+  // Hide all sub-tab contents
+  document.querySelectorAll('.ea-subtab-content').forEach(el => el.classList.add('hidden'));
+  
+  // Remove active state from all sub-tab buttons
+  document.querySelectorAll('.ea-subtab-btn').forEach(btn => btn.classList.remove('is-active'));
+  
+  // Show the selected sub-tab content
+  const targetSubtab = document.getElementById('subtab-' + subtabName);
+  if (targetSubtab) {
+    targetSubtab.classList.remove('hidden');
+  } else {
+    console.warn('[showTargetArchSubTab] Sub-tab not found:', subtabName);
+    return;
+  }
+  
+  // Activate the corresponding button
+  const targetBtn = document.getElementById('subtab-btn-' + subtabName);
+  if (targetBtn) {
+    targetBtn.classList.add('is-active');
+  }
+  
+  // Trigger rendering based on sub-tab
+  if (subtabName === 'capability-uplift') {
+    // Legacy view - already rendered by renderTargetArchVisual
+    if (typeof renderTargetArchVisual === 'function') {
+      setTimeout(renderTargetArchVisual, 50);
+    }
+  } else if (subtabName === 'white-spots') {
+    // Render White Spots view
+    if (typeof renderWhiteSpotsView === 'function') {
+      setTimeout(renderWhiteSpotsView, 50);
+    } else {
+      console.log('[V11.3] renderWhiteSpotsView not yet implemented');
+    }
+  } else if (subtabName === 'future-state-ea') {
+    // Render Future-State EA view
+    if (typeof renderFutureStateEAView === 'function') {
+      setTimeout(renderFutureStateEAView, 50);
+    } else {
+      console.log('[V11.3] renderFutureStateEAView not yet implemented');
+    }
+  }
+  
+  // TEST CHECKPOINT: Log sub-tab navigation
+  console.log('[V11.3] 🔀 Target Arch Sub-Tab Changed:', subtabName);
+};
 
 // Example hooks (add these in your workflow where content is generated):
 // highlightTab('exec', true); // Highlight Executive tab
@@ -7667,56 +7803,14 @@ async function generateFullReport() {
     };
   }).filter(item => item.gapCount > 0);
 
-  // Build APQC L1-L2 heatmap data
-  const apqcHeatmap = [];
-  if (capabilityMap.categories) {
-    capabilityMap.categories.forEach(l1 => {
-      const l1Summary = {
-        category: l1.name,
-        categoryId: l1.id,
-        avgMaturity: 0,
-        capabilities: []
-      };
-      
-      if (l1.processGroups) {
-        l1.processGroups.forEach(l2 => {
-          const matchingCaps = capabilities.filter(c => 
-            c.apqcL2 === l2.id || c.categoryL2 === l2.name
-          );
-          
-          if (matchingCaps.length > 0) {
-            const l2Maturity = (matchingCaps.reduce((sum, c) => sum + (c.maturity || 0), 0) / matchingCaps.length).toFixed(1);
-            l1Summary.capabilities.push({
-              name: l2.name,
-              maturity: l2Maturity,
-              count: matchingCaps.length,
-              gaps: matchingCaps.filter(c => (c.maturity || 0) <= 2).length
-            });
-          }
-        });
-      }
-      
-      if (l1Summary.capabilities.length > 0) {
-        l1Summary.avgMaturity = (
-          l1Summary.capabilities.reduce((sum, c) => sum + parseFloat(c.maturity), 0) / 
-          l1Summary.capabilities.length
-        ).toFixed(1);
-        apqcHeatmap.push(l1Summary);
-      }
-    });
-  }
-
   // STEP 3: Target Architecture
   const targetArchData = model.targetArchData || {};
   const archPrinciples = model.archPrinciples || [];
   const archDecisions = model.archDecisions || [];
   const aiAgents = model.aiAgents || [];
   const systems = model.systems || [];
-
-  // STEP 4: Transformation Roadmap
-  const roadmap = model.roadmap || {};
-  const initiatives = model.initiatives || [];
-  const roadmapWaves = roadmap.waves || [];
+  const whiteSpotSummary = model.whiteSpotSummary || {};
+  const futureStateEA = model.futureStateEA || {};
 
   // Legacy KPI extraction (for backward compatibility)
   const kpis = {
@@ -7776,7 +7870,6 @@ async function generateFullReport() {
       apqcSummary: apqcSummary,
       capabilityCount: capabilities.length,
       avgMaturity: avgMaturity,
-      apqcHeatmap: apqcHeatmap.slice(0, 8), // Top 8 L1 categories
       criticalGaps: criticalGaps,
       gapsByObjective: topGapsByObjective,
       whiteSpots: whiteSpots.slice(0, 5),
@@ -7789,15 +7882,9 @@ async function generateFullReport() {
       keyDecisions: archDecisions.slice(0, 8),
       aiAgents: aiAgents.slice(0, 10),
       systemsCount: systems.length,
-      architectureStyle: targetArchData.architecture_style || 'Not defined'
-    },
-    
-    // Step 4: Transformation Roadmap
-    step4: {
-      waves: roadmapWaves,
-      initiativesCount: initiatives.length,
-      quickWins: initiatives.filter(i => i.effort === 'S' || i.horizon === 'Foundation').slice(0, 5),
-      totalDuration: roadmap.totalDuration || 'Not specified'
+      architectureStyle: targetArchData.metadata?.architecture_style || targetArchData.architecture_style || 'Not defined',
+      whiteSpotSummary: whiteSpotSummary,
+      futureStateEA: futureStateEA
     },
     
     // Cross-cutting concerns
@@ -7808,8 +7895,7 @@ async function generateFullReport() {
     completionStatus: {
       step1: businessObjectives.length > 0,
       step2: capabilities.length > 0,
-      step3: archPrinciples.length > 0,
-      step4: initiatives.length > 0
+      step3: archPrinciples.length > 0
     }
   };
 
@@ -7818,9 +7904,9 @@ async function generateFullReport() {
   // ═══════════════════════════════════════════════════════════════════════
 
   try {
-    progress.textContent = "Generating C-level Strategic Business Capability Report...";
+    progress.textContent = "Generating C-level Strategic Board Report with Target Architecture...";
     
-    const systemPrompt = `Act as a Senior Enterprise Architect and AI Strategy Expert. Your goal is to generate a complete, C-suite-ready Strategic Business Capability Map (Levels 1-2) with Gap Analysis and Strategic Heatmap for the provided company and industry.
+    const systemPrompt = `Act as a Senior Enterprise Architect and AI Strategy Expert. Your goal is to generate a complete, C-suite-ready Strategic Board Report with Gap Analysis, Target Architecture, and Business Recommendations for the provided company and industry.
 
 **YOUR EXPERTISE:**
 - Enterprise Architecture (TOGAF, Zachman, APQC PCF)
@@ -7833,7 +7919,9 @@ async function generateFullReport() {
 **CONTEXT:**
 - Industry: ${industry}
 - Organization: ${dataPack.organization}
-- APQC Framework: ${apqcSummary.version || 'v8.0'} (${capabilities.length} capabilities mapped)
+- Capabilities Mapped: ${capabilities.length}
+- Architecture Principles: ${archPrinciples.length}
+- AI Agents Proposed: ${aiAgents.length}
 - Project: ${dataPack.projectName}
 
 **OUTPUT REQUIREMENTS:**
@@ -7867,7 +7955,7 @@ Must include these 8 sections:
 - Quantify business impact where possible
 
 **f) AI Opportunities**
-- 3-5 high-value AI/automation opportunities
+- 3-5 high-value AI/automation opportunities from step3.aiAgents
 - Link to capability gaps and business objectives
 - Expected ROI or efficiency gains
 
@@ -7881,30 +7969,22 @@ Must include these 8 sections:
 - Each recommendation: What, Why, When, Resource Requirements
 - Expected business outcomes
 
-### 2. APQC CAPABILITY HEATMAP (L1-L2)
-- Present APQC Level 1 categories with Level 2 breakdown
-- Show maturity scores (1-5 scale) with color coding
-- Highlight critical gaps and white spots
-- Link to business objectives
+### 2. OBJECTIVE TRACEABILITY MATRIX
+- Table showing Business Objective → Capability Gaps → Architecture Decisions → Expected Outcomes
+- Link each objective to relevant architecture principles from step3
+- Show white spots and future-state EA opportunities
 
-### 3. OBJECTIVE TRACEABILITY MATRIX
-- Table showing Business Objective → Capability Gaps → Initiatives → Expected Outcomes
-- Ensure every objective has at least one initiative
-
-### 4. TARGET ARCHITECTURE PRINCIPLES
-- List 6-10 guiding principles
+### 3. TARGET ARCHITECTURE PRINCIPLES & DECISIONS
+- List 6-10 guiding principles from step3.archPrinciples
 - Rationale and business implications for each
+- Key Architecture Decision Records (ADRs) from step3.keyDecisions
+- White spot themes and future-state EA vision from step3
 
-### 5. TRANSFORMATION ROADMAP (3 Horizons)
-- Wave 1: Foundation (0-6 months) - Quick wins
-- Wave 2: Build (6-18 months) - Core capabilities
-- Wave 3: Scale (18-36 months) - Advanced capabilities
-- Show dependencies and sequencing logic
-
-### 6. FINANCIAL SUMMARY (CFO View)
-- Investment required by wave
-- Expected savings and ROI timeline
+### 4. FINANCIAL SUMMARY (CFO View)
+- Investment required for target architecture implementation
+- Expected savings and ROI timeline from capability uplift
 - Break-even point and payback period
+- Risk-adjusted benefits
 
 **FORMATTING RULES (Professional C-Level Styles):**
 
@@ -7976,48 +8056,6 @@ Variants: report-infobox-insight (blue), report-infobox-warning (yellow), report
   </div>
 </div>
 
-**APQC Categories (L1-L2 Hierarchy):**
-<div class="report-apqc-category">
-  <div class="report-apqc-category-header">
-    <span>1.0 Develop Vision and Strategy</span>
-    <span class="report-apqc-category-maturity">Avg: 2.8/5</span>
-  </div>
-  <div class="report-apqc-subcategories">
-    <div class="report-apqc-subcategory maturity-2">
-      <span>1.1 Define Business Concept</span>
-      <span style="font-weight:700;">2.0/5</span>
-    </div>
-  </div>
-</div>
-
-**Roadmap Waves:**
-<div class="report-roadmap-wave wave-foundation">
-  <div class="report-roadmap-wave-header">
-    <div class="report-roadmap-wave-title">Wave 1: Foundation</div>
-    <div class="report-roadmap-wave-duration">0-6 months</div>
-  </div>
-  <ul class="report-list">
-    <li>Initiative 1</li>
-    <li>Initiative 2</li>
-  </ul>
-</div>
-
-Use wave-foundation, wave-build, wave-scale classes.
-
-**Heatmap Cells (for maturity matrices):**
-<div class="report-heatmap" style="grid-template-columns: repeat(3, 1fr);">
-  <div class="report-heatmap-cell heatmap-critical">
-    <div class="report-heatmap-label">Capability A</div>
-    <div class="report-heatmap-value">1.5</div>
-  </div>
-  <div class="report-heatmap-cell heatmap-high">
-    <div class="report-heatmap-label">Capability B</div>
-    <div class="report-heatmap-value">4.2</div>
-  </div>
-</div>
-
-Maturity classes: heatmap-critical (1-2), heatmap-low (2-3), heatmap-medium (3), heatmap-high (3-4), heatmap-optimal (4-5)
-
 **Lists:**
 <ul class="report-list report-list-numbered">
   <li>First item with automatic numbering</li>
@@ -8034,7 +8072,8 @@ Maturity classes: heatmap-critical (1-2), heatmap-low (2-3), heatmap-medium (3),
 - ONLY output valid HTML (no markdown, no code blocks, no explanations)
 - Start directly with <h1 class="report-h1">Strategic Architecture Analysis & Transformation Plan</h1>
 - Ensure all 8 executive summary sections are present and substantive
-- Link everything back to business objectives (traceability is key)`;
+- Link everything back to business objectives (traceability is key)
+- Focus on Target Architecture (Step 3) outputs: principles, decisions, AI agents, white spots, future-state EA`;
 
     const userPrompt = `Generate the complete C-suite board report based on this V11 4-step EA workflow data:
 
@@ -8042,13 +8081,14 @@ ${JSON.stringify(dataPack, null, 2)}
 
 **IMPORTANT INSTRUCTIONS:**
 1. Extract business objectives from step1.businessObjectives - these are PRIMARY drivers
-2. Build APQC L1-L2 heatmap from step2.apqcHeatmap data with maturity color coding
-3. Link ALL gaps in step2.criticalGaps to specific business objectives (use step2.gapsByObjective for linkage)
-4. Present AI opportunities from step3.aiAgents with business value justification
-5. Show 3-wave transformation plan from step4.waves with dependencies
-6. Ensure ESG/compliance section uses esgRisks array
-7. Make Top 5 Recommendations actionable with specific timelines and owners
-8. If any step is incomplete (check completionStatus), gracefully handle missing data with "In Progress" sections
+2. Link ALL gaps in step2.criticalGaps to specific business objectives (use step2.gapsByObjective for linkage)
+3. Present AI opportunities from step3.aiAgents with business value justification
+4. Showcase architecture principles from step3.archPrinciples
+5. Include Architecture Decision Records (ADRs) from step3.keyDecisions
+6. Present white spot themes and future-state EA vision from step3.whiteSpotSummary and step3.futureStateEA
+7. Ensure ESG/compliance section uses esgRisks array
+8. Make Top 5 Recommendations actionable with specific timelines and owners
+9. If any step is incomplete (check completionStatus), gracefully handle missing data with "In Progress" sections
 
 Generate the complete HTML report now:`;
 
@@ -9295,6 +9335,20 @@ function parseAssistantCommand(userMessage) {
     return { type: 'run', action: 'import_toolkit', toolkitId: resolvedToolkitId };
   }
 
+  // V11.4: Support running individual workflow steps via chat
+  if (/(run|rerun|re-run|restart|start|execute)\s*step\s*(1|one|discovery)/i.test(text)) {
+    return { type: 'run', action: 'run_step1' };
+  }
+  if (/(run|rerun|re-run|restart|start|execute)\s*step\s*(2|two|capability|apqc)/i.test(text)) {
+    return { type: 'run', action: 'run_step2' };
+  }
+  if (/(run|rerun|re-run|restart|start|execute)\s*step\s*(3|three|architecture|target)/i.test(text)) {
+    return { type: 'run', action: 'run_step3' };
+  }
+  if (/(run|rerun|re-run|restart|start|execute)\s*step\s*(4|four|roadmap|transformation)/i.test(text)) {
+    return { type: 'run', action: 'run_step4' };
+  }
+
   const runWords = '(generate|generera|create|skapa|build|bygg|update|uppdatera|refresh|förnya|regenerate)';
   if (new RegExp(`${runWords}.*(architecture|arkitektur)`).test(text) || /^(architecture|arkitektur)\b/.test(text)) {
     return { type: 'run', action: 'generate_architecture' };
@@ -9641,6 +9695,85 @@ async function executeAssistantCommand(command, userMessage, context) {
         : 'Target Architecture command executed, but no target architecture items were generated.',
       metadata: null
     };
+  }
+
+  // V11.4: Execute individual workflow steps via chat
+  if (command.action === 'run_step1') {
+    if (typeof StepEngine !== 'undefined' && StepEngine.run) {
+      await StepEngine.run('step1', window.model);
+      return {
+        content: '✅ **Step 1 — Business Objectives & Discovery** completed.\n\nNext: Say "run step 2" to start APQC Capability Mapping.',
+        metadata: null
+      };
+    } else {
+      return { content: '❌ StepEngine not available. Ensure you are in the V11 workflow view.', metadata: null };
+    }
+  }
+
+  if (command.action === 'run_step2') {
+    if (typeof StepEngine !== 'undefined' && StepEngine.run) {
+      if (!window.model?.businessContext) {
+        return {
+          content: '⚠️ Step 1 (Business Objectives) must be completed first.\n\nSay "run step 1" to start.',
+          metadata: null
+        };
+      }
+      await StepEngine.run('step2', window.model);
+      return {
+        content: '✅ **Step 2 — APQC Capability Mapping** completed.\n\nNext: Say "run step 3" to generate Target Architecture.',
+        metadata: null
+      };
+    } else {
+      return { content: '❌ StepEngine not available. Ensure you are in the V11 workflow view.', metadata: null };
+    }
+  }
+
+  if (command.action === 'run_step3') {
+    if (typeof StepEngine !== 'undefined' && StepEngine.run) {
+      if (!window.model?.capabilities || !window.model.capabilities.length) {
+        return {
+          content: '⚠️ Step 2 (Capability Mapping) must be completed first.\n\nSay "run step 2" to continue.',
+          metadata: null
+        };
+      }
+      await StepEngine.run('step3', window.model);
+      const aiAgents = (window.model.aiAgents || []).length;
+      const systems = (window.model.systems || []).length;
+      const whiteSpots = (window.model.whiteSpotSummary?.themes || []).length;
+      return {
+        content: `✅ **Step 3 — Target Architecture** completed.\n\n` +
+          `📊 **Generated:**\n` +
+          `- ${systems} systems\n` +
+          `- ${aiAgents} AI agents\n` +
+          `- ${whiteSpots} white spot themes\n` +
+          `- Future-state EA across 4 domains\n\n` +
+          `Next: Say "run step 4" to build the Transformation Roadmap.`,
+        metadata: null
+      };
+    } else {
+      return { content: '❌ StepEngine not available. Ensure you are in the V11 workflow view.', metadata: null };
+    }
+  }
+
+  if (command.action === 'run_step4') {
+    if (typeof StepEngine !== 'undefined' && StepEngine.run) {
+      if (!window.model?.targetArchDone) {
+        return {
+          content: '⚠️ Step 3 (Target Architecture) must be completed first.\n\nSay "run step 3" to continue.',
+          metadata: null
+        };
+      }
+      await StepEngine.run('step4', window.model);
+      const initiatives = (window.model.initiatives || []).length;
+      return {
+        content: `✅ **Step 4 — Transformation Roadmap** completed.\n\n` +
+          `📅 **Generated:** ${initiatives} transformation initiatives\n\n` +
+          `🎉 **All 4 workflow steps complete!** Review your Enterprise Architecture in the tabs above.`,
+        metadata: null
+      };
+    } else {
+      return { content: '❌ StepEngine not available. Ensure you are in the V11 workflow view.', metadata: null };
+    }
   }
 
   return null;
@@ -13148,7 +13281,7 @@ function ensureBusinessFields() {
 // -- STEP 1: CLARIFY STRATEGIC INTENT -----------------------------------------
 
 // -- Workflow continue button --------------------------------------------------
-function _runNextStep() {
+async function _runNextStep() {
   // NEW: 4-step workflow
   const order = ['step1','step2','step3','step4'];
   const bridges = {
@@ -13167,7 +13300,16 @@ function _runNextStep() {
   }
   
   for (const id of order) {
-    if (!_isStepDone(id)) { bridges[id](); return; }
+    if (!_isStepDone(id)) { 
+      console.log(`[_runNextStep] Starting ${id}`);
+      try {
+        await bridges[id]();
+      } catch (err) {
+        console.error(`[_runNextStep] Failed to start ${id}:`, err);
+        toast(`❌ Failed to start ${id}: ${err.message}`, true);
+      }
+      return; 
+    }
   }
   // All complete
   const panel = document.getElementById('ai-chat-panel');
@@ -17798,20 +17940,36 @@ function renderTargetArchVisual() {
     return { className: 'is-core', label: 'Core uplift' };
   };
 
-  const renderColumnCard = (item) => {
+  const renderColumnCard = (item, index) => {
     const current = Math.max(1, Math.min(5, normalizeNum(item.currentMaturity, 2)));
     const targetMat = Math.max(1, Math.min(5, normalizeNum(item.targetMaturity, current + 1)));
     const bucket = bucketFor(item);
     const action = String(item.action || '').trim();
     const enabler = String(item.enabler || 'General');
 
-    return `<article class="ea-target-card ${bucket.className}" title="${escapeHtml(bucket.label)}">
+    return `<article class="ea-target-card ${bucket.className} group relative" title="${escapeHtml(bucket.label)}">
       <div class="ea-target-card__top">
         <div class="ea-target-card__name">${escapeHtml(item.name || 'Unnamed capability')}</div>
         <span class="ea-target-card__dot" aria-hidden="true"></span>
       </div>
-      <div class="ea-target-card__meta">M${current} -> M${targetMat} � ${escapeHtml(enabler)}</div>
+      <div class="ea-target-card__meta">M${current} &rarr; M${targetMat} &middot; ${escapeHtml(enabler)}</div>
       ${action ? `<div class="ea-target-card__action">${escapeHtml(action)}</div>` : ''}
+      <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+        <button 
+          onclick="openCapabilityUpliftEditor(${index})"
+          class="w-6 h-6 bg-white hover:bg-blue-50 rounded shadow-sm flex items-center justify-center"
+          title="Edit capability"
+        >
+          <i class="fas fa-edit text-[10px] text-blue-600"></i>
+        </button>
+        <button 
+          onclick="deleteCapabilityUplift(${index})"
+          class="w-6 h-6 bg-white hover:bg-red-50 rounded shadow-sm flex items-center justify-center"
+          title="Delete capability"
+        >
+          <i class="fas fa-trash text-[10px] text-red-600"></i>
+        </button>
+      </div>
     </article>`;
   };
 
@@ -17820,7 +17978,10 @@ function renderTargetArchVisual() {
     return `<section class="ea-target-column">
       <header class="ea-target-column__head">${escapeHtml(domain)}</header>
       <div class="ea-target-column__body">
-        ${entries.length ? entries.map(renderColumnCard).join('') : '<div class="ea-target-column__empty">No capabilities mapped</div>'}
+        ${entries.length ? entries.map((item) => {
+          const globalIndex = data.findIndex(d => d === item);
+          return renderColumnCard(item, globalIndex);
+        }).join('') : '<div class="ea-target-column__empty">No capabilities mapped</div>'}
       </div>
     </section>`;
   }).join('');
@@ -17856,6 +18017,1331 @@ function renderTargetArchVisual() {
       </div>
     </div>`;
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ✨ V11.3: White Spots View Rendering
+// ═════════════════════════════════════════════════════════════════════════════
+function renderWhiteSpotsView() {
+  console.group('[V11.3] 💡 Rendering White Spots View');
+  
+  const container = document.getElementById('whitespots-content');
+  if (!container) {
+    console.error('❌ Container #whitespots-content not found!');
+    console.groupEnd();
+    return;
+  }
+
+  const whiteSpotData = window.model?.whiteSpotSummary;
+  
+  if (!whiteSpotData || !whiteSpotData.themes || whiteSpotData.themes.length === 0) {
+    console.warn('⚠️ No white spot data available');
+    container.innerHTML = `
+      <div class="text-slate-400 text-xs text-center py-16">
+        <i class="fas fa-lightbulb text-4xl mb-4 opacity-20"></i>
+        <div>White Spot Analysis will appear after Step 3 completion</div>
+        <div class="text-[10px] mt-2">Strategic opportunities with explicit business objective traceability</div>
+      </div>`;
+    console.groupEnd();
+    return;
+  }
+
+  console.log('✅ Rendering', whiteSpotData.themes.length, 'white spot themes');
+  console.groupEnd();
+
+  // Helper: Render strategic importance badge
+  const renderImportanceBadge = (importance) => {
+    const levels = {
+      'CRITICAL': { class: 'ea-badge-critical', icon: 'fa-triangle-exclamation' },
+      'HIGH': { class: 'ea-badge-high', icon: 'fa-arrow-up' },
+      'MEDIUM': { class: 'ea-badge-medium', icon: 'fa-circle-info' },
+      'LOW': { class: 'ea-badge-low', icon: 'fa-minus' }
+    };
+    const level = levels[importance?.toUpperCase()] || levels['MEDIUM'];
+    return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider border ${level.class}">
+      <i class="fas ${level.icon}"></i> ${escapeHtml(importance || 'Medium')}
+    </span>`;
+  };
+
+  // Helper: Render business value badge
+  const renderValueBadge = (value) => {
+    const levels = {
+      'HIGH': { class: 'ea-badge-value-high', icon: 'fa-coins' },
+      'MEDIUM': { class: 'ea-badge-value-medium', icon: 'fa-hand-holding-dollar' },
+      'LOW': { class: 'ea-badge-value-low', icon: 'fa-dollar-sign' }
+    };
+    const level = levels[value?.toUpperCase()] || levels['MEDIUM'];
+    return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider border ${level.class}">
+      <i class="fas ${level.icon}"></i> ${escapeHtml(value || 'Medium')} Value
+    </span>`;
+  };
+
+  // Helper: Render traceability panel (collapsible)
+  const renderTraceabilityPanel = (theme) => {
+    const trace = theme.traceability || {};
+    const objectives = trace.business_objectives || [];
+    const capabilities = trace.capabilities || [];
+    const gaps = trace.gaps || [];
+    
+    const hasTraceability = objectives.length > 0 || capabilities.length > 0 || gaps.length > 0;
+    
+    if (!hasTraceability) {
+      return `<div class="text-[10px] text-slate-400 italic mt-2">No traceability data available</div>`;
+    }
+
+    const objectivesHTML = objectives.length > 0 ? `
+      <div class="mb-2">
+        <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+          <i class="fas fa-bullseye mr-1"></i>Business Objectives (${objectives.length})
+        </div>
+        <div class="space-y-1">
+          ${objectives.map(obj => `
+            <div class="text-[10px] text-slate-700 flex items-start gap-2">
+              <span class="font-mono text-[9px] text-slate-500 ea-trace-id ea-trace-objective" data-objective-id="${escapeHtml(obj.id)}" title="Click for details">${escapeHtml(obj.id)}</span>
+              <span class="flex-1">${escapeHtml(obj.objective || 'Untitled objective')}</span>
+              ${obj.timeframe ? `<span class="text-[9px] text-slate-400">${escapeHtml(obj.timeframe)}</span>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : '';
+
+    const capabilitiesHTML = capabilities.length > 0 ? `
+      <div class="mb-2">
+        <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+          <i class="fas fa-cubes mr-1"></i>Capabilities (${capabilities.length})
+        </div>
+        <div class="space-y-1">
+          ${capabilities.map(cap => `
+            <div class="text-[10px] text-slate-700 flex items-start gap-2">
+              <span class="font-mono text-[9px] text-slate-500 ea-trace-id ea-trace-capability" data-capability-id="${escapeHtml(cap.id)}" title="Click for details">${escapeHtml(cap.id)}</span>
+              <span class="flex-1">${escapeHtml(cap.name || 'Untitled capability')}</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                M${cap.current_maturity || 0} → M${cap.target_maturity || 0}
+              </span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : '';
+
+    const gapsHTML = gaps.length > 0 ? `
+      <div>
+        <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+          <i class="fas fa-triangle-exclamation mr-1"></i>Gaps (${gaps.length})
+        </div>
+        <div class="space-y-1">
+          ${gaps.map(gap => `
+            <div class="text-[10px] text-slate-700 flex items-start gap-2">
+              <span class="font-mono text-[9px] text-slate-500 ea-trace-id ea-trace-gap" data-gap-id="${escapeHtml(gap.id)}" title="Click for details">${escapeHtml(gap.id)}</span>
+              <span class="flex-1">${escapeHtml(gap.description || 'Untitled gap')}</span>
+              ${gap.priority ? `<span class="text-[9px] px-1.5 py-0.5 rounded border ea-badge-priority">${escapeHtml(gap.priority)}</span>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : '';
+
+    return `
+      <div class="ea-ws-traceability-panel">
+        <button 
+          class="ea-ws-traceability-toggle" 
+          data-theme-id="${escapeHtml(theme.id)}"
+          aria-expanded="false"
+          aria-controls="trace-${escapeHtml(theme.id)}">
+          <i class="fas fa-link mr-2"></i>
+          <span>Show Traceability</span>
+          <span class="text-[9px] ml-2 opacity-70">(${objectives.length} obj · ${capabilities.length} cap · ${gaps.length} gaps)</span>
+          <i class="fas fa-chevron-down ml-auto transition-transform duration-200"></i>
+        </button>
+        <div id="trace-${escapeHtml(theme.id)}" class="ea-ws-traceability-content hidden">
+          ${objectivesHTML}
+          ${capabilitiesHTML}
+          ${gapsHTML}
+        </div>
+      </div>
+    `;
+  };
+
+  // Helper: Render individual theme card
+  const renderThemeCard = (theme, index) => {
+    const synergy = theme.cross_domain_synergy ? `
+      <div class="mt-3 pt-3 border-t border-slate-200">
+        <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+          <i class="fas fa-arrows-split-up-and-left mr-1"></i>Cross-Domain Synergy
+        </div>
+        <div class="text-[10px] text-slate-700">${escapeHtml(theme.cross_domain_synergy)}</div>
+      </div>
+    ` : '';
+
+    return `
+      <div class="ea-ws-card group relative" data-theme-id="${escapeHtml(theme.id)}">
+        <div class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10">
+          <button 
+            onclick="openWhiteSpotEditor(${index})"
+            class="w-7 h-7 bg-white hover:bg-amber-50 rounded shadow-sm flex items-center justify-center border border-slate-200"
+            title="Edit white spot"
+          >
+            <i class="fas fa-edit text-[10px] text-amber-600"></i>
+          </button>
+          <button 
+            onclick="deleteWhiteSpot(${index})"
+            class="w-7 h-7 bg-white hover:bg-red-50 rounded shadow-sm flex items-center justify-center border border-slate-200"
+            title="Delete white spot"
+          >
+            <i class="fas fa-trash text-[10px] text-red-600"></i>
+          </button>
+        </div>
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div class="flex-1">
+            <div class="text-[9px] font-mono text-slate-400 mb-1">${escapeHtml(theme.id)}</div>
+            <h3 class="text-sm font-bold text-slate-900 leading-tight mb-2">${escapeHtml(theme.theme || 'Untitled Theme')}</h3>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            ${renderImportanceBadge(theme.strategic_importance)}
+            ${renderValueBadge(theme.business_value_potential)}
+          </div>
+        </div>
+        
+        <p class="text-[11px] text-slate-700 leading-relaxed mb-3">${escapeHtml(theme.description || 'No description provided')}</p>
+        
+        ${theme.domains_affected && theme.domains_affected.length > 0 ? `
+          <div class="mb-3">
+            <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Domains Affected</div>
+            <div class="flex flex-wrap gap-1.5">
+              ${theme.domains_affected.map(domain => 
+                `<span class="text-[10px] px-2 py-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200">${escapeHtml(domain)}</span>`
+              ).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        ${theme.capability_implications ? `
+          <div class="mb-3">
+            <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+              <i class="fas fa-lightbulb mr-1"></i>Capability Implications
+            </div>
+            <div class="text-[10px] text-slate-700">${escapeHtml(theme.capability_implications)}</div>
+          </div>
+        ` : ''}
+        
+        ${renderTraceabilityPanel(theme)}
+        ${synergy}
+      </div>
+    `;
+  };
+
+  // Build executive summary card
+  const executiveSummary = `
+    <div class="ea-ws-executive-card mb-6">
+      <div class="flex items-center gap-2 mb-3">
+        <i class="fas fa-lightbulb text-2xl" style="color: var(--ea-primary);"></i>
+        <div class="flex-1">
+          <div class="text-xs font-bold text-slate-900">White Spot Analysis</div>
+          <div class="text-[10px] text-slate-600">Strategic opportunities aligned with business objectives</div>
+        </div>
+        <div class="text-right">
+          <div class="text-lg font-bold" style="color: var(--ea-primary);">${whiteSpotData.themes.length}</div>
+          <div class="text-[9px] text-slate-500 uppercase tracking-wider">Themes</div>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-3">
+        ${whiteSpotData.innovation_potential ? `
+          <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+            <div class="text-[9px] font-bold text-blue-700 uppercase tracking-wider mb-1">
+              <i class="fas fa-rocket mr-1"></i>Innovation Potential
+            </div>
+            <div class="text-[10px] text-blue-900 leading-snug">${escapeHtml(whiteSpotData.innovation_potential)}</div>
+          </div>
+        ` : ''}
+        
+        ${whiteSpotData.automation_potential ? `
+          <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 border border-green-200">
+            <div class="text-[9px] font-bold text-green-700 uppercase tracking-wider mb-1">
+              <i class="fas fa-microchip mr-1"></i>Automation Potential
+            </div>
+            <div class="text-[10px] text-green-900 leading-snug">${escapeHtml(whiteSpotData.automation_potential)}</div>
+          </div>
+        ` : ''}
+      </div>
+      
+      ${whiteSpotData.untapped_value_areas && whiteSpotData.untapped_value_areas.length > 0 ? `
+        <div class="mt-3 pt-3 border-t border-slate-200">
+          <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+            <i class="fas fa-gem mr-1"></i>Untapped Value Areas
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            ${whiteSpotData.untapped_value_areas.map(area => 
+              `<span class="text-[10px] px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200 font-medium">${escapeHtml(area)}</span>`
+            ).join('')}
+          </div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+
+  // Build theme cards
+  const themeCardsHTML = whiteSpotData.themes.map((theme, idx) => renderThemeCard(theme, idx)).join('');
+
+  // Render full view
+  container.innerHTML = executiveSummary + themeCardsHTML;
+  
+  // V11.3 SECURITY FIX: Attach event listeners via event delegation (replaces inline onclick)
+  const toggleButtons = container.querySelectorAll('.ea-ws-traceability-toggle');
+  toggleButtons.forEach(button => {
+    button.addEventListener('click', function(e) {
+      const themeId = this.dataset.themeId;
+      if (!themeId) return;
+      
+      const panel = document.getElementById(`trace-${themeId}`);
+      if (!panel) return;
+      
+      const isExpanded = this.getAttribute('aria-expanded') === 'true';
+      this.setAttribute('aria-expanded', !isExpanded);
+      panel.classList.toggle('hidden');
+      
+      // Rotate chevron icon
+      const chevron = this.querySelector('.fa-chevron-down');
+      if (chevron) {
+        chevron.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
+      }
+      
+      // Update button text
+      const buttonText = this.querySelector('span');
+      if (buttonText) {
+        buttonText.textContent = isExpanded ? 'Show Traceability' : 'Hide Traceability';
+      }
+    });
+  });
+  
+  // V11.3 Phase 6: Initialize interactive traceability
+  if (typeof window.initTraceabilityInteractions === 'function') {
+    window.initTraceabilityInteractions('#whitespots-content');
+  }
+}
+
+// ✨ V11.3: Render Future-State Enterprise Architecture View
+// ═════════════════════════════════════════════════════════════════════════════
+window.renderFutureStateEAView = function renderFutureStateEAView() {
+  console.log('[V11.3] 🏗️ Rendering Future-State EA View');
+  
+  const container = document.getElementById('futurestateea-content');
+  if (!container) {
+    console.warn('[V11.3] Future-State EA container not found');
+    return;
+  }
+
+  // Get data from model
+  const futureStateData = window.model?.futureStateEA;
+  if (!futureStateData) {
+    console.warn('[V11.3] No futureStateEA data in model');
+    container.innerHTML = `
+      <div class="text-slate-400 text-xs text-center py-16">
+        <i class="fas fa-layer-group text-4xl mb-4 opacity-20"></i>
+        <div>No Future-State EA data available yet</div>
+        <div class="text-[10px] mt-2">Complete Step 3 Target Architecture to generate this view</div>
+      </div>
+    `;
+    return;
+  }
+
+  // Define domain configuration (Nordic Colors)
+  const domainConfigs = [
+    {
+      key: 'data_ai_automation',
+      icon: 'fa-brain',
+      iconColor: '#006B3F', // Nordic accent green
+      domainClass: 'ea-fse-domain--data-ai',
+      label: 'Data, AI & Automation'
+    },
+    {
+      key: 'cloud_infrastructure',
+      icon: 'fa-cloud',
+      iconColor: '#003D75', // Nordic brand blue
+      domainClass: 'ea-fse-domain--cloud',
+      label: 'Cloud Infrastructure'
+    },
+    {
+      key: 'digital_security_resilience',
+      icon: 'fa-shield-halved',
+      iconColor: '#D72638', // Nordic danger
+      domainClass: 'ea-fse-domain--security',
+      label: 'Digital Security & Resilience'
+    },
+    {
+      key: 'application_erp',
+      icon: 'fa-layer-group',
+      iconColor: '#4BE3A3', // Nordic success
+      domainClass: 'ea-fse-domain--application',
+      label: 'Application & ERP'
+    }
+  ];
+
+  // Helper: Render traceability panel for a domain
+  const renderDomainTraceabilityPanel = (domain, domainKey) => {
+    const trace = domain.traceability || {};
+    const objectives = trace.business_objectives || [];
+    const capabilities = trace.capabilities || [];
+    const gaps = trace.gaps || [];
+    
+    if (objectives.length === 0 && capabilities.length === 0 && gaps.length === 0) {
+      return '';
+    }
+
+    const objectivesHTML = objectives.length > 0 ? `
+      <div>
+        <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+          <i class="fas fa-bullseye mr-1"></i>Business Objectives (${objectives.length})
+        </div>
+        <div class="space-y-1">
+          ${objectives.map(obj => `
+            <div class="text-[10px] text-slate-700 flex items-start gap-2">
+              <span class="font-mono text-[9px] text-slate-500 ea-trace-id ea-trace-objective" data-objective-id="${escapeHtml(obj.id)}" title="Click for details">${escapeHtml(obj.id)}</span>
+              <span class="flex-1">${escapeHtml(obj.objective || 'Untitled objective')}</span>
+              ${obj.timeframe ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">${escapeHtml(obj.timeframe)}</span>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : '';
+
+    const capabilitiesHTML = capabilities.length > 0 ? `
+      <div>
+        <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+          <i class="fas fa-cubes mr-1"></i>Capabilities (${capabilities.length})
+        </div>
+        <div class="space-y-1">
+          ${capabilities.map(cap => `
+            <div class="text-[10px] text-slate-700 flex items-start gap-2">
+              <span class="font-mono text-[9px] text-slate-500 ea-trace-id ea-trace-capability" data-capability-id="${escapeHtml(cap.id)}" title="Click for details">${escapeHtml(cap.id)}</span>
+              <span class="flex-1">${escapeHtml(cap.name || 'Untitled capability')}</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                M${cap.current_maturity || 0} → M${cap.target_maturity || 0}
+              </span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : '';
+
+    const gapsHTML = gaps.length > 0 ? `
+      <div>
+        <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+          <i class="fas fa-triangle-exclamation mr-1"></i>Gaps (${gaps.length})
+        </div>
+        <div class="space-y-1">
+          ${gaps.map(gap => `
+            <div class="text-[10px] text-slate-700 flex items-start gap-2">
+              <span class="font-mono text-[9px] text-slate-500 ea-trace-id ea-trace-gap" data-gap-id="${escapeHtml(gap.id)}" title="Click for details">${escapeHtml(gap.id)}</span>
+              <span class="flex-1">${escapeHtml(gap.description || 'Untitled gap')}</span>
+              ${gap.priority ? `<span class="text-[9px] px-1.5 py-0.5 rounded border ea-badge-priority">${escapeHtml(gap.priority)}</span>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : '';
+
+    return `
+      <div class="ea-fse-traceability-panel mt-3">
+        <button 
+          class="ea-fse-traceability-toggle" 
+          data-domain-key="${escapeHtml(domainKey)}"
+          aria-expanded="false"
+          aria-controls="trace-fse-${escapeHtml(domainKey)}">
+          <i class="fas fa-link mr-2"></i>
+          <span>Show Traceability</span>
+          <span class="text-[9px] ml-2 opacity-70">(${objectives.length} obj · ${capabilities.length} cap · ${gaps.length} gaps)</span>
+          <i class="fas fa-chevron-down ml-auto transition-transform duration-200"></i>
+        </button>
+        <div id="trace-fse-${escapeHtml(domainKey)}" class="ea-fse-traceability-content hidden">
+          ${objectivesHTML}
+          ${capabilitiesHTML}
+          ${gapsHTML}
+        </div>
+      </div>
+    `;
+  };
+
+  // Helper: Render domain card
+  const renderDomainCard = (config) => {
+    const domain = futureStateData[config.key];
+    if (!domain) return '';
+
+    const keyCapabilities = domain.key_capabilities || [];
+    const strategicEmphasis = domain.strategic_emphasis || [];
+    
+    return `
+      <div class="ea-fse-domain-card ${config.domainClass} group relative rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200">
+        <div class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10">
+          <button 
+            onclick="openFutureStateEAEditor('${config.key}')"
+            class="w-7 h-7 bg-white hover:bg-green-50 rounded shadow-sm flex items-center justify-center border border-slate-200"
+            title="Edit domain"
+          >
+            <i class="fas fa-edit text-[10px]" style="color: var(--ea-primary);"></i>
+          </button>
+          <button 
+            onclick="deleteFutureStateEADomain('${config.key}')"
+            class="w-7 h-7 bg-white hover:bg-red-50 rounded shadow-sm flex items-center justify-center border border-slate-200"
+            title="Delete domain"
+          >
+            <i class="fas fa-trash text-[10px]" style="color: var(--ea-danger);"></i>
+          </button>
+        </div>
+        <!-- Domain Header -->
+        <div class="flex items-start gap-3 mb-3">
+          <div class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center" style="background: ${config.iconColor}20;">
+            <i class="fas ${config.icon} text-lg" style="color: ${config.iconColor};"></i>
+          </div>
+          <div class="flex-1">
+            <h3 class="text-xs font-bold text-slate-900 mb-1">${config.label}</h3>
+            <div class="text-[11px] font-semibold text-slate-700 leading-tight">${escapeHtml(domain.headline || 'No headline')}</div>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <p class="text-[10px] text-slate-600 leading-relaxed mb-3">${escapeHtml(domain.summary || 'No summary provided')}</p>
+
+        <!-- Key Capabilities -->
+        ${keyCapabilities.length > 0 ? `
+          <div class="mb-3">
+            <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              <i class="fas fa-cubes mr-1"></i>Key Capabilities
+            </div>
+            <ul class="space-y-1">
+              ${keyCapabilities.map(cap => `
+                <li class="text-[10px] text-slate-700 flex items-start gap-2">
+                  <i class="fas fa-check text-[8px] mt-0.5" style="color: ${config.iconColor};"></i>
+                  <span>${escapeHtml(cap)}</span>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+        ` : ''}
+
+        <!-- Strategic Emphasis -->
+        ${strategicEmphasis.length > 0 ? `
+          <div class="mb-3">
+            <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              <i class="fas fa-star mr-1"></i>Strategic Emphasis
+            </div>
+            <div class="flex flex-wrap gap-1">
+              ${strategicEmphasis.map(emphasis => `
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-white bg-opacity-60 text-slate-700 border border-slate-200">${escapeHtml(emphasis)}</span>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Maturity Target -->
+        ${domain.maturity_target ? `
+          <div class="mb-3">
+            <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+              <i class="fas fa-arrow-trend-up mr-1"></i>Maturity Target
+            </div>
+            <div class="text-[10px] text-slate-700">${escapeHtml(domain.maturity_target)}</div>
+          </div>
+        ` : ''}
+
+        <!-- Traceability Panel -->
+        ${renderDomainTraceabilityPanel(domain, config.key)}
+      </div>
+    `;
+  };
+
+  // Calculate coverage statistics
+  const calculateCoverage = () => {
+    const allObjectives = new Set();
+    const allCapabilities = new Set();
+    const allGaps = new Set();
+
+    domainConfigs.forEach(config => {
+      const domain = futureStateData[config.key];
+      if (domain?.traceability) {
+        (domain.traceability.business_objectives || []).forEach(o => allObjectives.add(o.id));
+        (domain.traceability.capabilities || []).forEach(c => allCapabilities.add(c.id));
+        (domain.traceability.gaps || []).forEach(g => allGaps.add(g.id));
+      }
+    });
+
+    // Add integration principle traceability
+    if (futureStateData.integration_principle?.traceability) {
+      const intTrace = futureStateData.integration_principle.traceability;
+      (intTrace.business_objectives || []).forEach(o => allObjectives.add(o.id));
+      (intTrace.capabilities || []).forEach(c => allCapabilities.add(c.id));
+      (intTrace.gaps || []).forEach(g => allGaps.add(g.id));
+    }
+
+    return {
+      objectives: allObjectives.size,
+      capabilities: allCapabilities.size,
+      gaps: allGaps.size
+    };
+  };
+
+  const coverage = calculateCoverage();
+
+  // Build executive summary
+  const executiveSummary = `
+    <div class="ea-fse-executive-card mb-6">
+      <div class="flex items-center gap-3 mb-4">
+        <i class="fas fa-layer-group text-3xl" style="color: var(--ea-primary);"></i>
+        <div class="flex-1">
+          <h2 class="text-sm font-bold text-slate-900 mb-1">Future-State Enterprise Architecture</h2>
+          <p class="text-[10px] text-slate-600">${escapeHtml(futureStateData.executive_headline || '4-domain architecture aligned with business objectives')}</p>
+        </div>
+      </div>
+      
+      <!-- Coverage Summary -->
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+          <div class="text-2xl font-bold text-blue-700 mb-1">${coverage.objectives}</div>
+          <div class="text-[9px] font-bold text-blue-600 uppercase tracking-wider">Objectives Addressed</div>
+        </div>
+        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 border border-green-200">
+          <div class="text-2xl font-bold text-green-700 mb-1">${coverage.capabilities}</div>
+          <div class="text-[9px] font-bold text-green-600 uppercase tracking-wider">Capabilities Impacted</div>
+        </div>
+        <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-3 border border-orange-200">
+          <div class="text-2xl font-bold text-orange-700 mb-1">${coverage.gaps}</div>
+          <div class="text-[9px] font-bold text-orange-600 uppercase tracking-wider">Gaps Addressed</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Build domain cards (2x2 grid)
+  const domainCardsHTML = `
+    <div class="grid grid-cols-2 gap-4 mb-6">
+      ${domainConfigs.map(config => renderDomainCard(config)).join('')}
+    </div>
+  `;
+
+  // Build integration principle section
+  const integrationPrinciple = futureStateData.integration_principle ? `
+    <div class="ea-fse-integration-card">
+      <div class="flex items-start gap-3 mb-3">
+        <div class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center" style="background: var(--ea-primary); opacity: 0.1;">
+          <i class="fas fa-arrows-split-up-and-left text-lg" style="color: var(--ea-primary);"></i>
+        </div>
+        <div class="flex-1">
+          <h3 class="text-xs font-bold text-slate-900 mb-2">Integration & Orchestration Principle</h3>
+          <p class="text-[10px] text-slate-600 leading-relaxed">${escapeHtml(futureStateData.integration_principle.principle || 'No integration principle defined')}</p>
+        </div>
+      </div>
+      
+      ${futureStateData.integration_principle.cross_domain_enablers && futureStateData.integration_principle.cross_domain_enablers.length > 0 ? `
+        <div class="mt-3">
+          <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">Cross-Domain Enablers</div>
+          <div class="grid grid-cols-2 gap-2">
+            ${futureStateData.integration_principle.cross_domain_enablers.map(enabler => `
+              <div class="text-[10px] text-slate-700 flex items-start gap-2 bg-white bg-opacity-60 rounded-lg p-2 border border-slate-200">
+                <i class="fas fa-plug text-[9px] mt-0.5" style="color: var(--ea-primary);"></i>
+                <span>${escapeHtml(enabler)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+      
+      ${renderDomainTraceabilityPanel(futureStateData.integration_principle, 'integration')}
+    </div>
+  ` : '';
+
+  // Render full view
+  container.innerHTML = executiveSummary + domainCardsHTML + integrationPrinciple;
+  
+  // V11.3 SECURITY: Attach event listeners via event delegation
+  const toggleButtons = container.querySelectorAll('.ea-fse-traceability-toggle');
+  toggleButtons.forEach(button => {
+    button.addEventListener('click', function(e) {
+      const domainKey = this.dataset.domainKey;
+      if (!domainKey) return;
+      
+      const panel = document.getElementById(`trace-fse-${domainKey}`);
+      if (!panel) return;
+      
+      const isExpanded = this.getAttribute('aria-expanded') === 'true';
+      this.setAttribute('aria-expanded', !isExpanded);
+      panel.classList.toggle('hidden');
+      
+      // Rotate chevron icon
+      const chevron = this.querySelector('.fa-chevron-down');
+      if (chevron) {
+        chevron.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
+      }
+      
+      // Update button text
+      const buttonText = this.querySelector('span');
+      if (buttonText) {
+        buttonText.textContent = isExpanded ? 'Show Traceability' : 'Hide Traceability';
+      }
+    });
+  });
+  
+  console.log('[V11.3] ✅ Future-State EA View rendered with', domainConfigs.length, 'domains');
+  
+  // V11.3 Phase 6: Initialize interactive traceability
+  if (typeof window.initTraceabilityInteractions === 'function') {
+    window.initTraceabilityInteractions('#futurestateea-content');
+  }
+};
+
+// ✨ V11.3 Phase 6: Interactive Traceability Highlighting
+// ═════════════════════════════════════════════════════════════════════════════
+window.initTraceabilityInteractions = function initTraceabilityInteractions(containerSelector) {
+  console.log('[V11.3] 🔗 Initializing traceability interactions for:', containerSelector);
+  
+  const container = document.querySelector(containerSelector);
+  if (!container) {
+    console.warn('[V11.3] Container not found:', containerSelector);
+    return;
+  }
+
+  const allTraceIds = container.querySelectorAll('.ea-trace-id');
+  
+  // Helper: Find all elements with matching ID
+  const findMatchingElements = (type, id) => {
+    const attr = `data-${type}-id`;
+    return container.querySelectorAll(`[${attr}="${id}"]`);
+  };
+
+  // Helper: Highlight all matching elements
+  const highlightMatching = (type, id) => {
+    const matches = findMatchingElements(type, id);
+    matches.forEach(el => el.classList.add('is-highlighted'));
+  };
+
+  // Helper: Remove all highlights
+  const clearAllHighlights = () => {
+    container.querySelectorAll('.is-highlighted').forEach(el => {
+      el.classList.remove('is-highlighted');
+    });
+  };
+
+  // Helper: Get ID info for tooltip
+  const getIdInfo = (element) => {
+    const objectiveId = element.dataset.objectiveId;
+    const capabilityId = element.dataset.capabilityId;
+    const gapId = element.dataset.gapId;
+    
+    if (objectiveId) {
+      const matches = findMatchingElements('objective', objectiveId);
+      return {
+        type: 'Objective',
+        id: objectiveId,
+        count: matches.length,
+        icon: 'fa-bullseye'
+      };
+    } else if (capabilityId) {
+      const matches = findMatchingElements('capability', capabilityId);
+      return {
+        type: 'Capability',
+        id: capabilityId,
+        count: matches.length,
+        icon: 'fa-cubes'
+      };
+    } else if (gapId) {
+      const matches = findMatchingElements('gap', gapId);
+      return {
+        type: 'Gap',
+        id: gapId,
+        count: matches.length,
+        icon: 'fa-triangle-exclamation'
+      };
+    }
+    return null;
+  };
+
+  // Attach hover events
+  allTraceIds.forEach(element => {
+    element.addEventListener('mouseenter', function() {
+      const objectiveId = this.dataset.objectiveId;
+      const capabilityId = this.dataset.capabilityId;
+      const gapId = this.dataset.gapId;
+      
+      if (objectiveId) {
+        highlightMatching('objective', objectiveId);
+      } else if (capabilityId) {
+        highlightMatching('capability', capabilityId);
+      } else if (gapId) {
+        highlightMatching('gap', gapId);
+      }
+    });
+
+    element.addEventListener('mouseleave', function() {
+      clearAllHighlights();
+    });
+
+    // Click to show tooltip
+    element.addEventListener('click', function(e) {
+      e.stopPropagation();
+      
+      // Remove any existing tooltip
+      const existingTooltip = document.querySelector('.ea-trace-tooltip');
+      if (existingTooltip) existingTooltip.remove();
+      
+      const info = getIdInfo(this);
+      if (!info) return;
+      
+      // Create tooltip
+      const tooltip = document.createElement('div');
+      tooltip.className = 'ea-trace-tooltip';
+      tooltip.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i class="fas ${info.icon}"></i>
+          <div>
+            <div style="font-weight: 700;">${info.type}: ${escapeHtml(info.id)}</div>
+            <div style="font-size: 10px; opacity: 0.9; margin-top: 2px;">
+              Referenced in ${info.count} ${info.count === 1 ? 'location' : 'locations'}
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Position tooltip above the clicked element
+      const rect = this.getBoundingClientRect();
+      tooltip.style.left = `${rect.left}px`;
+      tooltip.style.top = `${rect.top - 60}px`;
+      
+      document.body.appendChild(tooltip);
+      
+      // Remove tooltip after 3 seconds or on any click
+      setTimeout(() => tooltip.remove(), 3000);
+      document.addEventListener('click', () => tooltip.remove(), { once: true });
+    });
+  });
+
+  console.log('[V11.3] ✅ Traceability interactions initialized:', allTraceIds.length, 'IDs');
+};
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ✨ V11.4: CRUD Functions for Target Architecture Views
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Capability Uplift Plan CRUD
+// ─────────────────────────────────────────────────────────────────────────────
+function openCapabilityUpliftEditor(index = null) {
+  const item = index !== null ? (window.model.targetArch || [])[index] : null;
+  const isEdit = item !== null;
+  
+  const modalHTML = `
+    <div id="capability-uplift-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onclick="if(event.target.id==='capability-uplift-modal') closeCapabilityUpliftEditor()">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+        <div class="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+          <h3 class="text-lg font-bold text-slate-900">
+            <i class="fas fa-${isEdit ? 'edit' : 'plus'} mr-2"></i>
+            ${isEdit ? 'Edit' : 'Add'} Capability Uplift
+          </h3>
+          <button onclick="closeCapabilityUpliftEditor()" class="text-slate-400 hover:text-slate-600">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        
+        <form id="capability-uplift-form" class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Capability Name *</label>
+            <input 
+              type="text" 
+              name="name" 
+              value="${escapeHtml(item?.name || '')}"
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Domain *</label>
+              <select 
+                name="domain" 
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="Customer" ${item?.domain === 'Customer' ? 'selected' : ''}>Customer</option>
+                <option value="Product" ${item?.domain === 'Product' ? 'selected' : ''}>Product</option>
+                <option value="Operations" ${item?.domain === 'Operations' ? 'selected' : ''}>Operations</option>
+                <option value="Finance" ${item?.domain === 'Finance' ? 'selected' : ''}>Finance</option>
+                <option value="Risk" ${item?.domain === 'Risk' ? 'selected' : ''}>Risk</option>
+                <option value="Technology" ${item?.domain === 'Technology' ? 'selected' : ''}>Technology</option>
+                <option value="Support" ${item?.domain === 'Support' ? 'selected' : ''}>Support</option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Strategic Importance *</label>
+              <select 
+                name="strategicImportance" 
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="high" ${item?.strategicImportance === 'high' ? 'selected' : ''}>High</option>
+                <option value="medium" ${item?.strategicImportance === 'medium' ? 'selected' : ''}>Medium</option>
+                <option value="low" ${item?.strategicImportance === 'low' ? 'selected' : ''}>Low</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Current Maturity (1-5) *</label>
+              <input 
+                type="number" 
+                name="currentMaturity" 
+                min="1" 
+                max="5" 
+                value="${item?.currentMaturity || 2}"
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Target Maturity (1-5) *</label>
+              <input 
+                type="number" 
+                name="targetMaturity" 
+                min="1" 
+                max="5" 
+                value="${item?.targetMaturity || 3}"
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Enabler / Technology</label>
+            <input 
+              type="text" 
+              name="enabler" 
+              value="${escapeHtml(item?.enabler || '')}"
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="e.g., Cloud Platform, AI/ML, API Integration"
+            />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Action / Quick Win</label>
+            <textarea 
+              name="action" 
+              rows="2"
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Describe the key action or quick win..."
+            >${escapeHtml(item?.action || '')}</textarea>
+          </div>
+          
+          <div class="flex justify-end gap-3 pt-4">
+            <button 
+              type="button" 
+              onclick="closeCapabilityUpliftEditor()"
+              class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            >
+              <i class="fas fa-save mr-2"></i>
+              ${isEdit ? 'Update' : 'Add'} Capability
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  
+  document.getElementById('capability-uplift-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = {
+      name: formData.get('name'),
+      domain: formData.get('domain'),
+      currentMaturity: parseInt(formData.get('currentMaturity')),
+      targetMaturity: parseInt(formData.get('targetMaturity')),
+      strategicImportance: formData.get('strategicImportance'),
+      enabler: formData.get('enabler'),
+      action: formData.get('action')
+    };
+    
+    if (isEdit) {
+      window.model.targetArch[index] = { ...window.model.targetArch[index], ...data };
+      if (typeof toast === 'function') toast('Capability updated successfully');
+    } else {
+      if (!window.model.targetArch) window.model.targetArch = [];
+      window.model.targetArch.push(data);
+      if (typeof toast === 'function') toast('Capability added successfully');
+    }
+    
+    if (typeof autoSaveCurrentModel === 'function') autoSaveCurrentModel();
+    if (typeof renderTargetArchVisual === 'function') renderTargetArchVisual();
+    closeCapabilityUpliftEditor();
+  });
+}
+
+function closeCapabilityUpliftEditor() {
+  const modal = document.getElementById('capability-uplift-modal');
+  if (modal) modal.remove();
+}
+
+function deleteCapabilityUplift(index) {
+  if (!confirm('Are you sure you want to delete this capability uplift?')) return;
+  
+  if (window.model.targetArch && window.model.targetArch[index]) {
+    window.model.targetArch.splice(index, 1);
+    if (typeof toast === 'function') toast('Capability deleted successfully');
+    if (typeof autoSaveCurrentModel === 'function') autoSaveCurrentModel();
+    if (typeof renderTargetArchVisual === 'function') renderTargetArchVisual();
+  }
+}
+
+// ==========================================
+// WHITE SPOTS CRUD FUNCTIONS
+// ==========================================
+
+function openWhiteSpotEditor(index = null) {
+  const isEdit = index !== null;
+  const item = isEdit && window.model.whiteSpotSummary?.themes?.[index] ? window.model.whiteSpotSummary.themes[index] : null;
+  
+  const modalHTML = `
+    <div id="whitespot-modal" class="ea-modal-overlay" onclick="if(event.target.id==='whitespot-modal') closeWhiteSpotEditor()">
+      <div class="ea-modal-container" onclick="event.stopPropagation()">
+        <div class="ea-modal-header">
+          <h2>
+            <i class="fas fa-lightbulb"></i>
+            ${isEdit ? 'Edit' : 'Add'} White Spot Theme
+          </h2>
+          <button onclick="closeWhiteSpotEditor()">&times;</button>
+        </div>
+        
+        <form id="whitespot-form" class="ea-modal-body">
+          <div class="ea-form-group">
+            <label class="ea-form-label">Theme ID <span class="required">*</span></label>
+            <input 
+              type="text" 
+              name="id" 
+              value="${escapeHtml(item?.id || '')}"
+              class="ea-form-input"
+              placeholder="e.g., WST01"
+              ${isEdit ? 'readonly' : ''}
+              required
+            />
+          </div>
+          
+          <div class="ea-form-group">
+            <label class="ea-form-label">Theme Name <span class="required">*</span></label>
+            <input 
+              type="text" 
+              name="theme" 
+              value="${escapeHtml(item?.theme || '')}"
+              class="ea-form-input"
+              placeholder="e.g., Integrated Constraint Management"
+              required
+            />
+          </div>
+          
+          <div class="ea-form-group">
+            <label class="ea-form-label">Description <span class="required">*</span></label>
+            <textarea 
+              name="description" 
+              rows="3"
+              class="ea-form-textarea"
+              placeholder="A dedicated cross-enterprise capability to orchestrate material, supplier, capacity, and programme constraints can materially improve throughput and delivery confidence."
+              required
+            >${escapeHtml(item?.description || '')}</textarea>
+          </div>
+          
+          <div class="ea-form-row">
+            <div class="ea-form-group">
+              <label class="ea-form-label">Strategic Importance <span class="required">*</span></label>
+              <select 
+                name="strategic_importance"
+                class="ea-form-select"
+                required
+              >
+                <option value="CRITICAL" ${item?.strategic_importance === 'CRITICAL' ? 'selected' : ''}>Critical</option>
+                <option value="HIGH" ${item?.strategic_importance === 'HIGH' ? 'selected' : ''}>High</option>
+                <option value="MEDIUM" ${item?.strategic_importance === 'MEDIUM' ? 'selected' : ''}>Medium</option>
+                <option value="LOW" ${item?.strategic_importance === 'LOW' ? 'selected' : ''}>Low</option>
+              </select>
+            </div>
+            
+            <div class="ea-form-group">
+              <label class="ea-form-label">Business Value Potential <span class="required">*</span></label>
+              <select 
+                name="business_value_potential"
+                class="ea-form-select"
+                required
+              >
+                <option value="HIGH" ${item?.business_value_potential === 'HIGH' ? 'selected' : ''}>High</option>
+                <option value="MEDIUM" ${item?.business_value_potential === 'MEDIUM' ? 'selected' : ''}>Medium</option>
+                <option value="LOW" ${item?.business_value_potential === 'LOW' ? 'selected' : ''}>Low</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="ea-form-group">
+            <label class="ea-form-label">Domains Affected</label>
+            <input 
+              type="text" 
+              name="domains_affected" 
+              value="${escapeHtml((item?.domains_affected || []).join(', '))}"
+              class="ea-form-input"
+              placeholder="e.g., Customer Service, Marketing, Sales (comma-separated)"
+            />
+          </div>
+          
+          <div class="ea-form-group">
+            <label class="ea-form-label">Capability Implications</label>
+            <textarea 
+              name="capability_implications" 
+              rows="2"
+              class="ea-form-textarea"
+              placeholder="What capabilities need to be developed..."
+            >${escapeHtml(item?.capability_implications || '')}</textarea>
+          </div>
+          
+          <div class="ea-form-group">
+            <label class="ea-form-label">Cross-Domain Synergy</label>
+            <textarea 
+              name="cross_domain_synergy" 
+              rows="2"
+              class="ea-form-textarea"
+              placeholder="Describe synergies across domains..."
+            >${escapeHtml(item?.cross_domain_synergy || '')}</textarea>
+          </div>
+          
+          <div class="ea-modal-footer">
+            <button 
+              type="button" 
+              onclick="closeWhiteSpotEditor()"
+              class="ea-btn-cancel"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              class="ea-btn-primary"
+            >
+              <i class="fas fa-save"></i>
+              ${isEdit ? 'Update' : 'Add'} White Spot
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  
+  document.getElementById('whitespot-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const domainsText = formData.get('domains_affected') || '';
+    const data = {
+      id: formData.get('id'),
+      theme: formData.get('theme'),
+      description: formData.get('description'),
+      strategic_importance: formData.get('strategic_importance'),
+      business_value_potential: formData.get('business_value_potential'),
+      domains_affected: domainsText ? domainsText.split(',').map(d => d.trim()).filter(d => d) : [],
+      capability_implications: formData.get('capability_implications'),
+      cross_domain_synergy: formData.get('cross_domain_synergy'),
+      traceability: item?.traceability || { business_objectives: [], capabilities: [], gaps: [] }
+    };
+    
+    if (!window.model.whiteSpotSummary) window.model.whiteSpotSummary = { themes: [] };
+    if (!window.model.whiteSpotSummary.themes) window.model.whiteSpotSummary.themes = [];
+    
+    if (isEdit) {
+      window.model.whiteSpotSummary.themes[index] = { ...window.model.whiteSpotSummary.themes[index], ...data };
+      if (typeof toast === 'function') toast('White Spot updated successfully');
+    } else {
+      window.model.whiteSpotSummary.themes.push(data);
+      if (typeof toast === 'function') toast('White Spot added successfully');
+    }
+    
+    if (typeof autoSaveCurrentModel === 'function') autoSaveCurrentModel();
+    if (typeof renderWhiteSpotsView === 'function') renderWhiteSpotsView();
+    closeWhiteSpotEditor();
+  });
+}
+
+function closeWhiteSpotEditor() {
+  const modal = document.getElementById('whitespot-modal');
+  if (modal) modal.remove();
+}
+
+function deleteWhiteSpot(index) {
+  if (!confirm('Are you sure you want to delete this white spot theme?')) return;
+  
+  if (window.model.whiteSpotSummary?.themes?.[index]) {
+    window.model.whiteSpotSummary.themes.splice(index, 1);
+    if (typeof toast === 'function') toast('White Spot deleted successfully');
+    if (typeof autoSaveCurrentModel === 'function') autoSaveCurrentModel();
+    if (typeof renderWhiteSpotsView === 'function') renderWhiteSpotsView();
+  }
+}
+
+// ==========================================
+// FUTURE-STATE EA CRUD FUNCTIONS
+// ==========================================
+
+function openFutureStateEAEditor(domainKey = null) {
+  if (!domainKey) {
+    // If adding a new domain, show a dialog to select domain key first
+    if (typeof toast === 'function') toast('Please select a domain to edit', 'warning');
+    return;
+  }
+  
+  const domain = window.model.futureStateEA?.[domainKey] || {};
+  
+  const domainLabels = {
+    data_ai_automation: 'Data, AI & Automation',
+    cloud_infrastructure: 'Cloud Infrastructure',
+    digital_security_resilience: 'Digital Security & Resilience',
+    application_erp: 'Application & ERP'
+  };
+  
+  const modalHTML = `
+    <div id="futurestateea-modal" class="ea-modal-overlay" onclick="if(event.target.id==='futurestateea-modal') closeFutureStateEAEditor()">
+      <div class="ea-modal-container" onclick="event.stopPropagation()">
+        <div class="ea-modal-header">
+          <h2>
+            <i class="fas fa-layer-group"></i>
+            Edit ${escapeHtml(domainLabels[domainKey] || domainKey)}
+          </h2>
+          <button onclick="closeFutureStateEAEditor()">&times;</button>
+        </div>
+        
+        <form id="futurestateea-form" class="ea-modal-body" data-domain-key="${escapeHtml(domainKey)}">
+          <div class="ea-form-group">
+            <label class="ea-form-label">Headline <span class="required">*</span></label>
+            <input 
+              type="text" 
+              name="headline" 
+              value="${escapeHtml(domain.headline || '')}"
+              class="ea-form-input"
+              placeholder="e.g., Trusted data and AI-enabled decisions at enterprise scale"
+              required
+            />
+          </div>
+          
+          <div class="ea-form-group">
+            <label class="ea-form-label">Summary <span class="required">*</span></label>
+            <textarea 
+              name="summary" 
+              rows="3"
+              class="ea-form-textarea"
+              placeholder="A governed data and AI foundation delivers shared data products, predictive planning, automated governance, and decision intelligence across priority workflows."
+              required
+            >${escapeHtml(domain.summary || '')}</textarea>
+          </div>
+          
+          <div class="ea-form-group">
+            <label class="ea-form-label">Key Capabilities</label>
+            <textarea 
+              name="key_capabilities" 
+              rows="3"
+              class="ea-form-textarea"
+              placeholder="Enter one capability per line..."
+            >${escapeHtml((domain.key_capabilities || []).join('\n'))}</textarea>
+            <span class="ea-form-hint">Enter one capability per line</span>
+          </div>
+          
+          <div class="ea-form-group">
+            <label class="ea-form-label">Strategic Emphasis</label>
+            <input 
+              type="text" 
+              name="strategic_emphasis" 
+              value="${escapeHtml((domain.strategic_emphasis || []).join(', '))}"
+              class="ea-form-input"
+              placeholder="e.g., Real-time analytics, AI/ML, Cloud-native (comma-separated)"
+            />
+            <span class="ea-form-hint">Comma-separated values</span>
+          </div>
+          
+          <div class="ea-form-group">
+            <label class="ea-form-label">Maturity Target</label>
+            <input 
+              type="text" 
+              name="maturity_target" 
+              value="${escapeHtml(domain.maturity_target || '')}"
+              class="ea-form-input"
+              placeholder="e.g., Achieve Level 4 maturity within 24 months"
+            />
+          </div>
+          
+          <div class="ea-modal-footer">
+            <button 
+              type="button" 
+              onclick="closeFutureStateEAEditor()"
+              class="ea-btn-cancel"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              class="ea-btn-primary"
+            >
+              <i class="fas fa-save"></i>
+              Update Domain
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  
+  document.getElementById('futurestateea-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const domainKey = e.target.dataset.domainKey;
+    
+    const capabilitiesText = formData.get('key_capabilities') || '';
+    const emphasisText = formData.get('strategic_emphasis') || '';
+    
+    const data = {
+      headline: formData.get('headline'),
+      summary: formData.get('summary'),
+      key_capabilities: capabilitiesText ? capabilitiesText.split('\n').map(c => c.trim()).filter(c => c) : [],
+      strategic_emphasis: emphasisText ? emphasisText.split(',').map(e => e.trim()).filter(e => e) : [],
+      maturity_target: formData.get('maturity_target'),
+      traceability: domain.traceability || { business_objectives: [], capabilities: [], gaps: [] }
+    };
+    
+    if (!window.model.futureStateEA) window.model.futureStateEA = {};
+    window.model.futureStateEA[domainKey] = { ...window.model.futureStateEA[domainKey], ...data };
+    
+    if (typeof toast === 'function') toast('Domain updated successfully');
+    if (typeof autoSaveCurrentModel === 'function') autoSaveCurrentModel();
+    if (typeof renderFutureStateEAView === 'function') renderFutureStateEAView();
+    closeFutureStateEAEditor();
+  });
+}
+
+function closeFutureStateEAEditor() {
+  const modal = document.getElementById('futurestateea-modal');
+  if (modal) modal.remove();
+}
+
+function deleteFutureStateEADomain(domainKey) {
+  if (!confirm('Are you sure you want to delete this EA domain?')) return;
+  
+  if (window.model.futureStateEA?.[domainKey]) {
+    delete window.model.futureStateEA[domainKey];
+    if (typeof toast === 'function') toast('Domain deleted successfully');
+    if (typeof autoSaveCurrentModel === 'function') autoSaveCurrentModel();
+    if (typeof renderFutureStateEAView === 'function') renderFutureStateEAView();
+  }
+}
+
 
 async function generateRoadmap() {
   return StepEngine.run('step7', window.model);
