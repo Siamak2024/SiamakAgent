@@ -205,27 +205,6 @@
 
   <!-- Right: Utilities -->
   <div class="flex items-center gap-2">
-    <!-- Language Selector -->
-    <select
-      id="header-language-select"
-      class="h-8 rounded-lg border border-white/25 bg-white/10 text-white text-[11px] px-2 focus:outline-none focus:ring-2 focus:ring-white/40"
-      onchange="onHeaderLanguageChange(this.value)"
-      title="Language"
-      aria-label="Language"
-    >
-      <option value="auto" class="text-slate-900">Auto (Browser)</option>
-      <option value="en" class="text-slate-900">English</option>
-      <option value="sv" class="text-slate-900">Svenska</option>
-      <option value="no" class="text-slate-900">Norsk</option>
-      <option value="da" class="text-slate-900">Dansk</option>
-      <option value="fi" class="text-slate-900">Suomi</option>
-    </select>
-
-    <!-- Notifications -->
-    <button onclick="toast('No unread notifications')" class="ea-header-icon" title="Notifications" aria-label="Notifications">
-      <i class="fas fa-bell text-sm"></i>
-    </button>
-
     <!-- AI Chat -->
     <button id="sidebar-toggle-btn" onclick="toggleChatPanel()" class="ea-header-icon" title="Advicy AI Chat (Ctrl+K)" aria-label="Toggle AI Chat" style="position:relative;">
       <i class="fas fa-comments text-sm"></i>
@@ -3264,20 +3243,6 @@ function applyLanguagePreference(language) {
   localizeStaticUi(selected);
 }
 
-function renderLanguageSelector() {
-  const select = document.getElementById('header-language-select');
-  if (!select) return;
-  select.value = getAppLanguagePreference();
-}
-
-function onHeaderLanguageChange(nextLanguage) {
-  const selected = String(nextLanguage || '').toLowerCase().trim();
-  const currentPreference = getAppLanguagePreference();
-  if (selected === currentPreference) return;
-  setAppLanguage(selected === APP_LANGUAGE_AUTO ? APP_LANGUAGE_AUTO : selected, true);
-  location.reload();
-}
-
 /**
  * Render Navigation Sidebar
  * Replaces the old tab-based navigation with hierarchical sidebar navigation
@@ -3491,7 +3456,6 @@ window.addEventListener('DOMContentLoaded', () => {
   renderPhase4ControlsFromModel();
   renderActionBar();
   renderNordicDashboard();
-  renderLanguageSelector();
   applyLanguagePreference(getAppLanguage());
   initChatPanel();
   loadRecentProjects();
@@ -7976,12 +7940,24 @@ async function generateFullReport() {
 
   // STEP 1: Business Context & Objectives
   const businessContext = model.businessContext || {};
-  const businessObjectives = businessContext.objectives || model.businessObjectives || [];
+  const businessObjectives = model.businessObjectives || [];
   const constraints = businessContext.constraints || [];
   const challenges = businessContext.challenges || [];
   const strategicThemes = model.strategicThemes || [];
   const industry = businessContext.industry || model.phase4Config?.industry || 'generic';
   const organizationProfile = model.organizationProfile || {};
+
+  // Extract KPIs from business objectives
+  const kpis = businessObjectives
+    .filter(obj => obj.kpi && obj.kpi.trim() !== '')
+    .map(obj => ({
+      objective: obj.title || obj.description || 'Untitled Objective',
+      kpi: obj.kpi,
+      targetValue: obj.target_value || 'Not specified',
+      timeHorizon: obj.time_horizon || 'Not specified',
+      category: obj.category || 'General',
+      priority: obj.priority || 'Medium'
+    }));
 
   // STEP 2: APQC Capability Mapping & Gap Analysis
   const capabilityMap = model.capabilityMap || {};
@@ -8221,7 +8197,7 @@ Make recommendations specific, actionable, and tied to business outcomes.`,
       const stageResult = await callAI(
         stage.systemPrompt,
         `Generate the ${stage.name} section based on this data:\n\n${stage.userData}`,
-        { taskType: 'heavy', temperature: 0.25, _traceLabel: `Board Report - ${stage.name}` }
+        { taskType: 'heavy', temperature: 0.25, timeoutMs: 360000, _traceLabel: `Board Report - ${stage.name}` }
       );
 
       reportHTML += stageResult;
