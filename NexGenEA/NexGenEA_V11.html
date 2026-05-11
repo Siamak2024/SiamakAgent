@@ -140,21 +140,78 @@
 
 <!-- HEADER -->
 <header class="ea-header px-6 flex items-center justify-between text-white">
+  <!-- Left: Logo & Brand -->
   <div class="flex items-center gap-3">
-    <div class="ea-brand-mark flex items-center justify-center font-bold text-sm">EA</div>
+    <div class="ea-brand-mark flex items-center justify-center font-bold text-sm">
+      <i class="fas fa-leaf"></i>
+    </div>
     <div>
       <div class="ea-brand-kicker">Enterprise Architecture Platform</div>
-      <div class="ea-brand-title flex items-center gap-2">NextGen EA Platform <span class="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">V5</span></div>
+      <div class="ea-brand-title flex items-center gap-2">NextGen EA Platform <span class="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">V11</span></div>
     </div>
   </div>
+
+  <!-- Center: Modern Navigation Menu -->
+  <nav class="flex items-center gap-1">
+    <!-- Projects Dropdown -->
+    <div class="ea-nav-dropdown">
+      <button class="ea-nav-item" onclick="toggleProjectsMenu(event)" title="Projects" aria-label="Projects menu">
+        <i class="fas fa-folder text-sm mr-2"></i>
+        <span class="text-[11px] font-semibold">Projects</span>
+        <i class="fas fa-chevron-down text-[9px] ml-1"></i>
+      </button>
+      <div id="projects-dropdown" class="ea-nav-dropdown-menu" style="display: none;">
+        <button onclick="openNewProjectModal(); closeAllDropdowns();" class="ea-nav-dropdown-item">
+          <i class="fas fa-plus text-sm mr-2 text-green-400"></i>
+          <span>New Project</span>
+        </button>
+        <button onclick="loadModelFromDB(); closeAllDropdowns();" class="ea-nav-dropdown-item">
+          <i class="fas fa-folder-open text-sm mr-2 text-blue-400"></i>
+          <span>Open Project</span>
+        </button>
+        <button onclick="saveProjectToDB(); closeAllDropdowns();" class="ea-nav-dropdown-item">
+          <i class="fas fa-floppy-disk text-sm mr-2 text-purple-400"></i>
+          <span>Save Project</span>
+        </button>
+        <div class="ea-nav-dropdown-divider"></div>
+        <button onclick="document.getElementById('global-model-import').click(); closeAllDropdowns();" class="ea-nav-dropdown-item">
+          <i class="fas fa-file-import text-sm mr-2 text-cyan-400"></i>
+          <span>Import Project</span>
+        </button>
+        <button onclick="exportModel(); closeAllDropdowns();" class="ea-nav-dropdown-item">
+          <i class="fas fa-file-export text-sm mr-2 text-amber-400"></i>
+          <span>Export Project</span>
+        </button>
+        <div class="ea-nav-dropdown-divider"></div>
+        <button onclick="openManageProjectsModal(); closeAllDropdowns();" class="ea-nav-dropdown-item">
+          <i class="fas fa-list text-sm mr-2 text-slate-400"></i>
+          <span>Manage Projects</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Reports -->
+    <button onclick="openReportModal()" class="ea-nav-item" title="Board Report" aria-label="Board Report">
+      <i class="fas fa-file-lines text-sm mr-2"></i>
+      <span class="text-[11px] font-semibold">Reports</span>
+    </button>
+
+    <!-- Settings -->
+    <button onclick="showSettingsModal()" class="ea-nav-item" title="Settings" aria-label="Settings">
+      <i class="fas fa-gear text-sm mr-2"></i>
+      <span class="text-[11px] font-semibold">Settings</span>
+    </button>
+  </nav>
+
+  <!-- Right: Utilities -->
   <div class="flex items-center gap-2">
-    <label for="header-language-select" class="text-[10px] uppercase tracking-wide text-white/80 font-semibold">Lang</label>
+    <!-- Language Selector -->
     <select
       id="header-language-select"
       class="h-8 rounded-lg border border-white/25 bg-white/10 text-white text-[11px] px-2 focus:outline-none focus:ring-2 focus:ring-white/40"
       onchange="onHeaderLanguageChange(this.value)"
-      title="Application language"
-      aria-label="Application language"
+      title="Language"
+      aria-label="Language"
     >
       <option value="auto" class="text-slate-900">Auto (Browser)</option>
       <option value="en" class="text-slate-900">English</option>
@@ -163,44 +220,23 @@
       <option value="da" class="text-slate-900">Dansk</option>
       <option value="fi" class="text-slate-900">Suomi</option>
     </select>
-    <button onclick="openHomeFromHeader(this)" class="ea-header-icon ea-header-icon--home" title="Home" aria-label="Home">
-      <i class="fas fa-house text-sm"></i>
-    </button>
-    <button onclick="openToolkitFromHeader(this)" class="ea-header-icon ea-header-icon--toolkit" title="Toolkits" aria-label="Toolkits">
-      <i class="fas fa-toolbox text-sm"></i>
-    </button>
+
+    <!-- Notifications -->
     <button onclick="toast('No unread notifications')" class="ea-header-icon" title="Notifications" aria-label="Notifications">
       <i class="fas fa-bell text-sm"></i>
     </button>
-    <button id="header-new-project-btn" onclick="openNewProjectModal()" class="ea-header-icon hidden" title="New project" aria-label="New project">
-      <i class="fas fa-plus text-sm"></i>
-    </button>
-    <button onclick="saveProjectToDB()" class="ea-header-icon" title="Save project" aria-label="Save project">
-      <i class="fas fa-floppy-disk text-sm"></i>
-    </button>
-    <button onclick="loadModelFromDB()" class="ea-header-icon" title="Open project" aria-label="Open project">
-      <i class="fas fa-folder-open text-sm"></i>
-    </button>
-    <button onclick="document.getElementById('global-model-import').click()" class="ea-header-icon" title="Import project" aria-label="Import project">
-      <i class="fas fa-file-import text-sm"></i>
-    </button>
-    <button onclick="exportModel()" class="ea-header-icon" title="Export project" aria-label="Export project">
-      <i class="fas fa-file-export text-sm"></i>
-    </button>
-    <button onclick="openManageProjectsModal()" class="ea-header-icon" title="Manage projects" aria-label="Manage projects">
-      <i class="fas fa-trash-can text-sm"></i>
-    </button>
-    <button onclick="openReportModal()" class="ea-header-icon" title="Generate board report" aria-label="Generate board report">
-      <i class="fas fa-file-lines text-sm"></i>
-    </button>
-    <button onclick="showSettingsModal()" class="ea-header-icon" title="Settings" aria-label="Settings">
-      <i class="fas fa-gear text-sm"></i>
-    </button>
-    <button id="sidebar-toggle-btn" onclick="toggleChatPanel()" class="ea-header-icon" title="Advicy AI Chat (Ctrl+K)" aria-label="Toggle AI Chat sidebar" style="position:relative;">
+
+    <!-- AI Chat -->
+    <button id="sidebar-toggle-btn" onclick="toggleChatPanel()" class="ea-header-icon" title="Advicy AI Chat (Ctrl+K)" aria-label="Toggle AI Chat" style="position:relative;">
       <i class="fas fa-comments text-sm"></i>
       <span id="unread-count" class="badge" style="display:none;position:absolute;top:-4px;right:-3px;background:#dc2626;color:#fff;border-radius:999px;min-width:18px;height:18px;padding:0 4px;display:none;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:2px solid #1e293b;">0</span>
     </button>
-    <div class="ea-avatar" title="Workspace user">EA</div>
+
+    <!-- User Avatar -->
+    <div class="ea-avatar" title="Admin User">
+      <i class="fas fa-user-circle text-lg"></i>
+    </div>
+    
     <input type="file" id="global-model-import" class="hidden" onchange="importModel(event)" accept=".json">
   </div>
 </header>
@@ -1337,6 +1373,15 @@
             </div>
           </div>
 
+          <!-- EXECUTIVE SUMMARY (PVM) -->
+          <div id="executive-summary-section" class="hidden" style="margin-bottom: 24px; background: linear-gradient(135deg, rgba(0, 71, 46, 0.03) 0%, rgba(0, 61, 117, 0.02) 100%); border: 2px solid var(--ea-primary); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0, 71, 46, 0.08);">
+            <div style="font-size: var(--ea-h3); font-weight: var(--ea-fw-bold); color: var(--ea-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+              <i class="fas fa-rocket"></i>
+              Executive Summary
+            </div>
+            <div id="executive-summary-content"></div>
+          </div>
+
           <!-- BUSINESS CONTEXT SUMMARY -->
           <div id="business-context-summary" class="ea-section-card" style="margin-bottom: 20px; background: linear-gradient(180deg, rgba(247, 250, 252, 0.95) 0%, rgba(255, 255, 255, 0.95) 100%);">
             <div style="font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ea-text-secondary); margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
@@ -1355,16 +1400,35 @@
             <div id="strategic-themes-content"></div>
           </div>
 
-          <!-- BUSINESS OBJECTIVES TABLE -->
+          <!-- OBJECTIVES BY THEME (PVM Card View) -->
+          <div id="objectives-by-theme-section" class="hidden ea-section-card" style="margin-bottom: 20px; background: var(--ea-surface);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+              <div style="font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ea-primary); display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-sitemap"></i>
+                Objectives by Strategic Theme
+              </div>
+              <button onclick="toggleDetailedView()" class="ea-btn ea-btn--secondary" style="font-size: var(--ea-meta); min-height: 36px; padding: 0 14px;">
+                <i class="fas fa-table"></i>Show Detailed Table
+              </button>
+            </div>
+            <div id="objectives-by-theme-content"></div>
+          </div>
+
+          <!-- BUSINESS OBJECTIVES TABLE (Detailed View) -->
           <div id="business-objectives-table-section" class="ea-section-card" style="margin-bottom: 20px; background: var(--ea-surface);">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
               <div style="font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ea-primary); display: flex; align-items: center; gap: 10px;">
                 <i class="fas fa-target"></i>
                 Business Objectives <span id="objectives-count" style="font-size: var(--ea-meta); color: var(--ea-text-secondary); font-weight: var(--ea-fw-regular); text-transform: none;"></span>
               </div>
-              <button onclick="addNewObjective()" class="ea-btn ea-btn--secondary" style="font-size: var(--ea-meta); min-height: 36px; padding: 0 14px;">
-                <i class="fas fa-plus"></i>Add Objective
-              </button>
+              <div style="display: flex; gap: 8px;">
+                <button onclick="toggleDetailedView()" class="ea-btn ea-btn--secondary" style="font-size: var(--ea-meta); min-height: 36px; padding: 0 14px;">
+                  <i class="fas fa-sitemap"></i>Show Card View
+                </button>
+                <button onclick="addNewObjective()" class="ea-btn ea-btn--secondary" style="font-size: var(--ea-meta); min-height: 36px; padding: 0 14px;">
+                  <i class="fas fa-plus"></i>Add Objective
+                </button>
+              </div>
             </div>
             <div id="business-objectives-table"></div>
           </div>
@@ -1377,30 +1441,6 @@
             </div>
             <div id="gap-insights-content" style="display: flex; flex-direction: column; gap: 16px;"></div>
           </div>
-          
-          <!-- LEGACY COMPATIBILITY SECTION (Hidden by default) -->
-          <details id="legacy-strategic-intent-section" class="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-3">
-            <summary class="text-[9px] font-bold text-slate-500 uppercase cursor-pointer hover:text-slate-700">Legacy Strategic Intent View</summary>
-            <div class="mt-3">
-              <div id="intent-view-card">
-                <div id="intent-ambition" class="bg-slate-800 text-white rounded-lg px-3 py-2.5 text-[12px] leading-relaxed mb-3 italic font-medium hidden"></div>
-                <div id="intent-themes-row" class="mb-2">
-                  <div class="text-[9px] font-bold text-slate-400 uppercase mb-1">Strategic Themes</div>
-                  <div id="intent-themes" class="flex flex-wrap gap-1"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-3 mt-3">
-                  <div>
-                    <div class="text-[9px] font-bold text-slate-500 uppercase mb-1">Key Constraints</div>
-                    <ul id="intent-constraints" class="text-[10px] text-slate-800 space-y-1 list-disc list-inside"></ul>
-                  </div>
-                  <div>
-                    <div class="text-[9px] font-bold text-slate-500 uppercase mb-1">Success Metrics</div>
-                    <ul id="intent-metrics" class="text-[10px] text-slate-800 space-y-1 list-disc list-inside"></ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </details>
         </div>
 
 
@@ -1410,47 +1450,6 @@
           <button onclick="if (typeof StepEngine !== 'undefined' && StepEngine.run) { StepEngine.run('step1', {}, window.model); } else { console.error('StepEngine not available'); }" class="ea-btn ea-btn--primary text-[10px] px-3 py-1.5">
             <i class="fas fa-bullseye mr-1.5"></i>Define Business Objectives (Step 1)
           </button>
-        </div>
-
-        <!-- KPI placeholder – shown until Step 3 (Capability Mapping) is complete -->
-        <div id="exec-kpi-placeholder" class="hidden mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[11px] text-slate-500">
-          <i class="fas fa-lock-open mr-1.5 text-slate-400"></i>Portfolio KPIs (<strong>Strategic Alignment • AI Readiness • Technical Debt</strong>) unlock after <span class="font-semibold text-slate-700">Capability Mapping (Step 3)</span>.
-        </div>
-
-        <!-- KPI grid – hidden until capabilities are loaded -->
-        <div id="exec-kpi-grid" style="display:none" class="grid grid-cols-3 gap-4 mb-6">
-          <div class="kpi-card">
-            <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">Strategic Alignment</div>
-            <div class="text-3xl font-black text-primary" id="exec-alignment">–</div>
-            <div class="text-[10px] text-slate-400 mt-1">Capability vs. Strategy Fit</div>
-            <div class="text-[9px] text-slate-500 mt-2 leading-relaxed border-t border-slate-200 pt-2">
-              % of high-importance capabilities that have reached maturity level 3 or above. Low scores signal critical gaps that undermine strategic execution.
-            </div>
-          </div>
-          <div class="kpi-card">
-            <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">AI Readiness Index</div>
-            <div class="text-3xl font-black text-primary" id="exec-aiready">–</div>
-            <div class="text-[10px] text-slate-400 mt-1">Capability • System • AI Agent Readiness</div>
-            <div class="text-[9px] text-slate-500 mt-2 leading-relaxed border-t border-slate-200 pt-2">
-              Composite of avg capability maturity (50%), proportion of high-maturity systems (30%), and active AI agents mapped (20%). Indicates readiness to adopt and scale AI.
-            </div>
-          </div>
-          <div class="kpi-card">
-            <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">Technical Debt Risk</div>
-            <div class="text-3xl font-black text-danger" id="exec-techdebt">–</div>
-            <div class="text-[10px] text-slate-400 mt-1">Legacy Exposure in Critical Capabilities</div>
-            <div class="text-[9px] text-slate-500 mt-2 leading-relaxed border-t border-slate-200 pt-2">
-              Weighted share of capabilities with low maturity (=2), double-counted when strategically critical. High scores signal modernisation urgency before strategic goals can be met.
-            </div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 gap-4">
-          <div id="cxo-narrative-section" class="hidden bg-slate-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
-            <div class="absolute top-0 right-0 p-4 opacity-10"><svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
-            <div class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-3">AI-Generated CXO Narrative</div>
-            <div id="exec-narrative" class="text-base leading-8 font-medium text-slate-200 italic"></div>
-          </div>
         </div>
       </div>
 
@@ -2707,6 +2706,7 @@ let model = {
   investments: [],
   stepMeta: {},
   steps: {}, // NEW: StepEngine step completion tracking
+  boardReports: [], // NEW: Board report history (HTML + metadata)
   diagnosticProgress: {
     currentStep: 1,
     completedSteps: [],
@@ -3700,7 +3700,6 @@ function loadLastModel() {
         if (typeof renderMaturityDashboard === 'function') renderMaturityDashboard();
         populateImpactSelect();
         renderExecSummary();
-        generateNarrative();
         updateDataCollectionTab();
         renderPhase4ControlsFromModel();
         if (model.initiatives?.length) {
@@ -4551,10 +4550,8 @@ function _loadEntry(id, source) {
   try { renderCapMap(); } catch(e) { console.warn('renderCapMap', e); }
   try { renderHeatmap(); } catch(e) { console.warn('renderHeatmap', e); }
   try { renderMaturityDashboard(); } catch(e) { console.warn('renderMaturityDashboard', e); }
-  try { populateImpactSelect(); renderExecSummary(); generateNarrative(); updateDataCollectionTab(); } catch(e) { console.warn('renderExec', e); }
+  try { populateImpactSelect(); renderExecSummary(); updateDataCollectionTab(); } catch(e) { console.warn('renderExec', e); }
   try { renderPhase4ControlsFromModel(); } catch(e) { console.warn('renderPhase4', e); }
-  const cxoSection = document.getElementById('cxo-narrative-section');
-  if (cxoSection) cxoSection.classList.remove('hidden');
   if (model.initiatives?.length) { try { renderInitiatives(); renderRoadmapVisual(); } catch(e) { console.warn('renderRoadmap', e); } }
   if (model.operatingModel && (model.operatingModel?.valueProposition || model.operatingModel?.current?.value_delivery || model.operatingModel?.target?.value_delivery)) { try { renderOperatingModel(); } catch(e) { console.warn('renderOM', e); } }
   if (model.gapAnalysisRaw) {
@@ -4747,7 +4744,6 @@ function importModel(event) {
         renderMaturityDashboard();
         populateImpactSelect();
         renderExecSummary();
-        generateNarrative();
         updateDataCollectionTab();
         renderPhase4ControlsFromModel();
         
@@ -4795,7 +4791,6 @@ function importModel(event) {
         renderMaturityDashboard();
         populateImpactSelect();
         renderExecSummary();
-        generateNarrative();
         updateDataCollectionTab();
         renderPhase4ControlsFromModel();
         
@@ -5905,12 +5900,14 @@ window.showTab = function showTab(name, btn) {
   
   const _cp = document.querySelector('.ea-content-panel');
   if (_cp) _cp.scrollTop = 0;
-  document.querySelectorAll('.ea-header-icon--home').forEach((iconBtn) => {
-    iconBtn.classList.toggle('is-active', name === 'home');
-  });
-  document.querySelectorAll('.ea-header-icon--toolkit').forEach((iconBtn) => {
-    iconBtn.classList.toggle('is-active', name === 'toolkits');
-  });
+  const dashboardBtn = document.getElementById('nav-btn-dashboard');
+  if (dashboardBtn) {
+    dashboardBtn.classList.toggle('is-active', name === 'home');
+  }
+  const toolkitsBtn = document.getElementById('nav-btn-toolkits');
+  if (toolkitsBtn) {
+    toolkitsBtn.classList.toggle('is-active', name === 'toolkits');
+  }
   currentTab = name;
   if (typeof AdvisyAI !== 'undefined') AdvisyAI.setActiveView(name);
   if (name === 'bmc') console.log('BMC tab selected - no legacy canvas rendering'); // removed obsolete renderBMCCanvas
@@ -6532,6 +6529,46 @@ function openToolkitFromHeader(btn) {
   showTab('toolkits', null);
   if (btn) btn.blur();
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// MODERN NAVIGATION DROPDOWN MENU FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════
+
+function toggleProjectsMenu(event) {
+  event.stopPropagation();
+  const dropdown = document.getElementById('projects-dropdown');
+  const isVisible = dropdown.style.display !== 'none';
+  
+  // Close all dropdowns first
+  closeAllDropdowns();
+  
+  // Toggle this dropdown
+  if (!isVisible) {
+    dropdown.style.display = 'block';
+  }
+}
+
+function closeAllDropdowns() {
+  const dropdowns = document.querySelectorAll('.ea-nav-dropdown-menu');
+  dropdowns.forEach(dropdown => {
+    dropdown.style.display = 'none';
+  });
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(event) {
+  const isDropdownClick = event.target.closest('.ea-nav-dropdown');
+  if (!isDropdownClick) {
+    closeAllDropdowns();
+  }
+});
+
+// Close dropdowns on Escape key
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape') {
+    closeAllDropdowns();
+  }
+});
 
 // -- UX IMPROVEMENTS: NEW FUNCTIONS ----
 
@@ -7731,6 +7768,25 @@ function spin(id, on) { document.getElementById(id)?.classList.toggle('hidden', 
 
 // -- PHASE 5: BOARD REPORT GENERATION (V11 4-Step Workflow) ----
 function openReportModal() {
+  document.getElementById('report-modal').classList.remove('hidden');
+  
+  // Show welcome screen by default
+  showReportWelcome();
+}
+
+function showReportWelcome() {
+  // Update report count badge
+  const totalReports = model.boardReports?.length || 0;
+  const badge = document.getElementById('report-count-badge');
+  if (badge) badge.textContent = totalReports;
+  
+  // Show welcome, hide others
+  document.getElementById('report-welcome').classList.remove('hidden');
+  document.getElementById('report-loading').classList.add('hidden');
+  document.getElementById('report-content').classList.add('hidden');
+}
+
+function startReportGeneration() {
   // V11 Validation: Require Step 2 (Capability Mapping) completion minimum
   if (!model.capabilityMap && !model.capabilities.length) {
     alert("Please complete at least Step 2 (Capability Mapping) before generating the board report.");
@@ -7743,10 +7799,13 @@ function openReportModal() {
       return;
     }
   }
-
-  document.getElementById('report-modal').classList.remove('hidden');
+  
+  // Hide welcome, show loading
+  document.getElementById('report-welcome').classList.add('hidden');
   document.getElementById('report-loading').classList.remove('hidden');
   document.getElementById('report-content').classList.add('hidden');
+  
+  // Generate report
   generateFullReport();
 }
 
@@ -7758,13 +7817,162 @@ function printReport() {
   window.print();
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// BOARD REPORT PERSISTENCE
+// ═══════════════════════════════════════════════════════════════════════
+
+function saveBoardReport(reportHTML) {
+  if (!model.boardReports) {
+    model.boardReports = [];
+  }
+
+  const reportData = {
+    id: `report_${Date.now()}`,
+    generatedAt: new Date().toISOString(),
+    html: reportHTML,
+    metadata: {
+      projectName: model.projectName || currentProjectName || 'Untitled Project',
+      stepsCompleted: Object.values(model.steps || {}).filter(s => s.status === 'completed').length,
+      capabilityCount: model.capabilities?.length || 0,
+      objectiveCount: model.businessObjectives?.length || 0,
+      gapCount: model.gapInsights?.length || 0,
+      version: '11.0'
+    }
+  };
+
+  // Add to beginning of array (newest first)
+  model.boardReports.unshift(reportData);
+
+  // Keep only last 10 reports
+  if (model.boardReports.length > 10) {
+    model.boardReports = model.boardReports.slice(0, 10);
+  }
+
+  console.log(`✅ Board report saved to model (ID: ${reportData.id})`);
+  
+  // Auto-save project with new report
+  autoSaveCurrentModel();
+
+  return reportData;
+}
+
+function loadBoardReport(reportId) {
+  if (!model.boardReports) return null;
+  
+  const report = model.boardReports.find(r => r.id === reportId);
+  if (!report) {
+    console.warn('Board report not found:', reportId);
+    return null;
+  }
+
+  return report;
+}
+
+function getLatestBoardReport() {
+  if (!model.boardReports || model.boardReports.length === 0) {
+    return null;
+  }
+  
+  return model.boardReports[0];
+}
+
+function displaySavedBoardReport(reportId) {
+  const report = loadBoardReport(reportId);
+  if (!report) {
+    alert('Report not found');
+    return;
+  }
+
+  const contentDiv = document.getElementById('report-content');
+  contentDiv.innerHTML = report.html;
+  document.getElementById('report-welcome').classList.add('hidden');
+  document.getElementById('report-loading').classList.add('hidden');
+  contentDiv.classList.remove('hidden');
+  
+  // Show report info
+  const generatedDate = new Date(report.generatedAt).toLocaleString();
+  console.log(`📄 Displaying saved report from ${generatedDate}`);
+}
+
+function showReportHistory() {
+  if (!model.boardReports || model.boardReports.length === 0) {
+    alert('No saved reports found. Generate your first board report to start building a history.');
+    showReportWelcome();
+    return;
+  }
+
+  // Build report list
+  let message = 'Select a report to view:\n\n';
+  model.boardReports.forEach((report, index) => {
+    const date = new Date(report.generatedAt).toLocaleString();
+    const objectives = report.metadata.objectiveCount || 0;
+    const capabilities = report.metadata.capabilityCount || 0;
+    message += `${index + 1}. ${date}\n   (${objectives} objectives, ${capabilities} capabilities)\n\n`;
+  });
+  message += 'Enter number (1-' + model.boardReports.length + ') or Cancel:';
+
+  const choice = prompt(message);
+  if (!choice) return;
+
+  const index = parseInt(choice) - 1;
+  if (isNaN(index) || index < 0 || index >= model.boardReports.length) {
+    alert('Invalid selection');
+    return;
+  }
+
+  displaySavedBoardReport(model.boardReports[index].id);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PROGRESS BAR HELPERS
+// ═══════════════════════════════════════════════════════════════════════
+
+function updateReportProgress(stageNum, stageName, percent, detail) {
+  const bar = document.getElementById('report-progress-bar');
+  const percentText = document.getElementById('report-progress-percent');
+  const stageText = document.getElementById('report-progress-stage');
+  const detailText = document.getElementById('report-progress-detail');
+  
+  if (bar) bar.style.width = `${percent}%`;
+  if (percentText) percentText.textContent = `${percent}%`;
+  if (stageText) stageText.textContent = stageName;
+  if (detailText) detailText.textContent = detail;
+  
+  // Update stage indicators
+  for (let i = 1; i <= 4; i++) {
+    const indicator = document.getElementById(`stage-indicator-${i}`);
+    if (!indicator) continue;
+    
+    const circle = indicator.querySelector('div');
+    const text = indicator.querySelector('p');
+    
+    if (i < stageNum) {
+      // Completed stage - green checkmark
+      circle.className = 'w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold transition-all duration-300';
+      circle.innerHTML = '✓';
+      text.className = 'text-[9px] text-green-600 uppercase tracking-wider font-bold';
+    } else if (i === stageNum) {
+      // Current stage - blue animated
+      circle.className = 'w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold transition-all duration-300 animate-pulse';
+      circle.innerHTML = i;
+      text.className = 'text-[9px] text-blue-600 uppercase tracking-wider font-bold';
+    } else {
+      // Future stage - gray
+      circle.className = 'w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 text-xs font-bold transition-all duration-300';
+      circle.innerHTML = i;
+      text.className = 'text-[9px] text-slate-400 uppercase tracking-wider';
+    }
+  }
+}
+
 async function generateFullReport() {
-  const progress = document.getElementById('report-progress');
   const contentDiv = document.getElementById('report-content');
 
   // ═══════════════════════════════════════════════════════════════════════
   // V11 DATA COLLECTION: Extract from 4-Step Workflow Model
   // ═══════════════════════════════════════════════════════════════════════
+
+  updateReportProgress(0, 'Initializing', 0, 'Collecting data from V11 4-step workflow...');
 
   // STEP 1: Business Context & Objectives
   const businessContext = model.businessContext || {};
@@ -7812,16 +8020,6 @@ async function generateFullReport() {
   const whiteSpotSummary = model.whiteSpotSummary || {};
   const futureStateEA = model.futureStateEA || {};
 
-  // Legacy KPI extraction (for backward compatibility)
-  const kpis = {
-    savings: document.getElementById('kpi-savings')?.textContent || 'N/A',
-    risk: document.getElementById('kpi-risk')?.textContent || 'N/A',
-    co2: document.getElementById('kpi-co2')?.textContent || 'N/A',
-    alignment: document.getElementById('exec-alignment')?.textContent || 'N/A',
-    aiReady: document.getElementById('exec-aiready')?.textContent || 'N/A',
-    techDebt: document.getElementById('exec-techdebt')?.textContent || 'N/A'
-  };
-
   // ESG & Compliance Risks
   const esgRisks = [];
   gapInsights.forEach(gap => {
@@ -7845,13 +8043,10 @@ async function generateFullReport() {
 
   // Build comprehensive data pack
   const dataPack = {
-    // Project metadata
     projectName: model.projectName || 'Unnamed Project',
     organization: model.description || organizationProfile.name || 'Organization',
     industry: industry,
     generatedDate: new Date().toISOString(),
-    
-    // Step 1: Business Context
     step1: {
       businessObjectives: businessObjectives.slice(0, 8),
       constraints: constraints,
@@ -7864,8 +8059,6 @@ async function generateFullReport() {
         employees: organizationProfile.employees || 'Not specified'
       }
     },
-    
-    // Step 2: Capability Mapping
     step2: {
       apqcSummary: apqcSummary,
       capabilityCount: capabilities.length,
@@ -7875,8 +8068,6 @@ async function generateFullReport() {
       whiteSpots: whiteSpots.slice(0, 5),
       totalGaps: gapInsights.length
     },
-    
-    // Step 3: Target Architecture
     step3: {
       archPrinciples: archPrinciples.slice(0, 10),
       keyDecisions: archDecisions.slice(0, 8),
@@ -7886,12 +8077,8 @@ async function generateFullReport() {
       whiteSpotSummary: whiteSpotSummary,
       futureStateEA: futureStateEA
     },
-    
-    // Cross-cutting concerns
     esgRisks: esgRisks.slice(0, 10),
     kpis: kpis,
-    
-    // Metadata flags
     completionStatus: {
       step1: businessObjectives.length > 0,
       step2: capabilities.length > 0,
@@ -7900,219 +8087,185 @@ async function generateFullReport() {
   };
 
   // ═══════════════════════════════════════════════════════════════════════
-  // AI PROMPT: Senior Enterprise Architect + AI Strategy Expert
+  // MULTI-STAGE REPORT GENERATION
   // ═══════════════════════════════════════════════════════════════════════
 
-  try {
-    progress.textContent = "Generating C-level Strategic Board Report with Target Architecture...";
-    
-    const systemPrompt = `Act as a Senior Enterprise Architect and AI Strategy Expert. Your goal is to generate a complete, C-suite-ready Strategic Board Report with Gap Analysis, Target Architecture, and Business Recommendations for the provided company and industry.
+  const cssClasses = `Use these CSS classes:
+- Main title: <h1 class="report-h1">Title</h1>
+- Section headers: <h2 class="report-h2">SECTION</h2>
+- Subsections: <h3 class="report-h3">Subsection</h3>
+- Paragraphs: <p class="report-p">Text</p>
+- Tables: <table class="report-table"><thead><tr><th>Header</th></tr></thead><tbody><tr><td>Data</td></tr></tbody></table>
+- Gap badges: <span class="report-gap-badge report-gap-critical">Critical</span>
+- Recommendations: <div class="report-recommendation"><div class="report-recommendation-header"><div class="report-recommendation-number">1</div><div class="report-recommendation-title">Title</div></div><div class="report-recommendation-body"><p>Details</p></div></div>`;
 
-**YOUR EXPERTISE:**
-- Enterprise Architecture (TOGAF, Zachman, APQC PCF)
-- Strategic Business Planning & Transformation
-- AI/ML Strategy & Automation Opportunities
-- ESG and Compliance Risk Management
-- Investment Portfolio Optimization
-- C-level Communication & Board Presentations
+  let reportHTML = '';
+  const stages = [
+    {
+      name: 'Executive Summary',
+      percent: 25,
+      detail: 'Analyzing business objectives, constraints, and strategic themes...',
+      systemPrompt: `You are a Senior Enterprise Architect writing the EXECUTIVE SUMMARY section of a C-suite board report.
 
-**CONTEXT:**
+Generate ONLY the Executive Summary with these mandatory subsections:
+1. **Business Objectives** - Top 3-5 objectives with metrics
+2. **Key Constraints** - Budget, timeline, technical, regulatory constraints
+3. **Strategic Themes** - 3-5 cross-cutting themes
+4. **Branch-specific Differences** - Geographic/divisional variations (or "N/A")
+5. **Organization Profile** - Size, locations, industry context
+
+Context:
 - Industry: ${industry}
 - Organization: ${dataPack.organization}
-- Capabilities Mapped: ${capabilities.length}
-- Architecture Principles: ${archPrinciples.length}
-- AI Agents Proposed: ${aiAgents.length}
 - Project: ${dataPack.projectName}
 
-**OUTPUT REQUIREMENTS:**
-Generate a complete HTML board report in ENGLISH with the following mandatory structure:
+${cssClasses}
 
-## MANDATORY STRUCTURE
+Output ONLY valid HTML starting with: <h1 class="report-h1">Strategic Architecture Analysis & Transformation Plan</h1>
+Then immediately follow with: <h2 class="report-h2">EXECUTIVE SUMMARY</h2>
+Keep it concise (250-300 words total). Focus on business outcomes.`,
+      userData: JSON.stringify({ step1: dataPack.step1, metadata: { projectName: dataPack.projectName, organization: dataPack.organization, industry: dataPack.industry } }, null, 2)
+    },
+    {
+      name: 'Gap Analysis',
+      percent: 50,
+      detail: 'Mapping capability gaps to business objectives...',
+      systemPrompt: `You are a Senior Enterprise Architect writing the GAP ANALYSIS section of a C-suite board report.
 
-### 1. EXECUTIVE SUMMARY (C-Level, 250-300 words)
-Must include these 8 sections:
+Generate ONLY these sections:
+1. **Top Capability Gaps** - Ranked list of 5-8 critical gaps, linked to business objectives
+2. **Objective Traceability Matrix** - Table showing: Business Objective → Capability Gaps → Expected Outcomes
 
-**a) Business Objectives**
-- List top 3-5 strategic objectives with success metrics
-- Link to business outcomes (revenue, cost, risk, customer)
+Context:
+- ${dataPack.step2.capabilityCount} capabilities mapped
+- Average maturity: ${dataPack.step2.avgMaturity}/5
+- ${dataPack.step2.totalGaps} total gaps identified
 
-**b) Key Constraints**
-- Budget, timeline, technical, regulatory, organizational constraints
-- Impact assessment and mitigation strategies
+${cssClasses}
 
-**c) Strategic Themes**
-- 3-5 cross-cutting themes (e.g., Digital Transformation, Customer-Centricity, Sustainability, Innovation)
-- How themes align with objectives
+Output ONLY valid HTML starting with: <h2 class="report-h2">GAP ANALYSIS & OBJECTIVE TRACEABILITY</h2>
+Use gap badges: <span class="report-gap-badge report-gap-critical">Critical Gap</span>
+Show linkage to business objectives clearly.`,
+      userData: JSON.stringify({ step2: dataPack.step2, step1Objectives: dataPack.step1.businessObjectives }, null, 2)
+    },
+    {
+      name: 'Architecture & AI Strategy',
+      percent: 75,
+      detail: 'Generating target architecture principles and AI opportunities...',
+      systemPrompt: `You are a Senior Enterprise Architect writing the ARCHITECTURE section of a C-suite board report.
 
-**d) Branch-specific Differences** (if multi-location)
-- Geographic or divisional capability maturity variations
-- Localization requirements or regional priorities
-- If single location, state "N/A - Centralized operations"
+Generate ONLY these sections:
+1. **Target Architecture Principles** - 6-10 guiding principles with rationale
+2. **Key Architecture Decisions** - Architecture Decision Records (ADRs)
+3. **AI Opportunities** - 3-5 high-value AI/automation opportunities with ROI
+4. **White Spots & Future-State EA** - Emerging opportunities and vision
 
-**e) Top Capability Gaps**
-- Ranked list of 5-8 critical gaps
-- Link each gap to affected business objectives
-- Quantify business impact where possible
+Context:
+- ${dataPack.step3.archPrinciples.length} architecture principles defined
+- ${dataPack.step3.aiAgents.length} AI agents proposed
+- Architecture style: ${dataPack.step3.architectureStyle}
 
-**f) AI Opportunities**
-- 3-5 high-value AI/automation opportunities from step3.aiAgents
-- Link to capability gaps and business objectives
-- Expected ROI or efficiency gains
+${cssClasses}
 
-**g) ESG and Compliance Risks**
-- Environmental, social, governance risks
-- Regulatory compliance gaps (GDPR, SOX, industry-specific)
-- Risk severity and mitigation timeline
+Output ONLY valid HTML starting with: <h2 class="report-h2">TARGET ARCHITECTURE & AI STRATEGY</h2>
+Link AI opportunities to capability gaps and business objectives.`,
+      userData: JSON.stringify({ step3: dataPack.step3, step2Gaps: dataPack.step2.criticalGaps }, null, 2)
+    },
+    {
+      name: 'Financial Summary & Recommendations',
+      percent: 100,
+      detail: 'Calculating ROI and generating strategic recommendations...',
+      systemPrompt: `You are a CFO and Senior Enterprise Architect writing the FINANCIAL SUMMARY and RECOMMENDATIONS section of a C-suite board report.
 
-**h) Top 5 Recommendations**
-- Board-level strategic decisions required
-- Each recommendation: What, Why, When, Resource Requirements
-- Expected business outcomes
+Generate ONLY these sections:
+1. **ESG and Compliance Risks** - Environmental, social, governance, regulatory risks with severity
+2. **Financial Summary** - Investment required, expected savings, ROI timeline, break-even point
+3. **Top 5 Recommendations** - Board-level strategic decisions with: What, Why, When, Resources, Expected Outcomes
 
-### 2. OBJECTIVE TRACEABILITY MATRIX
-- Table showing Business Objective → Capability Gaps → Architecture Decisions → Expected Outcomes
-- Link each objective to relevant architecture principles from step3
-- Show white spots and future-state EA opportunities
+Context:
+- ${dataPack.esgRisks.length} ESG/compliance risks identified
+- Industry: ${industry}
 
-### 3. TARGET ARCHITECTURE PRINCIPLES & DECISIONS
-- List 6-10 guiding principles from step3.archPrinciples
-- Rationale and business implications for each
-- Key Architecture Decision Records (ADRs) from step3.keyDecisions
-- White spot themes and future-state EA vision from step3
+${cssClasses}
 
-### 4. FINANCIAL SUMMARY (CFO View)
-- Investment required for target architecture implementation
-- Expected savings and ROI timeline from capability uplift
-- Break-even point and payback period
-- Risk-adjusted benefits
-
-**FORMATTING RULES (Professional C-Level Styles):**
-
-Use these CSS classes for professional executive presentation:
-
-**Typography:**
-- Main title: <h1 class="report-h1">Strategic Architecture Analysis & Transformation Plan</h1>
-- Section headers: <h2 class="report-h2">EXECUTIVE SUMMARY</h2>
-- Subsections: <h3 class="report-h3">Business Objectives</h3>
-- Small headers: <h4 class="report-h4">Key Insights</h4>
-- Paragraphs: <p class="report-p">Body text here...</p>
-
-**KPI Cards (for metrics dashboard):**
-<div class="report-kpi-grid">
-  <div class="report-kpi-card">
-    <div class="report-kpi-label">Average Maturity</div>
-    <div class="report-kpi-value">3.2<span class="report-kpi-unit">/5</span></div>
-    <div class="report-kpi-delta positive">↑ 15% vs baseline</div>
-  </div>
-</div>
-
-**Executive Tables:**
-<table class="report-table">
-  <thead>
-    <tr><th>Objective</th><th>Gaps</th><th>Priority</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Objective name</td><td>5 gaps</td><td>High</td></tr>
-  </tbody>
-</table>
-
-**Infoboxes (4 variants):**
-<div class="report-infobox report-infobox-insight">
-  <div class="report-infobox-title">
-    <span class="report-infobox-icon">💡</span>
-    Key Insight
-  </div>
-  <p>Insight content here...</p>
-</div>
-
-Variants: report-infobox-insight (blue), report-infobox-warning (yellow), report-infobox-success (green), report-infobox-critical (red)
-
-**Gap Badges:**
-<span class="report-gap-badge report-gap-critical">Critical Gap</span>
-<span class="report-gap-badge report-gap-high">High Priority</span>
-<span class="report-gap-badge report-gap-medium">Medium</span>
-
-**Objective Links:**
-<span class="report-objective-link">Linked to: Revenue Growth</span>
-
-**Recommendations (Top 5):**
+Use recommendation format:
 <div class="report-recommendation">
   <div class="report-recommendation-header">
     <div class="report-recommendation-number">1</div>
-    <div class="report-recommendation-title">Recommendation Title</div>
+    <div class="report-recommendation-title">Title</div>
   </div>
-  <div class="report-recommendation-body">
-    <p>Detailed recommendation description...</p>
-  </div>
+  <div class="report-recommendation-body"><p>Details</p></div>
   <div class="report-recommendation-meta">
     <div class="report-recommendation-meta-item">
       <div class="report-recommendation-meta-label">Timeline</div>
       <div class="report-recommendation-meta-value">Q1-Q2 2026</div>
     </div>
-    <div class="report-recommendation-meta-item">
-      <div class="report-recommendation-meta-label">Resources</div>
-      <div class="report-recommendation-meta-value">€500K + 5 FTE</div>
-    </div>
   </div>
 </div>
 
-**Lists:**
-<ul class="report-list report-list-numbered">
-  <li>First item with automatic numbering</li>
-  <li>Second item</li>
-</ul>
+Output ONLY valid HTML starting with: <h2 class="report-h2">ESG & COMPLIANCE RISKS</h2>
+Make recommendations specific, actionable, and tied to business outcomes.`,
+      userData: JSON.stringify({ esgRisks: dataPack.esgRisks, kpis: dataPack.kpis, allData: { objectives: dataPack.step1.businessObjectives, gaps: dataPack.step2.criticalGaps, architecture: dataPack.step3.archPrinciples } }, null, 2)
+    }
+  ];
 
-**TONE:**
-- Direct, data-driven, commercially focused
-- Board-level language (avoid technical jargon unless industry-specific)
-- Emphasis on business outcomes and ROI
-- Specific numbers, timelines, and accountability
+  try {
+    // Generate report title and container
+    reportHTML = '<div class="report-wrapper">';
 
-**CRITICAL:**
-- ONLY output valid HTML (no markdown, no code blocks, no explanations)
-- Start directly with <h1 class="report-h1">Strategic Architecture Analysis & Transformation Plan</h1>
-- Ensure all 8 executive summary sections are present and substantive
-- Link everything back to business objectives (traceability is key)
-- Focus on Target Architecture (Step 3) outputs: principles, decisions, AI agents, white spots, future-state EA`;
+    // Execute stages sequentially
+    for (let i = 0; i < stages.length; i++) {
+      const stage = stages[i];
+      updateReportProgress(i + 1, `Stage ${i + 1}/4: ${stage.name}`, stage.percent - 5, stage.detail);
 
-    const userPrompt = `Generate the complete C-suite board report based on this V11 4-step EA workflow data:
+      const stageResult = await callAI(
+        stage.systemPrompt,
+        `Generate the ${stage.name} section based on this data:\n\n${stage.userData}`,
+        { taskType: 'heavy', temperature: 0.25, _traceLabel: `Board Report - ${stage.name}` }
+      );
 
-${JSON.stringify(dataPack, null, 2)}
+      reportHTML += stageResult;
+      updateReportProgress(i + 1, `Stage ${i + 1}/4: ${stage.name}`, stage.percent, `${stage.name} completed ✓`);
+      
+      console.log(`✅ Stage ${i + 1} (${stage.name}) completed`);
+    }
 
-**IMPORTANT INSTRUCTIONS:**
-1. Extract business objectives from step1.businessObjectives - these are PRIMARY drivers
-2. Link ALL gaps in step2.criticalGaps to specific business objectives (use step2.gapsByObjective for linkage)
-3. Present AI opportunities from step3.aiAgents with business value justification
-4. Showcase architecture principles from step3.archPrinciples
-5. Include Architecture Decision Records (ADRs) from step3.keyDecisions
-6. Present white spot themes and future-state EA vision from step3.whiteSpotSummary and step3.futureStateEA
-7. Ensure ESG/compliance section uses esgRisks array
-8. Make Top 5 Recommendations actionable with specific timelines and owners
-9. If any step is incomplete (check completionStatus), gracefully handle missing data with "In Progress" sections
+    reportHTML += '</div>';
 
-Generate the complete HTML report now:`;
-
-    const reportBody = await callAI(
-      systemPrompt,
-      userPrompt,
-      { taskType: 'heavy', temperature: 0.25, _traceLabel: 'V11 Board Report Generation' }
-    );
-
-    contentDiv.innerHTML = reportBody;
+    // Display complete report
+    contentDiv.innerHTML = reportHTML;
+    document.getElementById('report-welcome').classList.add('hidden');
     document.getElementById('report-loading').classList.add('hidden');
     contentDiv.classList.remove('hidden');
     
-    console.log('✅ V11 Board Report generated successfully');
+    // Save report to model for future access
+    const savedReport = saveBoardReport(reportHTML);
+    console.log(`✅ V11 Multi-Stage Board Report generated and saved successfully (ID: ${savedReport.id})`);
     
   } catch (e) {
     console.error('Board report generation error:', e);
-    contentDiv.innerHTML = `
-      <div style="background:#fee2e2;border:1px solid #fecaca;border-radius:8px;padding:20px;margin:20px;color:#991b1b;">
-        <h3 style="margin:0 0 12px 0;font-size:18px;font-weight:bold;">Report Generation Failed</h3>
-        <p style="margin:0 0 8px 0;"><strong>Error:</strong> ${e.message}</p>
-        <p style="margin:0;font-size:13px;">Please check your API configuration and ensure at least Step 2 (Capability Mapping) is complete.</p>
-      </div>
-    `;
+    
+    // Show partial results if any stages completed
+    if (reportHTML && reportHTML.length > 100) {
+      reportHTML += `
+        <div style="background:#fef3c7;border:2px solid #fbbf24;border-radius:8px;padding:20px;margin:20px;">
+          <h3 style="margin:0 0 12px 0;font-size:18px;font-weight:bold;color:#92400e;">⚠️ Partial Report Generated</h3>
+          <p style="margin:0 0 8px 0;color:#78350f;"><strong>Error:</strong> ${e.message}</p>
+          <p style="margin:0;font-size:13px;color:#78350f;">Some sections may be incomplete. Please review and regenerate if needed.</p>
+        </div>
+      </div>`;
+      contentDiv.innerHTML = reportHTML;
+    } else {
+      contentDiv.innerHTML = `
+        <div style="background:#fee2e2;border:1px solid #fecaca;border-radius:8px;padding:20px;margin:20px;color:#991b1b;">
+          <h3 style="margin:0 0 12px 0;font-size:18px;font-weight:bold;">Report Generation Failed</h3>
+          <p style="margin:0 0 8px 0;"><strong>Error:</strong> ${e.message}</p>
+          <p style="margin:0;font-size:13px;">Please check your API configuration and ensure at least Step 2 (Capability Mapping) is complete.</p>
+        </div>
+      `;
+    }
+    
+    document.getElementById('report-welcome').classList.add('hidden');
     document.getElementById('report-loading').classList.add('hidden');
     contentDiv.classList.remove('hidden');
   }
@@ -12475,7 +12628,6 @@ async function handleGenerateArchitecture(userMessage, context) {
     renderMaturityDashboard();
     populateImpactSelect();
     renderExecSummary();
-    generateNarrative();
     updateDataCollectionTab();
     renderPhase4ControlsFromModel();
     autoSaveCurrentModel();
@@ -14467,72 +14619,6 @@ async function _v5LegacyVP_dead() { /* removed */ }
 
 function renderValuePoolsPanel() { /* removed - obsolete legacy rendering function */ }
 
-// -- RENDER STRATEGIC INTENT SECTION (EXEC TAB) -------------------------------
-function enterIntentEditMode() {
-  const si = model.strategicIntent;
-  if (!si) return;
-  // Populate form fields
-  const g = (id, val) => { const e = document.getElementById(id); if (e) e.value = val || ''; };
-  g('intent-edit-org-name', si.org_name);
-  g('intent-edit-industry', si.industry);
-  g('intent-edit-timeframe', si.timeframe);
-  g('intent-edit-situation-narrative', si.situation_narrative);
-  g('intent-edit-ambition', si.strategic_ambition);
-  g('intent-edit-themes', (si.strategic_themes || []).join('\n'));
-  g('intent-edit-constraints', (si.key_constraints || []).join('\n'));
-  g('intent-edit-metrics', (si.success_metrics || []).join('\n'));
-  g('intent-edit-key-assumptions', (si.key_assumptions_to_validate || []).join('\n'));
-  g('intent-edit-expected-outcomes', (si.expected_outcomes || []).join('\n'));
-  g('intent-edit-burning-platform', si.burning_platform);
-  // Toggle visibility
-  document.getElementById('intent-view-card')?.classList.add('hidden');
-  ['intent-burning-platform','intent-caveats','intent-investigation-scope','intent-assumptions-validate','intent-expected-outcomes'].forEach(id => {
-    document.getElementById(id)?.classList.add('hidden');
-  });
-  document.getElementById('intent-edit-form')?.classList.remove('hidden');
-  // Focus on ambition field
-  setTimeout(() => document.getElementById('intent-edit-ambition')?.focus(), 50);
-}
-
-function saveIntentEdits() {
-  const si = model.strategicIntent;
-  if (!si) return;
-  const g = id => (document.getElementById(id)?.value || '').trim();
-  const lines = str => str.split('\n').map(s => s.trim()).filter(Boolean);
-  si.org_name = g('intent-edit-org-name');
-  si.industry = g('intent-edit-industry');
-  si.timeframe = g('intent-edit-timeframe');
-  si.situation_narrative = g('intent-edit-situation-narrative');
-  si.strategic_ambition = g('intent-edit-ambition');
-  si.strategic_themes = lines(g('intent-edit-themes'));
-  si.key_constraints = lines(g('intent-edit-constraints'));
-  si.success_metrics = lines(g('intent-edit-metrics'));
-  si.burning_platform = g('intent-edit-burning-platform');
-  si.key_assumptions_to_validate = lines(g('intent-edit-key-assumptions'));
-  si.expected_outcomes = lines(g('intent-edit-expected-outcomes'));
-  // Reset confirmation � user must re-confirm after manual edits
-  model.strategicIntentConfirmed = false;
-  updateWorkflowStepStates();
-  const confirmBtn = document.getElementById('btn-step1-confirm');
-  if (confirmBtn) confirmBtn.classList.remove('hidden');
-  // Exit edit mode and redraw
-  document.getElementById('intent-edit-form')?.classList.add('hidden');
-  document.getElementById('intent-view-card')?.classList.remove('hidden');
-  renderStrategicIntentSection();
-  autoSaveCurrentModel();
-  toast('Strategic Intent updated � please re-confirm before proceeding to Step 2');
-  addAssistantMessage(
-    `**Strategic Intent updated manually**\n\n` +
-    `The intent has been edited. Please review the changes and click **Confirm Step 1** in the left panel when you're satisfied � this will re-unlock Step 2.`
-  );
-}
-
-function cancelIntentEdit() {
-  document.getElementById('intent-edit-form')?.classList.add('hidden');
-  document.getElementById('intent-view-card')?.classList.remove('hidden');
-  renderStrategicIntentSection();
-}
-
 // --- STEP 5: GAP ANALYSIS MANUAL EDIT -----------------------------------------
 function _gapEditRowHtml(g, i) {
   const cap  = (g.capability || g.capability_area || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -16403,6 +16489,720 @@ window.approveStep2 = function() {
   }
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// PRESENTATION VIEW MODEL MAPPERS
+// Transform canonical data model into executive-optimized view models
+// CONSTRAINT: NO mutations to window.model - pure transformation functions
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Map businessContext to ExecutiveSummaryVM
+ * Provides 3-sentence executive headline, priorities, and strategic window
+ */
+function mapExecutiveSummary(model) {
+  const bc = model?.businessContext || {};
+  const objectives = model?.businessObjectives || [];
+  
+  // Derive headline from burning platform or org context
+  const headline = bc.burning_platform || 
+    `${bc.org_name || 'Organization'} transformation initiative in ${bc.industry || 'the market'}`;
+  
+  // Extract top priorities (High priority objectives)
+  const topPriorities = objectives
+    .filter(o => o.priority === 'High')
+    .slice(0, 3)
+    .map(o => o.title);
+  
+  // Critical constraints (focus on Operational and Financial)
+  const criticalConstraints = (bc.constraints || [])
+    .filter(c => c.includes('Operational') || c.includes('Financial'))
+    .map(c => {
+      const parts = c.split(':');
+      return parts.length > 1 ? parts.slice(1).join(':').trim() : c;
+    })
+    .slice(0, 3);
+  
+  // Key outcomes
+  const keyOutcomes = (bc.expected_outcomes || []).slice(0, 3);
+  
+  // Strategic window message
+  const strategicWindow = bc.burning_platform ? 
+    bc.burning_platform.substring(0, 150) + (bc.burning_platform.length > 150 ? '...' : '') :
+    `Strategic transformation in ${bc.timeframe || '12-18 months'}`;
+  
+  // Calculate urgency signal
+  const highPriorityCount = objectives.filter(o => o.priority === 'High').length;
+  const urgencySignal = highPriorityCount >= 5 ? 'high' : 
+                        highPriorityCount >= 2 ? 'medium' : 'low';
+  
+  return {
+    headline,
+    strategicWindow,
+    topPriorities,
+    criticalConstraints,
+    keyOutcomes,
+    industryContext: bc.industry || 'N/A',
+    orgName: bc.org_name || 'Organization',
+    urgencySignal
+  };
+}
+
+/**
+ * Map strategicThemes to StrategicThemeVM[]
+ * Enhances themes with objective counts, category mix, and derived priorities
+ */
+function mapStrategicThemes(model) {
+  const themes = model?.strategicThemes || [];
+  const objectives = model?.businessObjectives || [];
+  
+  return themes.map(theme => {
+    // Find objectives linked to this theme
+    const linkedObjectives = objectives.filter(o => 
+      (o.linked_themes || []).includes(theme.name)
+    );
+    
+    // Calculate category breakdown
+    const categories = { growth: 0, efficiency: 0, risk: 0, innovation: 0, sustainability: 0 };
+    linkedObjectives.forEach(o => {
+      const cat = (o.category || '').toLowerCase();
+      if (cat.includes('growth')) categories.growth++;
+      else if (cat.includes('efficiency')) categories.efficiency++;
+      else if (cat.includes('risk')) categories.risk++;
+      else if (cat.includes('innovation')) categories.innovation++;
+      else if (cat.includes('sustainability')) categories.sustainability++;
+    });
+    
+    // Derive priority from linked objectives
+    const highPriorityCount = linkedObjectives.filter(o => o.priority === 'High').length;
+    const priority = highPriorityCount >= 2 ? 'high' : 
+                     highPriorityCount >= 1 ? 'medium' : 'low';
+    
+    // Shorten description if too verbose
+    const summary = theme.description && theme.description.length > 120 ?
+      theme.description.substring(0, 117) + '...' :
+      (theme.description || `Strategic theme: ${theme.name}`);
+    
+    // Extract impact areas (unique categories)
+    const impactAreas = [...new Set(linkedObjectives.map(o => o.category).filter(Boolean))];
+    
+    return {
+      id: theme.id || `theme-${theme.name.toLowerCase().replace(/\s+/g, '-')}`,
+      name: theme.name,
+      summary,
+      rationale: theme.rationale,
+      impactAreas,
+      objectiveCount: linkedObjectives.length,
+      priority,
+      categoryMix: categories
+    };
+  });
+}
+
+/**
+ * Map single businessObjective to ObjectiveCardVM
+ * Creates concise, scannable card view with derived business impact
+ */
+function mapObjectiveCard(objective) {
+  // Simplify title if too long
+  const title = objective.title.length > 60 ?
+    objective.title.substring(0, 57) + '...' :
+    objective.title;
+  
+  // Create concise summary
+  const summary = objective.description.substring(0, 80) +
+    (objective.description.length > 80 ? '...' : '');
+  
+  // Format KPI as one-liner
+  const kpiSummary = objective.kpi && objective.target_value ?
+    `${objective.kpi}: ${objective.target_value} by ${objective.time_horizon || 'TBD'}` :
+    objective.kpi || 'No KPI defined';
+  
+  // Derive business impact from semantics
+  const businessImpact = deriveBusinessImpact(objective);
+  
+  // Get styled badges
+  const categoryBadge = getCategoryBadge(objective.category);
+  const priorityBadge = getPriorityBadge(objective.priority);
+  
+  return {
+    id: objective.id,
+    title,
+    summary,
+    fullDescription: objective.description,
+    category: categoryBadge,
+    priority: priorityBadge,
+    kpiSummary,
+    kpiRaw: objective.kpi,
+    targetValue: objective.target_value,
+    timeHorizon: objective.time_horizon,
+    themeTags: objective.linked_themes || [],
+    businessImpact,
+    rationale: objective.rationale
+  };
+}
+
+/**
+ * Group objectives by strategic theme
+ * Returns ObjectiveGroupVM[] for thematic narrative structure
+ */
+function mapObjectiveGroups(model) {
+  const themes = model?.strategicThemes || [];
+  const objectives = model?.businessObjectives || [];
+  
+  const groups = themes.map(theme => {
+    // FIX: Only assign objectives to their PRIMARY theme (first in linked_themes)
+    // This prevents duplicates when objectives link to multiple themes
+    const linkedObjectives = objectives
+      .filter(o => {
+        const primaryTheme = (o.linked_themes || [])[0];
+        return primaryTheme === theme.name;
+      })
+      .map(mapObjectiveCard)
+      .slice(0, 10); // Max 10 per group for UI performance
+    
+    // Calculate aggregated impact (simple revenue/cost extraction)
+    const aggregatedImpact = calculateAggregatedImpact(linkedObjectives);
+    
+    // Theme priority based on linked objectives
+    const highPriorityCount = linkedObjectives.filter(o => o.priority.label === 'High').length;
+    const priority = highPriorityCount >= 3 ? 'critical' : 
+                     highPriorityCount >= 2 ? 'high' :
+                     highPriorityCount >= 1 ? 'medium' : 'low';
+    
+    return {
+      themeName: theme.name,
+      themeDescription: theme.description,
+      objectives: linkedObjectives,
+      aggregatedImpact,
+      priority
+    };
+  });
+  
+  // Add "Unassigned" group for objectives without themes
+  const unassignedObjectives = objectives
+    .filter(o => !o.linked_themes || o.linked_themes.length === 0)
+    .map(mapObjectiveCard);
+  
+  if (unassignedObjectives.length > 0) {
+    groups.push({
+      themeName: 'Unassigned Objectives',
+      themeDescription: 'Objectives not yet linked to strategic themes',
+      objectives: unassignedObjectives,
+      aggregatedImpact: calculateAggregatedImpact(unassignedObjectives),
+      priority: 'medium'
+    });
+  }
+  
+  // Sort groups by priority (critical first)
+  const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+  groups.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+  
+  return groups;
+}
+
+/**
+ * Map gapInsights to GapInsightVM[]
+ * Enhances gaps with severity, affected themes, and executive recommendations
+ */
+function mapGapInsights(model) {
+  const gaps = model?.gapInsights || [];
+  const themes = model?.strategicThemes || [];
+  
+  return gaps.map(gap => {
+    // Classify gap type
+    const type = gap.type?.toLowerCase().includes('missing') ? 'missing_objective' :
+                 gap.type?.toLowerCase().includes('kpi') ? 'weak_kpi' :
+                 'strategic_gap';
+    
+    // Derive severity from priority or context
+    const severity = gap.priority === 'Critical' || gap.priority === 'High' ? 'critical' :
+                     gap.priority === 'Medium' ? 'high' :
+                     'medium';
+    
+    // Shorten description to headline
+    const headline = gap.description && gap.description.length > 100 ?
+      gap.description.substring(0, 97) + '...' :
+      (gap.description || gap.type || 'Gap identified');
+    
+    // Extract affected themes (if mentioned in description)
+    const affectedThemes = themes
+      .filter(t => gap.description?.includes(t.name))
+      .map(t => t.name);
+    
+    // Get color scheme based on type
+    const colorScheme = getGapColorScheme(type, severity);
+    
+    return {
+      type,
+      severity,
+      headline,
+      fullDescription: gap.description,
+      recommendation: gap.recommendation || 'Review and address this gap',
+      affectedThemes,
+      icon: getGapIcon(type),
+      colorScheme
+    };
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS for PVM Mappers
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Derive business impact signal from objective content
+ */
+function deriveBusinessImpact(objective) {
+  const desc = (objective.description || '').toLowerCase();
+  const kpi = (objective.kpi || '').toLowerCase();
+  const title = (objective.title || '').toLowerCase();
+  const combined = desc + ' ' + kpi + ' ' + title;
+  
+  if (combined.includes('revenue') || combined.includes('sales') || combined.includes('growth')) {
+    return {
+      type: 'revenue',
+      magnitude: objective.priority === 'High' ? 'high' : 'medium',
+      description: 'Drives revenue growth',
+      icon: 'fa-chart-line'
+    };
+  }
+  if (combined.includes('cost') || combined.includes('efficiency') || combined.includes('optimization')) {
+    return {
+      type: 'cost',
+      magnitude: objective.priority === 'High' ? 'high' : 'medium',
+      description: 'Reduces operational costs',
+      icon: 'fa-piggy-bank'
+    };
+  }
+  if (combined.includes('risk') || combined.includes('compliance') || combined.includes('security')) {
+    return {
+      type: 'risk',
+      magnitude: 'high',
+      description: 'Mitigates strategic risk',
+      icon: 'fa-shield-alt'
+    };
+  }
+  if (combined.includes('innovation') || combined.includes('digital') || combined.includes('technology')) {
+    return {
+      type: 'capability',
+      magnitude: 'medium',
+      description: 'Enhances innovation capability',
+      icon: 'fa-lightbulb'
+    };
+  }
+  return {
+    type: 'capability',
+    magnitude: 'medium',
+    description: 'Enhances organizational capability',
+    icon: 'fa-cogs'
+  };
+}
+
+/**
+ * Get styled category badge
+ */
+function getCategoryBadge(category) {
+  const cat = (category || '').toLowerCase();
+  
+  if (cat.includes('growth')) {
+    return {
+      label: 'Growth',
+      icon: 'fa-chart-line',
+      colorScheme: { bg: 'rgba(94, 140, 106, 0.1)', border: 'var(--ea-success)', text: 'var(--ea-success)' }
+    };
+  }
+  if (cat.includes('efficiency')) {
+    return {
+      label: 'Efficiency',
+      icon: 'fa-tachometer-alt',
+      colorScheme: { bg: 'rgba(74, 119, 99, 0.1)', border: 'var(--ea-accent)', text: 'var(--ea-accent)' }
+    };
+  }
+  if (cat.includes('risk')) {
+    return {
+      label: 'Risk',
+      icon: 'fa-shield-alt',
+      colorScheme: { bg: 'rgba(176, 106, 106, 0.1)', border: 'var(--ea-danger)', text: 'var(--ea-danger)' }
+    };
+  }
+  if (cat.includes('innovation')) {
+    return {
+      label: 'Innovation',
+      icon: 'fa-lightbulb',
+      colorScheme: { bg: 'rgba(103, 116, 128, 0.08)', border: 'var(--ea-secondary)', text: 'var(--ea-secondary)' }
+    };
+  }
+  if (cat.includes('sustainability')) {
+    return {
+      label: 'Sustainability',
+      icon: 'fa-leaf',
+      colorScheme: { bg: 'rgba(74, 119, 99, 0.1)', border: 'var(--ea-accent)', text: 'var(--ea-accent)' }
+    };
+  }
+  return {
+    label: category || 'General',
+    icon: 'fa-tag',
+    colorScheme: { bg: 'var(--ea-hover)', border: 'var(--ea-border)', text: 'var(--ea-text-secondary)' }
+  };
+}
+
+/**
+ * Get styled priority badge
+ */
+function getPriorityBadge(priority) {
+  if (priority === 'High') {
+    return {
+      label: 'High',
+      urgency: 3,
+      colorScheme: { bg: 'rgba(176, 106, 106, 0.1)', border: 'var(--ea-danger)', text: 'var(--ea-danger)' }
+    };
+  }
+  if (priority === 'Medium') {
+    return {
+      label: 'Medium',
+      urgency: 2,
+      colorScheme: { bg: 'rgba(200, 169, 107, 0.1)', border: 'var(--ea-warning)', text: 'var(--ea-warning)' }
+    };
+  }
+  return {
+    label: 'Low',
+    urgency: 1,
+    colorScheme: { bg: 'rgba(94, 140, 106, 0.1)', border: 'var(--ea-success)', text: 'var(--ea-success)' }
+  };
+}
+
+/**
+ * Calculate aggregated impact across objectives
+ */
+function calculateAggregatedImpact(objectiveVMs) {
+  let totalRevenue = 0;
+  let totalCost = 0;
+  let riskReduction = 0;
+  
+  objectiveVMs.forEach(obj => {
+    // Simple heuristic: extract numeric values from KPI summaries
+    const kpiLower = obj.kpiSummary.toLowerCase();
+    const matches = kpiLower.match(/[\d.]+[mk]?/gi);
+    
+    if (matches && matches.length > 0) {
+      const value = parseFloat(matches[0].replace(/[mk]/gi, ''));
+      const multiplier = matches[0].toLowerCase().includes('m') ? 1000000 :
+                        matches[0].toLowerCase().includes('k') ? 1000 : 1;
+      const numericValue = value * multiplier;
+      
+      if (obj.businessImpact.type === 'revenue') {
+        totalRevenue += numericValue;
+      } else if (obj.businessImpact.type === 'cost') {
+        totalCost += numericValue;
+      }
+    }
+    
+    if (obj.businessImpact.type === 'risk') {
+      riskReduction += 10; // Arbitrary risk units
+    }
+  });
+  
+  return {
+    totalRevenue: totalRevenue > 0 ? formatCurrency(totalRevenue) : null,
+    totalCost: totalCost > 0 ? formatCurrency(totalCost) : null,
+    riskReduction: riskReduction > 0 ? `${riskReduction}% risk reduction` : null
+  };
+}
+
+/**
+ * Format currency for display
+ */
+function formatCurrency(value) {
+  if (value >= 1000000) {
+    return `$${(value / 1000000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `$${(value / 1000).toFixed(0)}K`;
+  }
+  return `$${value.toFixed(0)}`;
+}
+
+/**
+ * Get gap color scheme based on type and severity
+ */
+function getGapColorScheme(type, severity) {
+  if (severity === 'critical') {
+    return {
+      bg: 'rgba(215, 38, 56, 0.06)',
+      border: 'var(--ea-danger)',
+      text: 'var(--ea-danger)'
+    };
+  }
+  if (type === 'weak_kpi') {
+    return {
+      bg: 'rgba(200, 169, 107, 0.08)',
+      border: 'var(--ea-warning)',
+      text: 'var(--ea-warning)'
+    };
+  }
+  return {
+    bg: 'rgba(0, 61, 117, 0.06)',
+    border: 'var(--ea-info)',
+    text: 'var(--ea-info)'
+  };
+}
+
+/**
+ * Get gap icon based on type
+ */
+function getGapIcon(type) {
+  if (type === 'missing_objective') return 'fa-plus-circle';
+  if (type === 'weak_kpi') return 'fa-chart-line';
+  return 'fa-lightbulb';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// END PRESENTATION VIEW MODEL MAPPERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PVM RENDERING FUNCTIONS
+// Render executive-optimized views from Presentation View Models
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Render Executive Summary section from ExecutiveSummaryVM
+ */
+function renderExecutiveSummary(execSummaryVM) {
+  const sectionEl = document.getElementById('executive-summary-section');
+  const contentEl = document.getElementById('executive-summary-content');
+  
+  if (!contentEl || !execSummaryVM) {
+    if (sectionEl) sectionEl.classList.add('hidden');
+    return;
+  }
+  
+  // Show section
+  sectionEl.classList.remove('hidden');
+  
+  // Build executive summary HTML
+  let html = '';
+  
+  // Headline - Main strategic message
+  html += '<div style="font-size: var(--ea-body); line-height: var(--ea-lh-body); color: var(--ea-text-primary); margin-bottom: 16px; font-weight: var(--ea-fw-semibold); padding: 16px; background: rgba(255, 255, 255, 0.7); border-radius: 8px; border-left: 4px solid var(--ea-primary);">';
+  html += `<div style="font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ea-primary); margin-bottom: 8px;">Strategic Context</div>`;
+  html += `<div style="font-size: var(--ea-body);">${execSummaryVM.headline}</div>`;
+  html += '</div>';
+  
+  // Grid layout for key metrics
+  html += '<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px;">';
+  
+  // Strategic Window (Urgency)
+  const urgencyColors = {
+    high: { bg: 'rgba(215, 38, 56, 0.08)', border: 'var(--ea-danger)', text: 'var(--ea-danger)', icon: 'fa-fire' },
+    medium: { bg: 'rgba(200, 169, 107, 0.08)', border: 'var(--ea-warning)', text: 'var(--ea-warning)', icon: 'fa-clock' },
+    low: { bg: 'rgba(0, 61, 117, 0.08)', border: 'var(--ea-info)', text: 'var(--ea-info)', icon: 'fa-info-circle' }
+  };
+  const urgencyStyle = urgencyColors[execSummaryVM.urgencySignal] || urgencyColors.medium;
+  
+  html += `<div style="background: ${urgencyStyle.bg}; border: 1px solid ${urgencyStyle.border}; border-radius: 8px; padding: 14px;">`;
+  html += `<div style="font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); text-transform: uppercase; letter-spacing: 0.05em; color: ${urgencyStyle.text}; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">`;
+  html += `<i class="fas ${urgencyStyle.icon}"></i>Strategic Window`;
+  html += `</div>`;
+  html += `<div style="font-size: var(--ea-body); color: var(--ea-text-primary); line-height: var(--ea-lh-body);">${execSummaryVM.strategicWindow}</div>`;
+  html += '</div>';
+  
+  // Industry Context
+  html += '<div style="background: rgba(0, 61, 117, 0.05); border: 1px solid var(--ea-info); border-radius: 8px; padding: 14px;">';
+  html += '<div style="font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ea-info); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">';
+  html += '<i class="fas fa-industry"></i>Industry Context';
+  html += '</div>';
+  html += `<div style="font-size: var(--ea-h3); font-weight: var(--ea-fw-bold); color: var(--ea-primary); margin-bottom: 4px;">${execSummaryVM.orgName}</div>`;
+  html += `<div style="font-size: var(--ea-body); color: var(--ea-text-secondary);">${execSummaryVM.industryContext}</div>`;
+  html += '</div>';
+  
+  html += '</div>'; // End grid
+  
+  // Top Priorities
+  if (execSummaryVM.topPriorities.length > 0) {
+    html += '<div style="margin-bottom: 16px; background: rgba(0, 71, 46, 0.04); border: 1px solid var(--ea-primary); border-radius: 8px; padding: 14px;">';
+    html += '<div style="font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ea-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">';
+    html += '<i class="fas fa-star"></i>Top Strategic Priorities';
+    html += `<span style="background: var(--ea-primary); color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: var(--ea-meta); font-weight: var(--ea-fw-bold);">${execSummaryVM.topPriorities.length}</span>`;
+    html += '</div>';
+    html += '<ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">';
+    execSummaryVM.topPriorities.forEach((priority, idx) => {
+      html += '<li style="display: flex; align-items: flex-start; gap: 10px; font-size: var(--ea-body); color: var(--ea-text-primary); line-height: var(--ea-lh-body);">';
+      html += `<span style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ea-primary); color: white; font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); flex-shrink: 0;">${idx + 1}</span>`;
+      html += `<span style="font-weight: var(--ea-fw-semibold); padding-top: 2px;">${priority}</span>`;
+      html += '</li>';
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+  
+  // Critical Constraints
+  if (execSummaryVM.criticalConstraints.length > 0) {
+    html += '<div style="margin-bottom: 16px; background: rgba(200, 169, 107, 0.05); border: 1px solid var(--ea-warning); border-radius: 8px; padding: 14px;">';
+    html += '<div style="font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ea-warning); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">';
+    html += '<i class="fas fa-exclamation-triangle"></i>Critical Constraints';
+    html += '</div>';
+    html += '<ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px;">';
+    execSummaryVM.criticalConstraints.forEach(constraint => {
+      html += '<li style="display: flex; align-items: flex-start; gap: 8px; font-size: var(--ea-body); color: var(--ea-text-secondary); line-height: var(--ea-lh-body);">';
+      html += '<i class="fas fa-angle-right" style="color: var(--ea-warning); margin-top: 4px;"></i>';
+      html += `<span>${constraint}</span>`;
+      html += '</li>';
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+  
+  // Key Expected Outcomes
+  if (execSummaryVM.keyOutcomes.length > 0) {
+    html += '<div style="background: rgba(94, 140, 106, 0.05); border: 1px solid var(--ea-success); border-radius: 8px; padding: 14px;">';
+    html += '<div style="font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ea-success); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">';
+    html += '<i class="fas fa-check-circle"></i>Key Expected Outcomes';
+    html += '</div>';
+    html += '<ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px;">';
+    execSummaryVM.keyOutcomes.forEach(outcome => {
+      html += '<li style="display: flex; align-items: flex-start; gap: 8px; font-size: var(--ea-body); color: var(--ea-text-secondary); line-height: var(--ea-lh-body);">';
+      html += '<i class="fas fa-check" style="color: var(--ea-success); margin-top: 4px;"></i>';
+      html += `<span>${outcome}</span>`;
+      html += '</li>';
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+  
+  contentEl.innerHTML = html;
+}
+
+/**
+ * Render Objectives Grouped by Theme (Card-based view)
+ */
+function renderObjectiveGroups(objectiveGroupVMs) {
+  const sectionEl = document.getElementById('objectives-by-theme-section');
+  const contentEl = document.getElementById('objectives-by-theme-content');
+  
+  if (!contentEl || !objectiveGroupVMs || objectiveGroupVMs.length === 0) {
+    if (sectionEl) sectionEl.classList.add('hidden');
+    return;
+  }
+  
+  // Show section
+  sectionEl.classList.remove('hidden');
+  
+  let html = '';
+  
+  objectiveGroupVMs.forEach((group, groupIdx) => {
+    // Priority-based theme header styling
+    const priorityColors = {
+      critical: { bg: 'rgba(215, 38, 56, 0.08)', border: 'var(--ea-danger)', text: 'var(--ea-danger)', icon: 'fa-exclamation-circle' },
+      high: { bg: 'rgba(200, 169, 107, 0.08)', border: 'var(--ea-warning)', text: 'var(--ea-warning)', icon: 'fa-star' },
+      medium: { bg: 'rgba(0, 61, 117, 0.06)', border: 'var(--ea-info)', text: 'var(--ea-info)', icon: 'fa-flag' },
+      low: { bg: 'rgba(94, 140, 106, 0.06)', border: 'var(--ea-success)', text: 'var(--ea-success)', icon: 'fa-check' }
+    };
+    const priorityStyle = priorityColors[group.priority] || priorityColors.medium;
+    
+    // Theme Group Header
+    html += `<div style="border: 2px solid ${priorityStyle.border}; border-radius: 12px; padding: 20px; margin-bottom: 20px; background: linear-gradient(135deg, ${priorityStyle.bg} 0%, rgba(255, 255, 255, 0.5) 100%);">`;
+    
+    // Theme Title Row
+    html += `<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">`;
+    html += `<div style="display: flex; align-items: center; gap: 12px;">`;
+    html += `<i class="fas ${priorityStyle.icon}" style="color: ${priorityStyle.text}; font-size: 18px;"></i>`;
+    html += `<h3 style="font-size: var(--ea-h3); font-weight: var(--ea-fw-bold); color: var(--ea-primary); margin: 0;">${group.themeName}</h3>`;
+    html += `<span style="display: flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; border-radius: 14px; background: ${priorityStyle.text}; color: white; font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); padding: 0 10px;">${group.objectives.length}</span>`;
+    html += `</div>`;
+    
+    // Aggregated Impact
+    if (group.aggregatedImpact.totalRevenue || group.aggregatedImpact.totalCost || group.aggregatedImpact.riskReduction) {
+      html += `<div style="display: flex; gap: 12px; align-items: center; font-size: var(--ea-meta); font-weight: var(--ea-fw-semibold);">`;
+      if (group.aggregatedImpact.totalRevenue) {
+        html += `<span style="color: var(--ea-success);"><i class="fas fa-arrow-up"></i> ${group.aggregatedImpact.totalRevenue}</span>`;
+      }
+      if (group.aggregatedImpact.totalCost) {
+        html += `<span style="color: var(--ea-accent);"><i class="fas fa-arrow-down"></i> ${group.aggregatedImpact.totalCost}</span>`;
+      }
+      if (group.aggregatedImpact.riskReduction) {
+        html += `<span style="color: var(--ea-danger);"><i class="fas fa-shield-alt"></i> ${group.aggregatedImpact.riskReduction}</span>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`; // End theme title row
+    
+    // Theme Description (shortened)
+    if (group.themeDescription && group.themeDescription.length > 20) {
+      const shortDesc = group.themeDescription.length > 150 ? 
+        group.themeDescription.substring(0, 147) + '...' : 
+        group.themeDescription;
+      html += `<div style="font-size: var(--ea-body); color: var(--ea-text-secondary); margin-bottom: 16px; line-height: var(--ea-lh-body);">${shortDesc}</div>`;
+    }
+    
+    // Objective Cards Grid
+    html += `<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">`;
+    
+    group.objectives.forEach(objVM => {
+      // Objective Card
+      html += `<div style="background: var(--ea-surface); border: 1px solid var(--ea-border); border-radius: 8px; padding: 14px; box-shadow: var(--ea-shadow-soft); transition: all 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='var(--ea-shadow-card)'; this.style.borderColor='${objVM.priority.colorScheme.border}';" onmouseout="this.style.transform=''; this.style.boxShadow='var(--ea-shadow-soft)'; this.style.borderColor='var(--ea-border)';">`;
+      
+      // Card Header: Priority + Category
+      html += `<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 6px;">`;
+      
+      // Priority Badge
+      html += `<span style="display: inline-flex; align-items: center; font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); padding: 4px 10px; border-radius: 12px; background: ${objVM.priority.colorScheme.bg}; color: ${objVM.priority.colorScheme.text}; border: 1px solid ${objVM.priority.colorScheme.border};">`;
+      html += `${objVM.priority.label.toUpperCase()}`;
+      html += `</span>`;
+      
+      // Category Badge with Icon
+      html += `<span style="display: inline-flex; align-items: center; gap: 4px; font-size: var(--ea-meta); font-weight: var(--ea-fw-semibold); padding: 4px 10px; border-radius: 12px; background: ${objVM.category.colorScheme.bg}; color: ${objVM.category.colorScheme.text}; border: 1px solid ${objVM.category.colorScheme.border};">`;
+      html += `<i class="fas ${objVM.category.icon}"></i>${objVM.category.label}`;
+      html += `</span>`;
+      
+      html += `</div>`; // End header
+      
+      // Card Title
+      html += `<div style="font-size: var(--ea-body); font-weight: var(--ea-fw-bold); color: var(--ea-text-primary); margin-bottom: 8px; line-height: 1.4;">${objVM.title}</div>`;
+      
+      // Card Summary
+      html += `<div style="font-size: var(--ea-body); color: var(--ea-text-secondary); margin-bottom: 10px; line-height: var(--ea-lh-body);">${objVM.summary}</div>`;
+      
+      // KPI Summary
+      html += `<div style="background: rgba(0, 61, 117, 0.04); border-left: 3px solid var(--ea-info); padding: 8px 10px; border-radius: 4px; margin-bottom: 10px;">`;
+      html += `<div style="font-size: var(--ea-meta); color: var(--ea-info); font-weight: var(--ea-fw-semibold); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">`;
+      html += `<i class="fas fa-bullseye"></i>Target`;
+      html += `</div>`;
+      html += `<div style="font-size: var(--ea-body); color: var(--ea-text-primary); font-weight: var(--ea-fw-semibold);">${objVM.kpiSummary}</div>`;
+      html += `</div>`;
+      
+      // Business Impact
+      html += `<div style="display: flex; align-items: center; gap: 8px; font-size: var(--ea-meta); color: var(--ea-text-secondary); margin-bottom: 10px;">`;
+      html += `<i class="fas ${objVM.businessImpact.icon}" style="color: var(--ea-accent);"></i>`;
+      html += `<span>${objVM.businessImpact.description}</span>`;
+      html += `</div>`;
+      
+      // Theme Tags (shows ALL linked themes, even if objective is only displayed in primary theme)
+      if (objVM.themeTags && objVM.themeTags.length > 1) {
+        html += `<div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--ea-border);">`;
+        html += `<span style="font-size: var(--ea-meta); color: var(--ea-text-secondary); margin-right: 4px;">Also supports:</span>`;
+        objVM.themeTags.slice(1).forEach(themeTag => {
+          html += `<span style="display: inline-flex; align-items: center; font-size: 10px; font-weight: var(--ea-fw-semibold); padding: 2px 8px; border-radius: 10px; background: rgba(0, 71, 46, 0.08); color: var(--ea-primary); border: 1px solid rgba(0, 71, 46, 0.2);">`;
+          html += `<i class="fas fa-layer-group" style="margin-right: 4px; font-size: 8px;"></i>${themeTag}`;
+          html += `</span>`;
+        });
+        html += `</div>`;
+      }
+      
+      html += `</div>`; // End objective card
+    });
+    
+    html += `</div>`; // End objectives grid
+    html += `</div>`; // End theme group
+  });
+  
+  contentEl.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// END PVM RENDERING FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
 /**
  * NEW: renderBusinessContextSection() - Business Objectives-driven architecture
  * Replaces renderStrategicIntentSection() for new data model
@@ -16481,6 +17281,22 @@ function renderBusinessContextSection() {
     `;
   } else {
     console.warn('[renderBusinessContextSection] Header skipped - missing headerEl or businessContext');
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // PVM: EXECUTIVE SUMMARY (NEW)
+  // ═══════════════════════════════════════════════════════════════════
+  if (businessContext && (businessObjectives.length > 0 || strategicThemes.length > 0)) {
+    try {
+      const execSummaryVM = mapExecutiveSummary(window.model || model);
+      renderExecutiveSummary(execSummaryVM);
+      console.log('[renderBusinessContextSection] Executive Summary rendered via PVM');
+    } catch (error) {
+      console.error('[renderBusinessContextSection] Executive Summary PVM error:', error);
+      // Hide section on error
+      const execSummarySection = document.getElementById('executive-summary-section');
+      if (execSummarySection) execSummarySection.classList.add('hidden');
+    }
   }
   
   // ═══════════════════════════════════════════════════════════════════
@@ -16575,7 +17391,7 @@ function renderBusinessContextSection() {
   }
   
   // ═══════════════════════════════════════════════════════════════════
-  // SECTION 2: STRATEGIC THEMES
+  // SECTION 2: STRATEGIC THEMES (Enhanced with PVM)
   // ═══════════════════════════════════════════════════════════════════
   const themesContentEl = document.getElementById('strategic-themes-content');
   const themesCountEl = document.getElementById('themes-count');
@@ -16583,21 +17399,60 @@ function renderBusinessContextSection() {
     document.getElementById('strategic-themes-section').classList.remove('hidden');
     if (themesCountEl) themesCountEl.textContent = `(${strategicThemes.length} themes)`;
     
+    // Use PVM mapper to enhance themes
+    const themeVMs = mapStrategicThemes(window.model || model);
+    
     let html = '<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">';
-    strategicThemes.forEach((theme, idx) => {
-      html += `<div style="background: var(--ea-surface); border: 1px solid var(--ea-border); border-radius: 8px; padding: 16px; box-shadow: var(--ea-shadow-soft); transition: transform 0.15s, box-shadow 0.15s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='var(--ea-shadow-card)';" onmouseout="this.style.transform=''; this.style.boxShadow='var(--ea-shadow-soft)';">`;
-      html += `<div style="font-weight: var(--ea-fw-bold); font-size: var(--ea-body); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; color: var(--ea-primary);">`;
+    themeVMs.forEach((themeVM, idx) => {
+      // Priority-based border color
+      const priorityBorderColor = themeVM.priority === 'high' ? 'var(--ea-danger)' :
+                                   themeVM.priority === 'medium' ? 'var(--ea-warning)' :
+                                   'var(--ea-border)';
+      
+      html += `<div style="background: var(--ea-surface); border: 2px solid ${priorityBorderColor}; border-radius: 8px; padding: 16px; box-shadow: var(--ea-shadow-soft); transition: transform 0.15s, box-shadow 0.15s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='var(--ea-shadow-card)';" onmouseout="this.style.transform=''; this.style.boxShadow='var(--ea-shadow-soft)';">`;
+      
+      // Theme Header with objective count badge
+      html += `<div style="font-weight: var(--ea-fw-bold); font-size: var(--ea-body); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--ea-primary);">`;
+      html += `<div style="display: flex; align-items: center; gap: 10px;">`;
       html += `<span style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--ea-hover); color: var(--ea-primary); font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); border: 1px solid var(--ea-border);">${idx + 1}</span>`;
-      html += `<span>${theme.name}</span>`;
+      html += `<span>${themeVM.name}</span>`;
       html += `</div>`;
-      if (theme.description && theme.description !== `Strategic theme: ${theme.name}`) {
-        html += `<div style="color: var(--ea-text-secondary); font-size: var(--ea-body); line-height: var(--ea-lh-body); margin-bottom: 10px;">${theme.description}</div>`;
+      
+      // Objective count badge
+      if (themeVM.objectiveCount > 0) {
+        html += `<span style="display: flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; border-radius: 12px; background: var(--ea-primary); color: white; font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); padding: 0 8px;">${themeVM.objectiveCount}</span>`;
       }
-      if (theme.rationale && theme.rationale !== 'Supports strategic transformation') {
-        html += `<div style="color: var(--ea-accent); font-size: var(--ea-meta); font-style: italic; line-height: var(--ea-lh-body); background: rgba(74, 119, 99, 0.08); border-radius: 6px; padding: 10px; margin-top: 10px; border-left: 3px solid var(--ea-accent);">`;
-        html += `<span style="font-weight: var(--ea-fw-semibold);">Why: </span>${theme.rationale}`;
+      html += `</div>`;
+      
+      // Theme Summary (shortened description)
+      if (themeVM.summary && themeVM.summary !== `Strategic theme: ${themeVM.name}`) {
+        html += `<div style="color: var(--ea-text-secondary); font-size: var(--ea-body); line-height: var(--ea-lh-body); margin-bottom: 12px;">${themeVM.summary}</div>`;
+      }
+      
+      // Impact Areas (Category badges)
+      if (themeVM.impactAreas.length > 0) {
+        html += `<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">`;
+        themeVM.impactAreas.forEach(area => {
+          const badge = getCategoryBadge(area);
+          html += `<span style="display: inline-flex; align-items: center; gap: 4px; font-size: var(--ea-meta); font-weight: var(--ea-fw-semibold); padding: 4px 10px; border-radius: 12px; background: ${badge.colorScheme.bg}; color: ${badge.colorScheme.text}; border: 1px solid ${badge.colorScheme.border};">`;
+          html += `<i class="fas ${badge.icon}"></i>${badge.label}`;
+          html += `</span>`;
+        });
         html += `</div>`;
       }
+      
+      // Rationale (collapsible)
+      if (themeVM.rationale && themeVM.rationale !== 'Supports strategic transformation') {
+        html += `<details style="margin-top: 10px;">`;
+        html += `<summary style="cursor: pointer; color: var(--ea-accent); font-size: var(--ea-meta); font-weight: var(--ea-fw-semibold); display: flex; align-items: center; gap: 6px;">`;
+        html += `<i class="fas fa-info-circle"></i>Why this theme matters`;
+        html += `</summary>`;
+        html += `<div style="color: var(--ea-text-secondary); font-size: var(--ea-body); line-height: var(--ea-lh-body); background: rgba(74, 119, 99, 0.05); border-radius: 6px; padding: 10px; margin-top: 8px; border-left: 3px solid var(--ea-accent);">`;
+        html += themeVM.rationale;
+        html += `</div>`;
+        html += `</details>`;
+      }
+      
       html += `</div>`;
     });
     html += '</div>';
@@ -16607,12 +17462,49 @@ function renderBusinessContextSection() {
   }
   
   // ═══════════════════════════════════════════════════════════════════
-  // SECTION 3: BUSINESS OBJECTIVES TABLE
+  // PVM: OBJECTIVES BY THEME (Card-based Grouped View)
+  // ═══════════════════════════════════════════════════════════════════
+  if (businessObjectives.length > 0 && strategicThemes.length > 0) {
+    try {
+      const objectiveGroupVMs = mapObjectiveGroups(window.model || model);
+      renderObjectiveGroups(objectiveGroupVMs);
+      console.log('[renderBusinessContextSection] Objective Groups rendered via PVM');
+    } catch (error) {
+      console.error('[renderBusinessContextSection] Objective Groups PVM error:', error);
+      const objectiveGroupsSection = document.getElementById('objectives-by-theme-section');
+      if (objectiveGroupsSection) objectiveGroupsSection.classList.add('hidden');
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // SECTION 3: BUSINESS OBJECTIVES TABLE (Detailed View)
+  // Default: Hidden (use card view), show only if user preference is 'table'
   // ═══════════════════════════════════════════════════════════════════
   const objectivesTableEl = document.getElementById('business-objectives-table');
   const objectivesCountEl = document.getElementById('objectives-count');
+  
+  // Check user view preference
+  let viewPreference = 'card'; // Default to card view
+  try {
+    viewPreference = localStorage.getItem('ea-objectives-view-preference') || 'card';
+  } catch (e) {
+    console.warn('[renderBusinessContextSection] Could not read view preference');
+  }
+  
+  // If no themes exist, force table view as fallback
+  if (strategicThemes.length === 0 && businessObjectives.length > 0) {
+    viewPreference = 'table';
+  }
+  
   if (objectivesTableEl && businessObjectives.length > 0) {
-    document.getElementById('business-objectives-table-section').classList.remove('hidden');
+    // Show/hide based on preference
+    const tableSection = document.getElementById('business-objectives-table-section');
+    if (viewPreference === 'table') {
+      if (tableSection) tableSection.classList.remove('hidden');
+    } else {
+      if (tableSection) tableSection.classList.add('hidden');
+    }
+    
     if (objectivesCountEl) objectivesCountEl.textContent = `(${businessObjectives.length} objectives)`;
     
     let html = '<table class="ea-data-table" style="width: 100%;">';
@@ -16676,7 +17568,7 @@ function renderBusinessContextSection() {
   }
   
   // ═══════════════════════════════════════════════════════════════════
-  // SECTION 4: GAP INSIGHTS
+  // SECTION 4: GAP INSIGHTS (Enhanced with PVM)
   // ═══════════════════════════════════════════════════════════════════
   const gapInsightsContentEl = document.getElementById('gap-insights-content');
   const gapsCountEl = document.getElementById('gaps-count');
@@ -16684,38 +17576,60 @@ function renderBusinessContextSection() {
     document.getElementById('gap-insights-section').classList.remove('hidden');
     if (gapsCountEl) gapsCountEl.textContent = `(${gapInsights.length} insights)`;
     
+    // Use PVM mapper to enhance gaps
+    const gapInsightVMs = mapGapInsights(window.model || model);
+    
     let html = '';
-    gapInsights.forEach((gap, idx) => {
-      const typeConfig = {
-        'Missing Objective': { 
-          bg: 'rgba(176, 106, 106, 0.08)', 
-          border: 'var(--ea-danger)', 
-          text: 'var(--ea-danger)',
-          icon: 'fa-plus-circle'
-        },
-        'Weak KPI': { 
-          bg: 'rgba(200, 169, 107, 0.08)', 
-          border: 'var(--ea-warning)', 
-          text: 'var(--ea-warning)',
-          icon: 'fa-chart-line'
-        }
-      };
-      const config = typeConfig[gap.type] || {
-        bg: 'rgba(200, 169, 107, 0.08)',
-        border: 'var(--ea-warning)',
-        text: 'var(--ea-warning)',
-        icon: 'fa-exclamation-triangle'
-      };
+    gapInsightVMs.forEach((gapVM, idx) => {
+      html += `<div style="border: 2px solid ${gapVM.colorScheme.border}; border-radius: 8px; padding: 16px; background: ${gapVM.colorScheme.bg};">`;
       
-      html += `<div style="border: 2px solid ${config.border}; border-radius: 8px; padding: 16px; background: ${config.bg};">`;
-      html += `<div style="font-weight: var(--ea-fw-bold); font-size: var(--ea-body); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; color: ${config.text};">`;
-      html += `<i class="fas ${config.icon}"></i>`;
-      html += `<span>${gap.type || 'Insight'}</span>`;
+      // Gap Header with Severity Badge
+      html += `<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">`;
+      html += `<div style="font-weight: var(--ea-fw-bold); font-size: var(--ea-body); display: flex; align-items: center; gap: 10px; color: ${gapVM.colorScheme.text};">`;
+      html += `<i class="fas ${gapVM.icon}"></i>`;
+      html += `<span>${gapVM.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>`;
       html += `</div>`;
-      html += `<div style="font-size: var(--ea-body); margin-bottom: 10px; line-height: var(--ea-lh-body); color: var(--ea-text-primary);">${gap.description || ''}</div>`;
-      if (gap.recommendation) {
-        html += `<div style="font-size: var(--ea-body); font-weight: var(--ea-fw-semibold); margin-top: 12px; padding-left: 16px; border-left: 4px solid ${config.border}; line-height: var(--ea-lh-body); color: ${config.text};">`;
-        html += `→ ${gap.recommendation}`;
+      
+      // Severity Badge
+      const severityColors = {
+        critical: { bg: 'var(--ea-danger)', text: 'white' },
+        high: { bg: 'var(--ea-warning)', text: 'white' },
+        medium: { bg: 'var(--ea-info)', text: 'white' },
+        low: { bg: 'var(--ea-success)', text: 'white' }
+      };
+      const severityStyle = severityColors[gapVM.severity] || severityColors.medium;
+      html += `<span style="display: inline-flex; align-items: center; font-size: var(--ea-meta); font-weight: var(--ea-fw-bold); padding: 4px 12px; border-radius: 12px; background: ${severityStyle.bg}; color: ${severityStyle.text}; text-transform: uppercase;">`;
+      html += gapVM.severity;
+      html += `</span>`;
+      html += `</div>`;
+      
+      // Gap Headline (shortened description)
+      html += `<div style="font-size: var(--ea-body); margin-bottom: 10px; line-height: var(--ea-lh-body); color: var(--ea-text-primary); font-weight: var(--ea-fw-semibold);">${gapVM.headline}</div>`;
+      
+      // Full Description (if different from headline)
+      if (gapVM.fullDescription && gapVM.fullDescription !== gapVM.headline) {
+        html += `<div style="font-size: var(--ea-body); margin-bottom: 10px; line-height: var(--ea-lh-body); color: var(--ea-text-secondary);">${gapVM.fullDescription}</div>`;
+      }
+      
+      // Affected Themes (if any)
+      if (gapVM.affectedThemes && gapVM.affectedThemes.length > 0) {
+        html += `<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;">`;
+        html += `<span style="font-size: var(--ea-meta); color: var(--ea-text-secondary); font-weight: var(--ea-fw-semibold);">Affected Themes:</span>`;
+        gapVM.affectedThemes.forEach(theme => {
+          html += `<span style="display: inline-flex; align-items: center; font-size: var(--ea-meta); font-weight: var(--ea-fw-semibold); padding: 4px 10px; border-radius: 12px; background: rgba(0, 71, 46, 0.08); color: var(--ea-primary); border: 1px solid var(--ea-primary);">`;
+          html += `<i class="fas fa-layer-group" style="margin-right: 4px;"></i>${theme}`;
+          html += `</span>`;
+        });
+        html += `</div>`;
+      }
+      
+      // Recommendation
+      if (gapVM.recommendation) {
+        html += `<div style="font-size: var(--ea-body); font-weight: var(--ea-fw-semibold); margin-top: 12px; padding: 12px; padding-left: 16px; border-left: 4px solid ${gapVM.colorScheme.border}; line-height: var(--ea-lh-body); color: ${gapVM.colorScheme.text}; background: rgba(255, 255, 255, 0.5); border-radius: 6px;">`;
+        html += `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">`;
+        html += `<i class="fas fa-lightbulb"></i><span style="text-transform: uppercase; font-size: var(--ea-meta); letter-spacing: 0.05em;">Recommendation</span>`;
+        html += `</div>`;
+        html += gapVM.recommendation;
         html += `</div>`;
       }
       html += `</div>`;
@@ -16838,6 +17752,41 @@ function addNewObjective() {
   renderBusinessContextSection();
   showToast('New objective added successfully', 'success');
   autoSaveModel();
+}
+
+/**
+ * Toggle between Card View (Grouped by Theme) and Detailed Table View
+ */
+function toggleDetailedView() {
+  const cardViewSection = document.getElementById('objectives-by-theme-section');
+  const tableViewSection = document.getElementById('business-objectives-table-section');
+  
+  if (!cardViewSection || !tableViewSection) {
+    console.warn('[toggleDetailedView] Sections not found');
+    return;
+  }
+  
+  // Toggle visibility
+  const isCardViewVisible = !cardViewSection.classList.contains('hidden');
+  
+  if (isCardViewVisible) {
+    // Switch to table view
+    cardViewSection.classList.add('hidden');
+    tableViewSection.classList.remove('hidden');
+    console.log('[toggleDetailedView] Switched to Detailed Table View');
+  } else {
+    // Switch to card view
+    tableViewSection.classList.add('hidden');
+    cardViewSection.classList.remove('hidden');
+    console.log('[toggleDetailedView] Switched to Card View (Grouped by Theme)');
+  }
+  
+  // Store preference in localStorage
+  try {
+    localStorage.setItem('ea-objectives-view-preference', isCardViewVisible ? 'table' : 'card');
+  } catch (e) {
+    console.warn('[toggleDetailedView] Could not save view preference:', e);
+  }
 }
 
 /**
@@ -17511,8 +18460,7 @@ Rules: ${profile.valueStreams} value streams, ${profile.capabilities} capabiliti
     }
     renderBenchmarking();
 
-    // Narrative fires last (uses financials)
-    generateNarrative();
+    // Update workflow states
     updateWorkflowStepStates();
     updateWorkflowProgress([1, 2, 3]); // Mark Steps 1-3 as completed
 
@@ -20229,7 +21177,6 @@ function importFromExcel(event) {
       renderMaturityDashboard();
       populateImpactSelect();
       renderExecSummary();
-      generateNarrative();
       
       // Update Data Collection tab if capabilities were imported
       if (capabilitiesChanged) {
@@ -24255,134 +25202,8 @@ function renderExecSummary() {
   // Phase 5: Render Organization Profile (if exists)
   renderOrganizationProfile();
   
-  // Render Strategic Intent section
+  // Render Strategic Intent section (delegates to Business Context in V11)
   renderStrategicIntentSection();
-  
-  const placeholder = document.getElementById('exec-kpi-placeholder');
-  const grid = document.getElementById('exec-kpi-grid');
-
-  if (!model.capabilities || !model.capabilities.length) {
-    // Step 3 not yet complete � show placeholder, hide KPI cards
-    if (placeholder) placeholder.classList.remove('hidden');
-    if (grid) grid.style.display = 'none';
-    return;
-  }
-
-  // Step 3+ data available � hide placeholder, show KPI grid
-  if (placeholder) placeholder.classList.add('hidden');
-  if (grid) grid.style.display = 'grid';
-
-  // -- KPI 1: Strategic Alignment -------------------------------------------
-  // Rule: % of high-importance capabilities with maturity = 3
-  // Rationale: Only high-importance gaps block strategic execution.
-  const highImp = model.capabilities.filter(c => c.strategicImportance === 'high');
-  const aligned = highImp.filter(c => c.maturity >= 3);
-  const alignPct = highImp.length ? Math.round((aligned.length / highImp.length) * 100) : 0;
-
-  // -- KPI 2: AI Readiness Index --------------------------------------------
-  // Rule: weighted composite �
-  //   50% avg capability maturity (normalised to 0-1 over scale of 5)
-  //   30% share of systems with maturity = 4  (high-quality integration layer)
-  //   20% AI agent coverage (capped at 3 agents = 100% of this component)
-  const avgMat = model.capabilities.reduce((s, c) => s + (c.maturity || 0), 0) / model.capabilities.length;
-  const capScore = avgMat / 5;                                                          // 0�1
-  const sysScore = (model.systems && model.systems.length)
-    ? model.systems.filter(s => (s.maturity || 0) >= 4).length / model.systems.length   // 0�1
-    : 0;
-  const aiScore = Math.min((model.aiAgents || []).length / 3, 1);                       // 0�1, cap at 3 agents
-  const aiReady = Math.round((capScore * 50) + (sysScore * 30) + (aiScore * 20));
-
-  // -- KPI 3: Technical Debt Risk -------------------------------------------
-  // Rule: weighted share of low-maturity (= 2) capabilities.
-  //   High-importance caps with maturity = 2 count double (critical risk).
-  //   Any cap with maturity = 1 adds 1 extra point (severe debt signal).
-  const all = model.capabilities;
-  let debtNumerator = 0;
-  let debtDenominator = 0;
-  all.forEach(c => {
-    const weight = c.strategicImportance === 'high' ? 2 : 1;
-    debtDenominator += weight;
-    if ((c.maturity || 0) <= 2) debtNumerator += weight;
-    if ((c.maturity || 0) === 1) debtNumerator += 1; // severe legacy bonus
-  });
-  const debt = debtDenominator ? Math.min(100, Math.round((debtNumerator / debtDenominator) * 100)) : 0;
-
-  document.getElementById('exec-alignment').textContent = alignPct + '%';
-  document.getElementById('exec-aiready').textContent = aiReady + '%';
-  document.getElementById('exec-techdebt').textContent = debt + '%';
-
-  if (model.narrative) {
-    renderExecNarrativeText(model.narrative);
-  }
-}
-
-function escapeNarrativeHtml(text) {
-  return String(text || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function splitNarrativeIntoParagraphs(text) {
-  const cleaned = String(text || '').trim();
-  if (!cleaned) return [];
-
-  // Respect explicit line breaks first.
-  const explicitParagraphs = cleaned.split(/\n\s*\n+/).map((p) => p.trim()).filter(Boolean);
-  if (explicitParagraphs.length > 1) return explicitParagraphs;
-
-  // Fallback: split by sentence boundaries to create readable short paragraphs.
-  const sentenceParts = cleaned
-    .split(/(?<=[.!?])\s+(?=[A-Z���])/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  if (sentenceParts.length <= 1) return [cleaned];
-  return sentenceParts;
-}
-
-function renderExecNarrativeText(text) {
-  const el = document.getElementById('exec-narrative');
-  const section = document.getElementById('cxo-narrative-section');
-  if (!el) return;
-
-  const paragraphs = splitNarrativeIntoParagraphs(text);
-  if (!paragraphs.length) {
-    // No real content � hide the section entirely
-    if (section) section.classList.add('hidden');
-    el.textContent = '';
-    return;
-  }
-
-  el.innerHTML = paragraphs
-    .map((paragraph) => `<p class="mb-4 last:mb-0">${escapeNarrativeHtml(paragraph)}</p>`)
-    .join('');
-  if (section) section.classList.remove('hidden');
-}
-
-async function generateNarrative() {
-  const descEl = document.getElementById('description');
-  const savingsEl = document.getElementById('kpi-savings');
-  const riskEl = document.getElementById('kpi-risk');
-  const co2El = document.getElementById('kpi-co2');
-  
-  const summary = {
-    org: descEl ? descEl.value : '',
-    savings: savingsEl ? savingsEl.textContent : '0',
-    risk: riskEl ? riskEl.textContent : '0',
-    co2: co2El ? co2El.textContent : '0',
-    topGaps: (model.capabilities || []).filter(c => c.strategicImportance==='high' && c.maturity<=2).map(c => c.name)
-  };
-
-  try {
-    const raw = await callAI('You are a strategic advisor to the Board. Provide a 3-sentence executive narrative focusing on business outcomes: cost, risk, and competitive advantage.',
-      `Summarize this transformation: ${JSON.stringify(summary)}`,
-      { taskType: 'lightweight', temperature: 0.2 });
-    model.narrative = raw;
-    renderExecNarrativeText(raw);
-  } catch(e) { console.error(e); }
 }
 
 // -- CFO VIEW helpers ----
@@ -25638,19 +26459,84 @@ function runPortfolioOptimisation() {
         <p class="text-slate-400 text-[10px] uppercase tracking-widest mt-1">V11 4-Step EA Workflow &bull; APQC L1-L2 Capability Map &bull; AI Strategy &bull; Executive Summary</p>
       </div>
       <div class="flex gap-3">
+        <button onclick="showReportHistory()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all" title="View previous reports">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          History
+        </button>
         <button onclick="printReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
           Print / PDF
         </button>
-        <button onclick="closeReportModal()" class="text-slate-400 hover:text-white p-2">&#x2022;</button>
+        <button onclick="closeReportModal()" class="text-slate-400 hover:text-white p-2">✕</button>
       </div>
     </div>
 
     <div id="report-container" class="flex-1 overflow-y-auto p-12 bg-white font-serif leading-relaxed text-slate-800">
-      <div id="report-loading" class="flex flex-col items-center justify-center py-20">
+      <!-- Welcome Screen - Initial State -->
+      <div id="report-welcome" class="flex flex-col items-center justify-center py-20">
+        <div class="text-center max-w-lg">
+          <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center text-white text-3xl mx-auto mb-6 shadow-lg">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          </div>
+          <h2 class="text-2xl font-bold text-slate-900 mb-3">Strategic Board Report</h2>
+          <p class="text-sm text-slate-600 mb-8 leading-relaxed">Generate a comprehensive AI-powered board report or view previously saved reports from your history.</p>
+          
+          <div class="flex flex-col gap-3 max-w-sm mx-auto">
+            <button onclick="startReportGeneration()" class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-4 rounded-xl text-sm font-bold flex items-center justify-center gap-3 transition-all shadow-lg hover:shadow-xl">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+              Generate New Board Report
+            </button>
+            
+            <button onclick="showReportHistory()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-3 transition-all">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              View Report History
+              <span class="ml-1 text-xs bg-slate-300 text-slate-700 px-2 py-0.5 rounded-full" id="report-count-badge">0</span>
+            </button>
+          </div>
+          
+          <div class="mt-8 p-4 bg-slate-50 rounded-xl">
+            <p class="text-xs text-slate-500 leading-relaxed">
+              <strong class="text-slate-700">Requirements:</strong> Minimum Step 2 (Capability Mapping) completion. Best results with all 4 steps completed.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div id="report-loading" class="hidden flex flex-col items-center justify-center py-20">
         <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p class="text-sm font-bold text-slate-500">AI is compiling the board report...</p>
-        <p id="report-progress" class="text-[10px] text-slate-400 mt-2 uppercase tracking-widest">Analyzing APQC capability map & business objectives</p>
+        <p class="text-sm font-bold text-slate-500 mb-2">AI is compiling the board report...</p>
+        
+        <!-- Progress Bar -->
+        <div class="w-full max-w-md mt-6">
+          <div class="flex justify-between items-center mb-2">
+            <p id="report-progress-stage" class="text-xs font-semibold text-slate-700">Initializing...</p>
+            <p id="report-progress-percent" class="text-xs font-bold text-blue-600">0%</p>
+          </div>
+          <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div id="report-progress-bar" class="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+          </div>
+          <p id="report-progress-detail" class="text-[10px] text-slate-400 mt-2 uppercase tracking-widest text-center">Preparing data collection...</p>
+        </div>
+
+        <!-- Stage Indicators -->
+        <div class="flex gap-3 mt-8">
+          <div id="stage-indicator-1" class="flex flex-col items-center gap-1">
+            <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 text-xs font-bold transition-all duration-300">1</div>
+            <p class="text-[9px] text-slate-400 uppercase tracking-wider">Executive</p>
+          </div>
+          <div id="stage-indicator-2" class="flex flex-col items-center gap-1">
+            <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 text-xs font-bold transition-all duration-300">2</div>
+            <p class="text-[9px] text-slate-400 uppercase tracking-wider">Gap Analysis</p>
+          </div>
+          <div id="stage-indicator-3" class="flex flex-col items-center gap-1">
+            <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 text-xs font-bold transition-all duration-300">3</div>
+            <p class="text-[9px] text-slate-400 uppercase tracking-wider">Architecture</p>
+          </div>
+          <div id="stage-indicator-4" class="flex flex-col items-center gap-1">
+            <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 text-xs font-bold transition-all duration-300">4</div>
+            <p class="text-[9px] text-slate-400 uppercase tracking-wider">Financial</p>
+          </div>
+        </div>
       </div>
       <div id="report-content" class="hidden prose prose-slate max-w-none">
         <!-- AI Content injected here -->
@@ -28513,6 +29399,135 @@ function runPortfolioOptimisation() {
     .capability-modal-title {
       font-size: 18px;
     }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     MODERN NAVIGATION MENU STYLES
+  ═══════════════════════════════════════════════════════════════════════ */
+
+  /* Navigation Items */
+  .ea-nav-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.9);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+
+  .ea-nav-item:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+  }
+
+  .ea-nav-item.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  /* Dropdown Container */
+  .ea-nav-dropdown {
+    position: relative;
+  }
+
+  /* Dropdown Menu */
+  .ea-nav-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 8px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    min-width: 220px;
+    padding: 8px;
+    z-index: 10000;
+    animation: dropdownSlideIn 0.2s ease-out;
+  }
+
+  @keyframes dropdownSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Dropdown Items */
+  .ea-nav-dropdown-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: transparent;
+    color: #1e293b;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+  }
+
+  .ea-nav-dropdown-item:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+
+  .ea-nav-dropdown-item i {
+    width: 20px;
+    text-align: center;
+  }
+
+  /* Dropdown Divider */
+  .ea-nav-dropdown-divider {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 6px 0;
+  }
+
+  /* Avatar */
+  .ea-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .ea-avatar:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+
+  /* Brand Mark Update */
+  .ea-brand-mark {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+    color: #ffffff;
+    font-size: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
   }
 </style>
 
