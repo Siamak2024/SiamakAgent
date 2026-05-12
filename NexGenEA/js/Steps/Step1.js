@@ -21,7 +21,7 @@
 
   // Version check log (helps verify fresh code is loaded)
   console.log('%c[Step1.js] 📦 Module loaded', 'color: #8b5cf6; font-weight: bold');
-  console.log('[Step1.js] Version: V11-Evidence-Based-Validation (May 2026)');
+  console.log('[Step1.js] Version: V11-Evidence-Based-Validation (May 2026) - Company Name Preservation');
 
   const Step1 = {
     id: 'step1',
@@ -305,7 +305,9 @@ If you have enough:
             console.log(`  - Evidence gaps: ${evidenceGapsCount}`);
             
             // NEW: Directly transform validated objectives into businessObjectives (NO SYNTHESIS STEP)
-            Step1._transformDiscoveryToBusinessObjectives(parsed.context);
+            // Pass company description to preserve company-specific context
+            const companyDescription = window.model?.description || '';
+            Step1._transformDiscoveryToBusinessObjectives(parsed.context, companyDescription);
             
             // Return null to skip question display
             return null;
@@ -449,10 +451,21 @@ Does this capture your business objectives? Type "confirm" to proceed, or descri
    * Transform discovery context directly into business objectives (NO AI SYNTHESIS)
    * Called when discovery completes with status === 'complete'
    * @param {object} context - Discovery context with validated_objectives, working_hypotheses, etc.
+   * @param {string} companyDescription - User's company description from Task 0
    */
-  Step1._transformDiscoveryToBusinessObjectives = function(context) {
+  Step1._transformDiscoveryToBusinessObjectives = function(context, companyDescription = '') {
     console.log('[Step1] 🔧 Transforming discovery data to business objectives (no AI synthesis)');
     console.log('[Step1] Discovery context keys:', Object.keys(context));
+    
+    // Extract company name from description (first line or first sentence before punctuation)
+    let companyName = '';
+    if (companyDescription) {
+      // Try to extract company name from first line or first sentence
+      const firstLine = companyDescription.split('\n')[0].trim();
+      const match = firstLine.match(/^([A-Z][A-Za-zÅÄÖåäö\s&-]+?)(?:\s*[:\-\n]|$)/);
+      companyName = match ? match[1].trim() : firstLine.substring(0, 50);
+      console.log('[Step1] Extracted company name:', companyName);
+    }
     
     // Helper: Infer category from objective text
     const inferCategory = (text) => {
@@ -588,17 +601,22 @@ Does this capture your business objectives? Type "confirm" to proceed, or descri
     
     window.model.businessObjectives = allObjectives;
     
-    // Create business context from discovery data
+    // Create business context from discovery data with company-specific information
+    const organizationName = companyName || context.organization_name || 'Organization';
+    const industryContext = context.industry || 'Unknown';
+    
     window.model.businessContext = {
-      org_name: window.model.description?.split(',')[0] || 'Organization',
-      industry: context.industry || 'Unknown',
-      market_summary: `${context.strategic_posture || 'Unknown'} posture with digital maturity ${context.digital_maturity || 0}/5`,
+      org_name: organizationName,
+      industry: industryContext,
+      market_summary: `${organizationName} - ${context.strategic_posture || 'Unknown'} posture with digital maturity ${context.digital_maturity || 0}/5`,
+      strategic_context: `${organizationName} operating in ${industryContext}`,
       constraints: (context.constraints || []).map(c => 
         typeof c === 'string' ? c : `${c.type}: ${c.description}`
       ),
       generated_at: Date.now(),
       instruction_version: 'context-engine-v2-direct-transform',
-      evidence_gaps: evidenceGaps
+      evidence_gaps: evidenceGaps,
+      company_description: companyDescription
     };
     
     // Store evidence gaps as gap insights
