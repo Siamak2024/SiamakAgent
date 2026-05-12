@@ -3,11 +3,72 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>NextGen EA Platform - V11</title>
 <link rel="icon" href="data:,">
 <!-- Font Awesome 6.4.0 - Local files to avoid tracking prevention -->
 <link rel="stylesheet" href="../css/fontawesome/all.min.css">
 <script>
+  // ═══════════════════════════════════════════════════════════════════
+  // CACHE MANAGEMENT UTILITIES
+  // ═══════════════════════════════════════════════════════════════════
+  
+  /**
+   * Manually clear instruction file cache and force reload
+   * Call this from browser console if you see "old format" errors
+   * Usage: window.clearInstructionCache()
+   */
+  window.clearInstructionCache = function() {
+    console.log('%c🧹 CLEARING ALL CACHES', 'color: #ff6b6b; font-weight: bold; font-size: 16px');
+    console.log('%c(Instruction files + JavaScript modules)', 'color: #868e96; font-size: 12px');
+    console.log(' ');
+    
+    // Clear PromptBuilder cache
+    if (typeof PromptBuilder !== 'undefined' && PromptBuilder.clearCache) {
+      PromptBuilder.clearCache();
+      console.log('✅ PromptBuilder cache cleared');
+    }
+    
+    // Clear any model state
+    if (window.model) {
+      delete window.model.discoveryState;
+      delete window.model.businessObjectives;
+      delete window.model.businessContext;
+      delete window.model.validationMetrics;
+      delete window.model.strategicIntent;
+      console.log('✅ Model state cleared');
+    }
+    
+    // Force browser to clear HTTP cache for instruction files
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => caches.delete(name));
+        console.log('✅ Service worker caches cleared');
+      });
+    }
+    
+    console.log(' ');
+    console.log('%c✅ CACHE CLEARED', 'color: #51cf66; font-weight: bold; font-size: 14px');
+    console.log(' ');
+    console.log('%c⚠️  REQUIRED: DO A HARD REFRESH NOW', 'color: #ff6b6b; font-weight: bold; font-size: 14px');
+    console.log('%cWindows: Ctrl + Shift + R', 'color: #339af0; font-size: 13px; font-weight: bold');
+    console.log('%cMac: Cmd + Shift + R', 'color: #339af0; font-size: 13px; font-weight: bold');
+    console.log(' ');
+    console.log('%cHard refresh reloads cached JavaScript files:', 'color: #868e96; font-size: 11px; font-style: italic');
+    console.log('%c  • Step1.js, StepEngine.js, PromptBuilder.js', 'color: #868e96; font-size: 11px; font-style: italic');
+    console.log('%c  • context_engine.instruction.md', 'color: #868e96; font-size: 11px; font-style: italic');
+    console.log(' ');
+    console.log('%cThen restart Step 1 from the beginning.', 'color: #339af0; font-size: 12px');
+    
+    return '✅ Cache cleared. DO HARD REFRESH: Ctrl+Shift+R (Win) or Cmd+Shift+R (Mac)';
+  };
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // TAB HIGHLIGHTING UTILITIES
+  // ═══════════════════════════════════════════════════════════════════
+  
   // Utility: Highlight a tab by name (e.g., 'exec', 'capmap')
   // Highlight a tab and persist highlight
   function highlightTab(tabName) {
@@ -1000,7 +1061,7 @@
                       <div style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-text-secondary);"><span style="width:18px;height:18px;border-radius:50%;background:var(--ea-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;">4</span>Generate Architecture &amp; Capability Map</div>
                       <div style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ea-text-secondary);"><span style="width:18px;height:18px;border-radius:50%;background:var(--ea-accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;">5</span>Gap Analysis, Roadmap &amp; Reports</div>
                     </div>
-                    <button class="ea-btn ea-btn--primary" style="font-size:12px;min-height:34px;padding:0 14px;">
+                    <button onclick="event.stopPropagation(); startArchitectWorkflow();" class="ea-btn ea-btn--primary" style="font-size:12px;min-height:34px;padding:0 14px;">
                       <i class="fas fa-play mr-2"></i>Start AI Workflow
                     </button>
                   </div>
@@ -3944,6 +4005,30 @@ function createNewProject() {
   
   // Show the full dashboard now that we have a project
   showProjectDashboard();
+  
+  // Clear chat UI explicitly
+  const chatMessages = document.getElementById('chat-messages');
+  if (chatMessages) chatMessages.innerHTML = '';
+  
+  // Reset workflow step indicators to initial state
+  if (typeof updateWorkflowStepStates === 'function') {
+    updateWorkflowStepStates();
+  }
+  
+  // Reset continue button to initial state
+  if (typeof _updateContinueBtn === 'function') {
+    _updateContinueBtn();
+  }
+  
+  // Ensure AI chat panel is closed for fresh start
+  const aiChatPanel = document.getElementById('ai-chat-panel');
+  if (aiChatPanel && !aiChatPanel.classList.contains('hidden')) {
+    aiChatPanel.classList.add('hidden');
+    document.body.classList.remove('chat-sidebar-open');
+    if (typeof _updateSidebarToggleIcon === 'function') {
+      _updateSidebarToggleIcon(false);
+    }
+  }
 }
 
 // -- TOAST NOTIFICATIONS ----
@@ -7731,23 +7816,235 @@ function spin(id, on) { document.getElementById(id)?.classList.toggle('hidden', 
 
 
 // -- PHASE 5: BOARD REPORT GENERATION (V11 4-Step Workflow) ----
+// Global state for current report type
+let currentReportType = 'board'; // 'board' or 'executive'
+
 function openReportModal() {
   document.getElementById('report-modal').classList.remove('hidden');
   
-  // Show welcome screen by default
-  showReportWelcome();
+  // Show welcome screen by default (board report)
+  switchReportType('board');
+}
+
+function switchReportType(type) {
+  currentReportType = type;
+  
+  // Update modal title
+  const titleEl = document.getElementById('report-modal-title');
+  if (titleEl) {
+    titleEl.textContent = type === 'board' ? 'Strategic Board Report' : 'Executive Summary';
+  }
+  
+  // Update tab styling
+  const boardTab = document.getElementById('report-modal-tab-board');
+  const execTab = document.getElementById('report-modal-tab-executive');
+  
+  if (type === 'board') {
+    boardTab.classList.remove('bg-transparent', 'text-slate-300', 'border-slate-600');
+    boardTab.classList.add('bg-slate-700', 'text-white', 'border-transparent');
+    execTab.classList.add('bg-transparent', 'text-slate-300', 'border-slate-600');
+    execTab.classList.remove('bg-slate-700', 'text-white', 'border-transparent');
+    
+    showReportWelcome();
+  } else {
+    execTab.classList.remove('bg-transparent', 'text-slate-300', 'border-slate-600');
+    execTab.classList.add('bg-slate-700', 'text-white', 'border-transparent');
+    boardTab.classList.add('bg-transparent', 'text-slate-300', 'border-slate-600');
+    boardTab.classList.remove('bg-slate-700', 'text-white', 'border-transparent');
+    
+    showExecutiveSummaryWelcome();
+  }
+  
+  // Update download button visibility based on report content
+  updateDownloadButtonVisibility();
+}
+
+function updateDownloadButtonVisibility() {
+  const contentDiv = document.getElementById('report-content');
+  const downloadBtn = document.getElementById('download-html-btn');
+  const backBtn = document.getElementById('back-to-history-btn');
+  
+  // Show download and back buttons only when report content is visible
+  if (contentDiv && !contentDiv.classList.contains('hidden') && contentDiv.innerHTML.trim() !== '') {
+    downloadBtn.classList.remove('hidden');
+    backBtn.classList.remove('hidden');
+  } else {
+    downloadBtn.classList.add('hidden');
+    backBtn.classList.add('hidden');
+  }
+}
+
+function backToReportHistory() {
+  // Go back to the welcome screen based on current report type
+  if (currentReportType === 'board') {
+    showReportWelcome();
+  } else {
+    showExecutiveSummaryWelcome();
+  }
 }
 
 function showReportWelcome() {
-  // Update report count badge
-  const totalReports = model.boardReports?.length || 0;
-  const badge = document.getElementById('report-count-badge');
-  if (badge) badge.textContent = totalReports;
-  
-  // Show welcome, hide others
-  document.getElementById('report-welcome').classList.remove('hidden');
+  // Show board welcome, hide others
+  document.getElementById('report-welcome-board').classList.remove('hidden');
+  document.getElementById('report-welcome-executive').classList.add('hidden');
   document.getElementById('report-loading').classList.add('hidden');
   document.getElementById('report-content').classList.add('hidden');
+  
+  // Populate inline history list
+  renderInlineReportHistory('board');
+}
+
+function showExecutiveSummaryWelcome() {
+  // Check if Board Report is available and recent
+  const quickBtn = document.getElementById('generate-exec-from-board-btn');
+  const latestBoardReport = getLatestBoardReport();
+  
+  if (latestBoardReport && isRecentReport(latestBoardReport)) {
+    quickBtn.classList.remove('hidden');
+  } else {
+    quickBtn.classList.add('hidden');
+  }
+  
+  // Load preference
+  const pref = localStorage.getItem('always-use-board-report');
+  const checkbox = document.getElementById('always-use-board-report-pref');
+  if (checkbox) checkbox.checked = pref === 'true';
+  
+  // Show executive welcome, hide others
+  document.getElementById('report-welcome-executive').classList.remove('hidden');
+  document.getElementById('report-welcome-board').classList.add('hidden');
+  document.getElementById('report-loading').classList.add('hidden');
+  document.getElementById('report-content').classList.add('hidden');
+  
+  // Populate inline history list
+  renderInlineReportHistory('executive');
+}
+
+function isRecentReport(report) {
+  if (!report || !report.generatedAt) return false;
+  
+  const reportTime = new Date(report.generatedAt).getTime();
+  const now = Date.now();
+  const oneHour = 60 * 60 * 1000;
+  
+  return (now - reportTime) < oneHour;
+}
+
+function saveExecutiveSummaryPreference() {
+  const checkbox = document.getElementById('always-use-board-report-pref');
+  localStorage.setItem('always-use-board-report', checkbox.checked);
+}
+
+function renderInlineReportHistory(type) {
+  const targetId = type === 'board' ? 'board-report-history-list' : 'executive-report-history-list';
+  const container = document.getElementById(targetId);
+  
+  if (!container) return;
+  
+  // Get reports based on type
+  const reports = type === 'board' 
+    ? (model.boardReports || [])
+    : (model.executiveSummaries || []);
+  
+  if (reports.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-8">
+        <svg class="w-16 h-16 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <p class="text-sm text-slate-500">No ${type === 'board' ? 'board reports' : 'executive summaries'} yet</p>
+        <p class="text-xs text-slate-400 mt-1">Generate your first report to get started</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Build history list
+  const sortedReports = [...reports].sort((a, b) => 
+    new Date(b.generatedAt) - new Date(a.generatedAt)
+  );
+  
+  const listHtml = `
+    <div class="mb-4">
+      <h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+          <polyline points="12 6 12 12 16 14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+        </svg>
+        Recent Reports (${reports.length})
+      </h3>
+      <div class="space-y-2">
+        ${sortedReports.map((report, idx) => {
+          const date = new Date(report.generatedAt);
+          const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+          const isRecent = isRecentReport(report);
+          
+          // For executive summaries, show source mode badge
+          const sourceBadge = type === 'executive' && report.sourceMode 
+            ? (report.sourceMode === 'board-report' 
+                ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">⚡ Quick</span>'
+                : '<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">🔍 Deep</span>')
+            : '';
+          
+          return `
+            <button onclick="loadReportFromHistory('${type}', ${idx})" 
+                    class="w-full text-left p-4 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-xl transition-all group">
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-sm font-semibold text-slate-800 group-hover:text-blue-700">${dateStr} at ${timeStr}</span>
+                    ${isRecent ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Recent</span>' : ''}
+                    ${sourceBadge}
+                  </div>
+                  <p class="text-xs text-slate-500">
+                    ${report.metadata?.objectiveCount || 0} objectives • ${report.metadata?.capabilityCount || 0} capabilities • ${report.metadata?.gapCount || 0} gaps
+                  </p>
+                </div>
+                <svg class="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+  
+  container.innerHTML = listHtml;
+}
+
+function loadReportFromHistory(type, index) {
+  const reports = type === 'board' 
+    ? (model.boardReports || [])
+    : (model.executiveSummaries || []);
+  
+  const sortedReports = [...reports].sort((a, b) => 
+    new Date(b.generatedAt) - new Date(a.generatedAt)
+  );
+  
+  const report = sortedReports[index];
+  if (!report) {
+    console.error('Report not found at index:', index);
+    return;
+  }
+  
+  // Display the report
+  const contentDiv = document.getElementById('report-content');
+  contentDiv.innerHTML = report.html;
+  contentDiv.classList.remove('hidden');
+  
+  // Hide welcome screens and loading
+  document.getElementById('report-welcome-board').classList.add('hidden');
+  document.getElementById('report-welcome-executive').classList.add('hidden');
+  document.getElementById('report-loading').classList.add('hidden');
+  
+  // Show download button
+  updateDownloadButtonVisibility();
+  
+  // Log for debugging
+  console.log(`Loaded ${type} report from ${new Date(report.generatedAt).toLocaleString()}`);
 }
 
 function startReportGeneration() {
@@ -7765,7 +8062,7 @@ function startReportGeneration() {
   }
   
   // Hide welcome, show loading
-  document.getElementById('report-welcome').classList.add('hidden');
+  document.getElementById('report-welcome-board').classList.add('hidden');
   document.getElementById('report-loading').classList.remove('hidden');
   document.getElementById('report-content').classList.add('hidden');
   
@@ -7779,6 +8076,68 @@ function closeReportModal() {
 
 function printReport() {
   window.print();
+}
+
+function downloadReportHTML() {
+  const contentDiv = document.getElementById('report-content');
+  if (!contentDiv || contentDiv.classList.contains('hidden')) {
+    alert('No report to download. Please generate a report first.');
+    return;
+  }
+  
+  const reportHTML = contentDiv.innerHTML;
+  const reportTitle = currentReportType === 'executive' ? 'Executive_Summary' : 'Board_Report';
+  const projectName = model.projectName || 'Untitled_Project';
+  const timestamp = new Date().toISOString().split('T')[0];
+  const filename = `${projectName}_${reportTitle}_${timestamp}.html`;
+  
+  // Build complete HTML document with inline styles
+  const fullHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${projectName} - ${reportTitle}</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Inter, Arial, sans-serif;
+      line-height: 1.6;
+      color: #1A1A1A;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #fff;
+    }
+    @media print {
+      body { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  ${reportHTML}
+</body>
+</html>`;
+  
+  // Create download link
+  const blob = new Blob([fullHTML], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  console.log(`✅ Report downloaded as ${filename}`);
+}
+
+function downloadReportPDF() {
+  // Use browser's print dialog with "Save as PDF" option
+  const userConfirmed = confirm('This will open the print dialog. Choose "Save as PDF" as your printer to download the PDF.');
+  if (userConfirmed) {
+    window.print();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -7849,42 +8208,121 @@ function displaySavedBoardReport(reportId) {
 
   const contentDiv = document.getElementById('report-content');
   contentDiv.innerHTML = report.html;
-  document.getElementById('report-welcome').classList.add('hidden');
+  document.getElementById('report-welcome-board').classList.add('hidden');
+  document.getElementById('report-welcome-executive').classList.add('hidden');
   document.getElementById('report-loading').classList.add('hidden');
   contentDiv.classList.remove('hidden');
   
+  // Switch to board report tab
+  currentReportType = 'board';
+  switchReportType('board');
+  
+  // Show download button
+  updateDownloadButtonVisibility();
+  
   // Show report info
   const generatedDate = new Date(report.generatedAt).toLocaleString();
-  console.log(`📄 Displaying saved report from ${generatedDate}`);
+  console.log(`📄 Displaying saved Board Report from ${generatedDate}`);
 }
 
-function showReportHistory() {
-  if (!model.boardReports || model.boardReports.length === 0) {
-    alert('No saved reports found. Generate your first board report to start building a history.');
-    showReportWelcome();
+function displaySavedExecutiveSummary(reportId) {
+  const report = loadExecutiveSummary(reportId);
+  if (!report) {
+    alert('Executive Summary not found');
     return;
   }
 
-  // Build report list
-  let message = 'Select a report to view:\n\n';
-  model.boardReports.forEach((report, index) => {
+  const contentDiv = document.getElementById('report-content');
+  contentDiv.innerHTML = report.html;
+  document.getElementById('report-welcome-board').classList.add('hidden');
+  document.getElementById('report-welcome-executive').classList.add('hidden');
+  document.getElementById('report-loading').classList.add('hidden');
+  contentDiv.classList.remove('hidden');
+  
+  // Switch to executive summary tab
+  currentReportType = 'executive';
+  switchReportType('executive');
+  
+  // Show download button
+  updateDownloadButtonVisibility();
+  
+  // Show report info
+  const generatedDate = new Date(report.generatedAt).toLocaleString();
+  const sourceMode = report.sourceMode === 'board-report' ? '⚡ from Board Report' : '📊 from Project Data';
+  console.log(`📄 Displaying saved Executive Summary from ${generatedDate} (${sourceMode})`);
+}
+
+function loadExecutiveSummary(reportId) {
+  if (!model.executiveSummaries) return null;
+  
+  const report = model.executiveSummaries.find(r => r.id === reportId);
+  if (!report) {
+    console.warn('Executive Summary not found:', reportId);
+    return null;
+  }
+
+  return report;
+}
+
+function showReportHistory() {
+  const boardReports = model.boardReports || [];
+  const execSummaries = model.executiveSummaries || [];
+  
+  if (boardReports.length === 0 && execSummaries.length === 0) {
+    alert('No saved reports found. Generate your first report to start building a history.');
+    if (currentReportType === 'board') {
+      showReportWelcome();
+    } else {
+      showExecutiveSummaryWelcome();
+    }
+    return;
+  }
+
+  // Build combined report list with type badges
+  let message = '📚 REPORT HISTORY\\n\\n';
+  message += 'Filter: [A]ll | [B]oard Reports | [E]xecutive Summaries\\n\\n';
+  
+  // Combine and sort reports by date
+  const allReports = [
+    ...boardReports.map(r => ({ ...r, type: 'board' })),
+    ...execSummaries.map(r => ({ ...r, type: 'executive' }))
+  ].sort((a, b) => new Date(b.generatedAt) - new Date(a.generatedAt));
+  
+  allReports.forEach((report, index) => {
     const date = new Date(report.generatedAt).toLocaleString();
-    const objectives = report.metadata.objectiveCount || 0;
-    const capabilities = report.metadata.capabilityCount || 0;
-    message += `${index + 1}. ${date}\n   (${objectives} objectives, ${capabilities} capabilities)\n\n`;
+    const typeBadge = report.type === 'board' ? '📊 Board Report' : '⚡ Executive Summary';
+    const objectives = report.metadata?.objectiveCount || 0;
+    const capabilities = report.metadata?.capabilityCount || 0;
+    
+    message += `${index + 1}. ${typeBadge}\\n`;
+    message += `   ${date}\\n`;
+    message += `   (${objectives} objectives, ${capabilities} capabilities)`;
+    
+    if (report.type === 'executive' && report.sourceMode) {
+      const sourceLabel = report.sourceMode === 'board-report' ? '⚡ from Board Report' : '📊 from Project Data';
+      message += ` ${sourceLabel}`;
+    }
+    
+    message += '\\n\\n';
   });
-  message += 'Enter number (1-' + model.boardReports.length + ') or Cancel:';
+  
+  message += 'Enter number (1-' + allReports.length + ') or Cancel:';
 
   const choice = prompt(message);
   if (!choice) return;
 
   const index = parseInt(choice) - 1;
-  if (isNaN(index) || index < 0 || index >= model.boardReports.length) {
+  if (isNaN(index) || index < 0 || index >= allReports.length) {
     alert('Invalid selection');
     return;
   }
 
-  displaySavedBoardReport(model.boardReports[index].id);
+  const selectedReport = allReports[index];
+  if (selectedReport.type === 'board') {
+    displaySavedBoardReport(selectedReport.id);
+  } else {
+    displaySavedExecutiveSummary(selectedReport.id);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -8210,13 +8648,19 @@ Make recommendations specific, actionable, and tied to business outcomes.`,
 
     // Display complete report
     contentDiv.innerHTML = reportHTML;
-    document.getElementById('report-welcome').classList.add('hidden');
+    document.getElementById('report-welcome-board').classList.add('hidden');
     document.getElementById('report-loading').classList.add('hidden');
     contentDiv.classList.remove('hidden');
+    
+    // Show download button
+    updateDownloadButtonVisibility();
     
     // Save report to model for future access
     const savedReport = saveBoardReport(reportHTML);
     console.log(`✅ V11 Multi-Stage Board Report generated and saved successfully (ID: ${savedReport.id})`);
+    
+    // Refresh history list to show newly generated report
+    renderInlineReportHistory('board');
     
   } catch (e) {
     console.error('Board report generation error:', e);
@@ -8241,10 +8685,815 @@ Make recommendations specific, actionable, and tied to business outcomes.`,
       `;
     }
     
-    document.getElementById('report-welcome').classList.add('hidden');
+    document.getElementById('report-welcome-board').classList.add('hidden');
     document.getElementById('report-loading').classList.add('hidden');
     contentDiv.classList.remove('hidden');
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// EXECUTIVE SUMMARY GENERATION (DUAL-SOURCE)
+// ═══════════════════════════════════════════════════════════════════════
+
+async function generateExecutiveSummary(sourceMode = 'auto') {
+  const contentDiv = document.getElementById('report-content');
+  
+  // V11 Validation: Require Step 2 (Capability Mapping) completion minimum
+  if (!model.capabilityMap && !model.capabilities.length) {
+    alert("Please complete at least Step 2 (Capability Mapping) before generating the executive summary.");
+    return;
+  }
+
+  // Check for Step 1 (Business Context) - warn but allow
+  if (!model.businessContext && !model.businessObjectives.length) {
+    if (!confirm("Business objectives not defined. Continue anyway? (Report quality will be limited)")) {
+      return;
+    }
+  }
+  
+  // Hide welcome, show loading
+  document.getElementById('report-welcome-executive').classList.add('hidden');
+  document.getElementById('report-loading').classList.remove('hidden');
+  document.getElementById('report-content').classList.add('hidden');
+  
+  // Determine source mode
+  const latestBoardReport = getLatestBoardReport();
+  const useBoardReport = sourceMode === 'board-report' || 
+    (sourceMode === 'auto' && latestBoardReport && isRecentReport(latestBoardReport) && 
+     localStorage.getItem('always-use-board-report') === 'true');
+  
+  try {
+    let reportHTML;
+    
+    if (useBoardReport && latestBoardReport) {
+      console.log('📊 Generating Executive Summary from Board Report (fast path)');
+      updateReportProgress(1, 'Executive Summary', 50, 'Extracting data from Board Report...');
+      reportHTML = await generateFromBoardReport(latestBoardReport);
+    } else {
+      console.log('📊 Generating Executive Summary from Project Data (independent path)');
+      updateReportProgress(1, 'Executive Summary', 50, 'Collecting project data...');
+      reportHTML = await generateFromProjectData();
+    }
+    
+    // Display complete report
+    contentDiv.innerHTML = reportHTML;
+    
+    // Prepend print instructions banner (screen-only)
+    const printBanner = document.createElement('div');
+    printBanner.className = 'print-instructions-banner';
+    printBanner.style.cssText = 'display: block; background: #E8F5EE; border-left: 4px solid #006B3F; padding: 16px 20px; margin-bottom: 24px; border-radius: 4px; font-size: 14px; line-height: 1.6;';
+    printBanner.innerHTML = `
+      <strong style="color: #00472E; font-size: 15px;">📄 Print/PDF Instructions:</strong>
+      <span style="color: #475569; margin-left: 8px;">This report is optimized for A4 printing</span>
+      <ol style="margin: 12px 0 0 20px; padding: 0; font-size: 13px; color: #475569;">
+        <li style="margin-bottom: 6px;"><strong>Windows:</strong> Press <code style="background: #fff; padding: 2px 6px; border-radius: 3px; font-size: 12px;">Ctrl+P</code> | <strong>Mac:</strong> Press <code style="background: #fff; padding: 2px 6px; border-radius: 3px; font-size: 12px;">⌘+P</code></li>
+        <li style="margin-bottom: 6px;"><strong>Select Printer:</strong> Choose "Print to PDF" or "Save as PDF"</li>
+        <li style="margin-bottom: 6px;"><strong>Paper Size:</strong> Ensure set to A4 or Letter</li>
+        <li style="margin-bottom: 6px;"><strong>Margins:</strong> Use default margins (0.75in recommended)</li>
+        <li style="margin-bottom: 6px;"><strong>Print Background:</strong> Optional - uncheck to save ink</li>
+        <li><strong>Click Save/Print</strong> - Done!</li>
+      </ol>
+    `;
+    
+    // Insert banner at the top of the content
+    if (contentDiv.firstChild) {
+      contentDiv.insertBefore(printBanner, contentDiv.firstChild);
+    } else {
+      contentDiv.appendChild(printBanner);
+    }
+    
+    document.getElementById('report-welcome-executive').classList.add('hidden');
+    document.getElementById('report-loading').classList.add('hidden');
+    contentDiv.classList.remove('hidden');
+    
+    // Show download button
+    updateDownloadButtonVisibility();
+    
+    // Save report to model
+    const savedReport = saveExecutiveSummary(reportHTML, useBoardReport ? 'board-report' : 'project-data', latestBoardReport?.id);
+    console.log(`✅ Executive Summary generated and saved successfully (ID: ${savedReport.id})`);
+    
+    // Refresh history list to show newly generated report
+    renderInlineReportHistory('executive');
+    
+  } catch (e) {
+    console.error('Executive Summary generation error:', e);
+    
+    contentDiv.innerHTML = `
+      <div style="background:#fee2e2;border:1px solid #fecaca;border-radius:8px;padding:20px;margin:20px;color:#991b1b;">
+        <h3 style="margin:0 0 12px 0;font-size:18px;font-weight:bold;">Executive Summary Generation Failed</h3>
+        <p style="margin:0 0 8px 0;"><strong>Error:</strong> ${e.message}</p>
+        <p style="margin:0;font-size:13px;">Please check your API configuration and ensure at least Step 2 (Capability Mapping) is complete.</p>
+      </div>
+    `;
+    
+    document.getElementById('report-welcome-executive').classList.add('hidden');
+    document.getElementById('report-loading').classList.add('hidden');
+    contentDiv.classList.remove('hidden');
+  }
+}
+
+async function generateFromProjectData() {
+  // Collect comprehensive data from V11 model
+  const dataPack = collectExecutiveSummaryData();
+  
+  updateReportProgress(1, 'Executive Summary', 70, 'Generating C-suite executive summary from project data...');
+  
+  // Build Vivicta styles
+  const vivictaStyles = buildVivictaStyles();
+  
+  // Call AI with project data instruction
+  const systemPrompt = `You are a Senior Enterprise Architect and Strategy Consultant writing a C-suite-ready Strategic Executive Summary.
+
+CRITICAL REQUIREMENTS:
+- Output ONLY valid HTML (no markdown, no JSON, no SVG)
+- Use ONLY these Vivicta Design System colors:
+  * Primary: #00472E (dark green) - headers, primary buttons
+  * Base: #006B3F (green) - section headers
+  * Success: #4BE3A3 (light green) - positive metrics
+  * Purple: #7A0049 - strategic themes
+  * Blue: #003D75 - objectives
+  * Danger: #D72638 - risks
+- Font: Segoe UI, Inter, Arial
+- Line-height: 1.6
+- Text color: #1A1A1A
+
+STRUCTURE (exactly 5 sections):
+
+1. **Executive Context** (150-200 words)
+   - Organization overview, industry, strategic position
+   - Key business objectives with KPIs
+   - Primary constraints and challenges
+
+2. **Top 20% Transformation Focus** (200-250 words)
+   - 3-5 critical capability gaps ranked by impact
+   - Direct linkage to business objectives
+   - Expected business outcomes (cost savings, risk reduction, competitive advantage)
+
+3. **White Spot Synthesis** (150-200 words)
+   - Emerging opportunities not in current EA
+   - Innovation potential with AI/automation
+   - Strategic advantage potential
+
+4. **Future-State Strategy** (200-250 words)
+   - Target architecture vision (3-5 year horizon)
+   - Key architecture principles
+   - Technology stack evolution
+   - ESG and compliance alignment
+
+5. **Top 5 Recommendation Matrix** (250-300 words)
+   - Ranked strategic recommendations
+   - Each with: WHAT (action), WHY (business outcome), WHEN (timeline), RESOURCES (investment), EXPECTED ROI
+
+STYLE:
+- C-suite language (business outcomes > technical details)
+- Focus on: cost savings, risk reduction, competitive advantage, regulatory compliance
+- 3-5 year strategic horizon
+- Data-driven insights with [FACT] labels
+- Inference markers with [INFERENCE]
+
+Generate ONLY HTML starting with: ${vivictaStyles}
+Then: <div class="exec-summary-wrapper">
+Close with: </div>
+
+Total length: 1000-1200 words`;
+
+  const userData = `Generate the Strategic Executive Summary based on this V11 Enterprise Architecture project data:\n\n${JSON.stringify(dataPack, null, 2)}`;
+  
+  const reportHTML = await callAI(
+    systemPrompt,
+    userData,
+    { taskType: 'heavy', temperature: 0.25, timeoutMs: 360000, _traceLabel: 'Executive Summary - Project Data' }
+  );
+  
+  updateReportProgress(1, 'Executive Summary', 100, 'Executive Summary completed ✓');
+  
+  return reportHTML;
+}
+
+async function generateFromBoardReport(latestReport) {
+  // Extract structured data from Board Report HTML
+  const boardReportData = extractDataFromBoardReport(latestReport.html);
+  
+  updateReportProgress(1, 'Executive Summary', 70, 'Synthesizing Board Report into executive summary...');
+  
+  // Build Vivicta styles
+  const vivictaStyles = buildVivictaStyles();
+  
+  // Call AI with board report instruction
+  const systemPrompt = `You are a Senior Enterprise Architect and Strategy Consultant writing a C-suite-ready Strategic Executive Summary.
+
+TASK: Synthesize the provided Board Report into a concise Executive Summary.
+
+CRITICAL REQUIREMENTS:
+- Output ONLY valid HTML (no markdown, no JSON, no SVG)
+- Use ONLY these Vivicta Design System colors:
+  * Primary: #00472E (dark green) - headers
+  * Base: #006B3F (green) - section headers
+  * Success: #4BE3A3 (light green) - positive metrics
+  * Purple: #7A0049 - strategic themes
+  * Blue: #003D75 - objectives
+  * Danger: #D72638 - risks
+- Font: Segoe UI, Inter, Arial
+- Line-height: 1.6
+- Text color: #1A1A1A
+
+STRUCTURE (exactly 5 sections):
+
+1. **Executive Context** (150 words)
+   - Extract from Board Report: business objectives, constraints, organization profile
+
+2. **Top 20% Transformation Focus** (200 words)
+   - Extract from Gap Analysis: top 3-5 critical gaps
+   - Link to business objectives
+
+3. **White Spot Synthesis** (150 words)
+   - Extract from Architecture section: white spots and emerging opportunities
+
+4. **Future-State Strategy** (200 words)
+   - Extract from Architecture section: principles, AI opportunities, target state
+
+5. **Top 5 Recommendation Matrix** (250 words)
+   - Extract from Recommendations section: top 5 strategic recommendations with business outcomes
+
+STYLE:
+- C-suite language (business outcomes focus)
+- Focus on: cost savings, risk reduction, competitive advantage, regulatory compliance
+- 3-5 year strategic horizon
+
+Generate ONLY HTML starting with: ${vivictaStyles}
+Then: <div class="exec-summary-wrapper">
+Close with: </div>
+
+Total length: ~900-1000 words (concise synthesis)`;
+
+  const userData = `Synthesize this Board Report into a Strategic Executive Summary:\n\n${JSON.stringify(boardReportData, null, 2)}`;
+  
+  const reportHTML = await callAI(
+    systemPrompt,
+    userData,
+    { taskType: 'heavy', temperature: 0.25, timeoutMs: 360000, _traceLabel: 'Executive Summary - Board Report' }
+  );
+  
+  updateReportProgress(1, 'Executive Summary', 100, 'Executive Summary completed ✓');
+  
+  return reportHTML;
+}
+
+function collectExecutiveSummaryData() {
+  // Extract comprehensive data from V11 4-step workflow model
+  const businessContext = model.businessContext || {};
+  const businessObjectives = model.businessObjectives || [];
+  const capabilityMap = model.capabilityMap || {};
+  const capabilities = model.capabilities || [];
+  const gapInsights = model.gapInsights || [];
+  const whiteSpots = model.whiteSpots || [];
+  const organizationProfile = model.organizationProfile || {};
+  
+  // Calculate decision scores
+  const rankedGaps = gapInsights.map(gap => {
+    const importance = gap.strategicImportance === 'high' ? 10 : gap.strategicImportance === 'medium' ? 6 : 3;
+    const gapSize = gap.maturityGap || 0;
+    const aiImpact = gap.aiOpportunity ? 8 : 0;
+    const esgImpact = gap.complianceRisk ? 8 : 0;
+    
+    const score = (importance * 0.4) + (gapSize * 0.3) + (aiImpact * 0.2) + (esgImpact * 0.1);
+    
+    return {
+      ...gap,
+      decisionScore: score.toFixed(2)
+    };
+  }).sort((a, b) => parseFloat(b.decisionScore) - parseFloat(a.decisionScore));
+  
+  return {
+    projectName: model.projectName || 'Unnamed Project',
+    organization: model.description || organizationProfile.name || 'Organization',
+    industry: businessContext.industry || 'generic',
+    generatedDate: new Date().toISOString(),
+    businessContext: {
+      objectives: businessObjectives.slice(0, 8),
+      constraints: businessContext.constraints || [],
+      challenges: businessContext.challenges || [],
+      strategicThemes: model.strategicThemes || [],
+      organizationProfile: {
+        size: organizationProfile.size || 'Not specified',
+        revenue: organizationProfile.revenue || 'Not specified',
+        employees: organizationProfile.employees || 'Not specified',
+        industry: organizationProfile.industry || businessContext.industry
+      }
+    },
+    capabilityAnalysis: {
+      totalCapabilities: capabilities.length,
+      avgMaturity: capabilities.length > 0 
+        ? (capabilities.reduce((sum, c) => sum + (c.maturity || 0), 0) / capabilities.length).toFixed(1)
+        : 'N/A',
+      criticalGaps: rankedGaps.slice(0, 10),
+      whiteSpots: whiteSpots.slice(0, 5),
+      totalGaps: gapInsights.length
+    },
+    architecture: {
+      principles: model.archPrinciples || [],
+      decisions: model.archDecisions || [],
+      aiAgents: model.aiAgents || [],
+      whiteSpotSummary: model.whiteSpotSummary || {}
+    }
+  };
+}
+
+function extractDataFromBoardReport(reportHTML) {
+  // Parse Board Report HTML to extract key data points
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(reportHTML, 'text/html');
+  
+  // Extract sections
+  const extractSection = (headerText) => {
+    const headers = Array.from(doc.querySelectorAll('h2.report-h2, h2'));
+    const header = headers.find(h => h.textContent.includes(headerText));
+    if (!header) return null;
+    
+    let content = '';
+    let sibling = header.nextElementSibling;
+    while (sibling && !['H1', 'H2'].includes(sibling.tagName)) {
+      content += sibling.outerHTML;
+      sibling = sibling.nextElementSibling;
+    }
+    return content;
+  };
+  
+  return {
+    executiveSummary: extractSection('EXECUTIVE SUMMARY') || extractSection('Executive Summary'),
+    gapAnalysis: extractSection('GAP ANALYSIS') || extractSection('Gap Analysis'),
+    architecture: extractSection('ARCHITECTURE') || extractSection('TARGET ARCHITECTURE'),
+    financial: extractSection('FINANCIAL') || extractSection('ESG'),
+    recommendations: extractSection('RECOMMENDATIONS') || extractSection('Top 5 Recommendations'),
+    metadata: {
+      generatedAt: new Date().toISOString(),
+      source: 'Board Report',
+      reportId: model.boardReports?.[0]?.id || 'unknown'
+    }
+  };
+}
+
+function buildVivictaStyles() {
+  return `<style>
+  .exec-summary-wrapper {
+    font-family: 'Segoe UI', Inter, Arial, sans-serif;
+    line-height: 1.6;
+    color: #1A1A1A;
+    max-width: 100%;
+  }
+  .exec-summary-h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #00472E;
+    margin: 0 0 24px 0;
+    border-bottom: 3px solid #006B3F;
+    padding-bottom: 12px;
+  }
+  .exec-summary-h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #006B3F;
+    margin: 32px 0 16px 0;
+    background: linear-gradient(90deg, #F5F7F6 0%, transparent 100%);
+    padding: 12px 16px;
+    border-left: 4px solid #00472E;
+  }
+  .exec-summary-h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #00472E;
+    margin: 20px 0 12px 0;
+  }
+  .exec-summary-p {
+    font-size: 15px;
+    line-height: 1.7;
+    margin: 0 0 16px 0;
+    color: #1A1A1A;
+  }
+  .exec-summary-card {
+    background: #F5F7F6;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 16px 0;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+  }
+  .exec-summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+  .exec-summary-table thead {
+    background: #00472E;
+    color: #fff;
+  }
+  .exec-summary-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .exec-summary-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #E5E7EB;
+    font-size: 14px;
+  }
+  .exec-summary-table tbody tr:hover {
+    background: #F5F7F6;
+  }
+  .exec-summary-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 4px 4px 0;
+  }
+  .exec-summary-badge-success {
+    background: #4BE3A3;
+    color: #00472E;
+  }
+  .exec-summary-badge-danger {
+    background: #D72638;
+    color: #fff;
+  }
+  .exec-summary-badge-blue {
+    background: #003D75;
+    color: #fff;
+  }
+  .exec-summary-badge-purple {
+    background: #7A0049;
+    color: #fff;
+  }
+  .exec-summary-recommendation {
+    background: #fff;
+    border: 2px solid #006B3F;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 16px 0;
+    box-shadow: 0 4px 16px rgba(0, 71, 46, 0.1);
+  }
+  .exec-summary-recommendation-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .exec-summary-recommendation-number {
+    background: #00472E;
+    color: #fff;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .exec-summary-recommendation-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #00472E;
+  }
+  .exec-summary-recommendation-body {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #1A1A1A;
+    margin-bottom: 12px;
+  }
+  .exec-summary-recommendation-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    border-top: 1px solid #E5E7EB;
+    padding-top: 12px;
+  }
+  .exec-summary-recommendation-meta-item {
+    font-size: 13px;
+  }
+  .exec-summary-recommendation-meta-label {
+    font-weight: 600;
+    color: #006B3F;
+    margin-bottom: 4px;
+  }
+  .exec-summary-recommendation-meta-value {
+    color: #1A1A1A;
+  }
+
+  /* ============================================================================
+     PRINT OPTIMIZATION - Comprehensive Print/PDF Media Query
+     Based on Enterprise Architecture Print Optimization Best Practices
+     ============================================================================ */
+  
+  @media print {
+    /* === PAGE SETUP === */
+    @page {
+      size: A4;
+      margin: 0.75in;
+    }
+
+    /* === HIDE MAIN APPLICATION === */
+    body > *:not(#report-modal) {
+      display: none !important;
+    }
+    
+    /* === RESET HTML AND BODY === */
+    html, body {
+      width: 100%;
+      height: auto;
+      margin: 0;
+      padding: 0;
+      background: white;
+      overflow: visible;
+    }
+    
+    /* === MODAL TO NORMAL DOCUMENT FLOW === */
+    #report-modal { 
+      display: block !important;
+      position: static !important;
+      inset: unset !important;
+      width: 100% !important;
+      height: auto !important;
+      max-width: 100% !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: white !important;
+      backdrop-filter: none !important;
+      overflow: visible !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+    }
+    
+    #report-modal > div {
+      max-width: 100% !important;
+      max-height: none !important;
+      width: 100% !important;
+      height: auto !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      overflow: visible !important;
+    }
+    
+    #report-container { 
+      padding: 0 !important;
+      margin: 0 !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
+    
+    #report-content {
+      display: block !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    
+    .exec-summary-wrapper {
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    /* === GLOBAL RESET === */
+    body, .exec-summary-wrapper {
+      background: white;
+      color: black;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    /* Remove all animations and transitions */
+    * {
+      transition: none !important;
+      animation: none !important;
+      box-shadow: none !important;
+    }
+
+    /* === HIDE UI CHROME === */
+    #report-modal .bg-slate-900,
+    .print-instructions-banner,
+    button,
+    input,
+    select,
+    textarea,
+    #report-welcome-board,
+    #report-welcome-executive,
+    #report-loading {
+      display: none !important;
+      visibility: hidden !important;
+    }
+
+    /* === TYPOGRAPHY OPTIMIZATION === */
+    .exec-summary-h1 {
+      font-size: 24px;
+      margin: 0 0 18px 0;
+      padding-bottom: 8px;
+      page-break-after: avoid;
+    }
+
+    .exec-summary-h2 {
+      font-size: 18px;
+      margin: 24px 0 12px 0;
+      padding: 8px 12px;
+      page-break-after: avoid;
+      background: #F5F7F6;
+    }
+
+    .exec-summary-h3 {
+      font-size: 14px;
+      margin: 16px 0 8px 0;
+      page-break-after: avoid;
+    }
+
+    .exec-summary-p {
+      font-size: 11px;
+      line-height: 1.5;
+      margin: 0 0 12px 0;
+      orphans: 3;
+      widows: 3;
+    }
+
+    /* === PAGE BREAK CONTROLS === */
+    .exec-summary-card,
+    .exec-summary-recommendation,
+    .exec-summary-table {
+      page-break-inside: avoid;
+      margin: 12px 0;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+      page-break-after: avoid;
+      orphans: 3;
+      widows: 3;
+    }
+
+    p, li {
+      orphans: 3;
+      widows: 3;
+    }
+
+    /* === CARD & SHADOW OPTIMIZATION === */
+    .exec-summary-card {
+      box-shadow: none;
+      border: 1px solid #ccc;
+      padding: 16px;
+      background: white;
+    }
+
+    .exec-summary-recommendation {
+      box-shadow: none;
+      border: 2px solid #006B3F;
+      padding: 16px;
+      background: white;
+    }
+
+    /* === TABLE OPTIMIZATION === */
+    .exec-summary-table {
+      box-shadow: none;
+      border: 1px solid #ccc;
+      font-size: 10px;
+    }
+
+    .exec-summary-table th {
+      padding: 8px 12px;
+      font-size: 11px;
+      background: #00472E !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .exec-summary-table td {
+      padding: 8px 12px;
+      font-size: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .exec-summary-table tbody tr:hover {
+      background: transparent;
+    }
+
+    /* === BADGE OPTIMIZATION === */
+    .exec-summary-badge {
+      padding: 3px 8px;
+      font-size: 10px;
+      border: 1px solid #ccc;
+    }
+
+    .exec-summary-badge-success {
+      background: #4BE3A3 !important;
+      color: #00472E !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .exec-summary-badge-danger {
+      background: #D72638 !important;
+      color: #fff !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .exec-summary-badge-blue {
+      background: #003D75 !important;
+      color: #fff !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .exec-summary-badge-purple {
+      background: #7A0049 !important;
+      color: #fff !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* === RECOMMENDATION CARDS === */
+    .exec-summary-recommendation-number {
+      width: 32px;
+      height: 32px;
+      font-size: 14px;
+      background: #00472E !important;
+      color: #fff !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .exec-summary-recommendation-title {
+      font-size: 14px;
+    }
+
+    .exec-summary-recommendation-body {
+      font-size: 11px;
+      margin-bottom: 8px;
+    }
+
+    .exec-summary-recommendation-meta-item {
+      font-size: 10px;
+    }
+
+    /* === LINKS === */
+    a {
+      text-decoration: underline;
+      color: black;
+    }
+
+    /* === IMAGES === */
+    img {
+      max-width: 100%;
+      page-break-inside: avoid;
+    }
+
+    /* === COLOR PRESERVATION === */
+    .exec-summary-h1,
+    .exec-summary-h2,
+    .exec-summary-h3 {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+</style>`;
+}
+
+function saveExecutiveSummary(reportHTML, sourceMode, sourceReportId) {
+  if (!model.executiveSummaries) {
+    model.executiveSummaries = [];
+  }
+
+  const reportData = {
+    id: `exec_${Date.now()}`,
+    generatedAt: new Date().toISOString(),
+    html: reportHTML,
+    sourceMode: sourceMode, // 'board-report' or 'project-data'
+    sourceReportId: sourceReportId || null, // Reference to Board Report if applicable
+    metadata: {
+      projectName: model.projectName || currentProjectName || 'Untitled Project',
+      stepsCompleted: Object.values(model.steps || {}).filter(s => s.status === 'completed').length,
+      capabilityCount: model.capabilities?.length || 0,
+      objectiveCount: model.businessObjectives?.length || 0,
+      gapCount: model.gapInsights?.length || 0,
+      version: '11.0'
+    }
+  };
+
+  // Add to beginning of array (newest first)
+  model.executiveSummaries.unshift(reportData);
+
+  // Keep only last 10 reports
+  if (model.executiveSummaries.length > 10) {
+    model.executiveSummaries = model.executiveSummaries.slice(0, 10);
+  }
+
+  console.log(`✅ Executive Summary saved to model (ID: ${reportData.id}, Source: ${sourceMode})`);
+  
+  // Auto-save project with new report
+  autoSaveCurrentModel();
+
+  return reportData;
 }
 
 // -- PHASE 1: CONVERSATIONAL EA ASSISTANT ----
@@ -26429,50 +27678,112 @@ function runPortfolioOptimisation() {
 <!-- REPORT MODAL (Phase 5) -->
 <div id="report-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6">
   <div class="bg-white w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
-    <div class="bg-slate-900 p-6 text-white flex justify-between items-center">
-      <div>
-        <h3 class="text-lg font-bold">Strategic Board Report (Board Pack)</h3>
-        <p class="text-slate-400 text-[10px] uppercase tracking-widest mt-1">V11 4-Step EA Workflow &bull; APQC L1-L2 Capability Map &bull; AI Strategy &bull; Executive Summary</p>
+    <div class="bg-slate-900 p-6 text-white flex flex-col gap-4">
+      <div class="w-full flex justify-between items-center">
+        <div>
+          <h3 id="report-modal-title" class="text-lg font-bold">Strategic Board Report</h3>
+          <p class="text-slate-400 text-[10px] uppercase tracking-widest mt-1">V11 4-Step EA Workflow &bull; APQC L1-L2 Capability Map &bull; AI Strategy &bull; Executive Summary</p>
+        </div>
+        <div class="flex gap-3">
+          <button id="back-to-history-btn" onclick="backToReportHistory()" class="hidden bg-slate-600 hover:bg-slate-700 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all" title="Back to Report History">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            Back
+          </button>
+          <button id="download-html-btn" onclick="downloadReportHTML()" class="hidden bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all" title="Download as HTML">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            HTML
+          </button>
+          <button id="print-pdf-btn" onclick="printReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+            Print / PDF
+          </button>
+          <button onclick="closeReportModal()" class="text-slate-400 hover:text-white p-2">✕</button>
+        </div>
       </div>
-      <div class="flex gap-3">
-        <button onclick="showReportHistory()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all" title="View previous reports">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-          History
+      <!-- Tab Navigation -->
+      <div class="w-full flex gap-2">
+        <button id="report-modal-tab-board" onclick="switchReportType('board')" class="report-tab-btn flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all border-2 border-transparent">
+          📊 Board Report
         </button>
-        <button onclick="printReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-          Print / PDF
+        <button id="report-modal-tab-executive" onclick="switchReportType('executive')" class="report-tab-btn flex-1 bg-transparent hover:bg-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all border-2 border-slate-600">
+          ⚡ Executive Summary
         </button>
-        <button onclick="closeReportModal()" class="text-slate-400 hover:text-white p-2">✕</button>
       </div>
     </div>
 
     <div id="report-container" class="flex-1 overflow-y-auto p-12 bg-white font-serif leading-relaxed text-slate-800">
-      <!-- Welcome Screen - Initial State -->
-      <div id="report-welcome" class="flex flex-col items-center justify-center py-20">
-        <div class="text-center max-w-lg">
-          <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center text-white text-3xl mx-auto mb-6 shadow-lg">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-          </div>
-          <h2 class="text-2xl font-bold text-slate-900 mb-3">Strategic Board Report</h2>
-          <p class="text-sm text-slate-600 mb-8 leading-relaxed">Generate a comprehensive AI-powered board report or view previously saved reports from your history.</p>
-          
-          <div class="flex flex-col gap-3 max-w-sm mx-auto">
-            <button onclick="startReportGeneration()" class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-4 rounded-xl text-sm font-bold flex items-center justify-center gap-3 transition-all shadow-lg hover:shadow-xl">
+      <!-- Welcome Screen - Board Report -->
+      <div id="report-welcome-board" class="py-10">
+        <div class="max-w-3xl mx-auto">
+          <!-- Header -->
+          <div class="text-center mb-8">
+            <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center text-white text-3xl mx-auto mb-4 shadow-lg">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">Strategic Board Report</h2>
+            <p class="text-sm text-slate-600 mb-6">Generate a comprehensive AI-powered board report or load from history</p>
+            
+            <button onclick="startReportGeneration()" class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-3 rounded-xl text-sm font-bold inline-flex items-center gap-3 transition-all shadow-lg hover:shadow-xl">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
               Generate New Board Report
             </button>
-            
-            <button onclick="showReportHistory()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-3 transition-all">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-              View Report History
-              <span class="ml-1 text-xs bg-slate-300 text-slate-700 px-2 py-0.5 rounded-full" id="report-count-badge">0</span>
-            </button>
           </div>
           
-          <div class="mt-8 p-4 bg-slate-50 rounded-xl">
-            <p class="text-xs text-slate-500 leading-relaxed">
+          <!-- History List -->
+          <div id="board-report-history-list">
+            <!-- Populated by JavaScript -->
+          </div>
+          
+          <!-- Requirements Note -->
+          <div class="mt-6 p-4 bg-slate-50 rounded-xl text-center">
+            <p class="text-xs text-slate-500">
               <strong class="text-slate-700">Requirements:</strong> Minimum Step 2 (Capability Mapping) completion. Best results with all 4 steps completed.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Welcome Screen - Executive Summary -->
+      <div id="report-welcome-executive" class="hidden py-10">
+        <div class="max-w-3xl mx-auto">
+          <!-- Header -->
+          <div class="text-center mb-8">
+            <div class="w-16 h-16 bg-gradient-to-br from-green-600 to-green-700 rounded-2xl flex items-center justify-center text-white text-3xl mx-auto mb-4 shadow-lg">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="11" x2="12" y2="17"></line><polyline points="9 14 12 11 15 14"></polyline></svg>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">Executive Summary</h2>
+            <p class="text-sm text-slate-600 mb-6">Generate a C-suite-ready strategic summary or load from history</p>
+            
+            <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
+              <!-- Quick: From Board Report (shown only when available) -->
+              <button id="generate-exec-from-board-btn" onclick="generateExecutiveSummary('board-report')" class="hidden bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-xl text-sm font-bold inline-flex items-center gap-2 transition-all shadow-lg hover:shadow-xl">
+                ⚡ Quick (30s)
+              </button>
+              
+              <!-- Standard: From Project Data (always available) -->
+              <button onclick="generateExecutiveSummary('project-data')" class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl text-sm font-bold inline-flex items-center gap-2 transition-all shadow-lg hover:shadow-xl">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                Generate New Report
+              </button>
+            </div>
+            
+            <div class="mt-4">
+              <label class="inline-flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
+                <input type="checkbox" id="always-use-board-report-pref" class="rounded" onchange="saveExecutiveSummaryPreference()">
+                Always use Board Report when available
+              </label>
+            </div>
+          </div>
+          
+          <!-- History List -->
+          <div id="executive-report-history-list">
+            <!-- Populated by JavaScript -->
+          </div>
+          
+          <!-- Requirements Note -->
+          <div class="mt-6 p-4 bg-slate-50 rounded-xl text-center">
+            <p class="text-xs text-slate-500">
+              <strong class="text-slate-700">Requirements:</strong> Minimum Step 2 (Capability Mapping) completion. Quick mode requires a recent Board Report.
             </p>
           </div>
         </div>
@@ -26515,6 +27826,21 @@ function runPortfolioOptimisation() {
         </div>
       </div>
       <div id="report-content" class="hidden prose prose-slate max-w-none">
+        <!-- Print Instructions Banner (Screen Only) -->
+        <div class="print-instructions-banner" style="display: block;">
+          <div style="background: #E8F5EE; border-left: 4px solid #006B3F; padding: 16px 20px; margin-bottom: 24px; border-radius: 4px; font-size: 14px; line-height: 1.6;">
+            <strong style="color: #00472E; font-size: 15px;">📄 Print/PDF Instructions:</strong>
+            <span style="color: #475569; margin-left: 8px;">This report is optimized for A4 printing</span>
+            <ol style="margin: 12px 0 0 20px; padding: 0; font-size: 13px; color: #475569;">
+              <li style="margin-bottom: 6px;"><strong>Windows:</strong> Press <code style="background: #fff; padding: 2px 6px; border-radius: 3px; font-size: 12px;">Ctrl+P</code> | <strong>Mac:</strong> Press <code style="background: #fff; padding: 2px 6px; border-radius: 3px; font-size: 12px;">⌘+P</code></li>
+              <li style="margin-bottom: 6px;"><strong>Select Printer:</strong> Choose "Print to PDF" or "Save as PDF"</li>
+              <li style="margin-bottom: 6px;"><strong>Paper Size:</strong> Ensure set to A4 or Letter</li>
+              <li style="margin-bottom: 6px;"><strong>Margins:</strong> Use default margins (0.75in recommended)</li>
+              <li style="margin-bottom: 6px;"><strong>Print Background:</strong> Optional - uncheck to save ink</li>
+              <li><strong>Click Save/Print</strong> - Done!</li>
+            </ol>
+          </div>
+        </div>
         <!-- AI Content injected here -->
       </div>
     </div>
@@ -27139,43 +28465,432 @@ function runPortfolioOptimisation() {
     border-radius: 20px;
   }
 
-  /* -- PRINT OPTIMIZATIONS ---------------------------------------------- */
+  /* ═══════════════════════════════════════════════════════════════════════
+     COMPREHENSIVE PRINT OPTIMIZATION - Based on EA Best Practices
+     Professional Print/PDF Output with Strategic Page Break Controls
+  ═══════════════════════════════════════════════════════════════════════ */
+  
   @media print {
-    body * { visibility: hidden; }
-    #report-container, #report-container * { visibility: visible; }
-    #report-container { position: absolute; left: 0; top: 0; width: 100%; padding: 0; }
-    #report-modal { background: white; position: static; display: block; }
-    .report-no-print { display: none !important; }
-    
-    .report-h1 { 
-      page-break-after: avoid; 
-      margin-top: 0;
+    /* === PAGE SETUP === */
+    @page {
+      size: A4;
+      margin: 0.75in;
     }
-    .report-h2 { 
+
+    /* === HIDE MAIN APPLICATION === */
+    body > *:not(#report-modal) {
+      display: none !important;
+    }
+    
+    /* === RESET HTML AND BODY === */
+    html, body {
+      width: 100%;
+      height: auto;
+      margin: 0;
+      padding: 0;
+      background: white;
+      overflow: visible;
+    }
+    
+    /* === MODAL TO NORMAL DOCUMENT FLOW === */
+    #report-modal { 
+      display: block !important;
+      position: static !important;
+      inset: unset !important;
+      width: 100% !important;
+      height: auto !important;
+      max-width: 100% !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: white !important;
+      backdrop-filter: none !important;
+      overflow: visible !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      z-index: 1 !important;
+    }
+    
+    #report-modal > div {
+      max-width: 100% !important;
+      max-height: none !important;
+      width: 100% !important;
+      height: auto !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      overflow: visible !important;
+    }
+    
+    #report-container { 
+      padding: 0 !important;
+      margin: 0 !important;
+      max-height: none !important;
+      overflow: visible !important;
+      background: white !important;
+    }
+    
+    #report-content {
+      display: block !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    
+    /* === HIDE UI CHROME === */
+    #report-modal .bg-slate-900,
+    .report-no-print,
+    button,
+    input,
+    select,
+    textarea,
+    .print-instructions-banner,
+    #report-welcome-board,
+    #report-welcome-executive,
+    #report-loading { 
+      display: none !important;
+    }
+
+    /* === GLOBAL RESET === */
+    * {
+      transition: none !important;
+      animation: none !important;
+      box-shadow: none !important;
+    }
+
+    body {
+      background: white;
+      color: black;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    /* === TYPOGRAPHY OPTIMIZATION === */
+    .report-h1 { 
+      font-size: 24px;
+      margin: 0 0 18px 0;
+      padding-bottom: 8px;
       page-break-after: avoid; 
-      page-break-before: always; 
+      border-bottom-width: 2px;
+    }
+    
+    .report-h2 { 
+      font-size: 18px;
+      margin: 24px 0 12px 0;
+      padding-top: 16px;
+      page-break-after: avoid; 
+      page-break-before: auto;
+      border-top-width: 1px;
+    }
+    
+    .report-h2:first-of-type {
+      page-break-before: auto;
       margin-top: 0;
       padding-top: 0;
     }
-    .report-h2:first-of-type {
-      page-break-before: auto;
+    
+    .report-h3 { 
+      font-size: 14px;
+      margin: 16px 0 8px 0;
+      page-break-after: avoid;
     }
+    
+    .report-h4 {
+      font-size: 12px;
+      margin: 14px 0 6px 0;
+      page-break-after: avoid;
+    }
+    
+    .report-p { 
+      font-size: 11px;
+      line-height: 1.5;
+      margin: 0 0 12px 0;
+      orphans: 3;
+      widows: 3;
+    }
+
+    /* === PAGE BREAK CONTROLS === */
     .report-table, 
     .report-kpi-grid, 
+    .report-kpi-card,
     .report-recommendation,
-    .report-infobox {
+    .report-infobox,
+    .report-card,
+    .report-apqc-category,
+    .report-roadmap-wave {
       page-break-inside: avoid;
+      margin: 12px 0;
     }
-    .report-kpi-card:hover,
-    .report-table tbody tr:hover,
-    .report-heatmap-cell:hover,
+
+    h1, h2, h3, h4, h5, h6 {
+      page-break-after: avoid;
+      orphans: 3;
+      widows: 3;
+    }
+
+    p, li {
+      orphans: 3;
+      widows: 3;
+    }
+
+    /* === CARD & SHADOW OPTIMIZATION === */
+    .report-kpi-card {
+      box-shadow: none;
+      border: 1px solid #ccc;
+      padding: 16px;
+      background: white;
+    }
+
+    .report-kpi-card:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    .report-recommendation {
+      box-shadow: none;
+      border: 2px solid #3b82f6;
+      padding: 16px;
+      background: white;
+    }
+
+    .report-infobox {
+      box-shadow: none;
+      padding: 16px 20px;
+      border-left-width: 3px;
+    }
+
+    .report-card {
+      box-shadow: none;
+      border: 1px solid #ccc;
+      padding: 16px;
+      background: white;
+    }
+
+    /* === TABLE OPTIMIZATION === */
+    .report-table {
+      border: 1px solid #ccc;
+      font-size: 10px;
+      margin: 16px 0;
+    }
+
+    .report-table th {
+      padding: 8px 12px;
+      font-size: 11px;
+      background: #1e293b !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .report-table td {
+      padding: 8px 12px;
+      font-size: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .report-table tbody tr:hover {
+      background: transparent;
+      transform: none;
+    }
+
+    /* === KPI GRID OPTIMIZATION === */
+    .report-kpi-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .report-kpi-value {
+      font-size: 28px;
+    }
+
+    .report-kpi-unit {
+      font-size: 16px;
+    }
+
+    .report-kpi-delta {
+      font-size: 10px;
+      padding: 3px 6px;
+    }
+
+    /* === BADGE OPTIMIZATION === */
+    .report-gap-badge,
+    .report-badge {
+      padding: 3px 8px;
+      font-size: 10px;
+      border: 1px solid #ccc;
+    }
+
+    .report-gap-critical {
+      background: #fee2e2 !important;
+      color: #991b1b !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .report-gap-high {
+      background: #fef3c7 !important;
+      color: #78350f !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .report-gap-medium {
+      background: #dbeafe !important;
+      color: #1e3a8a !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* === RECOMMENDATION CARDS === */
+    .report-recommendation-number {
+      width: 32px;
+      height: 32px;
+      font-size: 14px;
+      background: #1e293b !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .report-recommendation-title {
+      font-size: 14px;
+    }
+
+    .report-recommendation-body {
+      font-size: 11px;
+    }
+
+    .report-recommendation-meta-item {
+      font-size: 10px;
+    }
+
+    /* === ROADMAP WAVE OPTIMIZATION === */
+    .report-roadmap-wave {
+      padding: 16px;
+      border-width: 1px;
+    }
+
+    .report-roadmap-wave::before {
+      display: none;
+    }
+
+    .report-roadmap-wave-title {
+      font-size: 14px;
+    }
+
+    .report-roadmap-wave-duration {
+      font-size: 10px;
+      padding: 4px 8px;
+    }
+
+    /* === APQC CATEGORY OPTIMIZATION === */
+    .report-apqc-category {
+      margin: 24px 0;
+      border: 1px solid #ccc;
+    }
+
+    .report-apqc-category-header {
+      background: #1e293b !important;
+      color: white !important;
+      padding: 12px 16px;
+      font-size: 14px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .report-apqc-category-maturity {
+      font-size: 11px;
+      padding: 3px 10px;
+    }
+
+    .report-apqc-subcategories {
+      padding: 12px;
+    }
+
+    .report-apqc-subcategory {
+      padding: 10px 14px;
+      font-size: 11px;
+      border-left-width: 3px;
+    }
+
+    .report-apqc-subcategory:hover {
+      background: #f8fafc;
+      transform: none;
+    }
+
+    /* === HEATMAP OPTIMIZATION === */
+    .report-heatmap-cell {
+      font-size: 9px;
+      padding: 8px;
+    }
+
+    .report-heatmap-cell:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* === LIST OPTIMIZATION === */
+    .report-list li {
+      padding: 10px 14px;
+      font-size: 11px;
+      border-left-width: 3px;
+    }
+
     .report-list li:hover {
       transform: none;
       box-shadow: none;
     }
-    @page {
-      margin: 2cm;
-      size: A4;
+
+    /* === INFOBOX COLOR PRESERVATION === */
+    .report-infobox-insight {
+      background: #eff6ff !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .report-infobox-warning {
+      background: #fef3c7 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .report-infobox-success {
+      background: #d1fae5 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .report-infobox-critical {
+      background: #fee2e2 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .report-infobox-icon {
+      font-size: 16px;
+      width: 28px;
+      height: 28px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* === LINKS === */
+    a {
+      text-decoration: underline;
+      color: black;
+    }
+
+    /* === IMAGES === */
+    img {
+      max-width: 100%;
+      page-break-inside: avoid;
+    }
+
+    /* === COLOR PRESERVATION === */
+    .report-h1,
+    .report-h2 {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
   }
   

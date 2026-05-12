@@ -15,6 +15,11 @@
 
 const AIService = (() => {
 
+  // ═══════════════════════════════════════════════════════════════════
+  console.log(`%c[AIService.js] 📦 Module loaded`, 'color: #8b5cf6; font-weight: bold');
+  console.log(`%c[AIService.js] Version: V11-Evidence-Based (May 2026)`, 'color: #8b5cf6');
+  // ═══════════════════════════════════════════════════════════════════
+
   // ── Call log (in-memory, for debugging) ──────────────────────────────────
   const _callLog = [];
 
@@ -86,7 +91,7 @@ const AIService = (() => {
     console.log(`  Temperature: ${temperature !== undefined ? temperature : 'N/A (reasoning model)'}`);
     console.log(`  Timeout:     ${timeoutMs}ms`);
     console.log(`  Expects JSON: ${opts.expectsJson || false}`);
-    // ═══════════════════════════════════════════════════════════════════
+
 
     // ── Try proxy first ───────────────────────────────────────────────────
     try {

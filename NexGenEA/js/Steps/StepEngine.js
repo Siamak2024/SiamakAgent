@@ -1,5 +1,7 @@
 ﻿/**
  * StepEngine.js — Main orchestrator for the modular EA workflow.
+ * VERSION: V11-Evidence-Based (May 2026)
+ * LAST MODIFIED: 2026-05-12
  *
  * Replaces the individual step trigger functions (clarifyStrategicIntent,
  * generateBMC, generateArchitecture, etc.) with a unified runner.
@@ -18,7 +20,13 @@
  *  8. Persists, renders, and triggers UI updates
  */
 
+// Version check log (helps verify fresh code is loaded)
+console.log('%c[StepEngine.js] 📦 Module loaded', 'color: #3b82f6; font-weight: bold');
+console.log('[StepEngine.js] Version: V11-Evidence-Based (May 2026)');
+console.log('[StepEngine.js] Last modified: 2026-05-12');
+
 const StepEngine = (() => {
+  'use strict';
 
   // ── Step module registry ─────────────────────────────────────────────────
   const STEP_MODULES = {
