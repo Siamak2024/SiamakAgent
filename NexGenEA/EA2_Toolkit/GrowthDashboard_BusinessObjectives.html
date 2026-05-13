@@ -1,0 +1,3316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Objectives - Growth Sprint Dashboard</title>
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Growth Dashboard Scripts -->
+    <script src="../../AzureOpenAIProxy.js"></script>
+    <script src="../../js/EA_AccountManager.js"></script>
+    <script src="../../js/GrowthDashboard_ObjectivesManager.js"></script>
+    <script src="../../js/GrowthDashboard_BusinessObjectivesWorkflow.js"></script>
+    <script src="../../js/GrowthDashboard_ObjectiveTemplates.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--ea-background);
+            color: var(--ea-text-primary);
+        }
+
+        /* Header */
+        .page-header {
+            background: linear-gradient(135deg, var(--ea-accent) 0%, #3d6956 100%);
+            padding: 24px 32px;
+            box-shadow: var(--ea-shadow-card);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateX(-2px);
+        }
+
+        .page-header h1 {
+            color: white;
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+        }
+
+        .account-chip {
+            background: rgba(255, 255, 255, 0.25);
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: white;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Main Content */
+        .main-container {
+            max-width: 1400px;
+            margin: 32px auto;
+            padding: 0 32px;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            background: var(--ea-surface);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--ea-shadow-soft);
+            display: flex;
+            gap: 32px;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .stat-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .stat-icon.orange {
+            background: linear-gradient(135deg, #fb923c, #f97316);
+            color: white;
+        }
+
+        .stat-icon.green {
+            background: linear-gradient(135deg, var(--ea-accent), #3d6956);
+            color: white;
+        }
+
+        .stat-icon.blue {
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            color: white;
+        }
+
+        .stat-details h3 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--ea-text-primary);
+            margin-bottom: 2px;
+        }
+
+        .stat-details p {
+            font-size: 13px;
+            color: var(--ea-text-secondary);
+        }
+
+        /* Actions Bar */
+        .actions-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .actions-left h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--ea-text-primary);
+        }
+
+        .actions-right {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--ea-accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--ea-primary);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--ea-text-primary);
+            border: 1px solid var(--ea-border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--ea-hover);
+        }
+
+        .btn-danger {
+            background: white;
+            color: #dc2626;
+            border: 1px solid #dc2626;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        /* Objectives Grid */
+        .objectives-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .objective-card {
+            background: var(--ea-surface);
+            border: 2px solid var(--ea-border);
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .objective-card.selected {
+            border-color: var(--ea-accent);
+            background: #f0f9ff;
+        }
+
+        .objective-card:hover {
+            border-color: var(--ea-accent);
+            box-shadow: var(--ea-shadow-card);
+        }
+
+        .objective-card-checkbox {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            accent-color: var(--ea-accent);
+        }
+
+        .objective-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            margin-left: 40px; /* Space for checkbox */
+        }
+
+        .objective-title {
+            flex: 1;
+        }
+
+        .objective-title h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--ea-text-primary);
+            margin-bottom: 4px;
+        }
+
+        .objective-id {
+            font-size: 11px;
+            color: var(--ea-text-secondary);
+            font-family: 'Courier New', monospace;
+        }
+
+        .objective-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            border-radius: 6px;
+            border: 1px solid var(--ea-border);
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            color: var(--ea-text-secondary);
+        }
+
+        .btn-icon:hover {
+            border-color: var(--ea-accent);
+            color: var(--ea-accent);
+        }
+
+        .btn-icon.delete:hover {
+            border-color: #dc2626;
+            color: #dc2626;
+            background: #fef2f2;
+        }
+
+        .objective-description {
+            color: var(--ea-text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .objective-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .meta-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .priority-high {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .priority-medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .priority-low {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .theme-badge {
+            background: rgba(0, 107, 63, 0.08);
+            color: var(--ea-accent);
+        }
+
+        .creator-badge {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .objective-outcome {
+            background: #f8f9fa;
+            border-left: 3px solid var(--ea-accent);
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: var(--ea-text-secondary);
+            font-style: italic;
+        }
+
+        .objective-outcome strong {
+            color: var(--ea-text-primary);
+            font-style: normal;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: block;
+            text-align: center;
+            padding: 80px 20px;
+            background: var(--ea-surface);
+            border-radius: 16px;
+            box-shadow: var(--ea-shadow-soft);
+        }
+
+        .empty-icon {
+            font-size: 80px;
+            color: #d1d5db;
+            margin-bottom: 24px;
+        }
+
+        .empty-state h3 {
+            font-size: 24px;
+            color: var(--ea-text-primary);
+            margin-bottom: 12px;
+        }
+
+        .empty-state p {
+            font-size: 16px;
+            color: var(--ea-text-secondary);
+            margin-bottom: 32px;
+        }
+
+        /* AI Workflow Panel (Collapsible) */
+        .ai-workflow-panel {
+            background: #1e1e1e;
+            border-radius: 12px;
+            margin-top: 24px;
+            overflow: hidden;
+            box-shadow: var(--ea-shadow-card);
+            display: none;
+        }
+
+        .ai-workflow-panel.active {
+            display: block;
+        }
+
+        .workflow-header {
+            background: #2d2d2d;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .workflow-header h3 {
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .workflow-close {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .workflow-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .workflow-body {
+            padding: 24px;
+        }
+
+        /* Industry Selection */
+        .industry-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .industry-card {
+            background: #2d2d2d;
+            border: 2px solid #404040;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .industry-card:hover {
+            border-color: #0066cc;
+            background: #353535;
+        }
+
+        .industry-card.selected {
+            background: #0066cc;
+            border-color: #0066cc;
+        }
+
+        .industry-card i {
+            font-size: 32px;
+            color: white;
+            margin-bottom: 8px;
+        }
+
+        .industry-card h4 {
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        /* Chat Interface */
+        .chat-container {
+            display: none;
+        }
+
+        .chat-container.active {
+            display: block;
+        }
+
+        .chat-messages {
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+        }
+
+        .chat-message {
+            margin-bottom: 16px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .chat-message.ai {
+            flex-direction: row;
+        }
+
+        .chat-message.user {
+            flex-direction: row-reverse;
+        }
+
+        .chat-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .chat-message.ai .chat-avatar {
+            background: rgba(0, 102, 204, 0.2);
+            color: #0066cc;
+        }
+
+        .chat-message.user .chat-avatar {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .chat-bubble {
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 70%;
+        }
+
+        .chat-message.ai .chat-bubble {
+            background: #404040;
+            color: #e0e0e0;
+        }
+
+        .chat-message.user .chat-bubble {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .question-counter {
+            background: #2d2d2d;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            color: #e0e0e0;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        .question-counter strong {
+            color: #0066cc;
+        }
+
+        .chat-input-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .chat-input-row textarea {
+            flex: 1;
+            padding: 12px;
+            background: #2d2d2d;
+            border: 1px solid #404040;
+            border-radius: 8px;
+            color: white;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .chat-input-row textarea:focus {
+            outline: none;
+            border-color: #0066cc;
+        }
+
+        .chat-input-row button {
+            width: 48px;
+            height: 48px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .chat-input-row button:hover {
+            background: #0052a3;
+        }
+
+        .chat-input-row button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Review Panel */
+        .review-panel {
+            display: none;
+        }
+
+        .review-panel.active {
+            display: block;
+        }
+
+        .review-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .review-card {
+            background: #2d2d2d;
+            border: 2px solid #404040;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .review-card h4 {
+            color: white;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .review-card p {
+            color: #b0b0b0;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        /* Validation Controls */
+        .validation-section {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e5e5;
+        }
+
+        .validation-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .validation-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .validation-checkbox input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .stakeholder-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .validation-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: #28a745;
+            color: white;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .validation-badge i {
+            font-size: 12px;
+        }
+
+        .stakeholder-info {
+            font-size: 13px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        /* Comments Section */
+        .comments-section {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e5e5;
+        }
+
+        .comments-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .comments-header h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .comments-toggle {
+            font-size: 12px;
+            color: #0066cc;
+        }
+
+        .comments-list {
+            display: none;
+            margin-bottom: 12px;
+        }
+
+        .comments-list.expanded {
+            display: block;
+        }
+
+        .comment-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .comment-text {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .comment-meta {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .comment-input {
+            display: flex;
+            gap: 8px;
+        }
+
+        .comment-input textarea {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+            min-height: 60px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        .comment-input button {
+            align-self: flex-end;
+        }
+
+        /* Edit Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e5e5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 20px;
+            color: #333;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #666;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid #e5e5e5;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* Objectives Tabs */
+        .objectives-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid var(--ea-border);
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--ea-text-secondary);
+            transition: all 0.2s;
+            margin-bottom: -2px;
+        }
+
+        .tab-btn:hover {
+            color: var(--ea-text-primary);
+        }
+
+        .tab-btn.active {
+            color: var(--ea-primary);
+            border-bottom-color: var(--ea-primary);
+        }
+
+        .tab-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            background: #e5e7eb;
+            color: #374151;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+
+        .tab-btn.active .tab-badge {
+            background: var(--ea-primary);
+            color: white;
+        }
+
+        /* Shared Objective Badge */
+        .shared-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: #e0f2fe;
+            color: #0369a1;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .shared-by-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        /* Copy Action */
+        .copy-action {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e5e5;
+        }
+
+        .copy-action .btn {
+            width: 100%;
+        }
+
+        /* Bulk Actions Toolbar */
+        .bulk-actions-toolbar {
+            background: var(--ea-accent);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--ea-shadow-card);
+        }
+
+        .bulk-actions-toolbar.active {
+            display: flex;
+        }
+
+        .bulk-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-weight: 500;
+        }
+
+        .bulk-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .bulk-actions .btn {
+            background: white;
+            color: var(--ea-accent);
+        }
+
+        .bulk-actions .btn-danger {
+            background: #dc2626;
+            color: white;
+            border-color: #dc2626;
+        }
+
+        .bulk-actions .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        /* Filters and Search */
+        .filters-bar {
+            background: var(--ea-surface);
+            border: 1px solid var(--ea-border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 1fr 200px 200px 200px;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .search-input {
+            position: relative;
+        }
+
+        .search-input input {
+            width: 100%;
+            padding: 10px 10px 10px 40px;
+            border: 1px solid var(--ea-border);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .search-input i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--ea-text-secondary);
+        }
+
+        .filter-select {
+            padding: 10px;
+            border: 1px solid var(--ea-border);
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        /* Capability Cards */
+        .capability-category {
+            background: var(--ea-surface);
+            border: 2px solid var(--ea-border);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .capability-category-header {
+            background: linear-gradient(135deg, #0066cc 0%, #004c99 100%);
+            color: white;
+            padding: 20px 24px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .capability-category-header:hover {
+            background: linear-gradient(135deg, #0052a3 0%, #003d7a 100%);
+        }
+
+        .capability-category-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .capability-category-title h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .capability-code {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .capability-toggle {
+            transition: transform 0.3s;
+        }
+
+        .capability-toggle.expanded {
+            transform: rotate(180deg);
+        }
+
+        .capability-l2-list {
+            display: none;
+            padding: 16px;
+            background: #f8f9fa;
+        }
+
+        .capability-l2-list.expanded {
+            display: block;
+        }
+
+        .capability-l2-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .capability-l2-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .capability-l2-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .capability-l2-title {
+            flex: 1;
+        }
+
+        .capability-l2-title h4 {
+            margin: 0 0 4px 0;
+            font-size: 16px;
+            color: var(--ea-text-primary);
+        }
+
+        .capability-l2-code {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .capability-l2-description {
+            color: var(--ea-text-secondary);
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .capability-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .capability-theme-badge {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .capability-category-badge {
+            background: #f3e5f5;
+            color: #7b1fa2;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .capability-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .capability-edit-indicator {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #ff9800;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .capability-linked-objectives {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .capability-linked-objectives h5 {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .linked-objective-tag {
+            display: inline-block;
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 6px;
+            margin-bottom: 6px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Page Header -->
+    <header class="page-header">
+        <div class="header-content">
+            <div class="header-left">
+                <button class="back-btn" onclick="goBack()">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <div>
+                    <h1>Business Objectives</h1>
+                    <p class="page-subtitle">Define strategic objectives for Growth Sprint planning</p>
+                </div>
+            </div>
+            <div class="account-chip" id="account-chip">
+                <i class="fas fa-building"></i>
+                <span id="account-name">Loading...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-icon orange">
+                    <i class="fas fa-target"></i>
+                </div>
+                <div class="stat-details">
+                    <h3 id="total-count">0</h3>
+                    <p>Total Objectives</p>
+                </div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-icon green">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-details">
+                    <h3 id="validated-count">0</h3>
+                    <p>Validated</p>
+                </div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-icon blue">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="stat-details">
+                    <h3 id="ai-generated-count">0</h3>
+                    <p>AI Generated</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions Bar -->
+        <div class="actions-bar">
+            <div class="actions-left">
+                <h2>Strategic Objectives</h2>
+            </div>
+            <div class="actions-right">
+                <button class="btn btn-primary" onclick="openAddObjectiveModal()" id="add-btn">
+                    <i class="fas fa-plus"></i> Add New Objective
+                </button>
+                <button class="btn btn-secondary" onclick="startAIWorkflow()">
+                    <i class="fas fa-robot"></i> AI Workflow
+                </button>
+                <button class="btn btn-secondary" onclick="exportObjectives()">
+                    <i class="fas fa-download"></i> Export
+                </button>
+            </div>
+        </div>
+
+        <!-- Objectives Tabs -->
+        <div class="objectives-tabs" id="objectives-tabs" style="display: none;">
+            <button class="tab-btn active" onclick="switchTab('my')" id="tab-my">
+                <i class="fas fa-user"></i> My Objectives
+                <span class="tab-badge" id="badge-my">0</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('shared')" id="tab-shared">
+                <i class="fas fa-share-alt"></i> Shared from Industry
+                <span class="tab-badge" id="badge-shared">0</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('capabilities')" id="tab-capabilities">
+                <i class="fas fa-layer-group"></i> Capabilities
+                <span class="tab-badge" id="badge-capabilities">0</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('templates')" id="tab-templates">
+                <i class="fas fa-file-alt"></i> Templates
+                <span class="tab-badge" id="badge-templates">0</span>
+            </button>
+        </div>
+
+        <!-- Bulk Actions Toolbar -->
+        <div class="bulk-actions-toolbar" id="bulk-toolbar">
+            <div class="bulk-info">
+                <span id="selected-count">0 selected</span>
+                <button class="btn btn-sm" onclick="selectAll()" id="select-all-btn">Select All</button>
+                <button class="btn btn-sm" onclick="deselectAll()">Deselect All</button>
+            </div>
+            <div class="bulk-actions">
+                <button class="btn btn-danger" onclick="bulkDelete()">
+                    <i class="fas fa-trash"></i> Delete Selected
+                </button>
+            </div>
+        </div>
+
+        <!-- Filters and Search Bar -->
+        <div class="filters-bar" id="filters-bar" style="display: none;">
+            <div class="search-input">
+                <i class="fas fa-search"></i>
+                <input type="text" id="search-objectives" placeholder="Search objectives..." oninput="applyFilters()">
+            </div>
+            <select class="filter-select" id="filter-priority" onchange="applyFilters()">
+                <option value="">All Priorities</option>
+                <option value="high">High Priority</option>
+                <option value="medium">Medium Priority</option>
+                <option value="low">Low Priority</option>
+            </select>
+            <select class="filter-select" id="filter-validation" onchange="applyFilters()">
+                <option value="">All Validation</option>
+                <option value="validated">Validated</option>
+                <option value="hypothesis">Hypothesis</option>
+                <option value="unknown">Unknown</option>
+            </select>
+            <select class="filter-select" id="sort-by" onchange="applyFilters()">
+                <option value="date-desc">Newest First</option>
+                <option value="date-asc">Oldest First</option>
+                <option value="name-asc">Name A-Z</option>
+                <option value="name-desc">Name Z-A</option>
+                <option value="priority">Priority</option>
+            </select>
+        </div>
+
+        <!-- Objectives Grid -->
+        <div id="objectives-container">
+            <div class="empty-state" id="empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-inbox"></i>
+                </div>
+                <h3 id="empty-state-title">No Objectives Defined Yet</h3>
+                <p id="empty-state-message">Start by adding your first strategic objective</p>
+                <div id="empty-state-actions" style="display: flex; gap: 12px; justify-content: center; margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="openAddObjectiveModal()">
+                        <i class="fas fa-plus"></i> Add Manually
+                    </button>
+                    <button class="btn btn-secondary" onclick="startAIWorkflow()">
+                        <i class="fas fa-robot"></i> Use AI Workflow
+                    </button>
+                </div>
+            </div>
+
+            <div class="objectives-grid" id="objectives-grid" style="display: none;">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- AI Workflow Panel -->
+        <div class="ai-workflow-panel" id="ai-workflow-panel">
+            <div class="workflow-header">
+                <h3>
+                    <i class="fas fa-robot"></i>
+                    AI-Assisted Objectives Definition
+                </h3>
+                <button class="workflow-close" onclick="closeAIWorkflow()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="workflow-body">
+                <!-- Industry Selection -->
+                <div id="industry-step">
+                    <h4 style="color: white; margin-bottom: 16px;">Select Industry Context</h4>
+                    <div class="industry-grid" id="industry-grid">
+                        <!-- Populated by JS -->
+                    </div>
+                    <button class="btn btn-primary" id="start-questionnaire-btn" onclick="startQuestionnaire()" disabled>
+                        Start Questionnaire
+                    </button>
+                </div>
+
+                <!-- Chat Interface -->
+                <div class="chat-container" id="chat-container">
+                    <div class="question-counter" id="question-counter">
+                        Question <strong><span id="current-q">0</span> of 5</strong>
+                    </div>
+                    <div class="chat-messages" id="chat-messages">
+                        <!-- Populated by JS -->
+                    </div>
+                    <div class="chat-input-row">
+                        <textarea id="chat-input" placeholder="Type your response..."></textarea>
+                        <button id="send-btn" onclick="sendMessage()">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Review Panel -->
+                <div class="review-panel" id="review-panel">
+                    <h4 style="color: white; margin-bottom: 16px;">Review Generated Objectives</h4>
+                    <div class="review-grid" id="review-grid">
+                        <!-- Populated by JS -->
+                    </div>
+                    <button class="btn btn-primary" onclick="saveGeneratedObjectives()" style="margin-top: 16px;">
+                        <i class="fas fa-save"></i> Save Objectives
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Objective Modal -->
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Objective</h3>
+                <button class="modal-close" onclick="closeEditModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-form">
+                    <input type="hidden" id="edit-objective-id">
+                    <div class="form-group">
+                        <label for="edit-name">Objective Name *</label>
+                        <input type="text" id="edit-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-description">Description *</label>
+                        <textarea id="edit-description" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-priority">Priority *</label>
+                        <select id="edit-priority" required>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-theme">Strategic Theme</label>
+                        <input type="text" id="edit-theme">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-outcome">Expected Outcome Statement</label>
+                        <textarea id="edit-outcome"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-capabilities">Linked Capabilities (Optional)</label>
+                        <select id="edit-capabilities" multiple style="height: 120px;">
+                            <!-- Populated dynamically -->
+                        </select>
+                        <small style="color: #666; font-size: 12px;">Hold Ctrl/Cmd to select multiple</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEdit()">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Objective Modal -->
+    <div class="modal-overlay" id="add-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Objective</h3>
+                <button class="modal-close" onclick="closeAddModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="add-form">
+                    <div class="form-group">
+                        <label for="add-name">Objective Name *</label>
+                        <input type="text" id="add-name" placeholder="e.g., Accelerate Digital Transformation" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-description">Description *</label>
+                        <textarea id="add-description" placeholder="Describe what this objective aims to achieve..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-priority">Priority *</label>
+                        <select id="add-priority" required>
+                            <option value="high">High</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-theme">Strategic Theme *</label>
+                        <input type="text" id="add-theme" placeholder="e.g., Digital transformation, Growth, Cost optimization" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-outcome">Expected Outcome Statement *</label>
+                        <textarea id="add-outcome" placeholder="Within [timeframe], achieve [specific result] with [measurable metrics]..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-capabilities">Linked Capabilities (Optional)</label>
+                        <select id="add-capabilities" multiple style="height: 120px;">
+                            <!-- Populated dynamically -->
+                        </select>
+                        <small style="color: #666; font-size: 12px;">Hold Ctrl/Cmd to select multiple</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAddModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveNewObjective()">
+                    <i class="fas fa-save"></i> Add Objective
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Capability Modal -->
+    <div class="modal-overlay" id="edit-capability-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Capability</h3>
+                <button class="modal-close" onclick="closeEditCapabilityModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-capability-form">
+                    <input type="hidden" id="edit-cap-id">
+                    <div class="form-group">
+                        <label>Capability Code</label>
+                        <input type="text" id="edit-cap-code" disabled style="background: #f0f0f0;">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-cap-name">Capability Name *</label>
+                        <input type="text" id="edit-cap-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-cap-description">Description *</label>
+                        <textarea id="edit-cap-description" rows="4" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <small style="color: #666;">
+                            <i class="fas fa-info-circle"></i> 
+                            Custom edits are saved per account. Reset to restore APQC defaults.
+                        </small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="resetCapabilityToDefault()">
+                    <i class="fas fa-undo"></i> Reset to Default
+                </button>
+                <button class="btn btn-secondary" onclick="closeEditCapabilityModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveCapabilityEdit()">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get account from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        let selectedAccountId = urlParams.get('accountId');
+        let accountManager;
+        let currentTab = 'my'; // 'my' | 'shared'
+        let accountIndustry = null;
+
+        // Workflow state
+        let workflowState = {
+            step: 'industry', // 'industry' | 'chat' | 'review'
+            selectedIndustry: null,
+            synthesis: null
+        };
+
+        // Selection state for bulk operations
+        let selectedObjectives = new Set();
+        let allObjectives = []; // Cached for filtering/sorting
+
+        // APQC Capabilities state
+        let apqcFramework = null; // Loaded APQC PCF data
+        let customCapabilities = {}; // Custom edits per account: { capabilityId: { name, description } }
+        let capabilityLinks = {}; // Links: { objectiveId: [capabilityIds] }
+
+        // Industries
+        const industries = [
+            { name: 'Manufacturing', icon: 'fa-industry' },
+            { name: 'Services', icon: 'fa-concierge-bell' },
+            { name: 'Retail', icon: 'fa-shopping-cart' },
+            { name: 'Financial Services', icon: 'fa-chart-line' },
+            { name: 'Insurance', icon: 'fa-shield-alt' },
+            { name: 'Healthcare', icon: 'fa-heartbeat' },
+            { name: 'Technology', icon: 'fa-laptop-code' },
+            { name: 'All', icon: 'fa-globe' }
+        ];
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            // Initialize AccountManager
+            accountManager = new EA_AccountManager();
+
+            if (!selectedAccountId) {
+                alert('No account selected. Redirecting to dashboard...');
+                window.location.href = 'EA_Growth_Dashboard.html';
+                return;
+            }
+
+            loadPage();
+        });
+
+        function loadPage() {
+            // Load account info
+            const account = accountManager.getAccount(selectedAccountId);
+            if (!account) {
+                alert('Account not found. Redirecting to dashboard...');
+                window.location.href = 'EA_Growth_Dashboard.html';
+                return;
+            }
+
+            document.getElementById('account-name').textContent = account.name;
+            accountIndustry = account.industry;
+
+            // Load custom capabilities and links from localStorage (lightweight)
+            loadCustomCapabilities();
+            loadCapabilityLinks();
+
+            // Load objectives
+            loadObjectives();
+
+            // Load industry grid
+            loadIndustryGrid();
+            
+            // Note: APQC framework loaded on-demand when Capabilities tab accessed
+        }
+
+        function loadObjectives() {
+            // Clear selections when reloading
+            deselectAll();
+            
+            // Get combined data
+            const accountObjectives = GrowthDashboard_ObjectivesManager.listObjectivesByAccount(selectedAccountId);
+            const sharedObjectives = accountIndustry ? 
+                GrowthDashboard_ObjectivesManager.listSharedObjectivesByIndustry(accountIndustry).filter(obj => obj.accountId !== selectedAccountId) : 
+                [];
+            
+            const objectives = currentTab === 'my' ? accountObjectives : sharedObjectives;
+            
+            // Cache objectives for filtering/sorting
+            allObjectives = objectives;
+            
+            // Show/hide filters bar (only on "My Objectives" tab)
+            const filtersBar = document.getElementById('filters-bar');
+            if (objectives.length > 0 && currentTab === 'my') {
+                filtersBar.style.display = 'grid';
+            } else {
+                filtersBar.style.display = 'none';
+            }
+            
+            // Update tab badges
+            document.getElementById('badge-my').textContent = accountObjectives.length;
+            document.getElementById('badge-shared').textContent = sharedObjectives.length;
+            
+            // Always show tabs (Capabilities tab is always available)
+            document.getElementById('objectives-tabs').style.display = 'flex';
+            
+            // Update stats (always show account stats)
+            document.getElementById('total-count').textContent = accountObjectives.length;
+            
+            const validated = accountObjectives.filter(o => o.validation_status === 'validated').length;
+            document.getElementById('validated-count').textContent = validated;
+            
+            const aiGenerated = accountObjectives.filter(o => o.createdBy === 'ai_workflow').length;
+            document.getElementById('ai-generated-count').textContent = aiGenerated;
+
+            // Check limit (only for account objectives)
+            const maxReached = accountObjectives.length >= GrowthDashboard_ObjectivesManager.MAX_OBJECTIVES_PER_ACCOUNT;
+            document.getElementById('add-btn').disabled = maxReached;
+
+            // Show/hide empty state
+            if (objectives.length === 0) {
+                document.getElementById('empty-state').style.display = 'block';
+                document.getElementById('objectives-grid').style.display = 'none';
+                
+                // Update empty state message based on tab
+                const emptyStateIcon = document.querySelector('#empty-state .empty-icon i');
+                const emptyStateTitle = document.getElementById('empty-state-title');
+                const emptyStateMessage = document.getElementById('empty-state-message');
+                const emptyStateActions = document.getElementById('empty-state-actions');
+                
+                if (currentTab === 'shared') {
+                    // Shared tab - no action buttons
+                    emptyStateIcon.className = 'fas fa-share-alt'; // Change icon to share
+                    emptyStateTitle.textContent = 'No Shared Objectives Yet';
+                    if (accountIndustry) {
+                        emptyStateMessage.innerHTML = `No objectives have been shared by other accounts in the <strong>${accountIndustry}</strong> industry yet.<br><br>When other accounts share their objectives, they will appear here for you to view and copy to your account.`;
+                    } else {
+                        emptyStateMessage.textContent = 'No industry assigned to this account. Contact your administrator to set the industry.';
+                    }
+                    emptyStateActions.style.display = 'none'; // Hide action buttons
+                } else {
+                    // My Objectives tab - show both manual and AI options
+                    emptyStateIcon.className = 'fas fa-inbox'; // Standard inbox icon
+                    emptyStateTitle.textContent = 'No Objectives Defined Yet';
+                    emptyStateMessage.textContent = 'Start by adding your first strategic objective';
+                    emptyStateActions.style.display = 'flex'; // Show action buttons
+                }
+                return;
+            }
+
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('objectives-grid').style.display = 'grid';
+
+            // Render objectives
+            const grid = document.getElementById('objectives-grid');
+            const isSharedTab = currentTab === 'shared';
+            
+            grid.innerHTML = objectives.map(obj => {
+                const isValidated = obj.validation_status === 'validated';
+                const hasComments = obj.comments && obj.comments.length > 0;
+                const isOwnedByAccount = obj.accountId === selectedAccountId;
+                
+                return `
+                <div class="objective-card" id="card-${obj.id}">
+                    ${isOwnedByAccount ? `
+                        <input type="checkbox" class="objective-card-checkbox" 
+                            id="checkbox-${obj.id}" 
+                            onchange="handleSelection('${obj.id}', this.checked)">
+                    ` : ''}
+                    <div class="objective-header">
+                        <div class="objective-title">
+                            <h3>${obj.name}</h3>
+                            <div class="objective-id">${obj.id}</div>
+                        </div>
+                        <div class="objective-actions">
+                            ${isOwnedByAccount ? `
+                                <button class="btn-icon" onclick="saveAsTemplate('${obj.id}')" title="Save as Template">
+                                    <i class="fas fa-bookmark"></i>
+                                </button>
+                                <button class="btn-icon" onclick="editObjective('${obj.id}')" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-icon delete" onclick="deleteObjective('${obj.id}')" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <p class="objective-description">${obj.description}</p>
+                    <div class="objective-meta">
+                        <span class="meta-badge priority-${obj.priority}">${obj.priority.toUpperCase()}</span>
+                        ${obj.strategicTheme ? `<span class="meta-badge theme-badge">${obj.strategicTheme}</span>` : ''}
+                        <span class="meta-badge creator-badge">
+                            <i class="fas fa-${obj.createdBy === 'ai_workflow' ? 'robot' : 'user'}"></i>
+                            ${obj.createdBy === 'ai_workflow' ? 'AI Generated' : 'Manual'}
+                        </span>
+                        ${isValidated ? `<span class="validation-badge"><i class="fas fa-check-circle"></i> Validated</span>` : ''}
+                        ${isSharedTab ? `<span class="shared-badge"><i class="fas fa-share-alt"></i> Shared</span>` : ''}
+                        ${obj.isShared && !isSharedTab ? `<span class="shared-badge"><i class="fas fa-share-alt"></i> Shared to Industry</span>` : ''}
+                    </div>
+                    ${obj.outcomeStatement ? `
+                        <div class="objective-outcome">
+                            <strong>Expected Outcome:</strong> ${obj.outcomeStatement}
+                        </div>
+                    ` : ''}
+                    
+                    ${isSharedTab && obj.sharedBy ? `
+                        <div class="shared-by-info">
+                            <i class="fas fa-info-circle"></i> Shared by account ${obj.sharedBy}
+                            ${obj.sharedAt ? ` on ${new Date(obj.sharedAt).toLocaleDateString()}` : ''}
+                        </div>
+                        <div class="copy-action">
+                            <button class="btn btn-primary" onclick="copySharedObjective('${obj.id}', '${obj.industry}')">
+                                <i class="fas fa-copy"></i> Copy to My Objectives
+                            </button>
+                        </div>
+                    ` : ''}
+                    
+                    ${isOwnedByAccount ? `
+                    <!-- Validation Section -->
+                    <div class="validation-section">
+                        <div class="validation-control">
+                            <label class="validation-checkbox">
+                                <input type="checkbox" ${isValidated ? 'checked' : ''} 
+                                    onchange="toggleValidation('${obj.id}', this.checked)">
+                                <span>Mark as Validated</span>
+                            </label>
+                            ${isValidated && obj.validatedBy ? `
+                                <span class="stakeholder-info">
+                                    <i class="fas fa-user"></i> ${obj.validatedBy}
+                                    <span style="margin-left: 8px; color: #999;">${new Date(obj.validatedAt).toLocaleDateString()}</span>
+                                </span>
+                            ` : ''}
+                        </div>
+                        ${isValidated ? `
+                            <input type="text" class="stakeholder-input" 
+                                placeholder="Stakeholder name" 
+                                value="${obj.validatedBy || ''}" 
+                                onchange="updateStakeholder('${obj.id}', this.value)">
+                        ` : ''}
+                    </div>
+                    
+                    <!-- Comments Section -->
+                    <div class="comments-section">
+                        <div class="comments-header" onclick="toggleComments('${obj.id}')">
+                            <h4>
+                                <i class="fas fa-comment"></i>
+                                Comments (${hasComments ? obj.comments.length : 0})
+                            </h4>
+                            <span class="comments-toggle" id="toggle-${obj.id}">
+                                <i class="fas fa-chevron-down"></i>
+                            </span>
+                        </div>
+                        <div class="comments-list" id="comments-${obj.id}">
+                            ${hasComments ? obj.comments.map(comment => `
+                                <div class="comment-item">
+                                    <div class="comment-text">${comment.text}</div>
+                                    <div class="comment-meta">
+                                        ${comment.author} • ${new Date(comment.timestamp).toLocaleString()}
+                                    </div>
+                                </div>
+                            `).join('') : '<p style="color: #999; font-size: 13px;">No comments yet</p>'}
+                            <div class="comment-input">
+                                <textarea id="new-comment-${obj.id}" placeholder="Add a comment..."></textarea>
+                                <button class="btn btn-primary btn-sm" onclick="addComment('${obj.id}')">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            }).join('');
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Update tab styles
+            document.getElementById('tab-my').classList.toggle('active', tab === 'my');
+            document.getElementById('tab-shared').classList.toggle('active', tab === 'shared');
+            document.getElementById('tab-capabilities').classList.toggle('active', tab === 'capabilities');
+            document.getElementById('tab-templates').classList.toggle('active', tab === 'templates');
+            
+            // Reset filters
+            document.getElementById('search-objectives').value = '';
+            document.getElementById('filter-priority').value = '';
+            document.getElementById('filter-validation').value = '';
+            document.getElementById('sort-by').value = 'date-desc';
+            
+            // Handle tab-specific loading
+            if (tab === 'capabilities') {
+                loadCapabilitiesTab();
+            } else if (tab === 'templates') {
+                loadTemplatesTab();
+            } else {
+                // Reload objectives for my/shared tabs
+                loadObjectives();
+            }
+        }
+
+        async function copySharedObjective(objectiveId, industry) {
+            try {
+                // Check if at limit
+                const currentCount = GrowthDashboard_ObjectivesManager.getObjectivesCount(selectedAccountId);
+                if (currentCount >= GrowthDashboard_ObjectivesManager.MAX_OBJECTIVES_PER_ACCOUNT) {
+                    alert(`Cannot copy objective. You have reached the maximum of ${GrowthDashboard_ObjectivesManager.MAX_OBJECTIVES_PER_ACCOUNT} objectives.`);
+                    return;
+                }
+
+                // Get the shared objective
+                const sharedObjectives = GrowthDashboard_ObjectivesManager.listSharedObjectivesByIndustry(industry);
+                const sourceObjective = sharedObjectives.find(o => o.id === objectiveId);
+                
+                if (!sourceObjective) {
+                    throw new Error('Shared objective not found');
+                }
+
+                // Create a copy with new ID for this account
+                const copiedObjective = {
+                    name: sourceObjective.name,
+                    description: sourceObjective.description,
+                    priority: sourceObjective.priority,
+                    strategicTheme: sourceObjective.strategicTheme,
+                    outcomeStatement: sourceObjective.outcomeStatement,
+                    linkedCapabilities: sourceObjective.linkedCapabilities || [],
+                    validation_status: 'unknown', // Reset validation
+                    evidence_source: null,
+                    evidence_strength: 'unsupported',
+                    evidence_gap: null,
+                    industry: accountIndustry,
+                    isShared: false, // Don't auto-share the copy
+                    createdBy: 'user' // Mark as user-created copy
+                };
+
+                const saved = await GrowthDashboard_ObjectivesManager.createObjective(selectedAccountId, copiedObjective);
+                
+                console.log(`✅ Copied objective from ${sourceObjective.sharedBy} to account ${selectedAccountId}`);
+                
+                // Switch to My Objectives tab and reload
+                switchTab('my');
+                
+                alert(`Successfully copied objective "${sourceObjective.name}" to your objectives!`);
+                
+            } catch (error) {
+                console.error('Error copying shared objective:', error);
+                alert('Failed to copy objective. ' + error.message);
+            }
+        }
+
+        async function deleteObjective(objectiveId) {
+            if (!confirm('Delete this objective? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                // Remove from selection if selected
+                selectedObjectives.delete(objectiveId);
+                
+                await GrowthDashboard_ObjectivesManager.deleteObjective(objectiveId, selectedAccountId);
+                loadObjectives();
+            } catch (error) {
+                console.error('Error deleting objective:', error);
+                alert('Error deleting objective. Please try again.');
+            }
+        }
+
+        function exportObjectives() {
+            try {
+                const data = GrowthDashboard_ObjectivesManager.exportAccountObjectives(selectedAccountId);
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `objectives_${selectedAccountId}_${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error exporting:', error);
+                alert('Error exporting objectives.');
+            }
+        }
+
+        function goBack() {
+            window.location.href = `EA_Growth_Dashboard.html?accountId=${selectedAccountId}`;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // VALIDATION FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════
+
+        async function toggleValidation(objectiveId, isChecked) {
+            try {
+                const updates = {
+                    validation_status: isChecked ? 'validated' : 'unknown',
+                    validatedAt: isChecked ? new Date().toISOString() : null
+                };
+
+                // If unchecking, clear stakeholder
+                if (!isChecked) {
+                    updates.validatedBy = null;
+                }
+
+                await GrowthDashboard_ObjectivesManager.updateObjective(objectiveId, selectedAccountId, updates);
+                loadObjectives();
+            } catch (error) {
+                console.error('Error toggling validation:', error);
+                alert('Failed to update validation status');
+            }
+        }
+
+        async function updateStakeholder(objectiveId, stakeholderName) {
+            try {
+                await GrowthDashboard_ObjectivesManager.updateObjective(objectiveId, selectedAccountId, {
+                    validatedBy: stakeholderName.trim()
+                });
+                loadObjectives();
+            } catch (error) {
+                console.error('Error updating stakeholder:', error);
+                alert('Failed to update stakeholder');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // EDIT FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════
+
+        function editObjective(objectiveId) {
+            const objectives = GrowthDashboard_ObjectivesManager.listObjectivesByAccount(selectedAccountId);
+            const objective = objectives.find(o => o.id === objectiveId);
+            if (!objective) return;
+
+            // Populate form
+            document.getElementById('edit-objective-id').value = objective.id;
+            document.getElementById('edit-name').value = objective.name;
+            document.getElementById('edit-description').value = objective.description;
+            document.getElementById('edit-priority').value = objective.priority;
+            document.getElementById('edit-theme').value = objective.strategicTheme || '';
+            document.getElementById('edit-outcome').value = objective.outcomeStatement || '';
+
+            // Populate capability dropdown and select linked capabilities
+            populateCapabilityDropdowns();
+            const linkedCaps = capabilityLinks[objectiveId] || [];
+            const capSelect = document.getElementById('edit-capabilities');
+            Array.from(capSelect.options).forEach(opt => {
+                opt.selected = linkedCaps.includes(opt.value);
+            });
+
+            // Show modal
+            document.getElementById('edit-modal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.remove('active');
+            document.getElementById('edit-form').reset();
+        }
+
+        async function saveEdit() {
+            const objectiveId = document.getElementById('edit-objective-id').value;
+            const name = document.getElementById('edit-name').value.trim();
+            const description = document.getElementById('edit-description').value.trim();
+            const priority = document.getElementById('edit-priority').value;
+            const theme = document.getElementById('edit-theme').value.trim();
+            const outcome = document.getElementById('edit-outcome').value.trim();
+
+            // Get selected capabilities
+            const capSelect = document.getElementById('edit-capabilities');
+            const selectedCapabilities = Array.from(capSelect.selectedOptions).map(opt => opt.value);
+
+            if (!name || !description) {
+                alert('Name and description are required');
+                return;
+            }
+
+            try {
+                await GrowthDashboard_ObjectivesManager.updateObjective(objectiveId, selectedAccountId, {
+                    name,
+                    description,
+                    priority,
+                    strategicTheme: theme,
+                    outcomeStatement: outcome
+                });
+
+                // Update capability links
+                if (selectedCapabilities.length > 0) {
+                    capabilityLinks[objectiveId] = selectedCapabilities;
+                } else {
+                    delete capabilityLinks[objectiveId];
+                }
+                saveCapabilityLinks();
+
+                closeEditModal();
+                loadObjectives();
+                
+                // If on capabilities tab, refresh it too
+                if (currentTab === 'capabilities' && apqcFramework) {
+                    renderCapabilities();
+                }
+            } catch (error) {
+                console.error('Error saving edit:', error);
+                alert('Failed to save changes');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // ADD OBJECTIVE FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════
+
+        function openAddObjectiveModal() {
+            // Check if at limit
+            const currentCount = GrowthDashboard_ObjectivesManager.getObjectivesCount(selectedAccountId);
+            if (currentCount >= GrowthDashboard_ObjectivesManager.MAX_OBJECTIVES_PER_ACCOUNT) {
+                alert(`Cannot add objective. You have reached the maximum of ${GrowthDashboard_ObjectivesManager.MAX_OBJECTIVES_PER_ACCOUNT} objectives.`);
+                return;
+            }
+
+            // Check if approaching warning threshold
+            if (currentCount >= GrowthDashboard_ObjectivesManager.WARNING_THRESHOLD) {
+                const remaining = GrowthDashboard_ObjectivesManager.MAX_OBJECTIVES_PER_ACCOUNT - currentCount;
+                if (!confirm(`This account has ${currentCount} objectives. You have ${remaining} more available before reaching the limit. Continue?`)) {
+                    return;
+                }
+            }
+
+            // Populate capability dropdown if framework loaded
+            populateCapabilityDropdowns();
+
+            // Show modal
+            document.getElementById('add-modal').classList.add('active');
+            
+            // Focus on first field
+            setTimeout(() => {
+                document.getElementById('add-name').focus();
+            }, 100);
+        }
+
+        function closeAddModal() {
+            document.getElementById('add-modal').classList.remove('active');
+            document.getElementById('add-form').reset();
+            // Clear capability selections
+            document.getElementById('add-capabilities').selectedIndex = -1;
+        }
+
+        async function saveNewObjective() {
+            const name = document.getElementById('add-name').value.trim();
+            const description = document.getElementById('add-description').value.trim();
+            const priority = document.getElementById('add-priority').value;
+            const theme = document.getElementById('add-theme').value.trim();
+            const outcome = document.getElementById('add-outcome').value.trim();
+
+            // Get selected capabilities
+            const capSelect = document.getElementById('add-capabilities');
+            const selectedCapabilities = Array.from(capSelect.selectedOptions).map(opt => opt.value);
+
+            // Validation
+            if (!name || !description || !theme || !outcome) {
+                alert('Please fill in all required fields (marked with *)');
+                return;
+            }
+
+            try {
+                const objectiveData = {
+                    name,
+                    description,
+                    priority,
+                    strategicTheme: theme,
+                    outcomeStatement: outcome,
+                    industry: accountIndustry,
+                    linkedCapabilities: [],
+                    validation_status: 'unknown',
+                    evidence_source: null,
+                    evidence_strength: 'unsupported',
+                    evidence_gap: null,
+                    createdBy: 'user'
+                };
+
+                const saved = await GrowthDashboard_ObjectivesManager.createObjective(selectedAccountId, objectiveData);
+                
+                // Save capability links if any selected
+                if (selectedCapabilities.length > 0) {
+                    capabilityLinks[saved.id] = selectedCapabilities;
+                    saveCapabilityLinks();
+                }
+                
+                console.log(`✅ Created objective: ${saved.name} (${saved.id})`);
+                
+                closeAddModal();
+                loadObjectives();
+                
+                alert(`Successfully added objective "${name}"!`);
+                
+            } catch (error) {
+                console.error('Error creating objective:', error);
+                alert('Failed to create objective. ' + error.message);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // COMMENTS FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════
+
+        function toggleComments(objectiveId) {
+            const commentsList = document.getElementById(`comments-${objectiveId}`);
+            const toggleIcon = document.getElementById(`toggle-${objectiveId}`);
+            
+            commentsList.classList.toggle('expanded');
+            
+            if (commentsList.classList.contains('expanded')) {
+                toggleIcon.innerHTML = '<i class="fas fa-chevron-up"></i>';
+            } else {
+                toggleIcon.innerHTML = '<i class="fas fa-chevron-down"></i>';
+            }
+        }
+
+        async function addComment(objectiveId) {
+            const textarea = document.getElementById(`new-comment-${objectiveId}`);
+            const commentText = textarea.value.trim();
+            
+            if (!commentText) {
+                alert('Please enter a comment');
+                return;
+            }
+
+            try {
+                // Get current objective
+                const objectives = GrowthDashboard_ObjectivesManager.listObjectivesByAccount(selectedAccountId);
+                const objective = objectives.find(o => o.id === objectiveId);
+                
+                if (!objective) {
+                    throw new Error('Objective not found');
+                }
+
+                // Add new comment
+                const comments = objective.comments || [];
+                const account = accountManager.getAccount(selectedAccountId);
+                
+                comments.push({
+                    text: commentText,
+                    author: account.accountManager || 'User',
+                    timestamp: new Date().toISOString()
+                });
+
+                // Update objective
+                await GrowthDashboard_ObjectivesManager.updateObjective(objectiveId, selectedAccountId, {
+                    comments
+                });
+
+                textarea.value = '';
+                loadObjectives();
+                
+                // Re-expand comments after reload
+                setTimeout(() => {
+                    const commentsList = document.getElementById(`comments-${objectiveId}`);
+                    if (commentsList && !commentsList.classList.contains('expanded')) {
+                        toggleComments(objectiveId);
+                    }
+                }, 100);
+            } catch (error) {
+                console.error('Error adding comment:', error);
+                alert('Failed to add comment');
+            }
+        }
+
+        // ===================================================================
+        // SELECTION & BULK OPERATIONS
+        // ===================================================================
+
+        function handleSelection(objectiveId, isSelected) {
+            if (isSelected) {
+                selectedObjectives.add(objectiveId);
+                document.getElementById(`card-${objectiveId}`).classList.add('selected');
+            } else {
+                selectedObjectives.delete(objectiveId);
+                document.getElementById(`card-${objectiveId}`).classList.remove('selected');
+            }
+            updateBulkToolbar();
+        }
+
+        function selectAll() {
+            const myObjectives = allObjectives.filter(obj => obj.accountId === selectedAccountId);
+            myObjectives.forEach(obj => {
+                selectedObjectives.add(obj.id);
+                const checkbox = document.getElementById(`checkbox-${obj.id}`);
+                const card = document.getElementById(`card-${obj.id}`);
+                if (checkbox) checkbox.checked = true;
+                if (card) card.classList.add('selected');
+            });
+            updateBulkToolbar();
+        }
+
+        function deselectAll() {
+            selectedObjectives.forEach(id => {
+                const checkbox = document.getElementById(`checkbox-${id}`);
+                const card = document.getElementById(`card-${id}`);
+                if (checkbox) checkbox.checked = false;
+                if (card) card.classList.remove('selected');
+            });
+            selectedObjectives.clear();
+            updateBulkToolbar();
+        }
+
+        function updateBulkToolbar() {
+            const toolbar = document.getElementById('bulk-toolbar');
+            const countEl = document.getElementById('selected-count');
+            const count = selectedObjectives.size;
+
+            if (count > 0) {
+                toolbar.classList.add('active');
+                countEl.textContent = `${count} selected`;
+            } else {
+                toolbar.classList.remove('active');
+            }
+        }
+
+        async function bulkDelete() {
+            if (selectedObjectives.size === 0) return;
+
+            const count = selectedObjectives.size;
+            if (!confirm(`Delete ${count} objective${count > 1 ? 's' : ''}? This cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const objectiveIds = Array.from(selectedObjectives);
+                await GrowthDashboard_ObjectivesManager.bulkDeleteObjectives(objectiveIds, selectedAccountId);
+                
+                selectedObjectives.clear();
+                loadObjectives();
+            } catch (error) {
+                console.error('Error deleting objectives:', error);
+                alert('Failed to delete objectives');
+            }
+        }
+
+        // ===================================================================
+        // FILTERS, SORT & SEARCH
+        // ===================================================================
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('search-objectives').value.toLowerCase();
+            const priorityFilter = document.getElementById('filter-priority').value;
+            const validationFilter = document.getElementById('filter-validation').value;
+            const sortBy = document.getElementById('sort-by').value;
+
+            let filtered = [...allObjectives];
+
+            // Apply search
+            if (searchTerm) {
+                filtered = filtered.filter(obj => 
+                    obj.name.toLowerCase().includes(searchTerm) ||
+                    obj.description.toLowerCase().includes(searchTerm) ||
+                    (obj.strategicTheme && obj.strategicTheme.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            // Apply priority filter
+            if (priorityFilter) {
+                filtered = filtered.filter(obj => obj.priority === priorityFilter);
+            }
+
+            // Apply validation filter
+            if (validationFilter) {
+                filtered = filtered.filter(obj => {
+                    const status = obj.validation_status || 'unknown';
+                    return status === validationFilter;
+                });
+            }
+
+            // Apply sorting
+            filtered.sort((a, b) => {
+                switch (sortBy) {
+                    case 'date-desc':
+                        return new Date(b.createdAt) - new Date(a.createdAt);
+                    case 'date-asc':
+                        return new Date(a.createdAt) - new Date(b.createdAt);
+                    case 'name-asc':
+                        return a.name.localeCompare(b.name);
+                    case 'name-desc':
+                        return b.name.localeCompare(a.name);
+                    case 'priority':
+                        const priorityOrder = { high: 0, medium: 1, low: 2 };
+                        return priorityOrder[a.priority] - priorityOrder[b.priority];
+                    default:
+                        return 0;
+                }
+            });
+
+            // Render filtered objectives
+            renderFilteredObjectives(filtered);
+        }
+
+        function renderFilteredObjectives(objectives) {
+            const container = document.getElementById('objectives-container');
+            const emptyState = document.getElementById('empty-state');
+            
+            if (objectives.length === 0) {
+                emptyState.style.display = 'flex';
+                container.innerHTML = '';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            
+            // Reuse the existing rendering logic
+            const html = objectives.map(obj => {
+                const isValidated = obj.validatedBy && obj.validatedAt;
+                const hasComments = obj.comments && obj.comments.length > 0;
+                const isSharedTab = currentTab === 'shared';
+                const isOwnedByAccount = obj.accountId === selectedAccountId;
+                
+                return `
+                <div class="objective-card" id="card-${obj.id}">
+                    ${isOwnedByAccount ? `
+                        <input type="checkbox" class="objective-card-checkbox" 
+                            id="checkbox-${obj.id}" 
+                            onchange="handleSelection('${obj.id}', this.checked)"
+                            ${selectedObjectives.has(obj.id) ? 'checked' : ''}>
+                    ` : ''}
+                    <div class="objective-header">
+                        <div class="objective-title">
+                            <h3>${obj.name}</h3>
+                            <div class="objective-id">${obj.id}</div>
+                        </div>
+                        <div class="objective-actions">
+                            ${isOwnedByAccount ? `
+                                <button class="btn-icon" onclick="saveAsTemplate('${obj.id}')" title="Save as Template">
+                                    <i class="fas fa-bookmark"></i>
+                                </button>
+                                <button class="btn-icon" onclick="editObjective('${obj.id}')" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-icon delete" onclick="deleteObjective('${obj.id}')" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <p class="objective-description">${obj.description}</p>
+                    <div class="objective-meta">
+                        <span class="meta-badge priority-${obj.priority}">${obj.priority.toUpperCase()}</span>
+                        ${obj.strategicTheme ? `<span class="meta-badge theme-badge">${obj.strategicTheme}</span>` : ''}
+                        <span class="meta-badge creator-badge">
+                            <i class="fas fa-${obj.createdBy === 'ai_workflow' ? 'robot' : 'user'}"></i>
+                            ${obj.createdBy === 'ai_workflow' ? 'AI Generated' : 'Manual'}
+                        </span>
+                        ${isValidated ? `<span class="validation-badge"><i class="fas fa-check-circle"></i> Validated</span>` : ''}
+                        ${isSharedTab ? `<span class="shared-badge"><i class="fas fa-share-alt"></i> Shared</span>` : ''}
+                        ${obj.isShared && !isSharedTab ? `<span class="shared-badge"><i class="fas fa-share-alt"></i> Shared to Industry</span>` : ''}
+                    </div>
+                    ${obj.outcomeStatement ? `
+                        <div class="objective-outcome">
+                            <strong>Expected Outcome:</strong> ${obj.outcomeStatement}
+                        </div>
+                    ` : ''}
+                    
+                    ${isSharedTab && obj.sharedBy ? `
+                        <div class="shared-by-info">
+                            <i class="fas fa-info-circle"></i> Shared by account ${obj.sharedBy}
+                            ${obj.sharedAt ? ` on ${new Date(obj.sharedAt).toLocaleDateString()}` : ''}
+                        </div>
+                        <div class="copy-action">
+                            <button class="btn btn-primary" onclick="copySharedObjective('${obj.id}', '${obj.industry}')">
+                                <i class="fas fa-copy"></i> Copy to My Objectives
+                            </button>
+                        </div>
+                    ` : ''}
+                    
+                    ${isOwnedByAccount ? `
+                    <div class="validation-section">
+                        <div class="validation-control">
+                            <label class="validation-checkbox">
+                                <input type="checkbox" ${isValidated ? 'checked' : ''} 
+                                    onchange="toggleValidation('${obj.id}', this.checked)">
+                                <span>Mark as Validated</span>
+                            </label>
+                            ${isValidated && obj.validatedBy ? `
+                                <span class="stakeholder-info">
+                                    <i class="fas fa-user"></i> ${obj.validatedBy}
+                                    <span style="margin-left: 8px; color: #999;">${new Date(obj.validatedAt).toLocaleDateString()}</span>
+                                </span>
+                            ` : ''}
+                        </div>
+                        ${isValidated ? `
+                            <input type="text" class="stakeholder-input" 
+                                placeholder="Stakeholder name" 
+                                value="${obj.validatedBy || ''}" 
+                                onchange="updateStakeholder('${obj.id}', this.value)">
+                        ` : ''}
+                    </div>
+                    
+                    <div class="comments-section">
+                        <div class="comments-header" onclick="toggleComments('${obj.id}')">
+                            <h4>
+                                <i class="fas fa-comment"></i>
+                                Comments (${hasComments ? obj.comments.length : 0})
+                            </h4>
+                            <span class="comments-toggle" id="toggle-${obj.id}">
+                                <i class="fas fa-chevron-down"></i>
+                            </span>
+                        </div>
+                        <div class="comments-list" id="comments-${obj.id}">
+                            ${hasComments ? obj.comments.map(comment => `
+                                <div class="comment-item">
+                                    <div class="comment-text">${comment.text}</div>
+                                    <div class="comment-meta">
+                                        ${comment.author} • ${new Date(comment.timestamp).toLocaleString()}
+                                    </div>
+                                </div>
+                            `).join('') : '<p style="color: #999; font-size: 13px;">No comments yet</p>'}
+                            <div class="comment-input">
+                                <textarea id="new-comment-${obj.id}" placeholder="Add a comment..."></textarea>
+                                <button class="btn btn-primary btn-sm" onclick="addComment('${obj.id}')">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        // ===================================================================
+        // AI WORKFLOW
+        // ===================================================================
+
+        function startAIWorkflow() {
+            // Check limit
+            const count = GrowthDashboard_ObjectivesManager.getObjectivesCount(selectedAccountId);
+            if (count >= GrowthDashboard_ObjectivesManager.MAX_OBJECTIVES_PER_ACCOUNT) {
+                alert(`Maximum of ${GrowthDashboard_ObjectivesManager.MAX_OBJECTIVES_PER_ACCOUNT} objectives reached. Please delete some first.`);
+                return;
+            }
+
+            if (count >= GrowthDashboard_ObjectivesManager.WARNING_THRESHOLD) {
+                const proceed = confirm(`This account has ${count} objectives. Consider reviewing them before adding more. Continue?`);
+                if (!proceed) return;
+            }
+
+            // Show panel
+            document.getElementById('ai-workflow-panel').classList.add('active');
+            
+            // Reset state
+            workflowState = {
+                step: 'industry',
+                selectedIndustry: null,
+                synthesis: null
+            };
+
+            // Show industry step
+            document.getElementById('industry-step').style.display = 'block';
+            document.getElementById('chat-container').classList.remove('active');
+            document.getElementById('review-panel').classList.remove('active');
+
+            // Scroll to panel
+            document.getElementById('ai-workflow-panel').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function closeAIWorkflow() {
+            document.getElementById('ai-workflow-panel').classList.remove('active');
+            GrowthDashboard_BusinessObjectivesWorkflow.resetWorkflowState(selectedAccountId);
+        }
+
+        function loadIndustryGrid() {
+            const grid = document.getElementById('industry-grid');
+            grid.innerHTML = industries.map(ind => `
+                <div class="industry-card" onclick="selectIndustry('${ind.name}')">
+                    <i class="fas ${ind.icon}"></i>
+                    <h4>${ind.name}</h4>
+                </div>
+            `).join('');
+        }
+
+        function selectIndustry(industryName) {
+            workflowState.selectedIndustry = industryName;
+            
+            // Update UI
+            document.querySelectorAll('.industry-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.target.closest('.industry-card').classList.add('selected');
+            
+            // Enable button
+            document.getElementById('start-questionnaire-btn').disabled = false;
+        }
+
+        async function startQuestionnaire() {
+            try {
+                // Hide industry step
+                document.getElementById('industry-step').style.display = 'none';
+                
+                // Show chat
+                document.getElementById('chat-container').classList.add('active');
+                
+                // Start workflow
+                const start = await GrowthDashboard_BusinessObjectivesWorkflow.startWorkflow(selectedAccountId);
+                
+                // Add first question
+                addChatMessage('ai', start.question);
+                document.getElementById('current-q').textContent = start.questionCount;
+                
+                // Enable input
+                document.getElementById('chat-input').disabled = false;
+                document.getElementById('send-btn').disabled = false;
+                
+            } catch (error) {
+                console.error('Error starting questionnaire:', error);
+                alert('Error starting AI workflow. Please try again.');
+                closeAIWorkflow();
+            }
+        }
+
+        function addChatMessage(role, content) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = `chat-message ${role}`;
+            div.innerHTML = `
+                <div class="chat-avatar">
+                    <i class="fas fa-${role === 'ai' ? 'robot' : 'user'}"></i>
+                </div>
+                <div class="chat-bubble">${content}</div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Disable input
+            input.disabled = true;
+            document.getElementById('send-btn').disabled = true;
+            
+            // Add user message
+            addChatMessage('user', message);
+            input.value = '';
+            
+            try {
+                // Send to workflow
+                const response = await GrowthDashboard_BusinessObjectivesWorkflow.handleUserResponse(
+                    selectedAccountId,
+                    message
+                );
+                
+                if (response.complete) {
+                    // Synthesis complete
+                    workflowState.synthesis = response.synthesis;
+                    showReview();
+                } else {
+                    // Next question
+                    addChatMessage('ai', response.question);
+                    document.getElementById('current-q').textContent = response.questionCount;
+                    
+                    // Re-enable input
+                    input.disabled = false;
+                    document.getElementById('send-btn').disabled = false;
+                    input.focus();
+                }
+                
+            } catch (error) {
+                console.error('Error handling response:', error);
+                addChatMessage('ai', 'Sorry, I encountered an error. Please try again.');
+                input.disabled = false;
+                document.getElementById('send-btn').disabled = false;
+            }
+        }
+
+        function showReview() {
+            // Hide chat
+            document.getElementById('chat-container').classList.remove('active');
+            
+            // Show review
+            document.getElementById('review-panel').classList.add('active');
+            
+            const objectives = workflowState.synthesis.objectives;
+            const grid = document.getElementById('review-grid');
+            
+            grid.innerHTML = objectives.map((obj, i) => `
+                <div class="review-card">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                        <h4 style="margin: 0;">${obj.name}</h4>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; margin-left: 12px;">
+                            <input type="checkbox" id="share-${i}" style="width: 18px; height: 18px;">
+                            <span style="color: #b0b0b0; font-size: 13px;">
+                                <i class="fas fa-share-alt"></i> Share to Industry
+                            </span>
+                        </label>
+                    </div>
+                    <p>${obj.description}</p>
+                    <div class="objective-meta">
+                        <span class="meta-badge priority-${obj.priority}">${obj.priority.toUpperCase()}</span>
+                        <span class="meta-badge theme-badge">${obj.strategicTheme}</span>
+                    </div>
+                    ${obj.outcomeStatement ? `<p style="margin-top: 12px; color: #b0b0b0; font-size: 13px;"><strong>Outcome:</strong> ${obj.outcomeStatement}</p>` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function saveGeneratedObjectives() {
+            const objectives = workflowState.synthesis.objectives;
+            
+            try {
+                // Check which objectives are marked for sharing
+                const objectivesWithSharing = objectives.map((obj, i) => {
+                    const shareCheckbox = document.getElementById(`share-${i}`);
+                    return {
+                        ...obj,
+                        isShared: shareCheckbox ? shareCheckbox.checked : false
+                    };
+                });
+                
+                const result = await GrowthDashboard_BusinessObjectivesWorkflow.saveObjectives(
+                    selectedAccountId,
+                    objectivesWithSharing,
+                    workflowState.selectedIndustry
+                );
+                
+                const sharedCount = objectivesWithSharing.filter(o => o.isShared).length;
+                console.log(`✅ Saved ${result.count} objectives (${sharedCount} shared to ${workflowState.selectedIndustry})`);
+                
+                // Close workflow
+                closeAIWorkflow();
+                
+                // Reload page
+                loadObjectives();
+                
+                const message = sharedCount > 0 
+                    ? `Successfully saved ${result.count} business objectives! ${sharedCount} shared with ${workflowState.selectedIndustry} industry.`
+                    : `Successfully saved ${result.count} business objectives!`;
+                alert(message);
+                
+            } catch (error) {
+                console.error('Error saving objectives:', error);
+                alert('Error saving objectives. Please try again.');
+            }
+        }
+
+        // ===================================================================
+        // APQC CAPABILITIES MANAGEMENT
+        // ===================================================================
+
+        async function loadAPQCFramework() {
+            if (apqcFramework) return; // Already loaded
+            
+            try {
+                const response = await fetch('/APAQ_Data/apqc_pcf_master.json');
+                if (!response.ok) throw new Error('Failed to load APQC framework');
+                
+                apqcFramework = await response.json();
+                console.log('APQC Framework loaded:', apqcFramework.categories.length, 'L1 categories');
+            } catch (error) {
+                console.error('Error loading APQC framework:', error);
+                alert('Failed to load APQC framework. Please refresh and try again.');
+            }
+        }
+
+        function loadCustomCapabilities() {
+            const storageKey = `gsd_custom_capabilities_${selectedAccountId}`;
+            const stored = localStorage.getItem(storageKey);
+            customCapabilities = stored ? JSON.parse(stored) : {};
+        }
+
+        function saveCustomCapabilities() {
+            const storageKey = `gsd_custom_capabilities_${selectedAccountId}`;
+            localStorage.setItem(storageKey, JSON.stringify(customCapabilities));
+        }
+
+        function loadCapabilityLinks() {
+            const storageKey = `gsd_capability_links_${selectedAccountId}`;
+            const stored = localStorage.getItem(storageKey);
+            capabilityLinks = stored ? JSON.parse(stored) : {};
+        }
+
+        function saveCapabilityLinks() {
+            const storageKey = `gsd_capability_links_${selectedAccountId}`;
+            localStorage.setItem(storageKey, JSON.stringify(capabilityLinks));
+        }
+
+        function loadCapabilitiesTab() {
+            const container = document.getElementById('objectives-container');
+            const emptyState = document.getElementById('empty-state');
+            const objectivesGrid = document.getElementById('objectives-grid');
+            const filtersBar = document.getElementById('filters-bar');
+            const bulkToolbar = document.getElementById('bulk-toolbar');
+            
+            // Hide filters and bulk toolbar on capabilities tab
+            filtersBar.style.display = 'none';
+            bulkToolbar.classList.remove('active');
+            
+            if (!apqcFramework) {
+                // Show load button
+                emptyState.style.display = 'block';
+                objectivesGrid.style.display = 'none';
+                
+                const emptyStateIcon = document.querySelector('#empty-state .empty-icon i');
+                const emptyStateTitle = document.getElementById('empty-state-title');
+                const emptyStateMessage = document.getElementById('empty-state-message');
+                const emptyStateActions = document.getElementById('empty-state-actions');
+                
+                emptyStateIcon.className = 'fas fa-layer-group';
+                emptyStateTitle.textContent = 'APQC Capabilities Framework';
+                emptyStateMessage.innerHTML = accountIndustry 
+                    ? `Load the APQC Process Classification Framework (PCF v8.0) capabilities for <strong>${accountIndustry}</strong> industry.<br><br>You can customize capability names and descriptions, and link them to your business objectives.`
+                    : 'Industry not set for this account. Please set industry first.';
+                
+                emptyStateActions.innerHTML = accountIndustry
+                    ? '<button class="btn btn-primary" onclick="loadAndRenderCapabilities()"><i class="fas fa-download"></i> Load Capabilities</button>'
+                    : '';
+                emptyStateActions.style.display = 'flex';
+                
+                // Clear objectives grid
+                objectivesGrid.innerHTML = '';
+                return;
+            }
+            
+            // Framework already loaded, render it
+            renderCapabilities();
+        }
+
+        async function loadAndRenderCapabilities() {
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            
+            await loadAPQCFramework();
+            
+            if (apqcFramework) {
+                renderCapabilities();
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        function renderCapabilities() {
+            const objectivesGrid = document.getElementById('objectives-grid');
+            const emptyState = document.getElementById('empty-state');
+            
+            emptyState.style.display = 'none';
+            objectivesGrid.style.display = 'block';
+            
+            const accountObjectives = GrowthDashboard_ObjectivesManager.listObjectivesByAccount(selectedAccountId);
+            
+            let html = '<div style="padding: 20px;">';
+            html += `<div style="background: #e3f2fd; padding: 16px; border-radius: 8px; margin-bottom: 20px;">`;
+            html += `<h4 style="margin: 0 0 8px 0; color: #0d47a1;"><i class="fas fa-info-circle"></i> APQC Process Classification Framework v${apqcFramework.framework_version}</h4>`;
+            html += `<p style="margin: 0; font-size: 14px; color: #1565c0;">Industry: <strong>${accountIndustry || 'All'}</strong> | Total Categories: ${apqcFramework.categories.length} | Click headers to expand L2 capabilities</p>`;
+            html += `</div>`;
+            
+            // Render each L1 category
+            apqcFramework.categories.forEach(category => {
+                const l2Count = category.children ? category.children.length : 0;
+                
+                html += `
+                <div class="capability-category">
+                    <div class="capability-category-header" onclick="toggleCapabilityCategory('${category.id}')">
+                        <div class="capability-category-title">
+                            <span class="capability-code">${category.code}</span>
+                            <h3>${category.name}</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <span style="font-size: 14px;">${l2Count} capabilities</span>
+                            <span class="capability-toggle" id="toggle-${category.id}">
+                                <i class="fas fa-chevron-down"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="capability-l2-list" id="l2-list-${category.id}">`;
+                
+                // Render L2 capabilities
+                if (category.children) {
+                    category.children.forEach(l2 => {
+                        const custom = customCapabilities[l2.id];
+                        const displayName = custom?.name || l2.name;
+                        const displayDescription = custom?.description || l2.description;
+                        const isCustomized = !!custom;
+                        
+                        // Find linked objectives
+                        const linkedObjectives = accountObjectives.filter(obj => {
+                            const links = capabilityLinks[obj.id] || [];
+                            return links.includes(l2.id);
+                        });
+                        
+                        html += `
+                        <div class="capability-l2-card">
+                            ${isCustomized ? '<span class="capability-edit-indicator">CUSTOMIZED</span>' : ''}
+                            <div class="capability-l2-header">
+                                <div class="capability-l2-title">
+                                    <h4>${displayName}</h4>
+                                    <div class="capability-l2-code">Code: ${l2.code}</div>
+                                </div>
+                                <div class="capability-actions">
+                                    <button class="btn-icon" onclick="editCapability('${l2.id}')" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="capability-l2-description">${displayDescription}</p>
+                            <div class="capability-meta">
+                                ${l2.capability_category ? `<span class="capability-category-badge">${l2.capability_category}</span>` : ''}
+                                ${l2.strategic_themes ? l2.strategic_themes.map(theme => 
+                                    `<span class="capability-theme-badge">${theme}</span>`
+                                ).join('') : ''}
+                            </div>
+                            ${linkedObjectives.length > 0 ? `
+                                <div class="capability-linked-objectives">
+                                    <h5><i class="fas fa-link"></i> Linked to ${linkedObjectives.length} objective${linkedObjectives.length > 1 ? 's' : ''}:</h5>
+                                    ${linkedObjectives.map(obj => 
+                                        `<span class="linked-objective-tag">${obj.name}</span>`
+                                    ).join('')}
+                                </div>
+                            ` : ''}
+                        </div>`;
+                    });
+                }
+                
+                html += `
+                    </div>
+                </div>`;
+            });
+            
+            html += '</div>';
+            objectivesGrid.innerHTML = html;
+            
+            // Update badge count
+            const totalL2 = apqcFramework.categories.reduce((sum, cat) => 
+                sum + (cat.children ? cat.children.length : 0), 0);
+            document.getElementById('badge-capabilities').textContent = totalL2;
+        }
+
+        function toggleCapabilityCategory(categoryId) {
+            const list = document.getElementById(`l2-list-${categoryId}`);
+            const toggle = document.getElementById(`toggle-${categoryId}`);
+            
+            if (list.classList.contains('expanded')) {
+                list.classList.remove('expanded');
+                toggle.classList.remove('expanded');
+            } else {
+                list.classList.add('expanded');
+                toggle.classList.add('expanded');
+            }
+        }
+
+        function editCapability(capabilityId) {
+            if (!apqcFramework) return;
+            
+            // Find capability in framework
+            let capability = null;
+            for (const category of apqcFramework.categories) {
+                if (category.children) {
+                    capability = category.children.find(l2 => l2.id === capabilityId);
+                    if (capability) break;
+                }
+            }
+            
+            if (!capability) return;
+            
+            // Get custom version or default
+            const custom = customCapabilities[capabilityId];
+            const displayName = custom?.name || capability.name;
+            const displayDescription = custom?.description || capability.description;
+            
+            // Populate modal
+            document.getElementById('edit-cap-id').value = capabilityId;
+            document.getElementById('edit-cap-code').value = capability.code;
+            document.getElementById('edit-cap-name').value = displayName;
+            document.getElementById('edit-cap-description').value = displayDescription;
+            
+            // Show modal
+            document.getElementById('edit-capability-modal').classList.add('active');
+            document.getElementById('edit-cap-name').focus();
+        }
+
+        function closeEditCapabilityModal() {
+            document.getElementById('edit-capability-modal').classList.remove('active');
+        }
+
+        async function saveCapabilityEdit() {
+            const capabilityId = document.getElementById('edit-cap-id').value;
+            const newName = document.getElementById('edit-cap-name').value.trim();
+            const newDescription = document.getElementById('edit-cap-description').value.trim();
+            
+            if (!newName || !newDescription) {
+                alert('Name and description are required');
+                return;
+            }
+            
+            // Save customization
+            customCapabilities[capabilityId] = {
+                name: newName,
+                description: newDescription,
+                editedAt: new Date().toISOString()
+            };
+            
+            saveCustomCapabilities();
+            closeEditCapabilityModal();
+            renderCapabilities();
+        }
+
+        function resetCapabilityToDefault() {
+            const capabilityId = document.getElementById('edit-cap-id').value;
+            
+            if (!confirm('Reset this capability to APQC defaults? Your custom edits will be lost.')) {
+                return;
+            }
+            
+            // Remove customization
+            delete customCapabilities[capabilityId];
+            saveCustomCapabilities();
+            closeEditCapabilityModal();
+            renderCapabilities();
+        }
+
+        // Populate capability dropdowns in objective modals
+        function populateCapabilityDropdowns() {
+            if (!apqcFramework) return;
+            
+            const addSelect = document.getElementById('add-capabilities');
+            const editSelect = document.getElementById('edit-capabilities');
+            
+            let options = '<option value="">-- Select capabilities --</option>';
+            
+            apqcFramework.categories.forEach(category => {
+                if (category.children) {
+                    options += `<optgroup label="${category.code} - ${category.name}">`;
+                    category.children.forEach(l2 => {
+                        const custom = customCapabilities[l2.id];
+                        const displayName = custom?.name || l2.name;
+                        options += `<option value="${l2.id}">${l2.code} - ${displayName}</option>`;
+                    });
+                    options += '</optgroup>';
+                }
+            });
+            
+            addSelect.innerHTML = options;
+            editSelect.innerHTML = options;
+        }
+
+        // ============================================
+        // TEMPLATES TAB FUNCTIONS
+        // ============================================
+
+        function loadTemplatesTab() {
+            const emptyState = document.getElementById('empty-state');
+            const objectivesGrid = document.getElementById('objectives-grid');
+            const filtersBar = document.getElementById('filters-bar');
+            const bulkToolbar = document.getElementById('bulk-toolbar');
+            
+            // Hide filters and bulk toolbar
+            filtersBar.style.display = 'none';
+            bulkToolbar.classList.remove('active');
+            
+            // Get templates for current industry
+            const templates = window.growthDashboardObjectiveTemplates.getTemplatesByIndustry(
+                accountIndustry || 'All',
+                selectedAccountId
+            );
+            
+            // Update tab badge
+            document.getElementById('badge-templates').textContent = templates.length;
+            
+            // Hide empty state, show grid
+            emptyState.style.display = 'none';
+            objectivesGrid.style.display = 'block';
+            
+            renderTemplates(templates);
+        }
+
+        function renderTemplates(templates) {
+            const objectivesGrid = document.getElementById('objectives-grid');
+            
+            if (templates.length === 0) {
+                objectivesGrid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px;">
+                        <i class="fas fa-file-alt" style="font-size: 60px; color: #d1d5db; margin-bottom: 20px;"></i>
+                        <h3 style="color: var(--ea-text-secondary); margin-bottom: 12px;">No Templates Available</h3>
+                        <p style="color: var(--ea-text-tertiary);">No templates found for ${accountIndustry || 'All'} industry.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Separate pre-defined and custom templates
+            const predefinedTemplates = templates.filter(t => !t.isCustom);
+            const customTemplates = templates.filter(t => t.isCustom);
+            
+            let html = '<div style="padding: 20px; width: 100%;">';
+            
+            // Pre-defined templates section
+            if (predefinedTemplates.length > 0) {
+                html += `
+                    <div style="margin-bottom: 32px;">
+                        <h3 style="color: var(--ea-text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-star" style="color: #f59e0b;"></i>
+                            Industry Templates (${accountIndustry || 'All'})
+                        </h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">
+                `;
+                
+                predefinedTemplates.forEach(template => {
+                    html += renderTemplateCard(template);
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Custom templates section
+            if (customTemplates.length > 0) {
+                html += `
+                    <div>
+                        <h3 style="color: var(--ea-text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-bookmark" style="color: var(--ea-accent);"></i>
+                            My Custom Templates
+                        </h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">
+                `;
+                
+                customTemplates.forEach(template => {
+                    html += renderTemplateCard(template);
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            objectivesGrid.innerHTML = html;
+        }
+
+        function renderTemplateCard(template) {
+            const priorityColors = {
+                high: '#ef4444',
+                medium: '#f59e0b',
+                low: '#10b981'
+            };
+            
+            const priorityColor = priorityColors[template.priority] || '#6b7280';
+            
+            const capabilitiesText = template.linkedCapabilities && template.linkedCapabilities.length > 0
+                ? `${template.linkedCapabilities.length} capabilities linked`
+                : 'No capabilities linked';
+            
+            return `
+                <div class="objective-card" style="background: var(--ea-surface); border-radius: 12px; padding: 20px; box-shadow: var(--ea-shadow-soft); border-left: 4px solid ${priorityColor};">
+                    <div style="margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: between; align-items: start; gap: 12px;">
+                            <div style="flex: 1;">
+                                <h4 style="color: var(--ea-text-primary); margin-bottom: 8px; font-size: 16px; font-weight: 600;">
+                                    ${template.name}
+                                </h4>
+                            </div>
+                            <span class="priority-badge" style="background: ${priorityColor}20; color: ${priorityColor}; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; text-transform: capitalize;">
+                                ${template.priority}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <p style="color: var(--ea-text-secondary); font-size: 14px; line-height: 1.6; margin-bottom: 12px;">
+                        ${template.description}
+                    </p>
+                    
+                    ${template.strategicTheme ? `
+                        <div style="margin-bottom: 8px;">
+                            <span style="color: var(--ea-text-tertiary); font-size: 12px;">Theme:</span>
+                            <span style="color: var(--ea-text-secondary); font-size: 14px; margin-left: 8px;">${template.strategicTheme}</span>
+                        </div>
+                    ` : ''}
+                    
+                    ${template.outcomeStatement ? `
+                        <div style="margin-bottom: 12px; padding: 12px; background: var(--ea-background); border-radius: 8px;">
+                            <div style="color: var(--ea-text-tertiary); font-size: 12px; margin-bottom: 4px;">Expected Outcome:</div>
+                            <div style="color: var(--ea-text-secondary); font-size: 13px; line-height: 1.5;">${template.outcomeStatement}</div>
+                        </div>
+                    ` : ''}
+                    
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--ea-border-color);">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="color: var(--ea-text-tertiary); font-size: 13px;">
+                                <i class="fas fa-layer-group"></i> ${capabilitiesText}
+                            </span>
+                            ${template.isCustom ? `
+                                <span style="color: var(--ea-accent); font-size: 12px; background: var(--ea-accent-light); padding: 2px 8px; border-radius: 4px;">
+                                    <i class="fas fa-bookmark"></i> Custom
+                                </span>
+                            ` : ''}
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="applyTemplate('${template.id}')" class="btn btn-primary" style="padding: 6px 16px; font-size: 13px;">
+                                <i class="fas fa-plus"></i> Apply
+                            </button>
+                            ${template.isCustom ? `
+                                <button onclick="deleteTemplate('${template.id}')" class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; background: #ef4444;">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function applyTemplate(templateId) {
+            try {
+                // Check if at limit
+                const currentCount = GrowthDashboard_ObjectivesManager.getObjectivesCount(selectedAccountId);
+                if (currentCount >= GrowthDashboard_ObjectivesManager.MAX_OBJECTIVES_PER_ACCOUNT) {
+                    alert(`Cannot apply template. You have reached the maximum of ${GrowthDashboard_ObjectivesManager.MAX_OBJECTIVES_PER_ACCOUNT} objectives.`);
+                    return;
+                }
+                
+                // Get all templates
+                const templates = window.growthDashboardObjectiveTemplates.getTemplatesByIndustry(
+                    accountIndustry || 'All',
+                    selectedAccountId
+                );
+                
+                const template = templates.find(t => t.id === templateId);
+                if (!template) {
+                    throw new Error('Template not found');
+                }
+                
+                // Apply template to create objective data
+                const objectiveData = window.growthDashboardObjectiveTemplates.applyTemplate(
+                    template,
+                    selectedAccountId,
+                    accountIndustry
+                );
+                
+                // Create objective
+                const newObjective = GrowthDashboard_ObjectivesManager.createObjective(selectedAccountId, objectiveData);
+                
+                // Show success message
+                alert(`Template "${template.name}" applied successfully!`);
+                
+                // Switch to My Objectives tab
+                switchTab('my');
+                
+            } catch (error) {
+                console.error('Error applying template:', error);
+                alert('Failed to apply template: ' + error.message);
+            }
+        }
+
+        async function deleteTemplate(templateId) {
+            if (!confirm('Delete this custom template? This cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const success = window.growthDashboardObjectiveTemplates.deleteCustomTemplate(
+                    selectedAccountId,
+                    templateId
+                );
+                
+                if (success) {
+                    alert('Template deleted successfully!');
+                    loadTemplatesTab(); // Reload
+                } else {
+                    alert('Template not found or could not be deleted.');
+                }
+            } catch (error) {
+                console.error('Error deleting template:', error);
+                alert('Failed to delete template: ' + error.message);
+            }
+        }
+
+        async function saveAsTemplate(objectiveId) {
+            // Get the objective
+            const objectives = GrowthDashboard_ObjectivesManager.listObjectivesByAccount(selectedAccountId);
+            const objective = objectives.find(o => o.id === objectiveId);
+            
+            if (!objective) {
+                alert('Objective not found');
+                return;
+            }
+            
+            // Ask for template name
+            const templateName = prompt('Enter a name for this template:', objective.name);
+            if (!templateName) return;
+            
+            try {
+                // Create template from objective
+                const templateData = window.growthDashboardObjectiveTemplates.createTemplateFromObjective(objective);
+                templateData.name = templateName; // Use custom name
+                templateData.industry = accountIndustry || 'All';
+                
+                // Save as custom template
+                window.growthDashboardObjectiveTemplates.saveCustomTemplate(selectedAccountId, templateData);
+                
+                alert('Template saved successfully!');
+            } catch (error) {
+                console.error('Error saving template:', error);
+                alert('Failed to save template: ' + error.message);
+            }
+        }
+
+        // Keyboard support
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatInput = document.getElementById('chat-input');
+            if (chatInput) {
+                chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

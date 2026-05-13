@@ -22,13 +22,23 @@ function closeEngagementManager() {
 
 function refreshEngagementList() {
     const container = document.getElementById('engagement-list-container');
-    const engagements = engagementManager.listEngagements();
+    let engagements = engagementManager.listEngagements();
+    
+    // FILTER: Show only engagement for current account (1:1 rule: one account = one engagement)
+    if (window.currentAccountContext) {
+        const accountId = window.currentAccountContext.id;
+        engagements = engagements.filter(eng => eng.accountId === accountId);
+        console.log(`Filtered engagements for account ${accountId}: ${engagements.length} found`);
+    }
     
     if (engagements.length === 0) {
+        const message = window.currentAccountContext 
+            ? `No engagement found for ${window.currentAccountContext.name}` 
+            : 'No engagements found';
         container.innerHTML = `
             <div class="empty-state" style="padding: 40px 20px;">
                 <div class="empty-state-icon"><i class="fas fa-folder-open"></i></div>
-                <div class="empty-state-title">No engagements found</div>
+                <div class="empty-state-title">${message}</div>
                 <div class="empty-state-text">Create your first engagement to get started</div>
             </div>
         `;
@@ -102,12 +112,36 @@ function deleteEngagement(engagementId) {
 
 function openNewEngagementModal() {
     document.getElementById('newEngagementModal').classList.remove('hidden');
-    // Clear form
-    document.getElementById('new-engagement-id').value = '';
-    document.getElementById('new-engagement-name').value = '';
-    document.getElementById('new-engagement-customer-name').value = '';
-    document.getElementById('new-engagement-segment').value = '';
-    document.getElementById('new-engagement-theme').value = '';
+    
+    // Auto-populate from active account if available
+    if (window.currentAccountContext) {
+        const account = window.currentAccountContext;
+        
+        // Set CRM Customer ID (use account ID)
+        document.getElementById('new-engagement-crm-id').value = account.id || '';
+        
+        // Fill in account details
+        document.getElementById('new-engagement-customer-name').value = account.name || '';
+        document.getElementById('new-engagement-segment').value = account.industry || '';
+        document.getElementById('new-engagement-theme').value = account.strategicPriorities?.[0] || '';
+        
+        // Generate suggested Engagement ID
+        const segmentCode = (account.industry || 'GEN').substring(0, 3).toUpperCase();
+        const quarter = `${new Date().getFullYear()}Q${Math.ceil((new Date().getMonth() + 1) / 3)}`;
+        const count = engagementManager.listEngagements().length + 1;
+        const suggestedId = `SEG-${segmentCode}-${quarter}-${String(count).padStart(3, '0')}`;
+        document.getElementById('new-engagement-id').value = suggestedId;
+        
+        console.log(`✓ Pre-populated form from account: ${account.name}`);
+    } else {
+        // Clear form if no account context
+        document.getElementById('new-engagement-crm-id').value = '';
+        document.getElementById('new-engagement-id').value = '';
+        document.getElementById('new-engagement-name').value = '';
+        document.getElementById('new-engagement-customer-name').value = '';
+        document.getElementById('new-engagement-segment').value = '';
+        document.getElementById('new-engagement-theme').value = '';
+    }
 }
 
 function closeNewEngagementModal() {
@@ -115,32 +149,51 @@ function closeNewEngagementModal() {
 }
 
 function createNewEngagementFromModal() {
+    const crmId = document.getElementById('new-engagement-crm-id').value.trim();
     const id = document.getElementById('new-engagement-id').value.trim();
     const name = document.getElementById('new-engagement-name').value.trim();
     const customerName = document.getElementById('new-engagement-customer-name').value.trim();
     const segment = document.getElementById('new-engagement-segment').value;
     const theme = document.getElementById('new-engagement-theme').value.trim();
     
-    // Validation
-    if (!id || !name || !segment || !theme) {
-        showToast('Validation Error', 'Please fill in all required fields', 'error');
+    // Validation - Only CRM ID, Engagement ID, and Engagement Name are mandatory
+    if (!crmId || !id || !name) {
+        showToast('Validation Error', 'CRM Customer ID, Engagement ID, and Engagement Name are required', 'error');
         return;
     }
     
-    // Check ID format
+    // Check ID format (optional - can be relaxed if needed)
     const idPattern = /^[A-Z]{3}-[A-Z]{3}-\d{4}Q\d-\d{3}$/;
     if (!idPattern.test(id)) {
-        showToast('Validation Error', 'Invalid ID format. Use: SEG-XXX-YYYYQQ-NNN', 'error');
-        return;
+        showToast('Validation Warning', 'ID format recommended: SEG-XXX-YYYYQQ-NNN', 'warning');
+        // Continue anyway - not blocking
+    }
+    
+    // ENFORCE 1:1 RULE: Check if engagement already exists for this account
+    let targetAccountId = null;
+    if (window.pendingAccountLink) {
+        targetAccountId = window.pendingAccountLink;
+    } else if (window.currentAccountContext) {
+        targetAccountId = window.currentAccountContext.id;
+    }
+    
+    if (targetAccountId) {
+        const existingEngagement = findEngagementByAccountId(targetAccountId);
+        if (existingEngagement) {
+            const accountName = window.currentAccountContext?.name || targetAccountId;
+            showToast('Engagement Exists', `Account "${accountName}" already has an engagement: "${existingEngagement.name}". One account can have only one engagement.`, 'error');
+            return;
+        }
     }
     
     // Create engagement data object
     const engagementData = {
         id,
         name,
-        customerName,
-        segment,
-        theme,
+        crmCustomerId: crmId,  // NEW: Store CRM Customer ID
+        customerName: customerName || '',
+        segment: segment || '',
+        theme: theme || '',
         status: 'active',
         startDate: new Date().toISOString().split('T')[0],
         forum: '',
@@ -160,6 +213,10 @@ function createNewEngagementFromModal() {
                 console.log(`✓ Will import ${account.stakeholders.length} stakeholders from account`);
             }
         }
+    } else if (window.currentAccountContext) {
+        // Even without pendingAccountLink, link to current account
+        engagementData.accountId = window.currentAccountContext.id;
+        console.log(`✓ Linking engagement to current account: ${window.currentAccountContext.id}`);
     }
     
     // Create engagement
@@ -167,7 +224,7 @@ function createNewEngagementFromModal() {
         const engagementId = engagementManager.createEngagement(engagementData);
         
         // Import stakeholders from account if linked
-        if (window.pendingAccountLink && window.currentAccountContext) {
+        if (window.currentAccountContext) {
             const account = window.currentAccountContext;
             if (account.stakeholders && account.stakeholders.length > 0) {
                 account.stakeholders.forEach(sh => {
@@ -223,21 +280,37 @@ function updateEngagementSelector() {
 }
 
 function loadEngagementData() {
-    if (!currentEngagement) return;
+    if (!currentEngagement) {
+        // No engagement loaded, but populate from account context if available
+        if (window.currentAccountContext) {
+            populateFormFromAccount(window.currentAccountContext);
+        }
+        return;
+    }
     
     const eng = currentEngagement.engagement;
     
-    // Populate Canvas 1 fields
+    // Populate Overview tab fields from engagement
+    document.getElementById('engagement-crm-id').value = eng.crmCustomerId || eng.accountId || '';
     document.getElementById('engagement-id').value = eng.id || '';
     document.getElementById('engagement-name').value = eng.name || '';
+    document.getElementById('engagement-customer-name').value = eng.customerName || '';
     document.getElementById('engagement-segment').value = eng.segment || '';
-    document.getElementById('engagement-start').value = eng.startDate || '';
-    document.getElementById('engagement-end').value = eng.endDate || '';
-    document.getElementById('engagement-status').value = eng.status || 'active';
     document.getElementById('engagement-theme').value = eng.theme || '';
+    document.getElementById('engagement-cadence').value = eng.cadence || '2w';
     document.getElementById('engagement-forum').value = eng.forum || '';
     document.getElementById('engagement-review').value = eng.reviewCadence || '';
     document.getElementById('engagement-criteria').value = (eng.successCriteria || []).join('\n');
+    
+    // If engagement has accountId but fields are empty, fill from account
+    if (eng.accountId && window.accountManager) {
+        const account = window.accountManager.getAccount(eng.accountId);
+        if (account) {
+            if (!eng.customerName) document.getElementById('engagement-customer-name').value = account.name;
+            if (!eng.segment) document.getElementById('engagement-segment').value = account.industry || '';
+            if (!eng.crmCustomerId) document.getElementById('engagement-crm-id').value = account.id;
+        }
+    }
     
     // Refresh all canvases
     renderStakeholders();
@@ -247,6 +320,27 @@ function loadEngagementData() {
     renderRoadmap();
     renderLeadership();
     updateKPIs();
+}
+
+// Helper function to populate form from account when no engagement loaded
+function populateFormFromAccount(account) {
+    if (!account) return;
+    
+    console.log(`Populating form from account: ${account.name}`);
+    
+    // Populate form fields from account data
+    document.getElementById('engagement-crm-id').value = account.id || '';
+    document.getElementById('engagement-customer-name').value = account.name || '';
+    document.getElementById('engagement-segment').value = account.industry || '';
+    
+    // Leave other fields empty for user to fill
+    document.getElementById('engagement-id').value = '';
+    document.getElementById('engagement-name').value = '';
+    document.getElementById('engagement-theme').value = account.strategicPriorities?.[0] || '';
+    document.getElementById('engagement-cadence').value = '2w';
+    document.getElementById('engagement-forum').value = '';
+    document.getElementById('engagement-review').value = '';
+    document.getElementById('engagement-criteria').value = '';
 }
 
 // ═══════════════════════════════════════════════════════════════════

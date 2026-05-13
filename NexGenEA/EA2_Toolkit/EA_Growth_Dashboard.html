@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
     <script src="../../AzureOpenAIProxy.js"></script>
+    <script src="../../js/EA_ObjectivesManager.js"></script>
+    <script src="../../js/GrowthDashboard_ObjectivesManager.js"></script>
+    <script src="../../js/GrowthDashboard_BusinessObjectivesWorkflow.js"></script>
     <script src="../../js/EA_UnifiedAIAssistant.js?v=2026"></script>
     <script src="../../js/EA_AccountManager.js?v=2026"></script>
     <script src="../../js/EA_CrossNavigation.js?v=2026"></script>
@@ -66,6 +69,7 @@
         .entry-card.green { border-left: 4px solid var(--ea-success); }
         .entry-card.purple { border-left: 4px solid #8B5CF6; }
         .entry-card.blue { border-left: 4px solid var(--ea-accent); }
+        .entry-card.orange { border-left: 4px solid #f59e0b; }
         
         .entry-icon {
             width: 72px;
@@ -81,13 +85,252 @@
         .entry-icon.green { background: rgba(94, 140, 106, 0.12); color: var(--ea-success); }
         .entry-icon.purple { background: rgba(139, 92, 246, 0.12); color: #8B5CF6; }
         .entry-icon.blue { background: rgba(74, 119, 99, 0.12); color: var(--ea-accent); }
+        .entry-icon.orange { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
         
         .entry-title { font-size: 18px; font-weight: 700; color: var(--ea-text-primary); margin-bottom: 8px; }
         .entry-desc { font-size: 13px; color: var(--ea-text-secondary); margin-bottom: 16px; }
         .entry-metric { font-size: 32px; font-weight: 700; font-family: 'Manrope', sans-serif; }
+        
+        /* === ACCOUNT CONTEXT SELECTOR === */
+        .account-selector-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-left: 24px;
+            padding-left: 24px;
+            border-left: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .account-selector {
+            position: relative;
+            min-width: 280px;
+        }
+        .account-selector-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            width: 100%;
+            text-align: left;
+        }
+        .account-selector-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        .account-selector-btn .icon {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .account-selector-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--ea-border);
+            border-radius: 8px;
+            box-shadow: 0 12px 28px rgba(31, 42, 51, 0.15);
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 9999;
+            display: none;
+        }
+        .account-selector-dropdown.active { display: block; }
+        .account-selector-search {
+            padding: 12px;
+            border-bottom: 1px solid var(--ea-border);
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 1;
+        }
+        .account-selector-search input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--ea-border);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .account-option {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-bottom: 1px solid var(--ea-border-light);
+        }
+        .account-option:last-child { border-bottom: none; }
+        .account-option:hover {
+            background: var(--ea-background);
+        }
+        .account-option.active {
+            background: rgba(74, 119, 99, 0.08);
+            border-left: 3px solid var(--ea-accent);
+        }
+        .account-option.create-new {
+            background: rgba(94, 140, 106, 0.05);
+            color: var(--ea-success);
+            font-weight: 600;
+            border-top: 2px solid var(--ea-border);
+        }
+        .account-option.create-new:hover {
+            background: rgba(94, 140, 106, 0.12);
+        }
+        .account-option-name {
+            font-weight: 600;
+            color: var(--ea-text-primary);
+            margin-bottom: 4px;
+        }
+        .account-option-meta {
+            font-size: 12px;
+            color: var(--ea-text-secondary);
+        }
+        
+        /* === ACCOUNT CONTEXT BANNER === */
+        .account-context-banner {
+            background: linear-gradient(135deg, rgba(74, 119, 99, 0.95), rgba(59, 130, 246, 0.95));
+            padding: 16px 24px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .account-context-banner.active { display: flex; }
+        .account-context-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .account-context-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+        }
+        .account-context-details h3 {
+            color: white;
+            margin: 0 0 4px 0;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .account-context-details p {
+            color: rgba(255, 255, 255, 0.85);
+            margin: 0;
+            font-size: 13px;
+        }
+        .clear-context-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .clear-context-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        /* === MENU BAR === */
+        .menu-bar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
+        }
+        .menu-item {
+            position: relative;
+        }
+        .menu-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .menu-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+        .menu-btn.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        .menu-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            right: 0;
+            background: white;
+            border: 1px solid var(--ea-border);
+            border-radius: 8px;
+            box-shadow: 0 12px 28px rgba(31, 42, 51, 0.15);
+            min-width: 220px;
+            z-index: 9999;
+            display: none;
+            overflow: hidden;
+        }
+        .menu-dropdown.active { display: block; }
+        .menu-dropdown-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-bottom: 1px solid var(--ea-border-light);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: var(--ea-text-primary);
+        }
+        .menu-dropdown-item:last-child { border-bottom: none; }
+        .menu-dropdown-item:hover {
+            background: var(--ea-background);
+        }
+        .menu-dropdown-item.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .menu-dropdown-item.danger {
+            color: var(--ea-error);
+        }
+        .menu-dropdown-item.danger:hover {
+            background: rgba(239, 68, 68, 0.08);
+        }
+        .menu-dropdown-divider {
+            height: 1px;
+            background: var(--ea-border);
+            margin: 4px 0;
+        }
+        .menu-dropdown-item i {
+            width: 18px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
         .metric-green { color: var(--ea-success); }
         .metric-purple { color: #8B5CF6; }
         .metric-blue { color: var(--ea-accent); }
+        .metric-orange { color: #f59e0b; }
         
         .metrics-grid {
             display: grid;
@@ -507,13 +750,29 @@
             .dashboard-row { grid-template-columns: 1fr; }
             .global-search-container { max-width: 100%; margin: 8px 0; }
             .metrics-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+            .account-selector-container { 
+                margin-left: 12px; 
+                padding-left: 12px; 
+            }
         }
         
         @media (max-width: 768px) {
             .ea-header h1 { font-size: 20px; }
-            .header-top { flex-direction: column; gap: 12px; }
+            .header-top { flex-direction: column; gap: 12px; align-items: stretch !important; }
             .entry-card { padding: 24px; }
             .entry-icon { width: 60px; height: 60px; font-size: 28px; }
+            .account-selector-container { 
+                margin-left: 0; 
+                padding-left: 0; 
+                border-left: none;
+                margin-top: 12px;
+            }
+            .account-selector { min-width: 100%; }
+            .account-context-banner { 
+                flex-direction: column; 
+                gap: 12px; 
+                align-items: flex-start;
+            }
         }
     </style>
 </head>
@@ -526,6 +785,27 @@
                     <div style="display: flex; align-items: center; flex: 1;">
                         <h1><i class="fas fa-rocket"></i> Growth Sprint Dashboard</h1>
                         
+                        <!-- Account Context Selector -->
+                        <div class="account-selector-container">
+                            <div class="account-selector">
+                                <button class="account-selector-btn" onclick="toggleAccountSelector()">
+                                    <span class="icon">
+                                        <i class="fas fa-building"></i>
+                                        <span id="selected-account-label">All Accounts</span>
+                                    </span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="account-selector-dropdown" id="account-selector-dropdown">
+                                    <div class="account-selector-search">
+                                        <input type="text" id="account-search-input" placeholder="Search accounts..." oninput="filterAccountOptions()">
+                                    </div>
+                                    <div id="account-options-list">
+                                        <!-- Dynamically populated -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Global Search -->
                         <div class="global-search-container">
                             <input type="text" class="global-search-input" id="global-search-input" placeholder="Search accounts, opportunities, engagements..." autocomplete="off">
@@ -534,20 +814,73 @@
                         </div>
                     </div>
                     
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <button class="toolbar-btn" onclick="window.location.href='EA_Analytics_Dashboard.html'" title="Analytics Dashboard">
-                            <i class="fas fa-chart-line"></i>
-                        </button>
-                        <button class="toolbar-btn" onclick="showDataManager()" title="Import/Export Data">
-                            <i class="fas fa-database"></i>
-                        </button>
-                        <button class="toolbar-btn" onclick="showContextHelp('growth_dashboard')" title="Help">
-                            <i class="fas fa-question"></i>
-                        </button>
-                        <button class="toolbar-btn" onclick="startTutorial()" title="Start Tutorial">
-                            <i class="fas fa-graduation-cap"></i>
-                        </button>
-                        <div class="header-date" id="current-date"></div>
+                    <div class="menu-bar">
+                        <!-- Account Menu -->
+                        <div class="menu-item">
+                            <button class="menu-btn" onclick="toggleMenu('account-menu')">
+                                Account
+                            </button>
+                            <div class="menu-dropdown" id="account-menu">
+                                <div class="menu-dropdown-item" id="menu-save-account" onclick="saveCurrentAccount()">
+                                    <i class="fas fa-save"></i>
+                                    <span>Save Account</span>
+                                </div>
+                                <div class="menu-dropdown-item" onclick="loadAccountFromFile()">
+                                    <i class="fas fa-folder-open"></i>
+                                    <span>Load Account</span>
+                                </div>
+                                <div class="menu-dropdown-divider"></div>
+                                <div class="menu-dropdown-item" onclick="createNewAccount()">
+                                    <i class="fas fa-plus-circle"></i>
+                                    <span>Create New Account</span>
+                                </div>
+                                <div class="menu-dropdown-item danger" id="menu-delete-account" onclick="deleteCurrentAccount()">
+                                    <i class="fas fa-trash"></i>
+                                    <span>Delete Account</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- View Menu -->
+                        <div class="menu-item">
+                            <button class="menu-btn" onclick="toggleMenu('view-menu')">
+                                View
+                            </button>
+                            <div class="menu-dropdown" id="view-menu">
+                                <div class="menu-dropdown-item" onclick="closeAllMenus(); window.location.href='EA_Analytics_Dashboard.html'">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span>Analytics Dashboard</span>
+                                </div>
+                                <div class="menu-dropdown-item" onclick="closeAllMenus(); window.location.href='EA_Start_Page.html'">
+                                    <i class="fas fa-home"></i>
+                                    <span>Start Page</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tools Menu -->
+                        <div class="menu-item">
+                            <button class="menu-btn" onclick="toggleMenu('tools-menu')">
+                                Tools
+                            </button>
+                            <div class="menu-dropdown" id="tools-menu">
+                                <div class="menu-dropdown-item" onclick="closeAllMenus(); showDataManager()">
+                                    <i class="fas fa-database"></i>
+                                    <span>Data Manager</span>
+                                </div>
+                                <div class="menu-dropdown-item" onclick="closeAllMenus(); startTutorial()">
+                                    <i class="fas fa-graduation-cap"></i>
+                                    <span>Start Tutorial</span>
+                                </div>
+                                <div class="menu-dropdown-divider"></div>
+                                <div class="menu-dropdown-item" onclick="closeAllMenus(); showContextHelp('growth_dashboard')">
+                                    <i class="fas fa-question-circle"></i>
+                                    <span>Help</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="header-date" id="current-date" style="margin-left: 16px;"></div>
                     </div>
                 </div>
                 
@@ -558,26 +891,42 @@
                 </div>
             </div>
         </header>
+        
+        <!-- Account Context Banner -->
+        <div class="account-context-banner" id="account-context-banner">
+            <div class="account-context-info">
+                <div class="account-context-icon">
+                    <i class="fas fa-building"></i>
+                </div>
+                <div class="account-context-details">
+                    <h3 id="context-account-name">Account Name</h3>
+                    <p id="context-account-meta">Industry • $0M ACV • 0 opportunities</p>
+                </div>
+            </div>
+            <button class="clear-context-btn" onclick="clearAccountContext()">
+                <i class="fas fa-times"></i> View All Accounts
+            </button>
+        </div>
 
         <!-- Main Content -->
         <main id="main-content">
             <!-- Entry Points -->
             <div class="entry-points">
-                <div class="entry-card green" onclick="window.location.href='EA_Account_Dashboard.html'">
-                    <div class="entry-icon green">
-                        <i class="fas fa-building"></i>
+                <div class="entry-card orange" onclick="navigateWithAccountContext('GrowthDashboard_BusinessObjectives.html')">
+                    <div class="entry-icon orange">
+                        <i class="fas fa-target"></i>
                     </div>
-                    <div class="entry-title">1. Understand the Customer</div>
-                    <div class="entry-desc">Account intelligence & relationship mapping</div>
-                    <div class="entry-metric metric-green" id="entry-accounts">0</div>
-                    <div style="font-size: 12px; color: #6b7280;">Active Accounts</div>
+                    <div class="entry-title">0. Define Business Objectives</div>
+                    <div class="entry-desc">AI-assisted strategic alignment & capability mapping</div>
+                    <div class="entry-metric metric-orange" id="entry-objectives">0</div>
+                    <div style="font-size: 12px; color: #6b7280;">Defined Objectives</div>
                 </div>
 
-                <div class="entry-card purple" onclick="window.location.href='EA_Opportunity_Pipeline.html'">
+                <div class="entry-card purple" onclick="navigateWithAccountContext('EA_Opportunity_Pipeline.html')">
                     <div class="entry-icon purple">
                         <i class="fas fa-bullseye"></i>
                     </div>
-                    <div class="entry-title">2. Shape the Opportunity</div>
+                    <div class="entry-title">1. Shape the Opportunity</div>
                     <div class="entry-desc">Pipeline management & value justification</div>
                     <div class="entry-metric metric-purple" id="entry-opportunities">0</div>
                     <div style="font-size: 12px; color: #6b7280;">Open Opportunities</div>
@@ -587,7 +936,7 @@
                     <div class="entry-icon blue">
                         <i class="fas fa-diagram-project"></i>
                     </div>
-                    <div class="entry-title">3. Deliver Architecture Value</div>
+                    <div class="entry-title">2. Deliver Architecture Value</div>
                     <div class="entry-desc">EA engagement execution (E0-E5)</div>
                     <div class="entry-metric metric-blue" id="entry-engagements">0</div>
                     <div style="font-size: 12px; color: #6b7280;">Active Engagements</div>
@@ -723,6 +1072,9 @@
                 month: 'long', 
                 day: 'numeric' 
             });
+            
+            // Initialize account context (must be before loadDashboard)
+            initializeAccountContext();
             
             loadDashboard();
             console.log('✅ Dashboard loaded');
@@ -1046,16 +1398,469 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
         }
 
         // ═══════════════════════════════════════════════════════════════════
+        // ACCOUNT CONTEXT MANAGEMENT
+        // ═══════════════════════════════════════════════════════════════════
+
+        let selectedAccountId = null;
+        let allAccountsCache = [];
+
+        // Initialize account context from URL
+        function initializeAccountContext() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const accountIdFromUrl = urlParams.get('accountId');
+            
+            if (accountIdFromUrl) {
+                selectAccount(accountIdFromUrl);
+            }
+            
+            populateAccountSelector();
+            updateMenuStates();
+        }
+
+        // Populate account selector dropdown
+        function populateAccountSelector() {
+            const accounts = accountManager.listAccounts();
+            allAccountsCache = accounts;
+            const optionsList = document.getElementById('account-options-list');
+            
+            if (!optionsList) return;
+            
+            let html = `
+                <div class="account-option ${!selectedAccountId ? 'active' : ''}" onclick="selectAccount(null)">
+                    <div class="account-option-name">
+                        <i class="fas fa-globe"></i> All Accounts
+                    </div>
+                    <div class="account-option-meta">View complete portfolio</div>
+                </div>
+            `;
+            
+            accounts.forEach(account => {
+                const isActive = selectedAccountId === account.id ? 'active' : '';
+                html += `
+                    <div class="account-option ${isActive}" onclick="selectAccount('${account.id}')">
+                        <div class="account-option-name">${account.name}</div>
+                        <div class="account-option-meta">
+                            ${account.industry} • $${(account.ACV / 1000000).toFixed(1)}M ACV • ${account.opportunities.length} opportunities
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                <div class="account-option create-new" onclick="createNewAccount()">
+                    <i class="fas fa-plus-circle"></i> Create New Account
+                </div>
+            `;
+            
+            optionsList.innerHTML = html;
+        }
+
+        // Toggle account selector dropdown
+        function toggleAccountSelector() {
+            const dropdown = document.getElementById('account-selector-dropdown');
+            dropdown.classList.toggle('active');
+            
+            if (dropdown.classList.contains('active')) {
+                document.getElementById('account-search-input').focus();
+                // Refresh list in case accounts were added
+                populateAccountSelector();
+            }
+        }
+
+        // Filter account options based on search
+        function filterAccountOptions() {
+            const searchValue = document.getElementById('account-search-input').value.toLowerCase();
+            const options = document.querySelectorAll('.account-option:not(.create-new)');
+            
+            options.forEach(option => {
+                const text = option.textContent.toLowerCase();
+                option.style.display = text.includes(searchValue) ? 'block' : 'none';
+            });
+        }
+
+        // Select account (null = all accounts)
+        function selectAccount(accountId) {
+            selectedAccountId = accountId;
+            
+            // Update URL without reload
+            const url = new URL(window.location);
+            if (accountId) {
+                url.searchParams.set('accountId', accountId);
+            } else {
+                url.searchParams.delete('accountId');
+            }
+            window.history.replaceState({}, '', url);
+            
+            // Update UI
+            updateAccountSelectorUI();
+            updateAccountContextBanner();
+            
+            // Close dropdown
+            document.getElementById('account-selector-dropdown').classList.remove('active');
+            
+            // Reload dashboard with context
+            loadDashboard();
+            
+            // Update menu states
+            updateMenuStates();
+            
+            console.log('🎯 Account context set:', accountId || 'All Accounts');
+        }
+
+        // Update account selector button
+        function updateAccountSelectorUI() {
+            const label = document.getElementById('selected-account-label');
+            
+            if (!selectedAccountId) {
+                label.textContent = 'All Accounts';
+                label.innerHTML = '<i class="fas fa-globe"></i> All Accounts';
+            } else {
+                const account = accountManager.getAccount(selectedAccountId);
+                if (account) {
+                    label.textContent = account.name;
+                }
+            }
+        }
+
+        // Update context banner
+        function updateAccountContextBanner() {
+            const banner = document.getElementById('account-context-banner');
+            
+            if (!selectedAccountId) {
+                banner.classList.remove('active');
+                return;
+            }
+            
+            const account = accountManager.getAccount(selectedAccountId);
+            if (!account) {
+                banner.classList.remove('active');
+                return;
+            }
+            
+            document.getElementById('context-account-name').textContent = account.name;
+            document.getElementById('context-account-meta').textContent = 
+                `${account.industry} • $${(account.ACV / 1000000).toFixed(1)}M ACV • ${account.opportunities.length} opportunities`;
+            
+            banner.classList.add('active');
+        }
+
+        // Clear account context
+        function clearAccountContext() {
+            selectAccount(null);
+        }
+
+        // Navigate with account context
+        function navigateWithAccountContext(page) {
+            let url = page;
+            if (selectedAccountId) {
+                url += `?accountId=${selectedAccountId}`;
+            }
+            window.location.href = url;
+        }
+
+        // Create new account (show modal or use AccountManager)
+        function createNewAccount() {
+            const name = prompt('Enter account name:');
+            if (!name) return;
+            
+            const industry = prompt('Enter industry:', 'Technology');
+            const acv = prompt('Enter ACV ($):', '0');
+            
+            try {
+                const newAccount = accountManager.createAccount({
+                    name: name,
+                    industry: industry || 'Technology',
+                    ACV: parseInt(acv) || 0,
+                    health: 'good',
+                    opportunities: []
+                });
+                
+                alert(`✅ Account "${name}" created successfully!`);
+                loadDashboard();
+                
+                // Auto-select the new account
+                selectAccountContext(newAccount.id);
+            } catch (error) {
+                alert('❌ Error creating account: ' + error.message);
+            }
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const selector = document.querySelector('.account-selector');
+            const dropdown = document.getElementById('account-selector-dropdown');
+            
+            if (selector && dropdown && !selector.contains(e.target)) {
+                dropdown.classList.remove('active');
+            }
+            
+            // Close menus when clicking outside
+            if (!e.target.closest('.menu-item')) {
+                closeAllMenus();
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════════════════
+        // MENU SYSTEM
+        // ═══════════════════════════════════════════════════════════════════
+
+        function toggleMenu(menuId) {
+            // Close all other menus
+            document.querySelectorAll('.menu-dropdown').forEach(dropdown => {
+                if (dropdown.id !== menuId) {
+                    dropdown.classList.remove('active');
+                }
+            });
+            
+            // Toggle clicked menu
+            const menu = document.getElementById(menuId);
+            menu.classList.toggle('active');
+            
+            // Update button state
+            const btn = menu.previousElementSibling;
+            if (menu.classList.contains('active')) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+
+        function closeAllMenus() {
+            document.querySelectorAll('.menu-dropdown').forEach(dropdown => {
+                dropdown.classList.remove('active');
+            });
+            document.querySelectorAll('.menu-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        }
+
+        // Update menu items based on account selection
+        function updateMenuStates() {
+            const saveBtn = document.getElementById('menu-save-account');
+            const deleteBtn = document.getElementById('menu-delete-account');
+            
+            if (selectedAccountId) {
+                saveBtn?.classList.remove('disabled');
+                deleteBtn?.classList.remove('disabled');
+            } else {
+                saveBtn?.classList.add('disabled');
+                deleteBtn?.classList.add('disabled');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // SAVE/LOAD ACCOUNT FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════
+
+        async function saveCurrentAccount() {
+            if (!selectedAccountId) {
+                alert('⚠️ Please select an account first');
+                return;
+            }
+            
+            closeAllMenus();
+            
+            try {
+                const account = accountManager.getAccount(selectedAccountId);
+                if (!account) {
+                    alert('❌ Account not found');
+                    return;
+                }
+                
+                console.log('💾 Saving account:', account.name);
+                
+                // Gather all related data
+                const objectives = typeof EA_ObjectivesManager !== 'undefined' 
+                    ? await EA_ObjectivesManager.listObjectives()
+                        .then(objs => objs.filter(obj => obj.accountId === selectedAccountId))
+                    : [];
+                
+                const opportunities = accountManager.listOpportunities()
+                    .filter(opp => opp.accountId === selectedAccountId);
+                
+                const engagements = listEngagements()
+                    .filter(eng => eng.accountId === selectedAccountId);
+                
+                // Create comprehensive export
+                const exportData = {
+                    version: "1.0",
+                    exportDate: new Date().toISOString(),
+                    account: account,
+                    businessObjectives: objectives,
+                    opportunities: opportunities,
+                    engagements: engagements,
+                    metadata: {
+                        accountName: account.name,
+                        objectivesCount: objectives.length,
+                        opportunitiesCount: opportunities.length,
+                        engagementsCount: engagements.length,
+                        stakeholdersCount: account.stakeholders ? account.stakeholders.length : 0
+                    }
+                };
+                
+                // Generate filename
+                const filename = `Account_${account.name.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.json`;
+                
+                // Trigger download
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                console.log('✅ Account saved:', filename);
+                alert(`✅ Account saved successfully!\n\nFile: ${filename}\n\n📊 Included:\n• Account details\n• ${objectives.length} business objectives\n• ${opportunities.length} opportunities\n• ${engagements.length} engagements`);
+                
+            } catch (error) {
+                console.error('❌ Save error:', error);
+                alert(`❌ Failed to save account: ${error.message}`);
+            }
+        }
+
+        function loadAccountFromFile() {
+            closeAllMenus();
+            
+            // Create file input
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = async function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    
+                    // Validate structure
+                    if (!data.version || !data.account) {
+                        alert('❌ Invalid account file format');
+                        return;
+                    }
+                    
+                    console.log('📁 Loading account:', data.account.name);
+                    
+                    // Check if account already exists
+                    const existingAccount = accountManager.getAccount(data.account.id);
+                    
+                    if (existingAccount) {
+                        const overwrite = confirm(`⚠️ Account "${data.account.name}" already exists.\n\nDo you want to overwrite it?\n\nClick OK to overwrite, Cancel to create as new account.`);
+                        
+                        if (!overwrite) {
+                            // Generate new ID
+                            data.account.id = 'acc_' + Date.now();
+                            data.account.name = data.account.name + ' (Imported)';
+                            
+                            // Update all relationships
+                            data.businessObjectives.forEach(obj => obj.accountId = data.account.id);
+                            data.opportunities.forEach(opp => opp.accountId = data.account.id);
+                            data.engagements.forEach(eng => eng.accountId = data.account.id);
+                        }
+                    }
+                    
+                    // Import account
+                    accountManager.createAccount(data.account);
+                    
+                    // Import objectives
+                    if (data.businessObjectives && typeof EA_ObjectivesManager !== 'undefined') {
+                        for (const obj of data.businessObjectives) {
+                            await EA_ObjectivesManager.saveObjective(obj);
+                        }
+                    }
+                    
+                    // Import opportunities
+                    if (data.opportunities) {
+                        data.opportunities.forEach(opp => {
+                            accountManager.createOpportunity(opp);
+                        });
+                    }
+                    
+                    // Import engagements
+                    if (data.engagements) {
+                        data.engagements.forEach(eng => {
+                            localStorage.setItem(`ea_engagement_model_${eng.id || Date.now()}`, JSON.stringify(eng));
+                        });
+                    }
+                    
+                    // Select the loaded account
+                    selectAccount(data.account.id);
+                    
+                    // Refresh dropdown
+                    populateAccountSelector();
+                    
+                    console.log('✅ Account loaded successfully');
+                    alert(`✅ Account loaded successfully!\n\n${data.metadata.accountName}\n\n📊 Imported:\n• ${data.metadata.objectivesCount} business objectives\n• ${data.metadata.opportunitiesCount} opportunities\n• ${data.metadata.engagementsCount} engagements`);
+                    
+                } catch (error) {
+                    console.error('❌ Load error:', error);
+                    alert(`❌ Failed to load account: ${error.message}`);
+                }
+            };
+            
+            input.click();
+        }
+
+        function deleteCurrentAccount() {
+            if (!selectedAccountId) {
+                alert('⚠️ Please select an account first');
+                return;
+            }
+            
+            closeAllMenus();
+            
+            const account = accountManager.getAccount(selectedAccountId);
+            if (!account) return;
+            
+            const confirmed = confirm(`⚠️ Delete Account?\n\nThis will permanently delete:\n• ${account.name}\n• All business objectives\n• All opportunities\n• All engagements\n\nThis action cannot be undone!`);
+            
+            if (confirmed) {
+                try {
+                    accountManager.deleteAccount(selectedAccountId);
+                    alert('✅ Account deleted successfully');
+                    selectAccount(null); // Clear selection
+                    populateAccountSelector();
+                } catch (error) {
+                    alert(`❌ Delete failed: ${error.message}`);
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
         // DASHBOARD LOADING
         // ═══════════════════════════════════════════════════════════════════
 
         function loadDashboard() {
-            const accounts = accountManager.listAccounts();
-            const opportunities = accountManager.listOpportunities();
-            const engagements = listEngagements();
+            // Get data filtered by selected account
+            let accounts, opportunities, engagements;
+            
+            if (selectedAccountId) {
+                // Filter to selected account only
+                const account = accountManager.getAccount(selectedAccountId);
+                accounts = account ? [account] : [];
+                opportunities = accountManager.listOpportunities().filter(opp => opp.accountId === selectedAccountId);
+                engagements = listEngagements().filter(eng => eng.accountId === selectedAccountId);
+            } else {
+                // Show all data
+                accounts = accountManager.listAccounts();
+                opportunities = accountManager.listOpportunities();
+                engagements = listEngagements();
+            }
+            
+            // Load business objectives count (from Growth Dashboard storage)
+            let objectivesCount = 0;
+            if (typeof GrowthDashboard_ObjectivesManager !== 'undefined' && selectedAccountId) {
+                objectivesCount = GrowthDashboard_ObjectivesManager.getObjectivesCount(selectedAccountId);
+                document.getElementById('entry-objectives').textContent = objectivesCount;
+            } else {
+                document.getElementById('entry-objectives').textContent = '0';
+            }
             
             // Entry points
-            document.getElementById('entry-accounts').textContent = accounts.length;
             document.getElementById('entry-opportunities').textContent = opportunities.filter(o => !['close-won', 'close-lost'].includes(o.status)).length;
             document.getElementById('entry-engagements').textContent = engagements.filter(e => e.status === 'active').length;
             
@@ -1103,7 +1908,7 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
             tbody.innerHTML = accounts.map(account => {
                 const pipelineValue = accountManager.calculateAccountPipelineValue(account.id);
                 return `
-                    <tr onclick="window.location.href='EA_Account_Dashboard.html?accountId=${account.id}'">
+                    <tr onclick="selectAccountContext('${account.id}')" style="cursor: pointer;">
                         <td>${account.name}</td>
                         <td>$${(account.ACV / 1000000).toFixed(1)}M</td>
                         <td>$${(pipelineValue / 1000000).toFixed(1)}M</td>
@@ -1114,13 +1919,21 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
             }).join('');
         }
 
+        let forecastChart = null; // Store chart instance
+        
         function renderForecastChart(forecast) {
             const quarters = Object.keys(forecast).sort();
             const labels = quarters;
             const data = quarters.map(q => (forecast[q].weightedValue / 1000000).toFixed(1));
             
             const ctx = document.getElementById('forecast-chart');
-            new Chart(ctx, {
+            
+            // Destroy existing chart if it exists
+            if (forecastChart) {
+                forecastChart.destroy();
+            }
+            
+            forecastChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
@@ -1214,7 +2027,14 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
             }
             
             try {
-                // Check if we have accounts to select from
+                // If account context is already selected, use it directly
+                if (selectedAccountId) {
+                    console.log('✅ Using selected account context:', selectedAccountId);
+                    window.location.href = `EA_Engagement_Playbook.html?accountId=${selectedAccountId}`;
+                    return;
+                }
+                
+                // Otherwise, show account selector
                 const accounts = accountManager.listAccounts();
                 console.log('📊 Found accounts:', accounts.length);
                 
@@ -1242,13 +2062,24 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
         }
 
         function showAccountSelectorForEngagement(accounts) {
+            // Activate backdrop
+            const backdrop = document.getElementById('modal-backdrop');
+            if (backdrop) {
+                backdrop.classList.add('active');
+                // Close modal when clicking backdrop
+                backdrop.onclick = () => {
+                    backdrop.classList.remove('active');
+                    document.querySelectorAll('.modal.active').forEach(m => m.remove());
+                };
+            }
+            
             const modal = document.createElement('div');
-            modal.className = 'modal';
+            modal.className = 'modal active';
             modal.innerHTML = `
                 <div class="modal-content" style="max-width: 600px;">
                     <div class="modal-header">
                         <h2>Select Account for EA Engagement</h2>
-                        <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+                        <button class="modal-close" onclick="this.closest('.modal').remove(); document.getElementById('modal-backdrop').classList.remove('active');">&times;</button>
                     </div>
                     <div class="modal-body">
                         <p style="color: #6b7280; margin-bottom: 20px;">Which account would you like to work with in the EA Engagement Playbook?</p>
@@ -1287,6 +2118,10 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
         function navigateToPlaybookWithAccount(accountId) {
             window.location.href = `EA_Engagement_Playbook.html?accountId=${accountId}`;
         }
+
+        // Expose functions to global scope for onclick handlers
+        window.openEngagementPlaybook = openEngagementPlaybook;
+        window.navigateToPlaybookWithAccount = navigateToPlaybookWithAccount;
 
         function timeAgo(dateString) {
             const now = new Date();
@@ -1613,7 +2448,8 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
         }
 
         function viewAccount(accountId) {
-            window.location.href = `EA_Account_Dashboard.html?accountId=${accountId}`;
+            // Set account context instead of navigating to removed page
+            selectAccountContext(accountId);
         }
 
         function editAccount(accountId) {

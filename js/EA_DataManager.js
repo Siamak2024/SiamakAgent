@@ -841,7 +841,7 @@ class EA_DataManager {
    */
   async loadAPQCFramework() {
     try {
-      const response = await fetch('../APAQ_Data/apqc_pcf_master.json');
+      const response = await fetch('/APAQ_Data/apqc_pcf_master.json');
       if (!response.ok) {
         throw new Error(`Failed to load APQC framework: ${response.statusText}`);
       }
@@ -864,7 +864,7 @@ class EA_DataManager {
    */
   async loadAPQCMetadata() {
     try {
-      const response = await fetch('../APAQ_Data/apqc_metadata_mapping.json');
+      const response = await fetch('/APAQ_Data/apqc_metadata_mapping.json');
       if (!response.ok) {
         throw new Error(`Failed to load APQC metadata: ${response.statusText}`);
       }
@@ -886,7 +886,7 @@ class EA_DataManager {
    */
   async loadAPQCEnrichment() {
     try {
-      const response = await fetch('../APAQ_Data/apqc_capability_enrichment.json');
+      const response = await fetch('/APAQ_Data/apqc_capability_enrichment.json');
       if (!response.ok) {
         // Enrichment file may not exist yet if Excel hasn't been converted
         console.warn('⚠️ APQC enrichment file not found (run converter first)');
