@@ -57,8 +57,8 @@ function switchSubTab(subtabName) {
         if (typeof renderConstraints === 'function') renderConstraints();
         if (typeof renderAssumptions === 'function') renderAssumptions();
     } else if (subtabName === 'execution') {
-        if (typeof renderPhases === 'function') renderPhases();
-        if (typeof renderStories === 'function') renderStories();
+        // V2.0: Render kanban board with activities
+        if (typeof renderExecutionBoard === 'function') renderExecutionBoard();
     }
 }
 
@@ -69,8 +69,8 @@ async function renderTabContent(tabName) {
             if (typeof renderDecisions === 'function') renderDecisions();
             if (typeof renderConstraints === 'function') renderConstraints();
             if (typeof renderAssumptions === 'function') renderAssumptions();
-            if (typeof renderPhases === 'function') renderPhases();
-            if (typeof renderStories === 'function') renderStories();
+            // V2.0: Render execution board instead of phases/stories
+            if (typeof renderExecutionBoard === 'function') renderExecutionBoard();
             break;
         case 'stakeholders':
             renderStakeholders();

@@ -8,6 +8,133 @@
  */
 
 // ═══════════════════════════════════════════════════════════════════
+// PREDEFINED EA WORKFLOW PHASES
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Standard EA Engagement Workflow Phases
+ * These 10 phases represent the typical EA consulting engagement lifecycle
+ */
+const EA_WORKFLOW_PHASES = [
+  {
+    id: 'discovery',
+    name: 'Discovery & Assessment',
+    description: 'Initial assessment of current state, stakeholder interviews, pain points analysis',
+    order: 1,
+    color: '#3b82f6', // Blue
+    icon: 'fa-search',
+    typicalDuration: '2-4 weeks',
+    keyDeliverables: ['Current State Assessment', 'Stakeholder Map', 'Pain Points Analysis']
+  },
+  {
+    id: 'architecture-design',
+    name: 'Architecture Design',
+    description: 'Define target architecture, principles, standards, and patterns',
+    order: 2,
+    color: '#8b5cf6', // Purple
+    icon: 'fa-drafting-compass',
+    typicalDuration: '3-6 weeks',
+    keyDeliverables: ['Target Architecture', 'Architecture Principles', 'Reference Architecture']
+  },
+  {
+    id: 'gap-analysis',
+    name: 'Gap Analysis',
+    description: 'Compare current vs target state, identify gaps and transformation opportunities',
+    order: 3,
+    color: '#f59e0b', // Amber
+    icon: 'fa-chart-gap',
+    typicalDuration: '2-3 weeks',
+    keyDeliverables: ['Gap Analysis Report', 'Capability Assessment', 'Maturity Analysis']
+  },
+  {
+    id: 'roadmap-planning',
+    name: 'Roadmap Planning',
+    description: 'Develop transformation roadmap with phases, initiatives, and dependencies',
+    order: 4,
+    color: '#10b981', // Green
+    icon: 'fa-route',
+    typicalDuration: '2-4 weeks',
+    keyDeliverables: ['Transformation Roadmap', 'Initiative Portfolio', 'Business Case']
+  },
+  {
+    id: 'governance-setup',
+    name: 'Governance Setup',
+    description: 'Establish governance model, decision-making processes, and RACI',
+    order: 5,
+    color: '#6366f1', // Indigo
+    icon: 'fa-gavel',
+    typicalDuration: '1-2 weeks',
+    keyDeliverables: ['Governance Model', 'Decision Framework', 'RACI Matrix']
+  },
+  {
+    id: 'stakeholder-alignment',
+    name: 'Stakeholder Alignment',
+    description: 'Build stakeholder buy-in, conduct workshops, align on vision',
+    order: 6,
+    color: '#ec4899', // Pink
+    icon: 'fa-users',
+    typicalDuration: '2-3 weeks',
+    keyDeliverables: ['Stakeholder Workshops', 'Vision Alignment', 'Communication Plan']
+  },
+  {
+    id: 'implementation-planning',
+    name: 'Implementation Planning',
+    description: 'Detailed planning for first initiatives, resource allocation, timelines',
+    order: 7,
+    color: '#14b8a6', // Teal
+    icon: 'fa-tasks',
+    typicalDuration: '2-4 weeks',
+    keyDeliverables: ['Implementation Plan', 'Resource Plan', 'Risk Register']
+  },
+  {
+    id: 'technology-selection',
+    name: 'Technology Selection',
+    description: 'Evaluate and select technology platforms, tools, and vendors',
+    order: 8,
+    color: '#06b6d4', // Cyan
+    icon: 'fa-microchip',
+    typicalDuration: '3-5 weeks',
+    keyDeliverables: ['Technology Strategy', 'Vendor Evaluation', 'Tool Selection']
+  },
+  {
+    id: 'change-management',
+    name: 'Change Management',
+    description: 'Develop change management strategy, training plans, and adoption metrics',
+    order: 9,
+    color: '#f97316', // Orange
+    icon: 'fa-exchange-alt',
+    typicalDuration: '2-3 weeks',
+    keyDeliverables: ['Change Strategy', 'Training Plan', 'Adoption Roadmap']
+  },
+  {
+    id: 'measurement-kpis',
+    name: 'Measurement & KPIs',
+    description: 'Define success metrics, KPIs, and measurement framework',
+    order: 10,
+    color: '#84cc16', // Lime
+    icon: 'fa-chart-line',
+    typicalDuration: '1-2 weeks',
+    keyDeliverables: ['KPI Dashboard', 'Measurement Framework', 'Success Criteria']
+  }
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// KANBAN WORKFLOW STATUS COLUMNS
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Activity workflow status columns (6-column kanban board)
+ */
+const ACTIVITY_STATUS_COLUMNS = [
+  { id: 'backlog', name: 'Backlog', color: '#6b7280', icon: 'fa-inbox' },
+  { id: 'in-progress', name: 'In Progress', color: '#3b82f6', icon: 'fa-spinner' },
+  { id: 'review', name: 'Review', color: '#f59e0b', icon: 'fa-eye' },
+  { id: 'validated', name: 'Validated', color: '#10b981', icon: 'fa-check-circle' },
+  { id: 'crm-updated', name: 'CRM Updated', color: '#8b5cf6', icon: 'fa-sync' },
+  { id: 'done', name: 'Done', color: '#059669', icon: 'fa-flag-checkered' }
+];
+
+// ═══════════════════════════════════════════════════════════════════
 // ENTITY TYPE DEFINITIONS
 // ═══════════════════════════════════════════════════════════════════
 
@@ -102,19 +229,104 @@ const PhaseSchema = {
 };
 
 /**
- * Story Entity
- * User story within a phase (1 story = 1 EA outcome)
+ * Story Entity (Primary Kanban Board Entity)
+ * Represents a backlog story in the EA workflow with 6-column kanban workflow
+ * Each story can have multiple activities (sub-tasks) to reach definition of done
+ * V2.0: Enhanced with CRM integration and child activities
  */
 const StorySchema = {
   id: { type: 'string', required: true, pattern: /^STORY-\d{4}$/ },
-  phaseId: { type: 'string', required: true },
+  phaseType: { type: 'string', required: true, enum: [
+    'discovery', 'architecture-design', 'gap-analysis', 'roadmap-planning',
+    'governance-setup', 'stakeholder-alignment', 'implementation-planning',
+    'technology-selection', 'change-management', 'measurement-kpis'
+  ]},
   title: { type: 'string', required: true },
   description: { type: 'string' },
-  acceptanceCriteria: { type: 'array', items: 'string' },
-  status: { type: 'string', required: true, enum: ['backlog', 'in-progress', 'review', 'done'], default: 'backlog' },
+  
+  // Kanban workflow (6 columns)
+  status: { 
+    type: 'string', 
+    required: true, 
+    enum: ['backlog', 'in-progress', 'review', 'validated', 'crm-updated', 'done'], 
+    default: 'backlog' 
+  },
+  
+  // Assignment & effort (aggregated from activities)
+  assignedTo: { type: 'string' }, // Primary owner of the story
+  estimatedHours: { type: 'number', min: 0 }, // Total estimated hours
+  actualHours: { type: 'number', min: 0 }, // Total actual hours
+  
+  // Deliverables & artifacts
+  deliverables: { type: 'array', items: 'string' }, // Expected outputs
+  artifactIds: { type: 'array', items: 'string' }, // Links to generated artifacts
+  
+  // Acceptance & validation
+  acceptanceCriteria: { type: 'array', items: 'string' }, // Definition of done
+  validatedBy: { type: 'string' }, // Stakeholder who validated
+  validationDate: { type: 'string', format: 'date' },
+  validationNotes: { type: 'string' },
+  
+  // CRM Integration (MS Dynamics)
+  crmStatus: { 
+    type: 'string', 
+    enum: ['not-synced', 'pending', 'synced', 'failed'], 
+    default: 'not-synced' 
+  },
+  crmId: { type: 'string' }, // CRM record ID
+  crmSyncDate: { type: 'string', format: 'date-time' },
+  crmUrl: { type: 'string', format: 'url' }, // Direct link to CRM record
+  
+  // Dependencies & ordering
+  dependencies: { type: 'array', items: 'string' }, // IDs of stories that must complete first
+  order: { type: 'number', default: 0 }, // Display order within status column
+  
+  // Metadata
+  createdAt: { type: 'string', format: 'date-time' },
+  updatedAt: { type: 'string', format: 'date-time' },
+  tags: { type: 'array', items: 'string' },
+  priority: { type: 'string', enum: ['low', 'medium', 'high', 'critical'], default: 'medium' },
+  
+  relatedObjects: { type: 'array', items: 'object' }, // Links to stakeholders, applications, etc.
+  
+  // Child activities (sub-tasks to complete this story)
+  activities: { 
+    type: 'array', 
+    items: 'string',
+    description: 'Array of activity IDs that belong to this story'
+  }
+};
+
+/**
+ * Activity Entity (Sub-task of Story)
+ * Represents a specific task that must be completed to fulfill a story's definition of done
+ * Multiple activities can belong to one story
+ */
+const ActivitySchema = {
+  id: { type: 'string', required: true, pattern: /^ACT-\d{4}$/ },
+  storyId: { type: 'string', required: true, pattern: /^STORY-\d{4}$/ }, // Parent story
+  title: { type: 'string', required: true },
+  description: { type: 'string' },
+  
+  // Activity status (simple 3-state workflow)
+  status: { 
+    type: 'string', 
+    required: true, 
+    enum: ['todo', 'in-progress', 'done'], 
+    default: 'todo' 
+  },
+  completed: { type: 'boolean', default: false },
+  
+  // Assignment & effort
   assignedTo: { type: 'string' },
-  artifactId: { type: 'string' }, // Link to generated artifact
-  evidenceRefs: { type: 'array', items: 'string' }
+  estimatedHours: { type: 'number', min: 0 },
+  actualHours: { type: 'number', min: 0 },
+  
+  // Ordering & metadata
+  order: { type: 'number', default: 0 }, // Display order within story
+  createdAt: { type: 'string', format: 'date-time' },
+  updatedAt: { type: 'string', format: 'date-time' },
+  completedAt: { type: 'string', format: 'date-time' }
 };
 
 /**

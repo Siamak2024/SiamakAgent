@@ -24,7 +24,7 @@
         
         /* === HEADER === */
         .ea-header {
-            background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+            background: #00472E !important;
             padding: 16px 24px;
             display: flex;
             align-items: center;
@@ -142,6 +142,22 @@
             border-top: 1px solid #e5e7eb;
             font-size: 11px;
             color: #9ca3af;
+        }
+        
+        /* === DRAG & DROP === */
+        .opp-card[draggable="true"] {
+            cursor: move;
+        }
+        .opp-card.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+        .pipeline-stage.drag-over {
+            background: #ede9fe;
+            border: 2px dashed #7c3aed;
+        }
+        .pipeline-stage.drag-over .stage-header {
+            color: #7c3aed;
         }
         
         /* === FILTERS === */
@@ -346,7 +362,7 @@
         <header class="ea-header">
             <div style="flex: 1;">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <h1><i class="fas fa-bullseye"></i> Opportunity Pipeline</h1>
+                    <h1><i class="fas fa-bullseye"></i> Vivicta Opportunity Pipeline</h1>
                     
                     <!-- Global Search -->
                     <div class="global-search-container">
@@ -386,17 +402,17 @@
             <div class="metrics-bar">
                 <div class="metric-item">
                     <span class="metric-label">Total Pipeline</span>
-                    <span class="metric-value" id="total-pipeline">$0</span>
+                    <span class="metric-value" id="total-pipeline">€0</span>
                     <span class="metric-subtext" id="pipeline-count">0 opportunities</span>
                 </div>
                 <div class="metric-item">
                     <span class="metric-label">Weighted Value</span>
-                    <span class="metric-value" id="weighted-value">$0</span>
+                    <span class="metric-value" id="weighted-value">€0</span>
                     <span class="metric-subtext">Probability-adjusted</span>
                 </div>
                 <div class="metric-item">
                     <span class="metric-label">This Quarter</span>
-                    <span class="metric-value" id="quarter-forecast">$0</span>
+                    <span class="metric-value" id="quarter-forecast">€0</span>
                     <span class="metric-subtext" id="quarter-name">Q2 2026</span>
                 </div>
                 <div class="metric-item">
@@ -441,7 +457,7 @@
                 <div class="pipeline-stage">
                     <div class="stage-header">
                         <div class="stage-title">1. Discovery</div>
-                        <div class="stage-stats" id="stats-discovery">0 opportunities • $0</div>
+                        <div class="stage-stats" id="stats-discovery">0 opportunities • €0</div>
                     </div>
                     <div id="stage-discovery"></div>
                 </div>
@@ -450,7 +466,7 @@
                 <div class="pipeline-stage">
                     <div class="stage-header">
                         <div class="stage-title">2. Qualification</div>
-                        <div class="stage-stats" id="stats-qualify">0 opportunities • $0</div>
+                        <div class="stage-stats" id="stats-qualify">0 opportunities • €0</div>
                     </div>
                     <div id="stage-qualify"></div>
                 </div>
@@ -459,7 +475,7 @@
                 <div class="pipeline-stage">
                     <div class="stage-header">
                         <div class="stage-title">3. Proposal</div>
-                        <div class="stage-stats" id="stats-propose">0 opportunities • $0</div>
+                        <div class="stage-stats" id="stats-propose">0 opportunities • €0</div>
                     </div>
                     <div id="stage-propose"></div>
                 </div>
@@ -468,7 +484,7 @@
                 <div class="pipeline-stage">
                     <div class="stage-header">
                         <div class="stage-title">4. Negotiation</div>
-                        <div class="stage-stats" id="stats-negotiate">0 opportunities • $0</div>
+                        <div class="stage-stats" id="stats-negotiate">0 opportunities • €0</div>
                     </div>
                     <div id="stage-negotiate"></div>
                 </div>
@@ -477,7 +493,7 @@
                 <div class="pipeline-stage">
                     <div class="stage-header">
                         <div class="stage-title">5. Closed</div>
-                        <div class="stage-stats" id="stats-closed">0 opportunities • $0</div>
+                        <div class="stage-stats" id="stats-closed">0 opportunities • €0</div>
                     </div>
                     <div id="stage-closed"></div>
                 </div>
@@ -865,10 +881,10 @@
             });
             const quarterValue = quarterOpps.reduce((sum, o) => sum + o.estimatedValue, 0);
             
-            document.getElementById('total-pipeline').textContent = `$${(totalValue / 1000000).toFixed(1)}M`;
+            document.getElementById('total-pipeline').textContent = `€${(totalValue / 1000000).toFixed(1)}M`;
             document.getElementById('pipeline-count').textContent = `${filteredOpportunities.length} opportunities`;
-            document.getElementById('weighted-value').textContent = `$${(weightedValue / 1000000).toFixed(1)}M`;
-            document.getElementById('quarter-forecast').textContent = `$${(quarterValue / 1000000).toFixed(1)}M`;
+            document.getElementById('weighted-value').textContent = `€${(weightedValue / 1000000).toFixed(1)}M`;
+            document.getElementById('quarter-forecast').textContent = `€${(quarterValue / 1000000).toFixed(1)}M`;
             document.getElementById('quarter-name').textContent = currentQuarter;
             document.getElementById('win-rate').textContent = `${winRate.toFixed(0)}%`;
             document.getElementById('win-count').textContent = `${won.length} won / ${lost.length} lost`;
@@ -904,7 +920,7 @@
                 // Update stats
                 const statsId = stageName === 'closed' ? 'stats-closed' : `stats-${stageName}`;
                 document.getElementById(statsId).textContent = 
-                    `${stage.opps.length} opportunities • $${(stage.total / 1000000).toFixed(1)}M`;
+                    `${stage.opps.length} opportunities • €${(stage.total / 1000000).toFixed(1)}M`;
                 
                 // Render cards
                 if (stage.opps.length === 0) {
@@ -915,10 +931,15 @@
                 container.innerHTML = stage.opps.map(opp => {
                     const account = accountManager.getAccount(opp.accountId);
                     return `
-                        <div class="opp-card" onclick="viewOpportunity('${opp.id}')">
+                        <div class="opp-card" 
+                             draggable="true" 
+                             data-opp-id="${opp.id}"
+                             ondragstart="handleDragStart(event, '${opp.id}')"
+                             ondragend="handleDragEnd(event)"
+                             onclick="viewOpportunity('${opp.id}')">
                             <div class="opp-name">${opp.name}</div>
                             <div class="opp-account">${account ? account.name : 'Unknown Account'}</div>
-                            <div class="opp-value">$${(opp.estimatedValue / 1000000).toFixed(2)}M</div>
+                            <div class="opp-value">€${(opp.estimatedValue / 1000000).toFixed(2)}M</div>
                             <div class="opp-probability">${opp.probability}% probability</div>
                             <div class="opp-meta">
                                 <i class="fas fa-calendar"></i> ${new Date(opp.closeDate).toLocaleDateString()}
@@ -927,7 +948,117 @@
                         </div>
                     `;
                 }).join('');
+                
+                // Add drop zone handlers to stage container
+                container.ondragover = handleDragOver;
+                container.ondragleave = handleDragLeave;
+                container.ondrop = (e) => handleDrop(e, stageName);
             });
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // DRAG & DROP HANDLERS
+        // ═══════════════════════════════════════════════════════════════════
+        
+        let draggedOppId = null;
+        
+        function handleDragStart(event, oppId) {
+            draggedOppId = oppId;
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/html', event.target.innerHTML);
+            event.target.classList.add('dragging');
+        }
+        
+        function handleDragEnd(event) {
+            event.target.classList.remove('dragging');
+            
+            // Remove drag-over styling from all stages
+            document.querySelectorAll('.pipeline-stage').forEach(stage => {
+                stage.classList.remove('drag-over');
+            });
+        }
+        
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            
+            // Find the pipeline-stage parent
+            let stageElement = event.target;
+            while (stageElement && !stageElement.classList.contains('pipeline-stage')) {
+                stageElement = stageElement.parentElement;
+            }
+            
+            if (stageElement) {
+                stageElement.classList.add('drag-over');
+            }
+        }
+        
+        function handleDragLeave(event) {
+            // Only remove if leaving the stage container itself
+            if (event.target.classList.contains('pipeline-stage')) {
+                event.target.classList.remove('drag-over');
+            }
+        }
+        
+        function handleDrop(event, targetStage) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            if (!draggedOppId) return;
+            
+            // Map stage name to status
+            const statusMap = {
+                'discovery': 'discovery',
+                'qualify': 'qualify',
+                'propose': 'propose',
+                'negotiate': 'negotiate',
+                'closed': 'close-won' // Default to won, could add logic for lost
+            };
+            
+            const newStatus = statusMap[targetStage];
+            
+            // Find and update opportunity
+            const opp = allOpportunities.find(o => o.id === draggedOppId);
+            if (opp && opp.status !== newStatus) {
+                opp.status = newStatus;
+                accountManager.updateOpportunity(draggedOppId, { status: newStatus });
+                
+                // Show toast notification
+                const stageNames = {
+                    'discovery': 'Discovery',
+                    'qualify': 'Qualification',
+                    'propose': 'Proposal',
+                    'negotiate': 'Negotiation',
+                    'closed': 'Closed Won'
+                };
+                
+                // Create compact toast
+                const toast = document.createElement('div');
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    left: 20px;
+                    background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+                    color: white;
+                    padding: 10px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    font-size: 13px;
+                    font-weight: 600;
+                    z-index: 10000;
+                    max-width: 280px;
+                    animation: slideInUp 0.3s ease-out;
+                `;
+                toast.innerHTML = `<i class="fas fa-exchange-alt"></i> Moved to ${stageNames[targetStage]}`;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+                
+                // Refresh display
+                updateMetrics();
+                renderKanban();
+            }
+            
+            draggedOppId = null;
         }
 
         function applyFilters() {

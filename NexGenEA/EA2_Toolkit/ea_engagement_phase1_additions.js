@@ -242,8 +242,16 @@ function saveDecision() {
 }
 
 function renderDecisions() {
-    const decisions = engagementManager.getEntities('decisions') || [];
     const container = document.getElementById('decisions-container');
+    if (!container) return;
+    
+    // Safety check: ensure engagementManager is initialized
+    if (typeof engagementManager === 'undefined' || !engagementManager) {
+        console.warn('engagementManager not initialized yet');
+        return;
+    }
+    
+    const decisions = engagementManager.getEntities('decisions') || [];
     
     if (decisions.length === 0) {
         container.innerHTML = `
@@ -371,8 +379,16 @@ function saveConstraint() {
 }
 
 function renderConstraints() {
-    const constraints = engagementManager.getEntities('constraints') || [];
     const container = document.getElementById('constraints-container');
+    if (!container) return;
+    
+    // Safety check: ensure engagementManager is initialized
+    if (typeof engagementManager === 'undefined' || !engagementManager) {
+        console.warn('engagementManager not initialized yet');
+        return;
+    }
+    
+    const constraints = engagementManager.getEntities('constraints') || [];
     
     if (constraints.length === 0) {
         container.innerHTML = `
@@ -492,8 +508,16 @@ function saveAssumption() {
 }
 
 function renderAssumptions() {
-    const assumptions = engagementManager.getEntities('assumptions') || [];
     const container = document.getElementById('assumptions-container');
+    if (!container) return;
+    
+    // Safety check: ensure engagementManager is initialized
+    if (typeof engagementManager === 'undefined' || !engagementManager) {
+        console.warn('engagementManager not initialized yet');
+        return;
+    }
+    
+    const assumptions = engagementManager.getEntities('assumptions') || [];
     
     if (assumptions.length === 0) {
         container.innerHTML = `

@@ -1065,7 +1065,8 @@ class EA_EngagementManager {
       architectureThemes: 'ARCH',
       serviceCategories: 'CAT',  // V2.0
       artifacts: 'ART',
-      stories: 'STORY'
+      stories: 'STORY',
+      activities: 'ACT'  // V2.0 - Replaces stories
     };
 
     const prefix = prefixes[entityType] || 'ENT';
@@ -1077,7 +1078,7 @@ class EA_EngagementManager {
     }, 0);
 
     const newId = maxId + 1;
-    const padding = entityType === 'stories' ? 4 : 3;
+    const padding = (entityType === 'stories' || entityType === 'activities') ? 4 : 3;
     return `${prefix}-${String(newId).padStart(padding, '0')}`;
   }
 
