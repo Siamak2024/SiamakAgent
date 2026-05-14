@@ -23,6 +23,7 @@
     <script src="../../js/EA_DemoScenarios.js?v=FIXED"></script>
     <script src="../../js/EA_ProjectManager.js?v=2026"></script>
     <script src="engagement_schema.js"></script>
+    <script src="../../js/EA_EngagementManager.js"></script>
     <style>
         /* === NORDIC THEME OVERRIDES FOR GROWTH DASHBOARD === */
         body { margin: 0; background: var(--ea-background); }
@@ -1078,6 +1079,7 @@
 
     <script>
         let accountManager;
+        let engagementManager;
         let userGuide;
         let templateManager;
         let demoScenarios;
@@ -1089,6 +1091,10 @@
             
             accountManager = new EA_AccountManager();
             console.log('✅ AccountManager initialized:', accountManager);
+            
+            // Initialize EA_EngagementManager for demo account creation
+            engagementManager = new EA_EngagementManager();
+            console.log('✅ EngagementManager initialized for demo data');
             
             // Initialize AI Assistant
             setTimeout(() => {
@@ -2035,14 +2041,53 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
             }
             
             try {
-                // 0. CLEANUP EXISTING BANK AB DATA (if exists)
+                // 0. COMPREHENSIVE CLEANUP OF ALL BANK AB DATA
                 const existingAccountId = 'ACC-BANK-AB';
-                const existingEngagementIds = ['ENG-BANK-AB-2026', 'ENG-BAN-2026Q2-001']; // Old and new IDs
                 
-                // Delete existing account (this will also delete linked opportunities via accountManager)
+                // Delete ALL engagements linked to BANK AB (aggressive cleanup)
+                console.log('🧹 Cleaning up all existing BANK AB engagements...');
+                const engagementKeysToDelete = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('ea_engagement_model_')) {
+                        // Extract engagement ID from key
+                        const engagementId = key.replace('ea_engagement_model_', '');
+                        
+                        // Check if engagement ID contains BANK AB patterns
+                        const isBankABEngagement = 
+                            engagementId.includes('BANK-AB') || 
+                            engagementId.includes('BAN-') ||
+                            engagementId.includes('BANK-2026');
+                        
+                        if (isBankABEngagement) {
+                            engagementKeysToDelete.push(key);
+                            console.log(`  → Found BANK AB engagement to delete: ${key}`);
+                        } else {
+                            // Also check accountId in the data
+                            try {
+                                const engData = JSON.parse(localStorage.getItem(key));
+                                const accountId = engData?.engagement?.accountId || engData?.accountId;
+                                if (accountId === existingAccountId) {
+                                    engagementKeysToDelete.push(key);
+                                    console.log(`  → Found engagement linked to ${existingAccountId}: ${key}`);
+                                }
+                            } catch (e) {
+                                // Skip invalid JSON
+                            }
+                        }
+                    }
+                }
+                
+                // Delete all found engagements
+                engagementKeysToDelete.forEach(key => {
+                    localStorage.removeItem(key);
+                    console.log(`  ✓ Deleted: ${key}`);
+                });
+                
+                // Delete existing account (this will also delete linked opportunities)
                 try {
                     accountManager.deleteAccount(existingAccountId);
-                    console.log('Deleted existing BANK AB account');
+                    console.log('✓ Deleted existing BANK AB account');
                 } catch (e) {
                     console.log('No existing account to delete');
                 }
@@ -2050,20 +2095,20 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                 // Delete existing objectives (stored separately in GrowthDashboard_ObjectivesManager)
                 localStorage.removeItem(`gsd_objectives_${existingAccountId}`);
                 
-                // Delete existing engagements (both old and new IDs)
-                existingEngagementIds.forEach(engId => {
-                    localStorage.removeItem(`ea_engagement_model_${engId}`);
-                    // Also try deleting via engagement manager if available
-                    if (window.engagementManager) {
-                        try {
-                            window.engagementManager.deleteEngagement(engId);
-                        } catch (e) {
-                            // Ignore if doesn't exist
-                        }
+                // Clear current engagement reference if it's related to BANK AB
+                if (localStorage.getItem('ea_engagement_current')) {
+                    const currentEngId = localStorage.getItem('ea_engagement_current');
+                    const isBankABEngagement = 
+                        currentEngId.includes('BANK-AB') || 
+                        currentEngId.includes('BAN-') ||
+                        currentEngId.includes('BANK-2026');
+                    if (isBankABEngagement || engagementKeysToDelete.some(key => key.includes(currentEngId))) {
+                        localStorage.removeItem('ea_engagement_current');
+                        console.log(`✓ Cleared current engagement reference: ${currentEngId}`);
                     }
-                });
+                }
                 
-                console.log('✓ Cleanup complete, creating fresh BANK AB data...');
+                console.log('✅ Complete cleanup finished, creating fresh BANK AB data...');
                 
                 // 1. CREATE ACCOUNT
                 const bankAB = accountManager.createAccount({
@@ -2235,7 +2280,7 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                 // 4. CREATE COMPREHENSIVE ENGAGEMENT FOR EA PLAYBOOK
                 // With realistic demo data for all canvases
                 if (window.engagementManager) {
-                    const engagementId = 'ENG-BAN-2026Q2-001';
+                    const engagementId = 'ENG-BANK-2026-001';
                     
                     // Delete any existing engagement with this ID first
                     try {
@@ -2277,14 +2322,14 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                         phases: [],
                         stories: [],
                         stakeholders: [
-                            { id: 'STK-BAN-001', name: 'Lars Andersson', role: 'Head of Corporate Banking', orgUnit: 'Corporate Banking Division', type: 'customer', influence: 'high', decisionPower: 'high', priorities: ['Revenue growth', 'Customer acquisition', 'Digital channels'], notes: 'Executive sponsor for digital transformation' },
-                            { id: 'STK-BAN-002', name: 'Maria Bergström', role: 'Chief Sustainability Officer', orgUnit: 'Sustainability & ESG', type: 'customer', influence: 'high', decisionPower: 'medium', priorities: ['CSRD compliance', 'Sustainable finance', 'ESG reporting'], notes: 'Leading ESG Excellence Program' },
-                            { id: 'STK-BAN-003', name: 'Johan Svensson', role: 'CFO', orgUnit: 'Finance', type: 'customer', influence: 'high', decisionPower: 'high', priorities: ['Cost optimization', 'ROI', 'Operational efficiency'], notes: 'Business case approval authority' },
-                            { id: 'STK-BAN-004', name: 'Anna Lindqvist', role: 'Chief Risk Officer', orgUnit: 'Risk Management', type: 'customer', influence: 'high', decisionPower: 'medium', priorities: ['Climate risk', 'Portfolio resilience', 'Regulatory compliance'], notes: 'Climate risk initiative lead' },
-                            { id: 'STK-BAN-005', name: 'Petra Nilsson', role: 'Head of Retail Banking', orgUnit: 'Retail Division', type: 'customer', influence: 'medium', decisionPower: 'medium', priorities: ['Customer satisfaction', 'NPS improvement', 'Digital advisory'], notes: 'Customer experience champion' },
-                            { id: 'STK-BAN-006', name: 'Anders Eriksson', role: 'CTO', orgUnit: 'Technology', type: 'customer', influence: 'high', decisionPower: 'high', priorities: ['Technology modernization', 'Cloud migration', 'Technical debt reduction'], notes: 'Technical architecture decision maker' },
-                            { id: 'STK-BAN-007', name: 'Erik Johansson', role: 'Enterprise Architect', orgUnit: 'Enterprise Architecture', type: 'engagement-team', influence: 'high', decisionPower: 'medium', priorities: ['EA alignment', 'Best practices', 'Value delivery'], notes: 'EA engagement lead from our side' },
-                            { id: 'STK-BAN-008', name: 'Sofia Andersson', role: 'Account Manager', orgUnit: 'Sales', type: 'engagement-team', influence: 'high', decisionPower: 'high', priorities: ['Client relationship', 'Revenue growth', 'Contract renewals'], notes: 'Primary account owner' }
+                            { id: 'STK-BAN-001', name: 'Lars Andersson', role: 'Head of Corporate Banking', orgUnit: 'Corporate Banking Division', type: 'customer', influence: 'high', decisionPower: 'high', priorities: ['Revenue growth', 'Customer acquisition', 'Digital channels'], notes: 'Executive sponsor for digital transformation', customerRelationships: [] },
+                            { id: 'STK-BAN-002', name: 'Maria Bergström', role: 'Chief Sustainability Officer', orgUnit: 'Sustainability & ESG', type: 'customer', influence: 'high', decisionPower: 'medium', priorities: ['CSRD compliance', 'Sustainable finance', 'ESG reporting'], notes: 'Leading ESG Excellence Program', customerRelationships: [] },
+                            { id: 'STK-BAN-003', name: 'Johan Svensson', role: 'CFO', orgUnit: 'Finance', type: 'customer', influence: 'high', decisionPower: 'high', priorities: ['Cost optimization', 'ROI', 'Operational efficiency'], notes: 'Business case approval authority', customerRelationships: [] },
+                            { id: 'STK-BAN-004', name: 'Anna Lindqvist', role: 'Chief Risk Officer', orgUnit: 'Risk Management', type: 'customer', influence: 'high', decisionPower: 'medium', priorities: ['Climate risk', 'Portfolio resilience', 'Regulatory compliance'], notes: 'Climate risk initiative lead', customerRelationships: [] },
+                            { id: 'STK-BAN-005', name: 'Petra Nilsson', role: 'Head of Retail Banking', orgUnit: 'Retail Division', type: 'customer', influence: 'medium', decisionPower: 'medium', priorities: ['Customer satisfaction', 'NPS improvement', 'Digital advisory'], notes: 'Customer experience champion', customerRelationships: [] },
+                            { id: 'STK-BAN-006', name: 'Anders Eriksson', role: 'CTO', orgUnit: 'Technology', type: 'customer', influence: 'high', decisionPower: 'high', priorities: ['Technology modernization', 'Cloud migration', 'Technical debt reduction'], notes: 'Technical architecture decision maker', customerRelationships: [] },
+                            { id: 'STK-BAN-007', name: 'Erik Johansson', role: 'Enterprise Architect', orgUnit: 'Enterprise Architecture', type: 'engagement-team', influence: 'high', decisionPower: 'medium', priorities: ['EA alignment', 'Best practices', 'Value delivery'], notes: 'EA engagement lead from our side', customerRelationships: ['STK-BAN-006', 'STK-BAN-004', 'STK-BAN-002'] },
+                            { id: 'STK-BAN-008', name: 'Sofia Andersson', role: 'Account Manager', orgUnit: 'Sales', type: 'engagement-team', influence: 'high', decisionPower: 'high', priorities: ['Client relationship', 'Revenue growth', 'Contract renewals'], notes: 'Primary account owner', customerRelationships: ['STK-BAN-001', 'STK-BAN-003', 'STK-BAN-005'] }
                         ],
                         applications: [
                             { id: 'APP-BAN-001', name: 'Core Banking System (CBS)', vendor: 'Custom (built 1998)', category: 'Core', status: 'retire', technicalFit: 2, businessFit: 3, criticality: 'critical', issues: ['Legacy technology', 'No APIs', 'High maintenance costs', 'Cannot support new products'], retirementDate: '2028-12-31', notes: 'Main constraint for digital innovation' },
@@ -2341,6 +2386,11 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                         localStorage.setItem('ea_engagement_model_' + engagementId, JSON.stringify(comprehensiveEngagement));
                         window.engagementManager.setCurrentEngagement(engagementId);
                         console.log('✓ Created comprehensive BANK AB engagement:', engagementId);
+                        
+                        // CRITICAL: Link engagement to account
+                        bankAB.engagements = [engagementId];
+                        accountManager.updateAccount(bankAB.id, bankAB);
+                        console.log('✓ Linked engagement to BANK AB account');
                     } catch (error) {
                         console.error('Error creating comprehensive engagement:', error);
                     }
@@ -2411,7 +2461,11 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                 const account = accountManager.getAccount(selectedAccountId);
                 accounts = account ? [account] : [];
                 opportunities = accountManager.listOpportunities().filter(opp => opp.accountId === selectedAccountId);
-                engagements = listEngagements().filter(eng => eng.accountId === selectedAccountId);
+                // Support both old (accountId at root) and new (accountId in engagement object) structures
+                engagements = listEngagements().filter(eng => {
+                    const engAccountId = eng.accountId || (eng.engagement && eng.engagement.accountId);
+                    return engAccountId === selectedAccountId;
+                });
             } else {
                 // Show all data
                 accounts = accountManager.listAccounts();
@@ -2441,8 +2495,12 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                         const engagementData = JSON.parse(localStorage.getItem(key));
                         
                         // Filter by selected account if account context is active
-                        if (selectedAccountId && engagementData.accountId !== selectedAccountId) {
-                            continue; // Skip engagements not belonging to selected account
+                        if (selectedAccountId) {
+                            // Support both old (accountId at root) and new (accountId in engagement object) structures
+                            const engagementAccountId = engagementData.accountId || (engagementData.engagement && engagementData.engagement.accountId);
+                            if (engagementAccountId !== selectedAccountId) {
+                                continue; // Skip engagements not belonging to selected account
+                            }
                         }
                         
                         // Count architecture themes of type 'target'

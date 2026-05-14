@@ -577,9 +577,18 @@ async function openAISuggestCategories() {
         // Try various response formats
         if (response.output_text) {
             responseText = response.output_text;
+            console.log('🔍 Found response.output_text:', {
+                type: typeof responseText,
+                isArray: Array.isArray(responseText),
+                isObject: typeof responseText === 'object',
+                keys: typeof responseText === 'object' ? Object.keys(responseText) : null,
+                value: responseText,
+                stringified: JSON.stringify(responseText).substring(0, 500)
+            });
         } else if (response.output && Array.isArray(response.output) && response.output[0]?.content) {
             // Azure OpenAI Responses API format: response.output[0].content
             responseText = response.output[0].content;
+            console.log('📦 Extracted from response.output[0].content:', typeof responseText, responseText);
         } else if (response.output && response.output.content) {
             // Alternative: response.output.content
             responseText = response.output.content;
@@ -603,9 +612,9 @@ async function openAISuggestCategories() {
             hasContent: !!response.content,
             responseType: typeof response,
             extractedType: typeof responseText,
-            textLength: typeof responseText === 'string' ? responseText?.length : JSON.stringify(responseText).length,
+            textLength: typeof responseText === 'string' ? responseText?.length : (responseText ? JSON.stringify(responseText).length : 0),
             preview: typeof responseText === 'string' ? responseText.substring(0, 300) : JSON.stringify(responseText).substring(0, 300),
-            fullResponse: response // Log full response object for debugging
+            responseTextValue: responseText // Log the actual value
         });
         
         // Check if responseText is already an object (pre-parsed)
@@ -621,11 +630,14 @@ async function openAISuggestCategories() {
                 console.log('⚠️ AI returned single category object, wrapping in array');
                 suggestions = [responseText];
             } else {
+                // Check if it's wrapped in another layer
+                console.log('🔍 Checking for nested structure...', Object.keys(responseText));
                 suggestions = [];
             }
             
             if (!suggestions || suggestions.length === 0) {
-                throw new Error('AI returned no category suggestions');
+                console.error('❌ No valid suggestions found in object:', responseText);
+                throw new Error('AI returned no category suggestions. Response format: ' + JSON.stringify(responseText).substring(0, 200));
             }
             
             console.log('📊 AI suggested', suggestions.length, 'categories:', suggestions);
@@ -658,6 +670,12 @@ async function openAISuggestCategories() {
         try {
             const parsed = JSON.parse(responseText);
             
+            // Check if AI returned an error
+            if (parsed.error) {
+                console.error('❌ AI returned error:', parsed.error);
+                throw new Error('AI Error: ' + parsed.error);
+            }
+            
             // Handle multiple response formats:
             if (Array.isArray(parsed)) {
                 // Direct array: [{ name, theme, ... }, ...]
@@ -671,6 +689,7 @@ async function openAISuggestCategories() {
                 suggestions = [parsed];
             } else {
                 // Unknown format
+                console.error('❌ Unknown AI response format:', parsed);
                 suggestions = [];
             }
         } catch (parseError) {

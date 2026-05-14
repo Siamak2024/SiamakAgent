@@ -229,6 +229,11 @@ function toggleServiceSelection(serviceId) {
     
     // Update card visual state
     const card = document.querySelector(`[data-service-id="${serviceId}"]`);
+    if (!card) {
+        console.warn(`Card not found for service: ${serviceId}`);
+        return;
+    }
+    
     const isSelected = window.tempSelectedServices.includes(serviceId);
     
     card.style.background = isSelected ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' : 'white';
@@ -236,11 +241,15 @@ function toggleServiceSelection(serviceId) {
     card.style.boxShadow = isSelected ? '0 4px 12px rgba(16, 185, 129, 0.2)' : '0 1px 3px rgba(0,0,0,0.1)';
     
     const icon = card.querySelector('.fas');
-    icon.className = `fas fa-${isSelected ? 'check' : 'plus'}`;
-    icon.style.color = isSelected ? 'white' : '#9ca3af';
+    if (icon) {
+        icon.className = `fas fa-${isSelected ? 'check' : 'plus'}`;
+        icon.style.color = isSelected ? 'white' : '#9ca3af';
+    }
     
     const iconBg = card.querySelector('div[style*="border-radius: 50%"]');
-    iconBg.style.background = isSelected ? '#10b981' : '#e5e7eb';
+    if (iconBg) {
+        iconBg.style.background = isSelected ? '#10b981' : '#e5e7eb';
+    }
     
     // Update area selected count
     updateAreaCounts();
@@ -271,16 +280,25 @@ function toggleAreaSelection(areaName, shouldSelect) {
 
 // Update card visual state helper
 function updateCardVisual(card, isSelected) {
+    if (!card) {
+        console.warn('updateCardVisual: card is null');
+        return;
+    }
+    
     card.style.background = isSelected ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' : 'white';
     card.style.borderColor = isSelected ? '#10b981' : '#e5e7eb';
     card.style.boxShadow = isSelected ? '0 4px 12px rgba(16, 185, 129, 0.2)' : '0 1px 3px rgba(0,0,0,0.1)';
     
     const icon = card.querySelector('.fas');
-    icon.className = `fas fa-${isSelected ? 'check' : 'plus'}`;
-    icon.style.color = isSelected ? 'white' : '#9ca3af';
+    if (icon) {
+        icon.className = `fas fa-${isSelected ? 'check' : 'plus'}`;
+        icon.style.color = isSelected ? 'white' : '#9ca3af';
+    }
     
     const iconBg = card.querySelector('div[style*="border-radius: 50%"]');
-    iconBg.style.background = isSelected ? '#10b981' : '#e5e7eb';
+    if (iconBg) {
+        iconBg.style.background = isSelected ? '#10b981' : '#e5e7eb';
+    }
 }
 
 // Update area selection counts

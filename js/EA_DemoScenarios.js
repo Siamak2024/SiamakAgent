@@ -93,6 +93,88 @@ class EA_DemoScenarios {
   }
 
   /**
+   * Load BANK AB Demo Account (ACC-BANK-AB)
+   * Links to existing engagement data: ENG-BANK-2026-001
+   */
+  loadBankABDemo() {
+    console.log('🏦 Loading BANK AB Demo Account...');
+
+    const accountId = 'ACC-BANK-AB';
+    const engagementId = 'ENG-BANK-2026-001';
+    const opportunityId = 'OPP-BANK-AB-2026-001';
+
+    const bankABAccount = {
+      id: accountId,
+      name: 'BANK AB',
+      accountManager: 'Erik Johansson',
+      ACV: 4500000,
+      industry: 'Banking & Financial Services',
+      region: 'Nordics',
+      size: 'Large Enterprise',
+      health: 'excellent',
+      strategicPriorities: [
+        'Digital Transformation & Cloud Migration',
+        'ESG Excellence & CSRD Compliance',
+        'Operational Excellence & Cost Optimization'
+      ],
+      businessStrategy: 'Transform from traditional bank to digital-first sustainable financial services leader.',
+      painPoints: [
+        'Legacy core banking system (1998) blocking innovation',
+        'Manual ESG reporting unable to meet CSRD requirements',
+        'High cost-to-income ratio (52%) vs target (47%)',
+        'Customer satisfaction declining due to poor digital channels'
+      ],
+      engagements: [engagementId],
+      opportunities: [opportunityId],
+      stakeholders: [],
+      applications: [],
+      capabilities: [],
+      metadata: {
+        createdAt: new Date('2026-01-15').toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: 'Demo Data Generator',
+        schemaVersion: '2.0'
+      }
+    };
+
+    const bankABOpportunity = {
+      id: opportunityId,
+      accountId: accountId,
+      name: 'Digital Transformation & Sustainability Program',
+      status: 'active',
+      stage: 5,
+      estimatedValue: 8200000,
+      probability: 95,
+      closeDate: new Date('2026-12-31').toISOString().split('T')[0],
+      sponsor: 'Lars Andersson, Head of Corporate Banking',
+      linkedInitiatives: ['INIT-BAN-001', 'INIT-BAN-002', 'INIT-BAN-003'],
+      linkedEngagements: [engagementId],
+      valueCase: 'VC-BANK-AB-2026-001',
+      competitors: [],
+      nextSteps: [
+        'CSRD compliance platform delivery (Q4 2026)',
+        'Core banking modernization Phase 1 (2027)',
+        'Digital channels launch (2027)'
+      ],
+      risks: [],
+      metadata: {
+        createdAt: new Date('2026-01-15').toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: 'Demo Data Generator',
+        schemaVersion: '2.0'
+      }
+    };
+
+    localStorage.setItem(`ea_account_${accountId}`, JSON.stringify(bankABAccount));
+    localStorage.setItem(`ea_opportunity_${opportunityId}`, JSON.stringify(bankABOpportunity));
+
+    console.log('✅ BANK AB demo account created: ACC-BANK-AB');
+    console.log('✅ Linked to engagement: ENG-BANK-2026-001');
+    this.trackEvent('bank_ab_demo_loaded');
+    return { accountId, opportunityId, engagementId };
+  }
+
+  /**
    * Load FinTech Industry Demo Scenario
    */
   loadFinTechDemo() {
