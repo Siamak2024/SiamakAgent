@@ -2920,6 +2920,49 @@
             updateKPIs();
             console.log('✓ EA Engagement Playbook fully initialized');
             console.log('📊 Phase 2 features enabled: Workflow Engine, Integration Bridge, Enhanced AI, Account Linking');
+            
+            // Add debug helper to window for troubleshooting
+            window.debugEngagement = function() {
+                console.log('=== EA Engagement Debug Info ===');
+                console.log('Account Manager:', window.accountManager ? '✓ Available' : '✗ Not Available');
+                console.log('Engagement Manager:', window.engagementManager ? '✓ Available' : '✗ Not Available');
+                
+                if (window.accountManager) {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const accountId = urlParams.get('accountId');
+                    console.log('URL Account ID:', accountId);
+                    
+                    if (accountId) {
+                        const account = window.accountManager.getAccount(accountId);
+                        console.log('Account Object:', account ? account : '✗ Not Found');
+                    }
+                    
+                    const allAccounts = window.accountManager.listAccounts();
+                    console.log('Total Accounts:', allAccounts.length);
+                    console.log('All Accounts:', allAccounts);
+                }
+                
+                if (window.engagementManager) {
+                    const allEngagements = window.engagementManager.listEngagements();
+                    console.log('Total Engagements:', allEngagements.length);
+                    console.log('All Engagements:', allEngagements);
+                    console.log('Current Engagement:', currentEngagement);
+                }
+                
+                console.log('LocalStorage Keys:', Object.keys(localStorage).filter(k => k.startsWith('ea_') || k.startsWith('account_')));
+                console.log('===============================');
+            };
+            
+            // Auto-run debug if there's an accountId but no account found
+            const urlParams = new URLSearchParams(window.location.search);
+            const accountId = urlParams.get('accountId');
+            if (accountId && window.accountManager) {
+                const account = window.accountManager.getAccount(accountId);
+                if (!account) {
+                    console.warn(`⚠️ Account ${accountId} not found! Run window.debugEngagement() for details.`);
+                    console.log(`💡 Tip: Create account first in Growth Dashboard or run demo loader.`);
+                }
+            }
         });
 
         // ═══════════════════════════════════════════════════════════════════
@@ -2961,23 +3004,33 @@
                 account = window.currentAccountContext;
             }
             
-            // If still no account, show error
+            // If still no account, allow creating without account (standalone engagement)
             if (!account) {
-                showToast('No Account Selected', 'Please select an account first', 'warning');
-                return;
+                console.warn('No account context available - creating standalone engagement');
+                // Create a temporary standalone account placeholder
+                account = {
+                    id: 'STANDALONE',
+                    name: 'Standalone Engagement',
+                    industry: 'General',
+                    crmId: ''
+                };
             }
             
             // Auto-populate fields
             // Account field (readonly display)
             const accountField = document.getElementById('new-engagement-account-name');
             if (accountField) {
-                accountField.value = `${account.name} (${account.industry})`;
+                accountField.value = account.id === 'STANDALONE' ? 
+                    'No Account (Standalone)' : 
+                    `${account.name} (${account.industry})`;
             }
             
             // CRM Customer ID (if available)
             const crmField = document.getElementById('new-engagement-crm-id');
             if (crmField && account.crmId) {
                 crmField.value = account.crmId;
+            } else if (crmField) {
+                crmField.value = '';
             }
             
             // Auto-generate Engagement ID
@@ -2986,7 +3039,8 @@
                 const year = new Date().getFullYear();
                 const quarter = 'Q' + (Math.floor(new Date().getMonth() / 3) + 1);
                 const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-                const prefix = account ? account.industry.substring(0, 3).toUpperCase() : 'GEN';
+                const prefix = account && account.industry && account.id !== 'STANDALONE' ? 
+                    account.industry.substring(0, 3).toUpperCase() : 'GEN';
                 engagementIdField.value = `ENG-${prefix}-${year}${quarter}-${random}`;
             }
             
@@ -3056,23 +3110,33 @@
                 account = window.currentAccountContext;
             }
             
+            // If no account, create standalone engagement
+            let isStandalone = false;
             if (!account) {
-                showToast('Validation Error', 'No account selected. Please select an account first.', 'error');
-                return;
+                console.warn('No account context - creating standalone engagement');
+                isStandalone = true;
+                account = {
+                    id: 'STANDALONE',
+                    name: 'Standalone Engagement',
+                    industry: 'General'
+                };
             }
             
             // Check if engagement already exists for this account (one-per-account rule)
-            const existingEngagement = findEngagementByAccountId(account.id);
-            if (existingEngagement) {
-                if (!confirm(`An engagement already exists for ${account.name}. Creating a new one will not delete the old one. Continue?`)) {
-                    return;
+            // Skip this check for standalone engagements
+            if (!isStandalone) {
+                const existingEngagement = findEngagementByAccountId(account.id);
+                if (existingEngagement) {
+                    if (!confirm(`An engagement already exists for ${account.name}. Creating a new one will not delete the old one. Continue?`)) {
+                        return;
+                    }
                 }
             }
             
             // Create simplified engagement object
             const engagementData = {
                 id: engagementId,
-                name: `${account.name} - ${theme || 'EA Engagement'}`,
+                name: isStandalone ? (theme || 'EA Engagement') : `${account.name} - ${theme || 'EA Engagement'}`,
                 accountId: account.id,
                 customerName: account.name,
                 industry: account.industry,
@@ -3097,10 +3161,17 @@
                 currentEngagement = engagementManager.getCurrentEngagement();
                 window.currentEngagement = currentEngagement;
                 
+                console.log('✓ Engagement created:', engagementId);
+                console.log('Current engagement after creation:', currentEngagement);
+                
                 // Update UI
                 updateKPIs();
                 updateEngagementSelector();
-                updateAccountContext(account);
+                
+                // Update account context if not standalone
+                if (!isStandalone) {
+                    updateAccountContext(account);
+                }
                 
                 // Close modal
                 closeNewEngagementModal();
@@ -3110,6 +3181,12 @@
                 
                 // Load engagement data into form (if on engagement tab)
                 loadEngagementData();
+                
+                // Switch to Engagement Setup tab
+                const setupTab = document.querySelector('[data-tab="engagement-setup"]');
+                if (setupTab) {
+                    setupTab.click();
+                }
                 
             } catch (error) {
                 console.error('Failed to create engagement:', error);
