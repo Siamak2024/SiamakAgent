@@ -3776,15 +3776,35 @@ Only return the JSON array, no other text.`;
                 
                 try {
                     // Extract text from Responses API output
+                    console.log('[AI Analytics] Full response:', response);
+                    
                     let responseText = '';
                     if (response.output && Array.isArray(response.output)) {
-                        responseText = response.output
-                            .filter(item => item.type === 'message' && item.content)
-                            .map(item => item.content)
-                            .join('');
+                        // Extract text from output items
+                        response.output.forEach(item => {
+                            if (item.type === 'message' && item.content) {
+                                // Content might be a string or array of content parts
+                                if (typeof item.content === 'string') {
+                                    responseText += item.content;
+                                } else if (Array.isArray(item.content)) {
+                                    item.content.forEach(part => {
+                                        if (part.type === 'text' && part.text) {
+                                            responseText += part.text;
+                                        } else if (typeof part === 'string') {
+                                            responseText += part;
+                                        }
+                                    });
+                                }
+                            }
+                        });
                     } else if (response.output_text) {
                         responseText = response.output_text;
+                    } else if (response.choices && response.choices[0]?.message?.content) {
+                        // Fallback for standard chat completion format
+                        responseText = response.choices[0].message.content;
                     }
+                    
+                    console.log('[AI Analytics] Extracted text:', responseText.substring(0, 500));
                     
                     if (!responseText) {
                         throw new Error('Empty response from AI');
@@ -3799,6 +3819,7 @@ Only return the JSON array, no other text.`;
                     }
                 } catch (parseError) {
                     console.error('Error parsing AI response:', parseError);
+                    console.error('Response object:', response);
                     throw new Error('Failed to parse AI recommendations');
                 }
                 
