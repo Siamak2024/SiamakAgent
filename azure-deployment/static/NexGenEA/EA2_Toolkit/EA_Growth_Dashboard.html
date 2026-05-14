@@ -2359,7 +2359,7 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
             // Entry points
             document.getElementById('entry-opportunities').textContent = opportunities.filter(o => !['close-won', 'close-lost'].includes(o.status)).length;
             
-            // Count Architecture Themes (Target EA Vision) from all engagements
+            // Count Architecture Themes (Target EA Vision) filtered by account context
             let architectureThemesCount = 0;
             try {
                 // Loop through all engagement models in localStorage
@@ -2367,6 +2367,12 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                     const key = localStorage.key(i);
                     if (key.startsWith('ea_engagement_model_')) {
                         const engagementData = JSON.parse(localStorage.getItem(key));
+                        
+                        // Filter by selected account if account context is active
+                        if (selectedAccountId && engagementData.accountId !== selectedAccountId) {
+                            continue; // Skip engagements not belonging to selected account
+                        }
+                        
                         // Count architecture themes of type 'target'
                         if (engagementData.architectureThemes && Array.isArray(engagementData.architectureThemes)) {
                             const targetThemes = engagementData.architectureThemes.filter(theme => theme.type === 'target');
