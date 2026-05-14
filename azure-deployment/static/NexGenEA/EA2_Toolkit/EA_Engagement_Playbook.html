@@ -2622,6 +2622,171 @@
             openNewEngagementModal();
         }
 
+        // Open New Engagement Modal (Simplified)
+        function openNewEngagementModal() {
+            const modal = document.getElementById('newEngagementModal');
+            if (!modal) return;
+            
+            // Get active account from AccountManager
+            let account = null;
+            if (window.accountManager) {
+                const activeAccountId = window.accountManager.getActiveAccountId();
+                if (activeAccountId) {
+                    account = window.accountManager.getAccount(activeAccountId);
+                }
+            }
+            
+            // Also check currentAccountContext set by openNewEngagementModalWithAccount
+            if (!account && window.currentAccountContext) {
+                account = window.currentAccountContext;
+            }
+            
+            // Auto-populate fields
+            if (account) {
+                // Account field (readonly display)
+                const accountField = document.getElementById('new-engagement-account-name');
+                if (accountField) {
+                    accountField.value = `${account.name} (${account.industry})`;
+                }
+                
+                // CRM Customer ID (if available)
+                const crmField = document.getElementById('new-engagement-crm-id');
+                if (crmField && account.crmId) {
+                    crmField.value = account.crmId;
+                }
+            }
+            
+            // Auto-generate Engagement ID
+            const engagementIdField = document.getElementById('new-engagement-id');
+            if (engagementIdField) {
+                const year = new Date().getFullYear();
+                const quarter = 'Q' + (Math.floor(new Date().getMonth() / 3) + 1);
+                const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+                const prefix = account ? account.industry.substring(0, 3).toUpperCase() : 'GEN';
+                engagementIdField.value = `ENG-${prefix}-${year}${quarter}-${random}`;
+            }
+            
+            // Auto-fill Created Date
+            const createdField = document.getElementById('new-engagement-created');
+            if (createdField) {
+                createdField.value = new Date().toISOString().split('T')[0];
+            }
+            
+            // Clear optional fields
+            const eaContactField = document.getElementById('new-engagement-contact');
+            if (eaContactField) eaContactField.value = '';
+            
+            const themeField = document.getElementById('new-engagement-theme');
+            if (themeField) themeField.value = '';
+            
+            // Show modal
+            modal.classList.remove('hidden');
+        }
+
+        // Close New Engagement Modal
+        function closeNewEngagementModal() {
+            const modal = document.getElementById('newEngagementModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+            // Clear account context
+            window.currentAccountContext = null;
+            window.pendingAccountLink = null;
+        }
+
+        // Create New Engagement From Modal (Simplified)
+        function createNewEngagementFromModal() {
+            // Get values from modal
+            const engagementId = document.getElementById('new-engagement-id')?.value;
+            const eaContact = document.getElementById('new-engagement-contact')?.value;
+            const theme = document.getElementById('new-engagement-theme')?.value;
+            const crmCustomerId = document.getElementById('new-engagement-crm-id')?.value;
+            const createdDate = document.getElementById('new-engagement-created')?.value;
+            
+            // Validate required fields
+            if (!engagementId) {
+                showToast('Validation Error', 'Engagement ID is required', 'error');
+                return;
+            }
+            
+            if (!eaContact || eaContact.trim() === '') {
+                showToast('Validation Error', 'EA Contact Name is required', 'error');
+                return;
+            }
+            
+            // Get account info
+            let account = null;
+            if (window.accountManager) {
+                const activeAccountId = window.accountManager.getActiveAccountId();
+                if (activeAccountId) {
+                    account = window.accountManager.getAccount(activeAccountId);
+                }
+            }
+            if (!account && window.currentAccountContext) {
+                account = window.currentAccountContext;
+            }
+            
+            if (!account) {
+                showToast('Validation Error', 'No account selected. Please select an account first.', 'error');
+                return;
+            }
+            
+            // Check if engagement already exists for this account (one-per-account rule)
+            const existingEngagement = findEngagementByAccountId(account.id);
+            if (existingEngagement) {
+                if (!confirm(`An engagement already exists for ${account.name}. Creating a new one will not delete the old one. Continue?`)) {
+                    return;
+                }
+            }
+            
+            // Create simplified engagement object
+            const engagementData = {
+                id: engagementId,
+                name: `${account.name} - ${theme || 'EA Engagement'}`,
+                accountId: account.id,
+                customerName: account.name,
+                industry: account.industry,
+                crmCustomerId: crmCustomerId || '',
+                eaContact: eaContact,
+                theme: theme || '',
+                createdDate: createdDate || new Date().toISOString().split('T')[0],
+                status: 'draft',
+                customers: [account.name],
+                segment: account.industry,
+                sprintCadence: '2w',
+                governance: {
+                    decisionForum: '',
+                    reviewCadence: ''
+                },
+                successCriteria: []
+            };
+            
+            // Create engagement via manager
+            try {
+                engagementManager.createEngagement(engagementData);
+                currentEngagement = engagementManager.getCurrentEngagement();
+                window.currentEngagement = currentEngagement;
+                
+                // Update UI
+                updateKPIs();
+                updateEngagementSelector();
+                updateAccountContext(account);
+                
+                // Close modal
+                closeNewEngagementModal();
+                
+                // Show success message
+                showToast('Engagement Created', `Engagement ${engagementId} created successfully`, 'success');
+                
+                // Load engagement data into form (if on engagement tab)
+                loadEngagementData();
+                
+            } catch (error) {
+                console.error('Failed to create engagement:', error);
+                showToast('Creation Failed', error.message, 'error');
+            }
+        }
+
         function updateAccountContext(account) {
             // Update subtitle to show linked account
             const subtitle = document.getElementById('engagement-subtitle');
@@ -2837,61 +3002,69 @@
         }
         
         function saveEngagement() {
+            // Simplified engagement save - only essential fields
             const id = document.getElementById('engagement-id').value;
             const name = document.getElementById('engagement-name').value;
-            const customerName = document.getElementById('engagement-customer-name').value;
-            const segment = document.getElementById('engagement-segment').value;
+            const eaContact = document.getElementById('engagement-ea-contact').value;
             const theme = document.getElementById('engagement-theme').value;
-            const cadence = document.getElementById('engagement-cadence').value;
-            const forum = document.getElementById('engagement-forum').value;
-            const review = document.getElementById('engagement-review').value;
-            const criteria = document.getElementById('engagement-criteria').value.split('\n').filter(c => c.trim());
             
-            if (!id || !name || !segment || !theme) {
-                alert('Please fill in all required fields (*)');
+            if (!id || !name || !eaContact) {
+                alert('Please fill in all required fields: Engagement ID, Name, and EA Contact');
                 return;
             }
             
             if (currentEngagement) {
+                // Update existing engagement (simplified)
                 currentEngagement.engagement = {
                     ...currentEngagement.engagement,
-                    id, name, customerName, segment, theme,
-                    sprintCadence: cadence,
-                    governance: { decisionForum: forum, reviewCadence: review },
-                    successCriteria: criteria
+                    id,
+                    name,
+                    eaContact,
+                    theme: theme || '',
+                    // Keep readonly fields
+                    accountId: currentEngagement.engagement.accountId,
+                    customerName: currentEngagement.engagement.customerName,
+                    industry: currentEngagement.engagement.industry,
+                    crmCustomerId: currentEngagement.engagement.crmCustomerId,
+                    createdDate: currentEngagement.engagement.createdDate,
+                    status: currentEngagement.engagement.status || 'active'
                 };
                 engagementManager.saveEngagement(id, currentEngagement);
+                showToast('Engagement Saved', 'Changes saved successfully', 'success');
             } else {
-                engagementManager.createEngagement({
-                    id, name, customerName, segment, theme,
-                    customers: [],
-                    status: 'draft',
-                    sprintCadence: cadence,
-                    governance: { decisionForum: forum, reviewCadence: review },
-                    successCriteria: criteria
-                });
-                currentEngagement = engagementManager.getCurrentEngagement();
-                window.currentEngagement = currentEngagement; // Expose to modules
+                showToast('No Engagement', 'Please create an engagement first using the + button', 'warning');
+                return;
             }
             
             updateKPIs();
             updateEngagementSelector();
-            showToast('Engagement Saved', 'All changes have been saved', 'success');
         }
         
         function loadEngagementData() {
             if (!currentEngagement) return;
             
             const eng = currentEngagement.engagement;
+            
+            // Load simplified engagement data
             document.getElementById('engagement-id').value = eng.id || '';
             document.getElementById('engagement-name').value = eng.name || '';
-            document.getElementById('engagement-customer-name').value = eng.customerName || '';
-            document.getElementById('engagement-segment').value = eng.segment || '';
+            document.getElementById('engagement-ea-contact').value = eng.eaContact || '';
             document.getElementById('engagement-theme').value = eng.theme || '';
-            document.getElementById('engagement-cadence').value = eng.sprintCadence || '2w';
-            document.getElementById('engagement-forum').value = eng.governance?.decisionForum || '';
-            document.getElementById('engagement-review').value = eng.governance?.reviewCadence || '';
-            document.getElementById('engagement-criteria').value = (eng.successCriteria || []).join('\n');
+            
+            // Load readonly account fields
+            document.getElementById('engagement-customer-name').value = eng.customerName || '';
+            document.getElementById('engagement-segment').value = eng.industry || eng.segment || '';
+            document.getElementById('engagement-crm-id').value = eng.crmCustomerId || '';
+            
+            // Display created date
+            const createdDateDisplay = document.getElementById('engagement-created-date');
+            if (createdDateDisplay && eng.createdDate) {
+                const date = new Date(eng.createdDate);
+                createdDateDisplay.textContent = date.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    year: 'numeric' 
+                });
+            }
         }
         
         function loadSegmentTemplate(segmentId) {
@@ -2939,27 +3112,27 @@
             
             // Small delay to ensure localStorage is clear
             setTimeout(() => {
-                // Create fresh example engagement
+                // Create fresh example engagement with SIMPLIFIED structure
                 engagementManager.createEngagement({
                     id: exampleId,
                     name: 'Nordic Insurance - EA Transformation Program',
-                    segment: 'Insurance',
+                    accountId: 'ACC-DEMO',
+                    customerName: 'Nordic Insurance Group AB',
+                    industry: 'Insurance',
+                    crmCustomerId: 'CRM-INS-2026-001',
+                    eaContact: 'Marcus Holmberg',
                     theme: 'Enterprise Architecture Modernization & Digital Transformation',
-                    customers: ['Nordic Insurance Group AB'],
+                    createdDate: '2026-05-01',
                     status: 'active',
+                    // Legacy fields for backward compatibility (hidden in UI)
+                    customers: ['Nordic Insurance Group AB'],
+                    segment: 'Insurance',
                     sprintCadence: '2w',
                     governance: {
-                        decisionForum: 'IT Steering Committee',
-                        reviewCadence: 'biweekly'
+                        decisionForum: '',
+                        reviewCadence: ''
                     },
-                    successCriteria: [
-                        'Reduce technical debt by 30%',
-                        'Modernize 15 legacy applications',
-                        'Sunset 8 redundant applications',
-                        'Achieve 85% stakeholder satisfaction',
-                        'Deliver cloud migration roadmap',
-                        'Establish consulting firm as strategic EA partner'
-                ]
+                    successCriteria: []
             });
             
             currentEngagement = engagementManager.getCurrentEngagement();

@@ -26,17 +26,128 @@
         .ea-header {
             background: #00472E !important;
             padding: 16px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-        .ea-header h1 { color: white; margin: 0; font-size: 24px; font-weight: 600; }
-        .header-actions { display: flex; gap: 12px; }
+        .ea-header h1 { color: white; margin: 0; font-size: 24px; font-weight: 700; font-family: 'Manrope', sans-serif; }
+        .header-actions { display: flex; gap: 4px; }
+        
+        /* Menu System - Matching Growth Dashboard */
+        .menu-item { position: relative; }
+        .menu-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .menu-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+        .menu-btn.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        .menu-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            right: 0;
+            background: white;
+            border: 1px solid var(--ea-border);
+            border-radius: 8px;
+            box-shadow: 0 12px 28px rgba(31, 42, 51, 0.15);
+            min-width: 220px;
+            z-index: 9999;
+            display: none;
+            overflow: hidden;
+        }
+        .menu-dropdown.active { display: block; }
+        .menu-dropdown-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-bottom: 1px solid var(--ea-border-light);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: var(--ea-text-primary);
+        }
+        .menu-dropdown-item:last-child { border-bottom: none; }
+        .menu-dropdown-item:hover { background: var(--ea-background); }
+        .menu-dropdown-divider {
+            height: 1px;
+            background: var(--ea-border);
+            margin: 4px 0;
+        }
+        .menu-dropdown-item i {
+            width: 18px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        /* Account Info Card (Header) */
+        .account-info-card {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 12px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 220px;
+            margin-left: 8px;
+        }
+        .account-info-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: white;
+            flex-shrink: 0;
+        }
+        .account-info-details {
+            flex: 1;
+            min-width: 0;
+        }
+        .account-info-name {
+            color: white;
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .account-info-meta {
+            color: rgba(255, 255, 255, 0.75);
+            margin: 0;
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
         .btn { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: 500; transition: all 0.2s; }
-        .btn-primary { background: white; color: #7c3aed; }
+        .btn-primary { background: white; color: var(--ea-accent); }
         .btn-primary:hover { background: #faf5ff; }
-        .btn-secondary { background: rgba(255,255,255,0.2); color: white; }
+        .btn-secondary { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); }
         .btn-secondary:hover { background: rgba(255,255,255,0.3); }
         
         /* === METRICS BAR === */
@@ -360,39 +471,100 @@
     <div id="app-container">
         <!-- Header -->
         <header class="ea-header">
-            <div style="flex: 1;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <h1><i class="fas fa-bullseye"></i> Vivicta Opportunity Pipeline</h1>
+            <div class="header-content">
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <h1><i class="fas fa-bullseye"></i> Vivicta Opportunity Pipeline</h1>
+                        
+                        <!-- Global Search -->
+                        <div class="global-search-container">
+                            <input type="text" class="global-search-input" id="global-search-input" placeholder="Search..." autocomplete="off">
+                            <i class="fas fa-search search-icon"></i>
+                            <div class="search-results" id="search-results"></div>
+                        </div>
+                    </div>
                     
-                    <!-- Global Search -->
-                    <div class="global-search-container">
-                        <input type="text" class="global-search-input" id="global-search-input" placeholder="Search..." autocomplete="off">
-                        <i class="fas fa-search search-icon"></i>
-                        <div class="search-results" id="search-results"></div>
+                    <!-- Breadcrumbs -->
+                    <div class="breadcrumbs">
+                        <a href="EA_Growth_Dashboard.html" class="breadcrumb-link"><i class="fas fa-home"></i> Home</a>
+                        <span class="breadcrumb-separator">›</span>
+                        <span>Pipeline</span>
                     </div>
                 </div>
                 
-                <!-- Breadcrumbs -->
-                <div class="breadcrumbs">
-                    <a href="EA_Growth_Dashboard.html" class="breadcrumb-link"><i class="fas fa-home"></i> Home</a>
-                    <span class="breadcrumb-separator">›</span>
-                    <span>Pipeline</span>
+                <div class="header-actions">
+                    <button class="menu-btn" onclick="openNewOppModal()">
+                        <i class="fas fa-plus"></i> New Opportunity
+                    </button>
+                    <div class="menu-item">
+                        <button class="menu-btn" onclick="toggleMenu('account-menu')" id="account-menu-btn">
+                            Account
+                        </button>
+                        <div id="account-menu" class="menu-dropdown">
+                            <div class="menu-dropdown-item" onclick="closeAllMenus(); window.location.href='EA_Growth_Dashboard.html';">
+                                <i class="fas fa-th-large"></i>
+                                <span>Back to Dashboard</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="menu-item">
+                        <button class="menu-btn" onclick="toggleMenu('view-menu')" id="view-menu-btn">
+                            View
+                        </button>
+                        <div id="view-menu" class="menu-dropdown">
+                            <div class="menu-dropdown-item" onclick="closeAllMenus(); window.location.href='EA_Growth_Dashboard.html';">
+                                <i class="fas fa-th-large"></i>
+                                <span>Growth Dashboard (Home)</span>
+                            </div>
+                            <div class="menu-dropdown-divider"></div>
+                            <div class="menu-dropdown-item" onclick="closeAllMenus(); var aid = new URLSearchParams(window.location.search).get('accountId'); window.location.href='GrowthDashboard_BusinessObjectives.html' + (aid ? '?accountId=' + aid : '');">
+                                <i class="fas fa-target"></i>
+                                <span>Business Objectives</span>
+                            </div>
+                            <div class="menu-dropdown-item" style="background: var(--ea-background);">
+                                <i class="fas fa-bullseye"></i>
+                                <span>Opportunity Pipeline</span>
+                            </div>
+                            <div class="menu-dropdown-item" onclick="closeAllMenus(); var aid = new URLSearchParams(window.location.search).get('accountId'); window.location.href='EA_Engagement_Playbook.html' + (aid ? '?accountId=' + aid : '');">
+                                <i class="fas fa-diagram-project"></i>
+                                <span>Engagement Playbook</span>
+                            </div>
+                            <div class="menu-dropdown-item" onclick="closeAllMenus(); window.location.href='EA_Analytics_Dashboard.html';">
+                                <i class="fas fa-chart-line"></i>
+                                <span>Analytics Dashboard</span>
+                            </div>
+                            <div class="menu-dropdown-divider"></div>
+                            <div class="menu-dropdown-item" onclick="closeAllMenus(); window.location.href='EA_Start_Page.html';">
+                                <i class="fas fa-home"></i>
+                                <span>Exit to Start Page</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="menu-item">
+                        <button class="menu-btn" onclick="toggleMenu('tools-menu')" id="tools-menu-btn">
+                            Tools
+                        </button>
+                        <div id="tools-menu" class="menu-dropdown">
+                            <div class="menu-dropdown-item" onclick="closeAllMenus(); toggleChatPanel();">
+                                <i class="fas fa-robot"></i>
+                                <span>AI Assistant (Ctrl+Shift+A)</span>
+                            </div>
+                            <div class="menu-dropdown-item" onclick="closeAllMenus(); userGuide.showContextHelp('opportunity_pipeline');">
+                                <i class="fas fa-question"></i>
+                                <span>Help</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="header-actions">
-                <button class="toolbar-btn" onclick="toggleChatPanel()" title="AI Assistant (Ctrl+Shift+A)">
-                    <i class="fas fa-robot"></i>
-                </button>
-                <button class="toolbar-btn" onclick="userGuide.showContextHelp('opportunity_pipeline')" title="Help">
-                    <i class="fas fa-question"></i>
-                </button>
-                <button class="btn btn-secondary" onclick="window.location.href='EA_Growth_Dashboard.html'">
-                    <i class="fas fa-arrow-left"></i> Back to Dashboard
-                </button>
-                <button class="btn btn-primary" onclick="openNewOppModal()">
-                    <i class="fas fa-plus"></i> New Opportunity
-                </button>
+                <div class="account-info-card" id="account-info-card" style="display: none;">
+                        <div class="account-info-icon">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <div class="account-info-details">
+                            <div class="account-info-name" id="account-name">Account</div>
+                            <div class="account-info-meta" id="account-meta">Loading...</div>
+                        </div>
+                    </div>
             </div>
         </header>
 
@@ -559,6 +731,45 @@
             initializeResizablePanel();
             
             loadData();
+        });
+
+        // ═══════════════════════════════════════════════════════════════════
+        // MENU SYSTEM FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════
+
+        function toggleMenu(menuId) {
+            const dropdown = document.getElementById(menuId);
+            const btn = document.getElementById(menuId + '-btn');
+            const allDropdowns = document.querySelectorAll('.menu-dropdown');
+            const allBtns = document.querySelectorAll('.menu-btn');
+            
+            // Close all other dropdowns
+            allDropdowns.forEach(d => {
+                if (d.id !== menuId) d.classList.remove('active');
+            });
+            allBtns.forEach(b => {
+                if (b.id !== menuId + '-btn') b.classList.remove('active');
+            });
+            
+            // Toggle current dropdown
+            dropdown.classList.toggle('active');
+            if (dropdown.classList.contains('active')) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+
+        function closeAllMenus() {
+            document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.remove('active'));
+            document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+        }
+
+        // Close menus when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.menu-item') && !event.target.closest('.menu-btn')) {
+                closeAllMenus();
+            }
         });
 
         // ═══════════════════════════════════════════════════════════════════
@@ -855,6 +1066,19 @@
             const urlParams = new URLSearchParams(window.location.search);
             const accountIdFromUrl = urlParams.get('accountId');
             if (accountIdFromUrl) {
+                // Update account info card
+                const account = accountManager.getAccount(accountIdFromUrl);
+                if (account) {
+                    document.getElementById('account-info-card').style.display = 'flex';
+                    document.getElementById('account-name').textContent = account.name;
+                    
+                    const acv = account.totalACV || 0;
+                    const opportunities = allOpportunities.filter(opp => opp.accountId === accountIdFromUrl).length;
+                    const acvFormatted = acv >= 1000000 ? `€${(acv / 1000000).toFixed(1)}M` : acv >= 1000 ? `€${(acv / 1000).toFixed(0)}K` : `€${acv}`;
+                    
+                    document.getElementById('account-meta').textContent = `${account.industry} • ${acvFormatted} ACV • ${opportunities} opportunities`;
+                }
+                
                 // Pre-select the account filter
                 accountSelect.value = accountIdFromUrl;
                 // Apply the filter
