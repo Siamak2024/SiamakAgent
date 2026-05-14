@@ -916,6 +916,11 @@
                                     <span>Start Tutorial</span>
                                 </div>
                                 <div class="menu-dropdown-divider"></div>
+                                <div class="menu-dropdown-item danger" onclick="closeAllMenus(); clearAllEAData()" style="background: rgba(220, 38, 38, 0.1);">
+                                    <i class="fas fa-trash-alt"></i>
+                                    <span>Clear All EA Data</span>
+                                </div>
+                                <div class="menu-dropdown-divider"></div>
                                 <div class="menu-dropdown-item" onclick="closeAllMenus(); showContextHelp('growth_dashboard')">
                                     <i class="fas fa-question-circle"></i>
                                     <span>Help</span>
@@ -1953,6 +1958,72 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
         }
 
         // ═══════════════════════════════════════════════════════════════════
+        // CLEAR ALL EA DATA (For Azure Fresh Start)
+        // ═══════════════════════════════════════════════════════════════════
+        
+        function clearAllEAData() {
+            if (!confirm('⚠️ Clear All EA Platform Data?\n\nThis will DELETE ALL:\n• Accounts\n• Business Objectives\n• Opportunities\n• Engagements\n• Playbook data\n\nThis action cannot be undone.\n\nContinue?')) {
+                return;
+            }
+            
+            try {
+                // Clear all localStorage keys related to EA platform
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (
+                        key.startsWith('ea_') || 
+                        key.startsWith('gsd_') || 
+                        key.startsWith('account_') ||
+                        key.startsWith('opportunity_')
+                    )) {
+                        keysToRemove.push(key);
+                    }
+                }
+                
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+                
+                console.log(`✓ Cleared ${keysToRemove.length} EA platform data items`);
+                
+                // Show success message
+                const toast = document.createElement('div');
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    left: 20px;
+                    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+                    color: white;
+                    padding: 16px 20px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    font-size: 14px;
+                    font-weight: 600;
+                    z-index: 10000;
+                `;
+                toast.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <i class="fas fa-trash-alt" style="font-size: 20px;"></i>
+                        <div>
+                            <div style="font-weight: 700;">All EA Data Cleared</div>
+                            <div style="font-size: 12px; opacity: 0.95; margin-top: 4px;">
+                                ${keysToRemove.length} items removed. Reload page to see changes.
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(toast);
+                setTimeout(() => {
+                    toast.remove();
+                    window.location.reload();
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error clearing data:', error);
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════
         // DEMO ACCOUNT LOADER - BANK AB
         // ═══════════════════════════════════════════════════════════════════
         
@@ -1966,7 +2037,7 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
             try {
                 // 0. CLEANUP EXISTING BANK AB DATA (if exists)
                 const existingAccountId = 'ACC-BANK-AB';
-                const existingEngagementId = 'ENG-BANK-AB-2026';
+                const existingEngagementIds = ['ENG-BANK-AB-2026', 'ENG-BAN-2026Q2-001']; // Old and new IDs
                 
                 // Delete existing account (this will also delete linked opportunities via accountManager)
                 try {
@@ -1979,8 +2050,18 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                 // Delete existing objectives (stored separately in GrowthDashboard_ObjectivesManager)
                 localStorage.removeItem(`gsd_objectives_${existingAccountId}`);
                 
-                // Delete existing engagement
-                localStorage.removeItem(`ea_engagement_model_${existingEngagementId}`);
+                // Delete existing engagements (both old and new IDs)
+                existingEngagementIds.forEach(engId => {
+                    localStorage.removeItem(`ea_engagement_model_${engId}`);
+                    // Also try deleting via engagement manager if available
+                    if (window.engagementManager) {
+                        try {
+                            window.engagementManager.deleteEngagement(engId);
+                        } catch (e) {
+                            // Ignore if doesn't exist
+                        }
+                    }
+                });
                 
                 console.log('✓ Cleanup complete, creating fresh BANK AB data...');
                 
@@ -2151,134 +2232,51 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                 
                 opportunities.forEach(opp => accountManager.createOpportunity(opp));
                 
-                // 4. CREATE ENGAGEMENT FOR EA PLAYBOOK
-                // Storage key must match pattern: ea_engagement_model_{engagementId}
-                const engagementData = {
-                    engagementId: 'ENG-BANK-AB-2026',
-                    accountId: bankAB.id,
-                    accountName: 'BANK AB',
-                    status: 'active',  // Required for dashboard counting
-                    focusArea: 'Digital Transformation & Sustainability',
-                    startDate: '2026-01-15',
-                    decisions: [
-                        {
-                            title: 'Cost Optimization Platform: Cloud-First with Azure',
-                            description: 'Selected Microsoft Azure as primary cloud platform to support cost-to-income ratio reduction from 52% to 47%',
-                            status: 'approved',
-                            owner: 'CFO',
-                            decisionDate: '2026-03-01',
-                            impact: 'Enables 40% infrastructure cost reduction and supports operational efficiency objective. Commits to Azure ecosystem for 3-5 years.',
-                            rationale: 'Best TCO given existing Microsoft EA, proven Nordic financial services compliance, strong data residency controls, and hybrid cloud capabilities for legacy integration.'
+                // 4. CREATE ENGAGEMENT FOR EA PLAYBOOK (SIMPLIFIED MODEL)
+                // Using EA_EngagementManager for proper engagement creation
+                if (window.engagementManager) {
+                    const engagementId = 'ENG-BAN-2026Q2-001';
+                    
+                    // Delete any existing engagement with this ID first
+                    try {
+                        window.engagementManager.deleteEngagement(engagementId);
+                        localStorage.removeItem('ea_engagement_model_' + engagementId);
+                    } catch (e) {
+                        console.log('No existing engagement to delete');
+                    }
+                    
+                    // Create simplified engagement
+                    const simplifiedEngagement = {
+                        id: engagementId,
+                        name: 'BANK AB - Digital Transformation & Sustainability',
+                        accountId: bankAB.id,
+                        customerName: 'BANK AB',
+                        industry: 'Banking & Financial Services',
+                        crmCustomerId: 'CRM-BANK-AB-2026',
+                        eaContact: 'Erik Johansson',
+                        theme: 'Digital Transformation, ESG Leadership, Operational Excellence',
+                        createdDate: '2026-01-15',
+                        status: 'active',
+                        // Legacy fields for backward compatibility
+                        customers: ['BANK AB'],
+                        segment: 'Banking & Financial Services',
+                        sprintCadence: '2w',
+                        governance: {
+                            decisionForum: '',
+                            reviewCadence: ''
                         },
-                        {
-                            title: 'AI Governance Framework: Centralized with Business Unit Autonomy',
-                            description: 'Establish centralized AI governance framework with clear accountability for AI model risk, explainability, and ethical use while enabling business unit innovation',
-                            status: 'approved',
-                            owner: 'Chief Risk Officer',
-                            decisionDate: '2026-02-15',
-                            impact: 'Ensures AI-powered advisory, credit risk, and ESG scoring models meet regulatory standards and ethical requirements. Balances innovation with risk management.',
-                            rationale: 'Regulatory pressure on AI transparency, need for consistent AI risk framework across credit decisions and customer advisory, while maintaining competitive advantage through innovation.'
-                        },
-                        {
-                            title: 'ESG Platform Strategy: Buy vs Build',
-                            description: 'Decision to implement vendor CSRD/SFDR reporting platform rather than custom development to ensure timely compliance',
-                            status: 'under-review',
-                            owner: 'Chief Sustainability Officer',
-                            reviewDate: '2026-04-30',
-                            impact: 'Faster time to compliance (6 months vs 18 months), supporting SEK 150bn sustainable finance volume target. Higher licensing cost but lower regulatory risk.',
-                            rationale: 'Regulatory deadline pressure, need for proven ESRS framework implementation, ongoing regulatory updates maintenance, focus internal resources on competitive differentiation.'
-                        }
-                    ],
-                    constraints: [
-                        {
-                            title: 'Regulatory Compliance: GDPR + Financial Services Act',
-                            description: 'All solutions must comply with Swedish Financial Supervisory Authority regulations and GDPR',
-                            impact: 'Limits cloud region options, requires specific data residency controls, affects vendor selection',
-                            owner: 'Chief Compliance Officer'
-                        },
-                        {
-                            title: 'Budget Allocation: €12M Digital Transformation 2026',
-                            description: 'Total approved budget for digital initiatives in 2026 fiscal year',
-                            impact: 'Constrains number and scope of simultaneous projects. Requires prioritization framework.',
-                            owner: 'CFO'
-                        },
-                        {
-                            title: 'Legacy System Dependencies',
-                            description: 'Core banking systems (1995 mainframe) cannot be replaced before 2028',
-                            impact: 'All new solutions must integrate via APIs with legacy mainframe. Limits modernization options.',
-                            owner: 'Enterprise Architect'
-                        }
-                    ],
-                    assumptions: [
-                        {
-                            title: 'Interest Rate Environment Stabilization',
-                            description: 'Assuming interest rates stabilize in 2026 H2, supporting increased lending volumes',
-                            impact: 'Business case for analytics platform assumes 15% lending growth',
-                            status: 'active'
-                        },
-                        {
-                            title: 'Cloud Skills Availability',
-                            description: 'Assuming ability to hire/train 25 cloud engineers in 2026',
-                            impact: 'Cloud migration timeline depends on team scaling',
-                            status: 'active'
-                        },
-                        {
-                            title: 'Regulatory Timeline Stability',
-                            description: 'Assuming no major changes to CSRD/SFDR implementation timelines',
-                            impact: 'Compliance project schedule based on current regulatory calendar',
-                            status: 'active'
-                        }
-                    ],
-                    architectureThemes: [
-                        {
-                            id: 'ARCH-001',
-                            name: 'Nordic Market Growth Enablement',
-                            type: 'target',
-                            description: 'Digital customer acquisition channels and AI-powered advisory capabilities to drive 8% revenue growth in Corporate & Investment Banking. Requires secure platforms, modern infrastructure, and AI governance framework.',
-                            principles: ['Customer-first design', 'Secure by default', 'AI transparency & explainability'],
-                            patterns: ['Omnichannel customer experience', 'AI-assisted advisory', 'Real-time fraud detection'],
-                            linkedCapabilities: ['Digital Customer Acquisition', 'Advisory Services', 'Transaction Security'],
-                            linkedApplications: [],
-                            linkedServices: []
-                        },
-                        {
-                            id: 'ARCH-002',
-                            name: 'Sustainability & Climate Risk Excellence',
-                            type: 'target',
-                            description: 'ESG leadership capabilities including CSRD/SFDR compliance, SEK 150bn sustainable finance tracking, and climate risk portfolio management. Requires ESG data platforms, automated reporting, AI governance for scoring models, and secure data integration.',
-                            principles: ['Regulatory compliance first', 'Stakeholder transparency', 'Risk-based decision making'],
-                            patterns: ['Automated ESG reporting', 'Climate risk modeling', 'Portfolio analytics'],
-                            linkedCapabilities: ['ESG Reporting', 'Climate Risk Management', 'Sustainable Finance'],
-                            linkedApplications: [],
-                            linkedServices: []
-                        },
-                        {
-                            id: 'ARCH-003',
-                            name: 'Operational Excellence & Cost Efficiency',
-                            type: 'target',
-                            description: 'Reduce cost-to-income ratio from 52% to 47% through process automation, legacy system rationalization, and operational efficiency. Requires cloud modernization, system resilience during transition, and technical debt reduction.',
-                            principles: ['Automation first', 'Cloud-native where possible', 'Resilience & continuity'],
-                            patterns: ['Process automation', 'Legacy system decommissioning', 'Hybrid cloud integration'],
-                            linkedCapabilities: ['Process Optimization', 'Infrastructure Modernization', 'Cost Management'],
-                            linkedApplications: [],
-                            linkedServices: []
-                        },
-                        {
-                            id: 'ARCH-004',
-                            name: 'Customer Experience & Data-Driven Advisory',
-                            type: 'target',
-                            description: 'Deliver 15% improvement in customer satisfaction through personalized insights, real-time portfolio visibility, and data-driven advisory leveraging SEK 2,904bn AUM. Requires unified data platform, AI/ML capabilities, secure customer data management, and AI governance framework.',
-                            principles: ['Data democratization', 'Privacy by design', 'AI explainability for advisory'],
-                            patterns: ['Customer 360 view', 'Predictive analytics', 'Real-time insights'],
-                            linkedCapabilities: ['Customer Analytics', 'Advisory Services', 'Data Governance'],
-                            linkedApplications: [],
-                            linkedServices: []
-                        }
-                    ]
-                };
-                
-                // Store engagement data with correct key pattern for dashboard recognition
-                localStorage.setItem('ea_engagement_model_' + engagementData.engagementId, JSON.stringify(engagementData));
+                        successCriteria: []
+                    };
+                    
+                    try {
+                        window.engagementManager.createEngagement(simplifiedEngagement);
+                        console.log('✓ Created simplified engagement:', engagementId);
+                    } catch (error) {
+                        console.error('Error creating engagement:', error);
+                    }
+                } else {
+                    console.warn('EA_EngagementManager not available, skipping engagement creation');
+                }
                 
                 // 5. SUCCESS NOTIFICATION
                 const toast = document.createElement('div');
@@ -2305,8 +2303,8 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                                 <strong>BANK AB</strong> created with:<br>
                                 • 6 Business Objectives<br>
                                 • 5 Opportunities (€9.45M pipeline)<br>
-                                • 1 EA Engagement (4 Target Themes)<br>
-                                • Complete governance data
+                                • 1 EA Engagement (Simplified Model)<br>
+                                • Account linkage configured
                             </div>
                         </div>
                     </div>
