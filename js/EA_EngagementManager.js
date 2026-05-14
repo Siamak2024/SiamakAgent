@@ -114,21 +114,62 @@ class EA_EngagementManager {
       try {
         const model = JSON.parse(localStorage.getItem(key));
         
-        // Validate model structure
-        if (!model || !model.engagement || !model.engagement.id) {
+        // Auto-migrate old structure if needed
+        let engagement;
+        if (model && model.engagement && model.engagement.id) {
+          // New structure - use as is
+          engagement = model.engagement;
+        } else if (model && model.id) {
+          // Old structure - engagement data is at root level
+          console.warn(`⚠️ Migrating old engagement structure in ${key}`);
+          engagement = model;
+          
+          // Wrap in new structure and save
+          const migratedModel = {
+            engagement: model,
+            customers: model.customers || [],
+            stakeholders: model.stakeholders || [],
+            applications: model.applications || [],
+            capabilities: model.capabilities || [],
+            risks: model.risks || [],
+            constraints: model.constraints || [],
+            decisions: model.decisions || [],
+            assumptions: model.assumptions || [],
+            initiatives: model.initiatives || [],
+            roadmapItems: model.roadmapItems || [],
+            architectureThemes: model.architectureThemes || [],
+            phases: model.phases || [],
+            stories: model.stories || [],
+            artifacts: model.artifacts || [],
+            whiteSpotHeatmaps: model.whiteSpotHeatmaps || [],
+            selectedServices: model.selectedServices || [],
+            selectedServicesData: model.selectedServicesData || [],
+            serviceCategories: model.serviceCategories || []
+          };
+          
+          // Save migrated structure
+          localStorage.setItem(key, JSON.stringify(migratedModel));
+          console.log(`✓ Migrated engagement ${model.id} to new structure`);
+        } else {
+          // Invalid structure - skip
           console.warn(`⚠️ Invalid engagement model structure in ${key}, skipping`);
           return null;
         }
         
-        return {
-          id: model.engagement.id,
-          name: model.engagement.name,
-          segment: model.engagement.segment,
-          status: model.engagement.status,
-          theme: model.engagement.theme,
-          completeness: model.engagement.metadata?.completeness || 0,
-          updatedAt: model.engagement.metadata?.updatedAt
-        };
+        // Return engagement summary
+        if (engagement && engagement.id) {
+          return {
+            id: engagement.id,
+            name: engagement.name,
+            segment: engagement.segment || engagement.industry,
+            status: engagement.status,
+            theme: engagement.theme,
+            completeness: engagement.metadata?.completeness || 0,
+            updatedAt: engagement.metadata?.updatedAt
+          };
+        }
+        
+        return null;
       } catch (error) {
         console.error('Error reading engagement:', key, error);
         return null;
@@ -174,14 +215,47 @@ class EA_EngagementManager {
       
       const model = JSON.parse(stored);
       
-      // Validate model structure
-      if (!model || !model.engagement || !model.engagement.id) {
+      // Auto-migrate old structure if needed
+      let finalModel = model;
+      if (model && model.engagement && model.engagement.id) {
+        // New structure - use as is
+        finalModel = model;
+      } else if (model && model.id) {
+        // Old structure - engagement data is at root level
+        console.warn(`⚠️ Migrating old engagement structure for ${engagementId}`);
+        finalModel = {
+          engagement: model,
+          customers: model.customers || [],
+          stakeholders: model.stakeholders || [],
+          applications: model.applications || [],
+          capabilities: model.capabilities || [],
+          risks: model.risks || [],
+          constraints: model.constraints || [],
+          decisions: model.decisions || [],
+          assumptions: model.assumptions || [],
+          initiatives: model.initiatives || [],
+          roadmapItems: model.roadmapItems || [],
+          architectureThemes: model.architectureThemes || [],
+          phases: model.phases || [],
+          stories: model.stories || [],
+          artifacts: model.artifacts || [],
+          whiteSpotHeatmaps: model.whiteSpotHeatmaps || [],
+          selectedServices: model.selectedServices || [],
+          selectedServicesData: model.selectedServicesData || [],
+          serviceCategories: model.serviceCategories || []
+        };
+        
+        // Save migrated structure
+        localStorage.setItem(key, JSON.stringify(finalModel));
+        console.log(`✓ Migrated engagement ${engagementId} to new structure`);
+      } else {
+        // Invalid structure
         console.error(`Invalid engagement model structure for ${engagementId}`);
         return null;
       }
       
       this.currentEngagementId = engagementId;
-      return model;
+      return finalModel;
     } catch (error) {
       console.error('Error loading engagement:', engagementId, error);
       return null;
