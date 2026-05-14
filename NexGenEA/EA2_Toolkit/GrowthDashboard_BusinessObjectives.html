@@ -1234,10 +1234,15 @@
         /* Split Layout for Capabilities */
         .capabilities-split-container {
             display: grid;
-            grid-template-columns: 30% 70%;
+            grid-template-columns: 320px 1fr;
             gap: 16px;
             height: calc(100vh - 300px);
             padding: 20px;
+            transition: grid-template-columns 0.3s ease;
+        }
+
+        .capabilities-split-container.tree-collapsed {
+            grid-template-columns: 0px 1fr;
         }
 
         .capability-tree-sidebar {
@@ -1247,6 +1252,14 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .capabilities-split-container.tree-collapsed .capability-tree-sidebar {
+            opacity: 0;
+            transform: translateX(-100%);
+            width: 0;
+            overflow: hidden;
         }
 
         .capability-tree-header {
@@ -1395,6 +1408,25 @@
         .capability-map-toolbar {
             display: flex;
             gap: 8px;
+            align-items: center;
+        }
+
+        .tree-toggle-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tree-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .capability-map-content {
@@ -1403,30 +1435,39 @@
             padding: 16px;
         }
 
+        .capability-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
         .capability-map-card {
             background: white;
-            border: 1px solid #e0e0e0;
-            border-left: 4px solid #ddd;
+            border: 2px solid #e0e0e0;
             border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
+            padding: 12px;
             position: relative;
             transition: all 0.3s;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            min-height: 140px;
         }
 
         .capability-map-card.heatmap-red {
-            border-left-color: #d32f2f;
-            background: linear-gradient(to right, rgba(211, 47, 47, 0.05), white);
+            border-color: #d32f2f;
+            background: linear-gradient(135deg, rgba(211, 47, 47, 0.08), white);
         }
 
         .capability-map-card.heatmap-yellow {
-            border-left-color: #f57c00;
-            background: linear-gradient(to right, rgba(245, 124, 0, 0.05), white);
+            border-color: #f57c00;
+            background: linear-gradient(135deg, rgba(245, 124, 0, 0.08), white);
         }
 
         .capability-map-card.heatmap-green {
-            border-left-color: #388e3c;
-            background: linear-gradient(to right, rgba(56, 142, 60, 0.05), white);
+            border-color: #388e3c;
+            background: linear-gradient(135deg, rgba(56, 142, 60, 0.08), white);
         }
 
         .capability-map-card:hover {
@@ -1436,16 +1477,17 @@
 
         .heatmap-status-badge {
             position: absolute;
-            top: 12px;
-            right: 12px;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 600;
+            bottom: 8px;
+            right: 8px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
             text-transform: uppercase;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
+            letter-spacing: 0.5px;
         }
 
         .heatmap-status-badge.red {
@@ -1461,6 +1503,70 @@
         .heatmap-status-badge.green {
             background: #388e3c;
             color: white;
+        }
+
+        .capability-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .capability-card-title {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--ea-text-primary);
+            line-height: 1.3;
+            margin: 0 0 4px 0;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .capability-card-code {
+            font-size: 11px;
+            color: #666;
+            font-weight: 600;
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-bottom: 8px;
+            display: inline-block;
+        }
+
+        .capability-card-actions {
+            display: flex;
+            gap: 4px;
+            margin-left: 8px;
+        }
+
+        .capability-card-actions .btn-icon {
+            padding: 4px 6px;
+            font-size: 11px;
+        }
+
+        .capability-card-footer {
+            margin-top: auto;
+            padding-bottom: 20px;
+        }
+
+        .capability-linked-count {
+            font-size: 11px;
+            color: #2e7d32;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .category-section-title {
+            color: #0066cc;
+            margin: 24px 0 12px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #0066cc;
+            font-size: 16px;
+            font-weight: 600;
         }
 
         .heatmap-legend {
@@ -1593,6 +1699,74 @@
             font-size: 14px;
             color: #666;
             line-height: 1.5;
+        }
+
+        /* Capability Detail Modal */
+        .capability-detail-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .capability-detail-modal.active {
+            display: flex;
+        }
+
+        .capability-detail-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+
+        .capability-detail-header {
+            background: linear-gradient(135deg, #0066cc 0%, #004c99 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .capability-detail-header h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .capability-detail-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .capability-detail-section {
+            margin-bottom: 20px;
+        }
+
+        .capability-detail-section h3 {
+            font-size: 14px;
+            color: #666;
+            margin: 0 0 8px 0;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .capability-detail-section p {
+            margin: 0;
+            line-height: 1.6;
+            color: var(--ea-text-secondary);
         }
     </style>
 </head>
@@ -3289,9 +3463,9 @@
             
             const accountObjectives = GrowthDashboard_ObjectivesManager.listObjectivesByAccount(selectedAccountId);
             
-            // Build split layout: Tree sidebar (30%) + Capability Map (70%)
+            // Build split layout: Tree sidebar + Capability Map
             let html = `
-            <div class="capabilities-split-container">
+            <div class="capabilities-split-container" id="capabilities-container">
                 <!-- LEFT: Capability Tree Sidebar -->
                 <div class="capability-tree-sidebar">
                     <div class="capability-tree-header">
@@ -3311,6 +3485,10 @@
                     <div class="capability-map-header">
                         <h3><i class="fas fa-map"></i> Capability Heat Map</h3>
                         <div class="capability-map-toolbar">
+                            <button class="tree-toggle-btn" onclick="toggleCapabilityTree()" id="tree-toggle-btn">
+                                <i class="fas fa-bars"></i>
+                                <span id="tree-toggle-text">Hide Tree</span>
+                            </button>
                             <button class="btn btn-primary" onclick="openAIAnalytics()" style="background: #1976d2; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;">
                                 <i class="fas fa-brain"></i> AI Analytics
                             </button>
@@ -3454,15 +3632,14 @@
             Object.keys(capabilitiesByCategory).forEach(l1Id => {
                 const group = capabilitiesByCategory[l1Id];
                 html += `
-                <div style="margin-bottom: 24px;">
-                    <h4 style="color: #0066cc; margin: 0 0 12px 0; padding-bottom: 8px; border-bottom: 2px solid #0066cc;">
-                        ${group.l1Name} (${group.capabilities.length})
-                    </h4>`;
+                <h4 class="category-section-title">
+                    ${group.l1Name} (${group.capabilities.length})
+                </h4>
+                <div class="capability-grid">`;
                 
                 group.capabilities.forEach(cap => {
                     const custom = customCapabilities[cap.id];
                     const displayName = custom?.name || cap.name;
-                    const displayDescription = custom?.description || cap.description;
                     const heatmapColor = capabilityHeatmap[cap.id] || '';
                     
                     // Find linked objectives
@@ -3472,38 +3649,38 @@
                     });
                     
                     html += `
-                    <div class="capability-map-card ${heatmapColor ? 'heatmap-' + heatmapColor : ''}" id="map-card-${cap.id}">
-                        ${heatmapColor ? `
-                        <div class="heatmap-status-badge ${heatmapColor}">
-                            <i class="fas fa-circle"></i>
-                            ${heatmapColor.toUpperCase()}
-                        </div>` : ''}
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                            <div style="flex: 1; ${heatmapColor ? 'padding-right: 100px;' : ''}">
-                                <h4 style="margin: 0 0 4px 0; font-size: 16px; color: var(--ea-text-primary);">${displayName}</h4>
-                                <div style="font-size: 12px; color: #666; font-weight: 600;">Code: ${cap.code || cap.id}</div>
+                    <div class="capability-map-card ${heatmapColor ? 'heatmap-' + heatmapColor : ''}" 
+                         id="map-card-${cap.id}"
+                         onclick="openCapabilityDetail('${cap.id}')">
+                        <div class="capability-card-header">
+                            <div style="flex: 1;">
+                                <div class="capability-card-code">${cap.code || cap.id}</div>
+                                <h4 class="capability-card-title">${displayName}</h4>
                             </div>
-                            <div style="display: flex; gap: 8px;">
+                            <div class="capability-card-actions" onclick="event.stopPropagation()">
                                 <button class="btn-icon" onclick="editCapabilityInMap('${cap.id}')" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <button class="btn-icon" onclick="changeCapabilityHeatmap('${cap.id}')" title="Change Status">
                                     <i class="fas fa-palette"></i>
                                 </button>
-                                <button class="btn-icon" onclick="unlinkCapabilityFromAll('${cap.id}')" title="Remove from Map">
+                                <button class="btn-icon" onclick="unlinkCapabilityFromAll('${cap.id}')" title="Remove">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
                         </div>
-                        <p style="color: var(--ea-text-secondary); font-size: 14px; line-height: 1.5; margin-bottom: 12px;">${displayDescription || ''}</p>
-                        ${linkedObjectives.length > 0 ? `
-                            <div class="capability-linked-objectives">
-                                <h5><i class="fas fa-link"></i> Linked to ${linkedObjectives.length} objective${linkedObjectives.length > 1 ? 's' : ''}:</h5>
-                                ${linkedObjectives.map(obj => 
-                                    `<span class="linked-objective-tag">${obj.name}</span>`
-                                ).join('')}
-                            </div>
-                        ` : ''}
+                        <div class="capability-card-footer">
+                            ${linkedObjectives.length > 0 ? `
+                                <div class="capability-linked-count">
+                                    <i class="fas fa-link"></i>
+                                    <span>${linkedObjectives.length} objective${linkedObjectives.length > 1 ? 's' : ''}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                        ${heatmapColor ? `
+                        <div class="heatmap-status-badge ${heatmapColor}">
+                            ${heatmapColor.charAt(0).toUpperCase() + heatmapColor.slice(1)}
+                        </div>` : ''}
                     </div>`;
                 });
                 
@@ -3580,6 +3757,117 @@
 
         function editCapabilityInMap(capabilityId) {
             editCapability(capabilityId); // Reuse existing edit function
+        }
+
+        function toggleCapabilityTree() {
+            const container = document.getElementById('capabilities-container');
+            const toggleBtn = document.getElementById('tree-toggle-text');
+            
+            if (container.classList.contains('tree-collapsed')) {
+                container.classList.remove('tree-collapsed');
+                toggleBtn.textContent = 'Hide Tree';
+            } else {
+                container.classList.add('tree-collapsed');
+                toggleBtn.textContent = 'Show Tree';
+            }
+        }
+
+        function openCapabilityDetail(capabilityId) {
+            const capability = findCapabilityById(capabilityId);
+            if (!capability) return;
+            
+            const custom = customCapabilities[capabilityId];
+            const displayName = custom?.name || capability.name;
+            const displayDescription = custom?.description || capability.description;
+            const heatmapColor = capabilityHeatmap[capabilityId] || 'none';
+            
+            const accountObjectives = GrowthDashboard_ObjectivesManager.listObjectivesByAccount(selectedAccountId);
+            const linkedObjectives = accountObjectives.filter(obj => {
+                const links = capabilityLinks[obj.id] || [];
+                return links.includes(capabilityId);
+            });
+            
+            const modalHtml = `
+            <div class="capability-detail-modal active" id="capability-detail-modal" onclick="if(event.target.id==='capability-detail-modal') closeCapabilityDetail()">
+                <div class="capability-detail-content">
+                    <div class="capability-detail-header">
+                        <h2><i class="fas fa-layer-group"></i> ${displayName}</h2>
+                        <button onclick="closeCapabilityDetail()" style="background: none; border: none; color: white; cursor: pointer; font-size: 24px; padding: 0; width: 32px; height: 32px;">&times;</button>
+                    </div>
+                    <div class="capability-detail-body">
+                        <div class="capability-detail-section">
+                            <h3>Code</h3>
+                            <p><strong>${capability.code || capability.id}</strong></p>
+                        </div>
+                        
+                        <div class="capability-detail-section">
+                            <h3>Category</h3>
+                            <p>${capability.l1_name || 'N/A'}</p>
+                        </div>
+                        
+                        <div class="capability-detail-section">
+                            <h3>Description</h3>
+                            <p>${displayDescription || 'No description available.'}</p>
+                        </div>
+                        
+                        <div class="capability-detail-section">
+                            <h3>Maturity Status</h3>
+                            <p>
+                                ${heatmapColor !== 'none' ? `
+                                    <span class="heatmap-status-badge ${heatmapColor}" style="position: static; display: inline-flex;">
+                                        ${heatmapColor.charAt(0).toUpperCase() + heatmapColor.slice(1)}
+                                    </span>
+                                ` : '<em>No status assigned</em>'}
+                            </p>
+                        </div>
+                        
+                        ${linkedObjectives.length > 0 ? `
+                            <div class="capability-detail-section">
+                                <h3>Linked Business Objectives (${linkedObjectives.length})</h3>
+                                ${linkedObjectives.map(obj => `
+                                    <div class="linked-objective-tag" style="display: block; margin-bottom: 8px; padding: 8px 12px;">
+                                        ${obj.name}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        
+                        ${capability.industries ? `
+                            <div class="capability-detail-section">
+                                <h3>Industries</h3>
+                                <p>${capability.industries}</p>
+                            </div>
+                        ` : ''}
+                        
+                        ${capability.strategic_themes ? `
+                            <div class="capability-detail-section">
+                                <h3>Strategic Themes</h3>
+                                <p>${capability.strategic_themes}</p>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="capability-detail-section" style="padding-top: 12px; border-top: 1px solid #e0e0e0; display: flex; gap: 8px;">
+                            <button class="btn btn-primary" onclick="closeCapabilityDetail(); editCapabilityInMap('${capabilityId}')" style="background: #0066cc; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer;">
+                                <i class="fas fa-edit"></i> Edit Capability
+                            </button>
+                            <button class="btn" onclick="closeCapabilityDetail(); changeCapabilityHeatmap('${capabilityId}')" style="background: white; color: #0066cc; border: 1px solid #0066cc; padding: 10px 16px; border-radius: 6px; cursor: pointer;">
+                                <i class="fas fa-palette"></i> Change Status
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+            
+            // Append to body
+            const existingModal = document.getElementById('capability-detail-modal');
+            if (existingModal) existingModal.remove();
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        function closeCapabilityDetail() {
+            const modal = document.getElementById('capability-detail-modal');
+            if (modal) modal.remove();
         }
 
         function changeCapabilityHeatmap(capabilityId) {
