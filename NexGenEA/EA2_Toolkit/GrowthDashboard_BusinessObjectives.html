@@ -3766,28 +3766,32 @@ Return your response as a valid JSON array with this structure:
 Only return the JSON array, no other text.`;
                 
                 // Call GPT-5.4 via AzureOpenAIProxy
-                const response = await fetch('/api/ai/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt: prompt,
-                        model: 'gpt-5.4',  // GPT-5.4 Responses API
-                        temperature: 0.4,  // Analysis task - balanced creativity
-                        max_tokens: 3000,
-                        task_type: 'analysis'
-                    })
+                const response = await AzureOpenAIProxy.create(prompt, {
+                    model: 'gpt-5.4',
+                    temperature: 0.4,
+                    instructions: 'You are an enterprise architecture expert. Analyze the business objectives and APQC capabilities provided, then return ONLY a valid JSON array with your recommendations.'
                 });
                 
-                if (!response.ok) {
-                    throw new Error('AI analysis failed');
-                }
-                
-                const data = await response.json();
                 let analysisResults = [];
                 
                 try {
-                    // Parse AI response
-                    const jsonMatch = data.response.match(/\[[\s\S]*\]/);
+                    // Extract text from Responses API output
+                    let responseText = '';
+                    if (response.output && Array.isArray(response.output)) {
+                        responseText = response.output
+                            .filter(item => item.type === 'message' && item.content)
+                            .map(item => item.content)
+                            .join('');
+                    } else if (response.output_text) {
+                        responseText = response.output_text;
+                    }
+                    
+                    if (!responseText) {
+                        throw new Error('Empty response from AI');
+                    }
+                    
+                    // Parse AI response - extract JSON array
+                    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
                     if (jsonMatch) {
                         analysisResults = JSON.parse(jsonMatch[0]);
                     } else {
