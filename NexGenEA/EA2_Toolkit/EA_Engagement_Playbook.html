@@ -3461,39 +3461,31 @@
         }
         
         function saveEngagement() {
-            // Simplified engagement save - only essential fields
-            const id = document.getElementById('engagement-id').value;
-            const name = document.getElementById('engagement-name').value;
+            // Check if engagement exists
+            if (!currentEngagement) {
+                showToast('No Engagement', 'Please create an engagement first using the + button in the header', 'warning');
+                return;
+            }
+            
+            // Get editable fields only
             const eaContact = document.getElementById('engagement-ea-contact').value;
             const theme = document.getElementById('engagement-theme').value;
             
-            if (!id || !name || !eaContact) {
-                alert('Please fill in all required fields: Engagement ID, Name, and EA Contact');
+            // Validate only the required editable field
+            if (!eaContact || eaContact.trim() === '') {
+                alert('Please fill in the EA Contact Name');
                 return;
             }
             
-            if (currentEngagement) {
-                // Update existing engagement (simplified)
-                currentEngagement.engagement = {
-                    ...currentEngagement.engagement,
-                    id,
-                    name,
-                    eaContact,
-                    theme: theme || '',
-                    // Keep readonly fields
-                    accountId: currentEngagement.engagement.accountId,
-                    customerName: currentEngagement.engagement.customerName,
-                    industry: currentEngagement.engagement.industry,
-                    crmCustomerId: currentEngagement.engagement.crmCustomerId,
-                    createdDate: currentEngagement.engagement.createdDate,
-                    status: currentEngagement.engagement.status || 'active'
-                };
-                engagementManager.saveEngagement(id, currentEngagement);
-                showToast('Engagement Saved', 'Changes saved successfully', 'success');
-            } else {
-                showToast('No Engagement', 'Please create an engagement first using the + button', 'warning');
-                return;
-            }
+            // Update existing engagement (only save editable fields)
+            currentEngagement.engagement = {
+                ...currentEngagement.engagement,
+                eaContact: eaContact.trim(),
+                theme: theme ? theme.trim() : ''
+            };
+            
+            engagementManager.saveEngagement(currentEngagement.engagement.id, currentEngagement);
+            showToast('Engagement Saved', 'EA Contact and Theme saved successfully', 'success');
             
             updateKPIs();
             updateEngagementSelector();
