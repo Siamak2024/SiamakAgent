@@ -3789,7 +3789,14 @@ Only return the JSON array, no other text.`;
                     }
                     
                     let responseText = '';
-                    if (response.output && Array.isArray(response.output)) {
+                    
+                    // Try output_text first (simplest)
+                    if (response.output_text) {
+                        responseText = response.output_text;
+                        console.log('[AI Analytics] Used output_text field');
+                    }
+                    // Try output array
+                    else if (response.output && Array.isArray(response.output)) {
                         // Extract text from output items
                         response.output.forEach((item, idx) => {
                             console.log(`[AI Analytics] Output item ${idx}:`, item);
@@ -3800,7 +3807,8 @@ Only return the JSON array, no other text.`;
                                 } else if (Array.isArray(item.content)) {
                                     item.content.forEach(part => {
                                         console.log('[AI Analytics] Content part:', part);
-                                        if (part.type === 'text' && part.text) {
+                                        // Check for 'text' or 'output_text' type, or just any part with text field
+                                        if (part.text) {
                                             responseText += part.text;
                                         } else if (typeof part === 'string') {
                                             responseText += part;
@@ -3809,11 +3817,12 @@ Only return the JSON array, no other text.`;
                                 }
                             }
                         });
-                    } else if (response.output_text) {
-                        responseText = response.output_text;
-                    } else if (response.choices && response.choices[0]?.message?.content) {
-                        // Fallback for standard chat completion format
+                        console.log('[AI Analytics] Used output array');
+                    }
+                    // Fallback for standard chat completion format
+                    else if (response.choices && response.choices[0]?.message?.content) {
                         responseText = response.choices[0].message.content;
+                        console.log('[AI Analytics] Used choices format');
                     }
                     
                     console.log('[AI Analytics] Extracted text length:', responseText.length);
