@@ -99,6 +99,26 @@
         .page-subtitle {
             color: rgba(255, 255, 255, 0.9);
             font-size: 14px;
+            margin: 0;
+        }
+        
+        /* Breadcrumbs */
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255,255,255,0.9);
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        .breadcrumb-link {
+            color: rgba(255,255,255,0.9);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .breadcrumb-link:hover { color: white; text-decoration: underline; }
+        .breadcrumb-separator { opacity: 0.5; }
+            font-size: 14px;
         }
 
         /* Account Info Card (Header) */
@@ -1882,12 +1902,14 @@
     <header class="page-header">
         <div class="header-content">
             <div class="header-left">
-                <button class="back-btn" onclick="goBack()">
-                    <i class="fas fa-arrow-left"></i>
-                </button>
                 <div>
                     <h1>Business Objectives</h1>
-                    <p class="page-subtitle">Define strategic objectives for Growth Sprint planning</p>
+                    <!-- Breadcrumbs -->
+                    <div class="breadcrumbs">
+                        <a href="#" class="breadcrumb-link" id="breadcrumb-home"><i class="fas fa-home"></i> Home</a>
+                        <span class="breadcrumb-separator">›</span>
+                        <span>Business Objectives</span>
+                    </div>
                 </div>
             </div>
             <div class="header-right-section" style="display: flex; align-items: center; gap: 4px;">
@@ -2339,6 +2361,9 @@
         window.addEventListener('DOMContentLoaded', () => {
             // Initialize AccountManager
             accountManager = new EA_AccountManager();
+            
+            // Update breadcrumb with accountId
+            updateBreadcrumbLinks();
 
             if (!selectedAccountId) {
                 alert('No account selected. Redirecting to dashboard...');
@@ -2348,6 +2373,17 @@
 
             loadPage();
         });
+        
+        // Update breadcrumb links with current accountId
+        function updateBreadcrumbLinks() {
+            const accountId = new URLSearchParams(window.location.search).get('accountId');
+            const homeLink = document.getElementById('breadcrumb-home');
+            if (homeLink && accountId) {
+                homeLink.href = `EA_Growth_Dashboard.html?accountId=${accountId}`;
+            } else if (homeLink) {
+                homeLink.href = 'EA_Growth_Dashboard.html';
+            }
+        }
 
         function loadPage() {
             // Load account info

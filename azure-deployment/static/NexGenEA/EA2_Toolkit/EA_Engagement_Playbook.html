@@ -744,9 +744,6 @@
         <!-- EA PLATFORM HEADER -->
         <header class="ea-header">
             <div class="ea-header-left">
-                <button class="ea-header-icon" onclick="window.location.href='EA_Growth_Dashboard.html'" title="Back to Growth Dashboard" style="margin-right: 8px;">
-                    <i class="fas fa-arrow-left"></i>
-                </button>
                 <div class="ea-brand-mark">
                     <i class="fas fa-project-diagram" style="font-size: 24px;"></i>
                 </div>
@@ -756,13 +753,6 @@
                 </div>
             </div>
             <div class="ea-header-right">
-                <div class="engagement-selector">
-                    <span class="engagement-selector-label">Engagement:</span>
-                    <div class="engagement-selector-current" id="current-engagement-name">
-                        <span>No engagement</span>
-                        <i class="fas fa-chevron-down" style="font-size: 10px;"></i>
-                    </div>
-                </div>
                 <button class="ea-header-icon" onclick="openNewEngagementModal()" title="New Engagement">
                     <i class="fas fa-plus"></i>
                 </button>
@@ -890,9 +880,9 @@
                             </div>
                             
                             <div class="vivicta-field-group">
-                                <label class="vivicta-label">Engagement Name</label>
-                                <input type="text" id="engagement-name" class="vivicta-input" placeholder="e.g., Digital Transformation Program" readonly style="background-color: #F5F7F6;">
-                                <div class="vivicta-hint">Auto-generated from account and theme</div>
+                                <label class="vivicta-label">CRM Customer ID</label>
+                                <input type="text" id="engagement-crm-id" class="vivicta-input" readonly style="background-color: #F5F7F6;">
+                                <div class="vivicta-hint">External CRM reference (optional)</div>
                             </div>
                             
                             <div class="vivicta-field-group">
@@ -923,9 +913,9 @@
                             </div>
                             
                             <div class="vivicta-field-group">
-                                <label class="vivicta-label">CRM Customer ID</label>
-                                <input type="text" id="engagement-crm-id" class="vivicta-input" readonly style="background-color: #F5F7F6;">
-                                <div class="vivicta-hint">External CRM reference (optional)</div>
+                                <label class="vivicta-label">Customer Manager</label>
+                                <input type="text" id="engagement-name" class="vivicta-input" placeholder="e.g., John Smith" readonly style="background-color: #F5F7F6;">
+                                <div class="vivicta-hint">Account manager from account profile</div>
                             </div>
                         </div>
                     </div>
@@ -947,7 +937,7 @@
                                 <div class="vivicta-stat">
                                     <div class="vivicta-stat-label">Status</div>
                                     <div class="vivicta-stat-value">
-                                        <span class="vivicta-badge vivicta-badge-success">Active</span>
+                                        <span id="engagement-status-badge" class="vivicta-badge vivicta-badge-warning">Inactive</span>
                                     </div>
                                 </div>
                                 <div class="vivicta-stat">
@@ -3089,22 +3079,12 @@
         }
         
         function updateEngagementSelector() {
-            if (!currentEngagement) {
-                document.getElementById('current-engagement-name').textContent = 'No engagement';
-                return;
-            }
-            
-            const name = currentEngagement.engagement.name;
-            document.getElementById('current-engagement-name').textContent = name;
+            // Engagement selector was removed from header - this function is now a no-op
+            // Keeping it for backward compatibility with other code that calls it
+            return;
         }
         
         function saveEngagement() {
-            // Check if engagement exists
-            if (!currentEngagement) {
-                showToast('No Engagement', 'Please create an engagement first using the + button in the header', 'warning');
-                return;
-            }
-            
             // Get editable fields only
             const eaContact = document.getElementById('engagement-ea-contact').value;
             const theme = document.getElementById('engagement-theme').value;
@@ -3115,20 +3095,154 @@
                 return;
             }
             
-            // Update existing engagement (only save editable fields)
-            currentEngagement.engagement = {
-                ...currentEngagement.engagement,
-                eaContact: eaContact.trim(),
-                theme: theme ? theme.trim() : ''
-            };
-            
-            engagementManager.saveEngagement(currentEngagement.engagement.id, currentEngagement);
-            showToast('Engagement Saved', 'EA Contact and Theme saved successfully', 'success');
+            // If no engagement exists, create one first
+            if (!currentEngagement) {
+                console.log('No engagement exists - creating new engagement...');
+                
+                // Get account info from context
+                let account = window.currentAccountContext;
+                
+                // If no account context, check URL parameter
+                if (!account) {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const accountId = urlParams.get('accountId');
+                    if (accountId && window.accountManager) {
+                        account = window.accountManager.getAccount(accountId);
+                    }
+                }
+                
+                // If still no account, create standalone
+                let isStandalone = false;
+                if (!account) {
+                    console.warn('No account context - creating standalone engagement');
+                    isStandalone = true;
+                    account = {
+                        id: 'STANDALONE',
+                        name: 'Standalone Engagement',
+                        industry: 'General'
+                    };
+                }
+                
+                // Generate engagement ID
+                const today = new Date();
+                const year = today.getFullYear();
+                const quarter = Math.ceil((today.getMonth() + 1) / 3);
+                const industryCode = account.industry ? account.industry.substring(0, 3).toUpperCase() : 'GEN';
+                const randomNum = Math.floor(Math.random() * 900) + 100;
+                const engagementId = `ENG-${industryCode}-${year}Q${quarter}-${randomNum}`;
+                
+                // Create simplified engagement object
+                const engagementData = {
+                    id: engagementId,
+                    name: isStandalone ? (theme || 'EA Engagement') : `${account.name} - ${theme || 'EA Engagement'}`,
+                    accountId: account.id,
+                    customerName: account.name,
+                    industry: account.industry,
+                    crmCustomerId: account.crmId || '',
+                    eaContact: eaContact.trim(),
+                    accountManager: account.accountManager || '', // For auto-creating customer manager stakeholder
+                    theme: theme ? theme.trim() : '',
+                    createdDate: today.toISOString().split('T')[0],
+                    customers: [account.name],
+                    segment: account.industry,
+                    sprintCadence: '2w',
+                    governance: {
+                        decisionForum: '',
+                        reviewCadence: ''
+                    },
+                    successCriteria: []
+                };
+                
+                // Create engagement via manager
+                engagementManager.createEngagement(engagementData);
+                currentEngagement = engagementManager.getCurrentEngagement();
+                window.currentEngagement = currentEngagement;
+                
+                console.log('✓ Engagement created:', engagementId);
+                
+                // Load the new engagement data into the form
+                loadEngagementData();
+                
+                showToast('Engagement Created', 'New engagement created and saved successfully', 'success');
+            } else {
+                // Update existing engagement (only save editable fields)
+                currentEngagement.engagement = {
+                    ...currentEngagement.engagement,
+                    eaContact: eaContact.trim(),
+                    theme: theme ? theme.trim() : ''
+                };
+                
+                engagementManager.saveEngagement(currentEngagement.engagement.id, currentEngagement);
+                
+                // Reload engagement to get updated status
+                currentEngagement = engagementManager.getCurrentEngagement();
+                window.currentEngagement = currentEngagement;
+                
+                // Update status badge to reflect any status changes
+                updateEngagementStatusBadge(currentEngagement.engagement.status, currentEngagement.engagement.crmSyncStatus);
+                
+                showToast('Engagement Saved', 'EA Contact and Theme saved successfully', 'success');
+            }
             
             updateKPIs();
             updateEngagementSelector();
         }
         
+        /**
+         * Save current engagement before switching to another
+         * Ensures no data is lost when switching accounts or engagements
+         */
+        function saveCurrentEngagementBeforeSwitch() {
+            if (engagementManager && engagementManager.getCurrentEngagementId()) {
+                try {
+                    engagementManager.saveCurrentEngagement();
+                    console.log('✓ Current engagement saved before switch');
+                    return true;
+                } catch (error) {
+                    console.error('Error saving engagement before switch:', error);
+                    return false;
+                }
+            }
+            return true; // No current engagement, nothing to save
+        }
+
+        /**
+         * Switch to engagement for a specific account
+         * Saves current engagement first, then loads engagement for target account
+         */
+        function switchToAccountEngagement(accountId) {
+            // Save current engagement first
+            saveCurrentEngagementBeforeSwitch();
+            
+            // Update URL with accountId
+            const url = new URL(window.location);
+            url.searchParams.set('accountId', accountId);
+            window.history.pushState({}, '', url);
+            
+            // Load engagement for this account
+            if (engagementManager) {
+                const model = engagementManager.loadEngagementByAccountId(accountId);
+                if (model) {
+                    currentEngagement = model;
+                    window.currentEngagement = model;
+                    loadEngagementData();
+                    updateKPIs();
+                    updateEngagementSelector();
+                    console.log(`✓ Switched to engagement for account: ${accountId}`);
+                } else {
+                    console.warn(`No engagement found for account: ${accountId}`);
+                    // Load account context only
+                    if (window.accountManager) {
+                        const account = window.accountManager.getAccount(accountId);
+                        if (account) {
+                            updateAccountContext(account);
+                            loadAccountInfoOnly(account);
+                        }
+                    }
+                }
+            }
+        }
+
         function loadEngagementData() {
             // If we have an engagement, load its data
             if (currentEngagement) {
@@ -3136,7 +3250,6 @@
                 
                 // Load simplified engagement data
                 document.getElementById('engagement-id').value = eng.id || '';
-                document.getElementById('engagement-name').value = eng.name || '';
                 document.getElementById('engagement-ea-contact').value = eng.eaContact || '';
                 document.getElementById('engagement-theme').value = eng.theme || '';
                 
@@ -3144,6 +3257,17 @@
                 document.getElementById('engagement-customer-name').value = eng.customerName || '';
                 document.getElementById('engagement-segment').value = eng.industry || eng.segment || '';
                 document.getElementById('engagement-crm-id').value = eng.crmCustomerId || '';
+                
+                // Load Customer Manager from account if we have account context
+                if (window.currentAccountContext && window.currentAccountContext.accountManager) {
+                    document.getElementById('engagement-name').value = window.currentAccountContext.accountManager;
+                } else {
+                    // Fallback: clear or use stored value if any
+                    document.getElementById('engagement-name').value = '';
+                }
+                
+                // Update engagement status badge
+                updateEngagementStatusBadge(eng.status, eng.crmSyncStatus);
                 
                 // Display created date
                 const createdDateDisplay = document.getElementById('engagement-created-date');
@@ -3171,13 +3295,69 @@
             document.getElementById('engagement-customer-name').value = account.name || '';
             document.getElementById('engagement-segment').value = account.industry || '';
             document.getElementById('engagement-crm-id').value = account.crmId || '';
+            document.getElementById('engagement-name').value = account.accountManager || ''; // Customer Manager
             
             // Clear engagement-specific fields
             document.getElementById('engagement-id').value = '';
-            document.getElementById('engagement-name').value = '';
             document.getElementById('engagement-ea-contact').value = '';
             document.getElementById('engagement-theme').value = '';
             document.getElementById('engagement-created-date').textContent = '-';
+            
+            // Set status to Inactive for new engagement
+            updateEngagementStatusBadge('inactive');
+        }
+
+        /**
+         * Update engagement status badge based on status and CRM sync
+         * @param {string} status - 'inactive', 'active', 'sync-with-crm', 'archived'
+         * @param {string} crmSyncStatus - 'synced', 'pending', 'failed' (optional)
+         */
+        function updateEngagementStatusBadge(status, crmSyncStatus) {
+            const badge = document.getElementById('engagement-status-badge');
+            if (!badge) return;
+            
+            // Remove all badge classes
+            badge.classList.remove('vivicta-badge-warning', 'vivicta-badge-success', 'vivicta-badge-info', 'vivicta-badge-secondary');
+            
+            // Set badge based on status
+            switch(status) {
+                case 'inactive':
+                    badge.textContent = 'Inactive';
+                    badge.classList.add('vivicta-badge-warning');
+                    badge.style.background = '#fef3c7';
+                    badge.style.color = '#92400e';
+                    break;
+                case 'active':
+                    badge.textContent = 'Active';
+                    badge.classList.add('vivicta-badge-success');
+                    badge.style.background = '#d1fae5';
+                    badge.style.color = '#065f46';
+                    break;
+                case 'sync-with-crm':
+                    badge.textContent = 'Sync with CRM';
+                    badge.classList.add('vivicta-badge-info');
+                    badge.style.background = '#dbeafe';
+                    badge.style.color = '#1e40af';
+                    break;
+                case 'archived':
+                    badge.textContent = 'Archived';
+                    badge.classList.add('vivicta-badge-secondary');
+                    badge.style.background = '#f3f4f6';
+                    badge.style.color = '#6b7280';
+                    break;
+                default:
+                    badge.textContent = 'Inactive';
+                    badge.classList.add('vivicta-badge-warning');
+                    badge.style.background = '#fef3c7';
+                    badge.style.color = '#92400e';
+            }
+            
+            // Add CRM sync indicator if applicable
+            if (crmSyncStatus === 'pending') {
+                badge.innerHTML += ' <i class="fas fa-sync fa-spin" style="margin-left: 4px; font-size: 10px;"></i>';
+            } else if (crmSyncStatus === 'failed') {
+                badge.innerHTML += ' <i class="fas fa-exclamation-triangle" style="margin-left: 4px; font-size: 10px;"></i>';
+            }
         }
         
         function loadSegmentTemplate(segmentId) {

@@ -362,67 +362,7 @@
             border-radius: 6px;
             font-size: 14px;
         }
-        
-        /* === GLOBAL SEARCH === */
-        .global-search-container {
-            position: relative;
-            max-width: 350px;
-            margin: 0 16px;
-        }
-        .global-search-input {
-            width: 100%;
-            padding: 8px 36px 8px 12px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            background: rgba(255,255,255,0.9);
-        }
-        .global-search-input:focus { outline: 2px solid white; background: white; }
-        .search-icon {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #6b7280;
-            pointer-events: none;
-        }
-        .search-results {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            margin-top: 8px;
-            max-height: 400px;
-            overflow-y: auto;
-            z-index: 1000;
-            display: none;
-        }
-        .search-results.active { display: block; }
-        .search-result-item {
-            padding: 12px 16px;
-            border-bottom: 1px solid #e5e7eb;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .search-result-item:hover { background: #f9fafb; }
-        .search-result-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            flex-shrink: 0;
-        }
-        .search-result-content { flex: 1; }
-        .search-result-title { font-weight: 600; color: #1f2937; margin-bottom: 2px; }
-        .search-result-subtitle { font-size: 12px; color: #6b7280; }
+
         .breadcrumbs {
             display: flex;
             align-items: center;
@@ -473,20 +413,11 @@
         <header class="ea-header">
             <div class="header-content">
                 <div style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <h1><i class="fas fa-bullseye"></i> Vivicta Opportunity Pipeline</h1>
-                        
-                        <!-- Global Search -->
-                        <div class="global-search-container">
-                            <input type="text" class="global-search-input" id="global-search-input" placeholder="Search..." autocomplete="off">
-                            <i class="fas fa-search search-icon"></i>
-                            <div class="search-results" id="search-results"></div>
-                        </div>
-                    </div>
+                    <h1><i class="fas fa-bullseye"></i> Vivicta Opportunity Pipeline</h1>
                     
                     <!-- Breadcrumbs -->
                     <div class="breadcrumbs">
-                        <a href="EA_Growth_Dashboard.html" class="breadcrumb-link"><i class="fas fa-home"></i> Home</a>
+                        <a href="#" class="breadcrumb-link" id="breadcrumb-home"><i class="fas fa-home"></i> Home</a>
                         <span class="breadcrumb-separator">›</span>
                         <span>Pipeline</span>
                     </div>
@@ -721,6 +652,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             accountManager = new EA_AccountManager();
             
+            // Update breadcrumb with accountId
+            updateBreadcrumbLinks();
+            
             // Initialize AI Assistant
             setTimeout(() => {
                 aiAssistant = new EA_UnifiedAIAssistant();
@@ -730,8 +664,22 @@
             // Initialize resizable panel
             initializeResizablePanel();
             
+            // Initialize default Handelsbanken opportunities
+            initializeDefaultOpportunities();
+            
             loadData();
         });
+        
+        // Update breadcrumb links with current accountId
+        function updateBreadcrumbLinks() {
+            const accountId = new URLSearchParams(window.location.search).get('accountId');
+            const homeLink = document.getElementById('breadcrumb-home');
+            if (homeLink && accountId) {
+                homeLink.href = `EA_Growth_Dashboard.html?accountId=${accountId}`;
+            } else if (homeLink) {
+                homeLink.href = 'EA_Growth_Dashboard.html';
+            }
+        }
 
         // ═══════════════════════════════════════════════════════════════════
         // MENU SYSTEM FUNCTIONS
@@ -1043,6 +991,85 @@
         });
 
         // ═══════════════════════════════════════════════════════════════════
+        // INITIALIZE DEFAULT OPPORTUNITIES FOR ALL ACCOUNTS
+        // ═══════════════════════════════════════════════════════════════════
+
+        function initializeDefaultOpportunities() {
+            // Get all existing accounts
+            const accounts = accountManager.listAccounts();
+            
+            // If no accounts exist, create Handelsbanken as default
+            if (accounts.length === 0) {
+                const handelsbankAccount = accountManager.createAccount({
+                    id: 'ACC-HANDELSBANKEN',
+                    name: 'Handelsbanken',
+                    industry: 'Banking & Financial Services',
+                    region: 'Nordic',
+                    size: 'Large Enterprise',
+                    ACV: 0,
+                    health: 'good',
+                    accountManager: 'Account Manager',
+                    metadata: {
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        createdBy: 'system'
+                    }
+                });
+                accounts.push(handelsbankAccount);
+                console.log('✓ Created Handelsbanken account');
+            }
+            
+            // Define the 8 services as opportunities
+            const serviceNames = [
+                'AI services',
+                'Enterprise application',
+                'Cloud services',
+                'Cybersecurity',
+                'Data & analytics',
+                'Digital development services',
+                'Digital workplace services',
+                'Sovereign IT services'
+            ];
+            
+            // Create opportunities for each account
+            accounts.forEach(account => {
+                serviceNames.forEach(serviceName => {
+                    // Generate unique opportunity ID for this account and service
+                    const serviceId = serviceName.replace(/[^a-zA-Z0-9]/g, '-').toUpperCase();
+                    const oppId = `OPP-${account.id}-${serviceId}`;
+                    
+                    // Check if opportunity already exists
+                    const existingOpp = accountManager.getOpportunity(oppId);
+                    if (!existingOpp) {
+                        accountManager.createOpportunity({
+                            id: oppId,
+                            accountId: account.id,
+                            name: serviceName,
+                            status: 'discovery',
+                            stage: '1-discovery',
+                            estimatedValue: 100000, // €100,000
+                            probability: 50,
+                            closeDate: '2026-12-30',
+                            sponsor: '?',
+                            linkedInitiatives: [],
+                            linkedEngagements: [],
+                            valueCase: null,
+                            competitors: [],
+                            nextSteps: [],
+                            risks: [],
+                            metadata: {
+                                createdAt: new Date().toISOString(),
+                                updatedAt: new Date().toISOString(),
+                                createdBy: 'system'
+                            }
+                        });
+                        console.log(`✓ Created opportunity: ${serviceName} for ${account.name}`);
+                    }
+                });
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
         // DATA LOADING
         // ═══════════════════════════════════════════════════════════════════
 
@@ -1160,6 +1187,13 @@
                 // Render cards
                 if (stage.opps.length === 0) {
                     container.innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 20px; font-size: 12px;">No opportunities</div>';
+                    // Still need to setup drop zone for empty stages
+                    const stageElement = container.parentElement;
+                    if (stageElement && stageElement.classList.contains('pipeline-stage')) {
+                        stageElement.ondragover = handleDragOver;
+                        stageElement.ondragleave = handleDragLeave;
+                        stageElement.ondrop = (e) => handleDrop(e, stageName);
+                    }
                     return;
                 }
                 
@@ -1167,11 +1201,7 @@
                     const account = accountManager.getAccount(opp.accountId);
                     return `
                         <div class="opp-card" 
-                             draggable="true" 
-                             data-opp-id="${opp.id}"
-                             ondragstart="handleDragStart(event, '${opp.id}')"
-                             ondragend="handleDragEnd(event)"
-                             onclick="viewOpportunity('${opp.id}')">
+                             data-opp-id="${opp.id}">
                             <div class="opp-name">${opp.name}</div>
                             <div class="opp-account">${account ? account.name : 'Unknown Account'}</div>
                             <div class="opp-value">€${(opp.estimatedValue / 1000000).toFixed(2)}M</div>
@@ -1184,10 +1214,41 @@
                     `;
                 }).join('');
                 
-                // Add drop zone handlers to stage container
-                container.ondragover = handleDragOver;
-                container.ondragleave = handleDragLeave;
-                container.ondrop = (e) => handleDrop(e, stageName);
+                // Add event listeners and draggable to all cards in this stage
+                container.querySelectorAll('.opp-card').forEach(card => {
+                    const oppId = card.getAttribute('data-opp-id');
+                    
+                    // Set draggable attribute
+                    card.setAttribute('draggable', 'true');
+                    
+                    // Add drag event listeners
+                    card.addEventListener('dragstart', (e) => {
+                        console.log('Drag started:', oppId);
+                        handleDragStart(e, oppId);
+                    });
+                    card.addEventListener('dragend', (e) => {
+                        console.log('Drag ended');
+                        handleDragEnd(e);
+                    });
+                    
+                    // Add click listener (use mousedown to avoid conflicts with drag)
+                    let isDragging = false;
+                    card.addEventListener('mousedown', () => isDragging = false);
+                    card.addEventListener('mousemove', () => isDragging = true);
+                    card.addEventListener('mouseup', () => {
+                        if (!isDragging) {
+                            viewOpportunity(oppId);
+                        }
+                    });
+                });
+                
+                // Add drop zone handlers to the parent pipeline-stage element
+                const stageElement = container.parentElement;
+                if (stageElement && stageElement.classList.contains('pipeline-stage')) {
+                    stageElement.ondragover = handleDragOver;
+                    stageElement.ondragleave = handleDragLeave;
+                    stageElement.ondrop = (e) => handleDrop(e, stageName);
+                }
             });
         }
 
@@ -1200,17 +1261,25 @@
         function handleDragStart(event, oppId) {
             draggedOppId = oppId;
             event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData('text/html', event.target.innerHTML);
-            event.target.classList.add('dragging');
+            event.dataTransfer.setData('text/plain', oppId);
+            const draggedElement = event.target.closest('.opp-card');
+            if (draggedElement) {
+                draggedElement.classList.add('dragging');
+            }
+            console.log('✓ Drag started:', oppId);
         }
         
         function handleDragEnd(event) {
-            event.target.classList.remove('dragging');
+            const draggedElement = event.target.closest('.opp-card');
+            if (draggedElement) {
+                draggedElement.classList.remove('dragging');
+            }
             
             // Remove drag-over styling from all stages
             document.querySelectorAll('.pipeline-stage').forEach(stage => {
                 stage.classList.remove('drag-over');
             });
+            console.log('✓ Drag ended');
         }
         
         function handleDragOver(event) {
@@ -1239,7 +1308,12 @@
             event.preventDefault();
             event.stopPropagation();
             
-            if (!draggedOppId) return;
+            console.log('✓ Drop detected on stage:', targetStage, 'Opportunity:', draggedOppId);
+            
+            if (!draggedOppId) {
+                console.warn('No opportunity being dragged');
+                return;
+            }
             
             // Map stage name to status
             const statusMap = {
@@ -1350,69 +1424,6 @@
         // GLOBAL SEARCH
         // ═══════════════════════════════════════════════════════════════════
 
-        let globalSearch;
-        document.getElementById('global-search-input')?.addEventListener('input', function(e) {
-            const query = e.target.value.trim();
-            const resultsDiv = document.getElementById('search-results');
-            
-            if (!query) {
-                resultsDiv.classList.remove('active');
-                return;
-            }
-
-            if (!globalSearch) {
-                globalSearch = new EA_GlobalSearch();
-                globalSearch.buildSearchIndex();
-            }
-
-            const results = globalSearch.search(query, {}).slice(0, 5);
-            
-            if (results.length === 0) {
-                resultsDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #9ca3af;">No results found</div>';
-            } else {
-                resultsDiv.innerHTML = results.map(result => {
-                    const iconMap = {
-                        account: { icon: 'building', color: '#10b981' },
-                        opportunity: { icon: 'bullseye', color: '#7c3aed' },
-                        engagement: { icon: 'diagram-project', color: '#3b82f6' }
-                    };
-                    const icon = iconMap[result.type] || { icon: 'file', color: '#6b7280' };
-                    
-                    return `
-                        <div class="search-result-item" onclick="navigateToResult('${result.type}', '${result.id}')">
-                            <div class="search-result-icon" style="background: ${icon.color}20; color: ${icon.color};">
-                                <i class="fas fa-${icon.icon}"></i>
-                            </div>
-                            <div class="search-result-content">
-                                <div class="search-result-title">${result.name}</div>
-                                <div class="search-result-subtitle">${result.type.toUpperCase()}</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-            
-            resultsDiv.classList.add('active');
-        });
-
-        document.addEventListener('click', function(e) {
-            const searchContainer = document.querySelector('.global-search-container');
-            if (!searchContainer?.contains(e.target)) {
-                document.getElementById('search-results')?.classList.remove('active');
-            }
-        });
-
-        function navigateToResult(type, id) {
-            const crossNav = new EA_CrossNavigation();
-            
-            if (type === 'account') {
-                crossNav.goToAccount(id);
-            } else if (type === 'opportunity') {
-                crossNav.goToOpportunity(id);
-            } else if (type === 'engagement') {
-                crossNav.goToEngagement(id);
-            }
-        }
     </script>
 
     <!-- Opportunity Details Modal -->
@@ -1506,9 +1517,11 @@
 
     <script>
         let currentOppId = null;
+        let isEditMode = false;
 
         function viewOpportunity(oppId) {
             currentOppId = oppId;
+            isEditMode = false;
             const opportunity = accountManager.getOpportunity(oppId);
             
             if (!opportunity) {
@@ -1573,6 +1586,7 @@
         function closeOppDetailsModal() {
             document.getElementById('opp-details-modal').classList.remove('open');
             currentOppId = null;
+            isEditMode = false;
         }
 
         function deleteOpportunity() {
@@ -1586,7 +1600,103 @@
         }
 
         function editOpportunity() {
-            alert('Edit opportunity feature coming soon!\n\nYou will be able to:\n- Update opportunity details\n- Change status/stage\n- Adjust value and probability\n- Modify close date');
+            if (!currentOppId) return;
+            
+            isEditMode = true;
+            const opportunity = accountManager.getOpportunity(currentOppId);
+            if (!opportunity) return;
+            
+            // Replace display fields with input fields
+            document.getElementById('detail-opp-name').innerHTML = `<input type="text" id="edit-opp-name" class="form-input" value="${opportunity.name}" style="width: 100%; font-size: 20px; padding: 8px;">`;
+            document.getElementById('detail-sponsor').innerHTML = `<input type="text" id="edit-sponsor" class="form-input" value="${opportunity.sponsor || ''}" style="width: 200px; padding: 4px 8px;">`;
+            document.getElementById('detail-value').innerHTML = `<input type="number" id="edit-value" class="form-input" value="${opportunity.estimatedValue || 0}" style="width: 150px; font-size: 24px; padding: 8px; text-align: right;">`;
+            document.getElementById('detail-probability').innerHTML = `<input type="number" id="edit-probability" class="form-input" value="${opportunity.probability || 50}" min="0" max="100" style="width: 60px; padding: 4px; text-align: center;">`;
+            document.getElementById('detail-close-date').innerHTML = `<input type="date" id="edit-close-date" class="form-input" value="${opportunity.closeDate || ''}" style="width: 150px; padding: 4px 8px;">`;
+            
+            // Add stage selector
+            const stageNames = {
+                'discovery': 'Discovery',
+                'qualify': 'Qualification',
+                'propose': 'Proposal',
+                'negotiate': 'Negotiation',
+                'close-won': 'Closed Won',
+                'close-lost': 'Closed Lost'
+            };
+            let stageOptions = '';
+            for (const [key, value] of Object.entries(stageNames)) {
+                const selected = opportunity.status === key ? 'selected' : '';
+                stageOptions += `<option value="${key}" ${selected}>${value}</option>`;
+            }
+            document.getElementById('detail-stage-name').innerHTML = `<select id="edit-stage" class="form-input" style="width: 100%; padding: 4px 8px;">${stageOptions}</select>`;
+            
+            // Update button
+            const editBtn = document.querySelector('button[onclick="editOpportunity()"]');
+            editBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+            editBtn.onclick = saveOpportunity;
+            editBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            editBtn.style.color = 'white';
+        }
+        
+        function saveOpportunity() {
+            if (!currentOppId || !isEditMode) return;
+            
+            try {
+                // Get updated values
+                const updatedData = {
+                    name: document.getElementById('edit-opp-name').value,
+                    sponsor: document.getElementById('edit-sponsor').value,
+                    estimatedValue: parseInt(document.getElementById('edit-value').value) || 0,
+                    probability: parseInt(document.getElementById('edit-probability').value) || 50,
+                    closeDate: document.getElementById('edit-close-date').value,
+                    status: document.getElementById('edit-stage').value,
+                    stage: document.getElementById('edit-stage').value.includes('discovery') ? '1-discovery' :
+                           document.getElementById('edit-stage').value.includes('qualify') ? '2-qualification' :
+                           document.getElementById('edit-stage').value.includes('propose') ? '3-proposal' :
+                           document.getElementById('edit-stage').value.includes('negotiate') ? '4-negotiation' : '5-closed'
+                };
+                
+                // Validate
+                if (!updatedData.name || updatedData.name.trim() === '') {
+                    alert('Opportunity name is required');
+                    return;
+                }
+                
+                if (updatedData.probability < 0 || updatedData.probability > 100) {
+                    alert('Probability must be between 0 and 100');
+                    return;
+                }
+                
+                // Save to accountManager
+                accountManager.updateOpportunity(currentOppId, updatedData);
+                
+                // Show success toast
+                const toast = document.createElement('div');
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    left: 20px;
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    font-size: 14px;
+                    font-weight: 600;
+                    z-index: 10000;
+                    animation: slideInUp 0.3s ease-out;
+                `;
+                toast.innerHTML = '<i class="fas fa-check-circle"></i> Opportunity updated successfully';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+                
+                // Close modal and refresh
+                closeOppDetailsModal();
+                loadData();
+                
+            } catch (error) {
+                console.error('Error saving opportunity:', error);
+                alert('Error saving opportunity: ' + error.message);
+            }
         }
 
         function navigateToAccount() {

@@ -352,7 +352,7 @@ const StakeholderSchema = {
   },
   influence: { type: 'string', required: true, enum: ['high', 'medium', 'low'] },
   decisionPower: { type: 'string', required: true, enum: ['high', 'medium', 'low'] },
-  priorities: { type: 'array', required: true, items: 'string' },
+  priorities: { type: 'array', required: false, items: 'string' },
   customerRelationships: { 
     type: 'array', 
     items: 'string',
@@ -1093,10 +1093,8 @@ const ValidationRules = {
   },
   
   stakeholder: {
-    required: ['id', 'name', 'role', 'orgUnit', 'influence', 'decisionPower', 'priorities'],
-    checks: [
-      { field: 'priorities', rule: 'minLength', value: 1, message: 'At least one priority is required' }
-    ]
+    required: ['id', 'name', 'role', 'orgUnit', 'influence', 'decisionPower'],
+    checks: []
   }
 };
 

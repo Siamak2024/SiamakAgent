@@ -53,6 +53,8 @@ class EA_EngagementManager {
     
     const engagement = {
       ...engagementData,
+      status: 'inactive', // Initial status: inactive until data is saved
+      crmSyncStatus: null, // Future: 'synced', 'pending', 'failed'
       metadata: {
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -92,8 +94,145 @@ class EA_EngagementManager {
     this.saveEngagement(engagement.id, engagementModel);
     this.setCurrentEngagement(engagement.id);
 
+    // Auto-create default stakeholders (customer manager + EA engagement contact)
+    this.createDefaultStakeholders(engagement.id, engagementData);
+
     console.log(`✓ Engagement created: ${engagement.id}`);
     return engagement.id;
+  }
+
+  /**
+   * Auto-create default stakeholders for new engagement
+   * @param {string} engagementId - Engagement ID
+   * @param {Object} engagementData - Engagement metadata
+   */
+  createDefaultStakeholders(engagementId, engagementData) {
+    const model = this.loadEngagement(engagementId);
+    if (!model) return;
+
+    // Only create if no stakeholders exist yet
+    if (model.stakeholders && model.stakeholders.length > 0) {
+      console.log('Stakeholders already exist, skipping auto-creation');
+      return;
+    }
+
+    const defaultStakeholders = [];
+
+    // 1. Customer Manager (from engagement data or account)
+    if (engagementData.accountManager || engagementData.customerManager) {
+      const managerName = engagementData.accountManager || engagementData.customerManager;
+      defaultStakeholders.push({
+        id: this.generateEntityId('stakeholders'),
+        name: managerName,
+        role: 'Customer Manager',
+        orgUnit: 'Marketing & Sales',
+        type: 'engagement-team',
+        influence: 'high',
+        decisionPower: 'high',
+        priorities: ['Client relationship', 'Revenue growth', 'Customer satisfaction'],
+        customerRelationships: [],
+        notes: 'Auto-created default stakeholder'
+      });
+    }
+
+    // 2. EA Engagement Contact Person
+    if (engagementData.engagementLead || engagementData.eaContact) {
+      const eaContact = engagementData.engagementLead || engagementData.eaContact;
+      defaultStakeholders.push({
+        id: this.generateEntityId('stakeholders'),
+        name: eaContact,
+        role: 'Enterprise Architect',
+        orgUnit: 'Enterprise Architecture',
+        type: 'engagement-team',
+        influence: 'high',
+        decisionPower: 'medium',
+        priorities: ['Technical excellence', 'Architecture alignment', 'Value delivery'],
+        customerRelationships: [],
+        notes: 'Auto-created default stakeholder'
+      });
+    }
+
+    // Add default stakeholders to model
+    if (defaultStakeholders.length > 0) {
+      model.stakeholders = defaultStakeholders;
+      this.saveEngagement(engagementId, model);
+      console.log(`✓ Created ${defaultStakeholders.length} default stakeholder(s) for ${engagementId}`);
+    }
+  }
+
+  /**
+   * Create default stakeholders for current engagement (from stored data)
+   * Useful for existing engagements that were created before auto-stakeholder feature
+   * @returns {number} - Number of stakeholders created
+   */
+  createDefaultStakeholdersFromCurrent() {
+    const model = this.getCurrentEngagement();
+    if (!model) {
+      console.warn('No current engagement to create stakeholders for');
+      return 0;
+    }
+
+    const engagement = model.engagement;
+    const engagementId = engagement.id;
+
+    // Check if stakeholders already exist
+    if (model.stakeholders && model.stakeholders.length > 0) {
+      console.log('Stakeholders already exist, skipping auto-creation');
+      return 0;
+    }
+
+    const defaultStakeholders = [];
+
+    // Get customer manager from account context or URL
+    let customerManager = null;
+    if (window.currentAccountContext && window.currentAccountContext.accountManager) {
+      customerManager = window.currentAccountContext.accountManager;
+    }
+
+    // 1. Customer Manager
+    if (customerManager) {
+      defaultStakeholders.push({
+        id: this.generateEntityId('stakeholders'),
+        name: customerManager,
+        role: 'Customer Manager',
+        orgUnit: 'Marketing & Sales',
+        type: 'engagement-team',
+        influence: 'high',
+        decisionPower: 'high',
+        priorities: ['Client relationship', 'Revenue growth', 'Customer satisfaction'],
+        customerRelationships: [],
+        notes: 'Auto-created default stakeholder'
+      });
+    }
+
+    // 2. EA Engagement Contact Person
+    if (engagement.eaContact) {
+      defaultStakeholders.push({
+        id: this.generateEntityId('stakeholders'),
+        name: engagement.eaContact,
+        role: 'Enterprise Architect',
+        orgUnit: 'Enterprise Architecture',
+        type: 'engagement-team',
+        influence: 'high',
+        decisionPower: 'medium',
+        priorities: ['Technical excellence', 'Architecture alignment', 'Value delivery'],
+        customerRelationships: [],
+        notes: 'Auto-created default stakeholder'
+      });
+    }
+
+    // Add default stakeholders to model
+    if (defaultStakeholders.length > 0) {
+      model.stakeholders = defaultStakeholders;
+      this.saveEngagement(engagementId, model);
+      console.log(`✓ Created ${defaultStakeholders.length} default stakeholder(s) for ${engagementId}`);
+      
+      // Update global reference
+      window.currentEngagement = model;
+      return defaultStakeholders.length;
+    }
+
+    return 0;
   }
 
   /**
@@ -161,6 +300,7 @@ class EA_EngagementManager {
           return {
             id: engagement.id,
             name: engagement.name,
+            accountId: engagement.accountId, // CRITICAL: Include accountId for findEngagementByAccountId
             segment: engagement.segment || engagement.industry,
             status: engagement.status,
             theme: engagement.theme,
@@ -197,8 +337,24 @@ class EA_EngagementManager {
     // Calculate completeness
     model.engagement.metadata.completeness = this.calculateCompleteness(model);
     
+    // Auto-update status based on engagement activity
+    // If engagement has data and is currently inactive or draft, change to active
+    const hasData = this.hasEngagementData(model);
+    console.log(`[DEBUG] saveEngagement - Current status: ${model.engagement.status}, hasData: ${hasData}`);
+    console.log(`[DEBUG] saveEngagement - eaContact: "${model.engagement.eaContact}", theme: "${model.engagement.theme}"`);
+    
+    if ((model.engagement.status === 'inactive' || model.engagement.status === 'draft') && hasData) {
+      const oldStatus = model.engagement.status;
+      model.engagement.status = 'active';
+      console.log(`✓ Engagement status updated: ${oldStatus} → active`);
+    } else if ((model.engagement.status === 'inactive' || model.engagement.status === 'draft') && !hasData) {
+      console.log(`[DEBUG] Status NOT updated - hasData returned false`);
+    } else {
+      console.log(`[DEBUG] Status NOT updated - current status is: ${model.engagement.status}`);
+    }
+    
     localStorage.setItem(key, JSON.stringify(model));
-    console.log(`✓ Engagement saved: ${engagementId} (${model.engagement.metadata.completeness}% complete)`);
+    console.log(`✓ Engagement saved: ${engagementId} (${model.engagement.metadata.completeness}% complete, status: ${model.engagement.status})`);
   }
 
   /**
@@ -211,7 +367,10 @@ class EA_EngagementManager {
     
     try {
       const stored = localStorage.getItem(key);
-      if (!stored) return null;
+      if (!stored) {
+        console.warn(`No engagement found for ID: ${engagementId}`);
+        return null;
+      }
       
       const model = JSON.parse(stored);
       
@@ -255,11 +414,33 @@ class EA_EngagementManager {
       }
       
       this.currentEngagementId = engagementId;
+      window.currentEngagement = finalModel; // Update global reference
+      console.log(`✓ Loaded engagement: ${engagementId}`);
       return finalModel;
     } catch (error) {
       console.error('Error loading engagement:', engagementId, error);
       return null;
     }
+  }
+
+  /**
+   * Load engagement by account ID from URL or account selection
+   * @param {string} accountId - Account ID
+   * @returns {Object|null} - Loaded engagement model or null
+   */
+  loadEngagementByAccountId(accountId) {
+    console.log(`Loading engagement for account: ${accountId}`);
+    
+    // Find engagement associated with this account
+    const engagements = this.listEngagements();
+    const accountEngagement = engagements.find(e => e.accountId === accountId || e.id.includes(accountId));
+    
+    if (accountEngagement) {
+      return this.loadEngagement(accountEngagement.id);
+    }
+    
+    console.warn(`No engagement found for account: ${accountId}`);
+    return null;
   }
 
   /**
@@ -1118,6 +1299,52 @@ class EA_EngagementManager {
   // ═══════════════════════════════════════════════════════════════════
   // UTILITY METHODS
   // ═══════════════════════════════════════════════════════════════════
+
+  /**
+   * Check if engagement has any saved data
+   * @param {Object} model - Engagement model
+   * @returns {boolean}
+   */
+  hasEngagementData(model) {
+    if (!model) return false;
+    
+    // Check if any entities exist
+    const entityTypes = ['stakeholders', 'applications', 'capabilities', 'customers',
+                        'risks', 'decisions', 'constraints', 'assumptions', 
+                        'initiatives', 'roadmapItems', 'architectureThemes'];
+    
+    const hasEntities = entityTypes.some(type => 
+      model[type] && Array.isArray(model[type]) && model[type].length > 0
+    );
+    
+    // Check if engagement has theme or other key fields filled
+    const hasTheme = model.engagement?.theme && model.engagement.theme.trim().length > 0;
+    const hasEAContact = model.engagement?.eaContact && model.engagement.eaContact.trim().length > 0;
+    
+    console.log(`[DEBUG] hasEngagementData - hasEntities: ${hasEntities}, hasTheme: ${hasTheme}, hasEAContact: ${hasEAContact}`);
+    
+    return hasEntities || hasTheme || hasEAContact;
+  }
+
+  /**
+   * Update engagement CRM sync status
+   * @param {string} engagementId - Engagement ID
+   * @param {string} syncStatus - 'synced', 'pending', 'failed'
+   */
+  updateCRMSyncStatus(engagementId, syncStatus) {
+    const model = this.loadEngagement(engagementId);
+    if (!model) return false;
+    
+    model.engagement.crmSyncStatus = syncStatus;
+    if (syncStatus === 'synced') {
+      model.engagement.status = 'sync-with-crm';
+      model.engagement.lastCRMSync = new Date().toISOString();
+      console.log(`✓ Engagement synced with CRM: ${engagementId}`);
+    }
+    
+    this.saveEngagement(engagementId, model);
+    return true;
+  }
 
   /**
    * Generate unique entity ID

@@ -79,9 +79,14 @@ window.renderStakeholders = function() {
                         <div class="entity-card-subtitle" style="font-size: 11px;">${s.role}</div>
                         <div style="font-size: 10px; color: #9ca3af; margin-top: 2px;">${s.orgUnit || ''}</div>
                     </div>
-                    <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); openStakeholderModal('${s.id}')" title="Edit" style="padding: 4px 8px;">
-                        <i class="fas fa-edit" style="font-size: 12px;"></i>
-                    </button>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); openStakeholderModal('${s.id}')" title="Edit" style="padding: 4px 8px;">
+                            <i class="fas fa-edit" style="font-size: 12px;"></i>
+                        </button>
+                        <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); deleteStakeholder('${s.id}', '${s.name}')" title="Delete" style="padding: 4px 8px; color: #ef4444;">
+                            <i class="fas fa-trash" style="font-size: 12px;"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="entity-card-body" style="padding: 8px 12px; padding-top: 0;">
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -587,6 +592,35 @@ window.addEventListener('resize', () => {
 window.clearStakeholderSelection = function() {
     if (currentActiveStakeholder) {
         toggleStakeholderHighlight(currentActiveStakeholder);
+    }
+};
+
+// Delete stakeholder with confirmation
+window.deleteStakeholder = function(stakeholderId, stakeholderName) {
+    if (!confirm(`Are you sure you want to delete stakeholder "${stakeholderName}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    const success = engagementManager.deleteEntity('stakeholders', stakeholderId);
+    
+    if (success) {
+        currentEngagement = engagementManager.getCurrentEngagement();
+        
+        // Clear active stakeholder if it was deleted
+        if (currentActiveStakeholder === stakeholderId) {
+            currentActiveStakeholder = null;
+        }
+        
+        renderStakeholders();
+        updateKPIs();
+        
+        if (typeof showToast === 'function') {
+            showToast('Stakeholder Deleted', `${stakeholderName} has been removed`, 'success');
+        }
+    } else {
+        if (typeof showToast === 'function') {
+            showToast('Delete Failed', 'Could not delete stakeholder', 'error');
+        }
     }
 };
 
