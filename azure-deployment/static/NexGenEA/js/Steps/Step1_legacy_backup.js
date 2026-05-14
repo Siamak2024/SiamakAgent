@@ -533,6 +533,59 @@ We need to reduce operational costs by 20% while improving customer satisfaction
       }
     },
 
+    // ── Task 0.0: Company Description (Standard Mode only) ────────────────
+    {
+      taskId: 'step1_00_company_description',
+      title: 'Tell us about your organization',
+      type: 'text-input',
+      
+      // Only run in standard mode (business-object mode has its own input task)
+      shouldRun: (ctx) => {
+        const mode = (typeof window !== 'undefined' && window.model) ? window.model.workflowMode : 'standard';
+        return mode === 'standard';
+      },
+      
+      promptUser: () => ({
+        title: 'Organization Description',
+        prompt: `**Welcome to Standard Workflow!**
+
+Please provide a brief description of your organization to help us tailor the questionnaire to your specific context.
+
+**What to include:**
+- Organization name and industry
+- What your organization does (products/services)
+- Approximate size (employees, revenue range)
+- Any key challenges you're facing
+
+**Example:**
+"We are Acme Manufacturing, a mid-sized industrial equipment manufacturer with 250 employees and $50M annual revenue. We produce precision tools for the automotive industry. We're facing increasing competition and need to modernize our operations."
+
+**Minimum:** 50 characters`,
+        placeholder: 'e.g., We are a mid-sized healthcare provider with 500 employees operating 3 clinics in the greater metro area...',
+        minLength: 50,
+        validate: (text) => {
+          if (!text || text.trim().length < 50) {
+            return { 
+              valid: false, 
+              error: 'Please provide at least 50 characters describing your organization. This helps us ask relevant questions.' 
+            };
+          }
+          return { valid: true };
+        }
+      }),
+      
+      parseOutput: (text) => ({ companyDescription: text.trim() }),
+      
+      // Store in model so context engine and all subsequent tasks can use it
+      onComplete: (output, ctx) => {
+        if (!window.model) window.model = {};
+        window.model.description = output.companyDescription;
+        console.log('[Step1] Company description captured:', output.companyDescription.substring(0, 100) + '...');
+      },
+      
+      wrapAnswer: (answer) => ({ companyDescription: answer.companyDescription || answer })
+    },
+
     // ── Task 1.0: Context Engine (Step0) ──────────────────────────────────
     {
       taskId: 'step1_0_context',
@@ -560,7 +613,7 @@ Return ONLY valid JSON — no prose, no markdown.`,
 
       userPrompt: (ctx) => {
         // Re-use the Step0 user prompt builder
-        return Step0.tasks[0].userPrompt(ctx);
+        return Step0.tasks[1].userPrompt(ctx);  // Note: Changed to tasks[1] since Step0 now has rich profile as first task
       },
 
       parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step1_0_context'),
@@ -579,6 +632,7 @@ Return ONLY valid JSON — no prose, no markdown.`,
       title: 'What is driving this?',
       type: 'question',
       allowSkip: false,
+      allowMultiple: true,  // Allow selecting multiple drivers
       generateQuestion: true,  // AI generates the question text based on context
       taskType: 'general',
       instructionFile: '1_1_q1_trigger.instruction.md',
@@ -586,7 +640,7 @@ Return ONLY valid JSON — no prose, no markdown.`,
 
       systemPromptFallback: `You are an Enterprise Architecture advisor. Based on the organisation description and initial context analysis, generate a focused, conversational question about what is driving the transformation need.
 
-Tailor the question to the specific organisation — not generic. Offer 4-5 specific answer options relevant to their industry/situation.
+Tailor the question to the specific organisation — not generic. Offer 4-5 specific answer options relevant to their industry/situation. User can SELECT MULTIPLE drivers.
 
 Return ONLY valid JSON:
 {
@@ -638,6 +692,7 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
       taskId: 'step1_q2_scale',
       title: 'What is the scale?',
       type: 'question',
+      allowMultiple: true,  // Allow selecting multiple scale/system aspects
       generateQuestion: true,
       taskType: 'general',
       instructionFile: '1_2_q2_scale.instruction.md',
@@ -645,7 +700,7 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
 
       systemPromptFallback: `You are an Enterprise Architecture advisor. Ask a focused question about the organisation's scale and current system landscape.
 IMPORTANT: For real estate and asset-heavy industries, revenue/AUM can be very large with small headcount due to outsourcing.
-Tailor to what you know — don't repeat what they already told you.
+Tailor to what you know — don't repeat what they already told you. User can SELECT MULTIPLE aspects.
 Return ONLY valid JSON: { "question": "", "options": [], "guidance": "" }`,
 
       userPrompt: (ctx) => {
@@ -689,11 +744,12 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
       title: 'Key constraints',
       type: 'question',
       generateQuestion: true,
+      allowMultiple: true,  // Allow selecting multiple constraints
       taskType: 'general',
       instructionFile: '1_3_q3_constraints.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an Enterprise Architecture advisor. Ask about the key constraints — budget, timeline, regulatory, organisational. Return ONLY valid JSON: { "question": "", "options": [], "guidance": "" }`,
+      systemPromptFallback: `You are an Enterprise Architecture advisor. Ask about the key constraints — budget, timeline, regulatory, organisational. User can select MULTIPLE constraints that apply. Return ONLY valid JSON: { "question": "", "options": [], "guidance": "" }`,
 
       userPrompt: (ctx) => {
         const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
@@ -711,7 +767,7 @@ Generate Question 3: Confirm the binding constraints.
 Known constraints: ${constraints || 'None specified'}
 Investment capacity: ${financial}
 
-Generate a focused question with 4-5 options to clarify budget, timeline, regulatory, or organizational readiness constraints.
+Generate a focused question with 4-5 options to clarify budget, timeline, regulatory, or organizational readiness constraints. User can SELECT MULTIPLE constraints.
 
 Return JSON with format: { "question": "string", "options": ["string"], "guidance": "string" }`;
         }
@@ -723,7 +779,7 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
 Regulatory flags: ${regFlags}
 Pain point: ${q1}
 Generate Question 3: What are the binding constraints we must work within?
-Focus on: budget envelope, hard deadlines, regulatory requirements, org readiness. 4-5 options.
+Focus on: budget envelope, hard deadlines, regulatory requirements, org readiness. 4-5 options. User can SELECT MULTIPLE constraints.
 
 Return JSON with format: { "question": "string", "options": ["string"], "guidance": "string" }`;
       },
@@ -768,18 +824,19 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
       title: 'Key decision-makers',
       type: 'question',
       generateQuestion: true,
+      allowMultiple: true,  // Allow selecting multiple stakeholders
       taskType: 'general',
       instructionFile: '1_5_q5_stakeholders.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an Enterprise Architecture advisor. Ask about key decision-makers and their priorities. Return ONLY valid JSON: { "question": "", "options": [], "guidance": "" }`,
+      systemPromptFallback: `You are an Enterprise Architecture advisor. Ask about key decision-makers and their priorities. User can select MULTIPLE stakeholders. Return ONLY valid JSON: { "question": "", "options": [], "guidance": "" }`,
 
       userPrompt: (ctx) => {
         const q1 = ctx.answers?.step1_q1_trigger?.q1_trigger || '';
         return `Company: "${ctx.companyDescription.slice(0, 300)}"
 Pain point / trigger: ${q1}
 Generate Question 5: Who are the key stakeholders and what outcomes do they each care most about?
-Typical roles: CEO, CFO, CTO, COO, Board. 4-5 options relevant to their org size.
+Typical roles: CEO, CFO, CTO, COO, Board. 4-5 options relevant to their org size. User can SELECT MULTIPLE stakeholders.
 
 Return JSON with format: { "question": "string", "options": ["string"], "guidance": "string" }`;
       },
@@ -795,18 +852,19 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
       title: 'Scope definition',
       type: 'question',
       generateQuestion: true,
+      allowMultiple: true,  // Allow selecting multiple scope areas
       taskType: 'general',
       instructionFile: '1_6_q6_scope.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an Enterprise Architecture advisor. Ask what is explicitly in scope vs. out of scope for this engagement. Return ONLY valid JSON: { "question": "", "options": [], "guidance": "" }`,
+      systemPromptFallback: `You are an Enterprise Architecture advisor. Ask what is explicitly in scope vs. out of scope for this engagement. User can select MULTIPLE areas. Return ONLY valid JSON: { "question": "", "options": [], "guidance": "" }`,
 
       userPrompt: (ctx) => {
         const q2 = ctx.answers?.step1_q2_scale?.q2_scale || '';
         return `Company: "${ctx.companyDescription.slice(0, 300)}"
 Scale / systems: ${q2}
 Generate Question 6: What is explicitly in scope vs. out of scope for this EA engagement?
-Options should cover process areas, systems, geographies, or org units.
+Options should cover process areas, systems, geographies, or org units. User can SELECT MULTIPLE scope areas.
 
 Return JSON with format: { "question": "string", "options": ["string"], "guidance": "string" }`;
       },
@@ -822,11 +880,12 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
       title: 'Assumptions & risks',
       type: 'question',
       generateQuestion: true,
+      allowMultiple: true,  // Allow selecting 2-3 assumptions
       taskType: 'general',
       instructionFile: '1_7_q7_assumptions.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an Enterprise Architecture advisor. Ask about the key assumptions that must be validated before committing to architectural direction. Return ONLY valid JSON: { "question": "", "options": [], "guidance": "" }`,
+      systemPromptFallback: `You are an Enterprise Architecture advisor. Ask about the key assumptions that must be validated before committing to architectural direction. User can select 2-3 assumptions. Return ONLY valid JSON: { "question": "", "options": [], "guidance": "" }`,
 
       userPrompt: (ctx) => {
         const q1 = ctx.answers?.step1_q1_trigger?.q1_trigger || '';
@@ -834,7 +893,7 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
         return `Company: "${ctx.companyDescription.slice(0, 300)}"
 Pain: ${q1}  Constraints: ${q3}
 Generate Question 7: What are the 2-3 most important assumptions this engagement must validate before committing to architecture direction?
-Examples: "Is the bottleneck in the system or in the process?", "Is the data available for automation?". 4-5 options.
+Examples: "Is the bottleneck in the system or in the process?", "Is the data available for automation?". 4-5 options. User can SELECT MULTIPLE (2-3) assumptions.
 
 Return JSON with format: { "question": "string", "options": ["string"], "guidance": "string" }`;
       },
@@ -849,11 +908,12 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
       title: 'AI & Automation transformation',
       type: 'question',
       generateQuestion: true,
+      allowMultiple: true,  // Allow selecting multiple AI use cases
       taskType: 'general',
       instructionFile: '1_7b_ai_role.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: `You are an Enterprise Architecture advisor. Ask about the role AI and automation will play in achieving the strategic ambition. Return ONLY valid JSON: { "question": "", "options": [], "guidance": "" }`,
+      systemPromptFallback: `You are an Enterprise Architecture advisor. Ask about the role AI and automation will play in achieving the strategic ambition. User can select MULTIPLE AI use cases. Return ONLY valid JSON: { "question": "", "options": [], "guidance": "" }`,
 
       userPrompt: (ctx) => {
         const desc = ctx.companyDescription.slice(0, 300);
@@ -863,7 +923,7 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
 Strategic trigger: ${q1}
 Scale/ambition: ${q2}
 Generate Question 7b: What role will AI and automation play in achieving your strategic ambition?
-Provide 4-5 realistic AI/automation use cases for their industry, plus "No AI plans yet" option.
+Provide 4-5 realistic AI/automation use cases for their industry, plus "No AI plans yet" option. User can SELECT MULTIPLE use cases.
 
 Return JSON with format: { "question": "string", "options": ["string"], "guidance": "string" }`;
       },
@@ -872,16 +932,64 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
       parseOutput: (raw) => OutputValidator.parseJSON(raw, 'step1_q7b_ai_role'),
       wrapAnswer: (answer) => ({ q7b_ai_role: answer })
     },
-    // ── Task 1.8: Synthesise Business Objectives ─────────────────────────────
+    // ── Task 1.8: Synthesise Strategic Intent ─────────────────────────────
     {
       taskId: 'step1_synthesize',
-      title: 'Synthesising Business Objectives',
+      title: 'Synthesising Strategic Intent',
       type: 'internal',
       taskType: 'heavy',
       instructionFile: '1_8_synthesize.instruction.md',
       expectsJson: true,
 
-      systemPromptFallback: BUSINESS_OBJECTIVES_UNIFIED_INSTRUCTION_V1,
+      systemPromptFallback: (ctx) => {
+        const step1sys = window._stepPrompts?.step_1 || '';
+        const basePrompt = step1sys && step1sys.trim().length > 80
+          ? step1sys
+          : `You are a senior strategy advisor with 15+ years of cross-industry experience. Translate the company description and interview answers into a structured Strategic Intent brief for a Senior Enterprise Architect. C-level tone. Do NOT invent specifics not stated — mark unknowns as [to be confirmed].`;
+
+        return basePrompt + `\n\nOutput requirements — Return ONLY valid JSON (no markdown, no explanation):
+{
+  "org_name": "",
+  "industry": "",
+  "strategicVision": {
+    "ambition": "",
+    "themes": ["", "", ""],
+    "timeframe": "3-5 years"
+  },
+  "situation_narrative": "",
+  "ai_transformation_themes": ["", ""],
+  "investigation_scope": ["", "", "", "", ""],
+  "constraints": [
+    {"type": "Operational", "description": ""},
+    {"type": "Financial", "description": ""},
+    {"type": "Organisational", "description": ""},
+    {"type": "Technical", "description": ""},
+    {"type": "External", "description": ""}
+  ],
+  "successMetrics": [
+    {"metric": "", "target": "", "timeframe": ""},
+    {"metric": "", "target": "", "timeframe": ""},
+    {"metric": "", "target": "", "timeframe": ""},
+    {"metric": "", "target": "", "timeframe": ""},
+    {"metric": "", "target": "", "timeframe": ""}
+  ],
+  "key_assumptions_to_validate": ["", "", "", "", "", ""],
+  "expected_outcomes": ["", "", ""],
+  "burning_platform": "",
+  "assumptions_and_caveats": [""]
+}
+
+Rules:
+- strategicVision.ambition: 1 sentence, executive tone, no invented numbers
+- strategicVision.themes: exactly 3, plain English, max 8 words each
+- situation_narrative: 2-3 sentences, grounded in what user stated
+- ai_transformation_themes: 2-4 AI/automation use cases from Q7b (or empty array [] if "No AI plans")
+- constraints: exactly 5 objects, one for each type (Operational, Financial, Organisational, Technical, External)
+- successMetrics: 5-6 objects with metric/target/timeframe
+- key_assumptions_to_validate: 5-8 engagement assumptions (strategic, not data gaps)
+- expected_outcomes: exactly 3
+- assumptions_and_caveats: DATA GAPS ONLY — attributes inferred but not stated by user`;
+      },
 
       userPrompt: (ctx) => {
         const profile = (typeof window !== 'undefined' && window.model) ? window.model.organizationProfile : null;
@@ -908,10 +1016,7 @@ Return JSON with format: { "question": "string", "options": ["string"], "guidanc
           const constraints = (profile.constraints || []).map(c => `• ${c.type || 'N/A'}: ${c.description}`).join('\n');
           const offerings = (profile.offerings || []).map(o => `• ${o.name}: ${o.description || 'N/A'}`).join('\n');
           
-          return `Transform the following raw discovery input into validated, structured business objectives:
-
----
-**ORGANIZATION PROFILE (${completeness}% complete — PRIMARY CONTEXT):**
+          return `**ORGANIZATION PROFILE (${completeness}% complete — PRIMARY CONTEXT):**
 
 Organization: ${profile.organizationName} (${profile.industry})
 Size: ${profile.companySize?.employees || 'N/A'} employees, ${profile.companySize?.sizeCategory || 'N/A'}
@@ -946,168 +1051,107 @@ ${offerings || 'None specified'}
 - Growth Rate: ${profile.financial?.growthRate || 'Unknown'}
 - Investment Capacity: ${profile.financial?.investmentCapacity || 'Unknown'}
 
-**Interview Answers (refinements/confirmations):**
+**Interview answers (refinements/confirmations):**
 ${qa || '(no additional answers)'}
----
 
-**CRITICAL INSTRUCTION:** Use the Strategic Priorities, Challenges, Opportunities, and Constraints from the profile as the PRIMARY source. The interview answers are supplements only.
+**CRITICAL INSTRUCTION:** Use the Strategic Priorities, Challenges, Opportunities, and Constraints from the profile as the PRIMARY source. The interview answers are supplements only. Do NOT mark profile data as [to be confirmed].
 
-Remember to return ONLY valid JSON matching the schema specified in the system prompt.`;
+Synthesise a complete Strategic Intent document grounded in the Rich Profile data above.
+
+Return JSON with format: {
+  "org_name": "string",
+  "industry": "string",
+  "strategicVision": {
+    "ambition": "string",
+    "themes": ["string", "string", "string"],
+    "timeframe": "3-5 years"
+  },
+  "situation_narrative": "string",
+  "ai_transformation_themes": ["string"],
+  "investigation_scope": ["string"],
+  "constraints": [{"type": "string", "description": "string"}],
+  "successMetrics": [{"metric": "string", "target": "string", "timeframe": "string"}],
+  "key_assumptions_to_validate": ["string"],
+  "expected_outcomes": ["string"],
+  "burning_platform": "string",
+  "assumptions_and_caveats": ["string"]
+}`;
         }
 
         // Quick Start fallback
-        return `Transform the following raw discovery input into validated, structured business objectives:
-
----
-Company description: "${ctx.companyDescription}"
+        return `Company description: "${ctx.companyDescription}"
 
 Interview answers:
 ${qa || '(no answers provided)'}
----
 
-Treat the interview answers as ground truth.
+Synthesise a complete Strategic Intent document. Treat the interview answers as ground truth — do not mark them as [to be confirmed].
 
-Remember to return ONLY valid JSON matching the schema specified in the system prompt.`;
+Return JSON with format: {
+  "org_name": "string",
+  "industry": "string",
+  "strategicVision": {
+    "ambition": "string",
+    "themes": ["string", "string", "string"],
+    "timeframe": "3-5 years"
+  },
+  "strategic_ambition": "string",
+  "situation_narrative": "string",
+  "strategic_themes": ["string", "string", "string"],
+  "investigation_scope": ["string"],
+  "key_constraints": ["string"],
+  "success_metrics": ["string"],
+  "key_assumptions_to_validate": ["string"],
+  "expected_outcomes": ["string"],
+  "burning_platform": "string",
+  "assumptions_and_caveats": ["string"]
+}`;
       },
 
       outputSchema: {
-        businessContext: {
-          industry: 'string',
-          market_summary: 'string',
-          customer_segments: ['string'],
-          value_drivers: ['string'],
-          products_services: ['string'],
-          challenges: ['string'],
-          constraints: ['string'],
-          missing_information: ['string']
+        strategicVision: {
+          ambition: 'string',
+          themes: ['string'],
+          timeframe: 'string'
         },
-        strategicThemes: [{
-          name: 'string',
-          description: 'string',
-          rationale: 'string'
-        }],
-        businessObjectives: [{
-          title: 'string',
-          description: 'string',
-          category: 'string',
-          kpi: 'string',
-          target_value: 'string',
-          time_horizon: 'string',
-          priority: 'string',
-          rationale: 'string',
-          linked_themes: ['string']
-        }],
-        gapInsights: [{
+        situation_narrative: 'string',
+        constraints: [{
           type: 'string',
-          description: 'string',
-          recommendation: 'string'
-        }]
+          description: 'string'
+        }],
+        successMetrics: [{
+          metric: 'string',
+          target: 'string',
+          timeframe: 'string'
+        }],
+        expected_outcomes: ['string']
       },
 
       parseOutput: (raw) => {
-        try {
-          const parsed = JSON.parse(raw);
-          
-          // Validation
-          const validCategories = ['Growth', 'Efficiency', 'Risk', 'Sustainability'];
-          const validPriorities = ['High', 'Medium', 'Low'];
-          const validGapTypes = ['Missing Objective', 'Weak KPI', 'Conflict'];
-          
-          // Validate business context
-          if (!parsed.businessContext || !parsed.businessContext.industry) {
-            console.warn('[Step1] Missing business context industry');
-          }
-          
-          // Validate strategic themes (4-6)
-          if (!parsed.strategicThemes || parsed.strategicThemes.length < 4 || parsed.strategicThemes.length > 6) {
-            console.warn('[Step1] Strategic themes should be 4-6, got:', parsed.strategicThemes?.length);
-          }
-          
-          // Validate and normalize business objectives
-          if (parsed.businessObjectives && Array.isArray(parsed.businessObjectives)) {
-            parsed.businessObjectives = parsed.businessObjectives.map((obj, idx) => {
-              // Normalize category
-              if (obj.category) {
-                const normalizedCategory = obj.category.charAt(0).toUpperCase() + obj.category.slice(1).toLowerCase();
-                if (validCategories.includes(normalizedCategory)) {
-                  obj.category = normalizedCategory;
-                } else {
-                  console.warn(`[Step1] Invalid category "${obj.category}" for objective ${idx}, defaulting to "Efficiency"`);
-                  obj.category = 'Efficiency';
-                }
-              }
-              
-              // Normalize priority
-              if (obj.priority) {
-                const normalizedPriority = obj.priority.charAt(0).toUpperCase() + obj.priority.slice(1).toLowerCase();
-                if (validPriorities.includes(normalizedPriority)) {
-                  obj.priority = normalizedPriority;
-                } else {
-                  console.warn(`[Step1] Invalid priority "${obj.priority}" for objective ${idx}, defaulting to "Medium"`);
-                  obj.priority = 'Medium';
-                }
-              }
-              
-              // Validate time_horizon format
-              if (obj.time_horizon && !/^\d{4}$|^Q[1-4]\s\d{4}$/.test(obj.time_horizon)) {
-                console.warn(`[Step1] Invalid time_horizon format "${obj.time_horizon}" for objective ${idx}`);
-              }
-              
-              // Check required fields
-              if (!obj.title || !obj.kpi || !obj.target_value) {
-                console.warn(`[Step1] Objective ${idx} missing required fields`);
-              }
-              
-              // Generate ID
-              obj.id = `obj-${Date.now()}-${idx}`;
-              obj.isModified = false;
-              obj.generated_at = Date.now();
-              
-              return obj;
-            });
-          }
-          
-          // Validate gap insights
-          if (parsed.gapInsights && Array.isArray(parsed.gapInsights)) {
-            parsed.gapInsights = parsed.gapInsights.map((gap, idx) => {
-              // Normalize type
-              if (gap.type && !validGapTypes.includes(gap.type)) {
-                console.warn(`[Step1] Invalid gap type "${gap.type}" for gap ${idx}`);
-              }
-              
-              gap.id = `gap-${Date.now()}-${idx}`;
-              return gap;
-            });
-          }
-          
-          // Add strategic themes IDs
-          if (parsed.strategicThemes && Array.isArray(parsed.strategicThemes)) {
-            parsed.strategicThemes = parsed.strategicThemes.map((theme, idx) => {
-              theme.id = `theme-${Date.now()}-${idx}`;
-              return theme;
-            });
-          }
-          
-          // Store references for backward compatibility
-          if (window.model) {
-            window.model.businessContext = parsed.businessContext;
-            window.model.strategicThemes = parsed.strategicThemes;
-            window.model.businessObjectives = parsed.businessObjectives;
-            window.model.gapInsights = parsed.gapInsights;
-          }
-          
-          return parsed;
-          
-        } catch (e) {
-          console.error('[Step1] Failed to parse synthesis output:', e);
-          console.error('[Step1] Raw output:', raw);
-          return {
-            businessContext: { industry: 'Unknown', challenges: ['Failed to parse'], constraints: [], missing_information: ['All fields'] },
-            strategicThemes: [],
-            businessObjectives: [],
-            gapInsights: [{ type: 'Missing Objective', description: 'AI output parsing failed', recommendation: 'Please try again' }]
-          };
+        const parsed = OutputValidator.parseJSON(raw, 'step1_synthesize');
+        // Strip _meta if present
+        if (parsed._meta) {
+          if (window.model) { window.model.stepMeta = window.model.stepMeta || {}; window.model.stepMeta[1] = parsed._meta; }
+          delete parsed._meta;
         }
+        
+        // Initialize enrichment structure
+        if (!parsed.enrichment) {
+          parsed.enrichment = (typeof BusinessContext !== 'undefined' && BusinessContext.initializeEnrichment) 
+            ? BusinessContext.initializeEnrichment()
+            : {
+                bmcInsights: {},
+                capabilityGaps: [],
+                operatingModelRisks: [],
+                criticalGaps: [],
+                valueStreamInsights: [],
+                roadmapConstraints: [],
+                validatedData: {},
+                questionnaireResponses: [],
+                completenessScore: 0
+              };
+        }
+        
+        return parsed;
       }
     },
 
@@ -1162,13 +1206,13 @@ Type "approve" to continue to Step 2.`;
         
         // Standard mode: Use the existing synthesis display
         const si = ctx.answers?.step1_synthesize || {};
-        const themes = (si.strategicVision?.themes || []).map(t => `• ${t}`).join('\n');
-        const metrics = (si.successMetrics || []).slice(0, 3).map(m => `• ${m.metric}: ${m.target} ${m.timeframe}`).join('\n');
+        const themes = (si.strategic_themes || []).map(t => `• ${t}`).join('\n');
+        const metrics = (si.success_metrics || []).slice(0, 3).map(m => `• ${m}`).join('\n');
         
         return `✅ **Strategic Intent drafted** — Before we proceed, please review this synthesis of your answers:
 
 **Strategic Ambition:**
-${si.strategicVision?.ambition || '[not generated]'}
+${si.strategic_ambition || '[not generated]'}
 
 **Strategic Themes:**
 ${themes}
@@ -1262,34 +1306,22 @@ Does this capture the right direction? Type "confirm" to proceed, or describe ad
   },
 
   applyOutput: (output, model) => {
-    // Business Objectives structure
-    // Output contains: {businessContext, strategicThemes, businessObjectives, gapInsights}
-    
-    if (output.businessContext && output.businessObjectives) {
-      return {
-        ...model,
-        businessContext: {
-          ...output.businessContext,
-          generated_at: Date.now()
-        },
-        strategicThemes: output.strategicThemes || [],
-        businessObjectives: output.businessObjectives || [],
-        gapInsights: output.gapInsights || [],
-        businessContextConfirmed: true
-      };
-    }
-    
-    // Fallback for partial data
+    // NEW: Output to businessContext instead of strategicIntent
+    // Preserve strategicIntent for backward compatibility during migration
     return {
       ...model,
       businessContext: output,
-      businessContextConfirmed: true
+      businessContextConfirmed: true,  // NEW: Business Context confirmation
+      // Keep legacy for backward compatibility
+      strategicIntent: output,
+      strategicIntentConfirmed: true
     };
   },
 
   onComplete: (model) => {
-    // Render Business Context section
+    // NEW: Render Business Context section (backward compat: also renders strategicIntent)
     if (typeof renderBusinessContextSection === 'function') renderBusinessContextSection();
+    else if (typeof renderStrategicIntentSection === 'function') renderStrategicIntentSection();
     
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
     if (typeof updateWorkflowProgress === 'function') updateWorkflowProgress([1]);
@@ -1297,10 +1329,10 @@ Does this capture the right direction? Type "confirm" to proceed, or describe ad
       showTab('exec', findTabButton('exec'));
     }
     if (typeof StepEngine === 'object') StepEngine.stopSpinner('step1');
-    if (typeof toast === 'function') toast('Business Context confirmed ✓');
+    if (typeof toast === 'function') toast('Business Context confirmed ✓');  // RENAMED
 
     // Post-completion message in chat
-    const bc = model.businessContext || {};
+    const bc = model.businessContext || model.strategicIntent || {};  // NEW: Use businessContext
     if (typeof addAssistantMessage === 'function') {
       const objectives = (bc.primaryObjectives || []).map(o => o.objective).slice(0, 3).join(' · ');
       const vision = (bc.strategicVision && bc.strategicVision.ambition) ? bc.strategicVision.ambition : bc.strategic_ambition || '';

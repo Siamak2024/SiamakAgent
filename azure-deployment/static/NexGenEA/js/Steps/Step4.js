@@ -242,15 +242,33 @@ executive_roadmap_summary: 3 sentences Board-level.`;
     return {
       ...model,
       roadmap: output.roadmap,
-      initiatives: output.initiatives
+      initiatives: output.initiatives,
+      operatingModelDelta: true,  // CRITICAL: Flag for navigation unlock
+      roadmapDone: true
     };
   },
 
   // ── On Complete: UI updates and final message ──────────────────────────────
   onComplete: (model) => {
+    // SAFETY CHECK: Ensure operatingModelDelta flag is set (should already be set by applyOutput)
+    if (model.roadmap && !model.operatingModelDelta) {
+      model.operatingModelDelta = true;
+      window.model.operatingModelDelta = true;
+      console.log('[Step4] ✅ Set operatingModelDelta flag for navigation unlock');
+    }
+    
     if (typeof renderRoadmapSection === 'function') renderRoadmapSection();
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
     if (typeof updateWorkflowProgress === 'function') updateWorkflowProgress([1, 2, 3, 4]);
+    
+    // V11.4: Update navigation and tab lock states
+    if (typeof updateNavigationLockStates === 'function') {
+      updateNavigationLockStates();
+    } else if (typeof EANavigation !== 'undefined' && typeof EANavigation.updateLockStates === 'function') {
+      EANavigation.updateLockStates();
+    }
+    if (typeof updateTabLockStates === 'function') updateTabLockStates();
+    
     if (typeof StepEngine === 'object') StepEngine.stopSpinner('step4');
     if (typeof toast === 'function') toast('Engagement complete — all 4 steps done ✓');
 

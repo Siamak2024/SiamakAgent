@@ -13,7 +13,7 @@ class EA_FileManager {
             exports: `${this.basePath}/exports`,
             projects: `${this.basePath}/projects`
         };
-        console.log('🗂️ EA_FileManager initialized');
+        // console.log('🗂️ EA_FileManager initialized');
     }
 
     /**
@@ -21,7 +21,7 @@ class EA_FileManager {
      */
     init(dataManager) {
         this.dataManager = dataManager;
-        console.log('✅ FileManager connected to DataManager');
+        // console.log('✅ FileManager connected to DataManager');
     }
 
     /**

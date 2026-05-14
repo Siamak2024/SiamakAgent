@@ -31,7 +31,7 @@ const AITaskConfig = (() => {
     heavy: {
       model: 'gpt-5.4',
       temperature: 0.3,
-      timeoutMs: 240000,
+      timeoutMs: 180000, // V11.4: Reduced from 240s with optimized context
       description: 'Complex EA architecture generation with deep analysis'
     },
 
@@ -39,7 +39,7 @@ const AITaskConfig = (() => {
     analysis: {
       model: 'gpt-5.4',
       temperature: 0.4,
-      timeoutMs: 180000,
+      timeoutMs: 120000, // V11.4: Reduced from 180s with optimized context
       description: 'Strategic analysis and insight generation'
     },
 

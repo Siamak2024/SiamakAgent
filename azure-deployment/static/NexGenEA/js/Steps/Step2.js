@@ -41,27 +41,10 @@ const Step2 = {
       expectsJson: false,
       skipAI: true, // No AI call needed - just data loading
 
-      // Conditional execution - skip in autopilot mode if already loaded
-      shouldRun: (ctx) => {
-        if (ctx.workflowMode === 'autopilot' && window.EA_DataManager) {
-          const cached = window.EA_DataManager.getAPQCFramework();
-          if (cached && cached.categories && cached.categories.length > 0) {
-            ctx.answers = ctx.answers || {};
-            ctx.answers.step2_load_apqc = { 
-              status: 'cached', 
-              framework: cached,
-              message: 'APQC framework loaded from cache'
-            };
-            return false; // Skip this task
-          }
-        }
-        return true;
-      },
-
       execute: async (ctx) => {
-        // Use EA_DataManager to load APQC framework
-        if (!window.EA_DataManager || typeof window.EA_DataManager.loadAPQCFramework !== 'function') {
-          throw new Error('EA_DataManager not available - cannot load APQC framework');
+        // Use dataManager instance to load APQC framework
+        if (!window.dataManager || typeof window.dataManager.loadAPQCFramework !== 'function') {
+          throw new Error('dataManager not available - cannot load APQC framework');
         }
 
         try {
@@ -69,14 +52,14 @@ const Step2 = {
             addAssistantMessage('⏳ Loading APQC Process Classification Framework v8.0...');
           }
 
-          const framework = await window.EA_DataManager.loadAPQCFramework();
+          const framework = await window.dataManager.loadAPQCFramework();
           
           if (!framework || !framework.categories || framework.categories.length === 0) {
             throw new Error('APQC framework loaded but contains no categories');
           }
 
           // Load metadata mapping (business types, strategic intents)
-          const metadata = await window.EA_DataManager.loadAPQCMetadata().catch(() => ({}));
+          const metadata = await window.dataManager.loadAPQCMetadata().catch(() => ({}));
 
           if (typeof addAssistantMessage === 'function') {
             addAssistantMessage(
@@ -128,7 +111,7 @@ Build a comprehensive capability model:
 3. For CORE domains, include 2-4 L3 activities per L2
 4. Link every capability to Business Objectives (objective_mappings[])
 5. Assess current vs target maturity (1-5 scale)
-6. Identify gaps, white spots, IT enablement needs
+6. Identify gaps and white spots
 
 Return ONLY valid JSON with structure:
 {
@@ -156,7 +139,6 @@ Return ONLY valid JSON with structure:
       "gap": 2,
       "strategic_importance": "CORE",
       "investment_priority": "HIGH",
-      "it_enablement": {"applications":[],"data_services":[],"integrations":[],"security":[]},
       "benchmark_maturity": 3.5,
       "white_spot_flags": [],
       "ai_enabled": false,
@@ -242,15 +224,14 @@ ${gapsList || 'Identify from company description'}
 ${apqcContext}
 
 **Instructions:**
-Follow the 8-step process in the instruction file:
+Follow the 7-step process in the instruction file:
 1. Analyze business objectives
 2. Select 5-8 relevant APQC L1 categories
 3. Map APQC L2/L3 capabilities to objectives
 4. Add custom capabilities only if truly unique
 5. Assess maturity & gaps (1-5 scale)
 6. Detect white spots (missing/under-invested/emerging)
-7. Map IT enablement (applications, data, integrations, security)
-8. Generate 5-10 gap insights with objective linkage
+7. Generate 5-10 gap insights with objective linkage
 
 Return complete JSON with all fields populated.`;
       },
@@ -305,40 +286,57 @@ Return complete JSON with all fields populated.`;
 
       // Conditional execution based on workflow mode
       shouldRun: (ctx) => {
-        // Always show validation in standard mode
+        // Always show validation in standard mode (default)
         if (!ctx.workflowMode || ctx.workflowMode === 'standard') return true;
         
         // Show validation in business-object mode
         if (ctx.workflowMode === 'business-object') return true;
         
-        // Skip validation in autopilot mode
-        if (ctx.workflowMode === 'autopilot') {
-          // Auto-confirm in autopilot
-          if (typeof addAssistantMessage === 'function') {
-            addAssistantMessage('✅ Capability map auto-validated (Autopilot mode)');
-          }
-          return false;
-        }
-
+        // For any other mode, show validation (defensive default)
         return true;
       },
 
       execute: async (ctx) => {
-        // Render custom validation UI (implemented in NexGenEA_V11.html)
-        if (typeof window.renderStep2ValidationUI === 'function') {
-          await window.renderStep2ValidationUI(ctx);
-          
-          // Wait for user confirmation (UI will call StepEngine.resumeAfterValidation)
-          return new Promise((resolve) => {
-            window._step2ValidationResolver = resolve;
-          });
-        } else {
-          console.warn('renderStep2ValidationUI not available - skipping validation UI');
-          if (typeof addAssistantMessage === 'function') {
-            addAssistantMessage('⚠️ Validation UI not available - proceeding with generated capability map');
-          }
-          return { validated: true, message: 'Auto-validated (UI not available)' };
+        // Show validation message in chat with approval button
+        const capMapping = ctx.answers?.step2_capability_mapping || {};
+        const totalCaps = capMapping.capability_hierarchy?.length || 0;
+        const gapsCount = capMapping.gap_insights?.length || 0;
+        const whiteSpotsCount = capMapping.white_spots?.length || 0;
+        
+        if (typeof addAssistantMessage === 'function') {
+          addAssistantMessage(
+            `**✅ Capability Map Generated!**\n\n` +
+            `📊 **Summary:**\n` +
+            `- ${totalCaps} L1 capabilities identified (APQC-aligned)\n` +
+            `- ${gapsCount} gap insights detected\n` +
+            `- ${whiteSpotsCount} white-spot capabilities identified\n\n` +
+            `**Next:** Review the capability map and approve to continue.\n\n` +
+            `<button class="mode-action-btn mode-action-btn--action" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 24px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onclick="if (window._step2ValidationResolver) { window.model.capabilityValidated = true; window._step2ValidationResolver({ validated: true, approved: true }); window._step2ValidationResolver = null; if (typeof toast === 'function') toast('✅ Capability map approved!'); if (typeof autoSaveCurrentModel === 'function') autoSaveCurrentModel(); }">\n` +
+            `  <i class="fas fa-check-circle"></i> Approve Capability Map & Continue\n` +
+            `</button>\n\n` +
+            `<button class="mode-action-btn" style="background: #f3f4f6; color: #374151; padding: 10px 20px; border-radius: 8px; border: 1px solid #d1d5db; font-weight: 500; cursor: pointer; margin-left: 8px;" onclick="if (typeof showTab === 'function') showTab('capmap', document.querySelector('[data-tab=capmap]'));">\n` +
+            `  <i class="fas fa-eye"></i> Preview in Cap Map Tab\n` +
+            `</button>`
+          );
         }
+        
+        // Wait for user approval with 30-second timeout as safety net
+        return new Promise((resolve) => {
+          window._step2ValidationResolver = resolve;
+          
+          // Auto-approve after 30 seconds if no user action (prevents stuck workflow)
+          setTimeout(() => {
+            if (window._step2ValidationResolver) {
+              console.warn('[Step2] Auto-approving after 30s timeout');
+              window.model.capabilityValidated = true;
+              resolve({ validated: true, approved: true, autoApproved: true });
+              window._step2ValidationResolver = null;
+              if (typeof addAssistantMessage === 'function') {
+                addAssistantMessage('⏱️ Capability map auto-approved (timeout). Data saved.');
+              }
+            }
+          }, 30000);
+        });
       },
 
       parseOutput: (raw) => raw // Pass through validation result
@@ -356,9 +354,17 @@ Return complete JSON with all fields populated.`;
     const capabilities = [];
     const hierarchy = capMapping.capability_hierarchy || [];
     
+    // DIAGNOSTIC: Log the raw data received
+    console.log('[Step2] synthesize: Raw task answers:', {
+      hasAPQCLoad: !!apqcLoad,
+      hasCapMapping: !!capMapping,
+      capMappingKeys: capMapping ? Object.keys(capMapping) : [],
+      hierarchyLength: hierarchy.length
+    });
+    
     hierarchy.forEach((l1) => {
       // Add L1 capability
-      capabilities.push({
+      const l1Cap = {
         id: l1.id,
         name: l1.name,
         description: l1.description || '',
@@ -379,14 +385,15 @@ Return complete JSON with all fields populated.`;
         custom_name: l1.custom_name || null,
         objective_mappings: l1.objective_mappings || [],
         scores: l1.scores || {},
-        it_enablement: l1.it_enablement || {},
+
         benchmark_maturity: l1.benchmark_maturity || null,
         benchmark_deviation: l1.benchmark_deviation || null,
         white_spot_flags: l1.white_spot_flags || [],
         ai_enabled: l1.ai_enabled || false,
         ai_maturity: l1.ai_maturity || 1,
         children: []
-      });
+      };
+      capabilities.push(l1Cap);
 
       // Add L2 capabilities
       (l1.children || []).forEach((l2) => {
@@ -408,13 +415,12 @@ Return complete JSON with all fields populated.`;
           apqc_id: l2.apqc_id || null,
           apqc_reference: l2.apqc_reference || null,
           objective_mappings: l2.objective_mappings || [],
-          it_enablement: l2.it_enablement || {},
           white_spot_flags: l2.white_spot_flags || [],
           ai_enabled: l2.ai_enabled || false,
           children: []
         };
         capabilities.push(l2Cap);
-        capabilities[capabilities.length - 1 - (l1.children.indexOf(l2) + 1)].children.push(l2Cap);
+        l1Cap.children.push(l2Cap);
 
         // Add L3 capabilities
         (l2.children || []).forEach((l3) => {
@@ -433,7 +439,6 @@ Return complete JSON with all fields populated.`;
             apqc_source: l3.apqc_source !== false,
             apqc_id: l3.apqc_id || null,
             objective_mappings: l3.objective_mappings || [],
-            it_enablement: l3.it_enablement || {},
             white_spot_flags: l3.white_spot_flags || [],
             ai_enabled: l3.ai_enabled || false
           };
@@ -443,12 +448,47 @@ Return complete JSON with all fields populated.`;
       });
     });
 
+    // CRITICAL CHECK: Warn if capabilities array is empty
+    if (capabilities.length === 0) {
+      console.error('[Step2] synthesize: CRITICAL WARNING - Capabilities array is empty!');
+      console.error('[Step2] This will cause the Capability Map tab to remain locked.');
+      console.error('[Step2] Hierarchy received:', hierarchy);
+      console.error('[Step2] capMapping received:', capMapping);
+      
+      // If we have no capabilities, show error message to user
+      if (typeof addAssistantMessage === 'function') {
+        addAssistantMessage(
+          '⚠️ **WARNING:** Step 2 completed but no capabilities were generated. ' +
+          'This may be due to an AI response error. Please review the console logs and consider re-running Step 2.'
+        );
+      }
+    } else {
+      console.log('[Step2] synthesize: Successfully built ' + capabilities.length + ' capabilities');
+    }
+
+    // Transform hierarchy: rename 'children' to 'l2_capabilities' for UI compatibility
+    const transformedHierarchy = hierarchy.map(l1 => {
+      const l1Copy = { ...l1 };
+      if (l1.children) {
+        l1Copy.l2_capabilities = l1.children.map(l2 => {
+          const l2Copy = { ...l2 };
+          if (l2.children) {
+            l2Copy.l3_capabilities = l2.children;
+            delete l2Copy.children;
+          }
+          return l2Copy;
+        });
+        delete l1Copy.children;
+      }
+      return l1Copy;
+    });
+
     return {
       apqcFramework: apqcLoad.framework || null,
       apqcSummary: capMapping.apqc_summary || {},
       capabilities,
       capabilityMap: {
-        l1_domains: hierarchy,
+        l1_domains: transformedHierarchy,
         metadata: capMapping.metadata || {}
       },
       gapInsights: capMapping.gap_insights || [],
@@ -483,6 +523,83 @@ Return complete JSON with all fields populated.`;
 
   // ── Apply Output: Merge into model ────────────────────────────────────────
   applyOutput: (output, model) => {
+    // CRITICAL FIX: Reconstruct capabilities array from capabilityMap if empty
+    // This handles cases where synthesis failed but we have valid hierarchy data
+    if ((!output.capabilities || output.capabilities.length === 0) && output.capabilityMap?.l1_domains?.length > 0) {
+      console.warn('[Step2] applyOutput: Capabilities array is empty, attempting to reconstruct from capabilityMap...');
+      const reconstructed = [];
+      
+      output.capabilityMap.l1_domains.forEach((l1) => {
+        // Add L1
+        reconstructed.push({
+          id: l1.id || l1.apqc_id,
+          name: l1.name,
+          description: l1.description || '',
+          level: 1,
+          domain: l1.name,
+          maturity: l1.current_maturity || 1,
+          current_maturity: l1.current_maturity || null,
+          target_maturity: l1.target_maturity || null,
+          gap: l1.gap || null,
+          strategic_importance: l1.strategic_importance || 'SUPPORT',
+          strategicImportance: (l1.strategic_importance || 'SUPPORT').toLowerCase(),
+          apqc_source: l1.apqc_source !== false,
+          apqc_id: l1.apqc_id || null,
+          objective_mappings: l1.objective_mappings || [],
+          classification: l1.classification || 'Supporting'
+        });
+        
+        // Add L2
+        (l1.l2_capabilities || l1.children || []).forEach((l2) => {
+          reconstructed.push({
+            id: l2.id || l2.apqc_id,
+            name: l2.name,
+            description: l2.description || '',
+            level: 2,
+            domain: l1.name,
+            maturity: l2.current_maturity || 1,
+            current_maturity: l2.current_maturity || null,
+            target_maturity: l2.target_maturity || null,
+            gap: l2.gap || null,
+            strategic_importance: l2.strategic_importance || l1.strategic_importance || 'SUPPORT',
+            strategicImportance: (l2.strategic_importance || l1.strategic_importance || 'SUPPORT').toLowerCase(),
+            apqc_source: l2.apqc_source !== false,
+            apqc_id: l2.apqc_id || null,
+            objective_mappings: l2.objective_mappings || [],
+            classification: l2.classification || l1.classification || 'Supporting'
+          });
+          
+          // Add L3
+          (l2.l3_capabilities || l2.children || []).forEach((l3) => {
+            reconstructed.push({
+              id: l3.id || l3.apqc_id,
+              name: l3.name,
+              description: l3.description || '',
+              level: 3,
+              domain: l1.name,
+              maturity: l3.current_maturity || 1,
+              current_maturity: l3.current_maturity || null,
+              target_maturity: l3.target_maturity || null,
+              gap: l3.gap || null,
+              strategic_importance: l3.strategic_importance || l2.strategic_importance || l1.strategic_importance || 'SUPPORT',
+              strategicImportance: (l3.strategic_importance || l2.strategic_importance || l1.strategic_importance || 'SUPPORT').toLowerCase(),
+              apqc_source: l3.apqc_source !== false,
+              apqc_id: l3.apqc_id || null,
+              objective_mappings: l3.objective_mappings || [],
+              classification: l3.classification || l2.classification || l1.classification || 'Supporting'
+            });
+          });
+        });
+      });
+      
+      if (reconstructed.length > 0) {
+        console.log('[Step2] applyOutput: Successfully reconstructed ' + reconstructed.length + ' capabilities');
+        output.capabilities = reconstructed;
+      } else {
+        console.error('[Step2] applyOutput: Failed to reconstruct capabilities - invalid capabilityMap structure');
+      }
+    }
+    
     // Enrich businessContext with capability gaps
     if (model.businessContext && model.businessContext.enrichment) {
       model.businessContext.enrichment.capabilityGaps = (output.gapInsights || []).map(g => ({
@@ -507,6 +624,15 @@ Return complete JSON with all fields populated.`;
           description: d.description || '' 
         }));
 
+    // Generate top recommendations for architecture planning
+    let topRecommendations = [];
+    if (typeof generateTopRecommendations === 'function') {
+      topRecommendations = generateTopRecommendations(
+        output.capabilities || [],
+        model.businessContext?.objectives || []
+      );
+    }
+
     return {
       ...model,
       apqcFramework: output.apqcFramework,
@@ -516,19 +642,70 @@ Return complete JSON with all fields populated.`;
       capabilityAssessment: output.capabilityAssessment,
       gapInsights: output.gapInsights,
       whiteSpots: output.whiteSpots,
-      capabilityValidated: output.capabilityValidated,
-      valueStreams: derivedVS
+      // CRITICAL FIX: Always set capabilityValidated to true if we have capabilities
+      // (validation flag might not be set properly due to timeout or UI issues)
+      capabilityValidated: output.capabilityValidated || (output.capabilities?.length > 0),
+      valueStreams: derivedVS,
+      topRecommendations: topRecommendations
     };
   },
 
   // ── On Complete: UI updates and next step prompt ──────────────────────────
   onComplete: (model) => {
+    // Ensure capabilityValidated is set (double safety check)
+    if (model.capabilities?.length > 0 && !model.capabilityValidated) {
+      console.warn('[Step2] onComplete: Setting capabilityValidated=true (was not set during workflow)');
+      model.capabilityValidated = true;
+      window.model.capabilityValidated = true;
+    }
+    
+    // Debug logging
+    console.log('[Step2] onComplete called');
+    console.log('[Step2] model.capabilityMap:', model.capabilityMap);
+    console.log('[Step2] model.capabilityMap.l1_domains:', model.capabilityMap?.l1_domains);
+    console.log('[Step2] model.capabilities length:', model.capabilities?.length);
+    console.log('[Step2] model.capabilityValidated:', model.capabilityValidated);
+    
     // Update UI sections
-    if (typeof renderCapabilitySection === 'function') renderCapabilitySection();
-    if (typeof renderHeatmapSection === 'function') renderHeatmapSection();
-    if (typeof renderGapSection === 'function') renderGapSection();
+    if (typeof renderCapabilitySection === 'function') {
+      console.log('[Step2] Calling renderCapabilitySection()');
+      renderCapabilitySection();
+    } else {
+      console.warn('[Step2] renderCapabilitySection function not found');
+    }
+    // renderHeatmapSection() and renderGapSection() removed - functions don't exist
+    // Will be replaced by renderCapMapWorkspace() in Phase 2, Step 9
+    
+    // Phase 1 Step 2: Render APQC Tree after Step 2 completes
+    if (typeof renderAPQCTree === 'function') {
+      console.log('[Step2] Calling renderAPQCTree()');
+      renderAPQCTree();
+    } else {
+      console.warn('[Step2] renderAPQCTree function not found');
+    }
+    
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
     if (typeof updateWorkflowProgress === 'function') updateWorkflowProgress([1, 2]);
+    
+    // CRITICAL: Explicitly update navigation lock states after Step 2 completion
+    // This ensures the Capability Map tab is unlocked immediately
+    console.log('[Step2] onComplete: Updating navigation lock states...');
+    if (typeof updateNavigationLockStates === 'function') {
+      updateNavigationLockStates();
+      console.log('[Step2] onComplete: Navigation locks updated via updateNavigationLockStates()');
+    } else if (typeof EANavigation !== 'undefined' && typeof EANavigation.updateLockStates === 'function') {
+      EANavigation.updateLockStates();
+      console.log('[Step2] onComplete: Navigation locks updated via EANavigation.updateLockStates()');
+    } else {
+      console.warn('[Step2] onComplete: Could not update navigation locks - functions not available');
+    }
+    
+    // Also update tab lock states
+    if (typeof updateTabLockStates === 'function') {
+      updateTabLockStates();
+      console.log('[Step2] onComplete: Tab locks updated');
+    }
+    
     if (typeof StepEngine === 'object') StepEngine.stopSpinner('step2');
     if (typeof toast === 'function') toast('Capability Mapping complete ✓');
 

@@ -1,20 +1,27 @@
 /**
  * Step1.js — Business Context Discovery (Context Engine Workflow)
+ * VERSION: Evidence-Based-Validation-v2.3 (May 2026)
+ * LAST MODIFIED: 2026-05-12 17:15 (FIXED OUTPUT FORMAT)
  *
  * Simplified workflow using dynamic Context Engine:
  *   Task 0: Company description input
  *   Tasks 1-5: Context Engine dynamic questions (max 5)
- *   Task 6: Synthesize Strategic Intent
- *   Task 7: Validate with user
+ *   Task 6: Validate with user
+ *
+ * NO SYNTHESIS STEP - validated objectives are transformed directly into businessObjectives
  *
  * The model after Step1 contains:
- *   model.strategicIntent  — Strategic Intent document
+ *   model.businessObjectives  — Business objectives with validation metadata
  *   model.businessContext  — Structured business context
  *   model.businessContextConfirmed — Set to true after user confirms
  */
 
 (function(global) {
   'use strict';
+
+  // Version check log (helps verify fresh code is loaded)
+  console.log('%c[Step1.js] 📦 Module loaded', 'color: #8b5cf6; font-weight: bold');
+  console.log('[Step1.js] Version: V11-Evidence-Based-Validation (May 2026) - Company Name Preservation');
 
   const Step1 = {
     id: 'step1',
@@ -62,13 +69,31 @@ Please provide a brief description of your organization to help us understand yo
         onComplete: (output, ctx) => {
           if (!window.model) window.model = {};
           window.model.description = output.companyDescription;
-          // Initialize discovery state
+          
+          // CRITICAL: Clear any old cached discovery data to prevent using stale format
+          delete window.model.discoveryState;
+          delete window.model.businessObjectives;
+          delete window.model.businessContext;
+          delete window.model.validationMetrics;
+          delete window.model.strategicIntent;
+          
+          // Clear instruction file cache to ensure fresh Context Engine instruction is loaded
+          if (typeof PromptBuilder !== 'undefined' && PromptBuilder.clearCache) {
+            PromptBuilder.clearCache('step1', 'context_engine_v2.instruction.md');
+          }
+          
+          // Reset AI conversation to prevent old format pattern learning
+          delete window._stepEngineResponseId;
+          
+          // Initialize fresh discovery state
           window.model.discoveryState = {
             questionCount: 0,
             answers: [],
-            context: null
+            context: null,
+            complete: false,
+            validationHistory: []
           };
-          console.log('[Step1] Company description captured');
+          console.log('[Step1] ✅ Company description captured');
         },
         
         wrapAnswer: (answer) => ({ companyDescription: answer.companyDescription || answer })
@@ -82,7 +107,7 @@ Please provide a brief description of your organization to help us understand yo
         allowMultiple: true,
         generateQuestion: true,
         taskType: 'general',
-        instructionFile: 'context_engine.instruction.md',
+        instructionFile: 'context_engine_v2.instruction.md',
         expectsJson: true,
         
         // NOTE: web_search tool removed - incompatible with JSON mode in Responses API
@@ -91,14 +116,25 @@ Please provide a brief description of your organization to help us understand yo
         // Skip if previous question completed discovery
         shouldRun: (ctx) => {
           const state = window.model?.discoveryState;
-          if (!state) return true;  // First question always runs
+          
+          console.log(`[Step1] 🔍 shouldRun check for Q${i + 1}:`, {
+            hasState: !!state,
+            isComplete: state?.complete,
+            questionCount: state?.questionCount || 0
+          });
+          
+          if (!state) {
+            console.log(`[Step1] ✅ Q${i + 1} will run (no state yet)`);
+            return true;  // First question always runs
+          }
           
           // Skip if discovery is already complete
           if (state.complete) {
-            console.log(`[Step1] Skipping Q${i + 1} - discovery already complete`);
+            console.log(`[Step1] ⏭️  Skipping Q${i + 1} - discovery already complete`);
             return false;
           }
           
+          console.log(`[Step1] ✅ Q${i + 1} will run`);
           return true;  // Continue asking questions
         },
 
@@ -113,9 +149,25 @@ OR
 { "status": "complete", "context": {...} }`,
 
         userPrompt: (ctx) => {
+          // Clear instruction cache to ensure fresh instruction is loaded
+          if (typeof PromptBuilder !== 'undefined' && PromptBuilder.clearCache) {
+            PromptBuilder.clearCache('step1', 'context_engine_v2.instruction.md');
+          }
+          
           const state = window.model?.discoveryState || {};
           const companyDesc = window.model?.description || ctx.companyDescription || '';
           const previousAnswers = state.answers || [];
+          
+          // Reset conversation chain before Q5 to prevent old format pattern inheritance
+          if (i + 1 === 5 && window._stepEngineResponseId) {
+            delete window._stepEngineResponseId;
+          }
+          
+          console.log(`[Step1] 🤔 Preparing discovery Q${i + 1}:`, {
+            previousQuestionsCount: previousAnswers.length,
+            discoveryComplete: state.complete,
+            hasContext: !!state.context
+          });
           
           const qaHistory = previousAnswers.length > 0
             ? `\n\n**Previous Q&A:**\n${previousAnswers.map((qa, idx) => 
@@ -173,6 +225,14 @@ If you have enough:
         parseOutput: (raw) => {
           const parsed = OutputValidator.parseJSON(raw, `step1_discovery_q${i + 1}`);
           
+          console.log(`[Step1] 📩 AI response for Q${i + 1}:`, {
+            status: parsed?.status,
+            hasQuestion: !!parsed?.question,
+            hasContext: !!parsed?.context,
+            validatedObjectives: parsed?.context?.validated_objectives?.length || 0,
+            workingHypotheses: parsed?.context?.working_hypotheses?.length || 0
+          });
+          
           // Validate that we have a status field
           if (!parsed || !parsed.status) {
             console.error(`[Step1] AI response missing 'status' field:`, parsed);
@@ -186,7 +246,8 @@ If you have enough:
             window.model.discoveryState = {
               questionCount: 0,
               answers: [],
-              context: null
+              context: null,
+              validationHistory: []  // NEW: Track validation across questions
             };
           }
           
@@ -198,9 +259,56 @@ If you have enough:
               console.error(`[Step1] AI signaled complete but missing context:`, parsed);
               throw new Error(`Context Engine signaled 'complete' but did not provide context object`);
             }
+            
+            // DEBUG: Log ALL context fields to see what AI actually returned
+            console.log('[Step1] 🔍 DEBUG: AI returned context with fields:', Object.keys(parsed.context));
+            console.log('[Step1] 🔍 DEBUG: Full context object:', JSON.stringify(parsed.context, null, 2));
+            
+            // CRITICAL: Check if this is old cached data (missing validated_objectives structure)
+            const hasNewFormat = parsed.context.hasOwnProperty('validated_objectives') || 
+                                parsed.context.hasOwnProperty('working_hypotheses');
+            
+            if (!hasNewFormat) {
+              console.error(`[Step1] ⚠️ Discovery context missing validated_objectives structure - likely old cached data:`, parsed.context);
+              console.error(`%c🔧 FIX: Run this in console: clearInstructionCache()`, 'color: #ff6b6b; font-weight: bold; font-size: 14px');
+              console.error(`[Step1] Then hard refresh browser (Ctrl+Shift+R) and restart Step 1`);
+              throw new Error(`Discovery context has old format.\n\n` +
+                `FIX:\n` +
+                `1. Open browser console (F12)\n` +
+                `2. Run: clearInstructionCache()\n` +
+                `3. Hard refresh: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)\n` +
+                `4. Restart Step 1\n\n` +
+                `This clears cached instruction files.`);
+            }
+            
+            // Log validation quality metrics
+            const validatedCount = (parsed.context.validated_objectives || []).length;
+            const hypothesisCount = (parsed.context.working_hypotheses || []).length;
+            const evidenceGapsCount = (parsed.context.evidence_gaps || []).length;
+            
+            // Require at least 2 validated objectives (per Context Engine completion policy)
+            if (validatedCount < 2 && hypothesisCount === 0) {
+              console.error(`[Step1] ⚠️ Discovery completed but has insufficient validated objectives:`, {
+                validated: validatedCount,
+                hypotheses: hypothesisCount,
+                context: parsed.context
+              });
+              throw new Error(`Discovery requires at least 2 validated objectives or hypotheses. Got ${validatedCount} validated, ${hypothesisCount} hypotheses. This indicates the Context Engine completed prematurely.`);
+            }
+            
             state.context = parsed.context;
             state.complete = true;
-            console.log(`[Step1] Discovery complete at Q${i + 1}`);
+            
+            console.log(`[Step1] ✅ Discovery complete at Q${i + 1}:`);
+            console.log(`  - Validated objectives: ${validatedCount}`);
+            console.log(`  - Working hypotheses: ${hypothesisCount}`);
+            console.log(`  - Evidence gaps: ${evidenceGapsCount}`);
+            
+            // NEW: Directly transform validated objectives into businessObjectives (NO SYNTHESIS STEP)
+            // Pass company description to preserve company-specific context
+            const companyDescription = window.model?.description || '';
+            Step1._transformDiscoveryToBusinessObjectives(parsed.context, companyDescription);
+            
             // Return null to skip question display
             return null;
           }
@@ -217,11 +325,27 @@ If you have enough:
               throw new Error(`Question must have 'text' (string) and 'options' (array) fields`);
             }
             
+            // NEW: Store validation snapshot for this question
+            if (parsed.validation) {
+              state.validationHistory.push({
+                questionNumber: i + 1,
+                supportedFacts: parsed.validation.supportedFacts || [],
+                userInferences: parsed.validation.userInferences || [],
+                evidenceGaps: parsed.validation.evidenceGaps || []
+              });
+              console.log(`[Step1] Validation @ Q${i + 1}:`, {
+                facts: parsed.validation.supportedFacts?.length || 0,
+                inferences: parsed.validation.userInferences?.length || 0,
+                gaps: parsed.validation.evidenceGaps?.length || 0
+              });
+            }
+            
             return {
               question: parsed.question.text,
               options: parsed.question.options,
               guidance: parsed.question.guidance || '',
-              questionNumber: parsed.question.questionNumber || (i + 1)
+              questionNumber: parsed.question.questionNumber || (i + 1),
+              validation: parsed.validation  // NEW: Pass validation to context
             };
           }
           
@@ -260,207 +384,46 @@ If you have enough:
         }
       })),
 
-      // ── Task 6: Synthesize Strategic Intent ──────────────────────────────
-      {
-        taskId: 'step1_synthesize',
-        title: 'Synthesizing Strategic Intent',
-        type: 'internal',
-        taskType: 'heavy',
-        expectsJson: true,
-
-        systemPromptFallback: () => {
-          return `You are a senior enterprise strategy advisor.
-
-Transform the discovery context and Q&A into a structured Strategic Intent document.
-
-Return ONLY valid JSON with this structure:
-{
-  "org_name": "string",
-  "industry": "string",
-  "strategicVision": {
-    "ambition": "2-3 sentence executive summary",
-    "themes": ["theme 1", "theme 2", "theme 3"],
-    "timeframe": "3-5 years"
-  },
-  "situation_narrative": "2-3 sentences on current state",
-  "successMetrics": [
-    {"metric": "...", "target": "...", "timeframe": "..."}
-  ],
-  "constraints": [
-    {"type": "Operational|Financial|Organisational|Technical|External", "description": "..."}
-  ],
-  "investigation_scope": ["scope item 1", "scope item 2"],
-  "expected_outcomes": ["outcome 1", "outcome 2", "outcome 3"],
-  "burning_platform": "Why act now?"
-}
-
-Quality rules:
-- Strategic ambition must be specific, not generic
-- Themes must be action-oriented (3-4 themes)
-- All metrics must have baseline, target, and timeframe
-- Constraints must be specific (exactly 5, one per type)
-- Use industry-specific language`;
-        },
-
-        userPrompt: (ctx) => {
-          const state = window.model?.discoveryState || {};
-          const companyDesc = window.model?.description || '';
-          const context = state.context || {};
-          const qaHistory = (state.answers || [])
-            .map(qa => `**${qa.question}**\n${Array.isArray(qa.answer) ? qa.answer.join(', ') : qa.answer}`)
-            .join('\n\n');
-
-          return `**Company Description:**
-${companyDesc}
-
-**Discovery Context:**
-Industry: ${context.industry || 'Unknown'}
-Strategic Posture: ${context.strategic_posture || 'Unknown'}
-Digital Maturity: ${context.digital_maturity || 'Unknown'}/5
-Architecture Archetype: ${context.architecture_archetype || 'Unknown'}
-
-**Pain Points:** ${(context.assumed_pain_points || []).join(', ')}
-**Regulatory Flags:** ${(context.regulatory_flags || []).join(', ')}
-
-**Q&A History:**
-${qaHistory}
-
-**Constraints:**
-${(context.constraints || []).map(c => `- ${c.type}: ${c.description}`).join('\n')}
-
-**KPIs:**
-${(context.measurableKPIs || []).map(k => `- ${k.metric}: ${k.target} (${k.timeframe})`).join('\n')}
-
-Generate a comprehensive Strategic Intent document from this information.`;
-        },
-
-        outputSchema: {
-          org_name: 'string',
-          industry: 'string',
-          strategicVision: {
-            ambition: 'string',
-            themes: ['string'],
-            timeframe: 'string'
-          },
-          situation_narrative: 'string',
-          successMetrics: [{ metric: 'string', target: 'string', timeframe: 'string' }],
-          constraints: [{ type: 'string', description: 'string' }],
-          investigation_scope: ['string'],
-          expected_outcomes: ['string'],
-          burning_platform: 'string'
-        },
-
-        parseOutput: (raw) => {
-          const parsed = OutputValidator.parseJSON(raw, 'step1_synthesize');
-          
-          // Helper: Infer category from metric name
-          const inferCategory = (metricName) => {
-            const lower = metricName.toLowerCase();
-            if (/cost|expense|saving|efficiency|productivity|automation/.test(lower)) return 'Efficiency';
-            if (/revenue|growth|market|customer|sales|expansion/.test(lower)) return 'Growth';
-            if (/risk|compliance|security|quality|reliability|governance/.test(lower)) return 'Risk';
-            if (/innovation|digital|transformation|technology|modernization/.test(lower)) return 'Innovation';
-            return 'Strategic';
-          };
-          
-          // Store in model
-          if (window.model) {
-            window.model.strategicIntent = parsed;
-            window.model.businessContext = {
-              org_name: parsed.org_name || 'Organization',
-              industry: parsed.industry || 'Unknown',
-              market_summary: parsed.situation_narrative || '',
-              strategicVision: parsed.strategicVision,
-              successMetrics: parsed.successMetrics,
-              constraints: (parsed.constraints || []).map(c => 
-                typeof c === 'string' ? c : `${c.type}: ${c.description}`
-              ),
-              situation_narrative: parsed.situation_narrative,
-              expected_outcomes: Array.isArray(parsed.expected_outcomes) ? parsed.expected_outcomes : [],
-              investigation_scope: parsed.investigation_scope || [],
-              burning_platform: parsed.burning_platform || '',
-              generated_at: Date.now(),
-              instruction_version: 'context-engine-v1'
-            };
-            
-            // Transform successMetrics → businessObjectives
-            window.model.businessObjectives = (parsed.successMetrics || []).map((metric, idx) => ({
-              id: `obj_${Date.now()}_${idx}`,
-              title: metric.metric,
-              description: `Achieve ${metric.target} by ${metric.timeframe}`,
-              category: inferCategory(metric.metric),
-              kpi: metric.metric,
-              target_value: metric.target,
-              time_horizon: metric.timeframe,
-              priority: idx < 2 ? 'High' : idx < 4 ? 'Medium' : 'Low',
-              rationale: parsed.burning_platform || parsed.situation_narrative || '',
-              linked_themes: parsed.strategicVision?.themes || []
-            }));
-            
-            // Transform strategicVision.themes → strategicThemes objects
-            window.model.strategicThemes = (parsed.strategicVision?.themes || []).map((theme, idx) => ({
-              id: `theme_${Date.now()}_${idx}`,
-              name: theme,
-              description: `Strategic theme: ${theme}`,
-              rationale: parsed.burning_platform || 'Supports strategic transformation'
-            }));
-            
-            // Initialize empty gap insights (can be populated later by AI analysis)
-            window.model.gapInsights = [];
-            
-            console.log(`[Step1] Generated ${window.model.businessObjectives.length} business objectives from success metrics`);
-            console.log(`[Step1] Generated ${window.model.strategicThemes.length} strategic themes`);
-            console.log('[Step1] Data stored in window.model:', {
-              hasBusinessContext: !!window.model.businessContext,
-              orgName: window.model.businessContext?.org_name,
-              industry: window.model.businessContext?.industry,
-              objectivesCount: window.model.businessObjectives?.length,
-              themesCount: window.model.strategicThemes?.length,
-              constraintsCount: window.model.businessContext?.constraints?.length
-            });
-          }
-          
-          // CRITICAL: Return enriched data so StepEngine preserves it in workingModel
-          // (auto-save overwrites window.model with workingModel, so we need data in both places)
-          return {
-            ...parsed,
-            _enrichment: {
-              businessContext: window.model.businessContext,
-              businessObjectives: window.model.businessObjectives,
-              strategicThemes: window.model.strategicThemes,
-              gapInsights: window.model.gapInsights
-            }
-          };
-        }
-      },
-
-      // ── Task 7: Validation ───────────────────────────────────────────────
+      // ── Task 6: Validation ───────────────────────────────────────────────
       {
         taskId: 'step1_validate',
-        title: 'Review Strategic Intent',
+        title: 'Review Business Objectives',
         type: 'question',
         allowSkip: false,
         generateQuestion: false,
 
         question: (ctx) => {
-          const si = window.model?.strategicIntent || {};
-          const themes = (si.strategicVision?.themes || []).map(t => `• ${t}`).join('\n');
-          const metrics = (si.successMetrics || []).slice(0, 3).map(m => 
-            `• ${m.metric}: ${m.target} ${m.timeframe}`
-          ).join('\n');
+          const context = window.model?.discoveryState?.context || {};
+          const validatedObjectives = context.validated_objectives || [];
+          const workingHypotheses = context.working_hypotheses || [];
+          const evidenceGaps = context.evidence_gaps || [];
+          const businessObjectives = window.model?.businessObjectives || [];
           
-          return `✅ **Strategic Intent drafted**
+          const objectivesList = businessObjectives.slice(0, 5).map(obj => {
+            const statusIcon = obj.validation_status === 'validated' ? '✅' : obj.validation_status === 'hypothesis' ? '🔬' : '❓';
+            return `${statusIcon} **${obj.title}**\n  - Target: ${obj.target_value}\n  - Timeframe: ${obj.time_horizon}\n  - Validation: ${obj.validation_status}`;
+          }).join('\n\n');
+          
+          const metrics = [
+            `Total objectives: ${businessObjectives.length}`,
+            `Validated: ${validatedObjectives.length}`,
+            `Hypotheses: ${workingHypotheses.length}`,
+            `Evidence gaps: ${evidenceGaps.length}`
+          ].join(' | ');
+          
+          return `✅ **Discovery Complete - Business Objectives Generated**
 
-**Strategic Ambition:**
-${si.strategicVision?.ambition || '[not generated]'}
-
-**Strategic Themes:**
-${themes}
-
-**Key Success Metrics:**
+**Quality Metrics:**
 ${metrics}
 
-Does this capture your strategic direction? Type "confirm" to proceed, or describe any adjustments needed.`;
+**Key Objectives:**
+${objectivesList}
+
+${businessObjectives.length > 5 ? `\n_...and ${businessObjectives.length - 5} more objectives_` : ''}
+
+${evidenceGaps.length > 0 ? `\n⚠️ **Evidence Gaps Identified:**\n${evidenceGaps.slice(0, 3).map(g => `- ${g}`).join('\n')}${evidenceGaps.length > 3 ? `\n_...and ${evidenceGaps.length - 3} more gaps_` : ''}` : ''}
+
+Does this capture your business objectives? Type "confirm" to proceed, or describe any adjustments needed.`;
         },
         
         options: (ctx) => {
@@ -472,7 +435,6 @@ Does this capture your strategic direction? Type "confirm" to proceed, or descri
           
           if (confirmed && window.model) {
             window.model.businessContextConfirmed = true;
-            window.model.strategicIntentConfirmed = true;
           }
           
           return { validation: answer, confirmed };
@@ -482,63 +444,263 @@ Does this capture your strategic direction? Type "confirm" to proceed, or descri
   };
 
   // ═══════════════════════════════════════════════════════════════════════
+  // HELPER FUNCTIONS
+  // ═══════════════════════════════════════════════════════════════════════
+  
+  /**
+   * Transform discovery context directly into business objectives (NO AI SYNTHESIS)
+   * Called when discovery completes with status === 'complete'
+   * @param {object} context - Discovery context with validated_objectives, working_hypotheses, etc.
+   * @param {string} companyDescription - User's company description from Task 0
+   */
+  Step1._transformDiscoveryToBusinessObjectives = function(context, companyDescription = '') {
+    console.log('[Step1] 🔧 Transforming discovery data to business objectives (no AI synthesis)');
+    console.log('[Step1] Discovery context keys:', Object.keys(context));
+    
+    // Extract company name from description (first line or first sentence before punctuation)
+    let companyName = '';
+    if (companyDescription) {
+      // Try to extract company name from first line or first sentence
+      const firstLine = companyDescription.split('\n')[0].trim();
+      const match = firstLine.match(/^([A-Z][A-Za-zÅÄÖåäö\s&-]+?)(?:\s*[:\-\n]|$)/);
+      companyName = match ? match[1].trim() : firstLine.substring(0, 50);
+      console.log('[Step1] Extracted company name:', companyName);
+    }
+    
+    // Helper: Infer category from objective text
+    const inferCategory = (text) => {
+      const lower = text.toLowerCase();
+      if (/cost|expense|saving|efficiency|productivity|automation/.test(lower)) return 'Efficiency';
+      if (/revenue|growth|market|customer|sales|expansion/.test(lower)) return 'Growth';
+      if (/risk|compliance|security|quality|reliability|governance/.test(lower)) return 'Risk';
+      if (/innovation|digital|transformation|technology|modernization/.test(lower)) return 'Innovation';
+      return 'Strategic';
+    };
+    
+    const validatedObjectives = context.validated_objectives || [];
+    const workingHypotheses = context.working_hypotheses || [];
+    const evidenceGaps = context.evidence_gaps || [];
+    const measurableKPIs = context.measurableKPIs || [];
+    
+    console.log('[Step1] Source data counts:', {
+      validated: validatedObjectives.length,
+      hypotheses: workingHypotheses.length,
+      gaps: evidenceGaps.length,
+      kpis: measurableKPIs.length
+    });
+    
+    const allObjectives = [];
+    
+    // 1. Transform validated objectives
+    validatedObjectives.forEach((vObj, idx) => {
+      // Try to match with measurableKPIs to get target/timeframe
+      const matchingKPI = measurableKPIs.find(kpi => 
+        kpi.metric.toLowerCase().includes(vObj.objective.toLowerCase()) ||
+        vObj.objective.toLowerCase().includes(kpi.metric.toLowerCase())
+      );
+      
+      allObjectives.push({
+        id: `obj_validated_${Date.now()}_${idx}`,
+        title: vObj.objective,
+        description: vObj.objective,
+        category: inferCategory(vObj.objective),
+        kpi: matchingKPI?.metric || vObj.objective,
+        target_value: matchingKPI?.target || '[To be defined]',
+        time_horizon: matchingKPI?.timeframe || '[To be determined]',
+        priority: idx < 2 ? 'High' : 'Medium',
+        rationale: `Validated objective from discovery`,
+        linked_themes: [],
+        // VALIDATION METADATA
+        validation_status: 'validated',
+        evidence_source: vObj.source || 'User confirmed',
+        evidence_strength: vObj.strength || 'medium',
+        evidence_gap: null
+      });
+    });
+    
+    // 2. Transform working hypotheses
+    workingHypotheses.forEach((wh, idx) => {
+      allObjectives.push({
+        id: `obj_hypothesis_${Date.now()}_${idx}`,
+        title: wh.hypothesis,
+        description: `${wh.hypothesis} (Working hypothesis - requires validation)`,
+        category: inferCategory(wh.hypothesis),
+        kpi: wh.hypothesis,
+        target_value: '[To be validated]',
+        time_horizon: '[To be validated]',
+        priority: 'Medium',
+        rationale: `Hypothesis: ${wh.gap || 'Needs validation'}`,
+        linked_themes: [],
+        // VALIDATION METADATA
+        validation_status: 'hypothesis',
+        evidence_source: null,
+        evidence_strength: 'unsupported',
+        evidence_gap: wh.gap || 'Evidence not provided'
+      });
+    });
+    
+    // 3. Add any remaining KPIs that weren't matched to validated objectives
+    // IMPORTANT: Only add KPIs if they have clean data (no invented baselines like "current 2026 level")
+    measurableKPIs.forEach((kpi, idx) => {
+      const alreadyExists = allObjectives.some(obj => 
+        obj.kpi.toLowerCase().includes(kpi.metric.toLowerCase()) ||
+        kpi.metric.toLowerCase().includes(obj.kpi.toLowerCase())
+      );
+      
+      if (!alreadyExists) {
+        // Check if KPI has invented baseline text (old format)
+        const hasInventedData = /baseline.*current.*to be confirmed|baseline.*2026 level/i.test(kpi.target || '') ||
+                               /baseline.*current.*to be confirmed|baseline.*2026 level/i.test(kpi.metric || '');
+        
+        if (hasInventedData) {
+          console.warn(`[Step1] ⚠️ Skipping KPI with invented baseline data: ${kpi.metric}`);
+          // Add as hypothesis instead with clean placeholders
+          allObjectives.push({
+            id: `obj_kpi_cleaned_${Date.now()}_${idx}`,
+            title: kpi.metric,
+            description: `${kpi.metric} (Target and baseline to be validated)`,
+            category: inferCategory(kpi.metric),
+            kpi: kpi.metric,
+            target_value: '[To be defined]',
+            time_horizon: '[To be determined]',
+            priority: 'Medium',
+            rationale: 'KPI from discovery - baseline and target require validation',
+            linked_themes: [],
+            // VALIDATION METADATA
+            validation_status: 'hypothesis',
+            evidence_source: null,
+            evidence_strength: 'unsupported',
+            evidence_gap: 'Baseline and target not explicitly provided'
+          });
+        } else {
+          // Clean KPI data - use as-is
+          const validationStatus = kpi.validation_status || 'unknown';
+          allObjectives.push({
+            id: `obj_kpi_${Date.now()}_${idx}`,
+            title: kpi.metric,
+            description: `${kpi.metric}: ${kpi.target} by ${kpi.timeframe}`,
+            category: inferCategory(kpi.metric),
+            kpi: kpi.metric,
+            target_value: kpi.target || '[To be defined]',
+            time_horizon: kpi.timeframe || '[To be determined]',
+            priority: 'Medium',
+            rationale: 'KPI from discovery',
+            linked_themes: [],
+            // VALIDATION METADATA
+            validation_status: validationStatus,
+            evidence_source: validationStatus === 'validated' ? 'User confirmed' : null,
+            evidence_strength: validationStatus === 'validated' ? 'medium' : 'unsupported',
+            evidence_gap: validationStatus === 'validated' ? null : 'Not explicitly validated'
+          });
+        }
+      }
+    });
+    
+    // Store in window.model
+    if (!window.model) window.model = {};
+    
+    window.model.businessObjectives = allObjectives;
+    
+    // Create business context from discovery data with company-specific information
+    const organizationName = companyName || context.organization_name || 'Organization';
+    const industryContext = context.industry || 'Unknown';
+    
+    window.model.businessContext = {
+      org_name: organizationName,
+      industry: industryContext,
+      market_summary: `${organizationName} - ${context.strategic_posture || 'Unknown'} posture with digital maturity ${context.digital_maturity || 0}/5`,
+      strategic_context: `${organizationName} operating in ${industryContext}`,
+      constraints: (context.constraints || []).map(c => 
+        typeof c === 'string' ? c : `${c.type}: ${c.description}`
+      ),
+      generated_at: Date.now(),
+      instruction_version: 'context-engine-v2-direct-transform',
+      evidence_gaps: evidenceGaps,
+      company_description: companyDescription
+    };
+    
+    // Store evidence gaps as gap insights
+    window.model.gapInsights = evidenceGaps.map((gap, idx) => ({
+      id: `gap_${Date.now()}_${idx}`,
+      type: 'Evidence Gap',
+      description: gap,
+      severity: 'Medium',
+      recommendation: 'Validate with stakeholders or gather supporting documentation'
+    }));
+    
+    // Calculate validation metrics
+    const validatedCount = allObjectives.filter(o => o.validation_status === 'validated').length;
+    const hypothesisCount = allObjectives.filter(o => o.validation_status === 'hypothesis').length;
+    const unknownCount = allObjectives.filter(o => o.validation_status === 'unknown').length;
+    const strongSources = allObjectives.filter(o => o.evidence_strength === 'strong').length;
+    const mediumSources = allObjectives.filter(o => o.evidence_strength === 'medium').length;
+    const weakSources = allObjectives.filter(o => o.evidence_strength === 'weak' || o.evidence_strength === 'unsupported').length;
+    
+    window.model.validationMetrics = {
+      validated_count: validatedCount,
+      hypothesis_count: hypothesisCount,
+      unknown_count: unknownCount,
+      strong_sources: strongSources,
+      medium_sources: mediumSources,
+      weak_sources: weakSources,
+      gaps_count: evidenceGaps.length,
+      total_objectives: allObjectives.length,
+      validation_quality_score: allObjectives.length > 0 
+        ? Math.round((validatedCount / allObjectives.length) * 100) 
+        : 0
+    };
+    
+    console.log(`[Step1] ✅ Generated ${allObjectives.length} business objectives:`);
+    console.log(`  - Validated: ${validatedCount}`);
+    console.log(`  - Hypotheses: ${hypothesisCount}`);
+    console.log(`  - Unknown: ${unknownCount}`);
+    console.log(`[Step1] Evidence strength:`);
+    console.log(`  - Strong: ${strongSources} | Medium: ${mediumSources} | Weak/Unsupported: ${weakSources}`);
+    console.log(`[Step1] Evidence gaps: ${evidenceGaps.length}`);
+    console.log(`[Step1] Validation quality score: ${window.model.validationMetrics.validation_quality_score}%`);
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
   // STEP-LEVEL FUNCTIONS
   // ═══════════════════════════════════════════════════════════════════════
 
   /**
    * Synthesize final output after all tasks complete
    * @param {object} ctx - Context object with all task answers
-   * @returns {object} - Final Strategic Intent output (includes _enrichment)
+   * @returns {object} - Final output with business objectives
    */
   Step1.synthesize = (ctx) => {
-    // All synthesis work is done in task parseOutput functions
-    // Strategic Intent is already stored in window.model.strategicIntent
-    // Return it with _enrichment data preserved from ctx.answers
-    const taskOutput = ctx.answers?.step1_synthesize || {};
-    
-    console.log('[Step1.synthesize] Passing through data:', {
-      hasEnrichment: !!taskOutput._enrichment,
-      enrichmentObjectivesCount: taskOutput._enrichment?.businessObjectives?.length || 0,
-      enrichmentThemesCount: taskOutput._enrichment?.strategicThemes?.length || 0
-    });
-    
-    return taskOutput.org_name ? taskOutput : (window.model?.strategicIntent || {});
+    // No synthesis needed - data was transformed during discovery
+    // Return validation metrics and business objectives
+    return {
+      businessObjectives: window.model?.businessObjectives || [],
+      businessContext: window.model?.businessContext || {},
+      validationMetrics: window.model?.validationMetrics || {},
+      gapInsights: window.model?.gapInsights || []
+    };
   };
 
   /**
    * Apply synthesized output to model
-   * @param {object} output - Synthesized Strategic Intent (includes _enrichment)
-   * @param {object} model - Current model state (may be stale)
+   * @param {object} output - Output from synthesize
+   * @param {object} model - Current model state
    * @returns {object} - Updated model
    */
   Step1.applyOutput = (output, model) => {
-    // CRITICAL: Read from _enrichment first (survives auto-save), fallback to window.model
-    const enrichment = output._enrichment || {};
-    const freshBusinessContext = enrichment.businessContext || window.model?.businessContext || {};
-    const freshBusinessObjectives = enrichment.businessObjectives || window.model?.businessObjectives || [];
-    const freshStrategicThemes = enrichment.strategicThemes || window.model?.strategicThemes || [];
-    const freshGapInsights = enrichment.gapInsights || window.model?.gapInsights || [];
-    
-    console.log('[Step1.applyOutput] Reading data from _enrichment + window.model:', {
-      source: enrichment.businessContext ? '_enrichment' : 'window.model',
-      businessContext: !!freshBusinessContext.org_name,
-      objectivesCount: freshBusinessObjectives.length,
-      themesCount: freshStrategicThemes.length,
-      gapInsightsCount: freshGapInsights.length
+    // Data is already in window.model from _transformDiscoveryToBusinessObjectives
+    // Just confirm it's set
+    console.log('[Step1.applyOutput] Using data from window.model:', {
+      objectivesCount: window.model?.businessObjectives?.length || 0,
+      validationScore: window.model?.validationMetrics?.validation_quality_score || 0
     });
     
-    // Remove _enrichment from output before storing (internal use only)
-    const { _enrichment, ...cleanOutput } = output;
-    
     return {
-      ...model,  // Spread old model for other properties
-      strategicIntent: cleanOutput,
-      businessContext: freshBusinessContext,
-      businessObjectives: freshBusinessObjectives,
-      strategicThemes: freshStrategicThemes,
-      gapInsights: freshGapInsights,
-      businessContextConfirmed: true,
-      strategicIntentConfirmed: true
+      ...model,
+      businessObjectives: window.model?.businessObjectives || [],
+      businessContext: window.model?.businessContext || {},
+      validationMetrics: window.model?.validationMetrics || {},
+      gapInsights: window.model?.gapInsights || [],
+      businessContextConfirmed: true
     };
   };
 
@@ -568,6 +730,15 @@ Does this capture your strategic direction? Type "confirm" to proceed, or descri
     // Update UI
     if (typeof updateWorkflowStepStates === 'function') updateWorkflowStepStates();
     if (typeof updateWorkflowProgress === 'function') updateWorkflowProgress([1]);
+    
+    // V11.4: Update navigation and tab lock states
+    if (typeof updateNavigationLockStates === 'function') {
+      updateNavigationLockStates();
+    } else if (typeof EANavigation !== 'undefined' && typeof EANavigation.updateLockStates === 'function') {
+      EANavigation.updateLockStates();
+    }
+    if (typeof updateTabLockStates === 'function') updateTabLockStates();
+    
     if (typeof showTab === 'function' && typeof findTabButton === 'function') {
       showTab('exec', findTabButton('exec'));
     }

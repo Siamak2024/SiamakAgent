@@ -181,7 +181,7 @@ embed the change as a \`\`\`json block for automatic application.`;
     ],
     'fintech': [
       'fintech', 'payment', 'betalning', 'open banking', 'digital wallet',
-      'neobank', 'crypto', 'payment gateway', 'payment platform', 'banking apis'
+      'neobank', 'crypto', 'payment gateway'
     ],
     'healthcare': [
       'healthcare', 'hospital', 'clinic', 'patient', 'medical record',
@@ -197,8 +197,7 @@ embed the change as a \`\`\`json block for automatic application.`;
     ],
     'insurance': [
       'insurance', 'försäkring', 'underwriting', 'claims management',
-      'actuarial', 'solvency', 'insurtech', 'policy holder', 'premium',
-      'life insurance', 'property insurance', 'claims process', 'risk assessment'
+      'actuarial', 'solvency'
     ],
     'startup': [
       'startup', 'scale-up', 'seed round', 'series a', 'venture capital',

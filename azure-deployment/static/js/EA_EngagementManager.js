@@ -11,6 +11,12 @@ class EA_EngagementManager {
   constructor() {
     this.currentEngagementId = null;
     this.storagePrefix = 'ea_engagement_';
+    
+    // Initialize EA_DataManager for integration support
+    if (typeof EA_DataManager !== 'undefined') {
+      this.dataManager = new EA_DataManager();
+    }
+    
     this.initializeStorage();
   }
 
@@ -107,6 +113,13 @@ class EA_EngagementManager {
     return engagementKeys.map(key => {
       try {
         const model = JSON.parse(localStorage.getItem(key));
+        
+        // Validate model structure
+        if (!model || !model.engagement || !model.engagement.id) {
+          console.warn(`⚠️ Invalid engagement model structure in ${key}, skipping`);
+          return null;
+        }
+        
         return {
           id: model.engagement.id,
           name: model.engagement.name,
@@ -131,6 +144,12 @@ class EA_EngagementManager {
   saveEngagement(engagementId, model) {
     const key = `${this.storagePrefix}model_${engagementId}`;
     
+    // Validate model structure
+    if (!model || !model.engagement || !model.engagement.metadata) {
+      console.error('Invalid model structure, cannot save engagement');
+      return false;
+    }
+    
     // Update timestamp
     model.engagement.metadata.updatedAt = new Date().toISOString();
     
@@ -154,6 +173,13 @@ class EA_EngagementManager {
       if (!stored) return null;
       
       const model = JSON.parse(stored);
+      
+      // Validate model structure
+      if (!model || !model.engagement || !model.engagement.id) {
+        console.error(`Invalid engagement model structure for ${engagementId}`);
+        return null;
+      }
+      
       this.currentEngagementId = engagementId;
       return model;
     } catch (error) {
@@ -173,6 +199,35 @@ class EA_EngagementManager {
     }
     
     return this.currentEngagementId ? this.loadEngagement(this.currentEngagementId) : null;
+  }
+
+  /**
+   * Save the current engagement model (convenience method)
+   * Updates the model in localStorage using the current engagement ID
+   * @returns {boolean} - Success status
+   */
+  saveCurrentEngagement() {
+    if (!this.currentEngagementId) {
+      console.error('No current engagement ID set');
+      return false;
+    }
+    
+    // Get the current model from window.currentEngagement if available
+    const model = window.currentEngagement || this.loadEngagement(this.currentEngagementId);
+    
+    if (!model) {
+      console.error('No current engagement model found');
+      return false;
+    }
+    
+    this.saveEngagement(this.currentEngagementId, model);
+    
+    // Update window.currentEngagement to ensure UI has latest data
+    if (window.currentEngagement) {
+      window.currentEngagement = model;
+    }
+    
+    return true;
   }
 
   /**
@@ -249,7 +304,7 @@ class EA_EngagementManager {
    */
   archiveEngagement(engagementId) {
     const model = this.loadEngagement(engagementId);
-    if (!model) return false;
+    if (!model || !model.engagement) return false;
     
     model.engagement.status = 'archived';
     
@@ -1010,7 +1065,8 @@ class EA_EngagementManager {
       architectureThemes: 'ARCH',
       serviceCategories: 'CAT',  // V2.0
       artifacts: 'ART',
-      stories: 'STORY'
+      stories: 'STORY',
+      activities: 'ACT'  // V2.0 - Replaces stories
     };
 
     const prefix = prefixes[entityType] || 'ENT';
@@ -1022,7 +1078,7 @@ class EA_EngagementManager {
     }, 0);
 
     const newId = maxId + 1;
-    const padding = entityType === 'stories' ? 4 : 3;
+    const padding = (entityType === 'stories' || entityType === 'activities') ? 4 : 3;
     return `${prefix}-${String(newId).padStart(padding, '0')}`;
   }
 

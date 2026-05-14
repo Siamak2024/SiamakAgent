@@ -15,6 +15,11 @@
 
 const AIService = (() => {
 
+  // ═══════════════════════════════════════════════════════════════════
+  console.log(`%c[AIService.js] 📦 Module loaded`, 'color: #8b5cf6; font-weight: bold');
+  console.log(`%c[AIService.js] Version: V11-Evidence-Based (May 2026)`, 'color: #8b5cf6');
+  // ═══════════════════════════════════════════════════════════════════
+
   // ── Call log (in-memory, for debugging) ──────────────────────────────────
   const _callLog = [];
 
@@ -76,26 +81,74 @@ const AIService = (() => {
     const startTime = Date.now();
     let response;
     let usedFallback = false;
+    let apiSource = 'unknown';
+
+    // ═══════════════════════════════════════════════════════════════════
+    console.log(`%c[AIService] 🚀 STARTING AI CALL`, 'color: #6366f1; font-weight: bold');
+    console.log(`  Task:        ${opts.taskId}`);
+    console.log(`  Type:        ${opts.taskType}`);
+    console.log(`  Model:       ${modelName}`);
+    console.log(`  Temperature: ${temperature !== undefined ? temperature : 'N/A (reasoning model)'}`);
+    console.log(`  Timeout:     ${timeoutMs}ms`);
+    console.log(`  Expects JSON: ${opts.expectsJson || false}`);
+
 
     // ── Try proxy first ───────────────────────────────────────────────────
     try {
       if (typeof AzureOpenAIProxy === 'undefined') {
         throw new Error('Proxy not available (running locally)');
       }
+      console.log(`%c[AIService] 📡 Attempting Azure proxy call...`, 'color: #8b5cf6');
       response = await AzureOpenAIProxy.create(input, createOpts);
+      apiSource = 'azure-proxy';
+      console.log(`%c[AIService] ✅ Azure proxy SUCCESS`, 'color: #10b981; font-weight: bold');
     } catch (proxyErr) {
       const silent = /proxy not available|AzureOpenAIProxy is not defined/i.test(proxyErr.message);
       if (!silent) {
-        console.warn(`[AIService] Proxy failed for ${opts.taskId}:`, proxyErr.message);
+        console.error(`%c[AIService] ❌ Proxy FAILED for ${opts.taskId}`, 'color: #ef4444; font-weight: bold');
+        console.error(`  Error: ${proxyErr.message}`);
+      } else {
+        console.warn(`%c[AIService] ⚠️ Proxy not available, trying direct API...`, 'color: #f59e0b');
       }
-      // ── No fallback - API key must come from server ────────────────────
-      const err = 'Backend API not available. Please ensure Azure Function is running or deploy to production.';
-      _log(opts.taskId, opts.taskType, null, null, 'error', err, 0);
-      return { taskId: opts.taskId, rawOutput: '', model: modelName, elapsed: 0, thinking: null, timestamp: new Date(), status: 'error', error: err };
+      // ── Direct API fallback ────────────────────────────────────────────
+      const apiKey = _getStoredApiKey();
+      if (!apiKey) {
+        console.error(`%c[AIService] 🔑 NO API KEY CONFIGURED`, 'color: #dc2626; font-weight: bold; font-size: 14px');
+        console.error(`  Task ${opts.taskId} CANNOT be completed without API access`);
+        console.error(`  ⚠️ FALLBACK TO HARDCODED PROMPTS WILL BE USED IF AVAILABLE`);
+        if (typeof showSettingsModal === 'function') showSettingsModal();
+        const err = 'No API key. Please add your OpenAI API key in Settings.';
+        _log(opts.taskId, opts.taskType, null, null, 'error', err, 0);
+        return { taskId: opts.taskId, rawOutput: '', model: modelName, elapsed: 0, thinking: null, timestamp: new Date(), status: 'error', error: err };
+      }
+      try {
+        console.log(`%c[AIService] 🔑 Attempting direct OpenAI API call...`, 'color: #3b82f6');
+        response = await _callDirectAPI(input, createOpts, apiKey, timeoutMs);
+        usedFallback = true;
+        apiSource = 'direct-api';
+        console.log(`%c[AIService] ✅ Direct API SUCCESS`, 'color: #10b981; font-weight: bold');
+      } catch (directErr) {
+        console.error(`%c[AIService] ❌ BOTH PROXY AND DIRECT API FAILED`, 'color: #dc2626; font-weight: bold; font-size: 14px');
+        console.error(`  Proxy error: ${proxyErr.message}`);
+        console.error(`  Direct API error: ${directErr.message}`);
+        console.error(`  ⚠️ FALLBACK TO HARDCODED PROMPTS WILL BE USED IF AVAILABLE`);
+        const err = directErr.message || proxyErr.message || 'API error';
+        _log(opts.taskId, opts.taskType, null, null, 'error', err, Date.now() - startTime);
+        return { taskId: opts.taskId, rawOutput: '', model: modelName, elapsed: Date.now() - startTime, thinking: null, timestamp: new Date(), status: 'error', error: err };
+      }
     }
 
     const rawOutput = response?.output_text || '';
     const elapsed   = Date.now() - startTime;
+
+    // ═══════════════════════════════════════════════════════════════════
+    console.log(`%c[AIService] ✅ AI CALL COMPLETE`, 'color: #10b981; font-weight: bold');
+    console.log(`  Task:          ${opts.taskId}`);
+    console.log(`  API Source:    ${apiSource.toUpperCase()}`);
+    console.log(`  Elapsed:       ${elapsed}ms`);
+    console.log(`  Output length: ${rawOutput.length} chars`);
+    console.log(`  Preview:       ${rawOutput.substring(0, 100)}...`);
+    // ═══════════════════════════════════════════════════════════════════
 
     // ── Extract reasoning / thinking summary──────────────────────────────
     let thinking = null;
