@@ -1245,7 +1245,7 @@
                 <div id="subtab-overview" class="sub-tab-content active">
                 
                 <!-- VIVICTA CARD-BASED LAYOUT - SIMPLIFIED -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-top: 24px;">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 24px;">
                 
                     <!-- ENGAGEMENT IDENTITY CARD -->
                     <div class="vivicta-card">
@@ -1301,11 +1301,11 @@
                         </div>
                     </div>
                     
-                    <!-- ENGAGEMENT THEME CARD -->
-                    <div class="vivicta-card" style="grid-column: 1 / -1;">
+                    <!-- MAIN ENGAGEMENT THEME CARD -->
+                    <div class="vivicta-card">
                         <div class="vivicta-card-header">
                             <i class="fas fa-lightbulb" style="color: #7A0049;"></i>
-                            <span>Engagement Theme</span>
+                            <span>Main Engagement Theme</span>
                         </div>
                         <div class="vivicta-card-body">
                             <div class="vivicta-field-group">
@@ -2896,7 +2896,7 @@
                         // No engagement found for this account - show account context
                         // User can create new engagement via + button in header
                         updateAccountContext(account);
-                        loadEngagementData(); // This will populate form from account context
+                        loadAccountInfoOnly(account); // Populate account fields from context
                         console.log(`ℹ️ No engagement found for account ${accountId}. Use + button to create new engagement.`);
                     }
                 }
@@ -3500,30 +3500,54 @@
         }
         
         function loadEngagementData() {
-            if (!currentEngagement) return;
-            
-            const eng = currentEngagement.engagement;
-            
-            // Load simplified engagement data
-            document.getElementById('engagement-id').value = eng.id || '';
-            document.getElementById('engagement-name').value = eng.name || '';
-            document.getElementById('engagement-ea-contact').value = eng.eaContact || '';
-            document.getElementById('engagement-theme').value = eng.theme || '';
-            
-            // Load readonly account fields
-            document.getElementById('engagement-customer-name').value = eng.customerName || '';
-            document.getElementById('engagement-segment').value = eng.industry || eng.segment || '';
-            document.getElementById('engagement-crm-id').value = eng.crmCustomerId || '';
-            
-            // Display created date
-            const createdDateDisplay = document.getElementById('engagement-created-date');
-            if (createdDateDisplay && eng.createdDate) {
-                const date = new Date(eng.createdDate);
-                createdDateDisplay.textContent = date.toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    year: 'numeric' 
-                });
+            // If we have an engagement, load its data
+            if (currentEngagement) {
+                const eng = currentEngagement.engagement;
+                
+                // Load simplified engagement data
+                document.getElementById('engagement-id').value = eng.id || '';
+                document.getElementById('engagement-name').value = eng.name || '';
+                document.getElementById('engagement-ea-contact').value = eng.eaContact || '';
+                document.getElementById('engagement-theme').value = eng.theme || '';
+                
+                // Load readonly account fields
+                document.getElementById('engagement-customer-name').value = eng.customerName || '';
+                document.getElementById('engagement-segment').value = eng.industry || eng.segment || '';
+                document.getElementById('engagement-crm-id').value = eng.crmCustomerId || '';
+                
+                // Display created date
+                const createdDateDisplay = document.getElementById('engagement-created-date');
+                if (createdDateDisplay && eng.createdDate) {
+                    const date = new Date(eng.createdDate);
+                    createdDateDisplay.textContent = date.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        year: 'numeric' 
+                    });
+                }
             }
+            // If no engagement but we have account context, populate account fields
+            else if (window.currentAccountContext) {
+                loadAccountInfoOnly(window.currentAccountContext);
+            }
+        }
+        
+        // New function to populate account information fields from account context
+        function loadAccountInfoOnly(account) {
+            if (!account) return;
+            
+            console.log('Loading account information:', account);
+            
+            // Populate readonly account fields
+            document.getElementById('engagement-customer-name').value = account.name || '';
+            document.getElementById('engagement-segment').value = account.industry || '';
+            document.getElementById('engagement-crm-id').value = account.crmId || '';
+            
+            // Clear engagement-specific fields
+            document.getElementById('engagement-id').value = '';
+            document.getElementById('engagement-name').value = '';
+            document.getElementById('engagement-ea-contact').value = '';
+            document.getElementById('engagement-theme').value = '';
+            document.getElementById('engagement-created-date').textContent = '-';
         }
         
         function loadSegmentTemplate(segmentId) {
