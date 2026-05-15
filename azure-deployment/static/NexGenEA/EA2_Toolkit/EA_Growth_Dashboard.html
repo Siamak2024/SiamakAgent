@@ -72,6 +72,28 @@
         .entry-card.blue { border-left: 4px solid var(--ea-accent); }
         .entry-card.orange { border-left: 4px solid #f59e0b; }
         
+        /* Locked state for entry cards */
+        .entry-card.locked {
+            opacity: 0.6;
+            cursor: not-allowed;
+            position: relative;
+        }
+        .entry-card.locked:hover {
+            transform: none;
+            box-shadow: var(--ea-shadow-card);
+            border-color: var(--ea-border);
+        }
+        .entry-card.locked::after {
+            content: '🔒 Select an account to continue';
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: #6b7280;
+            white-space: nowrap;
+        }
+        
         .entry-icon {
             width: 72px;
             height: 72px;
@@ -891,13 +913,31 @@
                                 View
                             </button>
                             <div class="menu-dropdown" id="view-menu">
+                                <div class="menu-dropdown-item" onclick="closeAllMenus(); window.location.href='EA_Growth_Dashboard.html'">
+                                    <i class="fas fa-th-large"></i>
+                                    <span>Growth Dashboard (Home)</span>
+                                </div>
+                                <div class="menu-dropdown-divider"></div>
+                                <div class="menu-dropdown-item" onclick="closeAllMenus(); navigateWithAccountContext('GrowthDashboard_BusinessObjectives.html')">
+                                    <i class="fas fa-target"></i>
+                                    <span>Business Objectives</span>
+                                </div>
+                                <div class="menu-dropdown-item" onclick="closeAllMenus(); navigateWithAccountContext('EA_Opportunity_Pipeline.html')">
+                                    <i class="fas fa-bullseye"></i>
+                                    <span>Opportunity Pipeline</span>
+                                </div>
+                                <div class="menu-dropdown-item" onclick="closeAllMenus(); openEngagementPlaybook()">
+                                    <i class="fas fa-diagram-project"></i>
+                                    <span>Engagement Playbook</span>
+                                </div>
                                 <div class="menu-dropdown-item" onclick="closeAllMenus(); window.location.href='EA_Analytics_Dashboard.html'">
                                     <i class="fas fa-chart-line"></i>
                                     <span>Analytics Dashboard</span>
                                 </div>
+                                <div class="menu-dropdown-divider"></div>
                                 <div class="menu-dropdown-item" onclick="closeAllMenus(); window.location.href='EA_Start_Page.html'">
                                     <i class="fas fa-home"></i>
-                                    <span>Start Page</span>
+                                    <span>Exit to Start Page</span>
                                 </div>
                             </div>
                         </div>
@@ -1026,17 +1066,6 @@
                     <div class="metric-value" id="win-rate">0%</div>
                     <span class="metric-change" id="win-stats">0 won / 0 lost</span>
                 </div>
-
-                <div class="metric-card">
-                    <div class="metric-header">
-                        <span class="metric-label">Forecast (Q2 2026)</span>
-                        <div class="metric-icon icon-orange">
-                            <i class="fas fa-calendar"></i>
-                        </div>
-                    </div>
-                    <div class="metric-value" id="quarter-forecast">€0</div>
-                    <span class="metric-change" id="forecast-count">0 opportunities</span>
-                </div>
             </div>
 
             <!-- Dashboard Row -->
@@ -1067,12 +1096,6 @@
                         <div style="text-align: center; color: #9ca3af; padding: 40px;">No recent activity</div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Forecast Chart -->
-            <div class="section-card">
-                <h3 class="section-title">Quarterly Forecast</h3>
-                <canvas id="forecast-chart" height="80"></canvas>
             </div>
         </main>
     </div>
@@ -1605,6 +1628,12 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
 
         // Navigate with account context
         function navigateWithAccountContext(page) {
+            // Prevent navigation if no account is selected
+            if (!selectedAccountId) {
+                alert('⚠️ Please select an account first to continue.\n\nYou can select an account from:\n• "All Accounts" dropdown in the top bar\n• "Top Accounts by ACV" table below\n• Account menu');
+                return;
+            }
+            
             let url = page;
             if (selectedAccountId) {
                 url += `?accountId=${selectedAccountId}`;
@@ -2473,17 +2502,35 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                 engagements = listEngagements();
             }
             
-            // Load business objectives count (from Growth Dashboard storage)
+            // Load business objectives count
             let objectivesCount = 0;
-            if (typeof GrowthDashboard_ObjectivesManager !== 'undefined' && selectedAccountId) {
-                objectivesCount = GrowthDashboard_ObjectivesManager.getObjectivesCount(selectedAccountId);
-                document.getElementById('entry-objectives').textContent = objectivesCount;
+            if (selectedAccountId) {
+                // Show count for selected account only
+                if (typeof GrowthDashboard_ObjectivesManager !== 'undefined') {
+                    objectivesCount = GrowthDashboard_ObjectivesManager.getObjectivesCount(selectedAccountId);
+                }
             } else {
-                document.getElementById('entry-objectives').textContent = '0';
+                // Calculate TOTAL across all accounts
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key.startsWith('gsd_objectives_')) {
+                        const accountId = key.replace('gsd_objectives_', '');
+                        try {
+                            const objectives = JSON.parse(localStorage.getItem(key));
+                            if (Array.isArray(objectives)) {
+                                objectivesCount += objectives.length;
+                            }
+                        } catch (e) {
+                            console.warn(`Could not parse objectives for ${accountId}`);
+                        }
+                    }
+                }
             }
+            document.getElementById('entry-objectives').textContent = objectivesCount;
             
-            // Entry points
-            document.getElementById('entry-opportunities').textContent = opportunities.filter(o => !['close-won', 'close-lost'].includes(o.status)).length;
+            // Entry points - opportunities count
+            const filteredOpportunities = opportunities.filter(o => !['close-won', 'close-lost'].includes(o.status));
+            document.getElementById('entry-opportunities').textContent = filteredOpportunities.length;
             
             // Count Architecture Themes (Target EA Vision) filtered by account context
             let architectureThemesCount = 0;
@@ -2515,6 +2562,16 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
             }
             document.getElementById('entry-engagements').textContent = architectureThemesCount;
             
+            // Toggle locked state on entry cards
+            const entryCards = document.querySelectorAll('.entry-card');
+            if (selectedAccountId) {
+                // Account selected - unlock cards
+                entryCards.forEach(card => card.classList.remove('locked'));
+            } else {
+                // No account selected - lock cards
+                entryCards.forEach(card => card.classList.add('locked'));
+            }
+            
             // Total ACV
             const totalACV = accounts.reduce((sum, a) => sum + a.ACV, 0);
             document.getElementById('total-acv').textContent = `€${(totalACV / 1000000).toFixed(1)}M`;
@@ -2531,18 +2588,8 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
             document.getElementById('win-rate').textContent = `${winRate.toFixed(0)}%`;
             document.getElementById('win-stats').textContent = `${won.length} won / ${lost.length} lost`;
             
-            // Quarterly forecast
-            const forecast = accountManager.getOpportunityForecast();
-            const currentQuarter = accountManager.getCurrentQuarter();
-            const quarterData = forecast[currentQuarter] || { count: 0, weightedValue: 0 };
-            document.getElementById('quarter-forecast').textContent = `€${(quarterData.weightedValue / 1000000).toFixed(1)}M`;
-            document.getElementById('forecast-count').textContent = `${quarterData.count} opportunities`;
-            
             // Top accounts
             renderTopAccounts(accounts.slice(0, 5));
-            
-            // Forecast chart
-            renderForecastChart(forecast);
             
             // Recent activity
             renderRecentActivity(accounts, opportunities, engagements);
@@ -2568,48 +2615,6 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                     </tr>
                 `;
             }).join('');
-        }
-
-        let forecastChart = null; // Store chart instance
-        
-        function renderForecastChart(forecast) {
-            const quarters = Object.keys(forecast).sort();
-            const labels = quarters;
-            const data = quarters.map(q => (forecast[q].weightedValue / 1000000).toFixed(1));
-            
-            const ctx = document.getElementById('forecast-chart');
-            
-            // Destroy existing chart if it exists
-            if (forecastChart) {
-                forecastChart.destroy();
-            }
-            
-            forecastChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Weighted Pipeline (€M)',
-                        data: data,
-                        backgroundColor: 'rgba(0, 107, 63, 0.8)',
-                        borderColor: 'rgba(0, 107, 63, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: { display: true, text: 'Value (€M)' }
-                        }
-                    }
-                }
-            });
         }
 
         function renderRecentActivity(accounts, opportunities, engagements) {
@@ -2670,6 +2675,12 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
         function openEngagementPlaybook() {
             console.log('🎯 openEngagementPlaybook called');
             
+            // Prevent navigation if no account is selected
+            if (!selectedAccountId) {
+                alert('⚠️ Please select an account first to continue.\n\nYou can select an account from:\n• "All Accounts" dropdown in the top bar\n• "Top Accounts by ACV" table below\n• Account menu');
+                return;
+            }
+            
             // Check if accountManager is initialized
             if (!accountManager) {
                 console.error('❌ AccountManager not initialized yet');
@@ -2678,34 +2689,9 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
             }
             
             try {
-                // If account context is already selected, use it directly
-                if (selectedAccountId) {
-                    console.log('✅ Using selected account context:', selectedAccountId);
-                    window.location.href = `EA_Engagement_Playbook.html?accountId=${selectedAccountId}`;
-                    return;
-                }
-                
-                // Otherwise, show account selector
-                const accounts = accountManager.listAccounts();
-                console.log('📊 Found accounts:', accounts.length);
-                
-                if (accounts.length === 0) {
-                    // No accounts - just open playbook
-                    console.log('➡️ No accounts, navigating to playbook directly');
-                    window.location.href = 'EA_Engagement_Playbook.html';
-                    return;
-                }
-                
-                if (accounts.length === 1) {
-                    // Only one account - auto-select it
-                    console.log('➡️ One account, auto-selecting:', accounts[0].name);
-                    window.location.href = `EA_Engagement_Playbook.html?accountId=${accounts[0].id}`;
-                    return;
-                }
-                
-                // Multiple accounts - show selector
-                console.log('📋 Multiple accounts, showing selector');
-                showAccountSelectorForEngagement(accounts);
+                // Use selected account context
+                console.log('✅ Using selected account context:', selectedAccountId);
+                window.location.href = `EA_Engagement_Playbook.html?accountId=${selectedAccountId}`;
             } catch (error) {
                 console.error('❌ Error in openEngagementPlaybook:', error);
                 alert('An error occurred. Please try again.');

@@ -788,6 +788,7 @@ async function generateWhiteSpotDemoData() {
  * Wrapper function for loading demo data - works in both standalone and integrated modes
  * Can be called from UI buttons in either context
  */
-async function loadWhiteSpotDemoData() {
-    await generateWhiteSpotDemoData();
-}
+// REMOVED: loadWhiteSpotDemoData() function - demo data loading disabled
+// async function loadWhiteSpotDemoData() {
+//     await generateWhiteSpotDemoData();
+// }

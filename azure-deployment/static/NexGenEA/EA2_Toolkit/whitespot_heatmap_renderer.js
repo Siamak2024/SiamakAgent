@@ -257,9 +257,6 @@ function renderEmptyCustomerState() {
                 <button class="btn btn-primary" onclick="switchTab('engagement', document.querySelector('[data-tab=engagement]'))" style="margin: 0;">
                     <i class="fas fa-arrow-left"></i> Go to Engagement Setup
                 </button>
-                <button class="btn btn-secondary" onclick="loadWhiteSpotDemoData()" style="margin: 0;">
-                    <i class="fas fa-flask"></i> Load Demo Data
-                </button>
                 <button class="btn btn-secondary" onclick="importFromStandalone()" style="margin: 0;">
                     <i class="fas fa-file-import"></i> Import from Standalone
                 </button>
@@ -427,9 +424,6 @@ function renderServiceCatalogView() {
                 <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick="showQuickCustomerModal()" style="font-size: 16px; padding: 12px 24px;">
                         <i class="fas fa-plus-circle"></i> Quick Add Customer
-                    </button>
-                    <button class="btn btn-secondary" onclick="loadWhiteSpotDemoData()" style="font-size: 16px; padding: 12px 24px;">
-                        <i class="fas fa-flask"></i> Load Demo Data (3 Customers)
                     </button>
                 </div>
                 <p style="font-size: 12px; color: #6b7280; margin-top: 16px;">

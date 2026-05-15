@@ -116,7 +116,7 @@ window.renderStakeholders = function() {
     // Build two-column layout with SVG overlay for relationship lines
     let html = `
         <div style="position: relative;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; position: relative;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 100px; position: relative;">
                 <!-- Left Column: Internal & Engagement Team -->
                 <div>
                     ${grouped['internal'].length > 0 ? `
@@ -408,6 +408,17 @@ window.toggleStakeholderHighlight = function(stakeholderId) {
     // Get relationships from clicked card
     const relationships = clickedCard.dataset.relationships ? clickedCard.dataset.relationships.split(',').filter(r => r) : [];
     const cardType = clickedCard.dataset.type;
+    
+    // DEBUG: Log relationship data
+    console.log('DEBUG - Card dataset:', clickedCard.dataset);
+    console.log('DEBUG - Relationships string:', clickedCard.dataset.relationships);
+    console.log('DEBUG - Relationships array:', relationships);
+    console.log('DEBUG - Card type:', cardType);
+    
+    // Also check the actual stakeholder data
+    const stakeholder = engagementManager.getEntity('stakeholders', stakeholderId);
+    console.log('DEBUG - Stakeholder object:', stakeholder);
+    console.log('DEBUG - Stakeholder customerRelationships:', stakeholder?.customerRelationships);
     
     // Reset all cards
     allCards.forEach(card => {
