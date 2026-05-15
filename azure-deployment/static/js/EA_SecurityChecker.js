@@ -39,7 +39,7 @@ class SecurityStatusChecker {
                                       !this.isProduction;
 
         // Determine which endpoint to test based on environment
-        const testEndpoint = this.isProduction ? '/api/load-projects' : '/api/models';
+        const testEndpoint = this.isProduction ? '/api/openai-proxy' : '/api/models';
         
         // Check Authentication by trying to access protected endpoint without auth
         try {
