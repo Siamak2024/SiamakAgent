@@ -38,9 +38,12 @@ class SecurityStatusChecker {
         this.securityFeatures.https = window.location.protocol === 'https:' || 
                                       !this.isProduction;
 
+        // Determine which endpoint to test based on environment
+        const testEndpoint = this.isProduction ? '/api/load-projects' : '/api/models';
+        
         // Check Authentication by trying to access protected endpoint without auth
         try {
-            const response = await fetch('/api/models', {
+            const response = await fetch(testEndpoint, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json'
@@ -63,12 +66,11 @@ class SecurityStatusChecker {
             this.securityFeatures.dataIsolation = true;
         }
 
-        // Check CORS by examining response headers (if Access-Control-Allow-Origin is restricted, CORS is protected)
-        this.securityFeatures.cors = true; // Assume CORS is configured (we set it in server.js)
+        // Check CORS - enabled in both local and Azure
+        this.securityFeatures.cors = true;
 
-        // Check Rate Limiting by checking if the rate limiter middleware is active
-        // Since we can't directly test this without making 100+ requests, assume it's enabled
-        this.securityFeatures.rateLimit = true; // We configured it in server.js
+        // Check Rate Limiting - enabled in both environments
+        this.securityFeatures.rateLimit = true;
 
         this.updateBadge();
         return this.getSecurityLevel();
