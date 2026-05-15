@@ -355,6 +355,18 @@ class EA_EngagementManager {
     
     localStorage.setItem(key, JSON.stringify(model));
     console.log(`✓ Engagement saved: ${engagementId} (${model.engagement.metadata.completeness}% complete, status: ${model.engagement.status})`);
+    console.log(`  💾 Persisted to localStorage: ${key}`);
+    console.log(`  📊 Data summary:`);
+    console.log(`     - Customers: ${model.customers?.length || 0}`);
+    console.log(`     - WhiteSpot Heatmaps: ${model.whiteSpotHeatmaps?.length || 0}`);
+    if (model.whiteSpotHeatmaps && model.whiteSpotHeatmaps.length > 0) {
+        model.whiteSpotHeatmaps.forEach(h => {
+            console.log(`       • ${h.id}: ${h.hlAssessments?.length || 0} services assessed`);
+        });
+    }
+    console.log(`     - Stakeholders: ${model.stakeholders?.length || 0}`);
+    console.log(`     - Applications: ${model.applications?.length || 0}`);
+    console.log(`     - Capabilities: ${model.capabilities?.length || 0}`);
   }
 
   /**

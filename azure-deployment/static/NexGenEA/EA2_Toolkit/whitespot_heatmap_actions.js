@@ -3,12 +3,595 @@
  * Action handlers for WhiteSpot Heatmap user interactions
  * Handles CRUD operations, modals, and state management
  * 
- * @version 1.0
- * @date 2026-04-20
+ * @version 2.0 (May 2026 - Status Modal with SPOC Selector)
+ * @date 2026-05-15
  */
 
 // Global state for current customer selection
 window.currentWhiteSpotCustomer = null;
+
+// SPOC Roster cache
+window.vivictaSPOCRoster = null;
+
+// ═══════════════════════════════════════════════════════════════════
+// SPOC ROSTER MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Load Vivicta SPOC roster from JSON
+ */
+async function loadVivictaSPOCRoster() {
+    if (window.vivictaSPOCRoster) {
+        return window.vivictaSPOCRoster;
+    }
+    
+    try {
+        const response = await fetch('../../data/vivicta_spoc_roster.json');
+        if (!response.ok) {
+            console.warn('SPOC roster not found, using empty roster');
+            window.vivictaSPOCRoster = { spocs: [] };
+            return window.vivictaSPOCRoster;
+        }
+        
+        const data = await response.json();
+        window.vivictaSPOCRoster = data;
+        console.log(`✅ Loaded ${data.spocs.length} Vivicta SPOCs`);
+        return data;
+    } catch (error) {
+        console.error('Failed to load SPOC roster:', error);
+        window.vivictaSPOCRoster = { spocs: [] };
+        return window.vivictaSPOCRoster;
+    }
+}
+
+/**
+ * Get SPOC by ID
+ */
+function getSPOCById(spocId) {
+    if (!window.vivictaSPOCRoster) {
+        console.warn('SPOC roster not loaded');
+        return null;
+    }
+    return window.vivictaSPOCRoster.spocs.find(s => s.id === spocId);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SERVICE STATUS MODAL (NEW - Replaces selection checkbox)
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Open service status update modal with SPOC selector
+ * @param {string} serviceId - L2 Service ID (e.g., "L2-001")
+ */
+async function openServiceStatusModal(serviceId) {
+    // Load SPOC roster if not already loaded
+    await loadVivictaSPOCRoster();
+    
+    // Get service details (check multiple sources)
+    let service = window.vivictaServiceLoader.getHLServiceById(serviceId);
+    
+    // If not found in Vivicta catalog, check custom services
+    if (!service && window.customServices) {
+        service = window.customServices.find(s => s.id === serviceId);
+    }
+    
+    // If still not found, check promoted services
+    if (!service && window.promotedServices && window.promotedServices.customL2Services) {
+        service = window.promotedServices.customL2Services.find(s => s.id === serviceId);
+        console.log(`🔍 Found service in promoted services: ${service ? service.name : 'not found'}`);
+    }
+    
+    if (!service) {
+        console.error(`❌ Service not found: ${serviceId}`);
+        console.log('Available sources:', {
+            vivicta: !!window.vivictaServiceLoader,
+            customServices: window.customServices?.length || 0,
+            promotedServices: window.promotedServices?.customL2Services?.length || 0
+        });
+        showNotification('Service not found', 'error');
+        return;
+    }
+    
+    console.log(`✓ Service found: ${service.name} (ID: ${service.id})`);
+    
+    // Get current heatmap and assessment (if exists)
+    const manager = typeof window.whitespotStandaloneManager !== 'undefined' 
+        ? window.whitespotStandaloneManager 
+        : window.engagementManager;
+    
+    const customers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
+    const heatmaps = manager.getHeatmaps ? manager.getHeatmaps() : (manager.getEntities('whiteSpotHeatmaps') || []);
+    
+    let currentAssessment = null;
+    let currentHeatmap = null;
+    
+    // For catalog view (no customer), we'll create an assessment placeholder
+    if (customers.length > 0) {
+        const selectedCustomerId = window.currentWhiteSpotCustomer || customers[0].id;
+        currentHeatmap = heatmaps.find(h => h.customerId === selectedCustomerId);
+        
+        if (currentHeatmap) {
+            currentAssessment = currentHeatmap.hlAssessments.find(a => a.l2ServiceId === serviceId);
+        }
+    }
+    
+    const currentState = currentAssessment?.assessmentState || 'POTENTIAL';
+    const currentSPOC = currentAssessment?.vivictaSPOC || null;
+    const currentNotes = currentAssessment?.notes || '';
+    const isInHeatmap = currentAssessment !== null; // Track if service is already in heatmap
+    
+    // Build status buttons with new color scheme
+    const statusOptions = [
+        { value: 'FULL', label: 'FULL', color: '#10b981', icon: 'check-circle', desc: 'All components delivered' },
+        { value: 'PARTIAL', label: 'PARTIAL', color: '#ec4899', icon: 'adjust', desc: 'Some components, gaps exist' },
+        { value: 'CUSTOM', label: 'CUSTOM', color: '#3b82f6', icon: 'wrench', desc: 'Bespoke solution' },
+        { value: 'LOST', label: 'LOST', color: '#ef4444', icon: 'times-circle', desc: 'Not delivered' },
+        { value: 'POTENTIAL', label: 'POTENTIAL', color: '#22c55e', icon: 'lightbulb', desc: 'Opportunity identified' }
+    ];
+    
+    const statusButtonsHTML = statusOptions.map(opt => `
+        <button 
+            class="status-button ${currentState === opt.value ? 'active' : ''}" 
+            data-status="${opt.value}"
+            onclick="selectStatusOption('${opt.value}')"
+            style="flex: 1; min-width: 140px; padding: 16px; border: 3px solid ${currentState === opt.value ? opt.color : '#e5e7eb'}; 
+                   background: ${currentState === opt.value ? opt.color + '15' : 'white'}; border-radius: 8px; cursor: pointer; 
+                   transition: all 0.2s; text-align: center;"
+            onmouseover="this.style.borderColor='${opt.color}'; this.style.background='${opt.color}15';"
+            onmouseout="if (!this.classList.contains('active')) { this.style.borderColor='#e5e7eb'; this.style.background='white'; } else { this.style.borderColor='${opt.color}'; this.style.background='${opt.color}15'; }">
+            <div style="font-size: 32px; color: ${opt.color}; margin-bottom: 8px;">
+                <i class="fas fa-${opt.icon}"></i>
+            </div>
+            <div style="font-weight: 700; font-size: 14px; color: #111827; margin-bottom: 4px;">
+                ${opt.label}
+            </div>
+            <div style="font-size: 11px; color: #6b7280;">
+                ${opt.desc}
+            </div>
+        </button>
+    `).join('');
+    
+    // Build SPOC selector dropdown
+    const spocOptions = window.vivictaSPOCRoster.spocs.map(spoc => `
+        <option value="${spoc.id}" ${currentSPOC && currentSPOC.id === spoc.id ? 'selected' : ''}>
+            ${spoc.name} - ${spoc.role}
+        </option>
+    `).join('');
+    
+    const modalContent = `
+        <div style="padding: 24px; max-width: 900px;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 24px;">
+                <div>
+                    <h3 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 8px;">
+                        ${isInHeatmap ? 'Update Service Assessment' : 'Add Service to Heatmap'}
+                    </h3>
+                    <div style="font-size: 14px; color: #6b7280;">
+                        <strong style="color: #111827;">${service.name}</strong><br>
+                        <span style="font-size: 12px;">Service ID: ${service.id} | ${service.l1ParentName || 'Other Services'}</span>
+                    </div>
+                </div>
+                <button class="btn btn-ghost" onclick="closeModal()" style="padding: 8px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <!-- Status Selection -->
+            <div style="margin-bottom: 24px;">
+                <label style="display: block; font-weight: 600; font-size: 13px; color: #374151; margin-bottom: 12px;">
+                    <i class="fas fa-traffic-light"></i> Assessment Status
+                </label>
+                <div id="status-buttons-container" style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    ${statusButtonsHTML}
+                </div>
+            </div>
+            
+            <!-- SPOC Selector -->
+            <div style="margin-bottom: 24px;">
+                <label style="display: block; font-weight: 600; font-size: 13px; color: #374151; margin-bottom: 8px;">
+                    <i class="fas fa-user-tie"></i> Vivicta SPOC (Service Practice Owner Contact)
+                </label>
+                <div style="display: flex; gap: 8px; align-items: start;">
+                    <select id="spoc-selector" class="form-input" onchange="handleSPOCSelection(this.value)" style="flex: 1; padding: 12px; font-size: 14px;">
+                        <option value="">-- No SPOC Assigned --</option>
+                        ${spocOptions}
+                        <option value="__ADD_NEW__" style="color: #10b981; font-weight: 600;">+ Add New SPOC</option>
+                    </select>
+                    <button onclick="toggleNewSPOCForm()" class="btn btn-secondary" style="padding: 12px 16px; white-space: nowrap;" title="Add new SPOC">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                ${currentSPOC ? `
+                    <div style="margin-top: 8px; padding: 12px; background: #f0fdf4; border: 1px solid #10b981; border-radius: 6px; font-size: 12px;">
+                        <i class="fas fa-info-circle" style="color: #10b981;"></i>
+                        <strong>${currentSPOC.name}</strong> (${currentSPOC.email})
+                    </div>
+                ` : ''}
+                
+                <!-- New SPOC Form (hidden by default) -->
+                <div id="new-spoc-form" style="display: none; margin-top: 12px; padding: 16px; background: #f9fafb; border: 2px solid #10b981; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="font-size: 14px; font-weight: 600; color: #111827; margin: 0;">
+                            <i class="fas fa-user-plus" style="color: #10b981;"></i> Add New SPOC
+                        </h4>
+                        <button onclick="toggleNewSPOCForm()" style="background: none; border: none; color: #6b7280; cursor: pointer; font-size: 18px; padding: 0;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div style="display: grid; gap: 12px;">
+                        <div>
+                            <label style="display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 4px;">Full Name *</label>
+                            <input type="text" id="new-spoc-name" class="form-input" placeholder="e.g., Anna Bergström" style="width: 100%; padding: 8px; font-size: 13px;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 4px;">Email *</label>
+                            <input type="email" id="new-spoc-email" class="form-input" placeholder="e.g., anna.bergstrom@vivicta.com" style="width: 100%; padding: 8px; font-size: 13px;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 4px;">Role/Title *</label>
+                            <input type="text" id="new-spoc-role" class="form-input" placeholder="e.g., Cloud Practice Lead" style="width: 100%; padding: 8px; font-size: 13px;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 4px;">Practice Area</label>
+                            <select id="new-spoc-practice" class="form-input" style="width: 100%; padding: 8px; font-size: 13px;">
+                                <option value="Infrastructure Services">Infrastructure Services</option>
+                                <option value="Data & AI Services">Data & AI Services</option>
+                                <option value="Security Services">Security Services</option>
+                                <option value="Business Automation & Integration">Business Automation & Integration</option>
+                                <option value="Enterprise Service Management">Enterprise Service Management</option>
+                            </select>
+                        </div>
+                        <button onclick="saveNewSPOC()" class="btn btn-primary" style="width: 100%; padding: 10px; font-size: 13px; margin-top: 8px;">
+                            <i class="fas fa-save"></i> Save New SPOC
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Notes/Comments -->
+            <div style="margin-bottom: 24px;">
+                <label style="display: block; font-weight: 600; font-size: 13px; color: #374151; margin-bottom: 8px;">
+                    <i class="fas fa-sticky-note"></i> Assessment Notes
+                </label>
+                <textarea id="assessment-notes" class="form-input" rows="4" placeholder="Add notes about service assessment, gaps, opportunities..." style="width: 100%; padding: 12px; font-size: 13px;">${currentNotes}</textarea>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 12px; justify-content: space-between; padding-top: 16px; border-top: 2px solid #e5e7eb;">
+                ${isInHeatmap ? `
+                    <button class="btn btn-ghost" onclick="removeServiceFromHeatmap('${service.id}', '${currentHeatmap ? currentHeatmap.id : ''}')" style="color: #ef4444;" title="Remove this service from heatmap">
+                        <i class="fas fa-trash-alt"></i> Remove from Heatmap
+                    </button>
+                ` : '<div></div>'}
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-secondary" onclick="closeModal()">
+                        Cancel
+                    </button>
+                    <button class="btn btn-primary" onclick="saveServiceAssessment('${service.id}', '${currentHeatmap ? currentHeatmap.id : ''}')">
+                        <i class="fas fa-save"></i> ${isInHeatmap ? 'Save Assessment' : 'Add to Heatmap'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    showModal(modalContent);
+    
+    // Store current state in window for retrieval
+    window.currentStatusModalState = currentState;
+}
+
+/**
+ * Toggle new SPOC form visibility
+ */
+function toggleNewSPOCForm() {
+    const form = document.getElementById('new-spoc-form');
+    const selector = document.getElementById('spoc-selector');
+    
+    if (form.style.display === 'none') {
+        form.style.display = 'block';
+        // Clear form fields
+        document.getElementById('new-spoc-name').value = '';
+        document.getElementById('new-spoc-email').value = '';
+        document.getElementById('new-spoc-role').value = '';
+        document.getElementById('new-spoc-practice').value = 'Infrastructure Services';
+    } else {
+        form.style.display = 'none';
+        // Reset selector if it was on "Add New"
+        if (selector.value === '__ADD_NEW__') {
+            selector.value = '';
+        }
+    }
+}
+
+/**
+ * Handle SPOC selection change
+ */
+function handleSPOCSelection(value) {
+    if (value === '__ADD_NEW__') {
+        toggleNewSPOCForm();
+    }
+}
+
+/**
+ * Save new SPOC to roster
+ */
+async function saveNewSPOC() {
+    const name = document.getElementById('new-spoc-name').value.trim();
+    const email = document.getElementById('new-spoc-email').value.trim();
+    const role = document.getElementById('new-spoc-role').value.trim();
+    const practice = document.getElementById('new-spoc-practice').value;
+    
+    // Validate required fields
+    if (!name || !email || !role) {
+        showNotification('Please fill in all required fields (Name, Email, Role)', 'error');
+        return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        showNotification('Please enter a valid email address', 'error');
+        return;
+    }
+    
+    // Generate initials
+    const nameParts = name.split(' ');
+    const initials = nameParts.length >= 2 
+        ? nameParts[0][0] + nameParts[nameParts.length - 1][0]
+        : name.substring(0, 2);
+    
+    // Generate new SPOC ID
+    const nextId = `SPOC-${String(window.vivictaSPOCRoster.spocs.length + 1).padStart(3, '0')}`;
+    
+    // Create new SPOC object
+    const newSPOC = {
+        id: nextId,
+        name: name,
+        email: email,
+        role: role,
+        practice: practice,
+        expertise: [],
+        initials: initials.toUpperCase(),
+        avatar: null
+    };
+    
+    // Add to roster
+    window.vivictaSPOCRoster.spocs.push(newSPOC);
+    
+    // Update dropdown
+    const selector = document.getElementById('spoc-selector');
+    const newOption = document.createElement('option');
+    newOption.value = newSPOC.id;
+    newOption.text = `${newSPOC.name} - ${newSPOC.role}`;
+    newOption.selected = true;
+    
+    // Insert before "Add New" option
+    const addNewOption = selector.querySelector('option[value=\"__ADD_NEW__\"]');
+    selector.insertBefore(newOption, addNewOption);
+    
+    // Hide form
+    toggleNewSPOCForm();
+    
+    showNotification(`SPOC "${name}" added successfully`, 'success');
+    
+    // Note: This saves to memory only. To persist, we'd need to save to a backend
+    console.log('✓ New SPOC added:', newSPOC);
+}
+
+/**
+ * Handle status button selection in modal
+ */
+function selectStatusOption(status) {
+    window.currentStatusModalState = status;
+    
+    // Update button UI
+    const buttons = document.querySelectorAll('.status-button');
+    const statusColors = {
+        'FULL': '#10b981',
+        'PARTIAL': '#ec4899',
+        'CUSTOM': '#3b82f6',
+        'LOST': '#ef4444',
+        'POTENTIAL': '#22c55e'
+    };
+    
+    buttons.forEach(btn => {
+        const btnStatus = btn.getAttribute('data-status');
+        const color = statusColors[btnStatus];
+        
+        if (btnStatus === status) {
+            btn.classList.add('active');
+            btn.style.borderColor = color;
+            btn.style.background = color + '15';
+        } else {
+            btn.classList.remove('active');
+            btn.style.borderColor = '#e5e7eb';
+            btn.style.background = 'white';
+        }
+    });
+}
+
+/**
+ * Save service assessment from modal
+ */
+function saveServiceAssessment(serviceId, heatmapId) {
+    const manager = typeof window.whitespotStandaloneManager !== 'undefined' 
+        ? window.whitespotStandaloneManager 
+        : window.engagementManager;
+    
+    const customers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
+    
+    // If no customers, show message and close
+    if (customers.length === 0) {
+        closeModal();
+        showNotification('Add a customer first to create assessments', 'info');
+        return;
+    }
+    
+    // Get or create heatmap
+    const selectedCustomerId = window.currentWhiteSpotCustomer || customers[0].id;
+    let heatmap = manager.getHeatmaps ? 
+        manager.getHeatmaps().find(h => h.customerId === selectedCustomerId) :
+        manager.getEntities('whiteSpotHeatmaps').find(h => h.customerId === selectedCustomerId);
+    
+    if (!heatmap) {
+        // Auto-create heatmap
+        const customer = customers.find(c => c.id === selectedCustomerId);
+        heatmap = autoCreateDefaultHeatmap(customer, manager);
+        if (!heatmap) {
+            showNotification('Failed to create heatmap', 'error');
+            return;
+        }
+    }
+    
+    // Get form values
+    const status = window.currentStatusModalState || 'POTENTIAL';
+    const spocId = document.getElementById('spoc-selector').value;
+    const notes = document.getElementById('assessment-notes').value;
+    
+    // Get SPOC details
+    let spocData = null;
+    if (spocId) {
+        const spoc = getSPOCById(spocId);
+        if (spoc) {
+            spocData = {
+                id: spoc.id,
+                name: spoc.name,
+                email: spoc.email,
+                role: spoc.role,
+                initials: spoc.initials
+            };
+        }
+    }
+    
+    // Find and update assessment
+    let assessment = heatmap.hlAssessments.find(a => a.l2ServiceId === serviceId);
+    
+    if (assessment) {
+        assessment.assessmentState = status;
+        assessment.vivictaSPOC = spocData;
+        assessment.notes = notes;
+    } else {
+        // Create new assessment
+        let serviceForAssessment = window.vivictaServiceLoader.getHLServiceById(serviceId);
+        
+        // Check custom services if not found in Vivicta catalog
+        if (!serviceForAssessment && window.customServices) {
+            serviceForAssessment = window.customServices.find(s => s.id === serviceId);
+        }
+        
+        if (!serviceForAssessment) {
+            showNotification('Service not found', 'error');
+            closeModal();
+            return;
+        }
+        
+        assessment = {
+            l2ServiceId: serviceId,
+            l2ServiceName: serviceForAssessment.name,
+            l1ServiceArea: serviceForAssessment.l1ParentName,
+            assessmentState: status,
+            vivictaSPOC: spocData,
+            l3Components: [],
+            score: 0,
+            apqcMappedCapabilities: [],
+            opportunityValue: 0,
+            notes: notes,
+            isCustom: serviceForAssessment.isCustom || false
+        };
+        heatmap.hlAssessments.push(assessment);
+    }
+    
+    // Update metadata
+    heatmap.metadata = heatmap.metadata || {};
+    heatmap.metadata.updatedAt = new Date().toISOString();
+    
+    // Save
+    console.log(`💾 Saving service assessment to heatmap:`);
+    console.log(`   Service: ${serviceForAssessment?.name} (${serviceId})`);
+    console.log(`   Status: ${status}`);
+    console.log(`   SPOC: ${spocData?.name || 'None'}`);
+    console.log(`   Heatmap ID: ${heatmap.id}`);
+    console.log(`   Total assessments: ${heatmap.hlAssessments.length}`);
+    
+    manager.updateEntity('whiteSpotHeatmaps', heatmap.id, heatmap);
+    
+    console.log(`✓ WhiteSpot heatmap saved to engagement (localStorage: ea_engagement_model_${manager.currentEngagementId})`);
+    
+    closeModal();
+    showNotification('Service assessment updated', 'success');
+    renderWhiteSpotHeatmap();
+}
+
+/**
+ * Remove service from WhiteSpot Heatmap
+ * @param {string} serviceId - L2 Service ID to remove
+ * @param {string} heatmapId - Heatmap ID (optional, auto-detected if not provided)
+ */
+function removeServiceFromHeatmap(serviceId, heatmapId) {
+    const manager = typeof window.whitespotStandaloneManager !== 'undefined' 
+        ? window.whitespotStandaloneManager 
+        : window.engagementManager;
+    
+    const customers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
+    
+    // If no customers, just close modal (nothing to remove from)
+    if (customers.length === 0) {
+        closeModal();
+        showNotification('No heatmap to remove from', 'info');
+        return;
+    }
+    
+    // Get heatmap
+    const selectedCustomerId = window.currentWhiteSpotCustomer || customers[0].id;
+    let heatmap = manager.getHeatmaps ? 
+        manager.getHeatmaps().find(h => h.customerId === selectedCustomerId) :
+        manager.getEntities('whiteSpotHeatmaps').find(h => h.customerId === selectedCustomerId);
+    
+    if (!heatmap) {
+        closeModal();
+        showNotification('No heatmap found for this customer', 'info');
+        return;
+    }
+    
+    // Find assessment index
+    const assessmentIndex = heatmap.hlAssessments.findIndex(a => a.l2ServiceId === serviceId);
+    
+    if (assessmentIndex === -1) {
+        closeModal();
+        showNotification('Service not found in heatmap', 'warning');
+        return;
+    }
+    
+    // Get service name for confirmation message
+    const assessment = heatmap.hlAssessments[assessmentIndex];
+    const serviceName = assessment.l2ServiceName;
+    
+    // Confirm removal
+    if (!confirm(`Remove "${serviceName}" from WhiteSpot Heatmap?\n\nThis will delete the assessment and all associated data.`)) {
+        return; // User cancelled
+    }
+    
+    // Remove assessment
+    heatmap.hlAssessments.splice(assessmentIndex, 1);
+    
+    // Update metadata
+    heatmap.metadata = heatmap.metadata || {};
+    heatmap.metadata.updatedAt = new Date().toISOString();
+    
+    // Save
+    console.log(`🗑️ Removing service from heatmap:`);
+    console.log(`   Service: ${serviceName} (${serviceId})`);
+    console.log(`   Heatmap ID: ${heatmap.id}`);
+    console.log(`   Remaining assessments: ${heatmap.hlAssessments.length}`);
+    
+    manager.updateEntity('whiteSpotHeatmaps', heatmap.id, heatmap);
+    
+    console.log(`✓ WhiteSpot heatmap saved to engagement after removal`);
+    
+    closeModal();
+    showNotification(`"${serviceName}" removed from heatmap`, 'success');
+    renderWhiteSpotHeatmap();
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // CUSTOMER SWITCHING

@@ -38,12 +38,14 @@
     <!-- WhiteSpot Heatmap Module -->
     <script src="vivicta_service_loader.js"></script>
     <script src="apqc_whitespot_integration.js"></script>
-    <script src="whitespot_heatmap_renderer.js"></script>
-    <script src="whitespot_heatmap_actions.js"></script>
+    <script src="whitespot_heatmap_renderer.js?v=3.4"></script>
+    <script src="whitespot_heatmap_actions.js?v=2.4"></script>
+    <script src="whitespot_bulk_selection.js?v=1.1"></script>
+    <script src="whitespot_custom_services.js?v=1.0"></script>
     <script src="whitespot_heatmap_enhancements.js"></script>
     <script src="whitespot_demo_data_generator.js"></script>
     <script src="whitespot_help_system.js"></script>
-    <script src="whitespot_service_promoter.js"></script>
+    <script src="whitespot_service_promoter.js?v=2.1"></script>
     <script src="whitespot_service_selector.js"></script>
     <script src="whitespot_catalog_selection.js"></script>
     <!-- V2.0 E2E Integration Modules -->
@@ -1269,7 +1271,7 @@
                             </div>
                             
                             <div class="vivicta-field-group">
-                                <label class="vivicta-label">EA Contact Name</label>
+                                <label class="vivicta-label">Customer EA</label>
                                 <input type="text" id="engagement-ea-contact" class="vivicta-input" placeholder="e.g., John Smith">
                                 <div class="vivicta-hint">Enterprise Architect assigned to this engagement</div>
                             </div>
@@ -1296,7 +1298,7 @@
                             </div>
                             
                             <div class="vivicta-field-group">
-                                <label class="vivicta-label">Customer Manager</label>
+                                <label class="vivicta-label">Customer Executive</label>
                                 <input type="text" id="engagement-name" class="vivicta-input" placeholder="e.g., John Smith" readonly style="background-color: #F5F7F6;">
                                 <div class="vivicta-hint">Account manager from account profile</div>
                             </div>
@@ -2164,7 +2166,7 @@
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">EA Contact Name *</label>
+                    <label class="form-label">Customer EA *</label>
                     <input type="text" id="new-engagement-contact" class="form-input" placeholder="e.g., John Smith">
                     <p style="font-size: 12px; color: #6b7280; margin-top: 4px;">Enterprise Architect assigned to this engagement</p>
                 </div>
@@ -3221,7 +3223,7 @@
             }
             
             if (!eaContact || eaContact.trim() === '') {
-                showToast('Validation Error', 'EA Contact Name is required', 'error');
+                showToast('Validation Error', 'Customer EA is required', 'error');
                 return;
             }
             
@@ -3605,6 +3607,66 @@
             return;
         }
         
+        /**
+         * Save Account Data - Called from top banner "Save Account" button
+         * Saves current engagement (which includes all data: customers, heatmaps, stakeholders, etc.)
+         * 
+         * @public
+         */
+        function saveAccountData() {
+            console.log('💾 Save Account button clicked');
+            
+            // Check if engagement exists
+            if (!engagementManager || !engagementManager.getCurrentEngagementId()) {
+                showToast('No Engagement', 'No active engagement to save. Create an engagement first.', 'warning');
+                console.warn('❌ No engagement to save');
+                return;
+            }
+            
+            try {
+                // Get current engagement model
+                const currentModel = engagementManager.getCurrentEngagement();
+                
+                if (!currentModel || !currentModel.engagement) {
+                    showToast('Save Failed', 'Invalid engagement data', 'error');
+                    console.error('❌ Invalid engagement model');
+                    return;
+                }
+                
+                // Save entire engagement (includes all entities: customers, heatmaps, stakeholders, etc.)
+                const engagementId = currentModel.engagement.id;
+                engagementManager.saveEngagement(engagementId, currentModel);
+                
+                // Log what was saved
+                console.log('✅ Account data saved successfully:');
+                console.log(`   Engagement ID: ${engagementId}`);
+                console.log(`   Account: ${currentModel.engagement.customerName}`);
+                console.log(`   Customers: ${currentModel.customers?.length || 0}`);
+                console.log(`   WhiteSpot Heatmaps: ${currentModel.whiteSpotHeatmaps?.length || 0}`);
+                if (currentModel.whiteSpotHeatmaps && currentModel.whiteSpotHeatmaps.length > 0) {
+                    currentModel.whiteSpotHeatmaps.forEach(h => {
+                        console.log(`      - ${h.id}: ${h.hlAssessments?.length || 0} services`);
+                    });
+                }
+                console.log(`   Stakeholders: ${currentModel.stakeholders?.length || 0}`);
+                console.log(`   Applications: ${currentModel.applications?.length || 0}`);
+                console.log(`   Capabilities: ${currentModel.capabilities?.length || 0}`);
+                
+                // Update UI
+                updateKPIs();
+                
+                // Show success message
+                showToast('Account Saved', 'All engagement data saved successfully (including WhiteSpot Heatmaps)', 'success');
+                
+            } catch (error) {
+                console.error('❌ Error saving account data:', error);
+                showToast('Save Failed', error.message || 'Failed to save account data', 'error');
+            }
+        }
+        
+        // Expose globally for menu button
+        window.saveAccountData = saveAccountData;
+        
         function saveEngagement() {
             // Get editable fields only
             const eaContact = document.getElementById('engagement-ea-contact').value;
@@ -3612,7 +3674,7 @@
             
             // Validate only the required editable field
             if (!eaContact || eaContact.trim() === '') {
-                alert('Please fill in the EA Contact Name');
+                alert('Please fill in the Customer EA');
                 return;
             }
             
@@ -3661,7 +3723,7 @@
                     industry: account.industry,
                     crmCustomerId: account.crmId || '',
                     eaContact: eaContact.trim(),
-                    accountManager: account.accountManager || '', // For auto-creating customer manager stakeholder
+                    accountManager: account.accountManager || '', // For auto-creating customer executive stakeholder
                     theme: theme ? theme.trim() : '',
                     createdDate: today.toISOString().split('T')[0],
                     customers: [account.name],
@@ -3702,7 +3764,7 @@
                 // Update status badge to reflect any status changes
                 updateEngagementStatusBadge(currentEngagement.engagement.status, currentEngagement.engagement.crmSyncStatus);
                 
-                showToast('Engagement Saved', 'EA Contact and Theme saved successfully', 'success');
+                showToast('Engagement Saved', 'Customer EA and Theme saved successfully', 'success');
             }
             
             updateKPIs();
@@ -3779,7 +3841,7 @@
                 document.getElementById('engagement-segment').value = eng.industry || eng.segment || '';
                 document.getElementById('engagement-crm-id').value = eng.crmCustomerId || '';
                 
-                // Load Customer Manager from account if we have account context
+                // Load Customer Executive from account if we have account context
                 if (window.currentAccountContext && window.currentAccountContext.accountManager) {
                     document.getElementById('engagement-name').value = window.currentAccountContext.accountManager;
                 } else {
@@ -3816,7 +3878,7 @@
             document.getElementById('engagement-customer-name').value = account.name || '';
             document.getElementById('engagement-segment').value = account.industry || '';
             document.getElementById('engagement-crm-id').value = account.crmId || '';
-            document.getElementById('engagement-name').value = account.accountManager || ''; // Customer Manager
+            document.getElementById('engagement-name').value = account.accountManager || ''; // Customer Executive
             
             // Clear engagement-specific fields
             document.getElementById('engagement-id').value = '';
