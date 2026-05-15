@@ -12,26 +12,24 @@ module.exports = async function (context, req) {
   // Validate API Key is configured
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    context.res = {
+    return {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
       body: {
         error: 'OpenAI API key not configured in Azure Function settings'
       }
     };
-    return;
   }
 
   // Validate request body
   if (!req.body) {
-    context.res = {
+    return {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
       body: {
         error: 'Request body is required'
       }
     };
-    return;
   }
 
   try {
@@ -71,13 +69,13 @@ module.exports = async function (context, req) {
     }
 
     if (!resolvedInput) {
-      context.res = {
+      return {
         status: 400,
+        headers: { 'Content-Type': 'application/json' },
         body: {
           error: '"input" field (or "messages" array) is required in request body'
         }
       };
-      return;
     }
 
     // Build payload — only include fields that were provided
@@ -121,7 +119,7 @@ module.exports = async function (context, req) {
       response.choices = [{ message: { content: response.output_text } }];
     }
 
-    context.res = {
+    return {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
       body: response
@@ -129,7 +127,7 @@ module.exports = async function (context, req) {
 
   } catch (error) {
     context.log('Error:', error.message);
-    context.res = {
+    return {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
       body: {
