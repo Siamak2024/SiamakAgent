@@ -36,8 +36,65 @@ async function renderWhiteSpotHeatmap() {
     const manager = isStandalone ? window.whitespotStandaloneManager : window.engagementManager;
     
     // Get customers and heatmaps
-    const customers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
+    let customers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
     const heatmaps = manager.getHeatmaps ? manager.getHeatmaps() : (manager.getEntities('whiteSpotHeatmaps') || []);
+    
+    console.log('�️ WhiteSpot Heatmap - Loading:');
+    console.log(`   Manager type: ${isStandalone ? 'standalone' : 'engagementManager'}`);
+    console.log(`   Customers: ${customers.length}`);
+    console.log(`   Heatmaps: ${heatmaps.length}`);
+    if (heatmaps.length > 0) {
+        heatmaps.forEach(h => {
+            console.log(`     - ${h.id}: ${h.hlAssessments.length} services assessed`);
+        });
+    }
+    
+    console.log('�🔍 Customer check:', {
+        customersCount: customers.length,
+        hasCurrentAccountContext: !!window.currentAccountContext,
+        currentAccountContext: window.currentAccountContext,
+        managerType: isStandalone ? 'standalone' : 'engagementManager'
+    });
+    
+    // AUTO-CREATE CUSTOMER FROM ACCOUNT if no customers exist
+    if (customers.length === 0) {
+        if (!window.currentAccountContext) {
+            console.warn('⚠️ window.currentAccountContext not set - cannot auto-create customer');
+        } else {
+            const account = window.currentAccountContext;
+            console.log(`🔄 Auto-creating customer from account: ${account.name} (${account.id})`);
+            
+            const autoCustomer = {
+                id: `CUST-${account.id.replace('ACC-', '')}`,
+                name: account.name,
+                industry: account.industry || 'Not specified',
+                size: account.size || 'Enterprise',
+                region: account.region || 'Not specified',
+                contactPerson: account.accountManager || '',
+                contactEmail: account.contactEmail || '',
+                description: account.businessStrategy || `Customer profile for ${account.name}`,
+                strategicPriorities: account.strategicPriorities || []
+            };
+            
+            console.log('✅ Customer object created:', autoCustomer);
+            
+            // Add customer to manager
+            if (manager.addCustomer) {
+                manager.addCustomer(autoCustomer);
+                console.log('✅ Called manager.addCustomer()');
+            } else if (manager.addEntity) {
+                manager.addEntity('customers', autoCustomer);
+                console.log('✅ Called manager.addEntity("customers", ...)');
+            } else {
+                console.error('❌ Manager has no addCustomer or addEntity method!');
+            }
+            
+            // Refresh customers list
+            customers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
+            
+            console.log(`✅ Customers after auto-create: ${customers.length}`, customers);
+        }
+    }
     
     // NO CUSTOMERS: Show service delivery model as reference catalog (doesn't require customer)
     if (customers.length === 0) {
@@ -68,8 +125,8 @@ async function renderWhiteSpotHeatmap() {
         console.log(`✅ Default WhiteSpot Heatmap auto-populated with ${heatmap.hlAssessments.length} services`);
     }
     
-    // Render full heatmap UI
-    container.innerHTML = renderHeatmapGrid(heatmap, selectedCustomer, customers);
+    // Render UNIFIED catalog/heatmap view
+    container.innerHTML = renderServiceCatalogView();
     
     // Initialize collapsible accordions
     initializeAccordions();
@@ -270,17 +327,43 @@ function renderEmptyCustomerState() {
  * Shows all HL services from Vivicta model + promoted L3 services as a base reference
  */
 function renderServiceCatalogView() {
-    // Get all HL services from Vivicta model + promoted services
-    const hlServices = typeof getAllServicesWithPromoted === 'function' 
+    // Get all HL services from Vivicta model + promoted services + custom services
+    const allHLServices = typeof getAllServicesWithPromoted === 'function' 
         ? getAllServicesWithPromoted() 
         : window.vivictaServiceLoader.getHLServices();
     
-    if (!hlServices || hlServices.length === 0) {
+    // Add custom services
+    const customServices = window.customServices || [];
+    const allServicesIncludingCustom = [...allHLServices, ...customServices];
+    
+    if (allServicesIncludingCustom.length === 0) {
         return renderErrorState('Service Model not loaded. Please refresh the page.');
     }
     
     const stats = window.vivictaServiceLoader.getStatistics();
     const promotedCount = (window.promotedServices?.services?.length || 0);
+    
+    // Get current heatmap to filter services
+    const manager = typeof window.whitespotStandaloneManager !== 'undefined' 
+        ? window.whitespotStandaloneManager 
+        : window.engagementManager;
+    const customers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
+    let currentHeatmap = null;
+    
+    if (customers.length > 0) {
+        const selectedCustomerId = window.currentWhiteSpotCustomer || customers[0].id;
+        const heatmaps = manager.getHeatmaps ? manager.getHeatmaps() : (manager.getEntities('whiteSpotHeatmaps') || []);
+        currentHeatmap = heatmaps.find(h => h.customerId === selectedCustomerId);
+    }
+    
+    // FILTER: Only show services that are IN the current heatmap
+    const hlServices = currentHeatmap 
+        ? allServicesIncludingCustom.filter(service => {
+            return currentHeatmap.hlAssessments.some(a => a.l2ServiceId === service.id);
+          })
+        : allServicesIncludingCustom; // Show all if no heatmap (reference catalog mode)
+    
+    console.log(`📊 Rendering ${hlServices.length} services (${currentHeatmap ? 'in heatmap' : 'reference catalog'})`);
     
     // Group services by L1 service area, then by sub-domain
     const servicesByArea = {};
@@ -297,49 +380,87 @@ function renderServiceCatalogView() {
         servicesByArea[area][subArea].push(service);
     });
     
-    // Build header
+    // Build header with bulk actions
+    const servicesInHeatmap = hlServices.length;
+    const totalAvailable = allServicesIncludingCustom.length;
+    
     let html = `
         <div style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div style="flex: 1;">
                     <h3 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 8px;">
                         <i class="fas fa-th" style="color: #10b981; margin-right: 8px;"></i>
-                        Service Delivery Model - Reference Catalog
+                        ${currentHeatmap ? 'WhiteSpot Heatmap - Service Coverage' : 'Vivicta Reference Catalog'}
                     </h3>
                     <p style="font-size: 14px; color: #6b7280; margin: 0;">
-                        ${hlServices.length} high-level services across ${Object.keys(servicesByArea).length} service areas
-                        ${promotedCount > 0 ? `<span style="margin-left: 12px; color: #10b981; font-weight: 600;"><i class="fas fa-star"></i> ${promotedCount} promoted from detailed catalog</span>` : ''}
-                        <span style="margin-left: 16px;">📋 Internal service catalog - add customers to create WhiteSpot assessments</span>
+                        ${currentHeatmap 
+                            ? `<strong>${servicesInHeatmap}</strong> services in heatmap <span style="color: #9ca3af;">• ${totalAvailable} total available</span>` 
+                            : `${totalAvailable} high-level services available`
+                        } across ${Object.keys(servicesByArea).length} service areas
+                        ${promotedCount > 0 ? `<span style="margin-left: 12px; color: #10b981; font-weight: 600;"><i class="fas fa-star"></i> ${promotedCount} promoted</span>` : ''}
                     </p>
                 </div>
                 <div style="display: flex; gap: 12px; align-items: center;">
-                    <div style="text-align: right; margin-right: 12px; padding-right: 12px; border-right: 2px solid #e5e7eb;">
-                        <div style="font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px;">Available</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #10b981; line-height: 1;">${stats.totalL3Components}</div>
-                        <div style="font-size: 11px; color: #6b7280;">Detailed Services</div>
-                    </div>
-                    <button onclick="selectAllCatalogServices()" class="btn btn-secondary" style="white-space: nowrap; padding: 12px 20px; font-size: 14px; font-weight: 600;">
-                        <i class="fas fa-check-double"></i> Select All
-                    </button>
+                    ${currentHeatmap ? `
+                        <div style="text-align: right; margin-right: 12px; padding-right: 12px; border-right: 2px solid #e5e7eb;">
+                            <div style="font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px;">In Heatmap</div>
+                            <div style="font-size: 24px; font-weight: 700; color: #10b981; line-height: 1;">${servicesInHeatmap}</div>
+                            <div style="font-size: 11px; color: #6b7280;">Services</div>
+                        </div>
+                    ` : `
+                        <div style="text-align: right; margin-right: 12px; padding-right: 12px; border-right: 2px solid #e5e7eb;">
+                            <div style="font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px;">Available</div>
+                            <div style="font-size: 24px; font-weight: 700; color: #10b981; line-height: 1;">${stats.totalL3Components}</div>
+                            <div style="font-size: 11px; color: #6b7280;">Detailed Services</div>
+                        </div>
+                    `}
+                    ${currentHeatmap ? `
+                        <button onclick="openCustomServiceCreator()" class="btn btn-secondary" style="white-space: nowrap; padding: 12px 20px; font-size: 14px; font-weight: 600; background: #3b82f6; color: white;">
+                            <i class="fas fa-plus-circle"></i> Add Custom Service
+                        </button>
+                    ` : ''}
                     <button onclick="openServiceBrowser()" class="btn btn-primary" style="white-space: nowrap; padding: 12px 20px; font-size: 14px; font-weight: 600;">
-                        <i class="fas fa-search-plus"></i> Browse Detailed Services
-                    </button>
-                    <button onclick="openServiceSelector()" class="btn btn-success" style="white-space: nowrap; padding: 12px 20px; font-size: 14px; font-weight: 600; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none;">
-                        <i class="fas fa-link"></i> Link to Engagement
+                        <i class="fas fa-search-plus"></i> Service Browser
                     </button>
                 </div>
             </div>
         </div>
+        
+        <!-- Bulk Actions Toolbar (only visible when heatmap exists) -->
+        ${currentHeatmap ? `
+            <div id="bulkActionsToolbar" style="background: white; border-radius: 12px; padding: 16px 24px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <span id="selectedCount" style="font-size: 14px; font-weight: 600; color: #111827;">0 selected</span>
+                        <button onclick="selectAllServices()" class="btn btn-ghost" style="font-size: 13px;">
+                            <i class="fas fa-check-double"></i> Select All
+                        </button>
+                        <button onclick="deselectAllServices()" class="btn btn-ghost" style="font-size: 13px;">
+                            <i class="fas fa-times"></i> Deselect All
+                        </button>
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <button onclick="bulkRemoveServices()" class="btn" style="background: #dc2626; color: white; font-size: 13px; font-weight: 600;">
+                            <i class="fas fa-trash-alt"></i> Remove Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+        ` : ''}
     `;
     
-    // Render services grouped by area and sub-domain
-    Object.keys(servicesByArea).sort().forEach(areaName => {
+    // Two-column layout: Render services in side-by-side columns
+    const areaNames = Object.keys(servicesByArea).sort();
+    
+    html += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">`;
+    
+    areaNames.forEach((areaName, index) => {
         const subDomains = servicesByArea[areaName];
         const totalInArea = Object.values(subDomains).flat().length;
         
         html += `
-            <div class="service-area-section" style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <h4 style="font-size: 18px; font-weight: 700; color: #065f46; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #d1fae5;">
+            <div class="service-area-section" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <h4 style="font-size: 16px; font-weight: 700; color: #065f46; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid #d1fae5;">
                     <i class="fas fa-layer-group" style="margin-right: 8px;"></i>
                     ${areaName} (${totalInArea} services)
                 </h4>
@@ -350,50 +471,145 @@ function renderServiceCatalogView() {
             const services = subDomains[subAreaName];
             
             html += `
-                <div style="margin-bottom: 24px;">
-                    <h5 style="font-size: 14px; font-weight: 600; color: #059669; margin-bottom: 12px; padding-left: 12px; border-left: 3px solid #10b981;">
+                <div style="margin-bottom: 20px;">
+                    <h5 style="font-size: 13px; font-weight: 600; color: #059669; margin-bottom: 10px; padding-left: 10px; border-left: 3px solid #10b981;">
                         ${subAreaName} (${services.length})
                     </h5>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;">
             `;
             
             services.forEach(service => {
                 const isPromoted = service.isPromoted || false;
-                const isSelected = window.catalogSelectedServices && window.catalogSelectedServices.includes(service.id);
+                const isCustomService = service.isCustom || false;
+                
+                // Check if service is in current heatmap
+                const manager = typeof window.whitespotStandaloneManager !== 'undefined' 
+                    ? window.whitespotStandaloneManager 
+                    : window.engagementManager;
+                const customers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
+                
+                let statusBadge = '';
+                let spocInitials = '';
+                let assessmentState = 'POTENTIAL';
+                let cardBackground = '#f9fafb';
+                let borderColor = '#e5e7eb';
+                let badgeColor = '#22c55e';
+                let heatmapId = null;
+                
+                if (customers.length > 0) {
+                    const selectedCustomerId = window.currentWhiteSpotCustomer || customers[0].id;
+                    const heatmaps = manager.getHeatmaps ? manager.getHeatmaps() : (manager.getEntities('whiteSpotHeatmaps') || []);
+                    const currentHeatmap = heatmaps.find(h => h.customerId === selectedCustomerId);
+                    
+                    if (currentHeatmap) {
+                        heatmapId = currentHeatmap.id;
+                        const assessment = currentHeatmap.hlAssessments.find(a => a.l2ServiceId === service.id);
+                        
+                        if (assessment) {
+                            assessmentState = assessment.assessmentState || 'POTENTIAL';
+                            
+                            // Set badge color based on status
+                            const statusColors = {
+                                'FULL': '#10b981',
+                                'PARTIAL': '#ec4899',
+                                'CUSTOM': '#3b82f6',
+                                'LOST': '#ef4444',
+                                'POTENTIAL': '#22c55e'
+                            };
+                            badgeColor = statusColors[assessmentState] || '#22c55e';
+                            
+                            // Set card background based on status
+                            const backgroundColors = {
+                                'FULL': '#f0fdf4',
+                                'PARTIAL': '#fce7f3',
+                                'CUSTOM': '#dbeafe',
+                                'LOST': '#fee2e2',
+                                'POTENTIAL': '#f0fdf4'
+                            };
+                            cardBackground = backgroundColors[assessmentState] || '#f9fafb';
+                            borderColor = statusColors[assessmentState] || '#e5e7eb';
+                            
+                            // Get SPOC if assigned
+                            if (assessment.vivictaSPOC) {
+                                spocInitials = assessment.vivictaSPOC.initials || assessment.vivictaSPOC.name.substring(0, 2).toUpperCase();
+                            }
+                        }
+                    }
+                }
+                
+                // Override background for custom services with light blue
+                if (isCustomService) {
+                    cardBackground = '#dbeafe';
+                    borderColor = '#3b82f6';
+                }
+                
+                const showCheckbox = customers.length > 0 && heatmapId; // Only show checkbox if heatmap exists
+                
                 html += `
-                    <div class="service-card-reference" 
+                    <div class="service-card-compact" 
                          data-service-id="${service.id}" 
-                         onclick="toggleCatalogServiceSelection('${service.id}')"
-                         style="background: ${isSelected ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' : (isPromoted ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : '#f9fafb')}; 
-                                border: 2px solid ${isSelected ? '#10b981' : (isPromoted ? '#10b981' : '#e5e7eb')}; 
-                                border-radius: 8px; 
-                                padding: 16px; 
+                         data-status="${assessmentState}"
+                         style="background: ${cardBackground}; 
+                                border: 2px solid ${borderColor}; 
+                                border-radius: 6px; 
+                                padding: 10px; 
                                 transition: all 0.2s; 
                                 position: relative; 
                                 cursor: pointer;
-                                box-shadow: ${isSelected ? '0 4px 12px rgba(16, 185, 129, 0.3)' : '0 1px 3px rgba(0,0,0,0.1)'};
+                                min-height: 85px;
+                                box-shadow: 0 1px 3px rgba(0,0,0,0.08);
                          "
-                         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
-                         onmouseout="this.style.transform=''; this.style.boxShadow='${isSelected ? '0 4px 12px rgba(16, 185, 129, 0.3)' : '0 1px 3px rgba(0,0,0,0.1)'}';">
+                         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'; this.style.borderColor='#10b981';"
+                         onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)'; this.style.borderColor='${borderColor}';">
                         
-                        <!-- Selection checkbox -->
-                        <div style="position: absolute; top: 8px; left: 8px; width: 24px; height: 24px; border-radius: 4px; background: ${isSelected ? '#10b981' : 'white'}; border: 2px solid ${isSelected ? '#10b981' : '#d1d5db'}; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
-                            ${isSelected ? '<i class="fas fa-check" style="color: white; font-size: 12px;"></i>' : ''}
+                        <!-- Checkbox for bulk selection (top-left, if heatmap exists) -->
+                        ${showCheckbox ? `
+                            <input type="checkbox" 
+                                   class="service-checkbox" 
+                                   data-service-id="${service.id}"
+                                   data-heatmap-id="${heatmapId}"
+                                   onchange="toggleHeatmapServiceSelection(this)"
+                                   onclick="event.stopPropagation()"
+                                   style="position: absolute; top: 8px; left: 8px; width: 16px; height: 16px; cursor: pointer; z-index: 50;">
+                        ` : ''}
+                        
+                        <!-- Status Badge (top-right) -->
+                        <div style="position: absolute; top: 6px; right: 6px; width: 10px; height: 10px; border-radius: 50%; background: ${badgeColor}; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2);" title="${assessmentState}"></div>
+                        
+                        <!-- Custom Service Badge (top-right, next to status badge) -->
+                        ${isCustomService ? '<div style="position: absolute; top: 6px; right: 22px; background: #3b82f6; color: white; border-radius: 3px; padding: 2px 4px; font-size: 8px; font-weight: 700; letter-spacing: 0.5px;" title="Customer-specific service">CUSTOM</div>' : ''}
+                        
+                        <!-- Promoted Badge (if needed, adjust position for custom badge) -->
+                        ${isPromoted ? `<div style="position: absolute; top: 6px; right: ${isCustomService ? '60px' : '22px'}; background: #fbbf24; color: white; border-radius: 50%; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; font-size: 8px;"><i class="fas fa-star"></i></div>` : ''}
+                        
+                        <!-- SPOC Avatar (below checkbox if exists, otherwise top-left) -->
+                        ${spocInitials ? `
+                            <div style="position: absolute; top: ${showCheckbox ? '28px' : '6px'}; left: ${showCheckbox ? '8px' : '6px'}; width: 20px; height: 20px; border-radius: 50%; background: #10b981; color: white; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.15);" title="SPOC assigned">
+                                ${spocInitials}
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Content (clickable area) -->
+                        <div onclick="openServiceStatusModal('${service.id}')" style="cursor: pointer; ${showCheckbox ? 'padding-top: 22px;' : ''}">
+                            <div style="font-size: 12px; font-weight: 700; color: #111827; margin-bottom: 3px; padding-right: 16px; line-height: 1.2;">
+                                ${service.name}
+                            </div>
+                            <div style="font-size: 10px; color: #6b7280; margin-bottom: 2px;">
+                                ${service.id}
+                            </div>
+                            ${isPromoted ? `<div style="font-size: 9px; color: #f59e0b; font-weight: 600; margin-bottom: 4px;"><i class="fas fa-arrow-up"></i> Promoted</div>` : ''}
                         </div>
                         
-                        ${isPromoted ? '<div style="position: absolute; top: 8px; right: 8px; background: #fbbf24; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px;"><i class="fas fa-star"></i></div>' : ''}
-                        
-                        <div style="font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 8px; padding-right: ${isPromoted ? '32px' : '0'}; padding-left: 32px;">
-                            ${service.name}
-                        </div>
-                        <div style="font-size: 12px; color: #6b7280; padding-left: 32px;">
-                            Service ID: ${service.id}
-                        </div>
-                        ${isPromoted ? '<div style="font-size: 11px; color: #f59e0b; font-weight: 600; margin-top: 8px; padding-left: 32px;"><i class="fas fa-arrow-up"></i> Promoted from detailed catalog</div>' : ''}
-                        ${isSelected ? '<div style="font-size: 11px; color: #10b981; font-weight: 600; margin-top: 8px; padding-left: 32px;"><i class="fas fa-check-circle"></i> Selected for engagement</div>' : ''}
-                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid ${isSelected ? '#10b981' : (isPromoted ? '#f59e0b' : '#e5e7eb')}; font-size: 11px; color: #9ca3af; padding-left: 32px;">
-                            <i class="fas fa-info-circle"></i> ${isSelected ? 'Click to deselect' : 'Click to select for engagement'}
-                        </div>
+                        <!-- Remove Icon (bottom-right corner, always visible when heatmap exists) -->
+                        ${showCheckbox ? `
+                            <button onclick="event.stopPropagation(); removeServiceFromHeatmap('${service.id}', '${heatmapId}');" 
+                                    style="position: absolute; bottom: 6px; right: 6px; width: 24px; height: 24px; border-radius: 4px; background: #006B3F; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all 0.2s; box-shadow: 0 2px 6px rgba(0,107,63,0.4); z-index: 100;"
+                                    onmouseover="this.style.background='#005030'; this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 8px rgba(0,107,63,0.6)';"
+                                    onmouseout="this.style.background='#006B3F'; this.style.transform='scale(1)'; this.style.boxShadow='0 2px 6px rgba(0,107,63,0.4)';"
+                                    title="Remove from heatmap">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        ` : ''}
                     </div>
                 `;
             });
@@ -409,29 +625,7 @@ function renderServiceCatalogView() {
         `;
     });
     
-    // Add action buttons at bottom with prominent call-to-action
-    html += `
-        <div style="text-align: center; margin-top: 32px; padding: 32px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 12px; border: 2px solid #10b981;">
-            <div style="max-width: 600px; margin: 0 auto;">
-                <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
-                <h4 style="font-size: 20px; font-weight: 700; color: #065f46; margin-bottom: 12px;">
-                    Ready to Build Your WhiteSpot Heatmap?
-                </h4>
-                <p style="font-size: 14px; color: #047857; margin-bottom: 24px;">
-                    This is a reference catalog showing all available services.<br>
-                    <strong>To create an interactive heatmap and assess services, add a customer below.</strong>
-                </p>
-                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="showQuickCustomerModal()" style="font-size: 16px; padding: 12px 24px;">
-                        <i class="fas fa-plus-circle"></i> Quick Add Customer
-                    </button>
-                </div>
-                <p style="font-size: 12px; color: #6b7280; margin-top: 16px;">
-                    Or go to <a href="#" onclick="switchTab('engagement', document.querySelector('[data-tab=engagement]')); return false;" style="color: #10b981; text-decoration: underline;">Engagement Setup</a> to manage customers
-                </p>
-            </div>
-        </div>
-    `;
+    html += `</div>`; // Close two-column grid
     
     return html;
 }

@@ -18,12 +18,16 @@ let promotedServices = {
     customL2Services: [] // Array of custom L2-like services created from L3
 };
 
+// Expose globally for other modules
+window.promotedServices = promotedServices;
+
 /**
  * Initialize promoted services from storage
  */
 function initPromotedServices() {
     if (window.engagementState && window.engagementState.promotedServices) {
         promotedServices = window.engagementState.promotedServices;
+        window.promotedServices = promotedServices; // Keep global reference in sync
     }
     console.log('✓ Promoted Services initialized:', promotedServices.services.length);
 }
@@ -46,10 +50,10 @@ function openServiceBrowser() {
             <div style="padding: 24px; border-bottom: 2px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);">
                 <div>
                     <h2 style="font-size: 24px; font-weight: 700; color: #065f46; margin: 0 0 8px 0;">
-                        <i class="fas fa-search-plus" style="color: #10b981;"></i> Browse Detailed Services
+                        <i class="fas fa-search-plus" style="color: #10b981;"></i> Service Browser
                     </h2>
                     <p style="font-size: 14px; color: #047857; margin: 0;">
-                        Explore ${stats.totalL3Components} detailed service components • Promote services to add them to your reference catalog
+                        Explore ${stats.totalL3Components} detailed service components • Add services to your WhiteSpot Heatmap
                     </p>
                 </div>
                 <button onclick="closeServiceBrowser()" style="background: transparent; border: none; font-size: 24px; color: #6b7280; cursor: pointer; padding: 8px; line-height: 1;">
@@ -103,7 +107,7 @@ function openServiceBrowser() {
             <div style="padding: 20px 24px; border-top: 2px solid #e5e7eb; background: #f9fafb; display: flex; justify-content: space-between; align-items: center;">
                 <div style="font-size: 13px; color: #6b7280;">
                     <i class="fas fa-info-circle" style="color: #10b981;"></i>
-                    Promoted services will appear in your reference catalog as high-level services
+                    Selected services will be added to your WhiteSpot Heatmap
                 </div>
                 <div style="display: flex; gap: 12px;">
                     <button onclick="closeServiceBrowser()" class="btn btn-secondary">
@@ -202,7 +206,7 @@ function renderL3ServicesGrid(services) {
                         </button>
                     ` : `
                         <button onclick="promoteService('${service.id}'); event.stopPropagation();" style="flex: 1; padding: 8px; background: #10b981; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
-                            <i class="fas fa-plus-circle"></i> Promote to High-Level
+                            <i class="fas fa-plus-circle"></i> Add to WhiteSpot Heatmap
                         </button>
                     `}
                     <button onclick="showServiceDetails('${service.id}'); event.stopPropagation();" style="padding: 8px 12px; background: transparent; color: #6b7280; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
@@ -298,6 +302,9 @@ function promoteService(serviceId) {
             });
         }
         
+        // Keep global reference in sync
+        window.promotedServices = promotedServices;
+        
         console.log(`✓ Promoted service: ${serviceId}`);
         
         // Update button text in footer
@@ -320,6 +327,9 @@ function unpromoteService(serviceId) {
         promotedServices.customL2Services = promotedServices.customL2Services.filter(
             s => s.originalL3Id !== serviceId
         );
+        
+        // Keep global reference in sync
+        window.promotedServices = promotedServices;
         
         console.log(`✓ Unpromoted service: ${serviceId}`);
         
@@ -364,24 +374,98 @@ function closeServiceBrowser() {
 
 /**
  * Save promoted services and close modal
+ * Now actually adds the promoted services to the active heatmap
  */
 function savePromotedServicesAndClose() {
-    // Save to engagement state
-    if (window.engagementState) {
-        window.engagementState.promotedServices = promotedServices;
+    if (promotedServices.customL2Services.length === 0) {
+        closeServiceBrowser();
+        return;
+    }
+    
+    // Get the manager (engagement or standalone)
+    const manager = typeof window.whitespotStandaloneManager !== 'undefined' 
+        ? window.whitespotStandaloneManager 
+        : window.engagementManager;
+    
+    if (!manager) {
+        console.error('❌ No manager available');
+        closeServiceBrowser();
+        return;
+    }
+    
+    // Get customers and current heatmap
+    const customers = manager.getCustomers ? manager.getCustomers() : (manager.getEntities('customers') || []);
+    
+    if (customers.length === 0) {
+        showNotification('No customer found. Please create a customer first.', 'warning');
+        closeServiceBrowser();
+        return;
+    }
+    
+    const selectedCustomerId = window.currentWhiteSpotCustomer || customers[0].id;
+    const heatmaps = manager.getHeatmaps ? manager.getHeatmaps() : (manager.getEntities('whiteSpotHeatmaps') || []);
+    let currentHeatmap = heatmaps.find(h => h.customerId === selectedCustomerId);
+    
+    // Create heatmap if it doesn't exist
+    if (!currentHeatmap) {
+        currentHeatmap = {
+            id: `WSH-${Date.now()}`,
+            customerId: selectedCustomerId,
+            hlAssessments: [],
+            createdAt: new Date().toISOString()
+        };
         
-        // Save to storage
-        if (typeof saveEngagementData === 'function') {
-            saveEngagementData();
+        if (manager.addHeatmap) {
+            manager.addHeatmap(currentHeatmap);
+        } else if (manager.addEntity) {
+            manager.addEntity('whiteSpotHeatmaps', currentHeatmap);
         }
         
-        console.log(`✓ Saved ${promotedServices.services.length} promoted services`);
+        console.log(`✓ Created new heatmap: ${currentHeatmap.id}`);
+    }
+    
+    // Add promoted services to heatmap
+    let addedCount = 0;
+    promotedServices.customL2Services.forEach(customService => {
+        // Check if service already exists in heatmap
+        const exists = currentHeatmap.hlAssessments.some(a => a.l2ServiceId === customService.id);
         
-        // Show success message
-        showNotification(`Successfully promoted ${promotedServices.services.length} services to high-level!`, 'success');
-        
-        // Refresh the reference catalog view
-        refreshReferenceCatalog();
+        if (!exists) {
+            // Add as POTENTIAL status by default
+            currentHeatmap.hlAssessments.push({
+                l2ServiceId: customService.id,
+                status: 'POTENTIAL',
+                notes: `Promoted from L3: ${customService.originalL3Id}`,
+                addedAt: new Date().toISOString(),
+                isPromoted: true
+            });
+            addedCount++;
+            console.log(`✓ Added promoted service to heatmap: ${customService.name}`);
+        }
+    });
+    
+    // Save the heatmap
+    if (manager.updateEntity) {
+        manager.updateEntity('whiteSpotHeatmaps', currentHeatmap.id, currentHeatmap);
+    }
+    
+    // Save to engagement state for persistence
+    if (window.engagementState) {
+        window.engagementState.promotedServices = promotedServices;
+    }
+    
+    console.log(`✅ Added ${addedCount} promoted services to heatmap ${currentHeatmap.id}`);
+    
+    // Show success message
+    if (addedCount > 0) {
+        showNotification(`Successfully added ${addedCount} services to WhiteSpot Heatmap!`, 'success');
+    } else {
+        showNotification('All selected services are already in the heatmap', 'info');
+    }
+    
+    // Refresh the heatmap view
+    if (typeof renderWhiteSpotHeatmap === 'function') {
+        renderWhiteSpotHeatmap();
     }
     
     closeServiceBrowser();

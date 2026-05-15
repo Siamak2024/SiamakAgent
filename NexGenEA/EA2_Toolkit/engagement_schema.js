@@ -966,6 +966,18 @@ const WhiteSpotHeatmapSchema = {
           default: [],
           description: 'Array of APQC capability IDs mapped to this L2 service'
         },
+        vivictaSPOC: {
+          type: 'object',
+          required: false,
+          properties: {
+            id: { type: 'string', required: true, description: 'SPOC ID from vivicta_spoc_roster.json' },
+            name: { type: 'string', required: true, description: 'Full name of SPOC' },
+            email: { type: 'string', required: true, description: 'Email address' },
+            role: { type: 'string', required: true, description: 'Role/title' },
+            initials: { type: 'string', description: 'Initials for avatar display' }
+          },
+          description: 'Vivicta Service Practice Owner Contact assigned to this service assessment'
+        },
         opportunityValue: { type: 'number', min: 0, description: 'Estimated opportunity value for PARTIAL/POTENTIAL/LOST states' },
         notes: { type: 'string' }
       }
@@ -1162,19 +1174,18 @@ const DefaultSegmentTemplates = [
  * The following fields are added to the Engagement object at runtime to support
  * WhiteSpot → Target EA → Roadmap E2E integration:
  * 
- * - selectedServices: string[] - Array of L2 service IDs selected from WhiteSpot Heatmap
- * - selectedServicesData: object[] - Full service objects with metadata (id, name, category, l1ParentId)
  * - serviceCategories: ServiceCategory[] - Array of ServiceCategory entities
  * - serviceToArchitectureMap: { [serviceId: string]: string[] } - Maps service IDs to architecture theme IDs
  * - serviceToInitiativeMap: { [serviceId: string]: string[] } - Maps service IDs to initiative IDs
  * - architectureToCategoryMap: { [archId: string]: string } - Maps architecture theme IDs to category IDs
  * - validationWarnings: object[] - Non-blocking validation warnings for service coverage gaps
  * 
+ * NOTE: selectedServices and selectedServicesData fields have been removed in favor of whiteSpotHeatmaps.
+ * Service selection is now tracked within WhiteSpot Heatmap assessments.
+ * 
  * Example:
  * {
  *   engagement: { ...EngagementSchema },
- *   selectedServices: ['L2-001', 'L2-015', 'L2-042'],
- *   selectedServicesData: [{ id: 'L2-001', name: 'Enterprise Architecture Advisory', ... }],
  *   serviceCategories: [{ id: 'CAT-001', name: 'App Modernization', linkedServices: [...] }],
  *   serviceToArchitectureMap: { 'L2-001': ['ARCH-001', 'ARCH-003'] },
  *   serviceToInitiativeMap: { 'L2-001': ['INIT-001'], 'L2-015': ['INIT-002', 'INIT-003'] },
