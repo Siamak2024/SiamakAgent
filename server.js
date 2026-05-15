@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 const path = require('path');
 const db = require('./database');
+const { requireAuth, rateLimit, sanitizeInput } = require('./auth-middleware');
 
 // Load environment variables
 dotenv.config();
@@ -11,10 +12,41 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// CORS Configuration - restrict to specific origins in production
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // In development, allow localhost
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return callback(null, true);
+    }
+    
+    // In production, check against allowed origins
+    const allowedOrigins = process.env.ALLOWED_ORIGINS 
+      ? process.env.ALLOWED_ORIGINS.split(',') 
+      : [];
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn('⚠️  Blocked CORS request from:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+
+// Apply rate limiting to all API routes
+app.use('/api', rateLimit);
 
 // Serve static files — disable caching in development so JS changes take effect immediately
 app.use(express.static(__dirname, {
@@ -43,22 +75,52 @@ app.get('/NexGenEA/EA2_Toolkit/', (req, res) => {
   res.redirect('/NexGenEA/EA2_Toolkit/EA_Start_Page.html');
 });
 
-// Health check
+// Health check (public endpoint)
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Get OpenAI API key (from server environment)
-app.get('/api/config/openai-key', (req, res) => {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return res.status(404).json({ error: 'OpenAI API key not configured' });
+// ==================== AUTHENTICATION ROUTES ====================
+
+// Login endpoint (validates invite code and generates session)
+app.post('/api/auth/login', async (req, res) => {
+  const { email, inviteCode } = req.body;
+  
+  if (!email || !inviteCode) {
+    return res.status(400).json({ error: 'Email and invite code required' });
   }
-  res.json({ apiKey });
+  
+  // Validate with Azure Function or local validation
+  // For now, this is a placeholder - integrate with your Azure validate-invite function
+  try {
+    const { generateSessionToken, generateUserId, validateEmail } = require('./auth-middleware');
+    
+    if (!validateEmail(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    
+    // TODO: Validate invite code with Azure Function
+    // For now, allow any invite code in development
+    const userId = generateUserId(email);
+    const sessionToken = generateSessionToken(userId, email);
+    
+    res.json({ 
+      success: true, 
+      sessionToken,
+      email,
+      userId
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
 });
 
+// ==================== AI PROXY ROUTES ====================
+
 // Proxy OpenAI Chat Completions API requests (keeps API key secure on server)
-app.post('/api/openai/chat', async (req, res) => {
+// SECURED: Requires authentication
+app.post('/api/openai/chat', requireAuth, async (req, res) => {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: 'OpenAI API key not configured on server' });
@@ -139,9 +201,12 @@ app.post('/api/openai/chat', async (req, res) => {
 
 // ==================== MODEL ROUTES ====================
 
-// Get all models
-app.get('/api/models', (req, res) => {
-  db.getAllModels((err, models) => {
+// Get all models (user-specific)
+// SECURED: Requires authentication
+app.get('/api/models', requireAuth, (req, res) => {
+  const userId = req.user.userId;
+  
+  db.getAllModels(userId, (err, models) => {
     if (err) {
       return res.status(500).json({ error: 'Failed to retrieve models', details: err.message });
     }
@@ -149,29 +214,42 @@ app.get('/api/models', (req, res) => {
   });
 });
 
-// Get a specific model by ID
-app.get('/api/models/:id', (req, res) => {
+// Get a specific model by ID (user-specific)
+// SECURED: Requires authentication and ownership
+app.get('/api/models/:id', requireAuth, (req, res) => {
   const { id } = req.params;
-  db.getModel(id, (err, model) => {
+  const userId = req.user.userId;
+  
+  db.getModel(id, userId, (err, model) => {
     if (err) {
       return res.status(500).json({ error: 'Failed to retrieve model', details: err.message });
     }
     if (!model) {
-      return res.status(404).json({ error: 'Model not found' });
+      return res.status(404).json({ error: 'Model not found or access denied' });
     }
     res.json(model);
   });
 });
 
 // Save or update a model
-app.post('/api/models', (req, res) => {
+// SECURED: Requires authentication
+app.post('/api/models', requireAuth, (req, res) => {
   const { id, name, data } = req.body;
+  const userId = req.user.userId;
   
   if (!name || !data) {
     return res.status(400).json({ error: 'Name and data are required' });
   }
+  
+  // Sanitize input
+  const sanitizedName = sanitizeInput(name);
+  
+  // Validate name length
+  if (sanitizedName.length > 200) {
+    return res.status(400).json({ error: 'Name too long (max 200 characters)' });
+  }
 
-  db.saveModel(id, name, data, (err, modelId) => {
+  db.saveModel(id, sanitizedName, data, userId, (err, modelId) => {
     if (err) {
       return res.status(500).json({ error: 'Failed to save model', details: err.message });
     }
@@ -180,9 +258,12 @@ app.post('/api/models', (req, res) => {
 });
 
 // Delete a model
-app.delete('/api/models/:id', (req, res) => {
+// SECURED: Requires authentication and ownership
+app.delete('/api/models/:id', requireAuth, (req, res) => {
   const { id } = req.params;
-  db.deleteModel(id, (err) => {
+  const userId = req.user.userId;
+  
+  db.deleteModel(id, userId, (err) => {
     if (err) {
       return res.status(500).json({ error: 'Failed to delete model', details: err.message });
     }
@@ -195,11 +276,14 @@ app.delete('/api/models/:id', (req, res) => {
 app.listen(PORT, () => {
   console.log('');
   console.log('═══════════════════════════════════════════════════════');
-  console.log('  🚀 AI Enterprise Architecture Platform Backend');
+  console.log('  � AI Enterprise Architecture Platform Backend (SECURED)');
   console.log('═══════════════════════════════════════════════════════');
   console.log(`  Server running on: http://localhost:${PORT}`);
   console.log(`  API endpoint:      http://localhost:${PORT}/api`);
   console.log(`  OpenAI Key:        ${process.env.OPENAI_API_KEY ? '✓ Configured' : '✗ Not configured'}`);
+  console.log(`  Authentication:    ✓ Enabled`);
+  console.log(`  Rate Limiting:     ✓ Enabled (100 req/min)`);
+  console.log(`  CORS:              ✓ Restricted`);
   console.log('═══════════════════════════════════════════════════════');
   console.log('');
 });

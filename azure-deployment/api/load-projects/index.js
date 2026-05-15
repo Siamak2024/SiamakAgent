@@ -6,12 +6,21 @@ function getStorage(key) {
 }
 
 module.exports = async function (context, req) {
+  // Get allowed origins from environment
+  const allowedOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',')
+    : ['https://white-cliff-010e13b10.2.azurestaticapps.net'];
+  
+  const origin = req.headers.origin || req.headers.Origin;
+  const corsOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+
   context.res = {
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': corsOrigin,
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Credentials': 'true'
     }
   };
   

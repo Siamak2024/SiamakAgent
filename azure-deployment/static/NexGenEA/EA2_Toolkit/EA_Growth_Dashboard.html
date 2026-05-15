@@ -24,6 +24,7 @@
     <script src="../../js/EA_ProjectManager.js?v=2026"></script>
     <script src="engagement_schema.js"></script>
     <script src="../../js/EA_EngagementManager.js"></script>
+    <script src="../../js/EA_SecurityChecker.js?v=2026"></script>
     <style>
         /* === NORDIC THEME OVERRIDES FOR GROWTH DASHBOARD === */
         body { margin: 0; background: var(--ea-background); }
@@ -45,6 +46,58 @@
             font-family: 'Manrope', sans-serif;
         }
         .header-date { color: rgba(255,255,255,0.68); font-size: 13px; }
+        
+        /* === SECURITY BADGE === */
+        .security-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .security-badge:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .security-badge i {
+            font-size: 13px;
+        }
+        .security-high {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-color: #4caf50;
+        }
+        .security-high:hover {
+            background: #c8e6c9;
+        }
+        .security-medium {
+            background: #fff3e0;
+            color: #e65100;
+            border-color: #ff9800;
+        }
+        .security-medium:hover {
+            background: #ffe0b2;
+        }
+        .security-low {
+            background: #ffebee;
+            color: #c62828;
+            border-color: #f44336;
+        }
+        .security-low:hover {
+            background: #ffcdd2;
+        }
+        .security-badge-pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
         
         .entry-points {
             display: grid;
@@ -844,8 +897,14 @@
         <header class="ea-header">
             <div class="header-content">
                 <div class="header-top">
-                    <div style="display: flex; align-items: center; flex: 1;">
+                    <div style="display: flex; align-items: center; flex: 1; gap: 16px;">
                         <h1><i class="fas fa-rocket"></i> Vivicta Growth Sprint Dashboard</h1>
+                        
+                        <!-- Security Status Badge -->
+                        <div id="security-status-badge" class="security-badge security-medium" onclick="if(securityChecker) securityChecker.showSecurityDetails()" title="Click to view security details">
+                            <i class="fas fa-shield-halved"></i>
+                            <span>Checking...</span>
+                        </div>
                         
                         <!-- Account Context Selector -->
                         <div class="account-selector-container">

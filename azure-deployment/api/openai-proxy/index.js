@@ -1,20 +1,134 @@
 /**
- * Azure Function - OpenAI Responses API Proxy
+ * Azure Function - OpenAI Responses API Proxy (SECURED)
  * Securely handles OpenAI Responses API requests using environment variable for API key
  * Prevents exposing API key to client-side code
+ * 
+ * SECURITY FEATURES:
+ * - Authentication required (session token)
+ * - Rate limiting per user
+ * - Restricted CORS
+ * - Input validation
  */
 
 const https = require('https');
+const { verifySessionToken } = require('../validate-invite');
+
+// Simple in-memory rate limiter
+const rateLimiter = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const MAX_REQUESTS = 100; // 100 requests per minute per user
+
+function checkRateLimit(userId) {
+  const now = Date.now();
+  if (!rateLimiter.has(userId)) {
+    rateLimiter.set(userId, []);
+  }
+  
+  const userRequests = rateLimiter.get(userId);
+  const recentRequests = userRequests.filter(time => now - time < RATE_LIMIT_WINDOW);
+  
+  if (recentRequests.length >= MAX_REQUESTS) {
+    return { allowed: false, remaining: 0 };
+  }
+  
+  recentRequests.push(now);
+  rateLimiter.set(userId, recentRequests);
+  
+  return { allowed: true, remaining: MAX_REQUESTS - recentRequests.length };
+}
 
 module.exports = async function (context, req) {
-  context.log('OpenAI Responses API proxy function triggered');
+  context.log('OpenAI Responses API proxy function triggered (SECURED)');
+
+  // Get allowed origins from environment or use default
+  const allowedOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',')
+    : ['https://white-cliff-010e13b10.2.azurestaticapps.net'];
+  
+  const origin = req.headers.origin || req.headers.Origin;
+  const corsOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': corsOrigin,
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Credentials': 'true'
+      },
+      body: null
+    };
+  }
+
+  // SECURITY: Require authentication
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    context.log.warn('Missing or invalid authorization header');
+    return {
+      status: 401,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': corsOrigin
+      },
+      body: {
+        error: 'Unauthorized',
+        message: 'Authentication required. Please provide a valid session token.'
+      }
+    };
+  }
+
+  const sessionToken = authHeader.substring(7);
+  const session = verifySessionToken(sessionToken);
+
+  if (!session.valid) {
+    context.log.warn('Invalid session token');
+    return {
+      status: 401,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': corsOrigin
+      },
+      body: {
+        error: 'Unauthorized',
+        message: session.error || 'Invalid or expired session'
+      }
+    };
+  }
+
+  const { userId, email } = session;
+  context.log('Authenticated user:', email);
+
+  // SECURITY: Check rate limit
+  const rateLimitResult = checkRateLimit(userId);
+  if (!rateLimitResult.allowed) {
+    context.log.warn('Rate limit exceeded for user:', userId);
+    return {
+      status: 429,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': corsOrigin,
+        'X-RateLimit-Remaining': '0',
+        'Retry-After': '60'
+      },
+      body: {
+        error: 'Too Many Requests',
+        message: 'Rate limit exceeded. Please wait a moment before trying again.'
+      }
+    };
+  }
 
   // Validate API Key is configured
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
+    context.log.error('OpenAI API key not configured');
     return {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': corsOrigin
+      },
       body: {
         error: 'OpenAI API key not configured in Azure Function settings'
       }
@@ -119,17 +233,26 @@ module.exports = async function (context, req) {
       response.choices = [{ message: { content: response.output_text } }];
     }
 
+    context.log('OpenAI request successful for user:', userId);
+
     return {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': corsOrigin,
+        'X-RateLimit-Remaining': rateLimitResult.remaining.toString()
+      },
       body: response
     };
 
   } catch (error) {
-    context.log('Error:', error.message);
+    context.log.error('Error processing OpenAI request:', error.message);
     return {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': corsOrigin
+      },
       body: {
         error: 'Failed to process OpenAI Responses API request',
         details: error.message
