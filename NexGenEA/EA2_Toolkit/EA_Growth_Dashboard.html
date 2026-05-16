@@ -1793,6 +1793,52 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
         // ═══════════════════════════════════════════════════════════════════
         // SAVE/LOAD ACCOUNT FUNCTIONS
         // ═══════════════════════════════════════════════════════════════════
+        
+        // APQC Framework data (loaded on demand for capability export)
+        let apqcFrameworkForExport = null;
+        
+        /**
+         * Load APQC framework for export if not already loaded
+         */
+        async function ensureAPQCFrameworkLoaded() {
+            if (apqcFrameworkForExport) return apqcFrameworkForExport;
+            
+            try {
+                const response = await fetch('/APAQ_Data/apqc_pcf_master.json');
+                if (!response.ok) throw new Error('Failed to load APQC framework');
+                apqcFrameworkForExport = await response.json();
+                console.log('📚 APQC Framework loaded for export:', apqcFrameworkForExport.categories.length, 'categories');
+                return apqcFrameworkForExport;
+            } catch (error) {
+                console.warn('⚠️ Could not load APQC framework for export:', error);
+                return null;
+            }
+        }
+        
+        /**
+         * Find capability by ID in APQC framework
+         */
+        function findAPQCCapabilityById(capabilityId) {
+            if (!apqcFrameworkForExport) return null;
+            
+            for (const l1 of apqcFrameworkForExport.categories) {
+                if (l1.id === capabilityId) return { ...l1, level: 1 };
+                
+                if (l1.children) {
+                    for (const l2 of l1.children) {
+                        if (l2.id === capabilityId) return { ...l2, l1_id: l1.id, l1_name: l1.name, level: 2 };
+                        
+                        if (l2.children) {
+                            for (const l3 of l2.children) {
+                                if (l3.id === capabilityId) return { ...l3, l1_id: l1.id, l1_name: l1.name, l2_id: l2.id, l2_name: l2.name, level: 3 };
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return null;
+        }
 
         async function saveCurrentAccount() {
             if (!selectedAccountId) {
@@ -1811,32 +1857,360 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                 
                 console.log('💾 Saving account:', account.name);
                 
+                // Load APQC framework for capability name/description lookup
+                await ensureAPQCFrameworkLoaded();
+                
                 // Gather all related data
-                const objectives = typeof EA_ObjectivesManager !== 'undefined' 
-                    ? await EA_ObjectivesManager.listObjectives()
-                        .then(objs => objs.filter(obj => obj.accountId === selectedAccountId))
+                const objectives = typeof GrowthDashboard_ObjectivesManager !== 'undefined' 
+                    ? GrowthDashboard_ObjectivesManager.listObjectivesByAccount(selectedAccountId)
                     : [];
                 
                 const opportunities = accountManager.listOpportunities()
                     .filter(opp => opp.accountId === selectedAccountId);
                 
-                const engagements = listEngagements()
-                    .filter(eng => eng.accountId === selectedAccountId);
+                // Load Capabilities data from localStorage (from Business Objectives page)
+                const capabilityLinksKey = `gsd_capability_links_${selectedAccountId}`;
+                const capabilityHeatmapKey = `gsd_capability_heatmap_${selectedAccountId}`;
+                const customCapabilitiesKey = `gsd_custom_capabilities_${selectedAccountId}`;
+                const aiAnalysisKey = `gsd_ai_analysis_${selectedAccountId}`;
+                const aiValidatedKey = `gsd_ai_validated_${selectedAccountId}`;
                 
-                // Create comprehensive export
+                const savedCapabilityLinks = localStorage.getItem(capabilityLinksKey);
+                const savedCapabilityHeatmap = localStorage.getItem(capabilityHeatmapKey);
+                const savedCustomCapabilities = localStorage.getItem(customCapabilitiesKey);
+                const savedAIAnalysis = localStorage.getItem(aiAnalysisKey);
+                const savedAIValidated = localStorage.getItem(aiValidatedKey);
+                
+                const capabilityLinksData = savedCapabilityLinks ? JSON.parse(savedCapabilityLinks) : {};
+                const capabilityHeatmapData = savedCapabilityHeatmap ? JSON.parse(savedCapabilityHeatmap) : {};
+                const customCapabilitiesData = savedCustomCapabilities ? JSON.parse(savedCustomCapabilities) : {};
+                const aiAnalysisData = savedAIAnalysis ? JSON.parse(savedAIAnalysis) : null;
+                const aiValidatedData = savedAIValidated ? JSON.parse(savedAIValidated) : {};
+                
+                // Build a consolidated capabilities array with full details
+                const linkedCapabilityIds = new Set();
+                Object.values(capabilityLinksData).forEach(capIds => {
+                    if (Array.isArray(capIds)) {
+                        capIds.forEach(id => linkedCapabilityIds.add(id));
+                    }
+                });
+                
+                // Create capability details array
+                const capabilitiesArray = Array.from(linkedCapabilityIds).map(capId => {
+                    const custom = customCapabilitiesData[capId] || {};
+                    const maturity = capabilityHeatmapData[capId] || 'unknown';
+                    const isAIValidated = aiValidatedData[capId] || false;
+                    
+                    // Find linked objectives
+                    const linkedObjectiveIds = [];
+                    Object.entries(capabilityLinksData).forEach(([objId, capIds]) => {
+                        if (Array.isArray(capIds) && capIds.includes(capId)) {
+                            linkedObjectiveIds.push(objId);
+                        }
+                    });
+                    
+                    // Look up APQC framework details for this capability
+                    const apqcDetails = findAPQCCapabilityById(capId);
+                    
+                    return {
+                        capabilityId: capId,
+                        apqcName: apqcDetails?.name || null,
+                        apqcDescription: apqcDetails?.description || null,
+                        apqcCode: apqcDetails?.code || null,
+                        apqcCategory: apqcDetails?.category || null,
+                        customName: custom.name || null,
+                        customDescription: custom.description || null,
+                        maturityLevel: maturity,
+                        linkedObjectiveIds: linkedObjectiveIds,
+                        aiValidated: isAIValidated,
+                        dataType: 'Capability'
+                    };
+                });
+                
+                // Get all engagements for this account
+                let allAccountEngagements = listEngagements()
+                    .filter(eng => eng.engagement && eng.engagement.accountId === selectedAccountId);
+                
+                // CRITICAL: Only keep the LATEST engagement (most recent by updatedAt)
+                // Sort by updatedAt descending and take the first one
+                allAccountEngagements.sort((a, b) => {
+                    const timeA = new Date(a.engagement?.metadata?.updatedAt || 0).getTime();
+                    const timeB = new Date(b.engagement?.metadata?.updatedAt || 0).getTime();
+                    return timeB - timeA; // Most recent first
+                });
+                
+                const latestEngagement = allAccountEngagements.length > 0 ? allAccountEngagements[0] : null;
+                const engagements = latestEngagement ? [latestEngagement] : [];
+                
+                // CLEANUP: Delete old duplicate engagements (keep only the latest)
+                if (allAccountEngagements.length > 1) {
+                    console.log(`🧹 Cleaning up ${allAccountEngagements.length - 1} old engagement versions...`);
+                    for (let i = 1; i < allAccountEngagements.length; i++) {
+                        const oldEngagement = allAccountEngagements[i];
+                        const oldKey = `ea_engagement_model_${oldEngagement.engagement.id}`;
+                        localStorage.removeItem(oldKey);
+                        console.log(`  ✓ Removed old engagement: ${oldEngagement.engagement.id}`);
+                    }
+                }
+                
+                // Calculate engagement data summary
+                let totalCapabilities = 0;
+                let totalStakeholders = 0;
+                let totalApplications = 0;
+                let totalWhiteSpots = 0;
+                let totalArchThemes = 0;
+                let totalServiceCategories = 0;
+                let totalServicesAssessed = 0;
+                let totalL3Components = 0;
+                let servicesByState = {};
+                let capabilitiesByMaturity = {};
+                
+                if (latestEngagement) {
+                    totalCapabilities = (latestEngagement.capabilities || []).length;
+                    totalStakeholders = (latestEngagement.stakeholders || []).length;
+                    totalApplications = (latestEngagement.applications || []).length;
+                    totalWhiteSpots = (latestEngagement.whiteSpotHeatmaps || []).length;
+                    totalArchThemes = (latestEngagement.architectureThemes || []).length;
+                    totalServiceCategories = (latestEngagement.serviceCategories || []).length;
+                    
+                    // Calculate detailed service breakdown from WhiteSpot heatmaps
+                    (latestEngagement.whiteSpotHeatmaps || []).forEach(heatmap => {
+                        const assessments = heatmap.hlAssessments || [];
+                        totalServicesAssessed += assessments.length;
+                        console.log(`📊 WhiteSpot heatmap ${heatmap.id || 'unknown'}: ${assessments.length} services`);
+                        
+                        assessments.forEach(assessment => {
+                            // Count by assessment state
+                            const state = assessment.assessmentState || 'UNKNOWN';
+                            servicesByState[state] = (servicesByState[state] || 0) + 1;
+                            
+                            // Count L3 components
+                            totalL3Components += (assessment.l3Components || []).length;
+                        });
+                    });
+                    
+                    // Calculate capability maturity breakdown
+                    (latestEngagement.capabilities || []).forEach(cap => {
+                        const maturity = cap.maturityLevel || cap.currentMaturity || 'UNKNOWN';
+                        capabilitiesByMaturity[maturity] = (capabilitiesByMaturity[maturity] || 0) + 1;
+                    });
+                }
+                
+                // Calculate objective statistics for reporting
+                const objectivesByCategory = objectives.reduce((acc, obj) => {
+                    const cat = obj.category || 'Uncategorized';
+                    acc[cat] = (acc[cat] || 0) + 1;
+                    return acc;
+                }, {});
+                
+                const objectivesByPriority = objectives.reduce((acc, obj) => {
+                    const pri = obj.priority || 'undefined';
+                    acc[pri] = (acc[pri] || 0) + 1;
+                    return acc;
+                }, {});
+                
+                // Calculate opportunity statistics
+                const opportunitiesByStage = opportunities.reduce((acc, opp) => {
+                    const stage = opp.stage || 'Unknown';
+                    acc[stage] = (acc[stage] || 0) + 1;
+                    return acc;
+                }, {});
+                
+                const opportunitiesByValue = opportunities.reduce((acc, opp) => {
+                    const value = parseFloat(opp.value || 0);
+                    return acc + value;
+                }, 0);
+                
+                // Log summary statistics
+                console.log('📊 Export Summary:', {
+                    objectives: objectives.length,
+                    capabilities: capabilitiesArray.length,
+                    opportunities: opportunities.length,
+                    engagements: engagements.length,
+                    totalServicesAssessed: totalServicesAssessed,
+                    totalWhiteSpots: totalWhiteSpots
+                });
+                
+                // Create comprehensive export with enhanced structure
                 const exportData = {
-                    version: "1.0",
+                    // === DOCUMENT METADATA ===
+                    exportSchema: "NextGenEA_AccountExport_v2.0",
                     exportDate: new Date().toISOString(),
-                    account: account,
-                    businessObjectives: objectives,
-                    opportunities: opportunities,
-                    engagements: engagements,
-                    metadata: {
-                        accountName: account.name,
-                        objectivesCount: objectives.length,
-                        opportunitiesCount: opportunities.length,
-                        engagementsCount: engagements.length,
-                        stakeholdersCount: account.stakeholders ? account.stakeholders.length : 0
+                    exportSource: "Vivicta Growth Sprint Dashboard",
+                    generatedBy: "NextGenEA V11",
+                    
+                    // === ACCOUNT INFORMATION ===
+                    account: {
+                        ...account,
+                        exportTimestamp: new Date().toISOString()
+                    },
+                    
+                    // === BUSINESS STRATEGY LAYER ===
+                    businessObjectives: objectives.map(obj => ({
+                        ...obj,
+                        dataType: 'BusinessObjective'
+                    })),
+                    
+                    // === SALES PIPELINE ===
+                    opportunities: opportunities.map(opp => ({
+                        ...opp,
+                        dataType: 'Opportunity'
+                    })),
+                    
+                    // === CAPABILITIES FROM BUSINESS OBJECTIVES ===
+                    capabilities: capabilitiesArray,
+                    
+                    // === CAPABILITY METADATA ===
+                    capabilityMetadata: {
+                        capabilityLinks: capabilityLinksData,
+                        capabilityHeatmap: capabilityHeatmapData,
+                        customCapabilities: customCapabilitiesData,
+                        aiAnalysisResults: aiAnalysisData,
+                        aiValidatedCapabilities: aiValidatedData
+                    },
+                    
+                    // === EA ENGAGEMENT DETAILS ===
+                    engagements: engagements.map(eng => ({
+                        ...eng,
+                        dataType: 'EAEngagement',
+                        exportMetadata: {
+                            capabilitiesCount: (eng.capabilities || []).length,
+                            stakeholdersCount: (eng.stakeholders || []).length,
+                            applicationsCount: (eng.applications || []).length,
+                            whiteSpotHeatmapsCount: (eng.whiteSpotHeatmaps || []).length,
+                            architectureThemesCount: (eng.architectureThemes || []).length,
+                            serviceCategoriesCount: (eng.serviceCategories || []).length
+                        }
+                    })),
+                    
+                    // === COMPREHENSIVE SUMMARY FOR REPORTING ===
+                    summary: {
+                        account: {
+                            id: account.id,
+                            name: account.name,
+                            industry: account.industry || 'N/A',
+                            segment: account.segment || 'N/A',
+                            totalStakeholders: account.stakeholders ? account.stakeholders.length : 0
+                        },
+                        objectives: {
+                            total: objectives.length,
+                            byCategory: objectivesByCategory,
+                            byPriority: objectivesByPriority,
+                            withKPIs: objectives.filter(o => o.kpi).length
+                        },
+                        capabilities: {
+                            total: capabilitiesArray.length,
+                            byMaturity: capabilitiesArray.reduce((acc, cap) => {
+                                const level = cap.maturityLevel || 'unknown';
+                                acc[level] = (acc[level] || 0) + 1;
+                                return acc;
+                            }, {}),
+                            aiValidatedCount: capabilitiesArray.filter(c => c.aiValidated).length,
+                            customizedCount: capabilitiesArray.filter(c => c.customName || c.customDescription).length,
+                            linkedToObjectives: Object.keys(capabilityLinksData).length
+                        },
+                        opportunities: {
+                            total: opportunities.length,
+                            byStage: opportunitiesByStage,
+                            totalValue: opportunitiesByValue,
+                            averageValue: opportunities.length > 0 ? (opportunitiesByValue / opportunities.length) : 0
+                        },
+                        engagement: {
+                            total: engagements.length,
+                            latestEngagementId: latestEngagement ? latestEngagement.engagement?.id : null,
+                            capabilities: totalCapabilities,
+                            capabilitiesByMaturity: capabilitiesByMaturity,
+                            stakeholders: totalStakeholders,
+                            applications: totalApplications,
+                            whiteSpotHeatmaps: totalWhiteSpots,
+                            totalServicesAssessed: totalServicesAssessed,
+                            servicesByState: servicesByState,
+                            totalL3Components: totalL3Components,
+                            architectureThemes: totalArchThemes,
+                            serviceCategories: totalServiceCategories
+                        }
+                    },
+                    
+                    // === DATA STRUCTURE DOCUMENTATION ===
+                    dataStructure: {
+                        description: "NextGenEA Account Export - Complete account data including business objectives, capabilities, opportunities, and EA engagement details",
+                        version: "2.0",
+                        sections: [
+                            {
+                                name: "account",
+                                description: "Core account information including name, industry, segment, and stakeholders",
+                                recordType: "object"
+                            },
+                            {
+                                name: "businessObjectives",
+                                description: "Strategic business objectives linked to this account with priorities and KPIs",
+                                recordType: "array",
+                                itemType: "BusinessObjective"
+                            },
+                            {
+                                name: "capabilities",
+                                description: "APQC-based capabilities linked to business objectives with maturity assessments (from Capability Heat Map)",
+                                recordType: "array",
+                                itemType: "Capability",
+                                fields: [
+                                    "capabilityId (APQC PCF identifier)",
+                                    "customName (user-customized name)",
+                                    "customDescription (user-customized description)",
+                                    "maturityLevel (red/yellow/green/unknown)",
+                                    "linkedObjectiveIds (objectives this capability supports)",
+                                    "aiValidated (boolean)"
+                                ]
+                            },
+                            {
+                                name: "capabilityMetadata",
+                                description: "Complete capability configuration including links, heatmap, customizations, and AI analysis",
+                                recordType: "object",
+                                subfields: [
+                                    "capabilityLinks (objective-to-capability mappings)",
+                                    "capabilityHeatmap (maturity/color status)",
+                                    "customCapabilities (custom names/descriptions)",
+                                    "aiAnalysisResults (AI recommendations)",
+                                    "aiValidatedCapabilities (AI validation flags)"
+                                ]
+                            },
+                            {
+                                name: "opportunities",
+                                description: "Sales opportunities associated with this account",
+                                recordType: "array",
+                                itemType: "Opportunity"
+                            },
+                            {
+                                name: "engagements",
+                                description: "EA Engagement Playbook data including capabilities, stakeholders, applications, WhiteSpot heatmaps, and architecture themes",
+                                recordType: "array",
+                                itemType: "EAEngagement",
+                                nestedStructure: [
+                                    "engagement (metadata)",
+                                    "capabilities",
+                                    "stakeholders",
+                                    "applications",
+                                    "whiteSpotHeatmaps",
+                                    "architectureThemes",
+                                    "serviceCategories"
+                                ]
+                            },
+                            {
+                                name: "summary",
+                                description: "Aggregated statistics and counts for quick report generation",
+                                recordType: "object"
+                            }
+                        ],
+                        reportingHints: {
+                            businessObjectivesReport: "Use summary.objectives for high-level metrics, businessObjectives array for detailed analysis",
+                            capabilitiesReport: "Use capabilities[] array for capability heatmap visualization - includes APQC IDs, maturity levels, and objective linkages. Use capabilityMetadata for full configuration details",
+                            capabilityMaturityHeatmap: "summary.capabilities.byMaturity provides counts by maturity level (red/yellow/green/unknown)",
+                            opportunitiesReport: "Use summary.opportunities.byStage for pipeline visualization, opportunities array for details",
+                            engagementReport: "Use engagements[0] for latest engagement data, summary.engagement for overview metrics",
+                            engagementCapabilitiesReport: "Extract capabilities from engagements[0].capabilities - includes detailed EA engagement capability assessments",
+                            whiteSpotServicesReport: "Extract service assessments from engagements[0].whiteSpotHeatmaps[].hlAssessments - includes L2 service details, L3 components, assessment state, and opportunity values",
+                            stakeholderReport: "Combine account.stakeholders (account-level) with engagements[0].stakeholders (engagement-level)",
+                            detailedServiceBreakdown: "Each WhiteSpot heatmap contains hlAssessments array with: l2ServiceId, l2ServiceName, l1ServiceArea, assessmentState, l3Components[], apqcMappedCapabilities[], score, opportunityValue, notes"
+                        }
                     }
                 };
                 
@@ -1855,7 +2229,38 @@ style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-d
                 URL.revokeObjectURL(url);
                 
                 console.log('✅ Account saved:', filename);
-                alert(`✅ Account saved successfully!\n\nFile: ${filename}\n\n📊 Included:\n• Account details\n• ${objectives.length} business objectives\n• ${opportunities.length} opportunities\n• ${engagements.length} engagements`);
+                
+                // Log cleanup summary if duplicates were removed
+                if (allAccountEngagements.length > 1) {
+                    console.log(`✅ Cleaned up ${allAccountEngagements.length - 1} old engagement versions. Kept latest only.`);
+                }
+                
+                // Enhanced notification with full data breakdown
+                let message = `✅ Account saved successfully!\n\nFile: ${filename}\n\n📊 Included:\n`;
+                message += `• Account details\n`;
+                message += `• ${objectives.length} business objective${objectives.length !== 1 ? 's' : ''}\n`;
+                message += `• ${capabilitiesArray.length} capabilit${capabilitiesArray.length !== 1 ? 'ies' : 'y'} (from Capability Heat Map)\n`;
+                message += `• ${opportunities.length} opportunit${opportunities.length !== 1 ? 'ies' : 'y'}\n`;
+                message += `• ${engagements.length} EA engagement${engagements.length !== 1 ? 's' : ''}\n`;
+                if (engagements.length > 0) {
+                    message += `\n🎯 EA Engagement Data:\n`;
+                    message += `• ${totalCapabilities} engagement capabilit${totalCapabilities !== 1 ? 'ies' : 'y'}\n`;
+                    message += `• ${totalStakeholders} stakeholder${totalStakeholders !== 1 ? 's' : ''}\n`;
+                    message += `• ${totalApplications} application${totalApplications !== 1 ? 's' : ''}\n`;
+                    message += `• ${totalWhiteSpots} WhiteSpot heatmap${totalWhiteSpots !== 1 ? 's' : ''}`;
+                    if (totalServicesAssessed > 0) {
+                        message += ` (${totalServicesAssessed} service${totalServicesAssessed !== 1 ? 's' : ''} assessed)`;
+                    }
+                    message += `\n`;
+                    message += `• ${totalArchThemes} architecture theme${totalArchThemes !== 1 ? 's' : ''}`;
+                }
+                
+                // Add cleanup note if old versions were removed
+                if (allAccountEngagements.length > 1) {
+                    message += `\n\n🧹 Cleaned up ${allAccountEngagements.length - 1} old engagement version${allAccountEngagements.length - 1 !== 1 ? 's' : ''} (kept latest only)`;
+                }
+                
+                alert(message);
                 
             } catch (error) {
                 console.error('❌ Save error:', error);

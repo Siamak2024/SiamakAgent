@@ -443,12 +443,28 @@ class EA_EngagementManager {
   loadEngagementByAccountId(accountId) {
     console.log(`Loading engagement for account: ${accountId}`);
     
-    // Find engagement associated with this account
+    // Find all engagements associated with this account
     const engagements = this.listEngagements();
-    const accountEngagement = engagements.find(e => e.accountId === accountId || e.id.includes(accountId));
+    const accountEngagements = engagements.filter(e => {
+      // Support both old (accountId at root) and new (accountId in engagement object) structures
+      const engAccountId = e.accountId || (e.engagement && e.engagement.accountId);
+      return engAccountId === accountId || e.id.includes(accountId);
+    });
     
-    if (accountEngagement) {
-      return this.loadEngagement(accountEngagement.id);
+    if (accountEngagements.length > 0) {
+      // If multiple engagements found, return the most recent one
+      if (accountEngagements.length > 1) {
+        console.warn(`⚠️ Found ${accountEngagements.length} engagements for account ${accountId}. Using most recent.`);
+        accountEngagements.sort((a, b) => {
+          const timeA = new Date(a.engagement?.metadata?.updatedAt || 0).getTime();
+          const timeB = new Date(b.engagement?.metadata?.updatedAt || 0).getTime();
+          return timeB - timeA; // Most recent first
+        });
+      }
+      
+      const latestEngagement = accountEngagements[0];
+      console.log(`✓ Found engagement for account ${accountId}: ${latestEngagement.id || latestEngagement.engagement?.id}`);
+      return this.loadEngagement(latestEngagement.id || latestEngagement.engagement?.id);
     }
     
     console.warn(`No engagement found for account: ${accountId}`);
