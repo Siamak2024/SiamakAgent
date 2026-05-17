@@ -299,11 +299,483 @@ function saveApplication() {
     showToast('Application Saved', id ? `Updated ${name}` : `Added ${name}`, 'success');
 }
 
-function renderApplications() {
-    const applications = engagementManager.getEntities('applications') || [];
-    const container = document.getElementById('applications-container');
+// ═══════════════════════════════════════════════════════════════════
+// APPLICATION SORT & FILTER STATE
+// ═══════════════════════════════════════════════════════════════════
+
+let applicationSortState = {
+    column: 'name',
+    direction: 'asc'
+};
+
+let applicationFilterState = {
+    searchText: '',
+    domain: '',
+    lifecycle: '',
+    risk: ''
+};
+
+let applicationSelectionState = {
+    selectedIds: new Set(),
+    selectAll: false
+};
+
+// IMPORTANT: Never reset this state unless explicitly clearing selection
+
+// Global flag to track if checkbox listeners are attached
+let checkboxListenerInitialized = false;
+
+/**
+ * Sort applications by column
+ */
+function sortApplications(column) {
+    // Toggle direction if same column, otherwise default to asc
+    if (applicationSortState.column === column) {
+        applicationSortState.direction = applicationSortState.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        applicationSortState.column = column;
+        applicationSortState.direction = 'asc';
+    }
     
-    if (applications.length === 0) {
+    renderApplications();
+}
+
+/**
+ * Filter applications based on current filter state
+ */
+function filterApplications() {
+    // Update filter state from UI
+    applicationFilterState.searchText = (document.getElementById('app-search-input')?.value || '').toLowerCase();
+    applicationFilterState.domain = document.getElementById('filter-domain')?.value || '';
+    applicationFilterState.lifecycle = document.getElementById('filter-lifecycle')?.value || '';
+    applicationFilterState.risk = document.getElementById('filter-risk')?.value || '';
+    
+    renderApplications();
+}
+
+/**
+ * Clear all application filters
+ */
+function clearApplicationFilters() {
+    applicationFilterState = {
+        searchText: '',
+        domain: '',
+        lifecycle: '',
+        risk: ''
+    };
+    
+    // Reset UI
+    const searchInput = document.getElementById('app-search-input');
+    if (searchInput) searchInput.value = '';
+    
+    const domainFilter = document.getElementById('filter-domain');
+    if (domainFilter) domainFilter.value = '';
+    
+    const lifecycleFilter = document.getElementById('filter-lifecycle');
+    if (lifecycleFilter) lifecycleFilter.value = '';
+    
+    const riskFilter = document.getElementById('filter-risk');
+    if (riskFilter) riskFilter.value = '';
+    
+    renderApplications();
+}
+
+/**
+ * Apply filters to applications array
+ */
+function applyApplicationFilters(applications) {
+    return applications.filter(app => {
+        // Text search (across name, domain, vendor, technology)
+        if (applicationFilterState.searchText) {
+            const searchableText = [
+                app.name || '',
+                app.businessDomain || '',
+                app.technologyVendor || '',
+                app.technologyStack || '',
+                app.description || ''
+            ].join(' ').toLowerCase();
+            
+            if (!searchableText.includes(applicationFilterState.searchText)) {
+                return false;
+            }
+        }
+        
+        // Domain filter
+        if (applicationFilterState.domain && app.businessDomain !== applicationFilterState.domain) {
+            return false;
+        }
+        
+        // Lifecycle filter
+        if (applicationFilterState.lifecycle && app.lifecycle !== applicationFilterState.lifecycle) {
+            return false;
+        }
+        
+        // Risk filter
+        if (applicationFilterState.risk && app.riskLevel !== applicationFilterState.risk) {
+            return false;
+        }
+        
+        return true;
+    });
+}
+
+/**
+ * Apply sorting to applications array
+ */
+function applySortToApplications(applications) {
+    const sortedApps = [...applications];
+    const { column, direction } = applicationSortState;
+    const multiplier = direction === 'asc' ? 1 : -1;
+    
+    sortedApps.sort((a, b) => {
+        let aVal, bVal;
+        
+        switch (column) {
+            case 'name':
+                aVal = (a.name || '').toLowerCase();
+                bVal = (b.name || '').toLowerCase();
+                return aVal.localeCompare(bVal) * multiplier;
+            
+            case 'domain':
+                aVal = (a.businessDomain || '').toLowerCase();
+                bVal = (b.businessDomain || '').toLowerCase();
+                return aVal.localeCompare(bVal) * multiplier;
+            
+            case 'lifecycle':
+                const lifecycleOrder = { 'invest': 1, 'tolerate': 2, 'migrate': 3, 'retire': 4 };
+                aVal = lifecycleOrder[a.lifecycle] || 99;
+                bVal = lifecycleOrder[b.lifecycle] || 99;
+                return (aVal - bVal) * multiplier;
+            
+            case 'risk':
+                const riskOrder = { 'low': 1, 'medium': 2, 'high': 3, 'critical': 4 };
+                aVal = riskOrder[a.riskLevel] || 99;
+                bVal = riskOrder[b.riskLevel] || 99;
+                return (aVal - bVal) * multiplier;
+            
+            case 'debt':
+                const debtOrder = { 'low': 1, 'medium': 2, 'high': 3, 'critical': 4 };
+                aVal = debtOrder[a.technicalDebt] || 99;
+                bVal = debtOrder[b.technicalDebt] || 99;
+                return (aVal - bVal) * multiplier;
+            
+            case 'cost':
+                aVal = a.annualCost || 0;
+                bVal = b.annualCost || 0;
+                return (aVal - bVal) * multiplier;
+            
+            default:
+                return 0;
+        }
+    });
+    
+    return sortedApps;
+}
+
+/**
+ * Get sort icon for table header
+ */
+function getSortIcon(column) {
+    if (applicationSortState.column !== column) {
+        return '<i class="fas fa-sort" style="margin-left: 6px; color: #d1d5db;"></i>';
+    }
+    
+    if (applicationSortState.direction === 'asc') {
+        return '<i class="fas fa-sort-up" style="margin-left: 6px; color: #3b82f6;"></i>';
+    } else {
+        return '<i class="fas fa-sort-down" style="margin-left: 6px; color: #3b82f6;"></i>';
+    }
+}
+
+/**
+ * Toggle selection of an application
+ */
+/**
+ * Toggle selection of an application (unused but kept for reference)
+ */
+function toggleApplicationSelection(appId) {
+    if (applicationSelectionState.selectedIds.has(appId)) {
+        applicationSelectionState.selectedIds.delete(appId);
+    } else {
+        applicationSelectionState.selectedIds.add(appId);
+    }
+    updateBulkActionsUI();
+}
+
+/**
+ * Delete all applications from the portfolio
+ */
+function deleteAllApplications() {
+    const allApplications = engagementManager.getEntities('applications') || [];
+    
+    if (allApplications.length === 0) {
+        showNotification('No applications to delete', 'info');
+        return;
+    }
+    
+    // Show confirmation dialog
+    const confirmed = confirm(
+        `⚠️ WARNING: This will permanently delete all ${allApplications.length} applications from the portfolio.\n\n` +
+        `This action cannot be undone.\n\n` +
+        `Are you sure you want to continue?`
+    );
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    // Delete all applications
+    allApplications.forEach(app => {
+        engagementManager.deleteEntity('applications', app.id);
+    });
+    
+    // Clear selection state
+    applicationSelectionState.selectedIds.clear();
+    applicationSelectionState.selectAll = false;
+    
+    // Refresh the display
+    renderApplications();
+    
+    showNotification(`Successfully deleted all ${allApplications.length} applications`, 'success');
+}
+
+/**
+ * Clear all selections
+ */
+function clearSelection() {
+    applicationSelectionState.selectedIds.clear();
+    applicationSelectionState.selectAll = false;
+    
+    // Uncheck all checkboxes
+    document.querySelectorAll('.app-select-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+    
+    updateBulkActionsUI();
+}
+
+/**
+ * Update bulk actions bar visibility
+ */
+function updateBulkActionsUI() {
+    const bulkActionsBar = document.getElementById('bulk-actions-bar');
+    const selectedCountBadge = document.getElementById('selected-count-badge');
+    
+    if (bulkActionsBar && selectedCountBadge) {
+        const count = applicationSelectionState.selectedIds.size;
+        if (count > 0) {
+            bulkActionsBar.style.display = 'flex';
+            bulkActionsBar.style.gap = '0';
+            selectedCountBadge.textContent = count;
+        } else {
+            bulkActionsBar.style.display = 'none';
+        }
+        
+        // Adjust table header position after bulk actions bar visibility changes
+        setTimeout(() => {
+            if (typeof adjustTableHeaderPosition === 'function') {
+                adjustTableHeaderPosition();
+            }
+        }, 10);
+    } else {
+        console.error('❌ Could not find bulk actions elements');
+    }
+}
+
+/**
+ * Update checkbox visual states to match selection state
+ * (Call after table re-render to sync checkboxes with selection)
+ */
+function updateCheckboxStates() {
+    const checkboxes = document.querySelectorAll('.app-select-checkbox');
+    let syncedCount = 0;
+    
+    checkboxes.forEach(checkbox => {
+        const appId = checkbox.getAttribute('data-app-id');
+        if (appId) {
+            const shouldBeChecked = applicationSelectionState.selectedIds.has(appId);
+            if (checkbox.checked !== shouldBeChecked) {
+                checkbox.checked = shouldBeChecked;
+                syncedCount++;
+            }
+        }
+    });
+}
+
+/**
+ * Adjust table header sticky position based on filter bar height
+ */
+function adjustTableHeaderPosition() {
+    const filterBar = document.getElementById('applications-filter-bar');
+    const table = document.querySelector('#applications-container .data-table');
+    
+    if (filterBar && table) {
+        const filterBarHeight = filterBar.offsetHeight;
+        const thead = table.querySelector('thead');
+        
+        if (thead) {
+            // Add small buffer (8px) for visual separation
+            const topPosition = filterBarHeight + 8;
+            thead.style.top = topPosition + 'px';
+        }
+    }
+}
+
+/**
+ * Open bulk update modal
+ */
+function openBulkUpdateModal() {
+    const count = applicationSelectionState.selectedIds.size;
+    const warningText = document.getElementById('bulk-update-count');
+    const btnText = document.getElementById('bulk-update-count-btn');
+    const pluralText = document.getElementById('bulk-update-plural');
+    
+    warningText.textContent = count;
+    btnText.textContent = count;
+    
+    // Update plural/singular
+    if (pluralText) {
+        pluralText.textContent = count === 1 ? 'application' : 'applications';
+    }
+    
+    // Reset all checkboxes and fields
+    ['domain', 'department', 'lifecycle', 'risk', 'debt', 'techfit', 'bizvalue', 'action'].forEach(field => {
+        const checkbox = document.getElementById(`bulk-enable-${field}`);
+        const input = document.getElementById(`bulk-${field}`);
+        if (checkbox) checkbox.checked = false;
+        if (input) {
+            input.disabled = true;
+            input.value = '';
+        }
+    });
+    
+    document.getElementById('bulkUpdateModal').classList.remove('hidden');
+}
+
+/**
+ * Close bulk update modal
+ */
+function closeBulkUpdateModal() {
+    document.getElementById('bulkUpdateModal').classList.add('hidden');
+}
+
+/**
+ * Toggle bulk field enable/disable
+ */
+function toggleBulkField(field) {
+    const checkbox = document.getElementById(`bulk-enable-${field}`);
+    const input = document.getElementById(`bulk-${field}`);
+    if (checkbox && input) {
+        input.disabled = !checkbox.checked;
+        if (!checkbox.checked) {
+            input.value = '';
+        }
+    }
+}
+
+/**
+ * Execute bulk update
+ */
+function executeBulkUpdate() {
+    const updates = {};
+    
+    // Collect enabled field updates
+    const fieldMappings = {
+        'domain': 'businessDomain',
+        'department': 'department',
+        'lifecycle': 'lifecycle',
+        'risk': 'riskLevel',
+        'debt': 'technicalDebt',
+        'techfit': 'technicalFitScore',
+        'bizvalue': 'businessValueScore',
+        'action': 'rationalizationAction'
+    };
+    
+    Object.keys(fieldMappings).forEach(field => {
+        const checkbox = document.getElementById(`bulk-enable-${field}`);
+        const input = document.getElementById(`bulk-${field}`);
+        
+        if (checkbox && checkbox.checked && input && input.value) {
+            const dataField = fieldMappings[field];
+            let value = input.value;
+            
+            // Parse numbers
+            if (field === 'techfit' || field === 'bizvalue') {
+                value = parseInt(value);
+            }
+            
+            updates[dataField] = value;
+        }
+    });
+    
+    if (Object.keys(updates).length === 0) {
+        alert('Please enable at least one field to update.');
+        return;
+    }
+    
+    // Apply updates to selected applications
+    const selectedIds = Array.from(applicationSelectionState.selectedIds);
+    let updateCount = 0;
+    
+    selectedIds.forEach(appId => {
+        const app = engagementManager.getEntity('applications', appId);
+        if (app) {
+            const updatedApp = { ...app, ...updates, lastModified: new Date().toISOString() };
+            engagementManager.updateEntity('applications', appId, updatedApp);
+            updateCount++;
+        }
+    });
+    
+    // Close modal and refresh
+    closeBulkUpdateModal();
+    clearSelection();
+    renderApplications();
+    
+    // Show success message
+    showNotification(`Successfully updated ${updateCount} applications`, 'success');
+}
+
+/**
+ * Show notification (simple implementation)
+ */
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${type === 'success' ? '#10b981' : '#3b82f6'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        font-weight: 600;
+        animation: slideIn 0.3s ease-out;
+    `;
+    notification.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+function renderApplications() {
+    const allApplications = engagementManager.getEntities('applications') || [];
+    const container = document.getElementById('applications-container');
+    const filterBar = document.getElementById('applications-filter-bar');
+    
+    // Show/hide filter bar
+    if (filterBar) {
+        filterBar.style.display = allApplications.length > 0 ? 'block' : 'none';
+    }
+    
+    if (allApplications.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon"><i class="fas fa-cubes"></i></div>
@@ -317,22 +789,99 @@ function renderApplications() {
         return;
     }
     
+    // Populate domain filter dropdown with unique domains
+    const domainFilter = document.getElementById('filter-domain');
+    if (domainFilter) {
+        const currentValue = domainFilter.value;
+        const uniqueDomains = [...new Set(allApplications.map(a => a.businessDomain).filter(Boolean))];
+        
+        domainFilter.innerHTML = '<option value="">All Domains</option>' + 
+            uniqueDomains.sort().map(domain => 
+                `<option value="${domain}">${domain}</option>`
+            ).join('');
+        
+        domainFilter.value = currentValue; // Restore selection
+    }
+    
+    // Apply filters
+    const filteredApplications = applyApplicationFilters(allApplications);
+    
+    // Apply sorting
+    const sortedApplications = applySortToApplications(filteredApplications);
+    
+    // Update filter count badge
+    const filterCountBadge = document.getElementById('filter-count-badge');
+    const filteredCount = document.getElementById('filtered-count');
+    const totalCount = document.getElementById('total-count');
+    
+    if (filterCountBadge && filteredCount && totalCount) {
+        const hasActiveFilters = applicationFilterState.searchText || 
+                                  applicationFilterState.domain || 
+                                  applicationFilterState.lifecycle || 
+                                  applicationFilterState.risk;
+        
+        if (hasActiveFilters || filteredApplications.length !== allApplications.length) {
+            filterCountBadge.style.display = 'block';
+            filteredCount.textContent = filteredApplications.length;
+            totalCount.textContent = allApplications.length;
+        } else {
+            filterCountBadge.style.display = 'none';
+        }
+    }
+    
     container.innerHTML = `
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Application</th>
-                    <th>Domain</th>
-                    <th>Lifecycle</th>
-                    <th>Risk</th>
-                    <th>Tech Debt</th>
-                    <th>Annual Cost</th>
+                    <th style="width: 40px; text-align: center;">
+                        <button onclick="deleteAllApplications()" 
+                                class="btn btn-ghost" 
+                                style="padding: 4px 8px; color: #dc2626;"
+                                title="Delete All Applications">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </th>
+                    <th onclick="sortApplications('name')" style="cursor: pointer; user-select: none;">
+                        Application ${getSortIcon('name')}
+                    </th>
+                    <th onclick="sortApplications('domain')" style="cursor: pointer; user-select: none;">
+                        Domain ${getSortIcon('domain')}
+                    </th>
+                    <th onclick="sortApplications('lifecycle')" style="cursor: pointer; user-select: none;">
+                        Lifecycle ${getSortIcon('lifecycle')}
+                    </th>
+                    <th onclick="sortApplications('risk')" style="cursor: pointer; user-select: none;">
+                        Risk ${getSortIcon('risk')}
+                    </th>
+                    <th onclick="sortApplications('debt')" style="cursor: pointer; user-select: none;">
+                        Tech Debt ${getSortIcon('debt')}
+                    </th>
+                    <th onclick="sortApplications('cost')" style="cursor: pointer; user-select: none;">
+                        Annual Cost ${getSortIcon('cost')}
+                    </th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                ${applications.map(app => `
+                ${sortedApplications.length === 0 ? `
                     <tr>
+                        <td colspan="8" style="text-align: center; padding: 32px; color: #9ca3af;">
+                            <i class="fas fa-filter" style="font-size: 24px; margin-bottom: 8px;"></i>
+                            <div>No applications match the current filters</div>
+                            <button onclick="clearApplicationFilters()" class="btn btn-ghost" style="margin-top: 12px;">
+                                <i class="fas fa-times"></i> Clear Filters
+                            </button>
+                        </td>
+                    </tr>
+                ` : sortedApplications.map(app => `
+                    <tr>
+                        <td style="text-align: center;">
+                            <input type="checkbox" 
+                                   class="app-select-checkbox"
+                                   data-app-id="${app.id}" 
+                                   ${applicationSelectionState.selectedIds.has(app.id) ? 'checked' : ''}
+                                   style="cursor: pointer;">
+                        </td>
                         <td>
                             <strong>${app.name || 'Unnamed'}</strong>
                             ${app.sunsetCandidate ? '<span class="badge badge-high" style="margin-left: 8px;">Sunset</span>' : ''}
@@ -353,6 +902,74 @@ function renderApplications() {
             </tbody>
         </table>
     `;
+    
+    // Initialize listeners ONCE (will skip if already initialized)
+    setTimeout(() => {
+        initializeCheckboxListeners();
+        
+        // Sync checkbox visual state with selection state (important after table re-render)
+        updateCheckboxStates();
+        
+        // Update bulk actions UI to reflect current selection
+        updateBulkActionsUI();
+        
+        // Adjust table header position based on filter bar height
+        adjustTableHeaderPosition();
+    }, 0);
+}
+
+/**
+ * Initialize checkbox event listeners (call only ONCE)
+ */
+function initializeCheckboxListeners() {
+    if (checkboxListenerInitialized) {
+        return;
+    }
+    
+    const container = document.getElementById('applications-container');
+    if (!container) {
+        console.error('❌ Container #applications-container NOT FOUND!');
+        setTimeout(() => initializeCheckboxListeners(), 100); // Retry in 100ms
+        return;
+    }
+    
+    // Use event delegation with 'change' event (simpler and more reliable)
+    container.addEventListener('change', function(event) {
+        // Check if event was on a checkbox
+        const checkbox = event.target;
+        if (checkbox.tagName !== 'INPUT' || checkbox.type !== 'checkbox') {
+            return;
+        }
+        
+        if (!checkbox.classList.contains('app-select-checkbox')) {
+            return;
+        }
+        
+        // Get app ID
+        const appId = checkbox.getAttribute('data-app-id');
+        if (!appId) {
+            return;
+        }
+        
+        // Update selection state based on checkbox state
+        if (checkbox.checked) {
+            applicationSelectionState.selectedIds.add(appId);
+        } else {
+            applicationSelectionState.selectedIds.delete(appId);
+        }
+        
+        // Update bulk actions UI
+        updateBulkActionsUI();
+    });
+    
+    checkboxListenerInitialized = true;
+}
+
+/**
+ * Handle checkbox change events (LEGACY - NOT USED)
+ */
+function handleCheckboxChange(event) {
+    console.warn('⚠️ Legacy handleCheckboxChange called - should not happen');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -653,7 +1270,6 @@ function deleteArchitecture(id) {
     
     updateKPIs();
     
-    console.log(`✅ Architecture deleted: ${arch.name} (ID: ${id})`);
     showToast('Architecture Theme Deleted', `"${arch.name}" has been removed`, 'success');
 }
 

@@ -1,0 +1,155 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2026-04-17",
+  "description": "Configuration for Decision Engine rules and thresholds",
+  
+  "thresholds": {
+    "scoreHigh": 70,
+    "scoreMedium": 50,
+    "scoreLow": 40,
+    "costHigh": 500000,
+    "costMedium": 100000,
+    "overlapHigh": 0.6,
+    "overlapMedium": 0.4,
+    "businessCritical": 70,
+    "techPoor": 40,
+    "techGood": 70
+  },
+  
+  "weights": {
+    "scoreWeight": 0.5,
+    "costWeight": 0.3,
+    "overlapWeight": 0.2
+  },
+  
+  "scoringWeights": {
+    "businessFit": 0.3,
+    "technicalHealth": 0.3,
+    "costEfficiency": 0.2,
+    "risk": 0.2
+  },
+  
+  "rules": [
+    {
+      "id": "rule_eliminate",
+      "name": "Eliminate",
+      "priority": 1,
+      "description": "Low score + High cost = Candidate for retirement",
+      "conditions": {
+        "scoreTotal": { "operator": "<", "value": 40 },
+        "annualCost": { "operator": ">", "value": 500000 }
+      },
+      "confidence": 0.9,
+      "rationaleTemplate": "Low total score ({scoreTotal}/100) combined with high annual cost (${annualCost}) makes this application a strong candidate for retirement. Consider migrating users to alternative solutions."
+    },
+    {
+      "id": "rule_migrate",
+      "name": "Migrate",
+      "priority": 2,
+      "description": "High business value + Low technical health = Modernization needed",
+      "conditions": {
+        "businessFit": { "operator": ">=", "value": 70 },
+        "technicalHealth": { "operator": "<", "value": 40 }
+      },
+      "confidence": 0.85,
+      "rationaleTemplate": "High business value ({businessFit}/100) but poor technical health ({technicalHealth}/100) indicates need for modernization. Consider re-platforming or cloud migration."
+    },
+    {
+      "id": "rule_consolidate",
+      "name": "Consolidate",
+      "priority": 3,
+      "description": "High capability overlap = Consolidation opportunity",
+      "conditions": {
+        "overlapIndex": { "operator": ">", "value": 0.6 }
+      },
+      "confidence": 0.75,
+      "rationaleTemplate": "High capability overlap ({overlapPercent}%) detected with {overlapCount} other application(s). Consider consolidation to reduce redundancy."
+    },
+    {
+      "id": "rule_invest",
+      "name": "Invest",
+      "priority": 4,
+      "description": "High total score = Strong performer, continue investment",
+      "conditions": {
+        "scoreTotal": { "operator": ">=", "value": 70 }
+      },
+      "confidence": 0.9,
+      "rationaleTemplate": "Excellent total score ({scoreTotal}/100) across all criteria. This is a high-performing application. Recommend continued investment and enhancement."
+    },
+    {
+      "id": "rule_tolerate",
+      "name": "Tolerate",
+      "priority": 5,
+      "description": "Default fallback = Maintain current state",
+      "conditions": {},
+      "confidence": 0.5,
+      "rationaleTemplate": "Moderate performance (score: {scoreTotal}/100) with no critical issues. Application can be maintained in current state but should be monitored."
+    }
+  ],
+  
+  "industryBenchmarks": {
+    "costPerUser": {
+      "ERP": 2000,
+      "CRM": 1500,
+      "HCM": 1000,
+      "Finance": 1800,
+      "Analytics": 800,
+      "Collaboration": 300,
+      "Default": 1000
+    },
+    "averageApplicationAge": 5,
+    "maxRecommendedIntegrations": 10
+  },
+  
+  "decisionStatuses": [
+    {
+      "status": "Invest",
+      "color": "#28a745",
+      "icon": "📈",
+      "description": "Retain and enhance - Continue investment in this high-performing application"
+    },
+    {
+      "status": "Tolerate",
+      "color": "#ffc107",
+      "icon": "⏸️",
+      "description": "Retain as-is - Maintain current state with minimal investment"
+    },
+    {
+      "status": "Migrate",
+      "color": "#17a2b8",
+      "icon": "🔄",
+      "description": "Modernize - Re-platform or migrate to improve technical health"
+    },
+    {
+      "status": "Eliminate",
+      "color": "#dc3545",
+      "icon": "🗑️",
+      "description": "Retire or consolidate - Phase out this application"
+    }
+  ],
+  
+  "approvalStatuses": [
+    {
+      "status": "pending",
+      "label": "Pending Review",
+      "color": "#6c757d"
+    },
+    {
+      "status": "approved",
+      "label": "Approved",
+      "color": "#28a745"
+    },
+    {
+      "status": "rejected",
+      "label": "Rejected",
+      "color": "#dc3545"
+    }
+  ],
+  
+  "confidenceLevels": [
+    { "min": 0.0, "max": 0.3, "label": "Low", "color": "#dc3545" },
+    { "min": 0.3, "max": 0.6, "label": "Medium", "color": "#ffc107" },
+    { "min": 0.6, "max": 0.8, "label": "High", "color": "#17a2b8" },
+    { "min": 0.8, "max": 1.0, "label": "Very High", "color": "#28a745" }
+  ]
+}
