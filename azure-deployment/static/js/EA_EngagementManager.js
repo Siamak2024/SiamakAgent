@@ -623,9 +623,17 @@ class EA_EngagementManager {
       model[entityType] = [];
     }
 
-    // Generate ID if not provided
+    // Generate ID if not provided OR if ID already exists (prevent duplicates)
     if (!entity.id) {
       entity.id = this.generateEntityId(entityType);
+    } else {
+      // Check for duplicate ID
+      const existingEntity = model[entityType].find(e => e.id === entity.id);
+      if (existingEntity) {
+        console.warn(`⚠️ Duplicate ID "${entity.id}" detected for ${entityType}. Generating new ID...`);
+        entity.id = this.generateEntityId(entityType);
+        console.log(`✅ Assigned new ID: ${entity.id}`);
+      }
     }
 
     model[entityType].push(entity);
@@ -1015,7 +1023,7 @@ class EA_EngagementManager {
         department: app.department,
         owner: app.owner,
         vendor: app.vendor,
-        technology: app.technology,
+        technology: app.technologyStack,
         
         // Lifecycle management (support both EA and APM enums)
         lifecycle: app.lifecycle || 'active', // Keep original APM lifecycle
@@ -1149,7 +1157,7 @@ class EA_EngagementManager {
         department: app.department || app.businessDomain,
         owner: app.owner || '',
         vendor: app.vendor || '',
-        technology: app.technology || '',
+        technology: app.technologyStack || '',,
         
         // Financial
         currency: app.currency || 'SEK',
@@ -1401,14 +1409,27 @@ class EA_EngagementManager {
     const prefix = prefixes[entityType] || 'ENT';
     const model = this.getCurrentEngagement();
     const existing = model?.[entityType] || [];
+    
+    // Find max ID number from existing entities
     const maxId = existing.reduce((max, entity) => {
+      if (!entity.id) return max;
       const match = entity.id.match(/\d+$/);
       return match ? Math.max(max, parseInt(match[0])) : max;
     }, 0);
 
-    const newId = maxId + 1;
+    // Generate new ID and ensure it's unique
+    let newId = maxId + 1;
     const padding = (entityType === 'stories' || entityType === 'activities') ? 4 : 3;
-    return `${prefix}-${String(newId).padStart(padding, '0')}`;
+    let generatedId = `${prefix}-${String(newId).padStart(padding, '0')}`;
+    
+    // Double-check uniqueness (in case IDs are not sequential)
+    const existingIds = new Set(existing.map(e => e.id));
+    while (existingIds.has(generatedId)) {
+      newId++;
+      generatedId = `${prefix}-${String(newId).padStart(padding, '0')}`;
+    }
+
+    return generatedId;
   }
 
   /**

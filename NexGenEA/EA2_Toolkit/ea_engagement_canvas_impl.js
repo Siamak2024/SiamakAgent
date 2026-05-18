@@ -169,10 +169,13 @@ function openApplicationModal(id = null) {
             document.getElementById('application-domain').value = app.businessDomain || '';
             document.getElementById('application-owner').value = app.owner || '';
             document.getElementById('application-vendor').value = app.vendor || '';
-            document.getElementById('application-technology').value = app.technology || '';
+            document.getElementById('application-technology').value = app.technologyStack || '';
             // Lifecycle & assessment
-            document.getElementById('application-lifecycle').value = app.lifecycle || 'tolerate';
-            document.getElementById('application-action').value = app.action || 'retain';
+            document.getElementById('application-lifecycle').value = app.lifecycle || 'active';
+            if (document.getElementById('application-action-decision')) {
+                document.getElementById('application-action-decision').value = app.action || '';
+            }
+            document.getElementById('application-action').value = app.rationalizationAction || 'retain';
             document.getElementById('application-risk').value = app.riskLevel || 'medium';
             document.getElementById('application-debt').value = app.technicalDebt || 'medium';
             document.getElementById('application-technical-fit').value = app.technicalFit || '';
@@ -199,7 +202,10 @@ function openApplicationModal(id = null) {
         document.getElementById('application-owner').value = '';
         document.getElementById('application-vendor').value = '';
         document.getElementById('application-technology').value = '';
-        document.getElementById('application-lifecycle').value = 'tolerate';
+        document.getElementById('application-lifecycle').value = 'active';
+        if (document.getElementById('application-action-decision')) {
+            document.getElementById('application-action-decision').value = '';
+        }
         document.getElementById('application-action').value = 'retain';
         document.getElementById('application-risk').value = 'medium';
         document.getElementById('application-debt').value = 'medium';
@@ -245,11 +251,12 @@ function saveApplication() {
         department: businessDomain, // Alias for APM compatibility
         owner: document.getElementById('application-owner').value,
         vendor: document.getElementById('application-vendor').value,
-        technology: document.getElementById('application-technology').value,
+        technologyStack: document.getElementById('application-technology').value,
         
         // Lifecycle & assessment
         lifecycle: document.getElementById('application-lifecycle').value,
-        action: document.getElementById('application-action').value,
+        action: document.getElementById('application-action-decision') ? document.getElementById('application-action-decision').value : '',
+        rationalizationAction: document.getElementById('application-action').value,
         riskLevel: document.getElementById('application-risk').value,
         technicalDebt: document.getElementById('application-debt').value,
         technicalFit: parseInt(document.getElementById('application-technical-fit').value) || undefined,
@@ -296,6 +303,9 @@ function saveApplication() {
     renderApplications();
     updateKPIs();
     
+    // Invalidate AS-IS Dashboard cache
+    invalidateASISDashboard();
+    
     showToast('Application Saved', id ? `Updated ${name}` : `Added ${name}`, 'success');
 }
 
@@ -324,6 +334,9 @@ let applicationSelectionState = {
 
 // Global flag to track if checkbox listeners are attached
 let checkboxListenerInitialized = false;
+
+// Store the handler function reference so we can remove it if needed
+let checkboxChangeHandler = null;
 
 /**
  * Sort applications by column
@@ -385,7 +398,7 @@ function clearApplicationFilters() {
  */
 function applyApplicationFilters(applications) {
     return applications.filter(app => {
-        // Text search (across name, domain, vendor, technology)
+        // Text search (across name, domain, vendor, technologyStack)
         if (applicationFilterState.searchText) {
             const searchableText = [
                 app.name || '',
@@ -442,9 +455,21 @@ function applySortToApplications(applications) {
                 return aVal.localeCompare(bVal) * multiplier;
             
             case 'lifecycle':
-                const lifecycleOrder = { 'invest': 1, 'tolerate': 2, 'migrate': 3, 'retire': 4 };
+                const lifecycleOrder = { 'phaseIn': 1, 'active': 2, 'legacy': 3, 'phaseOut': 4, 'retired': 5 };
                 aVal = lifecycleOrder[a.lifecycle] || 99;
                 bVal = lifecycleOrder[b.lifecycle] || 99;
+                return (aVal - bVal) * multiplier;
+            
+            case 'action':
+                const actionOrder = { 'invest': 1, 'tolerate': 2, 'migrate': 3, 'retire': 4 };
+                aVal = actionOrder[a.action] || 99;
+                bVal = actionOrder[b.action] || 99;
+                return (aVal - bVal) * multiplier;
+            
+            case 'rationalizationAction':
+                const rationalizationOrder = { 'retain': 1, 'invest': 2, 'tolerate': 3, 'migrate': 4, 'replace': 5, 'consolidate': 6, 'retire': 7 };
+                aVal = rationalizationOrder[a.rationalizationAction] || 99;
+                bVal = rationalizationOrder[b.rationalizationAction] || 99;
                 return (aVal - bVal) * multiplier;
             
             case 'risk':
@@ -457,6 +482,28 @@ function applySortToApplications(applications) {
                 const debtOrder = { 'low': 1, 'medium': 2, 'high': 3, 'critical': 4 };
                 aVal = debtOrder[a.technicalDebt] || 99;
                 bVal = debtOrder[b.technicalDebt] || 99;
+                return (aVal - bVal) * multiplier;
+            
+            case 'owner':
+            case 'vendor':
+            case 'technology':
+                aVal = (a[column] || '').toLowerCase();
+                bVal = (b[column] || '').toLowerCase();
+                return aVal.localeCompare(bVal) * multiplier;
+            
+            case 'techfit':
+                aVal = a.technicalFit || 0;
+                bVal = b.technicalFit || 0;
+                return (aVal - bVal) * multiplier;
+            
+            case 'bizvalue':
+                aVal = a.businessValue || 0;
+                bVal = b.businessValue || 0;
+                return (aVal - bVal) * multiplier;
+            
+            case 'users':
+                aVal = a.users || 0;
+                bVal = b.users || 0;
                 return (aVal - bVal) * multiplier;
             
             case 'cost':
@@ -684,6 +731,7 @@ function executeBulkUpdate() {
         'domain': 'businessDomain',
         'department': 'department',
         'lifecycle': 'lifecycle',
+        'action-decision': 'action',
         'risk': 'riskLevel',
         'debt': 'technicalDebt',
         'techfit': 'technicalFitScore',
@@ -731,6 +779,9 @@ function executeBulkUpdate() {
     clearSelection();
     renderApplications();
     
+    // Invalidate AS-IS Dashboard cache
+    invalidateASISDashboard();
+    
     // Show success message
     showNotification(`Successfully updated ${updateCount} applications`, 'success');
 }
@@ -765,10 +816,946 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
+// ============================================
+// COLUMN MANAGER
+// ============================================
+
+/**
+ * Available columns configuration
+ */
+const AVAILABLE_COLUMNS = [
+    { id: 'name', label: 'Application Name', defaultVisible: true, alwaysVisible: true },
+    { id: 'domain', label: 'Business Domain', defaultVisible: true },
+    { id: 'lifecycle', label: 'Lifecycle Phase', defaultVisible: true },
+    { id: 'action', label: 'Action Decision', defaultVisible: false },
+    { id: 'rationalizationAction', label: 'Rationalization Action', defaultVisible: false },
+    { id: 'risk', label: 'Risk Level', defaultVisible: true },
+    { id: 'debt', label: 'Technical Debt', defaultVisible: true },
+    { id: 'owner', label: 'Owner', defaultVisible: false },
+    { id: 'vendor', label: 'Vendor', defaultVisible: false },
+    { id: 'technology', label: 'Technology', defaultVisible: false },
+    { id: 'techfit', label: 'Technical Fit Score', defaultVisible: false },
+    { id: 'bizvalue', label: 'Business Value Score', defaultVisible: false },
+    { id: 'users', label: 'User Count', defaultVisible: false },
+    { id: 'cost', label: 'Annual Cost', defaultVisible: true },
+    { id: 'actions', label: 'Actions', defaultVisible: true, alwaysVisible: true }
+];
+
+/**
+ * Get column preferences from localStorage
+ */
+function getColumnPreferences() {
+    const saved = localStorage.getItem('engagement_playbook_columns');
+    if (saved) {
+        try {
+            return JSON.parse(saved);
+        } catch (e) {
+            console.error('Failed to parse column preferences', e);
+        }
+    }
+    // Return default preferences
+    return AVAILABLE_COLUMNS
+        .filter(col => col.defaultVisible)
+        .map(col => col.id);
+}
+
+/**
+ * Save column preferences to localStorage
+ */
+function saveColumnPreferencesToStorage(columnIds) {
+    localStorage.setItem('engagement_playbook_columns', JSON.stringify(columnIds));
+}
+
+/**
+ * Get visible columns in order
+ */
+function getVisibleColumns() {
+    const prefs = getColumnPreferences();
+    return AVAILABLE_COLUMNS.filter(col => prefs.includes(col.id));
+}
+
+/**
+ * Open column manager modal
+ */
+function openColumnManager() {
+    const modal = document.getElementById('columnManagerModal');
+    if (!modal) {
+        console.error('Column manager modal not found');
+        return;
+    }
+    
+    const list = document.getElementById('column-manager-list');
+    const prefs = getColumnPreferences();
+    
+    // Build column list
+    list.innerHTML = AVAILABLE_COLUMNS.map((col, index) => {
+        const isChecked = prefs.includes(col.id);
+        const isDisabled = col.alwaysVisible;
+        
+        return `
+            <div class="column-item" data-column-id="${col.id}" draggable="${!isDisabled}" style="
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 16px;
+                background: ${isDisabled ? '#f9fafb' : '#ffffff'};
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                cursor: ${isDisabled ? 'not-allowed' : 'move'};
+                opacity: ${isDisabled ? '0.6' : '1'};
+            ">
+                <i class="fas fa-grip-vertical" style="color: #9ca3af; font-size: 16px;"></i>
+                <input type="checkbox" 
+                       id="col-${col.id}" 
+                       ${isChecked ? 'checked' : ''}
+                       ${isDisabled ? 'disabled' : ''}
+                       onchange="toggleColumnVisibility('${col.id}', this.checked)"
+                       style="width: 18px; height: 18px; cursor: ${isDisabled ? 'not-allowed' : 'pointer'};">
+                <label for="col-${col.id}" style="flex: 1; font-size: 14px; font-weight: 500; color: #374151; cursor: ${isDisabled ? 'not-allowed' : 'pointer'};">
+                    ${col.label}
+                    ${isDisabled ? '<span style="font-size: 11px; color: #9ca3af; font-weight: 400;"> (always visible)</span>' : ''}
+                </label>
+            </div>
+        `;
+    }).join('');
+    
+    // Initialize drag and drop
+    initializeColumnDragDrop();
+    
+    modal.classList.remove('hidden');
+}
+
+/**
+ * Close column manager modal
+ */
+function closeColumnManager() {
+    const modal = document.getElementById('columnManagerModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+/**
+ * Toggle column visibility
+ */
+function toggleColumnVisibility(columnId, isVisible) {
+    // Temporarily store state, will be saved on "Apply Changes"
+    const checkbox = document.getElementById(`col-${columnId}`);
+    if (checkbox) {
+        checkbox.checked = isVisible;
+    }
+}
+
+/**
+ * Initialize drag and drop for column reordering
+ */
+function initializeColumnDragDrop() {
+    const list = document.getElementById('column-manager-list');
+    if (!list) return;
+    
+    let draggedItem = null;
+    
+    list.addEventListener('dragstart', (e) => {
+        if (e.target.classList.contains('column-item') && e.target.draggable) {
+            draggedItem = e.target;
+            e.target.style.opacity = '0.5';
+        }
+    });
+    
+    list.addEventListener('dragend', (e) => {
+        if (e.target.classList.contains('column-item')) {
+            e.target.style.opacity = '1';
+        }
+    });
+    
+    list.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(list, e.clientY);
+        if (afterElement == null) {
+            list.appendChild(draggedItem);
+        } else {
+            list.insertBefore(draggedItem, afterElement);
+        }
+    });
+}
+
+/**
+ * Get element after drag position
+ */
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.column-item:not(.dragging)')];
+    
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+/**
+ * Save column preferences
+ */
+function saveColumnPreferences() {
+    const list = document.getElementById('column-manager-list');
+    const items = list.querySelectorAll('.column-item');
+    
+    // Get column IDs in order with visibility state
+    const orderedColumns = Array.from(items).map(item => {
+        const colId = item.dataset.columnId;
+        const checkbox = document.getElementById(`col-${colId}`);
+        return {
+            id: colId,
+            visible: checkbox?.checked || false
+        };
+    });
+    
+    // Save only visible column IDs in order
+    const visibleColumnIds = orderedColumns
+        .filter(col => col.visible)
+        .map(col => col.id);
+    
+    saveColumnPreferencesToStorage(visibleColumnIds);
+    
+    // Close modal and refresh table
+    closeColumnManager();
+    renderApplications();
+    
+    showNotification('Column preferences saved', 'success');
+}
+
+/**
+ * Reset column preferences to defaults
+ */
+function resetColumnDefaults() {
+    if (!confirm('Reset to default column configuration? This will restore the original columns and order.')) {
+        return;
+    }
+    
+    const defaultColumnIds = AVAILABLE_COLUMNS
+        .filter(col => col.defaultVisible)
+        .map(col => col.id);
+    
+    saveColumnPreferencesToStorage(defaultColumnIds);
+    
+    // Refresh modal
+    openColumnManager();
+    
+    showNotification('Column preferences reset to defaults', 'success');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AS-IS ARCHITECTURE DASHBOARD INTEGRATION
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Toggle between table and dashboard view
+ */
+function togglePortfolioView(viewMode) {
+    const dashboardContainer = document.getElementById('dashboard-container');
+    const tableContainer = document.getElementById('applications-container');
+    const filterBar = document.getElementById('applications-filter-bar');
+    const dashboardBtn = document.getElementById('view-toggle-dashboard');
+    const tableBtn = document.getElementById('view-toggle-table');
+    
+    if (viewMode === 'dashboard') {
+        // Show dashboard, hide table
+        dashboardContainer.style.display = 'block';
+        tableContainer.style.display = 'none';
+        if (filterBar) filterBar.style.display = 'none';
+        
+        // Update button states
+        dashboardBtn.style.background = '#10b981';
+        dashboardBtn.style.color = 'white';
+        dashboardBtn.style.borderColor = '#10b981';
+        tableBtn.style.background = '';
+        tableBtn.style.color = '';
+        tableBtn.style.borderColor = '';
+        
+        // Initialize dashboard - will load from localStorage if available
+        // This ensures three-lens data persists across tab switches
+        initASISDashboard();
+    } else {
+        // Show table, hide dashboard
+        dashboardContainer.style.display = 'none';
+        tableContainer.style.display = 'block';
+        if (filterBar && engagementManager.getEntities('applications').length > 0) {
+            filterBar.style.display = 'block';
+        }
+        
+        // Update button states
+        tableBtn.style.background = '#10b981';
+        tableBtn.style.color = 'white';
+        tableBtn.style.borderColor = '#10b981';
+        dashboardBtn.style.background = '';
+        dashboardBtn.style.color = '';
+        dashboardBtn.style.borderColor = '';
+        
+        // Ensure table is rendered
+        renderApplications();
+    }
+}
+
+/**
+ * Generate three-lens dashboard structure using AI with batch processing
+ * @param {Array} applications - Application array
+ * @param {Function} onProgress - Progress callback(current, total, batchNum, totalBatches, message)
+ * @returns {Promise<Object>} Three-lens JSON structure
+ */
+async function generateThreeLensDashboardWithAI(applications, onProgress) {
+    console.log('[AS-IS Dashboard] Generating three-lens structure with AI (batch processing)...');
+    
+    const BATCH_SIZE = 20;
+    const batches = [];
+    
+    // Split applications into batches
+    for (let i = 0; i < applications.length; i += BATCH_SIZE) {
+        batches.push(applications.slice(i, i + BATCH_SIZE));
+    }
+    
+    console.log(`[AS-IS Dashboard] Processing ${applications.length} applications in ${batches.length} batches`);
+    
+    try {
+        // Build three-lens prompt using the renderer's prompt builder
+        if (typeof buildInsightsPrompt !== 'function') {
+            console.error('[AS-IS Dashboard] buildInsightsPrompt function not available');
+            return null;
+        }
+        
+        const allClassifiedApps = [];
+        let aggregatedDomains = { 
+            business: new Map(),      // Key: domain name, Value: domain object
+            technology: new Map(), 
+            serviceTower: new Map() 
+        };
+        
+        // Process each batch
+        for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+            const batch = batches[batchIndex];
+            const batchNum = batchIndex + 1;
+            const processedSoFar = batchIndex * BATCH_SIZE + batch.length;
+            
+            if (onProgress) {
+                onProgress(
+                    processedSoFar, 
+                    applications.length, 
+                    batchNum, 
+                    batches.length,
+                    `Processing batch ${batchNum}/${batches.length} (${batch.length} apps)...`
+                );
+            }
+            
+            console.log(`[AS-IS Dashboard] Processing batch ${batchNum}/${batches.length} (${batch.length} apps)`);
+            
+            // Build CLASSIFICATION-ONLY prompt for this batch (no insights)
+            if (typeof buildThreeLensClassificationPrompt !== 'function') {
+                console.error('[AS-IS Dashboard] buildThreeLensClassificationPrompt function not available');
+                return null;
+            }
+            
+            const prompt = buildThreeLensClassificationPrompt(batch);
+            
+            console.log(`[AS-IS Dashboard] Batch ${batchNum} prompt length:`, prompt.length, 'chars');
+            
+            // Call AI for this batch using GPT-5.4 (OpenAI Responses API)
+            const response = await AzureOpenAIProxy.create(prompt, {
+                // No model specified - uses default gpt-5.4
+                instructions: 'You are a senior enterprise architect. Classify applications across Business, Technology, and Service Tower dimensions. Return ONLY valid JSON without markdown or prose.',
+                temperature: 0.3, // Lower temperature for consistent classification
+                timeout: 180000 // 3 minutes per batch
+            });
+            
+            console.log(`[AS-IS Dashboard] ✅ Batch ${batchNum} response received`);
+            
+            // Parse response
+            if (typeof parseInsightsResponse !== 'function') {
+                console.error('[AS-IS Dashboard] parseInsightsResponse function not available');
+                return null;
+            }
+            
+            const batchResult = parseInsightsResponse(response);
+            
+            // Aggregate results - only add apps from THIS batch (avoid duplicates)
+            if (batchResult.apps && Array.isArray(batchResult.apps)) {
+                // Create map of original apps for field merging
+                const originalAppsMap = new Map(batch.map(app => [app.name, app]));
+                
+                // Only add apps that were in the original batch (by name matching)
+                const batchAppNames = new Set(batch.map(app => app.name));
+                const batchClassifiedApps = batchResult.apps
+                    .filter(app => batchAppNames.has(app.name))
+                    .map(classifiedApp => {
+                        // Merge AI classification with original app data to preserve ALL fields
+                        const originalApp = originalAppsMap.get(classifiedApp.name);
+                        return {
+                            ...originalApp,  // All original fields (lifecycle, risk, vendor, etc.)
+                            ...classifiedApp  // AI classification (businessDomain, technologyDomain, serviceTower)
+                        };
+                    });
+                
+                console.log(`[AS-IS Dashboard] Batch ${batchNum} returned ${batchResult.apps.length} apps, filtered to ${batchClassifiedApps.length} from this batch (with original fields merged)`);
+                
+                allClassifiedApps.push(...batchClassifiedApps);
+            }
+            
+            // Collect unique domains by NAME (avoid duplicates from different batches)
+            if (batchResult.businessDomains) {
+                const beforeSize = aggregatedDomains.business.size;
+                batchResult.businessDomains.forEach(d => {
+                    if (!aggregatedDomains.business.has(d.name)) {
+                        aggregatedDomains.business.set(d.name, d);
+                    }
+                });
+                console.log(`[AS-IS Dashboard] Batch ${batchNum} Business Domains: ${batchResult.businessDomains.length} returned, ${aggregatedDomains.business.size - beforeSize} new added (total: ${aggregatedDomains.business.size})`);
+            }
+            if (batchResult.technologyDomains) {
+                const beforeSize = aggregatedDomains.technology.size;
+                batchResult.technologyDomains.forEach(d => {
+                    if (!aggregatedDomains.technology.has(d.name)) {
+                        aggregatedDomains.technology.set(d.name, d);
+                    }
+                });
+                console.log(`[AS-IS Dashboard] Batch ${batchNum} Technology Domains: ${batchResult.technologyDomains.length} returned, ${aggregatedDomains.technology.size - beforeSize} new added (total: ${aggregatedDomains.technology.size})`);
+            }
+            if (batchResult.serviceTowers) {
+                const beforeSize = aggregatedDomains.serviceTower.size;
+                const domainNames = batchResult.serviceTowers.map(d => d.name);
+                console.log(`[AS-IS Dashboard] Batch ${batchNum} Service Towers returned:`, domainNames);
+                
+                batchResult.serviceTowers.forEach(d => {
+                    if (!aggregatedDomains.serviceTower.has(d.name)) {
+                        aggregatedDomains.serviceTower.set(d.name, d);
+                        console.log(`  ✅ Added new Service Tower: "${d.name}"`);
+                    } else {
+                        console.log(`  ⏭️  Skipped duplicate Service Tower: "${d.name}"`);
+                    }
+                });
+                console.log(`[AS-IS Dashboard] Batch ${batchNum} Service Towers: ${batchResult.serviceTowers.length} returned, ${aggregatedDomains.serviceTower.size - beforeSize} new added (total: ${aggregatedDomains.serviceTower.size})`);
+            }
+            
+            console.log(`[AS-IS Dashboard] Batch ${batchNum} processed: ${batchResult.apps?.length || 0} apps classified`);
+            
+            // Small delay between batches to avoid rate limiting
+            if (batchIndex < batches.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+        
+        // Deduplicate apps by name (safety check)
+        const uniqueAppsMap = new Map();
+        allClassifiedApps.forEach((app, index) => {
+            if (!uniqueAppsMap.has(app.name)) {
+                uniqueAppsMap.set(app.name, app);
+            } else {
+                console.warn(`[AS-IS Dashboard] ⚠️ Duplicate app detected: "${app.name}" (appears multiple times, using first occurrence)`);
+            }
+        });
+        const uniqueApps = Array.from(uniqueAppsMap.values());
+        
+        console.log(`[AS-IS Dashboard] Aggregation complete:`, {
+            totalProcessed: allClassifiedApps.length,
+            uniqueApps: uniqueApps.length,
+            expectedApps: applications.length,
+            duplicatesRemoved: allClassifiedApps.length - uniqueApps.length
+        });
+        
+        // Calculate KPIs from Business Capability Domain apps ONLY (Lens 1)
+        // Strategic Insights and KPIs should be aligned to the same data source
+        const businessDomainApps = uniqueApps; // All apps have businessDomain assigned
+        const legacyApps = businessDomainApps.filter(a => {
+            const tech = (a.technologyStack || '').toLowerCase();
+            const lifecycle = (a.lifecycleStatus || a.lifecycle || '').toLowerCase();
+            return tech.includes('legacy') || lifecycle === 'legacy';
+        });
+        const activeApps = businessDomainApps.filter(a => {
+            const lifecycle = (a.lifecycleStatus || a.lifecycle || '').toLowerCase();
+            return lifecycle === 'active' || lifecycle === 'production' || lifecycle === 'operational';
+        });
+        const highRiskApps = businessDomainApps.filter(a => {
+            const risk = (a.riskLevel || a.risk || '').toLowerCase();
+            return risk === 'high';
+        });
+        
+        console.log('[AS-IS Dashboard] 📊 KPIs calculated from Business Capability Domain apps:', {
+            total: businessDomainApps.length,
+            legacy: legacyApps.length,
+            active: activeApps.length,
+            highRisk: highRiskApps.length
+        });
+        
+        // Construct final result (CLASSIFICATION ONLY - NO INSIGHTS)
+        const finalResult = {
+            apps: uniqueApps,
+            businessDomains: Array.from(aggregatedDomains.business.values()),
+            technologyDomains: Array.from(aggregatedDomains.technology.values()),
+            serviceTowers: Array.from(aggregatedDomains.serviceTower.values()),
+            layers: [], // Derived from apps
+            insights: null, // Not generated - user must click "Generate Insights" button separately
+            crossLensInsights: null,
+            riskCells: null,
+            kpis: {
+                totalApplications: businessDomainApps.length,
+                legacySystems: legacyApps.length,
+                activeSystems: activeApps.length,
+                highRiskApps: highRiskApps.length,
+                // Backward compatibility
+                total: businessDomainApps.length,
+                legacy: legacyApps.length,
+                active: activeApps.length,
+                highRisk: highRiskApps.length
+            }
+        };
+        
+        console.log('[AS-IS Dashboard] ✅ All batches completed. Final three-lens structure:', {
+            businessDomains: finalResult.businessDomains.length,
+            technologyDomains: finalResult.technologyDomains.length,
+            serviceTowers: finalResult.serviceTowers.length,
+            apps: finalResult.apps.length,
+            expectedApps: applications.length,
+            insightsGenerated: false,
+            domainDeduplication: {
+                businessUnique: aggregatedDomains.business.size,
+                technologyUnique: aggregatedDomains.technology.size,
+                serviceTowerUnique: aggregatedDomains.serviceTower.size
+            }
+        });
+        
+        // Log exact domain names for verification
+        console.log('[AS-IS Dashboard] Final Business Domain names:', finalResult.businessDomains.map(d => d.name));
+        console.log('[AS-IS Dashboard] Final Technology Domain names:', finalResult.technologyDomains.map(d => d.name));
+        console.log('[AS-IS Dashboard] Final Service Tower names:', finalResult.serviceTowers.map(d => d.name));
+        
+        // Validate total count
+        if (finalResult.apps.length !== applications.length) {
+            console.warn(`[AS-IS Dashboard] ⚠️ App count mismatch! Expected ${applications.length}, got ${finalResult.apps.length}`);
+        }
+        
+        return finalResult;
+        
+    } catch (error) {
+        console.error('[AS-IS Dashboard] AI generation failed:', error);
+        throw error;
+    }
+}
+
+/**
+ * Save three-lens dashboard data to localStorage
+ * @param {string} engagementId - Engagement ID
+ * @param {Object} threeLensData - Three-lens classification data
+ */
+function saveThreeLensDashboardData(engagementId, threeLensData) {
+    if (!engagementId || !threeLensData) {
+        console.error('[Three-Lens Storage] Invalid parameters');
+        return false;
+    }
+    
+    const key = `ea_three_lens_${engagementId}`;
+    const dataToSave = {
+        ...threeLensData,
+        metadata: {
+            savedAt: new Date().toISOString(),
+            version: '1.0',
+            appsCount: threeLensData.apps?.length || 0,
+            domainsCount: {
+                business: threeLensData.businessDomains?.length || 0,
+                technology: threeLensData.technologyDomains?.length || 0,
+                serviceTower: threeLensData.serviceTowers?.length || 0
+            }
+        }
+    };
+    
+    try {
+        localStorage.setItem(key, JSON.stringify(dataToSave));
+        console.log(`[Three-Lens Storage] ✅ Saved three-lens data: ${key}`, {
+            apps: dataToSave.apps?.length || 0,
+            businessDomains: dataToSave.businessDomains?.length || 0,
+            technologyDomains: dataToSave.technologyDomains?.length || 0,
+            serviceTowers: dataToSave.serviceTowers?.length || 0
+        });
+        return true;
+    } catch (error) {
+        console.error('[Three-Lens Storage] Failed to save:', error);
+        return false;
+    }
+}
+
+/**
+ * Load three-lens dashboard data from localStorage
+ * @param {string} engagementId - Engagement ID
+ * @returns {Object|null} - Three-lens data or null
+ */
+function loadThreeLensDashboardData(engagementId) {
+    if (!engagementId) {
+        console.error('[Three-Lens Storage] No engagement ID provided');
+        return null;
+    }
+    
+    const key = `ea_three_lens_${engagementId}`;
+    
+    try {
+        const data = localStorage.getItem(key);
+        if (!data) {
+            console.log('[Three-Lens Storage] No saved three-lens data found for:', engagementId);
+            return null;
+        }
+        
+        const parsed = JSON.parse(data);
+        console.log(`[Three-Lens Storage] ✅ Loaded three-lens data: ${key}`, {
+            savedAt: parsed.metadata?.savedAt,
+            apps: parsed.apps?.length || 0,
+            businessDomains: parsed.businessDomains?.length || 0,
+            technologyDomains: parsed.technologyDomains?.length || 0,
+            serviceTowers: parsed.serviceTowers?.length || 0
+        });
+        
+        // Log Service Tower names to verify no duplicates in saved data
+        if (parsed.serviceTowers && parsed.serviceTowers.length > 0) {
+            console.log('[Three-Lens Storage] Service Tower names in saved data:', 
+                parsed.serviceTowers.map(d => d.name));
+        }
+        
+        return parsed;
+    } catch (error) {
+        console.error('[Three-Lens Storage] Failed to load:', error);
+        return null;
+    }
+}
+
+/**
+ * Clear three-lens dashboard data from localStorage
+ * @param {string} engagementId - Engagement ID
+ */
+function clearThreeLensDashboardData(engagementId) {
+    if (!engagementId) return;
+    
+    const key = `ea_three_lens_${engagementId}`;
+    localStorage.removeItem(key);
+    console.log('[Three-Lens Storage] Cleared data for:', engagementId);
+}
+
+/**
+ * Initialize and render AS-IS Architecture Dashboard (orchestrator)
+ * ALWAYS loads from localStorage if available - ensures persistence across tab switches
+ */
+async function initASISDashboard(options = {}) {
+    console.log('[AS-IS Dashboard] Initializing dashboard...', options);
+    
+    const { useAI = false } = options;
+    
+    // Get current engagement ID for three-lens data storage
+    const currentEngagement = engagementManager.getCurrentEngagement();
+    const engagementId = currentEngagement?.id;
+    
+    // ALWAYS try to load from localStorage first (unless explicitly regenerating with AI)
+    // This ensures three-lens data persists across:
+    // - Tab switches (Opportunity Qualification → AS-IS Portfolio)
+    // - View toggles (Table → Dashboard)
+    // - Page refreshes
+    if (!useAI && engagementId) {
+        const savedThreeLensData = loadThreeLensDashboardData(engagementId);
+        if (savedThreeLensData && savedThreeLensData.apps && savedThreeLensData.apps.length > 0) {
+            console.log('[AS-IS Dashboard] ✅ Loaded three-lens data from localStorage');
+            console.log('[AS-IS Dashboard] 💰 Cost savings: No AI tokens used!');
+            
+            // Check if insights were saved
+            if (savedThreeLensData.insights && savedThreeLensData.insights.length > 0) {
+                console.log('[AS-IS Dashboard] 💡 Found saved insights:', savedThreeLensData.insights.length);
+            }
+            
+            window.threeLensData = savedThreeLensData;
+            
+            // Render with three-lens data (include insights if available)
+            const dashboardData = mapApplicationsToDashboard(); // Still need this for layers/metadata
+            renderASISDashboard(dashboardData, 'dashboard-container', {
+                showRegenerateButton: true,
+                insights: savedThreeLensData.insights ? {
+                    insights: savedThreeLensData.insights,
+                    executiveSummary: savedThreeLensData.executiveSummary,
+                    domainRecommendations: savedThreeLensData.domainRecommendations
+                } : null
+            });
+            
+            // Render insights if available
+            if (savedThreeLensData.insights && savedThreeLensData.insights.length > 0) {
+                setTimeout(() => {
+                    renderInsightsResults({
+                        insights: savedThreeLensData.insights,
+                        executiveSummary: savedThreeLensData.executiveSummary,
+                        domainRecommendations: savedThreeLensData.domainRecommendations
+                    });
+                }, 500);
+            }
+            
+            return;
+        } else {
+            console.log('[AS-IS Dashboard] ⚠️ No saved three-lens data found');
+            console.log('[AS-IS Dashboard] 💡 Options: 1) Click "Regenerate Dashboard" (uses AI), or 2) Click "Import Dashboard" (free)');
+        }
+    }
+    
+    // Check cache (skip if AI regeneration requested)
+    if (!useAI && window.asisDashboardCache && !window.asisDashboardCache.isStale) {
+        console.log('[AS-IS Dashboard] Using cached dashboard');
+        const { data, insights } = window.asisDashboardCache;
+        renderASISDashboard(data, 'dashboard-container', {
+            showRegenerateButton: true,
+            insights: insights || null
+        });
+        return;
+    }
+    
+    // Get applications
+    const applications = engagementManager.getEntities('applications') || [];
+    if (applications.length === 0) {
+        document.getElementById('dashboard-container').innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="fas fa-chart-pie"></i></div>
+                <div class="empty-state-title">No application data available</div>
+                <div class="empty-state-text">Import applications from APM Toolkit or add manually to view dashboard</div>
+                <button class="btn btn-primary" onclick="importAPMData()">
+                    <i class="fas fa-download"></i> Import from APM Toolkit
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    // If AI mode requested, generate complete three-lens structure with AI
+    if (useAI) {
+        console.log('[AS-IS Dashboard] Using AI for three-lens classification...');
+        try {
+            const aiResult = await generateThreeLensDashboardWithAI(applications, options.onProgress);
+            if (aiResult && aiResult.businessDomains) {
+                console.log('[AS-IS Dashboard] AI generated three-lens structure successfully');
+                
+                // Store AI result in memory
+                window.threeLensData = aiResult;
+                
+                // Save to localStorage for persistence across page refreshes
+                if (engagementId) {
+                    saveThreeLensDashboardData(engagementId, aiResult);
+                }
+                
+                console.log('[AS-IS Dashboard] Three-lens data available in window.threeLensData:', {
+                    businessDomains: aiResult.businessDomains?.length || 0,
+                    technologyDomains: aiResult.technologyDomains?.length || 0,
+                    serviceTowers: aiResult.serviceTowers?.length || 0,
+                    layers: aiResult.layers?.length || 0,
+                    insights: aiResult.insights ? 'Generated' : 'None',
+                    apps: aiResult.apps?.length || 0
+                });
+            }
+        } catch (error) {
+            console.error('[AS-IS Dashboard] AI generation failed, falling back to local mapper:', error);
+        }
+    }
+    
+    // Map applications to dashboard data (using local mapper for now)
+    // Note: currentEngagement already declared at function start (line 1363)
+    const dashboardData = mapApplicationsToDashboard(applications, {
+        accountName: currentEngagement?.customerName || 'Organization',
+        industry: currentEngagement?.segment || 'Enterprise',
+        reportDate: new Date().toISOString().split('T')[0]
+    });
+    
+    // Render dashboard WITHOUT insights (user will trigger insights generation)
+    renderASISDashboard(dashboardData, 'dashboard-container', {
+        showRegenerateButton: true,
+        insights: window.asisDashboardCache?.insights || null
+    });
+    
+    // Cache
+    window.asisDashboardCache = {
+        data: dashboardData,
+        insights: window.asisDashboardCache?.insights || null,
+        timestamp: Date.now(),
+        isStale: false
+    };
+    
+    // Hide stale badge
+    const staleBadge = document.getElementById('dashboard-stale-badge');
+    if (staleBadge) staleBadge.style.display = 'none';
+    
+    console.log('[AS-IS Dashboard] Dashboard rendered successfully');
+}
+
+/**
+ * Mark dashboard as stale (needs regeneration)
+ * Called when user makes changes (drag & drop, bulk updates, etc.)
+ * 
+ * NOTE: This does NOT clear three-lens data from localStorage!
+ * The user's manual drag & drop changes are saved in window.threeLensData
+ * and will persist across page refreshes.
+ */
+function invalidateASISDashboard() {
+    if (window.asisDashboardCache) {
+        window.asisDashboardCache.isStale = true;
+        
+        // Show stale badge to indicate AI classification may be outdated
+        const staleBadge = document.getElementById('dashboard-stale-badge');
+        if (staleBadge) staleBadge.style.display = 'flex';
+        
+        console.log('[AS-IS Dashboard] Cache invalidated (marked as stale)');
+    }
+    
+    // DO NOT clear three-lens data here!
+    // User's manual changes (drag & drop) should persist across refreshes
+    // Only clear when user explicitly clicks "Regenerate Dashboard"
+    console.log('[AS-IS Dashboard] Three-lens data preserved with user changes');
+}
+
+/**
+ * Regenerate dashboard (clear cache and re-render)
+ */
+async function regenerateASISDashboard() {
+    console.log('[AS-IS Dashboard] Regenerating dashboard with AI classification...');
+    
+    // Show AI progress indicator with batch tracking
+    const progressHtml = `
+        <div id="ai-regenerate-progress" style="
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #00472E 0%, #006B3F 100%);
+            color: white;
+            padding: 40px 56px;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            z-index: 10000;
+            min-width: 500px;
+            text-align: center;
+        ">
+            <div style="font-size: 20px; font-weight: 600; margin-bottom: 12px;">
+                🤖 AI Assistant Working...
+            </div>
+            <div style="margin-bottom: 8px; font-size: 14px; opacity: 0.9;">
+                Three-Lens Classification (Business · Technology · Service Tower)
+            </div>
+            <div id="ai-batch-info" style="margin-bottom: 20px; font-size: 13px; font-weight: 500; opacity: 0.85;">
+                Preparing...
+            </div>
+            <div style="height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
+                <div id="ai-progress-bar" style="
+                    height: 100%;
+                    background: linear-gradient(90deg, #10b981, #34d399);
+                    width: 0%;
+                    transition: width 0.5s ease;
+                "></div>
+            </div>
+            <div id="ai-progress-percentage" style="font-size: 13px; font-weight: 600; margin-bottom: 12px;">
+                0%
+            </div>
+            <div id="ai-progress-status" style="margin-top: 8px; font-size: 12px; opacity: 0.75; font-style: italic;">
+                Initializing AI analysis...
+            </div>
+        </div>
+    `;
+    
+    const progressDiv = document.createElement('div');
+    progressDiv.innerHTML = progressHtml;
+    document.body.appendChild(progressDiv);
+    
+    const updateProgress = (current, total, batchNum, totalBatches, message) => {
+        const percentage = Math.round((current / total) * 100);
+        
+        const barEl = document.getElementById('ai-progress-bar');
+        const percentEl = document.getElementById('ai-progress-percentage');
+        const batchEl = document.getElementById('ai-batch-info');
+        const statusEl = document.getElementById('ai-progress-status');
+        
+        if (barEl) barEl.style.width = percentage + '%';
+        if (percentEl) percentEl.textContent = percentage + '%';
+        if (batchEl) batchEl.textContent = `Batch ${batchNum}/${totalBatches} · ${current}/${total} applications`;
+        if (statusEl) statusEl.textContent = message;
+    };
+    
+    const updateStatus = (message) => {
+        const statusEl = document.getElementById('ai-progress-status');
+        if (statusEl) statusEl.textContent = message;
+    };
+    
+    try {
+        updateStatus('📊 Preparing application data...');
+        await new Promise(resolve => setTimeout(resolve, 400));
+        
+        // Clear old cache and three-lens data
+        window.asisDashboardCache = null;
+        
+        const currentEngagement = engagementManager?.getCurrentEngagement();
+        if (currentEngagement?.id) {
+            clearThreeLensDashboardData(currentEngagement.id);
+            console.log('[AS-IS Dashboard] Cleared old three-lens data');
+        }
+        
+        updateStatus('🔍 Starting AI batch processing...');
+        await new Promise(resolve => setTimeout(resolve, 400));
+        
+        // Re-render with AI mode enabled and progress callback
+        await initASISDashboard({ 
+            useAI: true,
+            onProgress: updateProgress
+        });
+        
+        // Final update
+        const barEl = document.getElementById('ai-progress-bar');
+        const percentEl = document.getElementById('ai-progress-percentage');
+        if (barEl) barEl.style.width = '100%';
+        if (percentEl) percentEl.textContent = '100%';
+        updateStatus('✅ Classification complete!');
+        await new Promise(resolve => setTimeout(resolve, 600));
+        
+        // Remove progress indicator
+        const progress = document.getElementById('ai-regenerate-progress');
+        if (progress) progress.parentElement.remove();
+        
+        // Show success with save confirmation
+        const appsCount = window.threeLensData?.apps?.length || 0;
+        // Note: currentEngagement already declared at function start (line 1572)
+        const savedMessage = currentEngagement?.id ? '\n💾 Saved - persists across page refreshes' : '';
+        
+        showToast(
+            'Dashboard Regenerated with AI', 
+            `✅ Three-lens classification complete\n📊 ${appsCount} applications classified${savedMessage}\n🔄 Regenerate after drag & drop or bulk updates`, 
+            'success'
+        );
+    } catch (error) {
+        console.error('[AS-IS Dashboard] Regeneration error:', error);
+        const progress = document.getElementById('ai-regenerate-progress');
+        if (progress) progress.parentElement.remove();
+        showToast('Error', 'Failed to regenerate dashboard: ' + error.message, 'error');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// APPLICATION TABLE RENDERING
+// ═══════════════════════════════════════════════════════════════════
+
 function renderApplications() {
     const allApplications = engagementManager.getEntities('applications') || [];
     const container = document.getElementById('applications-container');
     const filterBar = document.getElementById('applications-filter-bar');
+    
+    // 🔍 DEBUG: Check for duplicate IDs
+    const appIds = allApplications.map(app => app.id);
+    const uniqueIds = new Set(appIds);
+    if (appIds.length !== uniqueIds.size) {
+        console.error('❌ DUPLICATE APPLICATION IDs DETECTED!', {
+            totalApps: appIds.length,
+            uniqueIds: uniqueIds.size,
+            allIds: appIds,
+            duplicates: appIds.filter((id, index) => appIds.indexOf(id) !== index)
+        });
+    } else {
+        console.log('✅ All application IDs are unique:', {
+            totalApps: appIds.length,
+            sampleIds: appIds.slice(0, 5)
+        });
+    }
     
     // Show/hide filter bar
     if (filterBar) {
@@ -829,52 +1816,50 @@ function renderApplications() {
         }
     }
     
-    container.innerHTML = `
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th style="width: 40px; text-align: center;">
-                        <button onclick="deleteAllApplications()" 
-                                class="btn btn-ghost" 
-                                style="padding: 4px 8px; color: #dc2626;"
-                                title="Delete All Applications">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </th>
-                    <th onclick="sortApplications('name')" style="cursor: pointer; user-select: none;">
-                        Application ${getSortIcon('name')}
-                    </th>
-                    <th onclick="sortApplications('domain')" style="cursor: pointer; user-select: none;">
-                        Domain ${getSortIcon('domain')}
-                    </th>
-                    <th onclick="sortApplications('lifecycle')" style="cursor: pointer; user-select: none;">
-                        Lifecycle ${getSortIcon('lifecycle')}
-                    </th>
-                    <th onclick="sortApplications('risk')" style="cursor: pointer; user-select: none;">
-                        Risk ${getSortIcon('risk')}
-                    </th>
-                    <th onclick="sortApplications('debt')" style="cursor: pointer; user-select: none;">
-                        Tech Debt ${getSortIcon('debt')}
-                    </th>
-                    <th onclick="sortApplications('cost')" style="cursor: pointer; user-select: none;">
-                        Annual Cost ${getSortIcon('cost')}
-                    </th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${sortedApplications.length === 0 ? `
-                    <tr>
-                        <td colspan="8" style="text-align: center; padding: 32px; color: #9ca3af;">
-                            <i class="fas fa-filter" style="font-size: 24px; margin-bottom: 8px;"></i>
-                            <div>No applications match the current filters</div>
-                            <button onclick="clearApplicationFilters()" class="btn btn-ghost" style="margin-top: 12px;">
-                                <i class="fas fa-times"></i> Clear Filters
-                            </button>
-                        </td>
-                    </tr>
-                ` : sortedApplications.map(app => `
-                    <tr>
+    // Get visible columns
+    const visibleColumns = getVisibleColumns();
+    
+    // Generate table headers
+    const tableHeaders = visibleColumns.map(col => {
+        if (col.id === 'actions') {
+            return `<th>Actions</th>`;
+        }
+        if (col.id === 'name') {
+            return `
+                <th style="width: 40px; text-align: center;">
+                    <button onclick="deleteAllApplications()" 
+                            class="btn btn-ghost" 
+                            style="padding: 4px 8px; color: #dc2626;"
+                            title="Delete All Applications">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </th>
+                <th onclick="sortApplications('${col.id}')" style="cursor: pointer; user-select: none;">
+                    ${col.label} ${getSortIcon(col.id)}
+                </th>
+            `;
+        }
+        return `<th onclick="sortApplications('${col.id}')" style="cursor: pointer; user-select: none;">
+            ${col.label} ${getSortIcon(col.id)}
+        </th>`;
+    }).join('');
+    
+    // Generate table rows
+    const tableRows = sortedApplications.length === 0 ? `
+        <tr>
+            <td colspan="${visibleColumns.length + 1}" style="text-align: center; padding: 32px; color: #9ca3af;">
+                <i class="fas fa-filter" style="font-size: 24px; margin-bottom: 8px;"></i>
+                <div>No applications match the current filters</div>
+                <button onclick="clearApplicationFilters()" class="btn btn-ghost" style="margin-top: 12px;">
+                    <i class="fas fa-times"></i> Clear Filters
+                </button>
+            </td>
+        </tr>
+    ` : sortedApplications.map(app => {
+        const cells = visibleColumns.map(col => {
+            switch(col.id) {
+                case 'name':
+                    return `
                         <td style="text-align: center;">
                             <input type="checkbox" 
                                    class="app-select-checkbox"
@@ -887,18 +1872,56 @@ function renderApplications() {
                             ${app.sunsetCandidate ? '<span class="badge badge-high" style="margin-left: 8px;">Sunset</span>' : ''}
                             ${app.modernizationCandidate ? '<span class="badge badge-medium" style="margin-left: 8px;">Modernize</span>' : ''}
                         </td>
-                        <td>${app.businessDomain || '-'}</td>
-                        <td><span class="badge badge-${app.lifecycle || 'tolerate'}">${app.lifecycle || 'tolerate'}</span></td>
-                        <td><span class="badge badge-${app.riskLevel || 'medium'}">${app.riskLevel || 'medium'}</span></td>
-                        <td><span class="badge badge-${app.technicalDebt || 'medium'}">${app.technicalDebt || 'medium'}</span></td>
-                        <td>${app.annualCost ? (app.annualCost || 0).toLocaleString() + ' SEK' : '-'}</td>
+                    `;
+                case 'domain':
+                    return `<td>${app.businessDomain || '-'}</td>`;
+                case 'lifecycle':
+                    return `<td><span class="badge badge-${app.lifecycle || 'active'}">${app.lifecycle || 'active'}</span></td>`;
+                case 'action':
+                    return `<td>${app.action ? `<span class="badge badge-${app.action}">${app.action}</span>` : '-'}</td>`;
+                case 'rationalizationAction':
+                    return `<td>${app.rationalizationAction ? `<span class="badge badge-${app.rationalizationAction}">${app.rationalizationAction}</span>` : '-'}</td>`;
+                case 'risk':
+                    return `<td><span class="badge badge-${app.riskLevel || 'medium'}">${app.riskLevel || 'medium'}</span></td>`;
+                case 'debt':
+                    return `<td><span class="badge badge-${app.technicalDebt || 'medium'}">${app.technicalDebt || 'medium'}</span></td>`;
+                case 'owner':
+                    return `<td>${app.owner || '-'}</td>`;
+                case 'vendor':
+                    return `<td>${app.vendor || '-'}</td>`;
+                case 'technology':
+                    return `<td>${app.technologyStack || '-'}</td>`;
+                case 'techfit':
+                    return `<td>${app.technicalFit ? `${app.technicalFit}/5` : '-'}</td>`;
+                case 'bizvalue':
+                    return `<td>${app.businessValue ? `${app.businessValue}/5` : '-'}</td>`;
+                case 'users':
+                    return `<td>${app.users ? app.users.toLocaleString() : '-'}</td>`;
+                case 'cost':
+                    return `<td>${app.annualCost ? (app.annualCost || 0).toLocaleString() + ' SEK' : '-'}</td>`;
+                case 'actions':
+                    return `
                         <td>
                             <button class="btn btn-ghost" style="padding: 4px 8px;" onclick="openApplicationModal('${app.id}')">
                                 <i class="fas fa-edit"></i>
                             </button>
                         </td>
-                    </tr>
-                `).join('')}
+                    `;
+                default:
+                    return '<td>-</td>';
+            }
+        }).join('');
+        
+        return `<tr>${cells}</tr>`;
+    }).join('');
+    
+    container.innerHTML = `
+        <table class="data-table">
+            <thead>
+                <tr>${tableHeaders}</tr>
+            </thead>
+            <tbody>
+                ${tableRows}
             </tbody>
         </table>
     `;
@@ -922,19 +1945,25 @@ function renderApplications() {
  * Initialize checkbox event listeners (call only ONCE)
  */
 function initializeCheckboxListeners() {
-    if (checkboxListenerInitialized) {
-        return;
-    }
-    
     const container = document.getElementById('applications-container');
     if (!container) {
         console.error('❌ Container #applications-container NOT FOUND!');
-        setTimeout(() => initializeCheckboxListeners(), 100); // Retry in 100ms
         return;
     }
     
-    // Use event delegation with 'change' event (simpler and more reliable)
-    container.addEventListener('change', function(event) {
+    // Check if this specific container already has a listener using a data attribute
+    if (container.dataset.listenerAttached === 'true') {
+        console.log('⏭️ Listener already attached to this container, skipping');
+        return;
+    }
+    
+    // Remove old listener if it exists (failsafe)
+    if (checkboxChangeHandler) {
+        container.removeEventListener('change', checkboxChangeHandler);
+    }
+    
+    // Define the handler function
+    checkboxChangeHandler = function(event) {
         // Check if event was on a checkbox
         const checkbox = event.target;
         if (checkbox.tagName !== 'INPUT' || checkbox.type !== 'checkbox') {
@@ -948,6 +1977,7 @@ function initializeCheckboxListeners() {
         // Get app ID
         const appId = checkbox.getAttribute('data-app-id');
         if (!appId) {
+            console.warn('⚠️ Checkbox has no data-app-id attribute');
             return;
         }
         
@@ -960,7 +1990,13 @@ function initializeCheckboxListeners() {
         
         // Update bulk actions UI
         updateBulkActionsUI();
-    });
+    };
+    
+    // Attach the listener
+    container.addEventListener('change', checkboxChangeHandler);
+    
+    // Mark this container as having a listener attached
+    container.dataset.listenerAttached = 'true';
     
     checkboxListenerInitialized = true;
 }
@@ -1981,5 +3017,29 @@ function renderRiskDistributionChart(risks) {
                 }
             }
         }
+    });
+}
+
+
+
+
+// -------------------------------------------------------------------
+// GLOBAL SCOPE EXPOSURE (for ea_engagement_core.js compatibility)
+// -------------------------------------------------------------------
+
+if (typeof window !== 'undefined') {
+    window.renderStakeholders = renderStakeholders;
+    window.renderApplications = renderApplications;
+    window.renderTarget = renderTarget;
+    window.renderRoadmap = renderRoadmap;
+    window.renderLeadership = renderLeadership;
+    window.saveThreeLensDashboardData = saveThreeLensDashboardData;
+    console.log('[Canvas Impl] ✅ Global functions exposed:', {
+        renderStakeholders: typeof renderStakeholders,
+        renderApplications: typeof renderApplications,
+        renderTarget: typeof renderTarget,
+        renderRoadmap: typeof renderRoadmap,
+        renderLeadership: typeof renderLeadership,
+        saveThreeLensDashboardData: typeof saveThreeLensDashboardData
     });
 }

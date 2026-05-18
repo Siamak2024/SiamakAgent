@@ -379,7 +379,7 @@ const ApplicationSchema = {
   department: { type: 'string' }, // APM field
   owner: { type: 'string' },
   vendor: { type: 'string' },
-  technology: { type: 'string' }, // APM: technology stack (e.g., ".NET", "Java")
+  technologyStack: { type: 'string' }, // Technology stack (e.g., "Core Insurance Platform", "Legacy (Mainframe)", "Integration Platform")
   
   // Lifecycle management
   lifecycle: { type: 'string', required: true, enum: ['tolerate', 'invest', 'migrate', 'retire', 'phaseIn', 'active', 'legacy', 'phaseOut', 'retired'] }, // EA + APM enums

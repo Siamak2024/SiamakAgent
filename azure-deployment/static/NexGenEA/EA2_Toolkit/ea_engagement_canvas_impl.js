@@ -169,7 +169,7 @@ function openApplicationModal(id = null) {
             document.getElementById('application-domain').value = app.businessDomain || '';
             document.getElementById('application-owner').value = app.owner || '';
             document.getElementById('application-vendor').value = app.vendor || '';
-            document.getElementById('application-technology').value = app.technology || '';
+            document.getElementById('application-technology').value = app.technologyStack || '';
             // Lifecycle & assessment
             document.getElementById('application-lifecycle').value = app.lifecycle || 'tolerate';
             document.getElementById('application-action').value = app.action || 'retain';
@@ -245,7 +245,7 @@ function saveApplication() {
         department: businessDomain, // Alias for APM compatibility
         owner: document.getElementById('application-owner').value,
         vendor: document.getElementById('application-vendor').value,
-        technology: document.getElementById('application-technology').value,
+        technologyStack: document.getElementById('application-technology').value,
         
         // Lifecycle & assessment
         lifecycle: document.getElementById('application-lifecycle').value,
@@ -324,6 +324,9 @@ let applicationSelectionState = {
 
 // Global flag to track if checkbox listeners are attached
 let checkboxListenerInitialized = false;
+
+// Store the handler function reference so we can remove it if needed
+let checkboxChangeHandler = null;
 
 /**
  * Sort applications by column
@@ -770,6 +773,23 @@ function renderApplications() {
     const container = document.getElementById('applications-container');
     const filterBar = document.getElementById('applications-filter-bar');
     
+    // 🔍 DEBUG: Check for duplicate IDs
+    const appIds = allApplications.map(app => app.id);
+    const uniqueIds = new Set(appIds);
+    if (appIds.length !== uniqueIds.size) {
+        console.error('❌ DUPLICATE APPLICATION IDs DETECTED!', {
+            totalApps: appIds.length,
+            uniqueIds: uniqueIds.size,
+            allIds: appIds,
+            duplicates: appIds.filter((id, index) => appIds.indexOf(id) !== index)
+        });
+    } else {
+        console.log('✅ All application IDs are unique:', {
+            totalApps: appIds.length,
+            sampleIds: appIds.slice(0, 5)
+        });
+    }
+    
     // Show/hide filter bar
     if (filterBar) {
         filterBar.style.display = allApplications.length > 0 ? 'block' : 'none';
@@ -922,19 +942,25 @@ function renderApplications() {
  * Initialize checkbox event listeners (call only ONCE)
  */
 function initializeCheckboxListeners() {
-    if (checkboxListenerInitialized) {
-        return;
-    }
-    
     const container = document.getElementById('applications-container');
     if (!container) {
         console.error('❌ Container #applications-container NOT FOUND!');
-        setTimeout(() => initializeCheckboxListeners(), 100); // Retry in 100ms
         return;
     }
     
-    // Use event delegation with 'change' event (simpler and more reliable)
-    container.addEventListener('change', function(event) {
+    // Check if this specific container already has a listener using a data attribute
+    if (container.dataset.listenerAttached === 'true') {
+        console.log('⏭️ Listener already attached to this container, skipping');
+        return;
+    }
+    
+    // Remove old listener if it exists (failsafe)
+    if (checkboxChangeHandler) {
+        container.removeEventListener('change', checkboxChangeHandler);
+    }
+    
+    // Define the handler function
+    checkboxChangeHandler = function(event) {
         // Check if event was on a checkbox
         const checkbox = event.target;
         if (checkbox.tagName !== 'INPUT' || checkbox.type !== 'checkbox') {
@@ -948,6 +974,7 @@ function initializeCheckboxListeners() {
         // Get app ID
         const appId = checkbox.getAttribute('data-app-id');
         if (!appId) {
+            console.warn('⚠️ Checkbox has no data-app-id attribute');
             return;
         }
         
@@ -960,7 +987,13 @@ function initializeCheckboxListeners() {
         
         // Update bulk actions UI
         updateBulkActionsUI();
-    });
+    };
+    
+    // Attach the listener
+    container.addEventListener('change', checkboxChangeHandler);
+    
+    // Mark this container as having a listener attached
+    container.dataset.listenerAttached = 'true';
     
     checkboxListenerInitialized = true;
 }

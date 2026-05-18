@@ -98,7 +98,7 @@ class EA_GlobalSearch {
           this.indexEntity('application', app.id, {
             name: app.name,
             category: app.category,
-            technology: app.technology,
+            technology: app.technologyStack,
             vendor: app.vendor,
             recommendation: app.recommendation,
             engagementId: engagement.id,
