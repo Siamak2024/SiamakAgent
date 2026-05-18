@@ -26,8 +26,8 @@
     <script src="../../js/EA_StorageManager.js"></script>
     <script src="../../js/EA_MarkdownGenerator.js"></script>
     <script src="engagement_schema.js"></script>
-    <script src="ea_engagement_core.js"></script>
-    <script src="ea_engagement_canvas_impl.js"></script>
+    <script src="ea_engagement_core.js?v=5.22"></script>
+    <script src="ea_engagement_canvas_impl.js?v=5.26"></script>
     <script src="ea_engagement_ui.js"></script>
     <script src="ea_engagement_phase1_additions.js"></script>
     <script src="ea_engagement_phase3_additions.js"></script>
@@ -51,6 +51,11 @@
     <script src="whitespot_catalog_selection.js"></script>
     <!-- V2.0 E2E Integration Modules -->
     <script src="target_services_bridge.js?v=2.8"></script>
+    <!-- Vivicta UI Utilities (Unified Progress Bar & Notifications) -->
+    <script src="vivicta_ui_utils.js"></script>
+    <!-- AS-IS Architecture Dashboard Modules -->
+    <script src="ea_asis_dashboard_mapper.js?v=5.25"></script>
+    <script src="ea_asis_dashboard_renderer.js?v=5.27"></script>
     <style>
         /* === EA PLATFORM LAYOUT === */
         #app-container { display: flex; flex-direction: column; min-height: 100vh; background: #f8f9fa; }
@@ -1064,6 +1069,25 @@
                 grid-column: 1 / -1 !important;
             }
         }
+        
+        /* Column Manager */
+        .column-item {
+            transition: all 0.2s ease;
+        }
+        
+        .column-item:hover:not([draggable="false"]) {
+            transform: translateX(4px);
+            border-color: #0891b2 !important;
+            box-shadow: 0 2px 8px rgba(8, 145, 178, 0.15);
+        }
+        
+        .column-item.dragging {
+            opacity: 0.5 !important;
+        }
+        
+        .column-item:active:not([draggable="false"]) {
+            cursor: grabbing !important;
+        }
     </style>
 </head>
 <body>
@@ -1495,11 +1519,33 @@
                         <button class="btn btn-secondary" onclick="exportToAPM()" title="Export applications and capabilities to APM Toolkit">
                             <i class="fas fa-upload"></i> Export to APM
                         </button>
+                        <button class="btn btn-ghost" onclick="openColumnManager()" title="Manage visible columns">
+                            <i class="fas fa-columns"></i> Columns
+                        </button>
                         <button class="btn btn-primary" onclick="openApplicationModal()">
                             <i class="fas fa-plus"></i> Add Application
                         </button>
                     </div>
                 </div>
+                
+                <!-- View Toggle -->
+                <div style="display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 12px 16px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <span style="font-weight: 600; font-size: 13px; color: #374151;">View Mode:</span>
+                    <div class="btn-group" style="display: flex; gap: 4px;">
+                        <button id="view-toggle-table" class="btn btn-secondary" onclick="togglePortfolioView('table')" style="background: #10b981; color: white; border-color: #10b981;">
+                            <i class="fas fa-table"></i> Table View
+                        </button>
+                        <button id="view-toggle-dashboard" class="btn btn-secondary" onclick="togglePortfolioView('dashboard')">
+                            <i class="fas fa-chart-pie"></i> Dashboard View
+                        </button>
+                    </div>
+                    <div id="dashboard-stale-badge" style="display: none; margin-left: auto; padding: 6px 12px; background: #FEF3C7; color: #92400E; border-radius: 6px; font-size: 12px; font-weight: 600;">
+                        <i class="fas fa-exclamation-triangle"></i> Dashboard out of sync
+                    </div>
+                </div>
+                
+                <!-- Dashboard Container (hidden by default) -->
+                <div id="dashboard-container" style="display: none; margin-top: 16px;"></div>
                 
                 <!-- Filter Bar -->
                 <div id="applications-filter-bar" style="background: #ffffff; padding: 12px 16px; border-radius: 8px; margin-top: 16px; border: 1px solid #e5e7eb; display: none; position: sticky; top: 80px; z-index: 90; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
@@ -1521,11 +1567,12 @@
                         
                         <!-- Lifecycle Filter -->
                         <select id="filter-lifecycle" onchange="filterApplications()" style="padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; width: 100%; box-sizing: border-box;">
-                            <option value="">All Lifecycles</option>
-                            <option value="invest">Invest</option>
-                            <option value="tolerate">Tolerate</option>
-                            <option value="migrate">Migrate</option>
-                            <option value="retire">Retire</option>
+                            <option value="">All Lifecycle Phases</option>
+                            <option value="phaseIn">Phase In</option>
+                            <option value="active">Active</option>
+                            <option value="legacy">Legacy</option>
+                            <option value="phaseOut">Phase Out</option>
+                            <option value="retired">Retired</option>
                         </select>
                         
                         <!-- Risk Filter -->
@@ -1834,17 +1881,31 @@
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                         <div class="form-group">
-                            <label class="form-label">Lifecycle *</label>
+                            <label class="form-label">Lifecycle Phase *</label>
                             <select id="application-lifecycle" class="form-select">
-                                <option value="invest">Invest</option>
-                                <option value="tolerate" selected>Tolerate</option>
-                                <option value="migrate">Migrate</option>
-                                <option value="retire">Retire</option>
+                                <option value="phaseIn">Phase In</option>
+                                <option value="active" selected>Active</option>
+                                <option value="legacy">Legacy</option>
+                                <option value="phaseOut">Phase Out</option>
+                                <option value="retired">Retired</option>
                             </select>
                         </div>
                         
                         <div class="form-group">
-                            <label class="form-label">Recommended Action</label>
+                            <label class="form-label">Action Decision</label>
+                            <select id="application-action-decision" class="form-select">
+                                <option value="" selected>-- No Action --</option>
+                                <option value="invest">Invest</option>
+                                <option value="tolerate">Tolerate</option>
+                                <option value="migrate">Migrate</option>
+                                <option value="retire">Retire</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">Rationalization Action</label>
                             <select id="application-action" class="form-select">
                                 <option value="retain" selected>Retain</option>
                                 <option value="invest">Invest</option>
@@ -1853,9 +1914,7 @@
                                 <option value="retire">Retire</option>
                             </select>
                         </div>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        
                         <div class="form-group">
                             <label class="form-label">Risk Level *</label>
                             <select id="application-risk" class="form-select">
@@ -2174,10 +2233,26 @@
                     <div class="form-group">
                         <label class="form-label" style="display: flex; align-items: center; gap: 8px;">
                             <input type="checkbox" id="bulk-enable-lifecycle" onchange="toggleBulkField('lifecycle')">
-                            <span>Lifecycle</span>
+                            <span>Lifecycle Phase</span>
                         </label>
                         <select id="bulk-lifecycle" class="form-select" disabled>
                             <option value="">Select...</option>
+                            <option value="phaseIn">PHASE IN</option>
+                            <option value="active">ACTIVE</option>
+                            <option value="legacy">LEGACY</option>
+                            <option value="phaseOut">PHASE OUT</option>
+                            <option value="retired">RETIRED</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Action -->
+                    <div class="form-group">
+                        <label class="form-label" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="bulk-enable-action-decision" onchange="toggleBulkField('action-decision')">
+                            <span>Action</span>
+                        </label>
+                        <select id="bulk-action-decision" class="form-select" disabled>
+                            <option value="">-- No Action --</option>
                             <option value="invest">Invest</option>
                             <option value="tolerate">Tolerate</option>
                             <option value="migrate">Migrate</option>
@@ -2255,6 +2330,38 @@
                 <button class="btn btn-ghost" onclick="closeBulkUpdateModal()">Cancel</button>
                 <button class="btn btn-primary" onclick="executeBulkUpdate()">
                     <i class="fas fa-check"></i> Update <span id="bulk-update-count-btn">0</span> Applications
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUMN MANAGER MODAL -->
+    <div id="columnManagerModal" class="modal-overlay hidden" onclick="if(event.target===this) closeColumnManager()">
+        <div class="modal-box" style="max-width: 600px;">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fas fa-columns"></i> Manage Table Columns</div>
+                <button class="modal-close" onclick="closeColumnManager()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="background: #f0f9ff; border: 1px solid #7dd3fc; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 13px;">
+                    <i class="fas fa-info-circle" style="color: #0284c7;"></i>
+                    <strong>Customize your view:</strong> Select which columns to display and drag to reorder them.
+                </div>
+                
+                <div id="column-manager-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Columns will be dynamically populated -->
+                </div>
+                
+                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+                    <button class="btn btn-ghost" onclick="resetColumnDefaults()" style="width: 100%;">
+                        <i class="fas fa-undo"></i> Reset to Default Columns
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeColumnManager()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveColumnPreferences()">
+                    <i class="fas fa-check"></i> Apply Changes
                 </button>
             </div>
         </div>
@@ -3209,6 +3316,169 @@
             background: #e5e7eb;
         }
     </style>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- SAVE ACCOUNT SUMMARY MODAL -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    
+    <div id="saveSummaryModal" class="modal-overlay hidden" onclick="if(event.target===this) closeSaveSummaryModal()">
+        <div class="modal-box" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fas fa-check-circle" style="color: #10b981;"></i>
+                    Account Data Saved Successfully
+                </h2>
+                <button class="modal-close" onclick="closeSaveSummaryModal()">×</button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- File Info -->
+                <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #86efac; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                        <i class="fas fa-file-export" style="font-size: 24px; color: #16a34a;"></i>
+                        <div style="flex: 1;">
+                            <div style="font-size: 14px; font-weight: 700; color: #166534;" id="summaryFileName">Account_Export.json</div>
+                            <div style="font-size: 11px; color: #15803d;" id="summaryFileDate">Exported: May 18, 2026</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #15803d; font-weight: 600;">Schema</div>
+                            <div style="font-size: 14px; font-weight: 900; color: #16a34a;">v3.0</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Account Info -->
+                <div style="margin-bottom: 20px;">
+                    <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 700; margin-bottom: 8px;">
+                        <i class="fas fa-building"></i> Account Details
+                    </div>
+                    <div style="background: #f9fafb; border-radius: 8px; padding: 12px;">
+                        <div style="font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 4px;" id="summaryAccountName">-</div>
+                        <div style="font-size: 12px; color: #6b7280;" id="summaryAccountInfo">Industry • Segment</div>
+                    </div>
+                </div>
+                
+                <!-- Summary Statistics Grid -->
+                <div style="margin-bottom: 20px;">
+                    <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 700; margin-bottom: 12px;">
+                        <i class="fas fa-chart-bar"></i> Data Summary
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                        <!-- Business Objectives -->
+                        <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #93c5fd; border-radius: 8px; padding: 12px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                <i class="fas fa-bullseye" style="color: #2563eb;"></i>
+                                <div style="font-size: 11px; color: #1e40af; font-weight: 600;">Business Objectives</div>
+                            </div>
+                            <div style="font-size: 24px; font-weight: 900; color: #1e3a8a;" id="summaryObjectivesCount">0</div>
+                        </div>
+                        
+                        <!-- Capabilities -->
+                        <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fcd34d; border-radius: 8px; padding: 12px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                <i class="fas fa-puzzle-piece" style="color: #d97706;"></i>
+                                <div style="font-size: 11px; color: #92400e; font-weight: 600;">Capabilities</div>
+                            </div>
+                            <div style="font-size: 24px; font-weight: 900; color: #78350f;" id="summaryCapabilitiesCount">0</div>
+                        </div>
+                        
+                        <!-- Opportunities -->
+                        <div style="background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%); border: 1px solid #5eead4; border-radius: 8px; padding: 12px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                <i class="fas fa-lightbulb" style="color: #0d9488;"></i>
+                                <div style="font-size: 11px; color: #115e59; font-weight: 600;">Opportunities</div>
+                            </div>
+                            <div style="font-size: 24px; font-weight: 900; color: #134e4a;" id="summaryOpportunitiesCount">0</div>
+                        </div>
+                        
+                        <!-- Engagements -->
+                        <div style="background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); border: 1px solid #f9a8d4; border-radius: 8px; padding: 12px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                <i class="fas fa-handshake" style="color: #db2777;"></i>
+                                <div style="font-size: 11px; color: #9f1239; font-weight: 600;">EA Engagements</div>
+                            </div>
+                            <div style="font-size: 24px; font-weight: 900; color: #831843;" id="summaryEngagementsCount">0</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Application Portfolio Section -->
+                <div id="summaryApplicationSection" style="margin-bottom: 20px; display: none;">
+                    <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 700; margin-bottom: 12px;">
+                        <i class="fas fa-box"></i> AS-IS Application Portfolio
+                    </div>
+                    
+                    <div style="background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border: 2px solid #d8b4fe; border-radius: 12px; padding: 16px;">
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 28px; font-weight: 900; color: #7c3aed;" id="summaryApplicationsCount">0</div>
+                                <div style="font-size: 10px; color: #6b21a8; font-weight: 600;">Applications</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 28px; font-weight: 900; color: #9333ea;" id="summaryApmCapabilitiesCount">0</div>
+                                <div style="font-size: 10px; color: #6b21a8; font-weight: 600;">APM Capabilities</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 28px; font-weight: 900; color: #a855f7;" id="summaryAiAgentsCount">0</div>
+                                <div style="font-size: 10px; color: #6b21a8; font-weight: 600;">AI Agents</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Application Details -->
+                        <div id="summaryApplicationDetails" style="display: none; padding-top: 12px; border-top: 1px solid #e9d5ff;">
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 11px;">
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span style="color: #7c3aed; font-weight: 600;">Total Cost/Year:</span>
+                                    <span style="color: #581c87; font-weight: 700;" id="summaryTotalCost">€0</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span style="color: #7c3aed; font-weight: 600;">With Business Use Case:</span>
+                                    <span style="color: #581c87; font-weight: 700;" id="summaryBusinessUseCaseCount">0</span>
+                                </div>
+                            </div>
+                            <div id="summaryLifecycleBreakdown" style="margin-top: 8px; font-size: 10px; color: #6b21a8;"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- EA Engagement Details -->
+                <div id="summaryEngagementSection" style="display: none;">
+                    <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 700; margin-bottom: 12px;">
+                        <i class="fas fa-diagram-project"></i> EA Engagement Data
+                    </div>
+                    
+                    <div style="background: #f9fafb; border-radius: 8px; padding: 12px;">
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-size: 11px;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 20px; font-weight: 900; color: #ea580c;" id="summaryEngCapabilities">0</div>
+                                <div style="font-size: 9px; color: #6b7280; font-weight: 600;">Capabilities</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 20px; font-weight: 900; color: #ea580c;" id="summaryEngStakeholders">0</div>
+                                <div style="font-size: 9px; color: #6b7280; font-weight: 600;">Stakeholders</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 20px; font-weight: 900; color: #ea580c;" id="summaryEngApplications">0</div>
+                                <div style="font-size: 9px; color: #6b7280; font-weight: 600;">Applications</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 20px; font-weight: 900; color: #ea580c;" id="summaryEngWhiteSpots">0</div>
+                                <div style="font-size: 9px; color: #6b7280; font-weight: 600;">WhiteSpots</div>
+                            </div>
+                        </div>
+                        <div id="summaryEngServices" style="display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #6b7280; text-align: center;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeSaveSummaryModal()" style="width: 100%;">
+                    <i class="fas fa-check"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- ══════════════════════════════════════════════════════════════ -->
     <!-- ══════════════════════════════════════════════════════════════ -->
@@ -4271,6 +4541,72 @@
                 
                 console.log(`📊 Loaded ${capabilitiesArray.length} capabilities from Opportunity Qualification page`);
                 
+                // === LOAD AS-IS APPLICATION PORTFOLIO DATA FROM APM ===
+                // Applications are stored in APM (Application Portfolio Management) with account-based portfolios
+                // localStorage key: 'apm_portfolios' contains all portfolios
+                const apmPortfoliosKey = 'apm_portfolios';
+                const savedAPMPortfolios = localStorage.getItem(apmPortfoliosKey);
+                let accountApplications = [];
+                let apmCapabilities = [];
+                let aiAgents = [];
+                let applicationPortfolioMetadata = {};
+                
+                if (savedAPMPortfolios) {
+                    try {
+                        const allPortfolios = JSON.parse(savedAPMPortfolios);
+                        // Find portfolio for this account (match by account name or ID)
+                        const accountPortfolio = allPortfolios.find(p => 
+                            p.customerName === account.name || 
+                            p.id === accountId ||
+                            p.customerName.toLowerCase() === account.name.toLowerCase()
+                        );
+                        
+                        if (accountPortfolio && accountPortfolio.data) {
+                            accountApplications = accountPortfolio.data.applications || [];
+                            apmCapabilities = accountPortfolio.data.capabilities || [];
+                            aiAgents = accountPortfolio.data.ai_agents || [];
+                            
+                            applicationPortfolioMetadata = {
+                                portfolioId: accountPortfolio.id,
+                                customerName: accountPortfolio.customerName,
+                                industry: accountPortfolio.industry,
+                                description: accountPortfolio.description,
+                                createdAt: accountPortfolio.createdAt,
+                                lastModified: accountPortfolio.lastModified,
+                                stats: accountPortfolio.stats
+                            };
+                            
+                            console.log(`📦 Loaded Application Portfolio for ${account.name}:`);
+                            console.log(`   • ${accountApplications.length} applications`);
+                            console.log(`   • ${apmCapabilities.length} APM capabilities`);
+                            console.log(`   • ${aiAgents.length} AI agents`);
+                        } else {
+                            console.log(`⚠️ No Application Portfolio found for account: ${account.name}`);
+                        }
+                    } catch (error) {
+                        console.error('❌ Error loading APM portfolio data:', error);
+                    }
+                }
+                
+                // Calculate application statistics
+                const applicationsByLifecycle = accountApplications.reduce((acc, app) => {
+                    const lifecycle = app.lifecycle || 'active';
+                    acc[lifecycle] = (acc[lifecycle] || 0) + 1;
+                    return acc;
+                }, {});
+                
+                const applicationsByRisk = accountApplications.reduce((acc, app) => {
+                    const risk = app.risk || 'unknown';
+                    acc[risk] = (acc[risk] || 0) + 1;
+                    return acc;
+                }, {});
+                
+                const totalApplicationCost = accountApplications.reduce((sum, app) => {
+                    const capex = parseFloat(app.capex || 0);
+                    const opex = parseFloat(app.opex || 0);
+                    return sum + capex + opex;
+                }, 0);
+                
                 // Calculate objective statistics for reporting
                 const objectivesByCategory = objectives.reduce((acc, obj) => {
                     const cat = obj.category || 'Uncategorized';
@@ -4299,7 +4635,7 @@
                 // Create comprehensive export with enhanced structure
                 const exportData = {
                     // === DOCUMENT METADATA ===
-                    exportSchema: "NextGenEA_AccountExport_v2.0",
+                    exportSchema: "NextGenEA_AccountExport_v3.0",
                     exportDate: new Date().toISOString(),
                     exportSource: "Vivicta Growth Sprint Dashboard - EA Engagement Playbook",
                     generatedBy: "NextGenEA V11",
@@ -4332,6 +4668,23 @@
                         customCapabilities: customCapabilitiesData,
                         aiAnalysisResults: aiAnalysisData,
                         aiValidatedCapabilities: aiValidatedData
+                    },
+                    
+                    // === AS-IS APPLICATION PORTFOLIO (Complete Application Inventory) ===
+                    applicationPortfolio: {
+                        applications: accountApplications.map(app => ({
+                            ...app,
+                            dataType: 'Application'
+                        })),
+                        apmCapabilities: apmCapabilities.map(cap => ({
+                            ...cap,
+                            dataType: 'APMCapability'
+                        })),
+                        aiAgents: aiAgents.map(agent => ({
+                            ...agent,
+                            dataType: 'AIAgent'
+                        })),
+                        metadata: applicationPortfolioMetadata
                     },
                     
                     // === EA ENGAGEMENT DETAILS ===
@@ -4380,6 +4733,16 @@
                             totalValue: opportunitiesByValue,
                             averageValue: opportunities.length > 0 ? (opportunitiesByValue / opportunities.length) : 0
                         },
+                        applicationPortfolio: {
+                            totalApplications: accountApplications.length,
+                            byLifecycle: applicationsByLifecycle,
+                            byRisk: applicationsByRisk,
+                            totalCostPerYear: totalApplicationCost,
+                            apmCapabilitiesCount: apmCapabilities.length,
+                            aiAgentsCount: aiAgents.length,
+                            applicationsWithBusinessUseCase: accountApplications.filter(app => app.businessUseCase).length,
+                            applicationsWithAPQCMapping: accountApplications.filter(app => app.businessCapabilities && app.businessCapabilities.length > 0).length
+                        },
                         engagement: {
                             total: engagements.length,
                             latestEngagementId: latestEngagement ? latestEngagement.engagement?.id : null,
@@ -4398,8 +4761,8 @@
                     
                     // === DATA STRUCTURE DOCUMENTATION ===
                     dataStructure: {
-                        description: "NextGenEA Account Export - Complete account data including business objectives, opportunities, and EA engagement details",
-                        version: "2.0",
+                        description: "NextGenEA Account Export - Complete account data including business objectives, opportunities, AS-IS application portfolio, and EA engagement details",
+                        version: "3.0",
                         sections: [
                             {
                                 name: "account",
@@ -4431,6 +4794,18 @@
                                 recordType: "object"
                             },
                             {
+                                name: "applicationPortfolio",
+                                description: "AS-IS Application Portfolio from Application Portfolio Management (APM) - Complete application inventory with all attributes, APM capabilities, and AI agents",
+                                recordType: "object",
+                                sourceNote: "Loaded from localStorage key: 'apm_portfolios' - account-matched portfolio",
+                                nestedStructure: [
+                                    "applications[] - Full application inventory with all attributes (applicationId, name, description, technologyStack, technologyVendor, operationVendor, businessOwner, superuser, users, currency, capex, opex, lifecycle, state, rationalizationAction, risk, technicalFitScore, businessValueScore, businessUseCase, businessCapabilities[], notes, ai_maturity, ai_transformation_potential, modernStackAlternative, linkedAIAgents[])",
+                                    "apmCapabilities[] - Business capabilities defined in APM",
+                                    "aiAgents[] - AI agents linked to applications",
+                                    "metadata - Portfolio metadata (portfolioId, customerName, industry, description, createdAt, lastModified, stats)"
+                                ]
+                            },
+                            {
                                 name: "engagements",
                                 description: "EA Engagement Playbook data including capabilities, stakeholders, applications, WhiteSpot heatmaps, and architecture themes",
                                 recordType: "array",
@@ -4454,11 +4829,13 @@
                         reportingHints: {
                             businessObjectivesReport: "Use summary.objectives for high-level metrics, businessObjectives array for detailed analysis",
                             opportunitiesReport: "Use summary.opportunities.byStage for pipeline visualization, opportunities array for details",
+                            applicationPortfolioReport: "Use applicationPortfolio.applications[] for complete AS-IS application inventory with all attributes. Each application includes: identification (applicationId, name), description, technology (technologyStack, technologyVendor, operationVendor), ownership (businessOwner, superuser), financial (capex, opex, currency), lifecycle (lifecycle, state, rationalizationAction), assessment (risk, technicalFitScore, businessValueScore), business context (businessUseCase, businessCapabilities[]), and AI transformation (ai_maturity, ai_transformation_potential, modernStackAlternative, linkedAIAgents[]). Use summary.applicationPortfolio for statistics.",
                             engagementReport: "Use engagements[0] for latest engagement data, summary.engagement for overview metrics",
                             capabilityHeatmapReport: "Extract capabilities from engagements[0].capabilities - includes maturity levels, linked objectives, and APQC mappings",
                             whiteSpotServicesReport: "Extract service assessments from engagements[0].whiteSpotHeatmaps[].hlAssessments - includes L2 service details, L3 components, assessment state, and opportunity values",
                             stakeholderReport: "Combine account.stakeholders (account-level) with engagements[0].stakeholders (engagement-level)",
-                            detailedServiceBreakdown: "Each WhiteSpot heatmap contains hlAssessments array with: l2ServiceId, l2ServiceName, l1ServiceArea, assessmentState, l3Components[], apqcMappedCapabilities[], score, opportunityValue, notes"
+                            detailedServiceBreakdown: "Each WhiteSpot heatmap contains hlAssessments array with: l2ServiceId, l2ServiceName, l1ServiceArea, assessmentState, l3Components[], apqcMappedCapabilities[], score, opportunityValue, notes",
+                            applicationInventoryReport: "Use applicationPortfolio.applications[] array - each application contains complete data model with 25+ attributes covering technical, financial, business, and AI transformation aspects"
                         }
                     }
                 };
@@ -4482,7 +4859,8 @@
                 console.log(`   Engagement ID: ${engagementId}`);
                 console.log(`   WhiteSpot Heatmaps: ${totalWhiteSpots}`);
                 console.log(`   Stakeholders: ${totalStakeholders}`);
-                console.log(`   Applications: ${totalApplications}`);
+                console.log(`   Applications (Engagement): ${totalApplications}`);
+                console.log(`   AS-IS Applications (Portfolio): ${accountApplications.length}`);
                 console.log(`   Capabilities: ${totalCapabilities}`);
                 
                 // Update UI
@@ -4495,6 +4873,26 @@
                 message += `• ${capabilitiesArray.length} capabilit${capabilitiesArray.length !== 1 ? 'ies' : 'y'} (from Capability Heat Map)\n`;
                 message += `• ${opportunities.length} opportunit${opportunities.length !== 1 ? 'ies' : 'y'}\n`;
                 message += `• ${engagements.length} EA engagement${engagements.length !== 1 ? 's' : ''}\n`;
+                
+                if (accountApplications.length > 0) {
+                    message += `\n📦 AS-IS Application Portfolio:\n`;
+                    message += `• ${accountApplications.length} application${accountApplications.length !== 1 ? 's' : ''} (complete inventory)\n`;
+                    if (apmCapabilities.length > 0) {
+                        message += `• ${apmCapabilities.length} APM capabilit${apmCapabilities.length !== 1 ? 'ies' : 'y'}\n`;
+                    }
+                    if (aiAgents.length > 0) {
+                        message += `• ${aiAgents.length} AI agent${aiAgents.length !== 1 ? 's' : ''}\n`;
+                    }
+                    if (totalApplicationCost > 0) {
+                        const costStr = totalApplicationCost.toLocaleString();
+                        message += `• Total cost/year: ${costStr}\n`;
+                    }
+                    const appsByLifecycle = Object.entries(applicationsByLifecycle).map(([k, v]) => `${k}: ${v}`).join(', ');
+                    if (appsByLifecycle) {
+                        message += `• Lifecycle: ${appsByLifecycle}\n`;
+                    }
+                }
+                
                 if (engagements.length > 0) {
                     message += `\n🎯 EA Engagement Data:\n`;
                     message += `• ${totalCapabilities} capabilit${totalCapabilities !== 1 ? 'ies' : 'y'}\n`;
@@ -4512,7 +4910,34 @@
                     message += `\n\n🧹 Cleaned up ${allAccountEngagements.length - 1} old engagement version${allAccountEngagements.length - 1 !== 1 ? 's' : ''} (kept latest only)`;
                 }
                 
-                showToast('Account Saved', message, 'success');
+                // Show toast for quick feedback
+                showToast('Account Saved', 'Account data saved successfully!', 'success');
+                
+                // Show detailed summary modal
+                showSaveSummaryModal({
+                    filename: filename,
+                    account: account,
+                    objectives: objectives,
+                    capabilities: capabilitiesArray,
+                    opportunities: opportunities,
+                    engagements: engagements,
+                    applicationPortfolio: {
+                        applications: accountApplications,
+                        apmCapabilities: apmCapabilities,
+                        aiAgents: aiAgents,
+                        totalCost: totalApplicationCost,
+                        byLifecycle: applicationsByLifecycle,
+                        byRisk: applicationsByRisk
+                    },
+                    engagementStats: {
+                        capabilities: totalCapabilities,
+                        stakeholders: totalStakeholders,
+                        applications: totalApplications,
+                        whiteSpots: totalWhiteSpots,
+                        servicesAssessed: totalServicesAssessed,
+                        architectureThemes: totalArchThemes
+                    }
+                });
                 
             } catch (error) {
                 console.error('❌ Error saving account data:', error);
@@ -4522,6 +4947,120 @@
         
         // Expose globally for menu button
         window.saveAccountData = saveAccountData;
+        
+        /**
+         * Show Save Summary Modal
+         * Displays comprehensive summary of saved account data
+         */
+        function showSaveSummaryModal(data) {
+            // Populate file info
+            document.getElementById('summaryFileName').textContent = data.filename;
+            const exportDate = new Date().toLocaleString('en-US', { 
+                year: 'numeric', month: 'short', day: 'numeric', 
+                hour: '2-digit', minute: '2-digit' 
+            });
+            document.getElementById('summaryFileDate').textContent = `Exported: ${exportDate}`;
+            
+            // Populate account info
+            document.getElementById('summaryAccountName').textContent = data.account.name;
+            const accountInfo = [
+                data.account.industry || 'N/A',
+                data.account.segment || data.account.size || 'N/A'
+            ].join(' • ');
+            document.getElementById('summaryAccountInfo').textContent = accountInfo;
+            
+            // Populate summary statistics
+            document.getElementById('summaryObjectivesCount').textContent = data.objectives.length;
+            document.getElementById('summaryCapabilitiesCount').textContent = data.capabilities.length;
+            document.getElementById('summaryOpportunitiesCount').textContent = data.opportunities.length;
+            document.getElementById('summaryEngagementsCount').textContent = data.engagements.length;
+            
+            // Application Portfolio Section
+            const appSection = document.getElementById('summaryApplicationSection');
+            const appDetails = document.getElementById('summaryApplicationDetails');
+            
+            if (data.applicationPortfolio && data.applicationPortfolio.applications.length > 0) {
+                appSection.style.display = 'block';
+                
+                document.getElementById('summaryApplicationsCount').textContent = 
+                    data.applicationPortfolio.applications.length;
+                document.getElementById('summaryApmCapabilitiesCount').textContent = 
+                    data.applicationPortfolio.apmCapabilities?.length || 0;
+                document.getElementById('summaryAiAgentsCount').textContent = 
+                    data.applicationPortfolio.aiAgents?.length || 0;
+                
+                // Show details if there's meaningful data
+                const hasCost = data.applicationPortfolio.totalCost > 0;
+                const hasBusinessUseCase = data.applicationPortfolio.applications.filter(app => app.businessUseCase).length;
+                const hasLifecycle = Object.keys(data.applicationPortfolio.byLifecycle).length > 0;
+                
+                if (hasCost || hasBusinessUseCase || hasLifecycle) {
+                    appDetails.style.display = 'block';
+                    
+                    // Format cost
+                    const costStr = data.applicationPortfolio.totalCost > 0 
+                        ? '€' + data.applicationPortfolio.totalCost.toLocaleString()
+                        : '€0';
+                    document.getElementById('summaryTotalCost').textContent = costStr;
+                    
+                    document.getElementById('summaryBusinessUseCaseCount').textContent = hasBusinessUseCase;
+                    
+                    // Lifecycle breakdown
+                    if (hasLifecycle) {
+                        const lifecycleStr = Object.entries(data.applicationPortfolio.byLifecycle)
+                            .map(([state, count]) => `${state}: ${count}`)
+                            .join(' • ');
+                        document.getElementById('summaryLifecycleBreakdown').textContent = 
+                            'Lifecycle: ' + lifecycleStr;
+                    }
+                } else {
+                    appDetails.style.display = 'none';
+                }
+            } else {
+                appSection.style.display = 'none';
+            }
+            
+            // EA Engagement Section
+            const engSection = document.getElementById('summaryEngagementSection');
+            const engServices = document.getElementById('summaryEngServices');
+            
+            if (data.engagements.length > 0 && data.engagementStats) {
+                engSection.style.display = 'block';
+                
+                document.getElementById('summaryEngCapabilities').textContent = 
+                    data.engagementStats.capabilities || 0;
+                document.getElementById('summaryEngStakeholders').textContent = 
+                    data.engagementStats.stakeholders || 0;
+                document.getElementById('summaryEngApplications').textContent = 
+                    data.engagementStats.applications || 0;
+                document.getElementById('summaryEngWhiteSpots').textContent = 
+                    data.engagementStats.whiteSpots || 0;
+                
+                // Services assessed
+                if (data.engagementStats.servicesAssessed > 0) {
+                    engServices.style.display = 'block';
+                    engServices.textContent = `${data.engagementStats.servicesAssessed} services assessed • ${data.engagementStats.architectureThemes || 0} architecture themes`;
+                } else {
+                    engServices.style.display = 'none';
+                }
+            } else {
+                engSection.style.display = 'none';
+            }
+            
+            // Show modal
+            document.getElementById('saveSummaryModal').classList.remove('hidden');
+        }
+        
+        /**
+         * Close Save Summary Modal
+         */
+        function closeSaveSummaryModal() {
+            document.getElementById('saveSummaryModal').classList.add('hidden');
+        }
+        
+        // Expose functions globally
+        window.showSaveSummaryModal = showSaveSummaryModal;
+        window.closeSaveSummaryModal = closeSaveSummaryModal;
         
         function saveEngagement() {
             // Get editable fields only
