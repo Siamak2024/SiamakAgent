@@ -333,4 +333,4 @@ window.loadCustomServices = function() {
 // Initialize on load
 loadCustomServices();
 
-console.log('✓ WhiteSpot Custom Services module loaded (v1.0)');
+// console.log('✓ WhiteSpot Custom Services module loaded (v1.0)');

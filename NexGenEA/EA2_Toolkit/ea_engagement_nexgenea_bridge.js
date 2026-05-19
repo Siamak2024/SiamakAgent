@@ -12,7 +12,7 @@
  * @date 2026-05-13
  */
 
-console.log('✓ EA Engagement NexGenEA Bridge loading...');
+// console.log('✓ EA Engagement NexGenEA Bridge loading...');
 
 // ═══════════════════════════════════════════════════════════════════
 // NEXGENEA PROJECT DISCOVERY
@@ -706,4 +706,4 @@ function closeNexGenEAImportModal() {
   window._importPreviewData = null;
 }
 
-console.log('✓ EA Engagement NexGenEA Bridge ready');
+// console.log('✓ EA Engagement NexGenEA Bridge ready');

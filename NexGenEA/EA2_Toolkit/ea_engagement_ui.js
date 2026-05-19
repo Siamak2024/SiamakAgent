@@ -370,4 +370,4 @@ function autoLoadLatestEngagement() {
     return false;
 }
 
-console.log('✓ EA Engagement UI loaded');
+// console.log('✓ EA Engagement UI loaded');

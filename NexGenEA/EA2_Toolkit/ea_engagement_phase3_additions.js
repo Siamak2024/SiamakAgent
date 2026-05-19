@@ -5,7 +5,7 @@
  * @date 2026-04-18
  */
 
-console.log('✓ EA Engagement Phase 3 (Agile Execution) loading...');
+// console.log('✓ EA Engagement Phase 3 (Agile Execution) loading...');
 
 // ═══════════════════════════════════════════════════════════════════
 // PHASE MANAGEMENT
@@ -651,4 +651,4 @@ function renderRoadmapTimeline() {
     `;
 }
 
-console.log('✓ EA Engagement Phase 3 loaded');
+// console.log('✓ EA Engagement Phase 3 loaded');

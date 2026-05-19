@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EA Engagement Playbook â€” EA Toolkit</title>
-    <link rel="stylesheet" href="../../css/ea-design-engine.css" />
-    <link rel="stylesheet" href="../../css/ea-nordic-theme.css" />
+    <link rel="stylesheet" href="../../css/ea-design-engine.css?v=5.43" />
+    <link rel="stylesheet" href="../../css/ea-design-v2.css?v=5.43" />
+    <link rel="stylesheet" href="../../css/ea-nordic-theme.css?v=5.43" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="../../css/fontawesome/all.min.css">
@@ -27,7 +28,10 @@
     <script src="../../js/EA_MarkdownGenerator.js"></script>
     <script src="engagement_schema.js"></script>
     <script src="ea_engagement_core.js?v=5.22"></script>
-    <script src="ea_engagement_canvas_impl.js?v=5.26"></script>
+    <!-- AS-IS Architecture Dashboard Modules (must load before canvas impl) -->
+    <script src="ea_asis_dashboard_mapper.js?v=5.25"></script>
+    <script src="ea_asis_dashboard_renderer.js?v=5.31"></script>
+    <script src="ea_engagement_canvas_impl.js?v=5.27"></script>
     <script src="ea_engagement_ui.js"></script>
     <script src="ea_engagement_phase1_additions.js"></script>
     <script src="ea_engagement_phase3_additions.js"></script>
@@ -53,22 +57,26 @@
     <script src="target_services_bridge.js?v=2.8"></script>
     <!-- Vivicta UI Utilities (Unified Progress Bar & Notifications) -->
     <script src="vivicta_ui_utils.js"></script>
-    <!-- AS-IS Architecture Dashboard Modules -->
-    <script src="ea_asis_dashboard_mapper.js?v=5.25"></script>
-    <script src="ea_asis_dashboard_renderer.js?v=5.27"></script>
     <style>
         /* === EA PLATFORM LAYOUT === */
-        #app-container { display: flex; flex-direction: column; min-height: 100vh; background: #f8f9fa; }
-        #main-content { flex: 1; padding-bottom: 40px; }
+        #app-container { display: flex !important; flex-direction: column !important; min-height: 100vh !important; background: #f8f9fa !important; }
+        #main-content { flex: 1 !important; padding-bottom: 40px !important; }
         
-        /* === EA PLATFORM HEADER === */
-        .ea-header {
+        /* === EA PLATFORM HEADER - Force visibility === */
+        body.ea-toolkit-app header.ea-header,
+        #app-container > header.ea-header,
+        header.ea-header {
+            display: block !important;
+            visibility: visible !important;
             background: #00472E !important;
-            padding: 16px 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
+            padding: 16px 24px !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 1000 !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 80px !important;
         }
         
         .header-content {
@@ -1090,7 +1098,7 @@
         }
     </style>
 </head>
-<body>
+<body class="ea-toolkit-app">
     <div id="app-container">
         <!-- EA PLATFORM HEADER -->
         <header class="ea-header">
@@ -1175,6 +1183,23 @@
                             <div class="menu-dropdown-item" onclick="closeAllMenus(); exportEngagementJSON();">
                                 <i class="fas fa-file-export"></i>
                                 <span>Export JSON</span>
+                            </div>
+                            <div class="menu-dropdown-divider"></div>
+                            <div class="menu-dropdown-item" onclick="closeAllMenus(); openExcelImportModal();">
+                                <i class="fas fa-file-excel"></i>
+                                <span>Import from Excel</span>
+                            </div>
+                            <div class="menu-dropdown-item" onclick="closeAllMenus(); exportToExcel();">
+                                <i class="fas fa-file-excel"></i>
+                                <span>Export to Excel</span>
+                            </div>
+                            <div class="menu-dropdown-item" onclick="closeAllMenus(); importAPMData();">
+                                <i class="fas fa-download"></i>
+                                <span>Import from APM</span>
+                            </div>
+                            <div class="menu-dropdown-item" onclick="closeAllMenus(); exportToAPM();">
+                                <i class="fas fa-upload"></i>
+                                <span>Export to APM</span>
                             </div>
                             <div class="menu-dropdown-divider"></div>
                             <div class="menu-dropdown-item" onclick="closeAllMenus(); openAIAssistantGuide();">
@@ -1507,18 +1532,6 @@
                         AS-IS Application Portfolio
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button class="btn btn-secondary" onclick="openExcelImportModal()" title="Import applications from Excel file">
-                            <i class="fas fa-file-excel"></i> Import from Excel
-                        </button>
-                        <button class="btn btn-secondary" onclick="exportToExcel()" title="Export applications to Excel file with dual IDs">
-                            <i class="fas fa-file-excel"></i> Export to Excel
-                        </button>
-                        <button class="btn btn-secondary" onclick="importAPMData()" title="Import applications and capabilities from APM Toolkit">
-                            <i class="fas fa-download"></i> Import from APM
-                        </button>
-                        <button class="btn btn-secondary" onclick="exportToAPM()" title="Export applications and capabilities to APM Toolkit">
-                            <i class="fas fa-upload"></i> Export to APM
-                        </button>
                         <button class="btn btn-ghost" onclick="openColumnManager()" title="Manage visible columns">
                             <i class="fas fa-columns"></i> Columns
                         </button>
@@ -1535,8 +1548,11 @@
                         <button id="view-toggle-table" class="btn btn-secondary" onclick="togglePortfolioView('table')" style="background: #10b981; color: white; border-color: #10b981;">
                             <i class="fas fa-table"></i> Table View
                         </button>
-                        <button id="view-toggle-dashboard" class="btn btn-secondary" onclick="togglePortfolioView('dashboard')">
-                            <i class="fas fa-chart-pie"></i> Dashboard View
+                        <button id="view-toggle-business" class="btn btn-secondary" onclick="togglePortfolioView('business')">
+                            <i class="fas fa-building"></i> Business View
+                        </button>
+                        <button id="view-toggle-technology" class="btn btn-secondary" onclick="togglePortfolioView('technology')">
+                            <i class="fas fa-server"></i> Technology View
                         </button>
                     </div>
                     <div id="dashboard-stale-badge" style="display: none; margin-left: auto; padding: 6px 12px; background: #FEF3C7; color: #92400E; border-radius: 6px; font-size: 12px; font-weight: 600;">
@@ -1599,6 +1615,9 @@
                         <div id="bulk-actions-bar" style="display: none;">
                             <button onclick="openBulkUpdateModal()" class="btn btn-primary" style="padding: 8px 16px; font-size: 13px;">
                                 <i class="fas fa-edit"></i> Bulk Update <span id="selected-count-badge" style="background: white; color: #3b82f6; padding: 2px 8px; border-radius: 12px; margin-left: 6px; font-weight: 700;">0</span> Selected
+                            </button>
+                            <button onclick="bulkDeleteApplications()" class="btn btn-danger" style="padding: 8px 16px; font-size: 13px; margin-left: 8px; background: #dc2626; border-color: #dc2626;" title="Delete selected applications">
+                                <i class="fas fa-trash"></i> Delete Selected
                             </button>
                             <button onclick="clearSelection()" class="btn btn-ghost" style="padding: 8px 12px; font-size: 13px; margin-left: 8px;">
                                 <i class="fas fa-times"></i> Clear Selection
@@ -3519,7 +3538,7 @@
             // Initialize AccountManager for integration
             if (typeof EA_AccountManager !== 'undefined') {
                 window.accountManager = new EA_AccountManager();
-                console.log('✓ EA_AccountManager initialized for account integration');
+                // console.log('✓ EA_AccountManager initialized for account integration');
             } else {
                 console.warn('EA_AccountManager not loaded - account linking disabled');
             }
@@ -3527,13 +3546,13 @@
             // Initialize engagement manager
             engagementManager = new EA_EngagementManager();
             window.engagementManager = engagementManager; // Expose to window for WhiteSpot module
-            console.log('✓ EA_EngagementManager initialized');
+            // console.log('✓ EA_EngagementManager initialized');
             
             // Initialize workflow engine
             if (typeof EA_WorkflowEngine !== 'undefined') {
                 workflowEngine = new EA_WorkflowEngine(engagementManager);
                 window.workflowEngine = workflowEngine;
-                console.log('✓ EA_WorkflowEngine initialized');
+                // console.log('✓ EA_WorkflowEngine initialized');
             } else {
                 console.warn('EA_WorkflowEngine not loaded');
             }
@@ -3546,7 +3565,7 @@
                     workflowEngine
                 );
                 window.integrationBridge = integrationBridge;
-                console.log('✓ EA_IntegrationBridge initialized');
+                // console.log('✓ EA_IntegrationBridge initialized');
             } else {
                 console.warn('EA_IntegrationBridge not loaded or dataManager not available');
             }
@@ -3558,7 +3577,7 @@
                     workflowEngine,
                     integrationBridge
                 );
-                console.log('✓ EA_AIAssistant initialized with workflow and integration support');
+                // console.log('✓ EA_AIAssistant initialized with workflow and integration support');
                 
                 // Update AI context after a brief delay to let DOM settle
                 setTimeout(() => {
@@ -3581,7 +3600,7 @@
                 // Load account data and create/load engagement linked to this account
                 const account = window.accountManager.getAccount(accountId);
                 if (account) {
-                    console.log(`✓ Account context loaded: ${account.name} (${accountId})`);
+                    // console.log(`✓ Account context loaded: ${account.name} (${accountId})`);
                     window.currentAccountContext = account;
                     
                     // Check if engagement already exists for this account

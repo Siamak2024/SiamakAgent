@@ -5,7 +5,7 @@
  * @date 2026-04-18
  */
 
-console.log('✓ Enhanced Stakeholder Management loading...');
+// console.log('✓ Enhanced Stakeholder Management loading...');
 
 // Override renderStakeholders() with enhanced two-column layout
 window.renderStakeholders = function() {
@@ -635,4 +635,4 @@ window.deleteStakeholder = function(stakeholderId, stakeholderName) {
     }
 };
 
-console.log('✓ Enhanced Stakeholder Management loaded');
+// console.log('✓ Enhanced Stakeholder Management loaded');

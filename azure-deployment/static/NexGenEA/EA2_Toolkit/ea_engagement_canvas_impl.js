@@ -580,10 +580,95 @@ function deleteAllApplications() {
     applicationSelectionState.selectedIds.clear();
     applicationSelectionState.selectAll = false;
     
+    // Invalidate dashboard cache
+    if (typeof invalidateASISDashboard === 'function') {
+        invalidateASISDashboard();
+    }
+    
     // Refresh the display
     renderApplications();
     
     showNotification(`Successfully deleted all ${allApplications.length} applications`, 'success');
+}
+
+/**
+ * Delete a single application
+ * @param {string} appId - Application ID to delete
+ */
+function deleteApplication(appId) {
+    const app = engagementManager.getEntity('applications', appId);
+    
+    if (!app) {
+        showNotification('Application not found', 'error');
+        return;
+    }
+    
+    // Show confirmation dialog
+    const confirmed = confirm(
+        `Delete "${app.name}"?\n\n` +
+        `This action cannot be undone.`
+    );
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    // Delete the application
+    engagementManager.deleteEntity('applications', appId);
+    
+    // Remove from selection if selected
+    applicationSelectionState.selectedIds.delete(appId);
+    
+    // Invalidate dashboard cache
+    if (typeof invalidateASISDashboard === 'function') {
+        invalidateASISDashboard();
+    }
+    
+    // Refresh the display
+    renderApplications();
+    
+    showNotification(`Deleted "${app.name}" successfully`, 'success');
+}
+
+/**
+ * Bulk delete selected applications
+ */
+function bulkDeleteApplications() {
+    const selectedIds = Array.from(applicationSelectionState.selectedIds);
+    
+    if (selectedIds.length === 0) {
+        showNotification('No applications selected', 'info');
+        return;
+    }
+    
+    // Show confirmation dialog
+    const confirmed = confirm(
+        `⚠️ Delete ${selectedIds.length} selected application(s)?\n\n` +
+        `This action cannot be undone.`
+    );
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    // Delete all selected applications
+    selectedIds.forEach(appId => {
+        engagementManager.deleteEntity('applications', appId);
+    });
+    
+    // Clear selection state
+    applicationSelectionState.selectedIds.clear();
+    applicationSelectionState.selectAll = false;
+    
+    // Invalidate dashboard cache
+    if (typeof invalidateASISDashboard === 'function') {
+        invalidateASISDashboard();
+    }
+    
+    // Refresh the display
+    renderApplications();
+    
+    showNotification(`Successfully deleted ${selectedIds.length} application(s)`, 'success');
 }
 
 /**
@@ -825,7 +910,7 @@ function showNotification(message, type = 'info') {
  */
 const AVAILABLE_COLUMNS = [
     { id: 'name', label: 'Application Name', defaultVisible: true, alwaysVisible: true },
-    { id: 'domain', label: 'Business Domain', defaultVisible: true },
+    { id: 'domain', label: 'Business Domain', defaultVisible: false },
     { id: 'lifecycle', label: 'Lifecycle Phase', defaultVisible: true },
     { id: 'action', label: 'Action Decision', defaultVisible: false },
     { id: 'rationalizationAction', label: 'Rationalization Action', defaultVisible: false },
@@ -833,7 +918,7 @@ const AVAILABLE_COLUMNS = [
     { id: 'debt', label: 'Technical Debt', defaultVisible: true },
     { id: 'owner', label: 'Owner', defaultVisible: false },
     { id: 'vendor', label: 'Vendor', defaultVisible: false },
-    { id: 'technology', label: 'Technology', defaultVisible: false },
+    { id: 'technology', label: 'Technology Stack', defaultVisible: true },
     { id: 'techfit', label: 'Technical Fit Score', defaultVisible: false },
     { id: 'bizvalue', label: 'Business Value Score', defaultVisible: false },
     { id: 'users', label: 'User Count', defaultVisible: false },
@@ -1059,26 +1144,45 @@ function togglePortfolioView(viewMode) {
     const dashboardContainer = document.getElementById('dashboard-container');
     const tableContainer = document.getElementById('applications-container');
     const filterBar = document.getElementById('applications-filter-bar');
-    const dashboardBtn = document.getElementById('view-toggle-dashboard');
+    const businessBtn = document.getElementById('view-toggle-business');
+    const technologyBtn = document.getElementById('view-toggle-technology');
     const tableBtn = document.getElementById('view-toggle-table');
     
-    if (viewMode === 'dashboard') {
+    // Store active view mode globally
+    window.activePortfolioView = viewMode;
+    
+    if (viewMode === 'business' || viewMode === 'technology') {
         // Show dashboard, hide table
         dashboardContainer.style.display = 'block';
         tableContainer.style.display = 'none';
         if (filterBar) filterBar.style.display = 'none';
         
         // Update button states
-        dashboardBtn.style.background = '#10b981';
-        dashboardBtn.style.color = 'white';
-        dashboardBtn.style.borderColor = '#10b981';
         tableBtn.style.background = '';
         tableBtn.style.color = '';
         tableBtn.style.borderColor = '';
         
-        // Initialize dashboard - will load from localStorage if available
-        // This ensures three-lens data persists across tab switches
-        initASISDashboard();
+        if (viewMode === 'business') {
+            businessBtn.style.background = '#10b981';
+            businessBtn.style.color = 'white';
+            businessBtn.style.borderColor = '#10b981';
+            technologyBtn.style.background = '';
+            technologyBtn.style.color = '';
+            technologyBtn.style.borderColor = '';
+            
+            // Initialize dashboard with Business lens
+            initASISDashboard('business');
+        } else {
+            technologyBtn.style.background = '#10b981';
+            technologyBtn.style.color = 'white';
+            technologyBtn.style.borderColor = '#10b981';
+            businessBtn.style.background = '';
+            businessBtn.style.color = '';
+            businessBtn.style.borderColor = '';
+            
+            // Initialize dashboard with Technology lens
+            initASISDashboard('technology');
+        }
     } else {
         // Show table, hide dashboard
         dashboardContainer.style.display = 'none';
@@ -1091,9 +1195,16 @@ function togglePortfolioView(viewMode) {
         tableBtn.style.background = '#10b981';
         tableBtn.style.color = 'white';
         tableBtn.style.borderColor = '#10b981';
-        dashboardBtn.style.background = '';
-        dashboardBtn.style.color = '';
-        dashboardBtn.style.borderColor = '';
+        if (businessBtn) {
+            businessBtn.style.background = '';
+            businessBtn.style.color = '';
+            businessBtn.style.borderColor = '';
+        }
+        if (technologyBtn) {
+            technologyBtn.style.background = '';
+            technologyBtn.style.color = '';
+            technologyBtn.style.borderColor = '';
+        }
         
         // Ensure table is rendered
         renderApplications();
@@ -1105,6 +1216,252 @@ function togglePortfolioView(viewMode) {
  * @param {Array} applications - Application array
  * @param {Function} onProgress - Progress callback(current, total, batchNum, totalBatches, message)
  * @returns {Promise<Object>} Three-lens JSON structure
+ */
+/**
+ * Generate Two-Lens Dashboard from Data ONLY (NO AI by default)
+ * V2 Architecture: Data-first approach with optional AI classification
+ * 
+ * Business Domain Lens:
+ * - Read app.businessDomain attribute
+ * - Apps WITHOUT attribute → "Unknown" domain (orange)
+ * 
+ * Technology Domain Lens:
+ * - Infer from app.technologyStack attribute
+ * - Apps WITHOUT attribute → "Unknown" domain (orange)
+ * 
+ * Service Tower Lens: REMOVED (moved to WhiteSpot Heatmap)
+ * 
+ * @param {Array} applications - Application portfolio
+ * @param {Function} onProgress - Optional progress callback
+ * @returns {Object} Two-lens dashboard structure with Unknown domains
+ */
+async function generateTwoLensDashboardFromData(applications, onProgress) {
+    console.log('[AS-IS Dashboard V2] Generating two-lens structure from DATA ONLY (zero AI calls)...');
+    
+    if (onProgress) {
+        onProgress(0, applications.length, 0, 1, 'Building dashboard from existing data...');
+    }
+    
+    // Initialize domain maps
+    const businessDomainMap = new Map();
+    const technologyDomainMap = new Map();
+    
+    // Process each application
+    applications.forEach((app, index) => {
+        // ========================================
+        // BUSINESS DOMAIN LENS
+        // ========================================
+        const businessDomainName = app.businessDomain && app.businessDomain.trim() 
+            ? app.businessDomain.trim() 
+            : 'Unknown';
+        
+        if (!businessDomainMap.has(businessDomainName)) {
+            businessDomainMap.set(businessDomainName, {
+                name: businessDomainName,
+                description: businessDomainName === 'Unknown' 
+                    ? 'Applications without assigned business domain' 
+                    : `${businessDomainName} domain applications`,
+                color: businessDomainName === 'Unknown' ? '#f59e0b' : getDomainColor(businessDomainName),
+                apps: []
+            });
+        }
+        
+        // Add app to business domain
+        const businessDomain = businessDomainMap.get(businessDomainName);
+        businessDomain.apps.push({
+            ...app,
+            businessDomain: businessDomainName,
+            _classificationSource: app.businessDomain ? 'data' : 'unknown'
+        });
+        
+        // ========================================
+        // TECHNOLOGY DOMAIN LENS
+        // ========================================
+        const technologyDomainName = inferTechnologyDomain(app);
+        
+        if (!technologyDomainMap.has(technologyDomainName)) {
+            technologyDomainMap.set(technologyDomainName, {
+                name: technologyDomainName,
+                description: technologyDomainName === 'Unknown' 
+                    ? 'Applications without technology classification' 
+                    : getTechnologyDomainDescription(technologyDomainName),
+                color: technologyDomainName === 'Unknown' ? '#f59e0b' : getTechnologyDomainColor(technologyDomainName),
+                apps: []
+            });
+        }
+        
+        // Add app to technology domain
+        const technologyDomain = technologyDomainMap.get(technologyDomainName);
+        technologyDomain.apps.push({
+            ...app,
+            technologyDomain: technologyDomainName,
+            _classificationSource: technologyDomainName === 'Unknown' ? 'unknown' : 'inferred'
+        });
+    });
+    
+    // Convert maps to arrays
+    const businessDomains = Array.from(businessDomainMap.values());
+    const technologyDomains = Array.from(technologyDomainMap.values());
+    
+    // Calculate KPIs from all applications
+    const legacyApps = applications.filter(a => {
+        const tech = (a.technologyStack || '').toLowerCase();
+        const lifecycle = (a.lifecycleStatus || a.lifecycle || '').toLowerCase();
+        return tech.includes('legacy') || lifecycle === 'legacy';
+    });
+    const activeApps = applications.filter(a => {
+        const lifecycle = (a.lifecycleStatus || a.lifecycle || '').toLowerCase();
+        return lifecycle === 'active' || lifecycle === 'production' || lifecycle === 'operational';
+    });
+    const highRiskApps = applications.filter(a => {
+        const risk = (a.riskLevel || a.risk || '').toLowerCase();
+        return risk === 'high';
+    });
+    
+    const unknownBusinessCount = businessDomainMap.get('Unknown')?.apps.length || 0;
+    const unknownTechCount = technologyDomainMap.get('Unknown')?.apps.length || 0;
+    
+    console.log('[AS-IS Dashboard V2] ✅ Data-driven dashboard generated:', {
+        businessDomains: businessDomains.length,
+        technologyDomains: technologyDomains.length,
+        totalApps: applications.length,
+        unknownBusiness: unknownBusinessCount,
+        unknownTech: unknownTechCount,
+        aiCalls: 0,
+        cost: '$0.00'
+    });
+    
+    if (onProgress) {
+        onProgress(applications.length, applications.length, 1, 1, 'Dashboard ready');
+    }
+    
+    // Return structure matching old AI format for compatibility
+    return {
+        apps: applications,
+        businessDomains: businessDomains,
+        technologyDomains: technologyDomains,
+        serviceTowers: [], // TODO: Service domain mapping moved to WhiteSpot Heatmap
+        layers: [],
+        insights: null,
+        crossLensInsights: null,
+        riskCells: null,
+        kpis: {
+            totalApplications: applications.length,
+            legacySystems: legacyApps.length,
+            activeSystems: activeApps.length,
+            highRiskApps: highRiskApps.length,
+            unknownBusinessDomains: unknownBusinessCount,
+            unknownTechnologyDomains: unknownTechCount,
+            // Backward compatibility
+            total: applications.length,
+            legacy: legacyApps.length,
+            active: activeApps.length,
+            highRisk: highRiskApps.length
+        }
+    };
+}
+
+/**
+ * Infer technology domain from app attributes (technologyStack primarily)
+ * @param {Object} app - Application object
+ * @returns {String} Technology domain name or "Unknown"
+ */
+function inferTechnologyDomain(app) {
+    const techStack = (app.technologyStack || '').toLowerCase().trim();
+    
+    if (!techStack) return 'Unknown';
+    
+    // Legacy Systems
+    if (techStack.includes('cobol') || techStack.includes('mainframe') || techStack.includes('legacy')) {
+        return 'Legacy Systems';
+    }
+    
+    // Modern Web Applications
+    if (techStack.includes('react') || techStack.includes('angular') || techStack.includes('vue') || 
+        techStack.includes('node') || techStack.includes('javascript')) {
+        return 'Modern Web Applications';
+    }
+    
+    // Cloud Platforms
+    if (techStack.includes('aws') || techStack.includes('azure') || techStack.includes('gcp') || 
+        techStack.includes('cloud')) {
+        return 'Cloud Infrastructure';
+    }
+    
+    // SaaS / Commercial Platforms
+    if (techStack.includes('sap') || techStack.includes('salesforce') || techStack.includes('oracle') || 
+        techStack.includes('workday') || techStack.includes('servicenow')) {
+        return 'SaaS & Commercial Platforms';
+    }
+    
+    // Data & Analytics
+    if (techStack.includes('data') || techStack.includes('analytics') || techStack.includes('bi') || 
+        techStack.includes('warehouse') || techStack.includes('lake')) {
+        return 'Data & Analytics';
+    }
+    
+    // Integration & Middleware
+    if (techStack.includes('integration') || techStack.includes('api') || techStack.includes('middleware') || 
+        techStack.includes('mq') || techStack.includes('kafka')) {
+        return 'Integration & Middleware';
+    }
+    
+    // Mobile Applications
+    if (techStack.includes('mobile') || techStack.includes('ios') || techStack.includes('android')) {
+        return 'Mobile Applications';
+    }
+    
+    // Default: Use first significant word from technology stack
+    const words = techStack.split(/[,\/\-\s]+/).filter(w => w.length > 3);
+    if (words.length > 0) {
+        return words[0].charAt(0).toUpperCase() + words[0].slice(1) + ' Systems';
+    }
+    
+    return 'Unknown';
+}
+
+/**
+ * Get technology domain description
+ * @param {String} domainName
+ * @returns {String} Description
+ */
+function getTechnologyDomainDescription(domainName) {
+    const descriptions = {
+        'Legacy Systems': 'Mainframe, COBOL, and legacy platform applications',
+        'Modern Web Applications': 'React, Angular, Node.js, and modern JavaScript frameworks',
+        'Cloud Infrastructure': 'AWS, Azure, GCP, and cloud-native applications',
+        'SaaS & Commercial Platforms': 'SAP, Salesforce, Oracle, and commercial SaaS solutions',
+        'Data & Analytics': 'Data warehouses, analytics platforms, and BI tools',
+        'Integration & Middleware': 'API gateways, ESBs, messaging, and integration platforms',
+        'Mobile Applications': 'iOS, Android, and mobile app platforms'
+    };
+    return descriptions[domainName] || `${domainName} applications`;
+}
+
+/**
+ * Get technology domain color
+ * @param {String} domainName
+ * @returns {String} Hex color
+ */
+function getTechnologyDomainColor(domainName) {
+    const colors = {
+        'Legacy Systems': '#6b7280',
+        'Modern Web Applications': '#3b82f6',
+        'Cloud Infrastructure': '#10b981',
+        'SaaS & Commercial Platforms': '#8b5cf6',
+        'Data & Analytics': '#f59e0b',
+        'Integration & Middleware': '#ef4444',
+        'Mobile Applications': '#06b6d4'
+    };
+    return colors[domainName] || '#64748b';
+}
+
+/**
+ * LEGACY FUNCTION - generateThreeLensDashboardWithAI()
+ * Now deprecated in favor of generateTwoLensDashboardFromData()
+ * Kept for backward compatibility only
+ * 
+ * @deprecated Use generateTwoLensDashboardFromData() instead
  */
 async function generateThreeLensDashboardWithAI(applications, onProgress) {
     console.log('[AS-IS Dashboard] Generating three-lens structure with AI (batch processing)...');
@@ -1441,8 +1798,13 @@ function clearThreeLensDashboardData(engagementId) {
  * Initialize and render AS-IS Architecture Dashboard (orchestrator)
  * ALWAYS loads from localStorage if available - ensures persistence across tab switches
  */
-async function initASISDashboard(options = {}) {
-    console.log('[AS-IS Dashboard] Initializing dashboard...', options);
+async function initASISDashboard(lensType = null, options = {}) {
+    console.log('[AS-IS Dashboard] Initializing dashboard...', { lensType, options });
+    
+    // Store lens type globally for later use
+    if (lensType) {
+        window.activeDashboardLens = lensType;
+    }
     
     const { useAI = false } = options;
     
@@ -1470,7 +1832,7 @@ async function initASISDashboard(options = {}) {
             
             // Render with three-lens data (include insights if available)
             const dashboardData = mapApplicationsToDashboard(); // Still need this for layers/metadata
-            renderASISDashboard(dashboardData, 'dashboard-container', {
+            window.renderASISDashboard(dashboardData, 'dashboard-container', {
                 showRegenerateButton: true,
                 insights: savedThreeLensData.insights ? {
                     insights: savedThreeLensData.insights,
@@ -1478,6 +1840,14 @@ async function initASISDashboard(options = {}) {
                     domainRecommendations: savedThreeLensData.domainRecommendations
                 } : null
             });
+            
+            // Auto-switch to specified lens if provided
+            if (lensType && typeof window.switchThreeLens === 'function') {
+                setTimeout(() => {
+                    window.switchThreeLens(lensType);
+                    console.log('[AS-IS Dashboard] Auto-switched to', lensType, 'lens');
+                }, 100);
+            }
             
             // Render insights if available
             if (savedThreeLensData.insights && savedThreeLensData.insights.length > 0) {
@@ -1500,11 +1870,52 @@ async function initASISDashboard(options = {}) {
     // Check cache (skip if AI regeneration requested)
     if (!useAI && window.asisDashboardCache && !window.asisDashboardCache.isStale) {
         console.log('[AS-IS Dashboard] Using cached dashboard');
+        
+        // IMPORTANT: Even when using cache, ensure window.threeLensData is loaded or generated
+        // This is needed for lens switching and drag-and-drop
+        if (!window.threeLensData) {
+            // Try loading from localStorage first
+            if (engagementId) {
+                const savedThreeLensData = loadThreeLensDashboardData(engagementId);
+                if (savedThreeLensData && savedThreeLensData.apps && savedThreeLensData.apps.length > 0) {
+                    window.threeLensData = savedThreeLensData;
+                    console.log('[AS-IS Dashboard] Loaded two-lens data from localStorage for cache rendering');
+                } else {
+                    // No saved data - need to generate it from current applications
+                    const applications = engagementManager.getEntities('applications') || [];
+                    if (applications.length > 0) {
+                        console.log('[AS-IS Dashboard] Generating two-lens data for cache rendering...');
+                        try {
+                            const dataResult = await generateTwoLensDashboardFromData(applications);
+                            if (dataResult && dataResult.businessDomains) {
+                                window.threeLensData = dataResult;
+                                if (engagementId) {
+                                    saveThreeLensDashboardData(engagementId, dataResult);
+                                }
+                                console.log('[AS-IS Dashboard] Two-lens data generated and saved');
+                            }
+                        } catch (error) {
+                            console.error('[AS-IS Dashboard] Failed to generate two-lens data:', error);
+                        }
+                    }
+                }
+            }
+        }
+        
         const { data, insights } = window.asisDashboardCache;
-        renderASISDashboard(data, 'dashboard-container', {
+        window.renderASISDashboard(data, 'dashboard-container', {
             showRegenerateButton: true,
             insights: insights || null
         });
+        
+        // Auto-switch to specified lens if provided
+        if (lensType && typeof window.switchThreeLens === 'function') {
+            setTimeout(() => {
+                window.switchThreeLens(lensType);
+                console.log('[AS-IS Dashboard] Auto-switched to', lensType, 'lens');
+            }, 100);
+        }
+        
         return;
     }
     
@@ -1524,34 +1935,39 @@ async function initASISDashboard(options = {}) {
         return;
     }
     
-    // If AI mode requested, generate complete three-lens structure with AI
-    if (useAI) {
-        console.log('[AS-IS Dashboard] Using AI for three-lens classification...');
+    // V2 Architecture: ALWAYS generate two-lens dashboard structure from data (zero AI)
+    // The structure is built from existing app.businessDomain and app.technologyStack attributes
+    // AI classification is OPTIONAL and only used via "Classify with AI" button in Unknown domains
+    if (!window.threeLensData || window.threeLensData.apps?.length !== applications.length) {
+        console.log('[AS-IS Dashboard V2] Generating two-lens structure from existing data (no AI)...');
         try {
-            const aiResult = await generateThreeLensDashboardWithAI(applications, options.onProgress);
-            if (aiResult && aiResult.businessDomains) {
-                console.log('[AS-IS Dashboard] AI generated three-lens structure successfully');
+            const dataResult = await generateTwoLensDashboardFromData(applications, options.onProgress);
+            if (dataResult && dataResult.businessDomains) {
+                console.log('[AS-IS Dashboard V2] Two-lens structure generated successfully');
                 
-                // Store AI result in memory
-                window.threeLensData = aiResult;
+                // Store result in memory
+                window.threeLensData = dataResult;
                 
                 // Save to localStorage for persistence across page refreshes
                 if (engagementId) {
-                    saveThreeLensDashboardData(engagementId, aiResult);
+                    saveThreeLensDashboardData(engagementId, dataResult);
                 }
                 
-                console.log('[AS-IS Dashboard] Three-lens data available in window.threeLensData:', {
-                    businessDomains: aiResult.businessDomains?.length || 0,
-                    technologyDomains: aiResult.technologyDomains?.length || 0,
-                    serviceTowers: aiResult.serviceTowers?.length || 0,
-                    layers: aiResult.layers?.length || 0,
-                    insights: aiResult.insights ? 'Generated' : 'None',
-                    apps: aiResult.apps?.length || 0
+                console.log('[AS-IS Dashboard V2] Two-lens data available in window.threeLensData:', {
+                    businessDomains: dataResult.businessDomains?.length || 0,
+                    technologyDomains: dataResult.technologyDomains?.length || 0,
+                    serviceTowers: dataResult.serviceTowers?.length || 0, // Empty - moved to WhiteSpot Heatmap
+                    unknownBusiness: dataResult.kpis?.unknownBusinessDomains || 0,
+                    unknownTech: dataResult.kpis?.unknownTechnologyDomains || 0,
+                    apps: dataResult.apps?.length || 0,
+                    aiCalls: 0
                 });
             }
         } catch (error) {
-            console.error('[AS-IS Dashboard] AI generation failed, falling back to local mapper:', error);
+            console.error('[AS-IS Dashboard V2] Data generation failed, falling back to local mapper:', error);
         }
+    } else {
+        console.log('[AS-IS Dashboard V2] Using existing two-lens data in memory');
     }
     
     // Map applications to dashboard data (using local mapper for now)
@@ -1563,10 +1979,18 @@ async function initASISDashboard(options = {}) {
     });
     
     // Render dashboard WITHOUT insights (user will trigger insights generation)
-    renderASISDashboard(dashboardData, 'dashboard-container', {
+    window.renderASISDashboard(dashboardData, 'dashboard-container', {
         showRegenerateButton: true,
         insights: window.asisDashboardCache?.insights || null
     });
+    
+    // Auto-switch to specified lens if provided
+    if (lensType && typeof window.switchThreeLens === 'function') {
+        setTimeout(() => {
+            window.switchThreeLens(lensType);
+            console.log('[AS-IS Dashboard] Auto-switched to', lensType, 'lens');
+        }, 100);
+    }
     
     // Cache
     window.asisDashboardCache = {
@@ -1902,8 +2326,11 @@ function renderApplications() {
                 case 'actions':
                     return `
                         <td>
-                            <button class="btn btn-ghost" style="padding: 4px 8px;" onclick="openApplicationModal('${app.id}')">
+                            <button class="btn btn-ghost" style="padding: 4px 8px;" onclick="openApplicationModal('${app.id}')" title="Edit Application">
                                 <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-ghost" style="padding: 4px 8px; color: #dc2626;" onclick="deleteApplication('${app.id}')" title="Delete Application">
+                                <i class="fas fa-trash"></i>
                             </button>
                         </td>
                     `;
@@ -3034,12 +3461,13 @@ if (typeof window !== 'undefined') {
     window.renderRoadmap = renderRoadmap;
     window.renderLeadership = renderLeadership;
     window.saveThreeLensDashboardData = saveThreeLensDashboardData;
-    console.log('[Canvas Impl] ✅ Global functions exposed:', {
-        renderStakeholders: typeof renderStakeholders,
-        renderApplications: typeof renderApplications,
-        renderTarget: typeof renderTarget,
-        renderRoadmap: typeof renderRoadmap,
-        renderLeadership: typeof renderLeadership,
-        saveThreeLensDashboardData: typeof saveThreeLensDashboardData
-    });
+    window.togglePortfolioView = togglePortfolioView;
+    // console.log('[Canvas Impl] ✅ Global functions exposed:', {
+    //     renderStakeholders: typeof renderStakeholders,
+    //     renderApplications: typeof renderApplications,
+    //     renderTarget: typeof renderTarget,
+    //     renderRoadmap: typeof renderRoadmap,
+    //     renderLeadership: typeof renderLeadership,
+    //     saveThreeLensDashboardData: typeof saveThreeLensDashboardData
+    // });
 }

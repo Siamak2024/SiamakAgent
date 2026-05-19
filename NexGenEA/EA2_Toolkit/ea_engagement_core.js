@@ -383,4 +383,4 @@ function quickRiskAssessment() {
     sendChatMessage();
 }
 
-console.log('✓ EA Engagement Core loaded');
+// console.log('✓ EA Engagement Core loaded');

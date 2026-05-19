@@ -145,4 +145,4 @@ window.bulkRemoveServices = async function() {
     await renderWhiteSpotHeatmap();
 };
 
-console.log('✓ WhiteSpot Bulk Selection module loaded (v1.0)');
+// console.log('✓ WhiteSpot Bulk Selection module loaded (v1.0)');

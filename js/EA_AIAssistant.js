@@ -29,7 +29,7 @@ class EA_AIAssistant {
     this.currentContext = null;
     this.activeQuestionFlow = null;
     
-    console.log('✅ EA_AIAssistant initialized');
+    // console.log('✅ EA_AIAssistant initialized');
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -990,4 +990,4 @@ Focus on ROI, payback period, strategic alignment, risk mitigation.`
 // Note: Will be initialized by EA_Engagement_Playbook.html after other managers load
 // Usage: window.EAAIAssistant = new EA_AIAssistant(engagementManager, workflowEngine, integrationBridge);
 
-console.log('✅ EA_AIAssistant.js loaded');
+// console.log('✅ EA_AIAssistant.js loaded');
