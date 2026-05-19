@@ -25,7 +25,7 @@ class EA_AccountManager {
     this.valueCasePrefix = 'ea_valuecase_';
     this.engagementPrefix = 'ea_engagement_model_';
     
-    console.log('EA_AccountManager initialized');
+    // console.log('EA_AccountManager initialized');
   }
 
   // ═══════════════════════════════════════════════════════════════════

@@ -1023,7 +1023,7 @@ class EA_EngagementManager {
         department: app.department,
         owner: app.owner,
         vendor: app.vendor,
-        technology: app.technologyStack,
+        technology: app.technology,
         
         // Lifecycle management (support both EA and APM enums)
         lifecycle: app.lifecycle || 'active', // Keep original APM lifecycle
@@ -1157,7 +1157,7 @@ class EA_EngagementManager {
         department: app.department || app.businessDomain,
         owner: app.owner || '',
         vendor: app.vendor || '',
-        technology: app.technologyStack || '',,
+        technology: app.technology || '',
         
         // Financial
         currency: app.currency || 'SEK',

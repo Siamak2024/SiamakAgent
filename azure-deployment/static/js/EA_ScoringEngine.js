@@ -134,7 +134,7 @@ class EA_ScoringEngine {
     }
     
     // Technology debt
-    const techStack = (app.technologyStack || '').toLowerCase();
+    const techStack = (app.technology || '').toLowerCase();
     if (techStack.includes('legacy') || techStack.includes('mainframe') || 
         techStack.includes('cobol') || techStack.includes('as/400')) {
       score -= 25;
