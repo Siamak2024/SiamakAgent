@@ -29,7 +29,7 @@ function initPromotedServices() {
         promotedServices = window.engagementState.promotedServices;
         window.promotedServices = promotedServices; // Keep global reference in sync
     }
-    console.log('✓ Promoted Services initialized:', promotedServices.services.length);
+    // console.log('✓ Promoted Services initialized:', promotedServices.services.length);
 }
 
 /**

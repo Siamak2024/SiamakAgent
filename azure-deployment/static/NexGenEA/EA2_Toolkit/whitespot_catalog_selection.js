@@ -324,4 +324,4 @@ document.addEventListener('DOMContentLoaded', () => {
     observer.observe(document.body, { childList: true, subtree: true });
 });
 
-console.log('✓ Catalog Selection module loaded (v1.0)');
+// console.log('✓ Catalog Selection module loaded (v1.0)');

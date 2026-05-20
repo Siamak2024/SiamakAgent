@@ -467,4 +467,4 @@ function executeGrowthDashboardSync() {
     delete window._growthSyncPreview;
 }
 
-console.log('✅ EA Engagement - Growth Dashboard Bridge loaded');
+// console.log('✅ EA Engagement - Growth Dashboard Bridge loaded');

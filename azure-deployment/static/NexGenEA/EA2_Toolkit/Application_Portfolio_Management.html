@@ -281,6 +281,8 @@
         /* Action badges - Vivicta palette */
         .ac-retain{background:#cffafe;color:#0891b2}
         .ac-invest{background:#dbeafe;color:#0284c7}
+        .ac-tolerate{background:#fef3c7;color:#d97706}
+        .ac-migrate{background:#e0e7ff;color:#4f46e5}
         .ac-replace{background:#fed7aa;color:#c2410c}
         .ac-consolidate{background:#e9d5ff;color:#7c3aed}
         .ac-retire{background:#fecaca;color:#b91c1c}
@@ -918,6 +920,17 @@
 
             <div class="form-group">
                 <label class="form-label">Action</label>
+                <select id="fActionNew" class="form-select">
+                    <option value="">-- No Action --</option>
+                    <option value="invest">Invest</option>
+                    <option value="tolerate">Tolerate</option>
+                    <option value="migrate">Migrate</option>
+                    <option value="retire">Retire</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Rationalization Action</label>
                 <select id="fAction" class="form-select">
                     <option value="retain" selected>Retain</option>
                     <option value="invest">Invest</option>
@@ -1476,19 +1489,20 @@
 
 <!-- ==================== BULK UPDATE MODAL ==================== -->
 <div id="bulkUpdateModal" class="modal-overlay hidden">
-    <div class="modal-box" style="max-width:600px;">
+    <div class="modal-box" style="max-width:650px;">
         <div class="modal-header">
             <div class="modal-title"><i class="fas fa-pen-to-square"></i> Bulk Update Applications</div>
             <button class="modal-close" onclick="closeBulkUpdateModal()"><i class="fas fa-xmark"></i></button>
         </div>
         <div class="modal-body">
-            <div style="margin-bottom:16px;">
-                <label style="display:block;font-size:11px;font-weight:700;color:#64748b;margin-bottom:8px">
+            <div style="margin-bottom:20px;">
+                <label style="display:block;font-size:12px;font-weight:700;color:#64748b;margin-bottom:10px">
                     Select attribute to update:
                 </label>
-                <select id="bulkUpdateAttribute" onchange="updateBulkInputField()" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:12px;">
+                <select id="bulkUpdateAttribute" onchange="updateBulkInputField()" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;">
                     <option value="">-- Select Attribute --</option>
-                    <option value="lifecycle">Lifecycle State</option>
+                    <option value="lifecycle">Lifecycle Phase</option>
+                    <option value="action">Action</option>
                     <option value="state">Application State</option>
                     <option value="rationalizationAction">Rationalization Action</option>
                     <option value="risk">Risk Level</option>
@@ -1498,28 +1512,30 @@
                     <option value="technologyStack">Technology Stack</option>
                     <option value="operationVendor">Operation Vendor</option>
                     <option value="businessOwner">Business Owner</option>
+                    <option value="department">Department</option>
+                    <option value="businessDomain">Business Domain</option>
                 </select>
             </div>
-            <div id="bulkUpdateInputContainer" class="hidden" style="margin-bottom:16px;">
-                <label id="bulkUpdateInputLabel" style="display:block;font-size:11px;font-weight:700;color:#64748b;margin-bottom:8px">
+            <div id="bulkUpdateInputContainer" class="hidden" style="margin-bottom:20px;">
+                <label id="bulkUpdateInputLabel" style="display:block;font-size:12px;font-weight:700;color:#64748b;margin-bottom:10px">
                     New value:
                 </label>
                 <div id="bulkUpdateInputField">
                     <!-- Dynamic input field -->
                 </div>
             </div>
-            <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:12px;">
-                <div style="display:flex;align-items:start;gap:8px;">
-                    <i class="fas fa-info-circle" style="color:#f59e0b;margin-top:2px;"></i>
-                    <div style="font-size:11px;color:#92400e;">
-                        <strong>Note:</strong> This will update <span id="bulkUpdateCount" style="font-weight:900">0</span> selected applications. This action cannot be undone.
+            <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:14px;">
+                <div style="display:flex;align-items:start;gap:10px;">
+                    <i class="fas fa-triangle-exclamation" style="color:#f59e0b;margin-top:2px;font-size:16px;"></i>
+                    <div style="font-size:12px;color:#92400e;line-height:1.5;">
+                        <strong>Warning:</strong> This will update <span id="bulkUpdateCount" style="font-weight:900;color:#d97706;">0</span> selected application(s). Only enabled fields will be updated.
                     </div>
                 </div>
             </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer" style="gap:12px;">
             <button class="btn btn-ghost" onclick="closeBulkUpdateModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="applyBulkUpdate()" id="bulkUpdateApplyBtn" disabled><i class="fas fa-check"></i> Apply Update</button>
+            <button class="btn btn-primary" onclick="applyBulkUpdate()" id="bulkUpdateApplyBtn" disabled><i class="fas fa-check"></i> Update <span id="bulkUpdateBtnCount">1</span> Applications</button>
         </div>
     </div>
 </div>
@@ -1649,13 +1665,31 @@ function migrateData(data) {
     if (!data.applications) data.applications = [];
     
     // Add AI transformation fields to existing apps if missing
-    data.applications = data.applications.map(app => ({
-        ...app,
-        ai_maturity: app.ai_maturity || 3,
-        ai_transformation_potential: app.ai_transformation_potential || 'Medium',
-        modernStackAlternative: app.modernStackAlternative || '',
-        linkedAIAgents: app.linkedAIAgents || []
-    }));
+    // MIGRATION: Add new 'action' field and ensure lifecycle is set correctly
+    data.applications = data.applications.map(app => {
+        // Initialize the new action field (empty by default)
+        if (!app.action) {
+            app.action = '';
+        }
+        
+        // Ensure lifecycle field exists and is set to valid value
+        // If lifecycle contains action values (invest, tolerate, migrate, retire), reset to 'active'
+        const invalidLifecycleValues = ['invest', 'tolerate', 'migrate', 'retire'];
+        if (!app.lifecycle || invalidLifecycleValues.includes(app.lifecycle.toLowerCase())) {
+            app.lifecycle = 'active';
+            console.log(`Migrated app "${app.name}": lifecycle set to "active"`);
+        }
+        
+        return {
+            ...app,
+            ai_maturity: app.ai_maturity || 3,
+            ai_transformation_potential: app.ai_transformation_potential || 'Medium',
+            modernStackAlternative: app.modernStackAlternative || '',
+            linkedAIAgents: app.linkedAIAgents || [],
+            action: app.action || '',
+            lifecycle: app.lifecycle || 'active'
+        };
+    });
     
     return data;
 }
@@ -1946,9 +1980,10 @@ const INVENTORY_COLUMNS = [
     { id: 'capex', label: 'CAPEX / yr', enabled: true, alwaysVisible: false },
     { id: 'opex', label: 'OPEX / yr', enabled: true, alwaysVisible: false },
     { id: 'total', label: 'Total / yr', enabled: false, alwaysVisible: false },
-    { id: 'lifecycle', label: 'Lifecycle State', enabled: true, alwaysVisible: false },
+    { id: 'lifecycle', label: 'Lifecycle Phase', enabled: true, alwaysVisible: false },
     { id: 'state', label: 'State', enabled: false, alwaysVisible: false },
-    { id: 'rationalizationAction', label: 'Action', enabled: true, alwaysVisible: false },
+    { id: 'action', label: 'Action', enabled: true, alwaysVisible: false },
+    { id: 'rationalizationAction', label: 'Rationalization', enabled: false, alwaysVisible: false },
     { id: 'risk', label: 'Risk', enabled: true, alwaysVisible: false },
     { id: 'technicalFitScore', label: 'Technical Fit (1-5)', enabled: true, alwaysVisible: false },
     { id: 'businessValueScore', label: 'Business Value (1-5)', enabled: true, alwaysVisible: false },
@@ -1961,7 +1996,7 @@ const INVENTORY_COLUMNS = [
 // Default enabled columns (used for reset)
 const DEFAULT_ENABLED_COLUMNS = [
     'name', 'description', 'technologyStack', 'businessOwner', 'technologyVendor', 
-    'operationVendor', 'currency', 'capex', 'opex', 'lifecycle', 'rationalizationAction', 'risk',
+    'operationVendor', 'currency', 'capex', 'opex', 'lifecycle', 'action', 'risk',
     'technicalFitScore', 'businessValueScore', 'businessUseCase', 'businessCapabilities', 'actions'
 ];
 
@@ -2408,6 +2443,7 @@ function updateBulkInputField() {
     const inputField = document.getElementById('bulkUpdateInputField');
     const label = document.getElementById('bulkUpdateInputLabel');
     const applyBtn = document.getElementById('bulkUpdateApplyBtn');
+    const btnCount = document.getElementById('bulkUpdateBtnCount');
     
     if (!attrSelect || !container || !inputField || !label || !applyBtn) {
         console.error('Bulk update form elements not found');
@@ -2424,23 +2460,38 @@ function updateBulkInputField() {
     
     container.classList.remove('hidden');
     
+    // Update button text
+    if (btnCount) {
+        btnCount.textContent = selectedAppIds.size;
+    }
+    
     // Create appropriate input based on attribute type
     let html = '';
     
     if (attribute === 'lifecycle') {
-        label.textContent = 'Select lifecycle state:';
+        label.textContent = 'Select lifecycle phase:';
         html = `
-            <select id="bulkUpdateValue" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:12px;">
-                <option value="phaseIn">Phase In</option>
-                <option value="active">Active</option>
-                <option value="legacy">Legacy</option>
-                <option value="phaseOut">Phase Out</option>
-                <option value="retired">Retired</option>
+            <select id="bulkUpdateValue" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;">
+                <option value="phaseIn">PHASE IN</option>
+                <option value="active">ACTIVE</option>
+                <option value="legacy">LEGACY</option>
+                <option value="phaseOut">PHASE OUT</option>
+                <option value="retired">RETIRED</option>
+            </select>`;
+    } else if (attribute === 'action') {
+        label.textContent = 'Select action:';
+        html = `
+            <select id="bulkUpdateValue" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;">
+                <option value="">-- No Action --</option>
+                <option value="invest">Invest</option>
+                <option value="tolerate">Tolerate</option>
+                <option value="migrate">Migrate</option>
+                <option value="retire">Retire</option>
             </select>`;
     } else if (attribute === 'state') {
         label.textContent = 'Select application state:';
         html = `
-            <select id="bulkUpdateValue" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:12px;">
+            <select id="bulkUpdateValue" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;">
                 <option value="operational">Operational</option>
                 <option value="development">Development</option>
                 <option value="testing">Testing</option>
@@ -2450,7 +2501,7 @@ function updateBulkInputField() {
     } else if (attribute === 'rationalizationAction') {
         label.textContent = 'Select rationalization action:';
         html = `
-            <select id="bulkUpdateValue" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:12px;">
+            <select id="bulkUpdateValue" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;">
                 <option value="retain">Retain</option>
                 <option value="invest">Invest</option>
                 <option value="replace">Replace</option>
@@ -2460,7 +2511,7 @@ function updateBulkInputField() {
     } else if (attribute === 'risk') {
         label.textContent = 'Select risk level:';
         html = `
-            <select id="bulkUpdateValue" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:12px;">
+            <select id="bulkUpdateValue" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;">
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -2469,7 +2520,7 @@ function updateBulkInputField() {
         const attrLabel = attribute === 'technicalFitScore' ? 'Technical Fit' : 'Business Value';
         label.textContent = `Select ${attrLabel} Score (1-5):`;
         html = `
-            <select id="bulkUpdateValue" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:12px;">
+            <select id="bulkUpdateValue" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;">
                 <option value="1">1 - Poor</option>
                 <option value="2">2 - Below Average</option>
                 <option value="3">3 - Average</option>
@@ -2477,17 +2528,19 @@ function updateBulkInputField() {
                 <option value="5">5 - Excellent</option>
             </select>`;
     } else {
-        // Text input for technologyVendor, technologyStack, operationVendor, businessOwner
+        // Text input for technologyVendor, technologyStack, operationVendor, businessOwner, department, businessDomain
         const labels = {
             'technologyVendor': 'Technology Vendor',
             'technologyStack': 'Technology Stack',
             'operationVendor': 'Operation Vendor',
-            'businessOwner': 'Business Owner'
+            'businessOwner': 'Business Owner',
+            'department': 'Department',
+            'businessDomain': 'Business Domain'
         };
-        label.textContent = `Enter ${labels[attribute]}:`;
+        label.textContent = `Enter ${labels[attribute] || attribute}:`;
         html = `
             <input type="text" id="bulkUpdateValue" placeholder="Enter new value" 
-                   style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:12px;">`;
+                   style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;">`;
     }
     
     inputField.innerHTML = html;
@@ -3466,7 +3519,7 @@ function updateWorkflowStep(stepNum, isComplete, statusText) {
 //  INVENTORY
 // ---------------------------------------------
 const LC_LABEL = { phaseIn:'Phase In', active:'Active', legacy:'Legacy', phaseOut:'Phase Out', retired:'Retired' };
-const AC_LABEL = { retain:'Retain', invest:'Invest', replace:'Replace', consolidate:'Consolidate', retire:'Retire' };
+const AC_LABEL = { retain:'Retain', invest:'Invest', tolerate:'Tolerate', migrate:'Migrate', replace:'Replace', consolidate:'Consolidate', retire:'Retire' };
 const STATE_LABEL = { operational:'Operational', development:'In Development', testing:'Testing', maintenance:'Maintenance', suspended:'Suspended' };
 
 function scoreColor(v) {
@@ -3618,6 +3671,8 @@ function renderInventory() {
                     return `<td><span class="badge lc-${a.lifecycle}">${LC_LABEL[a.lifecycle]||a.lifecycle}</span></td>`;
                 case 'state':
                     return `<td><span class="badge" style="background:#64748b;font-size:10px">${STATE_LABEL[a.state]||a.state||'–'}</span></td>`;
+                case 'action':
+                    return `<td><span class="badge ac-${a.action}">${AC_LABEL[a.action]||a.action||'–'}</span></td>`;
                 case 'rationalizationAction':
                     return `<td><span class="badge ac-${a.rationalizationAction}">${AC_LABEL[a.rationalizationAction]||a.rationalizationAction||'–'}</span></td>`;
                 case 'risk':
@@ -4042,6 +4097,7 @@ function openModal(id) {
             setCurrency(app.currency || 'SEK');
             document.getElementById('fLifecycle').value = app.lifecycle || 'active';
             document.getElementById('fState').value = app.state || 'operational';
+            document.getElementById('fActionNew').value = app.action || '';
             document.getElementById('fAction').value = app.rationalizationAction || 'retain';
             document.getElementById('fRisk').value = app.risk || 'medium';
             document.getElementById('fSuperuser').value = app.superuser || '';
@@ -4075,6 +4131,7 @@ function clearForm() {
     setCurrency('SEK');
     document.getElementById('fLifecycle').value = 'active';
     document.getElementById('fState').value = 'operational';
+    document.getElementById('fActionNew').value = '';
     document.getElementById('fAction').value = 'retain';
     document.getElementById('fRisk').value = 'medium';
 }
@@ -4119,6 +4176,7 @@ function saveApp() {
         annualCost: (Number(document.getElementById('fCapex').value)||0) + (Number(document.getElementById('fOpex').value)||0),
         lifecycle: document.getElementById('fLifecycle').value,
         state: document.getElementById('fState').value,
+        action: document.getElementById('fActionNew').value,
         rationalizationAction: document.getElementById('fAction').value,
         risk: document.getElementById('fRisk').value,
         technicalFitScore: _techFit,
@@ -4174,9 +4232,10 @@ const EXCEL_COLS = [
     { header: 'Currency',              field: 'currency',              alternatives: ['Cost Currency', 'Currency (SEK/EUR)'] },
     { header: 'CAPEX (Annual)',        field: 'capex',                 alternatives: ['CAPEX', 'CAPEX/yr', 'CAPEX / yr', 'License Cost'] },
     { header: 'OPEX (Annual)',         field: 'opex',                  alternatives: ['OPEX', 'OPEX/yr', 'OPEX / yr', 'Support Cost'] },
-    { header: 'Lifecycle',             field: 'lifecycle',             alternatives: ['Lifecycle State', 'Status', 'Phase'] },
+    { header: 'Lifecycle',             field: 'lifecycle',             alternatives: ['Lifecycle State', 'Status', 'Phase', 'Lifecycle Phase'] },
     { header: 'State',                 field: 'state',                 alternatives: ['Application State', 'Current State'] },
-    { header: 'Rationalization Action', field: 'rationalizationAction', alternatives: ['Action', 'Rationalization', 'Recommendation'] },
+    { header: 'Action',                field: 'action',                alternatives: ['Decision', 'Investment Decision'] },
+    { header: 'Rationalization Action', field: 'rationalizationAction', alternatives: ['Rationalization', 'Recommendation'] },
     { header: 'Risk',                  field: 'risk',                  alternatives: ['Risk Level'] },
     { header: 'Technical Fit Score',   field: 'technicalFitScore',     alternatives: ['Technical Fit', 'Tech Fit', 'Technical Fit (1-5)'] },
     { header: 'Business Value Score',  field: 'businessValueScore',    alternatives: ['Business Value', 'Biz Value', 'Business Value (1-5)'] },

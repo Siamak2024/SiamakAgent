@@ -193,4 +193,4 @@ if (typeof window.showToast === 'undefined') {
     };
 }
 
-console.log('[Vivicta UI Utils] Loaded successfully ✓');
+// console.log('[Vivicta UI Utils] Loaded successfully ✓');

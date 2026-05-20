@@ -76,7 +76,19 @@ async function renderTabContent(tabName) {
             renderStakeholders();
             break;
         case 'portfolio':
-            renderApplications();
+            // Default to table view (dashboard can be activated via toggle button)
+            if (typeof renderApplications === 'function') {
+                renderApplications();
+            } else {
+                console.error('[EA Core] renderApplications function not found');
+                document.getElementById('applications-container').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="empty-state-title">Portfolio view unavailable</div>
+                        <div class="empty-state-text">Please refresh the page</div>
+                    </div>
+                `;
+            }
             break;
         case 'whitespace':
             // WhiteSpot Heatmap requires async loading - await completion
@@ -371,4 +383,4 @@ function quickRiskAssessment() {
     sendChatMessage();
 }
 
-console.log('✓ EA Engagement Core loaded');
+// console.log('✓ EA Engagement Core loaded');

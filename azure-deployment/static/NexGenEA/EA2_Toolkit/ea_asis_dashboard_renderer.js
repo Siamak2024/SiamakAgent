@@ -10,8 +10,27 @@
  * - Risk snapshot (6-cell grid)
  * - Modal system + export functionality
  * 
- * @version 1.0
- * @date 2026-05-18
+ * V5.41 (2026-05-19): NORDIC COLOR SCHEME
+ *   - Updated all Strategic Insights colors to Vivicta Nordic green palette
+ *   - Replaced purple/pink/cyan gradients with Nordic greens (#00472E, #006B3F, #4BE3A3)
+ *   - Updated health badges, text colors, backgrounds to match Nordic theme
+ *   - Maintains 3-column card grid layout with edit/delete functionality
+ * 
+ * V5.40 (2026-05-19): CRITICAL FIX - Unified Rendering Paths
+ *   - FIXED: initStrategicInsights() now delegates to renderLensInsightsResults() for unified rendering
+ *   - FIXED: Added retry counter (max 5) to prevent infinite loops
+ *   - Both initial load and regenerate now use the same card grid renderer
+ * 
+ * V5.38 (2026-05-19): 3-COLUMN CARD GRID REDESIGN + EDIT/DELETE
+ *   - Redesigned Strategic Insights with modern 3-column card grid layout
+ *   - Executive Summary, Critical Actions, and Domain Recommendations as separate cards
+ *   - Edit functionality with modal textarea editor
+ *   - Delete functionality with confirmation
+ *   - PowerPoint and print-optimized layout with page-break controls
+ *   - Responsive design: 3 columns desktop, 2 tablet, 1 mobile
+ * 
+ * @version 5.38
+ * @date 2026-05-19
  */
 
 /**
@@ -71,6 +90,17 @@ function renderASISDashboard(dashboardData, containerId = 'dashboard-container',
     attachModalHandlers();
 
     console.log('[ASIS Dashboard Renderer] Dashboard rendered successfully');
+    
+    // V2: Initialize Strategic Insights from localStorage after render
+    if (hasThreeLensData) {
+        console.log('[ASIS Dashboard Renderer] 🔍 Scheduling Strategic Insights initialization...');
+        // Use setTimeout to ensure DOM is fully ready and engagementManager is loaded
+        setTimeout(() => {
+            console.log('[ASIS Dashboard Renderer] ⏰ setTimeout fired - calling initStrategicInsights...');
+            initStrategicInsights('business');
+            initStrategicInsights('technology');
+        }, 100);
+    }
 }
 
 /**
@@ -214,6 +244,64 @@ function renderDomainsSection(domains) {
 }
 
 /**
+ * CRITICAL FIX: Deduplicate apps in domain arrays
+ * Removes duplicate applications from all domain arrays based on app.name
+ * This fixes duplicates caused by previous drag & drop operations
+ */
+function deduplicateThreeLensDomainArrays() {
+    if (!window.threeLensData) {
+        console.warn('[Deduplicate] No threeLensData available');
+        return;
+    }
+
+    let totalDuplicatesRemoved = 0;
+
+    // Deduplicate each domain type
+    ['businessDomains', 'technologyDomains', 'serviceTowers'].forEach(domainType => {
+        const domains = window.threeLensData[domainType];
+        if (!domains || !Array.isArray(domains)) return;
+
+        domains.forEach(domain => {
+            if (!domain.apps || !Array.isArray(domain.apps)) return;
+
+            const originalLength = domain.apps.length;
+            
+            // Remove duplicates using Map to track unique app names
+            const uniqueApps = new Map();
+            domain.apps.forEach(app => {
+                if (!uniqueApps.has(app.name)) {
+                    uniqueApps.set(app.name, app);
+                }
+            });
+            
+            domain.apps = Array.from(uniqueApps.values());
+            
+            const duplicatesRemoved = originalLength - domain.apps.length;
+            if (duplicatesRemoved > 0) {
+                totalDuplicatesRemoved += duplicatesRemoved;
+                console.log(`[Deduplicate] ✅ Removed ${duplicatesRemoved} duplicates from ${domain.name} (${domainType})`);
+            }
+        });
+    });
+
+    if (totalDuplicatesRemoved > 0) {
+        console.log(`[Deduplicate] ✅ Total duplicates removed: ${totalDuplicatesRemoved}`);
+        
+        // Save cleaned data back to localStorage
+        const engagementManager = window.engagementManager;
+        const currentEngagement = engagementManager?.getCurrentEngagement();
+        if (currentEngagement?.id && window.saveThreeLensDashboardData) {
+            window.saveThreeLensDashboardData(currentEngagement.id, window.threeLensData);
+            console.log(`[Deduplicate] ✅ Saved cleaned data to localStorage`);
+        }
+    } else {
+        console.log(`[Deduplicate] No duplicates found`);
+    }
+
+    return totalDuplicatesRemoved;
+}
+
+/**
  * Render two-lens tabs (Business | Technology)
  * V2: Service Tower tab removed - moved to WhiteSpot Heatmap
  */
@@ -270,6 +358,9 @@ function renderThreeLensContent() {
         console.error('[Three-Lens] No three-lens data available');
         return '';
     }
+
+    // CRITICAL FIX: Deduplicate domain arrays before rendering
+    deduplicateThreeLensDomainArrays();
 
     console.log('[Three-Lens] Rendering content:', {
         businessDomains: data.businessDomains?.length || 0,
@@ -377,8 +468,16 @@ function renderThreeLensDomains(domains, lensType, title) {
         return `<div class="empty-state">No ${title} data available</div>`;
     }
 
+    // ENHANCEMENT: Filter out empty domains (domains with 0 apps)
+    const nonEmptyDomains = domains.filter(domain => {
+        const apps = domain.apps || [];
+        return apps.length > 0;
+    });
+
+    console.log(`[Renderer] ✅ Filtered ${domains.length - nonEmptyDomains.length} empty domains. Showing ${nonEmptyDomains.length} domains with applications.`);
+
     // V2: Sort domains - Unknown domain always last
-    const sortedDomains = [...domains].sort((a, b) => {
+    const sortedDomains = [...nonEmptyDomains].sort((a, b) => {
         if (a.name === 'Unknown') return 1;
         if (b.name === 'Unknown') return -1;
         return 0; // Keep original order for other domains
@@ -467,7 +566,7 @@ function renderThreeLensDomains(domains, lensType, title) {
         <div class="asis-section">
             <div class="asis-section-header">
                 <h2 class="asis-section-title">${title}</h2>
-                <div class="asis-pill-badge">${domains.length} domains · ${window.threeLensData.apps.length} apps</div>
+                <div class="asis-pill-badge">${sortedDomains.length} domains · ${window.threeLensData.apps.length} apps</div>
             </div>
             <div class="asis-domain-grid">
                 ${domainCards}
@@ -521,6 +620,13 @@ function switchThreeLens(lensType) {
                 attachDomainCardHandlers(activeDomains || []);
             }, 50);
         }
+        
+        // Load Strategic Insights from localStorage when switching tabs
+        console.log(`[Three-Lens] 🔍 Scheduling insights init for ${lensType} tab...`);
+        setTimeout(() => {
+            console.log(`[Three-Lens] ⏰ setTimeout fired for ${lensType} - calling initStrategicInsights...`);
+            initStrategicInsights(lensType);
+        }, 100);
     } else {
         console.error('[Three-Lens] Could not find view element:', `three-lens-${lensType}`);
     }
@@ -571,128 +677,96 @@ function renderArchitectureLayersSection(layers) {
 
 /**
  * Render lens-specific strategic insights section
+ * Returns placeholder HTML with unique ID - actual insights loaded post-render via initStrategicInsights()
  * @param {string} lensType - 'business' or 'technology'
  */
 function renderLensSpecificStrategicInsights(lensType) {
-    // Load lens-specific insights from localStorage
-    const engagementId = window.engagementManager?.getCurrentEngagement()?.id;
-    const storageKey = `ea_three_lens_insights_${lensType}_${engagementId}`;
-    const savedInsights = engagementId ? localStorage.getItem(storageKey) : null;
-    const insightsData = savedInsights ? JSON.parse(savedInsights) : null;
-    
     const lensTitle = lensType === 'business' ? 'Business Domain' : 'Technology Stack';
     const lensIcon = lensType === 'business' ? 'fa-building' : 'fa-server';
     
-    const emptyStateText = lensType === 'business' 
-        ? 'Generate executive feedback on business domain optimization, including business automation opportunities, sustainability initiatives, and industry-specific trends.'
-        : 'Generate executive feedback on technology stack optimization, focusing on cloud transformation, security governance, agentic AI adoption, and compliance requirements.';
-    
-    // If no insights data, show "Generate with AI" button
-    if (!insightsData || !insightsData.insights || insightsData.insights.length === 0) {
-        return `
-            <div class="asis-section" style="margin-top: 32px;">
-                <div class="asis-section-header">
-                    <h2 class="asis-section-title">
-                        <i class="${lensIcon}" style="color: var(--ea-accent); margin-right: 8px;"></i>
-                        Strategic Insights (${lensTitle})
-                    </h2>
-                    <div class="asis-pill-badge">0 insights</div>
-                </div>
-                <div class="asis-insights-empty">
-                    <div class="asis-insights-empty-icon"><i class="fas fa-robot"></i></div>
-                    <h3 class="asis-insights-empty-title">AI-Powered ${lensTitle} Analysis</h3>
-                    <p class="asis-insights-empty-text">
-                        ${emptyStateText}
-                    </p>
-                    <button class="btn btn-primary btn-lg" onclick="generateASISInsights('${lensType}')" id="generate-insights-btn-${lensType}">
-                        <i class="fas fa-sparkles"></i> Generate Strategic Insights
-                    </button>
-                </div>
-                <div id="insights-results-container-${lensType}" style="display: none;"></div>
-            </div>
-        `;
-    }
-
-    const { insights, executiveSummary, domainRecommendations } = insightsData;
-
-    // Executive Summary Card
-    const executiveSummaryCard = executiveSummary ? `
-        <div class="asis-executive-summary">
-            <div class="asis-exec-header">
-                <div class="asis-exec-icon"><i class="fas fa-chart-line"></i></div>
-                <div class="asis-exec-title-section">
-                    <h3 class="asis-exec-title">Executive Summary</h3>
-                    <div class="asis-exec-health">
-                        <span class="asis-health-badge asis-health-${executiveSummary.overallHealth.toLowerCase()}">
-                            ${executiveSummary.overallHealth}
-                        </span>
-                        <span class="asis-health-score">${executiveSummary.healthScore}/100</span>
-                    </div>
-                </div>
-            </div>
-            <div class="asis-exec-body">
-                <p class="asis-exec-summary">${executiveSummary.summary}</p>
-                <div class="asis-exec-actions">
-                    <h4>Critical Actions</h4>
-                    ${executiveSummary.criticalActions.map(action => `
-                        <div class="asis-exec-action"><i class="fas fa-check-circle"></i> ${action}</div>
-                    `).join('')}
-                </div>
-            </div>
-            ${domainRecommendations && domainRecommendations.length > 0 ? `
-                <div class="asis-exec-domains">
-                    <h4>Domain-Specific Recommendations</h4>
-                    ${domainRecommendations.map(rec => `
-                        <div class="asis-domain-rec">
-                            <div class="asis-domain-rec-name">${rec.domain}</div>
-                            <div class="asis-domain-rec-row">
-                                <span class="asis-domain-rec-label">Current:</span>
-                                <span class="asis-domain-rec-text">${rec.currentState}</span>
-                            </div>
-                            <div class="asis-domain-rec-row">
-                                <span class="asis-domain-rec-label">Future:</span>
-                                <span class="asis-domain-rec-text">${rec.futureState}</span>
-                            </div>
-                            <div class="asis-domain-rec-actions">
-                                ${rec.recommendations.slice(0, 3).map(r => `<div class="asis-domain-rec-item">→ ${r}</div>`).join('')}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            ` : ''}
-        </div>
-    ` : '';
-
-    // Insight Cards
-    const insightCards = insights.map((insight, index) => `
-        <div class="asis-insight-card" data-insight-index="${index}" data-lens-type="${lensType}">
-            <div class="asis-insight-tag asis-tag-${insight.tag}">${insight.tagLabel}</div>
-            <div class="asis-insight-icon-wrap" style="background: ${insight.iconBg}; color: ${insight.iconColor}">
-                ${insight.icon}
-            </div>
-            <div class="asis-insight-card-title">${insight.title}</div>
-            <div class="asis-insight-card-body">${insight.body}</div>
-        </div>
-    `).join('');
-
+    // Return placeholder - will be populated by initStrategicInsights() after render
     return `
-        <div class="asis-section" style="margin-top: 32px;">
-            <div class="asis-section-header">
-                <h2 class="asis-section-title">
+        <div class="asis-section asis-insights-wrapper-${lensType}" id="strategic-insights-${lensType}" style="margin-top: 32px;">
+            <div class="asis-section-header" style="display: flex; align-items: center; justify-content: space-between;">
+                <h2 class="asis-section-title" style="margin: 0;">
                     <i class="${lensIcon}" style="color: var(--ea-accent); margin-right: 8px;"></i>
-                    Strategic Insights (${lensTitle})
+                    EA Portfolio Analysis (${lensTitle})
                 </h2>
-                <div class="asis-pill-badge">${insights.length} insights</div>
-                <button class="btn btn-secondary btn-sm" onclick="regenerateASISInsights('${lensType}')" style="margin-left: auto;">
-                    <i class="fas fa-sync-alt"></i> Regenerate
+                <button class="btn btn-primary btn-sm" 
+                        id="regenerate-insights-btn-${lensType}" 
+                        onclick="regenerateASISInsights('${lensType}')" 
+                        disabled
+                        title="Make changes to the portfolio to enable regeneration"
+                        style="opacity: 0.5; cursor: not-allowed;">
+                    <i class="fas fa-sync-alt"></i> Regenerate Analysis
                 </button>
             </div>
-            ${executiveSummaryCard}
-            <div class="asis-insights-grid">
-                ${insightCards}
+            <div class="asis-insights-empty" id="insights-placeholder-${lensType}">
+                <p style="color: #666; text-align: center; padding: 40px 20px;">
+                    <i class="fas fa-hourglass-half" style="font-size: 24px; display: block; margin-bottom: 12px;"></i>
+                    Loading insights...
+                </p>
             </div>
+            <div id="insights-results-container-${lensType}" style="display: none;"></div>
         </div>
     `;
+}
+
+/**
+ * Initialize EA Portfolio Analysis after dashboard render
+ * Loads insights from localStorage and updates DOM
+ * @param {string} lensType - 'business' or 'technology'
+ */
+function initStrategicInsights(lensType) {
+    console.log(`[EA Portfolio Analysis Init] 🔍 Function called for ${lensType} lens`);
+    
+    // Deep inspection of engagementManager
+    console.log(`[EA Portfolio Analysis Init] 🔬 Deep inspection:`, {
+        hasWindow: typeof window !== 'undefined',
+        hasEngagementManager: !!window.engagementManager,
+        engagementManagerType: typeof window.engagementManager,
+        hasGetCurrent: !!window.engagementManager?.getCurrentEngagement,
+        getCurrentType: typeof window.engagementManager?.getCurrentEngagement
+    });
+    
+    // Get current engagement (returns { engagement: { id, ... }, ... })
+    const currentEngagement = window.engagementManager?.getCurrentEngagement?.();
+    
+    // CORRECT PROPERTY PATH: engagement.id (nested structure)
+    const engagementId = currentEngagement?.engagement?.id;
+    
+    console.log(`[EA Portfolio Analysis Init] 🔍 Engagement check:`, {
+        hasModel: !!currentEngagement,
+        hasEngagement: !!currentEngagement?.engagement,
+        engagementId: engagementId || 'NOT FOUND'
+    });
+    
+    if (!engagementId) {
+        console.warn(`[EA Portfolio Analysis Init] ⚠️ No engagement loaded yet for ${lensType} lens - will retry on next render`);
+        return;
+    }
+    
+    const storageKey = `ea_three_lens_insights_${lensType}_${engagementId}`;
+    const savedInsights = localStorage.getItem(storageKey);
+    const insightsData = savedInsights ? JSON.parse(savedInsights) : null;
+    
+    console.log(`[EA Portfolio Analysis Init] Loading ${lensType} insights:`, {
+        engagementId,
+        storageKey,
+        hasInsights: !!savedInsights,
+        insightsCount: insightsData?.insights?.length || 0
+    });
+    
+    // If insights exist, use the new card grid renderer
+    if (insightsData && insightsData.insights && insightsData.insights.length > 0) {
+        console.log(`[EA Portfolio Analysis Init] ✅ Found ${insightsData.insights.length} ${lensType} insights, rendering with card grid`);
+        renderLensInsightsResults(insightsData, lensType);
+        
+        // Enable regenerate button if insights exist
+        enableRegenerateButton(lensType, false); // false = not due to changes, just showing existing insights
+    } else {
+        console.log(`[EA Portfolio Analysis Init] No insights found for ${lensType} lens`);
+    }
 }
 
 /**
@@ -1039,6 +1113,9 @@ function initializeDragAndDrop(domains) {
  * @param {string} lensType - Lens type: 'business', 'technology', or 'serviceTower'
  */
 function moveApplicationToDomain(appName, sourceDomain, targetDomain, lensType = 'business') {
+    // CRITICAL FIX: Deduplicate before moving to ensure clean state
+    deduplicateThreeLensDomainArrays();
+    
     const engagementManager = window.engagementManager;
     if (!engagementManager) {
         alert('Engagement Manager not available');
@@ -1048,6 +1125,9 @@ function moveApplicationToDomain(appName, sourceDomain, targetDomain, lensType =
     // Find application by name
     const allApplications = engagementManager.getEntities('applications') || [];
     const app = allApplications.find(a => a.name === appName);
+    
+    // Mark that portfolio has changed - enable regenerate button
+    markPortfolioAsChanged(lensType);
 
     if (!app) {
         console.error('[Drag-Drop] Application not found:', appName);
@@ -1064,10 +1144,13 @@ function moveApplicationToDomain(appName, sourceDomain, targetDomain, lensType =
         app.department = targetDomain; // Keep in sync for legacy compatibility
         lensFieldName = 'businessDomain';
         lensDisplayName = 'Business Domain';
+        console.log(`[Drag-Drop] ✅ Updated Business Domain: ${targetDomain}`);
     } else if (lensType === 'technology') {
         app.technologyDomain = targetDomain;
+        app.technologyStack = targetDomain; // ENHANCEMENT: Also update Technology Stack attribute
         lensFieldName = 'technologyDomain';
         lensDisplayName = 'Technology Domain';
+        console.log(`[Drag-Drop] ✅ Updated Technology Domain AND Technology Stack: ${targetDomain}`);
     } else if (lensType === 'serviceTower') {
         app.serviceTower = targetDomain;
         lensFieldName = 'serviceTower';
@@ -1113,6 +1196,53 @@ function moveApplicationToDomain(appName, sourceDomain, targetDomain, lensType =
             }
             console.log(`[Drag-Drop] Updated three-lens data (${lensType} only) for: ${appName}`);
             
+            // CRITICAL: Update domain arrays - move app from source to target domain
+            const domainsArray = lensType === 'business' 
+                ? window.threeLensData.businessDomains 
+                : lensType === 'technology' 
+                ? window.threeLensData.technologyDomains 
+                : window.threeLensData.serviceTowers;
+            
+            if (domainsArray) {
+                // CRITICAL FIX: Remove app from ALL domains first to prevent duplicates
+                // This handles edge cases where app might exist in multiple domains
+                domainsArray.forEach(domain => {
+                    if (domain.apps) {
+                        const appIndex = domain.apps.findIndex(a => a.name === appName);
+                        if (appIndex > -1) {
+                            domain.apps.splice(appIndex, 1);
+                            console.log(`[Drag-Drop] ✅ Removed ${appName} from ${domain.name} (${domain.apps.length} apps remaining)`);
+                        }
+                    }
+                });
+                
+                // Add app to target domain's apps array
+                let targetDomainObj = domainsArray.find(d => d.name === targetDomain);
+                if (!targetDomainObj) {
+                    // Create domain if it doesn't exist
+                    targetDomainObj = {
+                        name: targetDomain,
+                        apps: [],
+                        color: '#006B3F',
+                        cardAccent: '#f0fdf4'
+                    };
+                    domainsArray.push(targetDomainObj);
+                    console.log(`[Drag-Drop] ✅ Created new domain: ${targetDomain}`);
+                }
+                if (!targetDomainObj.apps) {
+                    targetDomainObj.apps = [];
+                }
+                
+                // CRITICAL FIX: Check if app already exists in target before adding (extra safety)
+                const alreadyExists = targetDomainObj.apps.some(a => a.name === appName);
+                if (!alreadyExists) {
+                    targetDomainObj.apps.push(threeLensApp);
+                    console.log(`[Drag-Drop] ✅ Added ${appName} to ${targetDomain} (${targetDomainObj.apps.length} apps total)`);
+                } else {
+                    console.log(`[Drag-Drop] ⚠️ ${appName} already exists in ${targetDomain}, skipping add`);
+                }
+            }
+            
             // Save updated three-lens data back to localStorage
             const engagementManager = window.engagementManager;
             const currentEngagement = engagementManager?.getCurrentEngagement();
@@ -1123,8 +1253,9 @@ function moveApplicationToDomain(appName, sourceDomain, targetDomain, lensType =
         }
     }
 
-    // Mark dashboard as stale (show regenerate badge) but DON'T auto-regenerate
-    invalidateASISDashboard();
+    // DON'T mark dashboard as stale - drag & drop updates attributes directly
+    // No need for AI regeneration
+    // invalidateASISDashboard(); // REMOVED - manual classification doesn't need regeneration
     
     // Re-render ONLY the current lens view to show visual update (NO full reload)
     if (window.threeLensData) {
@@ -1310,11 +1441,11 @@ function moveApplicationToDomain(appName, sourceDomain, targetDomain, lensType =
         }
     }
     
-    // Show notification with regenerate hint
+    // Show success notification
     showASISNotification(
-        `✅ ${appName} → ${targetDomain} (${lensDisplayName})\n💡 Click "Regenerate Dashboard" to update AI classification`, 
+        `✅ ${appName} moved to ${targetDomain}`, 
         'success', 
-        5000
+        3000
     );
 }
 
@@ -2696,14 +2827,48 @@ function hideAIProgress() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// STRATEGIC INSIGHTS GENERATION (User-Triggered)
+// EA PORTFOLIO ANALYSIS GENERATION (User-Triggered)
 // ═══════════════════════════════════════════════════════════════════
 
 /**
- * Generate strategic insights (user-triggered)
+ * Mark portfolio as changed - enables regenerate button for insights
+ */
+function markPortfolioAsChanged(lensType) {
+    console.log(`[Portfolio Change] 📝 Marking ${lensType} portfolio as changed`);
+    
+    // Enable both lens buttons (business and technology) since changes affect both
+    enableRegenerateButton('business', true);
+    enableRegenerateButton('technology', true);
+    
+    // Store change timestamp
+    const timestamp = Date.now();
+    sessionStorage.setItem('asis_portfolio_last_change', timestamp.toString());
+    sessionStorage.setItem(`asis_portfolio_changed_${lensType}`, 'true');
+    
+    console.log(`[Portfolio Change] ✅ Regenerate buttons enabled`);
+}
+
+/**
+ * Enable/disable regenerate button for specific lens
+ */
+function enableRegenerateButton(lensType, enabled) {
+    const button = document.getElementById(`regenerate-insights-btn-${lensType}`);
+    if (button) {
+        button.disabled = !enabled;
+        button.style.opacity = enabled ? '1' : '0.5';
+        button.style.cursor = enabled ? 'pointer' : 'not-allowed';
+        button.title = enabled 
+            ? 'Click to regenerate analysis with latest portfolio changes' 
+            : 'Make changes to the portfolio to enable regeneration';
+        console.log(`[Regenerate Button] ${lensType} button ${enabled ? 'enabled' : 'disabled'}`);
+    }
+}
+
+/**
+ * Generate EA Portfolio Analysis (user-triggered)
  */
 async function generateASISInsights(lensType = 'business') {
-    console.log('[ASIS Insights] User triggered insights generation for', lensType, 'lens');
+    console.log('[EA Portfolio Analysis] User triggered analysis generation for', lensType, 'lens');
 
     const generateBtn = document.getElementById(`generate-insights-btn-${lensType}`);
     if (generateBtn) {
@@ -2724,42 +2889,92 @@ async function generateASISInsights(lensType = 'business') {
         
         hideAIProgress();
 
+        // PHASE 3: Add metadata for persistence tracking
+        insights.generatedAt = new Date().toISOString();
+        insights.lensType = lensType;
+
         // Save lens-specific insights to localStorage
-        const engagementId = window.engagementManager?.getCurrentEngagement()?.id;
+        const engagementId = window.engagementManager?.getCurrentEngagement()?.engagement?.id;
         if (engagementId) {
             const storageKey = `ea_three_lens_insights_${lensType}_${engagementId}`;
             localStorage.setItem(storageKey, JSON.stringify(insights));
-            console.log('[ASIS Insights] 💾 Saved', lensType, 'insights to localStorage');
+            console.log('[ASIS Insights] 💾 Saved', lensType, 'insights to localStorage with timestamp:', insights.generatedAt);
+            
+            // PHASE 3: Auto-sync domain recommendations to opportunities (Business Lens only)
+            if (lensType === 'business' && insights.domainRecommendations && insights.domainRecommendations.length > 0) {
+                console.log('[ASIS Insights] 🌉 Triggering auto-sync to opportunity pipeline...');
+                
+                // Get account ID from current engagement
+                const currentEngagement = window.engagementManager?.getCurrentEngagement();
+                const accountId = currentEngagement?.engagement?.accountId;
+                
+                if (accountId && window.domainOpportunityBridge && window.domainOpportunityBridge.initialized) {
+                    try {
+                        const syncResults = window.domainOpportunityBridge.syncDomainOpportunities(engagementId, accountId);
+                        
+                        if (syncResults.created > 0) {
+                            showASISNotification(
+                                `✅ ${syncResults.created} opportunities auto-created from domain recommendations`,
+                                'success',
+                                5000
+                            );
+                        }
+                        
+                        if (syncResults.skipped > 0) {
+                            console.log(`[ASIS Insights] ⏭️  ${syncResults.skipped} opportunities already exist (skipped)`);
+                        }
+                        
+                        if (syncResults.errors.length > 0) {
+                            console.warn('[ASIS Insights] ⚠️  Sync errors:', syncResults.errors);
+                        }
+                    } catch (bridgeError) {
+                        console.error('[ASIS Insights] Bridge sync failed:', bridgeError);
+                    }
+                } else {
+                    if (!accountId) {
+                        console.warn('[ASIS Insights] Cannot auto-sync: engagement has no accountId');
+                    } else if (!window.domainOpportunityBridge) {
+                        console.warn('[ASIS Insights] Cannot auto-sync: bridge not loaded');
+                    } else {
+                        console.warn('[ASIS Insights] Cannot auto-sync: bridge not initialized');
+                    }
+                }
+            }
         }
 
         // Re-render insights section for this lens
         renderLensInsightsResults(insights, lensType);
 
-        showASISNotification(`Strategic insights generated successfully for ${lensType} lens`, 'success');
+        showASISNotification(`EA Portfolio Analysis generated successfully for ${lensType} lens`, 'success');
 
     } catch (error) {
         hideAIProgress();
-        console.error('[ASIS Insights] Generation failed:', error);
-        showASISNotification('Failed to generate insights: ' + error.message, 'error');
+        console.error('[EA Portfolio Analysis] Generation failed:', error);
+        showASISNotification('Failed to generate analysis: ' + error.message, 'error');
         
         if (generateBtn) {
             generateBtn.disabled = false;
-            generateBtn.innerHTML = '<i class="fas fa-sparkles"></i> Generate Strategic Insights';
+            generateBtn.innerHTML = '<i class="fas fa-sparkles"></i> Generate EA Portfolio Analysis';
         }
+    } finally {
+        // After generation (success or failure), disable the regenerate button until next change
+        enableRegenerateButton(lensType, false);
+        sessionStorage.removeItem(`asis_portfolio_changed_${lensType}`);
     }
 }
 
 /**
- * Regenerate insights
+ * Regenerate EA Portfolio Analysis
  */
 async function regenerateASISInsights(lensType = 'business') {
-    console.log('[ASIS Insights] Regenerating', lensType, 'lens insights');
+    console.log('[EA Portfolio Analysis] Regenerating', lensType, 'lens analysis');
     
     // Clear existing insights from localStorage for this lens
-    const engagementId = window.engagementManager?.getCurrentEngagement()?.id;
+    const engagementId = window.engagementManager?.getCurrentEngagement()?.engagement?.id;
     if (engagementId) {
         const storageKey = `ea_three_lens_insights_${lensType}_${engagementId}`;
         localStorage.removeItem(storageKey);
+        console.log(`[EA Portfolio Analysis] Cleared cached analysis for ${lensType} lens`);
     }
     
     // Trigger generation
@@ -2782,23 +2997,50 @@ function exportThreeLensDashboard() {
     
     const engagementManager = window.engagementManager;
     const currentEngagement = engagementManager?.getCurrentEngagement();
+    const engagementId = currentEngagement?.engagement?.id;
+    
+    // PHASE 7: Load Strategic Insights from localStorage
+    let strategicInsights = null;
+    if (engagementId) {
+        const businessInsightsKey = `ea_three_lens_insights_business_${engagementId}`;
+        const technologyInsightsKey = `ea_three_lens_insights_technology_${engagementId}`;
+        
+        const businessInsightsRaw = localStorage.getItem(businessInsightsKey);
+        const technologyInsightsRaw = localStorage.getItem(technologyInsightsKey);
+        
+        if (businessInsightsRaw || technologyInsightsRaw) {
+            strategicInsights = {
+                business: businessInsightsRaw ? JSON.parse(businessInsightsRaw) : null,
+                technology: technologyInsightsRaw ? JSON.parse(technologyInsightsRaw) : null,
+                metadata: {
+                    exportedAt: new Date().toISOString(),
+                    version: "1.0"
+                }
+            };
+            console.log('[Dashboard Export] Including Strategic Insights:', {
+                businessInsights: strategicInsights.business?.insights?.length || 0,
+                technologyInsights: strategicInsights.technology?.insights?.length || 0
+            });
+        }
+    }
     
     // Create export package with metadata
     const exportData = {
         metadata: {
             exportDate: new Date().toISOString(),
-            engagementId: currentEngagement?.id || 'unknown',
-            engagementName: currentEngagement?.name || 'Unknown Engagement',
-            customerName: currentEngagement?.customerName || 'Unknown Customer',
-            version: '1.0.0',
-            description: 'Three-Lens Dashboard Data Export (Business · Technology · Service Tower)'
+            engagementId: engagementId || 'unknown',
+            engagementName: currentEngagement?.engagement?.name || 'Unknown Engagement',
+            customerName: currentEngagement?.engagement?.customerName || 'Unknown Customer',
+            version: '2.0.0',
+            description: 'Three-Lens Dashboard Data Export (Business · Technology · Service Tower) with Strategic Insights'
         },
-        dashboardData: window.threeLensData
+        dashboardData: window.threeLensData,
+        strategicInsights: strategicInsights
     };
     
     // Create filename with timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const filename = `Dashboard_${currentEngagement?.customerName || 'Export'}_${timestamp}.json`;
+    const filename = `Dashboard_${currentEngagement?.engagement?.customerName || 'Export'}_${timestamp}.json`;
     
     // Create and trigger download
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -2809,8 +3051,19 @@ function exportThreeLensDashboard() {
     a.click();
     URL.revokeObjectURL(url);
     
+    // Build success message
+    let successMessage = `✅ Dashboard exported to ${filename}\n💾 Keep this file to restore dashboard without AI costs`;
+    
+    if (strategicInsights) {
+        const businessCount = strategicInsights.business?.insights?.length || 0;
+        const technologyCount = strategicInsights.technology?.insights?.length || 0;
+        if (businessCount > 0 || technologyCount > 0) {
+            successMessage += `\n💡 Including Strategic Insights (Business: ${businessCount}, Technology: ${technologyCount})`;
+        }
+    }
+    
     console.log('[Dashboard Export] ✅ Exported three-lens data:', filename);
-    showASISNotification(`✅ Dashboard exported to ${filename}\n💾 Keep this file to restore dashboard without AI costs`, 'success', 6000);
+    showASISNotification(successMessage, 'success', 7000);
 }
 
 /**
@@ -2859,7 +3112,7 @@ function importThreeLensDashboard(event) {
             
             let persistenceWarning = false;
             
-            if (!currentEngagement?.id) {
+            if (!currentEngagement?.engagement?.id) {
                 console.warn('[Dashboard Import] ⚠️ No current engagement - data will display but NOT persist!');
                 console.warn('[Dashboard Import] 💡 To save permanently: Create/select an engagement first, then re-import');
                 persistenceWarning = true;
@@ -2869,15 +3122,15 @@ function importThreeLensDashboard(event) {
             } else {
                 // We have an engagement ID and save function - attempt to save
                 console.log('[Dashboard Import] 💾 Attempting to save to localStorage...', {
-                    engagementId: currentEngagement.id,
-                    key: `ea_three_lens_${currentEngagement.id}`
+                    engagementId: currentEngagement.engagement.id,
+                    key: `ea_three_lens_${currentEngagement.engagement.id}`
                 });
                 
-                const saveResult = window.saveThreeLensDashboardData(currentEngagement.id, importData.dashboardData);
+                const saveResult = window.saveThreeLensDashboardData(currentEngagement.engagement.id, importData.dashboardData);
                 console.log('[Dashboard Import] Save result:', saveResult);
                 
                 // Verify it was saved by reading it back
-                const verifyKey = `ea_three_lens_${currentEngagement.id}`;
+                const verifyKey = `ea_three_lens_${currentEngagement.engagement.id}`;
                 const savedData = localStorage.getItem(verifyKey);
                 
                 if (savedData) {
@@ -2977,8 +3230,8 @@ function importThreeLensDashboard(event) {
             
             // Get customer name from multiple sources
             let customerName = 'Unknown Customer';
-            if (currentEngagement?.customerName) {
-                customerName = currentEngagement.customerName;
+            if (currentEngagement?.engagement?.customerName) {
+                customerName = currentEngagement.engagement.customerName;
             } else if (importData.metadata?.customerName) {
                 customerName = importData.metadata.customerName;
             } else if (window.accountManager) {
@@ -2989,7 +3242,7 @@ function importThreeLensDashboard(event) {
             }
             
             console.log('[Dashboard Import] 🏭 Customer name resolution:', {
-                fromEngagement: currentEngagement?.customerName,
+                fromEngagement: currentEngagement?.engagement?.customerName,
                 fromImport: importData.metadata?.customerName,
                 fromAccountManager: window.accountManager?.getAccount()?.name,
                 final: customerName
@@ -3000,7 +3253,7 @@ function importThreeLensDashboard(event) {
             const dashboardData = {
                 metadata: {
                     accountName: customerName,
-                    industry: currentEngagement?.segment || importData.metadata?.industry || 'Enterprise',
+                    industry: currentEngagement?.engagement?.segment || importData.metadata?.industry || 'Enterprise',
                     exportDate: new Date().toISOString().split('T')[0],
                     totalApplications: currentApps.length
                 },
@@ -3018,9 +3271,28 @@ function importThreeLensDashboard(event) {
                 } : null
             });
             
-            // If insights were imported, render them
+            // PHASE 7: Restore Strategic Insights to localStorage (new v2.0.0 format)
+            if (importData.strategicInsights && currentEngagement?.engagement?.id) {
+                const engagementId = currentEngagement.engagement.id;
+                
+                if (importData.strategicInsights.business) {
+                    const businessKey = `ea_three_lens_insights_business_${engagementId}`;
+                    localStorage.setItem(businessKey, JSON.stringify(importData.strategicInsights.business));
+                    console.log('[Dashboard Import] ✅ Restored Business Strategic Insights:', 
+                        importData.strategicInsights.business.insights?.length || 0, 'insights');
+                }
+                
+                if (importData.strategicInsights.technology) {
+                    const technologyKey = `ea_three_lens_insights_technology_${engagementId}`;
+                    localStorage.setItem(technologyKey, JSON.stringify(importData.strategicInsights.technology));
+                    console.log('[Dashboard Import] ✅ Restored Technology Strategic Insights:', 
+                        importData.strategicInsights.technology.insights?.length || 0, 'insights');
+                }
+            }
+            
+            // If insights were imported (legacy format), render them
             if (importData.dashboardData.insights && importData.dashboardData.insights.length > 0) {
-                console.log('[Dashboard Import] 💡 Restoring', importData.dashboardData.insights.length, 'insights');
+                console.log('[Dashboard Import] 💡 Restoring', importData.dashboardData.insights.length, 'insights (legacy format)');
                 setTimeout(() => {
                     renderInsightsResults({
                         insights: importData.dashboardData.insights,
@@ -3036,9 +3308,26 @@ function importThreeLensDashboard(event) {
                 technologyDomains: importData.dashboardData.technologyDomains.length,
                 serviceTowers: importData.dashboardData.serviceTowers.length,
                 insights: importData.dashboardData.insights?.length || 0,
+                hasStrategicInsights: !!importData.strategicInsights,
+                businessInsights: importData.strategicInsights?.business?.insights?.length || 0,
+                technologyInsights: importData.strategicInsights?.technology?.insights?.length || 0,
                 source: importData.metadata?.engagementName || 'Unknown',
                 persisted: !persistenceWarning
             });
+            
+            // Build success message
+            let successMessage = `✅ Dashboard imported & saved!\n📊 ${importData.dashboardData.apps.length} applications restored`;
+            
+            // Add Strategic Insights status if present
+            if (importData.strategicInsights) {
+                const businessCount = importData.strategicInsights.business?.insights?.length || 0;
+                const technologyCount = importData.strategicInsights.technology?.insights?.length || 0;
+                if (businessCount > 0 || technologyCount > 0) {
+                    successMessage += `\n💡 Strategic Insights restored (Business: ${businessCount}, Technology: ${technologyCount})`;
+                }
+            }
+            
+            successMessage += `\n💰 No AI tokens used`;
             
             // Show appropriate notification based on persistence status
             if (persistenceWarning) {
@@ -3048,11 +3337,7 @@ function importThreeLensDashboard(event) {
                     8000
                 );
             } else {
-                showASISNotification(
-                    `✅ Dashboard imported & saved!\n📊 ${importData.dashboardData.apps.length} applications restored\n💰 No AI tokens used`, 
-                    'success',
-                    6000
-                );
+                showASISNotification(successMessage, 'success', 6000);
             }
             
         } catch (error) {
@@ -3073,105 +3358,159 @@ function importThreeLensDashboard(event) {
 }
 
 /**
- * Render lens-specific insights results after AI generation
+ * Render lens-specific insights results after AI generation (V2 - Card Grid Layout)
  * @param {Object} insights - Generated insights data
  * @param {string} lensType - 'business' or 'technology'
+ * @param {number} retryCount - Internal retry counter (default: 0)
  */
-function renderLensInsightsResults(insights, lensType) {
-    console.log('[ASIS Insights] Rendering', lensType, 'lens insights results');
+function renderLensInsightsResults(insights, lensType, retryCount = 0) {
+    console.log('[ASIS Insights] Rendering', lensType, 'lens insights results (Card Grid V2)');
     
     // Find the container for this lens
     const containerId = `insights-results-container-${lensType}`;
-    const container = document.getElementById(containerId);
+    let container = document.getElementById(containerId);
     
     if (!container) {
-        console.error('[ASIS Insights] Container not found:', containerId);
-        // Fallback: refresh the entire lens view
-        if (typeof switchThreeLens === 'function') {
-            setTimeout(() => switchThreeLens(lensType), 100);
+        if (retryCount >= 5) {
+            console.error('[ASIS Insights] Container not found after 5 retries, giving up:', containerId);
+            showASISNotification(`Failed to render ${lensType} insights - please refresh the dashboard`, 'error');
+            return;
         }
+        console.warn(`[ASIS Insights] Container not found (retry ${retryCount + 1}/5), will retry...`, containerId);
+        // Container might not be in DOM yet, retry after a short delay
+        setTimeout(() => renderLensInsightsResults(insights, lensType, retryCount + 1), 150);
         return;
     }
     
     // Hide empty state, show results
-    const emptyState = container.previousElementSibling;
-    if (emptyState && emptyState.classList.contains('asis-insights-empty')) {
+    const placeholderId = `insights-placeholder-${lensType}`;
+    const emptyState = document.getElementById(placeholderId);
+    if (emptyState) {
         emptyState.style.display = 'none';
     }
     container.style.display = 'block';
     
     const { insights: insightsList, executiveSummary, domainRecommendations } = insights;
     
-    // Build HTML similar to renderStrategicInsightsSection but without section wrapper
-    const executiveSummaryCard = executiveSummary ? `
-        <div class="asis-executive-summary">
-            <div class="asis-exec-header">
-                <div class="asis-exec-icon"><i class="fas fa-chart-line"></i></div>
-                <div class="asis-exec-title-section">
-                    <h3 class="asis-exec-title">Executive Summary</h3>
-                    <div class="asis-exec-health">
-                        <span class="asis-health-badge asis-health-${executiveSummary.overallHealth.toLowerCase()}">
-                            ${executiveSummary.overallHealth}
-                        </span>
-                        <span class="asis-health-score">${executiveSummary.healthScore}/100</span>
+    // Build card grid with Executive Summary, Critical Actions, and Domain cards
+    const cards = [];
+    
+    // CARD 1: Executive Summary Overview
+    if (executiveSummary) {
+        cards.push(`
+            <div class="strategic-card" data-card-type="executive-summary" data-lens-type="${lensType}">
+                <div class="strategic-card-header">
+                    <div class="strategic-card-icon" style="background: linear-gradient(135deg, #00472E 0%, #006B3F 100%);">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="strategic-card-title-section">
+                        <h3 class="strategic-card-title">Executive Summary</h3>
+                        <div class="strategic-card-subtitle">
+                            <span class="strategic-health-badge strategic-health-${executiveSummary.overallHealth.toLowerCase()}">
+                                ${executiveSummary.overallHealth}
+                            </span>
+                            <span class="strategic-health-score">${executiveSummary.healthScore}/100</span>
+                        </div>
+                    </div>
+                    <div class="strategic-card-actions">
+                        <button class="strategic-card-btn" onclick="editStrategicCard('executive-summary', '${lensType}')" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="strategic-card-btn" onclick="deleteStrategicCard('executive-summary', '${lensType}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                 </div>
-            </div>
-            <div class="asis-exec-body">
-                <p class="asis-exec-summary">${executiveSummary.summary}</p>
-                <div class="asis-exec-actions">
-                    <h4>Critical Actions</h4>
-                    ${executiveSummary.criticalActions.map(action => `
-                        <div class="asis-exec-action"><i class="fas fa-check-circle"></i> ${action}</div>
-                    `).join('')}
+                <div class="strategic-card-body">
+                    <p class="strategic-card-text">${executiveSummary.summary}</p>
                 </div>
             </div>
-            ${domainRecommendations && domainRecommendations.length > 0 ? `
-                <div class="asis-exec-domains">
-                    <h4>Domain-Specific Recommendations</h4>
-                    ${domainRecommendations.map(rec => `
-                        <div class="asis-domain-rec">
-                            <div class="asis-domain-rec-name">${rec.domain}</div>
-                            <div class="asis-domain-rec-row">
-                                <span class="asis-domain-rec-label">Current:</span>
-                                <span class="asis-domain-rec-text">${rec.currentState}</span>
-                            </div>
-                            <div class="asis-domain-rec-row">
-                                <span class="asis-domain-rec-label">Future:</span>
-                                <span class="asis-domain-rec-text">${rec.futureState}</span>
-                            </div>
-                            <div class="asis-domain-rec-actions">
-                                ${rec.recommendations.slice(0, 3).map(r => `<div class="asis-domain-rec-item">→ ${r}</div>`).join('')}
-                            </div>
+        `);
+        
+        // CARD 2: Critical Actions
+        if (executiveSummary.criticalActions && executiveSummary.criticalActions.length > 0) {
+            cards.push(`
+                <div class="strategic-card" data-card-type="critical-actions" data-lens-type="${lensType}">
+                    <div class="strategic-card-header">
+                        <div class="strategic-card-icon" style="background: linear-gradient(135deg, #006B3F 0%, #4BE3A3 100%);">
+                            <i class="fas fa-exclamation-triangle"></i>
                         </div>
-                    `).join('')}
+                        <div class="strategic-card-title-section">
+                            <h3 class="strategic-card-title">Critical Actions</h3>
+                            <div class="strategic-card-subtitle">${executiveSummary.criticalActions.length} priorities</div>
+                        </div>
+                        <div class="strategic-card-actions">
+                            <button class="strategic-card-btn" onclick="editStrategicCard('critical-actions', '${lensType}')" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="strategic-card-btn" onclick="deleteStrategicCard('critical-actions', '${lensType}')" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="strategic-card-body">
+                        <ul class="strategic-action-list">
+                            ${executiveSummary.criticalActions.map(action => `
+                                <li class="strategic-action-item"><i class="fas fa-check-circle"></i> ${action}</li>
+                            `).join('')}
+                        </ul>
+                    </div>
                 </div>
-            ` : ''}
-        </div>
-    ` : '';
+            `);
+        }
+    }
     
-    const insightCards = insightsList.map((insight, index) => `
-        <div class="asis-insight-card" data-insight-index="${index}" data-lens-type="${lensType}">
-            <div class="asis-insight-tag asis-tag-${insight.tag}">${insight.tagLabel}</div>
-            <div class="asis-insight-icon-wrap" style="background: ${insight.iconBg}; color: ${insight.iconColor}">
-                ${insight.icon}
-            </div>
-            <div class="asis-insight-card-title">${insight.title}</div>
-            <div class="asis-insight-card-body">${insight.body}</div>
-        </div>
-    `).join('');
+    // CARDS 3+: Domain Recommendations (each domain = 1 card)
+    if (domainRecommendations && domainRecommendations.length > 0) {
+        domainRecommendations.forEach((rec, index) => {
+            cards.push(`
+                <div class="strategic-card" data-card-type="domain-recommendation" data-domain-index="${index}" data-lens-type="${lensType}">
+                    <div class="strategic-card-header">
+                        <div class="strategic-card-icon" style="background: linear-gradient(135deg, #006B3F 0%, #4BE3A3 100%);">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <div class="strategic-card-title-section">
+                            <h3 class="strategic-card-title">${rec.domain}</h3>
+                            <div class="strategic-card-subtitle">Domain Transformation</div>
+                        </div>
+                        <div class="strategic-card-actions">
+                            <button class="strategic-card-btn" onclick="editStrategicCard('domain-recommendation', '${lensType}', ${index})" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="strategic-card-btn" onclick="deleteStrategicCard('domain-recommendation', '${lensType}', ${index})" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="strategic-card-body">
+                        <div class="strategic-state-row">
+                            <div class="strategic-state-label"><i class="fas fa-circle" style="color: #D72638;"></i> Current</div>
+                            <div class="strategic-state-text">${rec.currentState}</div>
+                        </div>
+                        <div class="strategic-state-row">
+                            <div class="strategic-state-label"><i class="fas fa-circle" style="color: #4BE3A3;"></i> Target</div>
+                            <div class="strategic-state-text">${rec.futureState}</div>
+                        </div>
+                        <div class="strategic-recommendations">
+                            <div class="strategic-rec-title">Recommendations:</div>
+                            <ul class="strategic-rec-list">
+                                ${rec.recommendations.map(r => `<li class="strategic-rec-item">→ ${r}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `);
+        });
+    }
     
+    // Render 3-column grid
     container.innerHTML = `
-        ${executiveSummaryCard}
-        <div class="asis-insights-grid">
-            ${insightCards}
+        <div class="strategic-cards-grid">
+            ${cards.join('')}
         </div>
     `;
     
-    // Attach click handlers for insight cards
-    if (insightsList && insightsList.length > 0) {
-        attachInsightCardHandlers(insightsList);
-    }
+    console.log('[ASIS Insights] Rendered', cards.length, 'cards in 3-column grid');
 }
 
 /**
@@ -3270,6 +3609,187 @@ function renderInsightsResults(insightsData) {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// STRATEGIC CARD EDIT/DELETE FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Edit a strategic card
+ */
+function editStrategicCard(cardType, lensType, domainIndex = null) {
+    console.log('[Strategic Cards] Edit:', { cardType, lensType, domainIndex });
+    
+    // Load current insights from localStorage
+    const engagementId = window.engagementManager?.getCurrentEngagement()?.engagement?.id;
+    if (!engagementId) {
+        showASISNotification('No engagement loaded', 'error');
+        return;
+    }
+    
+    const storageKey = `ea_three_lens_insights_${lensType}_${engagementId}`;
+    const savedData = localStorage.getItem(storageKey);
+    if (!savedData) {
+        showASISNotification('No insights data found', 'error');
+        return;
+    }
+    
+    const insights = JSON.parse(savedData);
+    let currentValue = '';
+    let fieldLabel = '';
+    
+    // Get current value based on card type
+    if (cardType === 'executive-summary') {
+        currentValue = insights.executiveSummary?.summary || '';
+        fieldLabel = 'Executive Summary';
+    } else if (cardType === 'critical-actions') {
+        currentValue = insights.executiveSummary?.criticalActions?.join('\n') || '';
+        fieldLabel = 'Critical Actions (one per line)';
+    } else if (cardType === 'domain-recommendation' && domainIndex !== null) {
+        const domain = insights.domainRecommendations[domainIndex];
+        currentValue = `Domain: ${domain.domain}\n\nCurrent State:\n${domain.currentState}\n\nTarget State:\n${domain.futureState}\n\nRecommendations:\n${domain.recommendations.join('\n')}`;
+        fieldLabel = `${domain.domain} - Domain Recommendation`;
+    }
+    
+    // Show edit modal
+    const modal = document.createElement('div');
+    modal.className = 'strategic-edit-modal';
+    modal.innerHTML = `
+        <div class="strategic-edit-modal-content">
+            <div class="strategic-edit-modal-header">
+                <h3><i class="fas fa-edit"></i> Edit ${fieldLabel}</h3>
+                <button class="strategic-edit-modal-close" onclick="this.closest('.strategic-edit-modal').remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="strategic-edit-modal-body">
+                <textarea class="strategic-edit-textarea" rows="12">${currentValue}</textarea>
+            </div>
+            <div class="strategic-edit-modal-footer">
+                <button class="btn btn-secondary" onclick="this.closest('.strategic-edit-modal').remove()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button class="btn btn-primary" onclick="saveStrategicCardEdit('${cardType}', '${lensType}', ${domainIndex})">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.querySelector('textarea').focus();
+}
+
+/**
+ * Save edited strategic card
+ */
+function saveStrategicCardEdit(cardType, lensType, domainIndex = null) {
+    const textarea = document.querySelector('.strategic-edit-textarea');
+    if (!textarea) return;
+    
+    const newValue = textarea.value.trim();
+    if (!newValue) {
+        showASISNotification('Content cannot be empty', 'error');
+        return;
+    }
+    
+    // Load insights
+    const engagementId = window.engagementManager?.getCurrentEngagement()?.engagement?.id;
+    const storageKey = `ea_three_lens_insights_${lensType}_${engagementId}`;
+    const insights = JSON.parse(localStorage.getItem(storageKey));
+    
+    // Update based on card type
+    if (cardType === 'executive-summary') {
+        insights.executiveSummary.summary = newValue;
+    } else if (cardType === 'critical-actions') {
+        insights.executiveSummary.criticalActions = newValue.split('\n').filter(line => line.trim());
+    } else if (cardType === 'domain-recommendation' && domainIndex !== null) {
+        // Parse structured format
+        const lines = newValue.split('\n');
+        const domain = insights.domainRecommendations[domainIndex];
+        
+        let section = '';
+        let currentContent = [];
+        
+        lines.forEach(line => {
+            if (line.startsWith('Domain:')) {
+                domain.domain = line.replace('Domain:', '').trim();
+            } else if (line.includes('Current State:')) {
+                section = 'current';
+                currentContent = [];
+            } else if (line.includes('Target State:')) {
+                if (section === 'current') domain.currentState = currentContent.join(' ').trim();
+                section = 'target';
+                currentContent = [];
+            } else if (line.includes('Recommendations:')) {
+                if (section === 'target') domain.futureState = currentContent.join(' ').trim();
+                section = 'recs';
+                currentContent = [];
+            } else if (line.trim()) {
+                if (section === 'recs') {
+                    domain.recommendations.push(line.trim());
+                } else {
+                    currentContent.push(line.trim());
+                }
+            }
+        });
+        
+        if (section === 'target' && currentContent.length > 0) {
+            domain.futureState = currentContent.join(' ').trim();
+        }
+    }
+    
+    // Save to localStorage
+    localStorage.setItem(storageKey, JSON.stringify(insights));
+    
+    // Re-render
+    renderLensInsightsResults(insights, lensType);
+    
+    // Close modal
+    document.querySelector('.strategic-edit-modal')?.remove();
+    
+    showASISNotification('✅ Card updated successfully', 'success');
+}
+
+/**
+ * Delete a strategic card
+ */
+function deleteStrategicCard(cardType, lensType, domainIndex = null) {
+    const confirmMsg = cardType === 'domain-recommendation' 
+        ? 'Delete this domain recommendation?' 
+        : `Delete ${cardType.replace('-', ' ')}?`;
+    
+    if (!confirm(confirmMsg)) return;
+    
+    // Load insights
+    const engagementId = window.engagementManager?.getCurrentEngagement()?.engagement?.id;
+    const storageKey = `ea_three_lens_insights_${lensType}_${engagementId}`;
+    const insights = JSON.parse(localStorage.getItem(storageKey));
+    
+    // Delete based on card type
+    if (cardType === 'executive-summary') {
+        insights.executiveSummary = null;
+    } else if (cardType === 'critical-actions') {
+        if (insights.executiveSummary) {
+            insights.executiveSummary.criticalActions = [];
+        }
+    } else if (cardType === 'domain-recommendation' && domainIndex !== null) {
+        insights.domainRecommendations.splice(domainIndex, 1);
+    }
+    
+    // Save to localStorage
+    localStorage.setItem(storageKey, JSON.stringify(insights));
+    
+    // Re-render
+    renderLensInsightsResults(insights, lensType);
+    
+    showASISNotification('✅ Card deleted', 'success');
+}
+
+// Expose functions globally
+window.editStrategicCard = editStrategicCard;
+window.saveStrategicCardEdit = saveStrategicCardEdit;
+window.deleteStrategicCard = deleteStrategicCard;
+
 /**
  * Show notification (wrapper for global Vivicta UI)
  */
@@ -3347,19 +3867,46 @@ ${appList}
         
         console.log('[AS-IS Dashboard V2] ✅ AI classification response received');
         
+        // Extract content text from response object (Responses API format)
+        let content = response;
+        if (response.output_text) {
+            content = response.output_text;
+        } else if (response.choices && response.choices[0]?.message?.content) {
+            content = response.choices[0].message.content;
+        } else if (response.message?.content) {
+            content = response.message.content;
+        }
+        
+        console.log('[AS-IS Dashboard V2] Response content type:', typeof content);
+        
         // Parse AI response
         let classifications;
         try {
-            // Try direct JSON parse
-            classifications = JSON.parse(response);
-        } catch (e) {
-            // Try extracting JSON from markdown code blocks
-            const jsonMatch = response.match(/```json\s*(\{[\s\S]*?\})\s*```/);
-            if (jsonMatch) {
-                classifications = JSON.parse(jsonMatch[1]);
+            // If content is already an object, use it directly
+            if (typeof content === 'object' && content !== null) {
+                classifications = content;
+            } else if (typeof content === 'string') {
+                // Strip markdown code blocks if present
+                const cleanContent = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+                
+                // Try direct JSON parse
+                try {
+                    classifications = JSON.parse(cleanContent);
+                } catch (e) {
+                    // Try extracting JSON from markdown code blocks (legacy format)
+                    const jsonMatch = content.match(/```json\s*(\{[\s\S]*?\})\s*```/);
+                    if (jsonMatch) {
+                        classifications = JSON.parse(jsonMatch[1]);
+                    } else {
+                        throw new Error('Invalid JSON response from AI');
+                    }
+                }
             } else {
-                throw new Error('Invalid JSON response from AI');
+                throw new Error('Unexpected response format');
             }
+        } catch (e) {
+            console.error('[AS-IS Dashboard V2] Failed to parse AI response:', e);
+            throw new Error(`Failed to parse AI response: ${e.message}`);
         }
         
         if (!classifications.classifications || !Array.isArray(classifications.classifications)) {
@@ -3431,6 +3978,9 @@ ${appList}
         // Switch to the updated lens view
         setTimeout(() => switchThreeLens(lensType), 100);
         
+        // Mark portfolio as changed to enable regenerate button
+        markPortfolioAsChanged(lensType);
+        
         showASISNotification(`✅ AI classified ${movedCount} apps successfully`, 'success');
         console.log('[AS-IS Dashboard V2] ✅ AI classification complete:', {
             processed: classifications.classifications.length,
@@ -3454,8 +4004,10 @@ window.renderLensInsightsResults = renderLensInsightsResults;
 window.showASISNotification = showASISNotification;
 window.classifyUnknownDomainsWithAI = classifyUnknownDomainsWithAI;
 window.switchThreeLens = switchThreeLens;
+window.markPortfolioAsChanged = markPortfolioAsChanged;
+window.enableRegenerateButton = enableRegenerateButton;
 
-// console.log('[ASIS Dashboard Renderer] ✅ Loaded v5.31 - Functions exposed to window:', {
+// console.log('[ASIS Dashboard Renderer] ✅ Loaded v5.41 - Nordic Colors - Functions exposed to window:', {
 //     renderASISDashboard: typeof window.renderASISDashboard,
 //     generateASISInsights: typeof window.generateASISInsights,
 //     switchThreeLens: typeof window.switchThreeLens

@@ -13,6 +13,7 @@
     <script src="../../AzureOpenAIProxy.js"></script>
     <script src="../../js/EA_Config.js"></script>
     <script src="../../js/EA_AccountManager.js?v=2026"></script>
+    <script src="../../js/ea_domain_opportunity_bridge.js?v=1.0"></script>
     <script src="../../js/EA_DataManager.js"></script>
     <script src="../../js/EA_EngagementManager.js"></script>
     <script src="../../js/EA_AIAssistant.js"></script>
@@ -30,7 +31,7 @@
     <script src="ea_engagement_core.js?v=5.22"></script>
     <!-- AS-IS Architecture Dashboard Modules (must load before canvas impl) -->
     <script src="ea_asis_dashboard_mapper.js?v=5.25"></script>
-    <script src="ea_asis_dashboard_renderer.js?v=5.31"></script>
+    <script src="ea_asis_dashboard_renderer.js?v=5.41"></script>
     <script src="ea_engagement_canvas_impl.js?v=5.27"></script>
     <script src="ea_engagement_ui.js"></script>
     <script src="ea_engagement_phase1_additions.js"></script>
@@ -3526,7 +3527,7 @@
         }
         
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('EA Engagement Playbook initializing...');
+            // console.log('EA Engagement Playbook initializing...');
             
             // Update breadcrumb with accountId
             updateBreadcrumbLinks();
@@ -3539,6 +3540,19 @@
             if (typeof EA_AccountManager !== 'undefined') {
                 window.accountManager = new EA_AccountManager();
                 // console.log('✓ EA_AccountManager initialized for account integration');
+                
+                // PHASE 3: Initialize Domain → Opportunity Bridge
+                if (typeof EA_DomainOpportunityBridge !== 'undefined') {
+                    // Ensure bridge instance exists
+                    if (!window.domainOpportunityBridge) {
+                        window.domainOpportunityBridge = new EA_DomainOpportunityBridge();
+                    }
+                    // Initialize with accountManager
+                    window.domainOpportunityBridge.init(window.accountManager);
+                    console.log('✓ Domain→Opportunity Bridge initialized');
+                } else {
+                    console.warn('EA_DomainOpportunityBridge not loaded - auto-sync disabled');
+                }
             } else {
                 console.warn('EA_AccountManager not loaded - account linking disabled');
             }
@@ -3547,6 +3561,21 @@
             engagementManager = new EA_EngagementManager();
             window.engagementManager = engagementManager; // Expose to window for WhiteSpot module
             // console.log('✓ EA_EngagementManager initialized');
+            
+            // PHASE 3: Auto-sync existing domain recommendations on page load
+            // This ensures any previously generated recommendations are synced to opportunities
+            if (window.domainOpportunityBridge && window.domainOpportunityBridge.initialized) {
+                setTimeout(() => {
+                    const syncResults = window.domainOpportunityBridge.syncAllAvailableRecommendations();
+                    if (syncResults.totalCreated > 0) {
+                        showNotification(
+                            `✅ ${syncResults.totalCreated} opportunities auto-synced from existing domain recommendations`,
+                            'success',
+                            5000
+                        );
+                    }
+                }, 2000); // Wait 2s for engagementManager to fully load
+            }
             
             // Initialize workflow engine
             if (typeof EA_WorkflowEngine !== 'undefined') {
@@ -3620,14 +3649,14 @@
                                 }
                             });
                             if (migrated) {
-                                console.log('✓ Migrated architectureThemes from "theme" to "name" field');
+                                // console.log('✓ Migrated architectureThemes from "theme" to "name" field');
                             }
                             
                             currentEngagement = model;
                             window.currentEngagement = model; // Expose to modules
                             updateEngagementSelector();
                             loadEngagementData();
-                            console.log(`✓ Loaded existing engagement for account ${accountId}`);
+                            // console.log(`✓ Loaded existing engagement for account ${accountId}`);
                             updateAccountContext(account);
                         }
                     } else {
@@ -3646,7 +3675,7 @@
                                     window.currentEngagement = model;
                                     updateEngagementSelector();
                                     loadEngagementData();
-                                    console.log(`✓ Created and loaded BANK AB demo engagement`);
+                                    // console.log(`✓ Created and loaded BANK AB demo engagement`);
                                     updateAccountContext(account);
                                 }
                             }
@@ -3670,14 +3699,14 @@
                     const engagement = engagementManager.getCurrentEngagement();
                     if (engagement && workflowEngine) {
                         workflowEngine.initializeWorkflowState(engagement.engagement || engagement);
-                        console.log('✓ Workflow state initialized');
+                        // console.log('✓ Workflow state initialized');
                     }
                 }
             }
             
             updateKPIs();
-            console.log('✓ EA Engagement Playbook fully initialized');
-            console.log('📊 Phase 2 features enabled: Workflow Engine, Integration Bridge, Enhanced AI, Account Linking');
+            // console.log('✓ EA Engagement Playbook fully initialized');
+            // console.log('📊 Phase 2 features enabled: Workflow Engine, Integration Bridge, Enhanced AI, Account Linking');
             
             // Add debug helper to window for troubleshooting
             window.debugEngagement = function() {
@@ -4091,7 +4120,7 @@
             try {
                 const response = await fetch('../../APAQ_Data/apqc_pcf_master.json');
                 apqcData = await response.json();
-                console.log('✓ APQC Framework loaded:', apqcData.total_categories, 'categories');
+                // console.log('✓ APQC Framework loaded:', apqcData.total_categories, 'categories');
             } catch (error) {
                 console.warn('APQC data not available:', error);
             }
@@ -4651,10 +4680,60 @@
                     return acc + value;
                 }, 0);
                 
+                // === PHASE 2: LOAD STRATEGIC INSIGHTS FROM AS-IS DASHBOARD ===
+                // Strategic Insights are generated for Business and Technology views in the AS-IS Architecture Dashboard
+                // localStorage keys: ea_three_lens_insights_business_{engagementId}, ea_three_lens_insights_technology_{engagementId}
+                let strategicInsightsData = null;
+                
+                if (latestEngagement && latestEngagement.engagement && latestEngagement.engagement.id) {
+                    const engagementId = latestEngagement.engagement.id;
+                    
+                    // Load Business lens insights
+                    const businessInsightsKey = `ea_three_lens_insights_business_${engagementId}`;
+                    const savedBusinessInsights = localStorage.getItem(businessInsightsKey);
+                    let businessInsights = null;
+                    if (savedBusinessInsights) {
+                        try {
+                            businessInsights = JSON.parse(savedBusinessInsights);
+                            console.log(`📊 Loaded Business View Strategic Insights (${businessInsights.insights?.length || 0} insights, generated: ${businessInsights.generatedAt || 'unknown'})`);
+                        } catch (error) {
+                            console.error('❌ Error parsing Business insights:', error);
+                        }
+                    }
+                    
+                    // Load Technology lens insights
+                    const technologyInsightsKey = `ea_three_lens_insights_technology_${engagementId}`;
+                    const savedTechnologyInsights = localStorage.getItem(technologyInsightsKey);
+                    let technologyInsights = null;
+                    if (savedTechnologyInsights) {
+                        try {
+                            technologyInsights = JSON.parse(savedTechnologyInsights);
+                            console.log(`📊 Loaded Technology View Strategic Insights (${technologyInsights.insights?.length || 0} insights, generated: ${technologyInsights.generatedAt || 'unknown'})`);
+                        } catch (error) {
+                            console.error('❌ Error parsing Technology insights:', error);
+                        }
+                    }
+                    
+                    // Build Strategic Insights export structure
+                    if (businessInsights || technologyInsights) {
+                        strategicInsightsData = {
+                            business: businessInsights,
+                            technology: technologyInsights,
+                            metadata: {
+                                lastUpdated: new Date().toISOString(),
+                                version: "1.0"
+                            }
+                        };
+                        console.log('✅ Strategic Insights included in export');
+                    } else {
+                        console.log('ℹ️ No Strategic Insights found for this engagement');
+                    }
+                }
+                
                 // Create comprehensive export with enhanced structure
                 const exportData = {
                     // === DOCUMENT METADATA ===
-                    exportSchema: "NextGenEA_AccountExport_v3.0",
+                    exportSchema: "NextGenEA_AccountExport_v3.1",
                     exportDate: new Date().toISOString(),
                     exportSource: "Vivicta Growth Sprint Dashboard - EA Engagement Playbook",
                     generatedBy: "NextGenEA V11",
@@ -4710,13 +4789,15 @@
                     engagements: engagements.map(eng => ({
                         ...eng,
                         dataType: 'EAEngagement',
+                        strategicInsights: strategicInsightsData, // PHASE 2: Include Strategic Insights from AS-IS Dashboard
                         exportMetadata: {
                             capabilitiesCount: (eng.capabilities || []).length,
                             stakeholdersCount: (eng.stakeholders || []).length,
                             applicationsCount: (eng.applications || []).length,
                             whiteSpotHeatmapsCount: (eng.whiteSpotHeatmaps || []).length,
                             architectureThemesCount: (eng.architectureThemes || []).length,
-                            serviceCategoriesCount: (eng.serviceCategories || []).length
+                            serviceCategoriesCount: (eng.serviceCategories || []).length,
+                            hasStrategicInsights: strategicInsightsData !== null
                         }
                     })),
                     
@@ -4780,8 +4861,8 @@
                     
                     // === DATA STRUCTURE DOCUMENTATION ===
                     dataStructure: {
-                        description: "NextGenEA Account Export - Complete account data including business objectives, opportunities, AS-IS application portfolio, and EA engagement details",
-                        version: "3.0",
+                        description: "NextGenEA Account Export - Complete account data including business objectives, opportunities, AS-IS application portfolio, EA engagement details, and Strategic Insights",
+                        version: "3.1",
                         sections: [
                             {
                                 name: "account",
@@ -4826,7 +4907,7 @@
                             },
                             {
                                 name: "engagements",
-                                description: "EA Engagement Playbook data including capabilities, stakeholders, applications, WhiteSpot heatmaps, and architecture themes",
+                                description: "EA Engagement Playbook data including capabilities, stakeholders, applications, WhiteSpot heatmaps, architecture themes, and Strategic Insights",
                                 recordType: "array",
                                 itemType: "EAEngagement",
                                 nestedStructure: [
@@ -4836,7 +4917,22 @@
                                     "applications",
                                     "whiteSpotHeatmaps",
                                     "architectureThemes",
-                                    "serviceCategories"
+                                    "serviceCategories",
+                                    "strategicInsights (AS-IS Dashboard insights)"
+                                ]
+                            },
+                            {
+                                name: "strategicInsights",
+                                description: "AI-generated Strategic Insights from AS-IS Architecture Dashboard - includes Executive Summary, strategic insight cards, and domain-specific recommendations for Business and Technology views",
+                                recordType: "object",
+                                sourceNote: "Loaded from localStorage keys: ea_three_lens_insights_business_{engagementId}, ea_three_lens_insights_technology_{engagementId}",
+                                nestedStructure: [
+                                    "business - Business domain strategic insights { insights[], executiveSummary, domainRecommendations[], generatedAt, lensType }",
+                                    "technology - Technology stack strategic insights { insights[], executiveSummary, domainRecommendations[], generatedAt, lensType }",
+                                    "metadata - { lastUpdated, version }",
+                                    "insights[] - Array of insight cards with tag, title, body, modal details",
+                                    "executiveSummary - { overallHealth, healthScore, summary, criticalActions[] }",
+                                    "domainRecommendations[] - Domain-specific current/target state and recommendations"
                                 ]
                             },
                             {
@@ -4854,7 +4950,8 @@
                             whiteSpotServicesReport: "Extract service assessments from engagements[0].whiteSpotHeatmaps[].hlAssessments - includes L2 service details, L3 components, assessment state, and opportunity values",
                             stakeholderReport: "Combine account.stakeholders (account-level) with engagements[0].stakeholders (engagement-level)",
                             detailedServiceBreakdown: "Each WhiteSpot heatmap contains hlAssessments array with: l2ServiceId, l2ServiceName, l1ServiceArea, assessmentState, l3Components[], apqcMappedCapabilities[], score, opportunityValue, notes",
-                            applicationInventoryReport: "Use applicationPortfolio.applications[] array - each application contains complete data model with 25+ attributes covering technical, financial, business, and AI transformation aspects"
+                            applicationInventoryReport: "Use applicationPortfolio.applications[] array - each application contains complete data model with 25+ attributes covering technical, financial, business, and AI transformation aspects",
+                            strategicInsightsReport: "Access via engagements[0].strategicInsights - includes business and technology views. Each lens contains insights[], executiveSummary (with overallHealth, healthScore, summary, criticalActions[]), and domainRecommendations[]. Use generatedAt timestamp to assess freshness. Business insights focus on capability coverage, legacy concentration, and business domain optimization. Technology insights focus on cloud transformation, security governance, agentic AI adoption, and compliance requirements."
                         }
                     }
                 };
@@ -4923,6 +5020,27 @@
                     }
                     message += `\n`;
                     message += `• ${totalArchThemes} architecture theme${totalArchThemes !== 1 ? 's' : ''}`;
+                    
+                    // PHASE 6: Show Strategic Insights status in save confirmation
+                    if (strategicInsightsData) {
+                        const businessCount = strategicInsightsData.business?.insights?.length || 0;
+                        const technologyCount = strategicInsightsData.technology?.insights?.length || 0;
+                        if (businessCount > 0 || technologyCount > 0) {
+                            message += `\n\n💡 Strategic Insights (AS-IS Dashboard):\n`;
+                            if (businessCount > 0) {
+                                const businessGenerated = strategicInsightsData.business?.generatedAt 
+                                    ? new Date(strategicInsightsData.business.generatedAt).toLocaleDateString()
+                                    : 'unknown';
+                                message += `• Business View: ${businessCount} insight${businessCount !== 1 ? 's' : ''} (generated: ${businessGenerated})\n`;
+                            }
+                            if (technologyCount > 0) {
+                                const technologyGenerated = strategicInsightsData.technology?.generatedAt 
+                                    ? new Date(strategicInsightsData.technology.generatedAt).toLocaleDateString()
+                                    : 'unknown';
+                                message += `• Technology View: ${technologyCount} insight${technologyCount !== 1 ? 's' : ''} (generated: ${technologyGenerated})`;
+                            }
+                        }
+                    }
                 }
                 
                 if (allAccountEngagements.length > 1) {

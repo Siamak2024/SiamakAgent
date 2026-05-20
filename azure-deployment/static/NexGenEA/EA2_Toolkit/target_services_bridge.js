@@ -1598,6 +1598,6 @@ window.updateThemePreview = updateThemePreview;
 window.closeCategoryManagerModal = closeCategoryManagerModal;
 window.closeCategoryFormModal = closeCategoryFormModal;
 
-console.log('✓ Target Services Bridge module loaded (V2.8 - FIELD VALIDATION)');
-console.log('✓ window.openServiceCategoryManager:', typeof window.openServiceCategoryManager);
-console.log('✓ window.openAISuggestCategories:', typeof window.openAISuggestCategories);
+// console.log('✓ Target Services Bridge module loaded (V2.8 - FIELD VALIDATION)');
+// console.log('✓ window.openServiceCategoryManager:', typeof window.openServiceCategoryManager);
+// console.log('✓ window.openAISuggestCategories:', typeof window.openAISuggestCategories);

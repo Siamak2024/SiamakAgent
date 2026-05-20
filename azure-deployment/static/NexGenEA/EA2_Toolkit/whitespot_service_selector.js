@@ -528,4 +528,4 @@ function exportEngagementServices() {
     console.log('✓ Exported engagement services');
 }
 
-console.log('✓ Service Selector module loaded (v1.0)');
+// console.log('✓ Service Selector module loaded (v1.0)');
