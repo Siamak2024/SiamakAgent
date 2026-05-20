@@ -10,6 +10,7 @@
     <script src="../../AzureOpenAIProxy.js"></script>
     <script src="../../js/EA_UnifiedAIAssistant.js"></script>
     <script src="../../js/EA_AccountManager.js"></script>
+    <script src="../../js/ea_domain_opportunity_bridge.js?v=1.0"></script>
     <script src="../../js/EA_CrossNavigation.js"></script>
     <script src="../../js/EA_GlobalSearch.js"></script>
     <script src="../../js/EA_Analytics.js"></script>
@@ -185,7 +186,7 @@
         /* === PIPELINE KANBAN === */
         .pipeline-kanban {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 16px;
             margin-bottom: 24px;
         }
@@ -225,6 +226,13 @@
         .opp-card:hover {
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
             transform: translateY(-2px);
+        }
+        .opp-card.manual {
+            background: #fce7f3;
+            border-left: 3px solid #ec4899;
+        }
+        .opp-card.manual:hover {
+            background: #fbcfe8;
         }
         .opp-name {
             font-weight: 600;
@@ -320,47 +328,74 @@
         .modal-content {
             background: white;
             border-radius: 12px;
-            padding: 24px;
-            max-width: 600px;
+            padding: 18px 22px;
+            max-width: 650px;
             width: 90%;
-            max-height: 80vh;
+            max-height: 88vh;
             overflow-y: auto;
         }
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e5e7eb;
         }
         .modal-title {
-            font-size: 20px;
+            font-size: 17px;
             font-weight: 600;
             color: #1f2937;
         }
         .close-modal {
             background: none;
             border: none;
-            font-size: 24px;
+            font-size: 20px;
             cursor: pointer;
             color: #6b7280;
+            padding: 4px;
+        }
+        .close-modal:hover {
+            color: #374151;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 11px;
         }
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 11px;
+        }
+        .form-row .form-group {
+            margin-bottom: 0;
         }
         .form-label {
             display: block;
-            font-size: 12px;
+            font-size: 10.5px;
             font-weight: 600;
             color: #374151;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
             text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
         .form-input {
             width: 100%;
-            padding: 10px 12px;
+            padding: 8px 11px;
             border: 1px solid #d1d5db;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 13.5px;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--ea-accent);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.08);
+        }
+        textarea.form-input {
+            resize: vertical;
+            font-family: inherit;
+            line-height: 1.4;
         }
 
         .breadcrumbs {
@@ -413,7 +448,7 @@
         <header class="ea-header">
             <div class="header-content">
                 <div style="flex: 1;">
-                    <h1><i class="fas fa-bullseye"></i> Vivicta Opportunity Pipeline</h1>
+                    <h1><i class="fas fa-bullseye"></i> Customer EA Opportunity Pipeline</h1>
                     
                     <!-- Breadcrumbs -->
                     <div class="breadcrumbs">
@@ -556,6 +591,15 @@
 
             <!-- Pipeline Kanban -->
             <div class="pipeline-kanban" id="kanban-view">
+                <!-- Backlog Stage -->
+                <div class="pipeline-stage">
+                    <div class="stage-header">
+                        <div class="stage-title">0. Backlog</div>
+                        <div class="stage-stats" id="stats-backlog">0 opportunities • €0</div>
+                    </div>
+                    <div id="stage-backlog"></div>
+                </div>
+
                 <!-- Discovery Stage -->
                 <div class="pipeline-stage">
                     <div class="stage-header">
@@ -612,31 +656,54 @@
                 <button class="close-modal" onclick="closeNewOppModal()"><i class="fas fa-times"></i></button>
             </div>
             <form id="new-opp-form" onsubmit="createOpportunity(event)">
-                <div class="form-group">
+                <div class="form-group" id="account-field-group">
                     <label class="form-label">Account</label>
                     <select id="opp-account" class="form-input" required></select>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Opportunity Name</label>
-                    <input type="text" id="opp-name" class="form-input" required>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Opportunity Name</label>
+                        <input type="text" id="opp-name" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Estimated Value ($)</label>
+                        <input type="number" id="opp-value" class="form-input" required>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Estimated Value ($)</label>
-                    <input type="number" id="opp-value" class="form-input" required>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Probability (%)</label>
+                        <input type="number" id="opp-probability" class="form-input" min="0" max="100" value="50">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Expected Close Date</label>
+                        <input type="date" id="opp-close-date" class="form-input" required>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Probability (%)</label>
-                    <input type="number" id="opp-probability" class="form-input" min="0" max="100" value="50">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Expected Close Date</label>
-                    <input type="date" id="opp-close-date" class="form-input" required>
-                </div>
+                
                 <div class="form-group">
                     <label class="form-label">Executive Sponsor</label>
                     <input type="text" id="opp-sponsor" class="form-input" required>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Create Opportunity</button>
+                
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea id="opp-description" class="form-input" rows="2" placeholder="Brief description..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Recommendation</label>
+                    <textarea id="opp-recommendation" class="form-input" rows="2" placeholder="Strategic recommendations..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Comments</label>
+                    <textarea id="opp-comments" class="form-input" rows="2" placeholder="Additional notes..."></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 4px;">Create Opportunity</button>
             </form>
         </div>
     </div>
@@ -668,6 +735,29 @@
             initializeDefaultOpportunities();
             
             loadData();
+            
+            // PHASE 3: Auto-sync existing domain recommendations on page load
+            // This ensures any previously generated recommendations are synced to opportunities
+            if (typeof EA_DomainOpportunityBridge !== 'undefined') {
+                setTimeout(() => {
+                    // Ensure bridge is created
+                    if (!window.domainOpportunityBridge) {
+                        window.domainOpportunityBridge = new EA_DomainOpportunityBridge();
+                    }
+                    
+                    // Initialize with accountManager if not already initialized
+                    if (!window.domainOpportunityBridge.initialized) {
+                        window.domainOpportunityBridge.init(accountManager);
+                    }
+                    
+                    // Sync all available recommendations
+                    const syncResults = window.domainOpportunityBridge.syncAllAvailableRecommendations();
+                    if (syncResults.totalCreated > 0) {
+                        alert(`✅ ${syncResults.totalCreated} opportunities auto-synced from existing domain recommendations`);
+                        loadData(); // Refresh the pipeline to show new opportunities
+                    }
+                }, 2000); // Wait 2s for page to fully load
+            }
         });
         
         // Update breadcrumb links with current accountId
@@ -1019,23 +1109,63 @@
                 console.log('✓ Created Handelsbanken account');
             }
             
-            // Define the 8 services as opportunities
-            const serviceNames = [
-                'AI services',
-                'Enterprise application',
-                'Cloud services',
-                'Cybersecurity',
-                'Data & analytics',
-                'Digital development services',
-                'Digital workplace services',
-                'Sovereign IT services'
+            // Define the 8 services as opportunities with detailed descriptions
+            const serviceOpportunities = [
+                {
+                    name: 'AI services',
+                    description: 'Artificial Intelligence and Machine Learning solutions to automate processes, enhance decision-making, and drive innovation.',
+                    recommendation: 'Assess current AI maturity and identify high-value use cases for pilot projects.',
+                    estimatedValue: 150000
+                },
+                {
+                    name: 'Enterprise application',
+                    description: 'Core business applications including ERP, CRM, and industry-specific solutions to support business operations.',
+                    recommendation: 'Evaluate current application landscape and identify modernization opportunities.',
+                    estimatedValue: 200000
+                },
+                {
+                    name: 'Cloud services',
+                    description: 'Cloud infrastructure and platform services for scalability, flexibility, and cost optimization.',
+                    recommendation: 'Develop cloud migration strategy and prioritize workloads for cloud adoption.',
+                    estimatedValue: 180000
+                },
+                {
+                    name: 'Cybersecurity',
+                    description: 'Comprehensive security solutions including threat detection, prevention, and compliance management.',
+                    recommendation: 'Conduct security assessment and implement zero-trust architecture.',
+                    estimatedValue: 120000
+                },
+                {
+                    name: 'Data & analytics',
+                    description: 'Data management, analytics platforms, and business intelligence solutions for data-driven insights.',
+                    recommendation: 'Build data governance framework and establish analytics center of excellence.',
+                    estimatedValue: 160000
+                },
+                {
+                    name: 'Digital development services',
+                    description: 'Custom software development, API integration, and digital product engineering services.',
+                    recommendation: 'Establish agile development practices and API-first architecture.',
+                    estimatedValue: 140000
+                },
+                {
+                    name: 'Digital workplace services',
+                    description: 'Modern workplace solutions including collaboration tools, productivity suites, and employee experience platforms.',
+                    recommendation: 'Implement digital workplace strategy to enhance employee productivity and collaboration.',
+                    estimatedValue: 100000
+                },
+                {
+                    name: 'Sovereign IT services',
+                    description: 'Sovereign IT solutions ensuring data residency, regulatory compliance, and digital independence.',
+                    recommendation: 'Review data sovereignty requirements and implement compliant IT infrastructure.',
+                    estimatedValue: 130000
+                }
             ];
             
             // Create opportunities for each account
             accounts.forEach(account => {
-                serviceNames.forEach(serviceName => {
+                serviceOpportunities.forEach(service => {
                     // Generate unique opportunity ID for this account and service
-                    const serviceId = serviceName.replace(/[^a-zA-Z0-9]/g, '-').toUpperCase();
+                    const serviceId = service.name.replace(/[^a-zA-Z0-9]/g, '-').toUpperCase();
                     const oppId = `OPP-${account.id}-${serviceId}`;
                     
                     // Check if opportunity already exists
@@ -1044,13 +1174,26 @@
                         accountManager.createOpportunity({
                             id: oppId,
                             accountId: account.id,
-                            name: serviceName,
-                            status: 'discovery',
-                            stage: '1-discovery',
-                            estimatedValue: 100000, // €100,000
+                            name: service.name,
+                            status: 'backlog',
+                            stage: '0-backlog',
+                            sourceType: 'service-default',
+                            estimatedValue: service.estimatedValue,
                             probability: 50,
                             closeDate: '2026-12-30',
                             sponsor: '?',
+                            
+                            // Phase 1 fields - User input fields (with defaults)
+                            description: service.description,
+                            recommendation: service.recommendation,
+                            comments: '',
+                            
+                            // Phase 2 fields - Domain context (not applicable for service defaults)
+                            domainContext: null,
+                            strategicRationale: null,
+                            aiGenerated: false,
+                            refinedByUser: false,
+                            
                             linkedInitiatives: [],
                             linkedEngagements: [],
                             valueCase: null,
@@ -1063,7 +1206,7 @@
                                 createdBy: 'system'
                             }
                         });
-                        console.log(`✓ Created opportunity: ${serviceName} for ${account.name}`);
+                        console.log(`✓ Created opportunity: ${service.name} for ${account.name}`);
                     }
                 });
             });
@@ -1154,6 +1297,7 @@
 
         function renderKanban() {
             const stages = {
+                backlog: { container: 'stage-backlog', opps: [], total: 0 },
                 discovery: { container: 'stage-discovery', opps: [], total: 0 },
                 qualify: { container: 'stage-qualify', opps: [], total: 0 },
                 propose: { container: 'stage-propose', opps: [], total: 0 },
@@ -1172,6 +1316,17 @@
                     stages[stage].opps.push(opp);
                     stages[stage].total += opp.estimatedValue;
                 }
+            });
+            
+            // Sort opportunities within each stage: manual ones at top
+            Object.keys(stages).forEach(stageName => {
+                stages[stageName].opps.sort((a, b) => {
+                    const aIsManual = a.sourceType === 'manual' || a.metadata?.createdBy === 'user';
+                    const bIsManual = b.sourceType === 'manual' || b.metadata?.createdBy === 'user';
+                    if (aIsManual && !bIsManual) return -1;
+                    if (!aIsManual && bIsManual) return 1;
+                    return 0;
+                });
             });
             
             // Render each stage
@@ -1199,8 +1354,10 @@
                 
                 container.innerHTML = stage.opps.map(opp => {
                     const account = accountManager.getAccount(opp.accountId);
+                    const isManual = opp.sourceType === 'manual' || opp.metadata?.createdBy === 'user';
+                    const manualClass = isManual ? 'manual' : '';
                     return `
-                        <div class="opp-card" 
+                        <div class="opp-card ${manualClass}" 
                              data-opp-id="${opp.id}">
                             <div class="opp-name">${opp.name}</div>
                             <div class="opp-account">${account ? account.name : 'Unknown Account'}</div>
@@ -1317,6 +1474,7 @@
             
             // Map stage name to status
             const statusMap = {
+                'backlog': 'backlog',
                 'discovery': 'discovery',
                 'qualify': 'qualify',
                 'propose': 'propose',
@@ -1334,6 +1492,7 @@
                 
                 // Show toast notification
                 const stageNames = {
+                    'backlog': 'Backlog',
                     'discovery': 'Discovery',
                     'qualify': 'Qualification',
                     'propose': 'Proposal',
@@ -1394,25 +1553,85 @@
         }
 
         function openNewOppModal() {
-            document.getElementById('new-opp-modal').classList.add('open');
+            const modal = document.getElementById('new-opp-modal');
+            modal.classList.add('open');
+            
+            // Context-aware: auto-select account if in account context
+            const urlParams = new URLSearchParams(window.location.search);
+            const accountIdFromUrl = urlParams.get('accountId');
+            
+            if (accountIdFromUrl) {
+                // Auto-select the account from URL context
+                const accountSelect = document.getElementById('opp-account');
+                accountSelect.value = accountIdFromUrl;
+                
+                // Make account field readonly and visually indicate it's pre-selected
+                accountSelect.disabled = true;
+                accountSelect.style.background = '#f3f4f6';
+                accountSelect.style.cursor = 'not-allowed';
+                
+                // Hide the account field completely since it's obvious from context
+                document.getElementById('account-field-group').style.display = 'none';
+            } else {
+                // Show account field if no context
+                const accountSelect = document.getElementById('opp-account');
+                accountSelect.disabled = false;
+                accountSelect.style.background = '';
+                accountSelect.style.cursor = '';
+                document.getElementById('account-field-group').style.display = 'block';
+            }
         }
 
         function closeNewOppModal() {
             document.getElementById('new-opp-modal').classList.remove('open');
+            document.getElementById('new-opp-form').reset();
+            
+            // Reset account field visibility and state
+            const accountSelect = document.getElementById('opp-account');
+            accountSelect.disabled = false;
+            accountSelect.style.background = '';
+            accountSelect.style.cursor = '';
+            document.getElementById('account-field-group').style.display = 'block';
         }
 
         function createOpportunity(event) {
             event.preventDefault();
             
+            // Get accountId from form or URL context
+            let accountId = document.getElementById('opp-account').value;
+            if (!accountId || document.getElementById('opp-account').disabled) {
+                // If account field is disabled (context mode), get from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                accountId = urlParams.get('accountId');
+            }
+            
             const opportunity = accountManager.createOpportunity({
-                accountId: document.getElementById('opp-account').value,
+                accountId: accountId,
                 name: document.getElementById('opp-name').value,
                 estimatedValue: parseFloat(document.getElementById('opp-value').value),
                 probability: parseInt(document.getElementById('opp-probability').value),
                 closeDate: document.getElementById('opp-close-date').value,
                 sponsor: document.getElementById('opp-sponsor').value,
-                status: 'discovery',
-                createdBy: 'user'
+                status: 'backlog',
+                stage: '0-backlog',
+                sourceType: 'manual',
+                
+                // Phase 1 fields - User input
+                description: document.getElementById('opp-description').value || '',
+                recommendation: document.getElementById('opp-recommendation').value || '',
+                comments: document.getElementById('opp-comments').value || '',
+                
+                // Phase 2 fields - Not applicable for manual creation
+                domainContext: null,
+                strategicRationale: null,
+                aiGenerated: false,
+                refinedByUser: false,
+                
+                metadata: {
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    createdBy: 'user'
+                }
             });
             
             alert('Opportunity created: ' + opportunity.id);
@@ -1499,6 +1718,56 @@
                     </div>
                 </div>
 
+                <!-- Description Section -->
+                <div id="description-section" style="margin-bottom: 20px; display: none;">
+                    <h4 style="font-size: 14px; color: #1f2937; font-weight: 600; margin-bottom: 8px;">Description</h4>
+                    <div style="background: #f9fafb; padding: 12px; border-radius: 8px; font-size: 13px; color: #374151; white-space: pre-wrap;" id="detail-description"></div>
+                </div>
+
+                <!-- Domain Context Section (for AI-generated opportunities) -->
+                <div id="domain-context-section" style="margin-bottom: 20px; display: none;">
+                    <h4 style="font-size: 14px; color: #1f2937; font-weight: 600; margin-bottom: 8px;">
+                        <i class="fas fa-sitemap" style="margin-right: 6px; color: #10b981;"></i>Domain Context
+                        <span id="ai-generated-badge" style="display: none; margin-left: 8px; font-size: 10px; padding: 2px 8px; background: #e0e7ff; color: #4338ca; border-radius: 4px; font-weight: 600; text-transform: uppercase;">AI Generated</span>
+                    </h4>
+                    <div style="background: #ecfdf5; border: 1px solid #10b981; padding: 12px; border-radius: 8px; font-size: 13px;">
+                        <div style="margin-bottom: 8px;">
+                            <strong style="color: #065f46;">Domain:</strong>
+                            <span style="color: #047857;" id="detail-domain-name"></span>
+                        </div>
+                        <div style="margin-bottom: 8px;" id="detail-linked-apps-container" style="display: none;">
+                            <strong style="color: #065f46;">Linked Applications:</strong>
+                            <span style="color: #047857;" id="detail-linked-apps"></span>
+                        </div>
+                        <div style="margin-bottom: 8px;" id="detail-current-state-container" style="display: none;">
+                            <strong style="color: #065f46;">Current State:</strong>
+                            <div style="color: #047857; margin-top: 4px;" id="detail-current-state"></div>
+                        </div>
+                        <div id="detail-target-state-container" style="display: none;">
+                            <strong style="color: #065f46;">Target State:</strong>
+                            <div style="color: #047857; margin-top: 4px;" id="detail-target-state"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strategic Rationale Section (for AI-generated opportunities) -->
+                <div id="strategic-rationale-section" style="margin-bottom: 20px; display: none;">
+                    <h4 style="font-size: 14px; color: #1f2937; font-weight: 600; margin-bottom: 8px;">Strategic Rationale</h4>
+                    <div style="background: #fef3c7; padding: 12px; border-radius: 8px; font-size: 13px; color: #78350f; white-space: pre-wrap;" id="detail-strategic-rationale"></div>
+                </div>
+
+                <!-- Recommendation Section -->
+                <div id="recommendation-section" style="margin-bottom: 20px; display: none;">
+                    <h4 style="font-size: 14px; color: #1f2937; font-weight: 600; margin-bottom: 8px;">Recommendation</h4>
+                    <div style="background: #fef3c7; padding: 12px; border-radius: 8px; font-size: 13px; color: #78350f; white-space: pre-wrap;" id="detail-recommendation"></div>
+                </div>
+
+                <!-- Comments Section -->
+                <div id="comments-section" style="margin-bottom: 20px; display: none;">
+                    <h4 style="font-size: 14px; color: #1f2937; font-weight: 600; margin-bottom: 8px;">Comments</h4>
+                    <div style="background: #dbeafe; padding: 12px; border-radius: 8px; font-size: 13px; color: #1e3a8a; white-space: pre-wrap;" id="detail-comments"></div>
+                </div>
+
                 <!-- Action Buttons -->
                 <div style="display: flex; gap: 12px; justify-content: flex-end;">
                     <button class="btn btn-secondary" onclick="deleteOpportunity()" style="background: #ef4444; color: white;">
@@ -1531,25 +1800,16 @@
 
             const account = accountManager.getAccount(opportunity.accountId);
             
-            // Populate modal
-            document.getElementById('detail-opp-name').textContent = opportunity.name;
-            document.getElementById('detail-account-name').textContent = account ? account.name : 'Unknown Account';
-            document.getElementById('detail-sponsor').textContent = opportunity.sponsor || 'Not specified';
-            document.getElementById('detail-value').textContent = '$' + (opportunity.estimatedValue || 0).toLocaleString();
-            document.getElementById('detail-probability').textContent = opportunity.probability || 0;
-            document.getElementById('detail-close-date').textContent = opportunity.closeDate || 'Not set';
+            // Regenerate entire modal content to ensure clean state
+            const contentDiv = document.getElementById('opp-details-content');
             
-            // Weighted value
+            // Calculate derived values
             const weightedValue = (opportunity.estimatedValue || 0) * (opportunity.probability || 0) / 100;
-            document.getElementById('detail-weighted-value').textContent = '$' + weightedValue.toLocaleString();
-            
-            // Days open
             const createdDate = new Date(opportunity.createdAt || Date.now());
             const daysOpen = Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-            document.getElementById('detail-days-open').textContent = daysOpen;
             
-            // Stage name
             const stageNames = {
+                'backlog': 'Backlog',
                 'discovery': 'Discovery',
                 'qualify': 'Qualification',
                 'propose': 'Proposal',
@@ -1557,10 +1817,9 @@
                 'close-won': 'Closed Won',
                 'close-lost': 'Closed Lost'
             };
-            document.getElementById('detail-stage-name').textContent = stageNames[opportunity.status] || opportunity.status;
             
-            // Status badge
             const statusColors = {
+                'backlog': { bg: '#f3f4f6', text: '#374151' },
                 'discovery': { bg: '#dbeafe', text: '#1e40af' },
                 'qualify': { bg: '#e0e7ff', text: '#4338ca' },
                 'propose': { bg: '#fce7f3', text: '#be185d' },
@@ -1569,15 +1828,191 @@
                 'close-lost': { bg: '#fee2e2', text: '#991b1b' }
             };
             const statusColor = statusColors[opportunity.status] || { bg: '#f3f4f6', text: '#1f2937' };
-            const statusBadge = document.getElementById('detail-status-badge');
-            statusBadge.textContent = stageNames[opportunity.status] || opportunity.status;
-            statusBadge.style.background = statusColor.bg;
-            statusBadge.style.color = statusColor.text;
             
-            // Additional details
-            document.getElementById('detail-created').textContent = createdDate.toLocaleDateString();
-            document.getElementById('detail-created-by').textContent = opportunity.createdBy || 'Unknown';
-            document.getElementById('detail-opp-id').textContent = opportunity.id;
+            // Build description section
+            let descriptionHTML = '';
+            if (opportunity.description && opportunity.description.trim()) {
+                descriptionHTML = `
+                    <div id="description-section" style="margin-bottom: 20px;">
+                        <h4 style="font-size: 14px; color: #1f2937; font-weight: 600; margin-bottom: 8px;">Description</h4>
+                        <div style="background: #f9fafb; padding: 12px; border-radius: 8px; font-size: 13px; color: #374151; white-space: pre-wrap;" id="detail-description">${escapeHtml(opportunity.description)}</div>
+                    </div>
+                `;
+            }
+            
+            // Build domain context section
+            let domainContextHTML = '';
+            if (opportunity.domainContext) {
+                let linkedAppsHTML = '';
+                if (opportunity.domainContext.linkedApps && opportunity.domainContext.linkedApps.length > 0) {
+                    linkedAppsHTML = `
+                        <div style="margin-bottom: 8px;">
+                            <strong style="color: #065f46;">Linked Applications:</strong>
+                            <span style="color: #047857;">${opportunity.domainContext.linkedApps.join(', ')}</span>
+                        </div>
+                    `;
+                }
+                
+                let currentStateHTML = '';
+                if (opportunity.domainContext.currentState) {
+                    currentStateHTML = `
+                        <div style="margin-bottom: 8px;">
+                            <strong style="color: #065f46;">Current State:</strong>
+                            <div style="color: #047857; margin-top: 4px;">${escapeHtml(opportunity.domainContext.currentState)}</div>
+                        </div>
+                    `;
+                }
+                
+                let targetStateHTML = '';
+                if (opportunity.domainContext.targetState) {
+                    targetStateHTML = `
+                        <div>
+                            <strong style="color: #065f46;">Target State:</strong>
+                            <div style="color: #047857; margin-top: 4px;">${escapeHtml(opportunity.domainContext.targetState)}</div>
+                        </div>
+                    `;
+                }
+                
+                domainContextHTML = `
+                    <div id="domain-context-section" style="margin-bottom: 20px;">
+                        <h4 style="font-size: 14px; color: #1f2937; font-weight: 600; margin-bottom: 8px;">
+                            <i class="fas fa-sitemap" style="margin-right: 6px; color: #10b981;"></i>Domain Context
+                            ${opportunity.aiGenerated ? '<span style="margin-left: 8px; font-size: 10px; padding: 2px 8px; background: #e0e7ff; color: #4338ca; border-radius: 4px; font-weight: 600; text-transform: uppercase;">AI Generated</span>' : ''}
+                        </h4>
+                        <div style="background: #ecfdf5; border: 1px solid #10b981; padding: 12px; border-radius: 8px; font-size: 13px;">
+                            <div style="margin-bottom: 8px;">
+                                <strong style="color: #065f46;">Domain:</strong>
+                                <span style="color: #047857;">${escapeHtml(opportunity.domainContext.domainName || 'N/A')}</span>
+                            </div>
+                            ${linkedAppsHTML}
+                            ${currentStateHTML}
+                            ${targetStateHTML}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Build strategic rationale section
+            let strategicRationaleHTML = '';
+            if (opportunity.strategicRationale && opportunity.strategicRationale.trim()) {
+                strategicRationaleHTML = `
+                    <div id="strategic-rationale-section" style="margin-bottom: 20px;">
+                        <h4 style="font-size: 14px; color: #1f2937; font-weight: 600; margin-bottom: 8px;">Strategic Rationale</h4>
+                        <div style="background: #fef3c7; padding: 12px; border-radius: 8px; font-size: 13px; color: #78350f; white-space: pre-wrap;" id="detail-strategic-rationale">${escapeHtml(opportunity.strategicRationale)}</div>
+                    </div>
+                `;
+            }
+            
+            // Build recommendation section
+            let recommendationHTML = '';
+            if (opportunity.recommendation && opportunity.recommendation.trim()) {
+                recommendationHTML = `
+                    <div id="recommendation-section" style="margin-bottom: 20px;">
+                        <h4 style="font-size: 14px; color: #1f2937; font-weight: 600; margin-bottom: 8px;">Recommendation</h4>
+                        <div style="background: #fef3c7; padding: 12px; border-radius: 8px; font-size: 13px; color: #78350f; white-space: pre-wrap;" id="detail-recommendation">${escapeHtml(opportunity.recommendation)}</div>
+                    </div>
+                `;
+            }
+            
+            // Build comments section
+            let commentsHTML = '';
+            if (opportunity.comments && opportunity.comments.trim()) {
+                commentsHTML = `
+                    <div id="comments-section" style="margin-bottom: 20px;">
+                        <h4 style="font-size: 14px; color: #1f2937; font-weight: 600; margin-bottom: 8px;">Comments</h4>
+                        <div style="background: #dbeafe; padding: 12px; border-radius: 8px; font-size: 13px; color: #1e3a8a; white-space: pre-wrap;" id="detail-comments">${escapeHtml(opportunity.comments)}</div>
+                    </div>
+                `;
+            }
+            
+            // Build complete modal content
+            contentDiv.innerHTML = `
+                <!-- Overview Section -->
+                <div style="margin-bottom: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px;">
+                        <div style="flex: 1;">
+                            <h3 style="font-size: 20px; color: #1f2937; margin-bottom: 8px;" id="detail-opp-name">${escapeHtml(opportunity.name)}</h3>
+                            <p style="color: #6b7280; font-size: 14px; margin-bottom: 4px;">
+                                <i class="fas fa-building" style="margin-right: 6px;"></i>
+                                <span id="detail-account-name">${account ? escapeHtml(account.name) : 'Unknown Account'}</span>
+                            </p>
+                            <p style="color: #6b7280; font-size: 14px;">
+                                <i class="fas fa-user" style="margin-right: 6px;"></i>
+                                Sponsor: <span id="detail-sponsor">${escapeHtml(opportunity.sponsor || 'Not specified')}</span>
+                            </p>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 28px; font-weight: 700; color: #7c3aed;" id="detail-value">€${(opportunity.estimatedValue || 0).toLocaleString()}</div>
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+                                <span id="detail-probability">${opportunity.probability || 0}</span>% probability
+                            </div>
+                            <div style="font-size: 14px; color: #6b7280; margin-top: 8px;">
+                                Expected: <span id="detail-close-date">${opportunity.closeDate || 'Not set'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Badge -->
+                    <div style="display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; background: ${statusColor.bg}; color: ${statusColor.text};" id="detail-status-badge">${stageNames[opportunity.status] || opportunity.status}</div>
+                </div>
+
+                <!-- Metrics Grid -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+                    <div style="background: #f9fafb; padding: 16px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">WEIGHTED VALUE</div>
+                        <div style="font-size: 20px; font-weight: 700; color: #1f2937;" id="detail-weighted-value">€${weightedValue.toLocaleString()}</div>
+                    </div>
+                    <div style="background: #f9fafb; padding: 16px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">DAYS OPEN</div>
+                        <div style="font-size: 20px; font-weight: 700; color: #1f2937;" id="detail-days-open">${daysOpen}</div>
+                    </div>
+                    <div style="background: #f9fafb; padding: 16px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">STAGE</div>
+                        <div style="font-size: 14px; font-weight: 600; color: #1f2937;" id="detail-stage-name">${stageNames[opportunity.status] || opportunity.status}</div>
+                    </div>
+                </div>
+
+                <!-- Additional Details -->
+                <div style="background: #f9fafb; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+                    <h4 style="font-size: 14px; color: #1f2937; font-weight: 600; margin-bottom: 12px;">Additional Information</h4>
+                    <div style="display: grid; gap: 8px; font-size: 13px;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #6b7280;">Created:</span>
+                            <span style="color: #1f2937; font-weight: 500;" id="detail-created">${createdDate.toLocaleDateString()}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #6b7280;">Created By:</span>
+                            <span style="color: #1f2937; font-weight: 500;" id="detail-created-by">${opportunity.metadata?.createdBy || opportunity.createdBy || 'Unknown'}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #6b7280;">Opportunity ID:</span>
+                            <span style="color: #1f2937; font-weight: 500; font-family: monospace;" id="detail-opp-id">${opportunity.id}</span>
+                        </div>
+                    </div>
+                </div>
+
+                ${descriptionHTML}
+                ${domainContextHTML}
+                ${strategicRationaleHTML}
+                ${recommendationHTML}
+                ${commentsHTML}
+
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="btn btn-secondary" onclick="deleteOpportunity()" style="background: #ef4444; color: white;">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                    <button class="btn btn-secondary" onclick="editOpportunity()" style="background: #3b82f6; color: white;">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-primary" onclick="navigateToAccount()" style="background: #7c3aed; color: white;">
+                        <i class="fas fa-arrow-right"></i> View Account
+                    </button>
+                </div>
+            `;
+            
+            // Update modal title
+            document.getElementById('opp-details-title').textContent = 'Opportunity Details';
             
             // Show modal
             document.getElementById('opp-details-modal').classList.add('open');
@@ -1606,15 +2041,11 @@
             const opportunity = accountManager.getOpportunity(currentOppId);
             if (!opportunity) return;
             
-            // Replace display fields with input fields
-            document.getElementById('detail-opp-name').innerHTML = `<input type="text" id="edit-opp-name" class="form-input" value="${opportunity.name}" style="width: 100%; font-size: 20px; padding: 8px;">`;
-            document.getElementById('detail-sponsor').innerHTML = `<input type="text" id="edit-sponsor" class="form-input" value="${opportunity.sponsor || ''}" style="width: 200px; padding: 4px 8px;">`;
-            document.getElementById('detail-value').innerHTML = `<input type="number" id="edit-value" class="form-input" value="${opportunity.estimatedValue || 0}" style="width: 150px; font-size: 24px; padding: 8px; text-align: right;">`;
-            document.getElementById('detail-probability').innerHTML = `<input type="number" id="edit-probability" class="form-input" value="${opportunity.probability || 50}" min="0" max="100" style="width: 60px; padding: 4px; text-align: center;">`;
-            document.getElementById('detail-close-date').innerHTML = `<input type="date" id="edit-close-date" class="form-input" value="${opportunity.closeDate || ''}" style="width: 150px; padding: 4px 8px;">`;
+            const account = accountManager.getAccount(opportunity.accountId);
             
-            // Add stage selector
+            // Build stage selector options
             const stageNames = {
+                'backlog': 'Backlog',
                 'discovery': 'Discovery',
                 'qualify': 'Qualification',
                 'propose': 'Proposal',
@@ -1627,33 +2058,185 @@
                 const selected = opportunity.status === key ? 'selected' : '';
                 stageOptions += `<option value="${key}" ${selected}>${value}</option>`;
             }
-            document.getElementById('detail-stage-name').innerHTML = `<select id="edit-stage" class="form-input" style="width: 100%; padding: 4px 8px;">${stageOptions}</select>`;
             
-            // Update button
-            const editBtn = document.querySelector('button[onclick="editOpportunity()"]');
-            editBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
-            editBtn.onclick = saveOpportunity;
-            editBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-            editBtn.style.color = 'white';
+            // Build domain context section (read-only)
+            let domainContextHTML = '';
+            if (opportunity.domainContext) {
+                let linkedAppsHTML = '';
+                if (opportunity.domainContext.linkedApps && opportunity.domainContext.linkedApps.length > 0) {
+                    linkedAppsHTML = `
+                        <div style="margin-bottom: 8px;">
+                            <strong style="color: #065f46;">Linked Applications:</strong>
+                            <span style="color: #047857;">${opportunity.domainContext.linkedApps.join(', ')}</span>
+                        </div>
+                    `;
+                }
+                
+                let currentStateHTML = '';
+                if (opportunity.domainContext.currentState) {
+                    currentStateHTML = `
+                        <div style="margin-bottom: 8px;">
+                            <strong style="color: #065f46;">Current State:</strong>
+                            <div style="color: #047857; margin-top: 4px;">${escapeHtml(opportunity.domainContext.currentState)}</div>
+                        </div>
+                    `;
+                }
+                
+                let targetStateHTML = '';
+                if (opportunity.domainContext.targetState) {
+                    targetStateHTML = `
+                        <div>
+                            <strong style="color: #065f46;">Target State:</strong>
+                            <div style="color: #047857; margin-top: 4px;">${escapeHtml(opportunity.domainContext.targetState)}</div>
+                        </div>
+                    `;
+                }
+                
+                domainContextHTML = `
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="font-size: 14px; color: #1f2937; font-weight: 600; margin-bottom: 8px;">
+                            <i class="fas fa-sitemap" style="margin-right: 6px; color: #10b981;"></i>Domain Context
+                            ${opportunity.aiGenerated ? '<span style="margin-left: 8px; font-size: 10px; padding: 2px 8px; background: #e0e7ff; color: #4338ca; border-radius: 4px; font-weight: 600; text-transform: uppercase;">AI Generated</span>' : ''}
+                        </h4>
+                        <div style="background: #ecfdf5; border: 1px solid #10b981; padding: 12px; border-radius: 8px; font-size: 13px;">
+                            <div style="margin-bottom: 8px;">
+                                <strong style="color: #065f46;">Domain:</strong>
+                                <span style="color: #047857;">${escapeHtml(opportunity.domainContext.domainName || 'N/A')}</span>
+                            </div>
+                            ${linkedAppsHTML}
+                            ${currentStateHTML}
+                            ${targetStateHTML}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Build strategic rationale section (read-only)
+            let strategicRationaleHTML = '';
+            if (opportunity.strategicRationale && opportunity.strategicRationale.trim()) {
+                strategicRationaleHTML = `
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="font-size: 14px; color: #1f2937; font-weight: 600; margin-bottom: 8px;">Strategic Rationale (AI-Generated)</h4>
+                        <div style="background: #fef3c7; padding: 12px; border-radius: 8px; font-size: 13px; color: #78350f; white-space: pre-wrap;">${escapeHtml(opportunity.strategicRationale)}</div>
+                    </div>
+                `;
+            }
+            
+            // Regenerate entire modal content with editable fields
+            const contentDiv = document.getElementById('opp-details-content');
+            contentDiv.innerHTML = `
+                <!-- Edit Form -->
+                <div style="margin-bottom: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px; gap: 20px;">
+                        <div style="flex: 1;">
+                            <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">OPPORTUNITY NAME</label>
+                            <input type="text" id="edit-opp-name" class="form-input" value="${escapeHtml(opportunity.name)}" style="width: 100%; font-size: 18px; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px;">
+                            
+                            <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">ACCOUNT</label>
+                            <div style="padding: 8px; background: #f9fafb; border-radius: 6px; font-size: 14px; color: #374151;">
+                                <i class="fas fa-building" style="margin-right: 6px; color: #6b7280;"></i>
+                                ${account ? escapeHtml(account.name) : 'Unknown Account'}
+                            </div>
+                        </div>
+                        <div style="width: 250px;">
+                            <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">ESTIMATED VALUE (€)</label>
+                            <input type="number" id="edit-value" class="form-input" value="${opportunity.estimatedValue || 0}" style="width: 100%; font-size: 24px; padding: 10px; text-align: right; border: 2px solid #e5e7eb; border-radius: 8px; font-weight: 700; color: #7c3aed;">
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                        <div>
+                            <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">PROBABILITY (%)</label>
+                            <input type="number" id="edit-probability" class="form-input" value="${opportunity.probability || 50}" min="0" max="100" style="width: 100%; padding: 8px; text-align: center; border: 1px solid #e5e7eb; border-radius: 6px;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">EXPECTED CLOSE DATE</label>
+                            <input type="date" id="edit-close-date" class="form-input" value="${opportunity.closeDate || ''}" style="width: 100%; padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">STAGE</label>
+                            <select id="edit-stage" class="form-input" style="width: 100%; padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; font-weight: 600;">${stageOptions}</select>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">EXECUTIVE SPONSOR</label>
+                        <input type="text" id="edit-sponsor" class="form-input" value="${escapeHtml(opportunity.sponsor || '')}" placeholder="Name of executive sponsor" style="width: 100%; padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px;">
+                    </div>
+                </div>
+                
+                <!-- Description -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">DESCRIPTION</label>
+                    <textarea id="edit-description" class="form-input" rows="3" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; font-family: inherit; resize: vertical; font-size: 14px;" placeholder="Brief description of the opportunity...">${escapeHtml(opportunity.description || '')}</textarea>
+                </div>
+                
+                <!-- Recommendation -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">RECOMMENDATION</label>
+                    <textarea id="edit-recommendation" class="form-input" rows="3" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; font-family: inherit; resize: vertical; font-size: 14px;" placeholder="Strategic recommendations and next steps...">${escapeHtml(opportunity.recommendation || '')}</textarea>
+                </div>
+                
+                <!-- Comments -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">COMMENTS</label>
+                    <textarea id="edit-comments" class="form-input" rows="3" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; font-family: inherit; resize: vertical; font-size: 14px;" placeholder="Additional notes and comments...">${escapeHtml(opportunity.comments || '')}</textarea>
+                </div>
+                
+                ${domainContextHTML}
+                ${strategicRationaleHTML}
+                
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="btn btn-secondary" onclick="closeOppDetailsModal(); viewOpportunity('${currentOppId}');" style="background: #6b7280; color: white;">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button class="btn btn-primary" onclick="saveOpportunity()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            `;
+            
+            // Update modal title
+            document.getElementById('opp-details-title').textContent = 'Edit Opportunity';
+        }
+        
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         function saveOpportunity() {
             if (!currentOppId || !isEditMode) return;
             
             try {
-                // Get updated values
+                // Get current opportunity to check if AI-generated
+                const currentOpportunity = accountManager.getOpportunity(currentOppId);
+                
+                // Get updated values from form fields
                 const updatedData = {
-                    name: document.getElementById('edit-opp-name').value,
-                    sponsor: document.getElementById('edit-sponsor').value,
-                    estimatedValue: parseInt(document.getElementById('edit-value').value) || 0,
-                    probability: parseInt(document.getElementById('edit-probability').value) || 50,
-                    closeDate: document.getElementById('edit-close-date').value,
-                    status: document.getElementById('edit-stage').value,
-                    stage: document.getElementById('edit-stage').value.includes('discovery') ? '1-discovery' :
-                           document.getElementById('edit-stage').value.includes('qualify') ? '2-qualification' :
-                           document.getElementById('edit-stage').value.includes('propose') ? '3-proposal' :
-                           document.getElementById('edit-stage').value.includes('negotiate') ? '4-negotiation' : '5-closed'
+                    name: document.getElementById('edit-opp-name')?.value || currentOpportunity.name,
+                    sponsor: document.getElementById('edit-sponsor')?.value || currentOpportunity.sponsor || '',
+                    estimatedValue: parseInt(document.getElementById('edit-value')?.value) || 0,
+                    probability: parseInt(document.getElementById('edit-probability')?.value) || 50,
+                    closeDate: document.getElementById('edit-close-date')?.value || currentOpportunity.closeDate,
+                    status: document.getElementById('edit-stage')?.value || currentOpportunity.status,
+                    stage: getStageFromStatus(document.getElementById('edit-stage')?.value || currentOpportunity.status),
+                    
+                    // Text area fields (Phase 1 enhancements)
+                    description: document.getElementById('edit-description')?.value || currentOpportunity.description || '',
+                    recommendation: document.getElementById('edit-recommendation')?.value || currentOpportunity.recommendation || '',
+                    comments: document.getElementById('edit-comments')?.value || currentOpportunity.comments || ''
                 };
+                
+                // If this is an AI-generated opportunity, mark as refined by user
+                if (currentOpportunity && currentOpportunity.aiGenerated && !currentOpportunity.refinedByUser) {
+                    updatedData.refinedByUser = true;
+                    console.log(`[Opportunity Pipeline] 🎯 Marking opportunity ${currentOppId} as refined by user`);
+                }
                 
                 // Validate
                 if (!updatedData.name || updatedData.name.trim() === '') {
@@ -1674,18 +2257,20 @@
                 toast.style.cssText = `
                     position: fixed;
                     bottom: 20px;
-                    left: 20px;
+                    right: 20px;
                     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
                     color: white;
-                    padding: 12px 20px;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    padding: 16px 24px;
+                    border-radius: 12px;
+                    box-shadow: 0 10px 40px rgba(16, 185, 129, 0.3);
                     font-size: 14px;
                     font-weight: 600;
                     z-index: 10000;
-                    animation: slideInUp 0.3s ease-out;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
                 `;
-                toast.innerHTML = '<i class="fas fa-check-circle"></i> Opportunity updated successfully';
+                toast.innerHTML = '<i class="fas fa-check-circle" style="font-size: 20px;"></i> Opportunity updated successfully';
                 document.body.appendChild(toast);
                 setTimeout(() => toast.remove(), 3000);
                 
@@ -1694,9 +2279,23 @@
                 loadData();
                 
             } catch (error) {
-                console.error('Error saving opportunity:', error);
+                console.error('[Opportunity Pipeline] Error saving opportunity:', error);
                 alert('Error saving opportunity: ' + error.message);
             }
+        }
+        
+        // Helper function to map status to stage
+        function getStageFromStatus(status) {
+            const stageMap = {
+                'backlog': '0-backlog',
+                'discovery': '1-discovery',
+                'qualify': '2-qualification',
+                'propose': '3-proposal',
+                'negotiate': '4-negotiation',
+                'close-won': '5-closed',
+                'close-lost': '5-closed'
+            };
+            return stageMap[status] || '1-discovery';
         }
 
         function navigateToAccount() {

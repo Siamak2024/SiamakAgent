@@ -306,6 +306,11 @@ function saveApplication() {
     // Invalidate AS-IS Dashboard cache
     invalidateASISDashboard();
     
+    // Mark portfolio as changed to enable EA Portfolio Analysis regeneration button
+    if (typeof window.markPortfolioAsChanged === 'function') {
+        window.markPortfolioAsChanged('business'); // Enable both business and technology buttons
+    }
+    
     showToast('Application Saved', id ? `Updated ${name}` : `Added ${name}`, 'success');
 }
 

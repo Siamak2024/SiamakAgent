@@ -152,17 +152,28 @@ class EA_AccountManager {
       name: opportunityData.name,
       status: opportunityData.status || 'discovery',
       stage: opportunityData.stage || '1-discovery',
+      sourceType: opportunityData.sourceType || null,
       estimatedValue: opportunityData.estimatedValue || 0,
       probability: opportunityData.probability || 50,
       closeDate: opportunityData.closeDate,
       sponsor: opportunityData.sponsor,
+      description: opportunityData.description || '',
+      recommendation: opportunityData.recommendation || '',
+      comments: opportunityData.comments || '',
+      
+      // Domain-based opportunity fields (Phase 2)
+      domainContext: opportunityData.domainContext || null,
+      strategicRationale: opportunityData.strategicRationale || null,
+      aiGenerated: opportunityData.aiGenerated || false,
+      refinedByUser: opportunityData.refinedByUser || false,
+      
       linkedInitiatives: opportunityData.linkedInitiatives || [],
       linkedEngagements: opportunityData.linkedEngagements || [],
       valueCase: opportunityData.valueCase || null,
       competitors: opportunityData.competitors || [],
       nextSteps: opportunityData.nextSteps || [],
       risks: opportunityData.risks || [],
-      metadata: {
+      metadata: opportunityData.metadata || {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         createdBy: opportunityData.createdBy || 'system',
@@ -223,6 +234,25 @@ class EA_AccountManager {
     }
     localStorage.removeItem(this.opportunityPrefix + opportunityId);
     console.log('Opportunity deleted:', opportunityId);
+  }
+
+  /**
+   * Mark opportunity as refined by user (for AI-generated opportunities)
+   * @param {string} opportunityId - Opportunity ID
+   * @returns {Object} Updated opportunity
+   */
+  markOpportunityAsRefined(opportunityId) {
+    const opportunity = this.getOpportunity(opportunityId);
+    if (!opportunity) {
+      throw new Error(`Opportunity ${opportunityId} not found`);
+    }
+
+    opportunity.refinedByUser = true;
+    opportunity.metadata.updatedAt = new Date().toISOString();
+
+    localStorage.setItem(this.opportunityPrefix + opportunityId, JSON.stringify(opportunity));
+    console.log('Opportunity marked as refined by user:', opportunityId);
+    return opportunity;
   }
 
   /**

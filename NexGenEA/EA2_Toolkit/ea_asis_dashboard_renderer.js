@@ -244,6 +244,64 @@ function renderDomainsSection(domains) {
 }
 
 /**
+ * CRITICAL FIX: Deduplicate apps in domain arrays
+ * Removes duplicate applications from all domain arrays based on app.name
+ * This fixes duplicates caused by previous drag & drop operations
+ */
+function deduplicateThreeLensDomainArrays() {
+    if (!window.threeLensData) {
+        console.warn('[Deduplicate] No threeLensData available');
+        return;
+    }
+
+    let totalDuplicatesRemoved = 0;
+
+    // Deduplicate each domain type
+    ['businessDomains', 'technologyDomains', 'serviceTowers'].forEach(domainType => {
+        const domains = window.threeLensData[domainType];
+        if (!domains || !Array.isArray(domains)) return;
+
+        domains.forEach(domain => {
+            if (!domain.apps || !Array.isArray(domain.apps)) return;
+
+            const originalLength = domain.apps.length;
+            
+            // Remove duplicates using Map to track unique app names
+            const uniqueApps = new Map();
+            domain.apps.forEach(app => {
+                if (!uniqueApps.has(app.name)) {
+                    uniqueApps.set(app.name, app);
+                }
+            });
+            
+            domain.apps = Array.from(uniqueApps.values());
+            
+            const duplicatesRemoved = originalLength - domain.apps.length;
+            if (duplicatesRemoved > 0) {
+                totalDuplicatesRemoved += duplicatesRemoved;
+                console.log(`[Deduplicate] ✅ Removed ${duplicatesRemoved} duplicates from ${domain.name} (${domainType})`);
+            }
+        });
+    });
+
+    if (totalDuplicatesRemoved > 0) {
+        console.log(`[Deduplicate] ✅ Total duplicates removed: ${totalDuplicatesRemoved}`);
+        
+        // Save cleaned data back to localStorage
+        const engagementManager = window.engagementManager;
+        const currentEngagement = engagementManager?.getCurrentEngagement();
+        if (currentEngagement?.id && window.saveThreeLensDashboardData) {
+            window.saveThreeLensDashboardData(currentEngagement.id, window.threeLensData);
+            console.log(`[Deduplicate] ✅ Saved cleaned data to localStorage`);
+        }
+    } else {
+        console.log(`[Deduplicate] No duplicates found`);
+    }
+
+    return totalDuplicatesRemoved;
+}
+
+/**
  * Render two-lens tabs (Business | Technology)
  * V2: Service Tower tab removed - moved to WhiteSpot Heatmap
  */
@@ -300,6 +358,9 @@ function renderThreeLensContent() {
         console.error('[Three-Lens] No three-lens data available');
         return '';
     }
+
+    // CRITICAL FIX: Deduplicate domain arrays before rendering
+    deduplicateThreeLensDomainArrays();
 
     console.log('[Three-Lens] Rendering content:', {
         businessDomains: data.businessDomains?.length || 0,
@@ -407,8 +468,16 @@ function renderThreeLensDomains(domains, lensType, title) {
         return `<div class="empty-state">No ${title} data available</div>`;
     }
 
+    // ENHANCEMENT: Filter out empty domains (domains with 0 apps)
+    const nonEmptyDomains = domains.filter(domain => {
+        const apps = domain.apps || [];
+        return apps.length > 0;
+    });
+
+    console.log(`[Renderer] ✅ Filtered ${domains.length - nonEmptyDomains.length} empty domains. Showing ${nonEmptyDomains.length} domains with applications.`);
+
     // V2: Sort domains - Unknown domain always last
-    const sortedDomains = [...domains].sort((a, b) => {
+    const sortedDomains = [...nonEmptyDomains].sort((a, b) => {
         if (a.name === 'Unknown') return 1;
         if (b.name === 'Unknown') return -1;
         return 0; // Keep original order for other domains
@@ -497,7 +566,7 @@ function renderThreeLensDomains(domains, lensType, title) {
         <div class="asis-section">
             <div class="asis-section-header">
                 <h2 class="asis-section-title">${title}</h2>
-                <div class="asis-pill-badge">${domains.length} domains · ${window.threeLensData.apps.length} apps</div>
+                <div class="asis-pill-badge">${sortedDomains.length} domains · ${window.threeLensData.apps.length} apps</div>
             </div>
             <div class="asis-domain-grid">
                 ${domainCards}
@@ -618,11 +687,19 @@ function renderLensSpecificStrategicInsights(lensType) {
     // Return placeholder - will be populated by initStrategicInsights() after render
     return `
         <div class="asis-section asis-insights-wrapper-${lensType}" id="strategic-insights-${lensType}" style="margin-top: 32px;">
-            <div class="asis-section-header">
-                <h2 class="asis-section-title">
+            <div class="asis-section-header" style="display: flex; align-items: center; justify-content: space-between;">
+                <h2 class="asis-section-title" style="margin: 0;">
                     <i class="${lensIcon}" style="color: var(--ea-accent); margin-right: 8px;"></i>
-                    Strategic Insights (${lensTitle})
+                    EA Portfolio Analysis (${lensTitle})
                 </h2>
+                <button class="btn btn-primary btn-sm" 
+                        id="regenerate-insights-btn-${lensType}" 
+                        onclick="regenerateASISInsights('${lensType}')" 
+                        disabled
+                        title="Make changes to the portfolio to enable regeneration"
+                        style="opacity: 0.5; cursor: not-allowed;">
+                    <i class="fas fa-sync-alt"></i> Regenerate Analysis
+                </button>
             </div>
             <div class="asis-insights-empty" id="insights-placeholder-${lensType}">
                 <p style="color: #666; text-align: center; padding: 40px 20px;">
@@ -636,15 +713,15 @@ function renderLensSpecificStrategicInsights(lensType) {
 }
 
 /**
- * Initialize Strategic Insights after dashboard render
+ * Initialize EA Portfolio Analysis after dashboard render
  * Loads insights from localStorage and updates DOM
  * @param {string} lensType - 'business' or 'technology'
  */
 function initStrategicInsights(lensType) {
-    console.log(`[Strategic Insights Init] 🔍 Function called for ${lensType} lens`);
+    console.log(`[EA Portfolio Analysis Init] 🔍 Function called for ${lensType} lens`);
     
     // Deep inspection of engagementManager
-    console.log(`[Strategic Insights Init] 🔬 Deep inspection:`, {
+    console.log(`[EA Portfolio Analysis Init] 🔬 Deep inspection:`, {
         hasWindow: typeof window !== 'undefined',
         hasEngagementManager: !!window.engagementManager,
         engagementManagerType: typeof window.engagementManager,
@@ -658,14 +735,14 @@ function initStrategicInsights(lensType) {
     // CORRECT PROPERTY PATH: engagement.id (nested structure)
     const engagementId = currentEngagement?.engagement?.id;
     
-    console.log(`[Strategic Insights Init] 🔍 Engagement check:`, {
+    console.log(`[EA Portfolio Analysis Init] 🔍 Engagement check:`, {
         hasModel: !!currentEngagement,
         hasEngagement: !!currentEngagement?.engagement,
         engagementId: engagementId || 'NOT FOUND'
     });
     
     if (!engagementId) {
-        console.warn(`[Strategic Insights Init] ⚠️ No engagement loaded yet for ${lensType} lens - will retry on next render`);
+        console.warn(`[EA Portfolio Analysis Init] ⚠️ No engagement loaded yet for ${lensType} lens - will retry on next render`);
         return;
     }
     
@@ -673,7 +750,7 @@ function initStrategicInsights(lensType) {
     const savedInsights = localStorage.getItem(storageKey);
     const insightsData = savedInsights ? JSON.parse(savedInsights) : null;
     
-    console.log(`[Strategic Insights Init] Loading ${lensType} insights:`, {
+    console.log(`[EA Portfolio Analysis Init] Loading ${lensType} insights:`, {
         engagementId,
         storageKey,
         hasInsights: !!savedInsights,
@@ -682,10 +759,13 @@ function initStrategicInsights(lensType) {
     
     // If insights exist, use the new card grid renderer
     if (insightsData && insightsData.insights && insightsData.insights.length > 0) {
-        console.log(`[Strategic Insights Init] ✅ Found ${insightsData.insights.length} ${lensType} insights, rendering with card grid`);
+        console.log(`[EA Portfolio Analysis Init] ✅ Found ${insightsData.insights.length} ${lensType} insights, rendering with card grid`);
         renderLensInsightsResults(insightsData, lensType);
+        
+        // Enable regenerate button if insights exist
+        enableRegenerateButton(lensType, false); // false = not due to changes, just showing existing insights
     } else {
-        console.log(`[Strategic Insights Init] No insights found for ${lensType} lens`);
+        console.log(`[EA Portfolio Analysis Init] No insights found for ${lensType} lens`);
     }
 }
 
@@ -1033,6 +1113,9 @@ function initializeDragAndDrop(domains) {
  * @param {string} lensType - Lens type: 'business', 'technology', or 'serviceTower'
  */
 function moveApplicationToDomain(appName, sourceDomain, targetDomain, lensType = 'business') {
+    // CRITICAL FIX: Deduplicate before moving to ensure clean state
+    deduplicateThreeLensDomainArrays();
+    
     const engagementManager = window.engagementManager;
     if (!engagementManager) {
         alert('Engagement Manager not available');
@@ -1042,6 +1125,9 @@ function moveApplicationToDomain(appName, sourceDomain, targetDomain, lensType =
     // Find application by name
     const allApplications = engagementManager.getEntities('applications') || [];
     const app = allApplications.find(a => a.name === appName);
+    
+    // Mark that portfolio has changed - enable regenerate button
+    markPortfolioAsChanged(lensType);
 
     if (!app) {
         console.error('[Drag-Drop] Application not found:', appName);
@@ -1058,10 +1144,13 @@ function moveApplicationToDomain(appName, sourceDomain, targetDomain, lensType =
         app.department = targetDomain; // Keep in sync for legacy compatibility
         lensFieldName = 'businessDomain';
         lensDisplayName = 'Business Domain';
+        console.log(`[Drag-Drop] ✅ Updated Business Domain: ${targetDomain}`);
     } else if (lensType === 'technology') {
         app.technologyDomain = targetDomain;
+        app.technologyStack = targetDomain; // ENHANCEMENT: Also update Technology Stack attribute
         lensFieldName = 'technologyDomain';
         lensDisplayName = 'Technology Domain';
+        console.log(`[Drag-Drop] ✅ Updated Technology Domain AND Technology Stack: ${targetDomain}`);
     } else if (lensType === 'serviceTower') {
         app.serviceTower = targetDomain;
         lensFieldName = 'serviceTower';
@@ -1107,6 +1196,53 @@ function moveApplicationToDomain(appName, sourceDomain, targetDomain, lensType =
             }
             console.log(`[Drag-Drop] Updated three-lens data (${lensType} only) for: ${appName}`);
             
+            // CRITICAL: Update domain arrays - move app from source to target domain
+            const domainsArray = lensType === 'business' 
+                ? window.threeLensData.businessDomains 
+                : lensType === 'technology' 
+                ? window.threeLensData.technologyDomains 
+                : window.threeLensData.serviceTowers;
+            
+            if (domainsArray) {
+                // CRITICAL FIX: Remove app from ALL domains first to prevent duplicates
+                // This handles edge cases where app might exist in multiple domains
+                domainsArray.forEach(domain => {
+                    if (domain.apps) {
+                        const appIndex = domain.apps.findIndex(a => a.name === appName);
+                        if (appIndex > -1) {
+                            domain.apps.splice(appIndex, 1);
+                            console.log(`[Drag-Drop] ✅ Removed ${appName} from ${domain.name} (${domain.apps.length} apps remaining)`);
+                        }
+                    }
+                });
+                
+                // Add app to target domain's apps array
+                let targetDomainObj = domainsArray.find(d => d.name === targetDomain);
+                if (!targetDomainObj) {
+                    // Create domain if it doesn't exist
+                    targetDomainObj = {
+                        name: targetDomain,
+                        apps: [],
+                        color: '#006B3F',
+                        cardAccent: '#f0fdf4'
+                    };
+                    domainsArray.push(targetDomainObj);
+                    console.log(`[Drag-Drop] ✅ Created new domain: ${targetDomain}`);
+                }
+                if (!targetDomainObj.apps) {
+                    targetDomainObj.apps = [];
+                }
+                
+                // CRITICAL FIX: Check if app already exists in target before adding (extra safety)
+                const alreadyExists = targetDomainObj.apps.some(a => a.name === appName);
+                if (!alreadyExists) {
+                    targetDomainObj.apps.push(threeLensApp);
+                    console.log(`[Drag-Drop] ✅ Added ${appName} to ${targetDomain} (${targetDomainObj.apps.length} apps total)`);
+                } else {
+                    console.log(`[Drag-Drop] ⚠️ ${appName} already exists in ${targetDomain}, skipping add`);
+                }
+            }
+            
             // Save updated three-lens data back to localStorage
             const engagementManager = window.engagementManager;
             const currentEngagement = engagementManager?.getCurrentEngagement();
@@ -1117,8 +1253,9 @@ function moveApplicationToDomain(appName, sourceDomain, targetDomain, lensType =
         }
     }
 
-    // Mark dashboard as stale (show regenerate badge) but DON'T auto-regenerate
-    invalidateASISDashboard();
+    // DON'T mark dashboard as stale - drag & drop updates attributes directly
+    // No need for AI regeneration
+    // invalidateASISDashboard(); // REMOVED - manual classification doesn't need regeneration
     
     // Re-render ONLY the current lens view to show visual update (NO full reload)
     if (window.threeLensData) {
@@ -1304,11 +1441,11 @@ function moveApplicationToDomain(appName, sourceDomain, targetDomain, lensType =
         }
     }
     
-    // Show notification with regenerate hint
+    // Show success notification
     showASISNotification(
-        `✅ ${appName} → ${targetDomain} (${lensDisplayName})\n💡 Click "Regenerate Dashboard" to update AI classification`, 
+        `✅ ${appName} moved to ${targetDomain}`, 
         'success', 
-        5000
+        3000
     );
 }
 
@@ -2690,14 +2827,48 @@ function hideAIProgress() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// STRATEGIC INSIGHTS GENERATION (User-Triggered)
+// EA PORTFOLIO ANALYSIS GENERATION (User-Triggered)
 // ═══════════════════════════════════════════════════════════════════
 
 /**
- * Generate strategic insights (user-triggered)
+ * Mark portfolio as changed - enables regenerate button for insights
+ */
+function markPortfolioAsChanged(lensType) {
+    console.log(`[Portfolio Change] 📝 Marking ${lensType} portfolio as changed`);
+    
+    // Enable both lens buttons (business and technology) since changes affect both
+    enableRegenerateButton('business', true);
+    enableRegenerateButton('technology', true);
+    
+    // Store change timestamp
+    const timestamp = Date.now();
+    sessionStorage.setItem('asis_portfolio_last_change', timestamp.toString());
+    sessionStorage.setItem(`asis_portfolio_changed_${lensType}`, 'true');
+    
+    console.log(`[Portfolio Change] ✅ Regenerate buttons enabled`);
+}
+
+/**
+ * Enable/disable regenerate button for specific lens
+ */
+function enableRegenerateButton(lensType, enabled) {
+    const button = document.getElementById(`regenerate-insights-btn-${lensType}`);
+    if (button) {
+        button.disabled = !enabled;
+        button.style.opacity = enabled ? '1' : '0.5';
+        button.style.cursor = enabled ? 'pointer' : 'not-allowed';
+        button.title = enabled 
+            ? 'Click to regenerate analysis with latest portfolio changes' 
+            : 'Make changes to the portfolio to enable regeneration';
+        console.log(`[Regenerate Button] ${lensType} button ${enabled ? 'enabled' : 'disabled'}`);
+    }
+}
+
+/**
+ * Generate EA Portfolio Analysis (user-triggered)
  */
 async function generateASISInsights(lensType = 'business') {
-    console.log('[ASIS Insights] User triggered insights generation for', lensType, 'lens');
+    console.log('[EA Portfolio Analysis] User triggered analysis generation for', lensType, 'lens');
 
     const generateBtn = document.getElementById(`generate-insights-btn-${lensType}`);
     if (generateBtn) {
@@ -2728,36 +2899,82 @@ async function generateASISInsights(lensType = 'business') {
             const storageKey = `ea_three_lens_insights_${lensType}_${engagementId}`;
             localStorage.setItem(storageKey, JSON.stringify(insights));
             console.log('[ASIS Insights] 💾 Saved', lensType, 'insights to localStorage with timestamp:', insights.generatedAt);
+            
+            // PHASE 3: Auto-sync domain recommendations to opportunities (Business Lens only)
+            if (lensType === 'business' && insights.domainRecommendations && insights.domainRecommendations.length > 0) {
+                console.log('[ASIS Insights] 🌉 Triggering auto-sync to opportunity pipeline...');
+                
+                // Get account ID from current engagement
+                const currentEngagement = window.engagementManager?.getCurrentEngagement();
+                const accountId = currentEngagement?.engagement?.accountId;
+                
+                if (accountId && window.domainOpportunityBridge && window.domainOpportunityBridge.initialized) {
+                    try {
+                        const syncResults = window.domainOpportunityBridge.syncDomainOpportunities(engagementId, accountId);
+                        
+                        if (syncResults.created > 0) {
+                            showASISNotification(
+                                `✅ ${syncResults.created} opportunities auto-created from domain recommendations`,
+                                'success',
+                                5000
+                            );
+                        }
+                        
+                        if (syncResults.skipped > 0) {
+                            console.log(`[ASIS Insights] ⏭️  ${syncResults.skipped} opportunities already exist (skipped)`);
+                        }
+                        
+                        if (syncResults.errors.length > 0) {
+                            console.warn('[ASIS Insights] ⚠️  Sync errors:', syncResults.errors);
+                        }
+                    } catch (bridgeError) {
+                        console.error('[ASIS Insights] Bridge sync failed:', bridgeError);
+                    }
+                } else {
+                    if (!accountId) {
+                        console.warn('[ASIS Insights] Cannot auto-sync: engagement has no accountId');
+                    } else if (!window.domainOpportunityBridge) {
+                        console.warn('[ASIS Insights] Cannot auto-sync: bridge not loaded');
+                    } else {
+                        console.warn('[ASIS Insights] Cannot auto-sync: bridge not initialized');
+                    }
+                }
+            }
         }
 
         // Re-render insights section for this lens
         renderLensInsightsResults(insights, lensType);
 
-        showASISNotification(`Strategic insights generated successfully for ${lensType} lens`, 'success');
+        showASISNotification(`EA Portfolio Analysis generated successfully for ${lensType} lens`, 'success');
 
     } catch (error) {
         hideAIProgress();
-        console.error('[ASIS Insights] Generation failed:', error);
-        showASISNotification('Failed to generate insights: ' + error.message, 'error');
+        console.error('[EA Portfolio Analysis] Generation failed:', error);
+        showASISNotification('Failed to generate analysis: ' + error.message, 'error');
         
         if (generateBtn) {
             generateBtn.disabled = false;
-            generateBtn.innerHTML = '<i class="fas fa-sparkles"></i> Generate Strategic Insights';
+            generateBtn.innerHTML = '<i class="fas fa-sparkles"></i> Generate EA Portfolio Analysis';
         }
+    } finally {
+        // After generation (success or failure), disable the regenerate button until next change
+        enableRegenerateButton(lensType, false);
+        sessionStorage.removeItem(`asis_portfolio_changed_${lensType}`);
     }
 }
 
 /**
- * Regenerate insights
+ * Regenerate EA Portfolio Analysis
  */
 async function regenerateASISInsights(lensType = 'business') {
-    console.log('[ASIS Insights] Regenerating', lensType, 'lens insights');
+    console.log('[EA Portfolio Analysis] Regenerating', lensType, 'lens analysis');
     
     // Clear existing insights from localStorage for this lens
     const engagementId = window.engagementManager?.getCurrentEngagement()?.engagement?.id;
     if (engagementId) {
         const storageKey = `ea_three_lens_insights_${lensType}_${engagementId}`;
         localStorage.removeItem(storageKey);
+        console.log(`[EA Portfolio Analysis] Cleared cached analysis for ${lensType} lens`);
     }
     
     // Trigger generation
@@ -3650,19 +3867,46 @@ ${appList}
         
         console.log('[AS-IS Dashboard V2] ✅ AI classification response received');
         
+        // Extract content text from response object (Responses API format)
+        let content = response;
+        if (response.output_text) {
+            content = response.output_text;
+        } else if (response.choices && response.choices[0]?.message?.content) {
+            content = response.choices[0].message.content;
+        } else if (response.message?.content) {
+            content = response.message.content;
+        }
+        
+        console.log('[AS-IS Dashboard V2] Response content type:', typeof content);
+        
         // Parse AI response
         let classifications;
         try {
-            // Try direct JSON parse
-            classifications = JSON.parse(response);
-        } catch (e) {
-            // Try extracting JSON from markdown code blocks
-            const jsonMatch = response.match(/```json\s*(\{[\s\S]*?\})\s*```/);
-            if (jsonMatch) {
-                classifications = JSON.parse(jsonMatch[1]);
+            // If content is already an object, use it directly
+            if (typeof content === 'object' && content !== null) {
+                classifications = content;
+            } else if (typeof content === 'string') {
+                // Strip markdown code blocks if present
+                const cleanContent = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+                
+                // Try direct JSON parse
+                try {
+                    classifications = JSON.parse(cleanContent);
+                } catch (e) {
+                    // Try extracting JSON from markdown code blocks (legacy format)
+                    const jsonMatch = content.match(/```json\s*(\{[\s\S]*?\})\s*```/);
+                    if (jsonMatch) {
+                        classifications = JSON.parse(jsonMatch[1]);
+                    } else {
+                        throw new Error('Invalid JSON response from AI');
+                    }
+                }
             } else {
-                throw new Error('Invalid JSON response from AI');
+                throw new Error('Unexpected response format');
             }
+        } catch (e) {
+            console.error('[AS-IS Dashboard V2] Failed to parse AI response:', e);
+            throw new Error(`Failed to parse AI response: ${e.message}`);
         }
         
         if (!classifications.classifications || !Array.isArray(classifications.classifications)) {
@@ -3734,6 +3978,9 @@ ${appList}
         // Switch to the updated lens view
         setTimeout(() => switchThreeLens(lensType), 100);
         
+        // Mark portfolio as changed to enable regenerate button
+        markPortfolioAsChanged(lensType);
+        
         showASISNotification(`✅ AI classified ${movedCount} apps successfully`, 'success');
         console.log('[AS-IS Dashboard V2] ✅ AI classification complete:', {
             processed: classifications.classifications.length,
@@ -3757,6 +4004,8 @@ window.renderLensInsightsResults = renderLensInsightsResults;
 window.showASISNotification = showASISNotification;
 window.classifyUnknownDomainsWithAI = classifyUnknownDomainsWithAI;
 window.switchThreeLens = switchThreeLens;
+window.markPortfolioAsChanged = markPortfolioAsChanged;
+window.enableRegenerateButton = enableRegenerateButton;
 
 // console.log('[ASIS Dashboard Renderer] ✅ Loaded v5.41 - Nordic Colors - Functions exposed to window:', {
 //     renderASISDashboard: typeof window.renderASISDashboard,

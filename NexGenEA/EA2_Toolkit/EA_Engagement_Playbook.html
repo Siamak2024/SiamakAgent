@@ -13,6 +13,7 @@
     <script src="../../AzureOpenAIProxy.js"></script>
     <script src="../../js/EA_Config.js"></script>
     <script src="../../js/EA_AccountManager.js?v=2026"></script>
+    <script src="../../js/ea_domain_opportunity_bridge.js?v=1.0"></script>
     <script src="../../js/EA_DataManager.js"></script>
     <script src="../../js/EA_EngagementManager.js"></script>
     <script src="../../js/EA_AIAssistant.js"></script>
@@ -3539,6 +3540,19 @@
             if (typeof EA_AccountManager !== 'undefined') {
                 window.accountManager = new EA_AccountManager();
                 // console.log('✓ EA_AccountManager initialized for account integration');
+                
+                // PHASE 3: Initialize Domain → Opportunity Bridge
+                if (typeof EA_DomainOpportunityBridge !== 'undefined') {
+                    // Ensure bridge instance exists
+                    if (!window.domainOpportunityBridge) {
+                        window.domainOpportunityBridge = new EA_DomainOpportunityBridge();
+                    }
+                    // Initialize with accountManager
+                    window.domainOpportunityBridge.init(window.accountManager);
+                    console.log('✓ Domain→Opportunity Bridge initialized');
+                } else {
+                    console.warn('EA_DomainOpportunityBridge not loaded - auto-sync disabled');
+                }
             } else {
                 console.warn('EA_AccountManager not loaded - account linking disabled');
             }
@@ -3547,6 +3561,21 @@
             engagementManager = new EA_EngagementManager();
             window.engagementManager = engagementManager; // Expose to window for WhiteSpot module
             // console.log('✓ EA_EngagementManager initialized');
+            
+            // PHASE 3: Auto-sync existing domain recommendations on page load
+            // This ensures any previously generated recommendations are synced to opportunities
+            if (window.domainOpportunityBridge && window.domainOpportunityBridge.initialized) {
+                setTimeout(() => {
+                    const syncResults = window.domainOpportunityBridge.syncAllAvailableRecommendations();
+                    if (syncResults.totalCreated > 0) {
+                        showNotification(
+                            `✅ ${syncResults.totalCreated} opportunities auto-synced from existing domain recommendations`,
+                            'success',
+                            5000
+                        );
+                    }
+                }, 2000); // Wait 2s for engagementManager to fully load
+            }
             
             // Initialize workflow engine
             if (typeof EA_WorkflowEngine !== 'undefined') {
